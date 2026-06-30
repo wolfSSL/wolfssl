@@ -168,3 +168,38 @@ EXTRA_DIST += scripts/bench/bench_functions.sh
 EXTRA_DIST += scripts/benchmark_compare.sh
 
 EXTRA_DIST += scripts/user_settings_asm.sh
+
+# SBOM generator (invoked from `make sbom` in the top-level Makefile.am).
+# Must be in the dist tarball, otherwise `make dist && cd <tarball> &&
+# ./configure && make sbom` fails for downstream consumers.
+EXTRA_DIST += scripts/gen-sbom
+
+# SBOM generator unit tests.  Shipped so downstream consumers building
+# from a release tarball can re-run the regression suite.
+EXTRA_DIST += scripts/test_gen_sbom.py
+
+# Bomsh / OmniBOR provenance verifier (invoked from `.github/workflows/
+# sbom.yml` and runnable by hand against any local `make bomsh` output;
+# see doc/SBOM.md sec. 3.5).  Must ship with the dist tarball so a
+# downstream consumer / CRA reviewer who clones a release tarball can
+# re-verify the OmniBOR graph against its enriched SPDX without going
+# back to the git repo.
+EXTRA_DIST += scripts/bomsh_verify.py
+
+# Security advisory generator (invoked from `make advisory`), its canonical
+# CWE-name catalogue, and the VEX overlay schema + example.  Shipped so a
+# downstream consumer building from a release tarball can run `make advisory`.
+EXTRA_DIST += scripts/gen-advisory \
+              scripts/cwe-names.json \
+              scripts/advisory-vex-overlay.schema.json \
+              scripts/advisory-vex-overlay.example.json
+
+# Advisory regression suite + CSAF 2.0 conformance gate, with the frozen CVE
+# fixtures they run against.  Shipped so a downstream consumer / CRA reviewer
+# can re-run the advisory tests from a release tarball.
+EXTRA_DIST += scripts/csaf_validate.mjs \
+              scripts/test_gen_advisory.py \
+              scripts/testdata/README.md \
+              scripts/testdata/CVE-2026-5501.json \
+              scripts/testdata/CVE-2026-5778.json \
+              scripts/testdata/CVE-2026-5999.json

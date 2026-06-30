@@ -313,3 +313,164 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     Docker container, use `make rpm-docker`. In both cases the
     resulting packages are placed in the root directory of the
     project.
+
+19. Generating an SBOM (Software Bill of Materials)
+
+    wolfSSL can generate a Software Bill of Materials for EU Cyber Resilience
+    Act (CRA) compliance.  Two entry points are supported, depending on how
+    you build wolfSSL.
+
+    --- 19a. Embedded / RTOS / IDE-based builds (no autotools) ----------
+
+    For customers building wolfSSL from a hand-edited user_settings.h with
+    their own Makefile, Keil MDK, IAR EWARM, STM32CubeIDE, ESP-IDF,
+    Zephyr, or plain CMake, invoke scripts/gen-sbom directly.  No
+    ./configure, no autotools.
+
+    Prerequisites:
+      - python3
+      - pcpp     (pip install pcpp)            # required for --user-settings
+      - spdx-tools (pip install spdx-tools)    # optional; for SPDX validation
+
+    Usage:
+
+      $ python3 wolfssl/scripts/gen-sbom \
+            --name wolfssl --version 5.9.1 \
+            --license-file wolfssl/LICENSING \
+            --user-settings wolfssl/wolfssl/wolfcrypt/settings.h \
+            --user-settings-include wolfssl \
+            --user-settings-include path/to/your/user_settings_dir \
+            --user-settings-define WOLFSSL_USER_SETTINGS \
+            --srcs wolfssl/wolfcrypt/src/aes.c [...your wolfssl source list] \
+            --cdx-out wolfssl-5.9.1.cdx.json \
+            --spdx-out wolfssl-5.9.1.spdx.json
+
+    The component checksum is a deterministic OmniBOR-compatible Merkle
+    hash over the source files you compile into your firmware, so you do
+    not need to synthesize a separate libwolfssl.a just for SBOM purposes.
+
+    See doc/SBOM.md section 1 for per-toolchain recipes (Keil, IAR,
+    STM32CubeIDE, ESP-IDF, Zephyr, CMake) and the full flag reference.
+
+    --- 19b. Linux / autotools builds ----------------------------------
+
+    For Debian, RPM, Yocto, FIPS-Ready, and other builds that already use
+    ./configure && make:
+
+    Prerequisites:
+      - python3 (detected automatically by configure)
+      - pyspdxtools (pip install spdx-tools)
+
+    Usage:
+
+      $ ./configure
+      $ make
+      $ make sbom
+
+    This produces three files in the build directory:
+
+      wolfssl-<version>.cdx.json   CycloneDX 1.6 JSON
+      wolfssl-<version>.spdx.json  SPDX 2.3 JSON
+      wolfssl-<version>.spdx       SPDX 2.3 tag-value (validated by pyspdxtools)
+
+    The SPDX JSON is validated by pyspdxtools before the tag-value file is
+    written; make sbom fails if validation fails.
+
+    `make sbom` is a thin convenience wrapper around the same
+    scripts/gen-sbom Python entry point that section 19a uses, with all
+    paths resolved automatically from the autotools build tree.
+
+    To install the SBOM files to $(datadir)/doc/wolfssl/:
+
+      $ make install-sbom
+
+    To remove installed SBOM files:
+
+      $ make uninstall-sbom
+
+    The generated files are removed by make clean.
+
+    For details on the SBOM contents and CRA context, see doc/SBOM.md.
+
+20. Generating OmniBOR build artifact graph (Bomsh)
+
+    wolfSSL supports generating an OmniBOR artifact dependency graph using
+    the Bomsh project (https://github.com/omnibor/bomsh).  OmniBOR provides
+    cryptographic traceability from every binary artifact back to the exact
+    source files that produced it.
+
+    Prerequisites:
+      - bomtrace3 (build from https://github.com/omnibor/bomsh)
+      - bomsh_create_bom.py (from the bomsh scripts/ directory, in PATH)
+      - bomsh_sbom.py (optional; from bomsh scripts/, for SPDX enrichment)
+
+    Both bomtrace3 and the Python scripts are detected by configure.
+    make bomsh fails with a clear error message if either required tool
+    is missing.
+
+    Usage:
+
+      $ ./configure
+      $ make
+      $ make bomsh
+
+    This performs a clean rebuild of wolfSSL under bomtrace3 tracing,
+    then produces an OmniBOR artifact graph in omnibor/ in the build
+    directory.  If bomsh_sbom.py is available and a wolfssl-<ver>.spdx.json
+    exists (from 'make sbom'), it also produces an OmniBOR-enriched SPDX
+    document omnibor.wolfssl-<ver>.spdx.json.
+
+    To install:
+
+      $ make install-bomsh   # installs omnibor/ to $(datadir)/doc/wolfssl/
+      $ make uninstall-bomsh # removes installed files
+
+    The generated files are removed by make clean.
+
+    See doc/SBOM.md for full details.
+
+21. Generating security advisories (CSAF 2.0 + CycloneDX VEX)
+
+    wolfSSL can generate machine-readable security advisories from a
+    canonical, git-tracked single source of truth.  Each CVE record
+    produces one CSAF 2.0 document and one CycloneDX 1.6 VEX document,
+    suitable for downstream vulnerability tooling and CRA reporting.
+
+    Prerequisites:
+      - python3 (detected automatically by configure)
+
+    Usage:
+
+      $ ./configure
+      $ make advisory
+
+    Inputs (tracked in git):
+
+      advisories/records/*.json    one JSON record per CVE
+      advisories/vex-overlay.json  shared VEX overlay metadata
+
+    Outputs (build artifacts, one pair per record):
+
+      advisories/out/*.csaf.json   CSAF 2.0 JSON
+      advisories/out/*.cdx.json    CycloneDX 1.6 VEX JSON
+
+    Output is reproducible: SOURCE_DATE_EPOCH is honored and defaults to
+    the last git commit timestamp when unset, exactly like make sbom.
+
+    `make advisory` is a thin wrapper around scripts/gen-advisory and is
+    byte-for-byte interchangeable with running that script by hand:
+
+      $ python3 scripts/gen-advisory \
+          --records-dir advisories/records \
+          --vex-overlay advisories/vex-overlay.json \
+          --out-dir advisories/out
+
+    To install the advisory files to $(datadir)/doc/wolfssl/advisories/:
+
+      $ make install-advisory
+
+    To remove installed advisory files:
+
+      $ make uninstall-advisory
+
+    The generated files are removed by make clean.

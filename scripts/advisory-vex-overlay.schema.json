@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.wolfssl.com/schema/advisory-vex-overlay-1.json",
+  "title": "wolfSSL gen-advisory VEX overlay",
+  "description": "Human-authored VEX determinations keyed by CVE id, consumed by scripts/gen-advisory. The CVE Program record supplies the structural facts (CWE/CVSS/affected ranges); this overlay supplies what the record cannot express in machine-readable form. Enum values mirror the CycloneDX 1.6 vulnerability analysis vocabulary so the same terms map cleanly into both the CSAF and CycloneDX VEX outputs.",
+  "type": "object",
+  "properties": {
+    "_comment": {
+      "type": "string",
+      "description": "Free-text note ignored by gen-advisory."
+    }
+  },
+  "patternProperties": {
+    "^CVE-[0-9]{4}-[0-9]{4,}$": { "$ref": "#/$defs/overlayEntry" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "analysisState": {
+      "type": "string",
+      "description": "CycloneDX 1.6 vulnerability analysis state.",
+      "enum": [
+        "resolved",
+        "resolved_with_pedigree",
+        "exploitable",
+        "in_triage",
+        "false_positive",
+        "not_affected"
+      ]
+    },
+    "justification": {
+      "type": "string",
+      "description": "CycloneDX 1.6 impact analysis justification (required by gen-advisory when state is not_affected so a CSAF flag can be emitted).",
+      "enum": [
+        "code_not_present",
+        "code_not_reachable",
+        "requires_configuration",
+        "requires_dependency",
+        "requires_environment",
+        "protected_by_compiler",
+        "protected_at_perimeter",
+        "protected_at_runtime",
+        "protected_by_mitigating_control"
+      ]
+    },
+    "response": {
+      "type": "array",
+      "description": "CycloneDX 1.6 vulnerability analysis response.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "can_not_fix",
+          "will_not_fix",
+          "update",
+          "rollback",
+          "workaround_available"
+        ]
+      }
+    },
+    "versionList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "fips": {
+      "type": "object",
+      "description": "Optional separately-modelled FIPS product entry. FIPS customers cannot freely upgrade and many CVEs fall outside the validated module boundary, so FIPS is modelled as its own product with its own status and remediation.",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "module_version": { "type": "string", "minLength": 1 },
+        "cmvp_cert": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CMVP certificate number, recorded as a CSAF model_number / CycloneDX property."
+        },
+        "status": { "$ref": "#/$defs/analysisState" },
+        "justification": { "$ref": "#/$defs/justification" },
+        "fixed_versions": { "$ref": "#/$defs/versionList" },
+        "remediation": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "not_affected" } }, "required": ["status"] },
+          "then": { "required": ["justification"] }
+        }
+      ]
+    },
+    "overlayEntry": {
+      "type": "object",
+      "properties": {
+        "state": { "$ref": "#/$defs/analysisState" },
+        "justification": { "$ref": "#/$defs/justification" },
+        "response": { "$ref": "#/$defs/response" },
+        "detail": { "type": "string" },
+        "fixed_versions": { "$ref": "#/$defs/versionList" },
+        "remediation": { "type": "string", "minLength": 1 },
+        "requires_defines": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Build flags that gate the vulnerable code. Recorded as an informational note only; gen-advisory does NOT compute per-build reachability."
+        },
+        "default_status": {
+          "type": "string",
+          "enum": ["on", "off", "enabled", "disabled"]
+        },
+        "fips": { "$ref": "#/$defs/fips" }
+      },
+      "required": ["state"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "not_affected" } }, "required": ["state"] },
+          "then": { "required": ["justification"] }
+        }
+      ]
+    }
+  }
+}
