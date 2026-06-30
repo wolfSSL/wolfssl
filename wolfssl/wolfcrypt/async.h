@@ -427,6 +427,10 @@ WOLFSSL_API int wc_AsyncSleep(word32 ms);
 
 #ifdef WOLFSSL_ASYNC_CRYPT_SW
     WOLFSSL_API int wc_AsyncSwInit(WC_ASYNC_DEV* dev, int type);
+    /* Test hook: force the given WC_ASYNC_SW_TYPE to complete synchronously
+     * (do not suspend) so the software simulator can reproduce a specific
+     * suspend ordering. Pass ASYNC_SW_NONE to disable. */
+    WOLFSSL_TEST_VIS void wolfAsync_SwForceSyncType(int type);
 #endif
 
 /* Pthread Helpers */
