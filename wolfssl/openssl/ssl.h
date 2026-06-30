@@ -44,6 +44,7 @@
 #include <wolfssl/openssl/evp.h>
 #endif
 #include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/err.h>
 #ifdef OPENSSL_EXTRA
 #include <wolfssl/openssl/crypto.h>
 #endif
@@ -1569,6 +1570,12 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_state                   wolfSSL_get_state
 #define SSL_state_string_long           wolfSSL_state_string_long
 
+#define WOLFSSL_TLS_ST_OK               16
+#define WOLFSSL_SSL_ST_OK               WOLFSSL_TLS_ST_OK
+#define TLS_ST_OK                       WOLFSSL_TLS_ST_OK
+#define SSL_ST_OK                       WOLFSSL_SSL_ST_OK
+#define SSL_F_SSL_SET_FD                WOLFSSL_SSL_F_SSL_SET_FD
+
 #define GENERAL_NAME_new                wolfSSL_GENERAL_NAME_new
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAME_dup                wolfSSL_GENERAL_NAME_dup
@@ -1739,16 +1746,43 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_R_DATA_LENGTH_TOO_LONG                 BUFFER_ERROR
 #define SSL_R_ENCRYPTED_LENGTH_TOO_LONG            BUFFER_ERROR
 #define SSL_R_BAD_LENGTH                           BUFFER_ERROR
-#define SSL_R_UNKNOWN_PROTOCOL                     VERSION_ERROR
-#define SSL_R_WRONG_VERSION_NUMBER                 VERSION_ERROR
+#define SSL_R_UNKNOWN_PROTOCOL WOLFSSL_SSL_R_UNKNOWN_PROTOCOL
+#define SSL_R_WRONG_VERSION_NUMBER WOLFSSL_SSL_R_WRONG_VERSION_NUMBER
 #define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC  ENCRYPT_ERROR
 #define SSL_R_HTTPS_PROXY_REQUEST                  PARSE_ERROR
 #define SSL_R_HTTP_REQUEST                         PARSE_ERROR
-#define SSL_R_UNSUPPORTED_PROTOCOL                 VERSION_ERROR
+#define SSL_R_UNSUPPORTED_PROTOCOL WOLFSSL_SSL_R_UNSUPPORTED_PROTOCOL
+#define SSL_R_NO_PROTOCOLS_AVAILABLE \
+    WOLFSSL_SSL_R_NO_PROTOCOLS_AVAILABLE
+#define SSL_R_BAD_PROTOCOL_VERSION_NUMBER \
+    WOLFSSL_SSL_R_BAD_PROTOCOL_VERSION_NUMBER
+#define SSL_R_UNKNOWN_SSL_VERSION WOLFSSL_SSL_R_UNKNOWN_SSL_VERSION
+#define SSL_R_UNSUPPORTED_SSL_VERSION \
+    WOLFSSL_SSL_R_UNSUPPORTED_SSL_VERSION
+#define SSL_R_WRONG_SSL_VERSION WOLFSSL_SSL_R_WRONG_SSL_VERSION
+#define SSL_R_TLSV1_ALERT_PROTOCOL_VERSION \
+    WOLFSSL_SSL_R_TLSV1_ALERT_PROTOCOL_VERSION
 #define SSL_R_CERTIFICATE_VERIFY_FAILED            VERIFY_CERT_ERROR
 #define SSL_R_CERT_CB_ERROR                        CLIENT_CERT_CB_ERROR
 #define SSL_R_NULL_SSL_METHOD_PASSED               BAD_FUNC_ARG
 #define SSL_R_CCS_RECEIVED_EARLY                   OUT_OF_ORDER_E
+#define ERR_R_BUF_LIB WOLFSSL_ERR_R_BUF_LIB
+#define BIO_TYPE_DESCRIPTOR WOLFSSL_BIO_TYPE_DESCRIPTOR
+#define BIO_TYPE_SOURCE_SINK WOLFSSL_BIO_TYPE_SOURCE_SINK
+#define BIO_get_app_data(bio) wolfSSL_BIO_get_data(bio)
+#define BIO_set_app_data(bio, data) \
+    wolfSSL_BIO_set_data((bio), (data))
+#define BIO_get_new_index wolfSSL_BIO_get_new_index
+#define BIO_meth_get_gets wolfSSL_BIO_meth_get_gets
+#define BIO_meth_get_puts wolfSSL_BIO_meth_get_puts
+#define BIO_meth_get_ctrl wolfSSL_BIO_meth_get_ctrl
+#define BIO_meth_get_create wolfSSL_BIO_meth_get_create
+#define BIO_meth_get_destroy wolfSSL_BIO_meth_get_destroy
+#define BIO_meth_get_callback_ctrl wolfSSL_BIO_meth_get_callback_ctrl
+#define BIO_meth_set_callback_ctrl wolfSSL_BIO_meth_set_callback_ctrl
+#ifndef BUILDING_WOLFSSL
+#define OBJ_find_sigid_algs wolfSSL_OBJ_find_sigid_algs
+#endif
 
 #ifdef HAVE_SESSION_TICKET
 #define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72

@@ -188,6 +188,37 @@
 #define BIO_meth_set_create        wolfSSL_BIO_meth_set_create
 #define BIO_meth_set_destroy       wolfSSL_BIO_meth_set_destroy
 
+#define WOLFSSL_BIO_TYPE_DESCRIPTOR  0x0100
+#define WOLFSSL_BIO_TYPE_SOURCE_SINK 0x0400
+
+/* OpenSSL allocates a fresh BIO type index per call; wolfSSL
+ * untracked, so return a fixed app-range index. */
+static WC_INLINE int wolfSSL_BIO_get_new_index(void) { return 1000; }
+
+/* wolfSSL does not store these BIO method callbacks; getters
+ * report none, set_callback_ctrl is a no-op. */
+static WC_INLINE void *
+wolfSSL_BIO_meth_get_gets(WOLFSSL_BIO_METHOD *m)
+{ (void)m; return NULL; }
+static WC_INLINE void *
+wolfSSL_BIO_meth_get_puts(WOLFSSL_BIO_METHOD *m)
+{ (void)m; return NULL; }
+static WC_INLINE void *
+wolfSSL_BIO_meth_get_ctrl(WOLFSSL_BIO_METHOD *m)
+{ (void)m; return NULL; }
+static WC_INLINE void *
+wolfSSL_BIO_meth_get_create(WOLFSSL_BIO_METHOD *m)
+{ (void)m; return NULL; }
+static WC_INLINE void *
+wolfSSL_BIO_meth_get_destroy(WOLFSSL_BIO_METHOD *m)
+{ (void)m; return NULL; }
+static WC_INLINE void *
+wolfSSL_BIO_meth_get_callback_ctrl(WOLFSSL_BIO_METHOD *m)
+{ (void)m; return NULL; }
+static WC_INLINE int
+wolfSSL_BIO_meth_set_callback_ctrl(WOLFSSL_BIO_METHOD *m, void *cb)
+{ (void)m; (void)cb; return 1; }
+
 #define BIO_snprintf               XSNPRINTF
 
 /* BIO CTRL */

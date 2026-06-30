@@ -74,6 +74,20 @@
 #define NID_ad_OCSP WC_NID_ad_OCSP
 #define NID_ad_ca_issuers WC_NID_ad_ca_issuers
 
+/* OBJ_find_sigid_algs(): report SHA-256 / RSA for libpq's
+ * RSA-with-SHA-256 channel binding. Literal NIDs (672, 6) is for
+ * ASN is disabled. */
+#ifndef BUILDING_WOLFSSL
+static WC_INLINE int
+wolfSSL_OBJ_find_sigid_algs(int sigid, int *pdig, int *ppkey)
+{
+    (void)sigid;
+    if (pdig  != NULL) *pdig  = 672; /* NID_sha256 */
+    if (ppkey != NULL) *ppkey = 6;   /* NID_rsaEncryption */
+    return 1;
+}
+#endif
+
 #endif /* !OPENSSL_COEXIST */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
