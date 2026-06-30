@@ -22020,6 +22020,35 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
     }
 
+#ifdef WOLFSSL_CERT_REJECT_TRAILING
+    /* Reject trailing data after the certificate's outer SEQUENCE.
+     *
+     * The template parser (GetASN_Items) only verifies that constructed items
+     * nested under the top-level item are fully consumed - it never checks that
+     * the outermost SEQUENCE spans all the way to maxIdx. Without this check,
+     * arbitrary bytes appended after a certificate are silently accepted and
+     * then returned/hashed verbatim by wolfSSL_i2d_X509 / wolfSSL_X509_get_der /
+     * wolfSSL_X509_digest (which operate on the stored source buffer of length
+     * maxIdx).
+     *
+     * cert->srcIdx points just past the certificate's outer SEQUENCE after the
+     * x509CertASN parse above. Only enforce this on a full parse; the
+     * pubkey-only paths (stopAtPubKey/stopAfterPubKey) intentionally parse the
+     * whole template but their callers may pass larger buffers. The TRUSTED
+     * CERTIFICATE format legitimately carries auxiliary trust data after the
+     * certificate, so allow it when cert->allowTrailing is set. */
+    if ((ret == 0) && (!done) && (!stopAtPubKey) && (!stopAfterPubKey) &&
+            (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)
+#ifdef WOLFSSL_CERT_REQ
+            && (!cert->isCSR)
+#endif
+            ) {
+        WOLFSSL_MSG("Trailing data after certificate");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
+    }
+#endif /* WOLFSSL_CERT_REJECT_TRAILING */
+
     if ((ret == 0) && (!done) && (badDate != 0)) {
         /* Parsed whole certificate fine but return any date errors. */
         ret = badDate;
@@ -23167,6 +23196,20 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    /* TRUSTED CERTIFICATE blobs (RFC/OpenSSL "TRUSTED CERTIFICATE") carry
+     * auxiliary trust data after the certificate. Parse only the certificate
+     * prefix and treat it as a normal certificate for all verification /
+     * path-length logic below. Doing this here (rather than in a single caller)
+     * means any caller of wc_ParseCert()/ParseCertRelative() that passes
+     * TRUSTED_CERT_TYPE gets the correct, consistent behavior. */
+    if (type == TRUSTED_CERT_TYPE) {
+#ifdef WOLFSSL_CERT_REJECT_TRAILING
+        /* Opt out of the trailing-data rejection for the aux trust info. */
+        cert->allowTrailing = 1;
+#endif
+        type = CERT_TYPE;
     }
 
 #ifdef WOLFSSL_CERT_REQ
