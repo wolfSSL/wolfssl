@@ -113,8 +113,12 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
  *  outLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      Falcon key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
- *          BUFFER_E when outLen is less than FALCON_LEVEL1_SIG_SIZE,
+ *  rng         [in]      Random number generator (required by the software
+ *                        signer).
+ *  returns BAD_FUNC_ARG when a parameter is NULL, the private key is not set,
+ *          or (software path) rng is NULL,
+ *          BUFFER_E when outLen is less than the active level's signature size
+ *          (FALCON_LEVEL1_SIG_SIZE or FALCON_LEVEL5_SIG_SIZE),
  *          0 otherwise.
  */
 int wc_falcon_sign_msg(const byte* in, word32 inLen,
@@ -151,7 +155,13 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     (void)rng;
     ret = NOT_COMPILED_IN;
 #else
+    /* Software signer needs a private key and an RNG; validate both here so the
+     * failure is reported at the API boundary rather than deep in the native
+     * signer. */
     if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 

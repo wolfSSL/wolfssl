@@ -84,7 +84,7 @@ typedef int (*falcon_samplerZ)(void* ctx, fpr mu, fpr isigma);
  * success, or a negative wolfCrypt error on out-of-range coefficient or memory
  * allocation failure. */
 WOLFSSL_LOCAL int falcon_complete_private(sword8* G, const sword8* f,
-        const sword8* g, const sword8* F, unsigned logn);
+        const sword8* g, const sword8* F, unsigned logn, void* heap);
 
 /* Expand the private basis (f, g, F, G) into 'expanded' (which must hold
  * FALCON_EXPANDED_KEY_FPR(logn) fpr elements): the B0 matrix in FFT
@@ -92,7 +92,8 @@ WOLFSSL_LOCAL int falcon_complete_private(sword8* G, const sword8* f,
  * of FALCON_SIGN_TMP_FPR(logn) fpr. Returns 0 on success or a negative
  * wolfCrypt error. */
 WOLFSSL_LOCAL int falcon_expand_privkey(fpr* expanded, const sword8* f,
-        const sword8* g, const sword8* F, const sword8* G, unsigned logn);
+        const sword8* g, const sword8* F, const sword8* G, unsigned logn,
+        void* heap);
 
 /* Fast Fourier sampling: sample the target (t0, t1) against the ffLDL 'tree',
  * writing the sampled lattice coordinates into (z0, z1). 'tmp' needs room for
@@ -105,10 +106,13 @@ WOLFSSL_LOCAL void falcon_ffSampling_fft(falcon_samplerZ samp, void* samp_ctx,
 /* Produce the signature short vector s2 (n sword16 values) from the expanded
  * key and hashed point hm (n word16 values in [0, q)). Loops over the sampler
  * until the (s1, s2) squared l2-norm is within the Falcon bound. 'tmp' must
- * hold FALCON_SIGN_TMP_FPR(logn) fpr. Returns 0 on success. */
+ * hold FALCON_SIGN_TMP_FPR(logn) fpr. 'samplerErr', if non-NULL, points at the
+ * sampler's sticky error flag; the loop bails out as soon as it becomes
+ * non-zero (a wedged PRNG) instead of running to the restart bound. Returns 0
+ * on success. */
 WOLFSSL_LOCAL int falcon_do_sign_tree(falcon_samplerZ samp, void* samp_ctx,
         sword16* s2, const fpr* expanded, const word16* hm, unsigned logn,
-        fpr* tmp);
+        fpr* tmp, const int* samplerErr);
 
 /* Convenience top-level: sign hashed point c with the expanded key, using the
  * provided (already initialized) sampler context, writing s2. 'tmp' must hold
