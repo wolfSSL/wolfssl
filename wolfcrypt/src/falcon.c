@@ -503,8 +503,14 @@ int wc_falcon_import_private_only(const byte* priv, word32 privSz,
     if (privSz == concatSz) {
         XMEMCPY(key->p, priv + keySz, concatSz - keySz);
         key->pubKeySet = 1;
-        falcon_store_pub_behind_priv(key);
     }
+
+    /* Sync the public copy kept behind the private key whenever both halves are
+     * present. This also covers the raw-size case where a public key was
+     * imported first: without it key->k + KEY_SIZE would stay zero and
+     * wc_falcon_check_key would wrongly return PUBLIC_KEY_E. No-op when no
+     * public key is set. */
+    falcon_store_pub_behind_priv(key);
 
     return 0;
 }

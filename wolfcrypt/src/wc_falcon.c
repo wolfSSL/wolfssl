@@ -849,9 +849,15 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     *outLen = (word32)(1 + FALCON_NONCE_SIZE + compLen);
 
 out:
+    /* Free the sampler's SHAKE256 context before zeroizing. wc_Shake256_Free
+     * releases the async device context allocated by wc_InitShake256 in
+     * WOLFSSL_ASYNC_CRYPT builds; without it that context leaks on every sign.
+     * Only when falcon_sampler_init succeeded (haveSpc) is the context live. */
+    if (haveSpc) {
+        wc_Shake256_Free(&spc.p.shake);
+    }
     /* Always zeroize: the SHAKE sponge may hold seed-derived state even if
      * falcon_sampler_init failed after absorbing the seed. */
-    (void)haveSpc;
     ForceZero(&spc, sizeof(spc));
     if (f != NULL)     { ForceZero(f, (word32)n); XFREE(f, heap, DYNAMIC_TYPE_TMP_BUFFER); }
     if (g != NULL)     { ForceZero(g, (word32)n); XFREE(g, heap, DYNAMIC_TYPE_TMP_BUFFER); }
