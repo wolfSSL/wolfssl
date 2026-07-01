@@ -1,0 +1,45 @@
+{
+  "_comment": "Human-authored VEX determinations keyed by CVE id. The CVE Program record carries the structural facts (CWE/CVSS/affected ranges); this overlay carries what it cannot express in machine-readable form: the analysis state, the not-affected justification, the response, free-text scope detail, the mainline fixed release version(s), an optional separately-modelled FIPS product entry, and an optional no-cost build-reachability hedge (requires_defines / default_status). The FIPS module_version and cmvp_cert values below are ILLUSTRATIVE placeholders; substitute the real validated module version and CMVP certificate number. gen-advisory folds these into both the CSAF and CycloneDX VEX outputs. requires_defines/default_status are recorded as informational notes only -- this tool does not compute per-build reachability.",
+
+  "CVE-2026-5501": {
+    "state": "exploitable",
+    "response": ["update"],
+    "detail": "Limited to applications using the OpenSSL compatibility API directly (wolfSSL_X509_verify_cert), such as nginx and haproxy integrations. The native wolfSSL TLS handshake path (ProcessPeerCerts) is not susceptible.",
+    "fixed_versions": ["5.9.1"],
+    "remediation": "Update to wolfSSL 5.9.1 or later, or avoid relying on wolfSSL_X509_verify_cert in the OpenSSL compatibility layer for chain validation.",
+    "fips": {
+      "name": "wolfCrypt FIPS 140-3 Module",
+      "module_version": "5.2.1",
+      "cmvp_cert": "4718",
+      "status": "not_affected",
+      "justification": "code_not_present",
+      "remediation": "No action required for the FIPS-validated module: the affected OpenSSL compatibility layer (wolfSSL_X509_verify_cert) is outside the wolfCrypt FIPS module boundary."
+    }
+  },
+
+  "CVE-2026-5778": {
+    "state": "exploitable",
+    "response": ["update"],
+    "detail": "Integer underflow in the ChaCha20-Poly1305 decryption path of the packet sniffer.",
+    "requires_defines": ["WOLFSSL_SNIFFER", "HAVE_CHACHA", "HAVE_POLY1305"],
+    "default_status": "off",
+    "fixed_versions": ["5.9.1"],
+    "remediation": "Update to wolfSSL 5.9.1 or later. Builds without --enable-sniffer are not affected.",
+    "fips": {
+      "name": "wolfCrypt FIPS 140-3 Module",
+      "module_version": "5.2.1",
+      "cmvp_cert": "4718",
+      "status": "not_affected",
+      "justification": "code_not_present",
+      "remediation": "No action required for the FIPS-validated module: the packet sniffer (src/sniffer.c) is outside the wolfCrypt FIPS module boundary."
+    }
+  },
+
+  "CVE-2026-5999": {
+    "state": "exploitable",
+    "response": ["update"],
+    "detail": "Synthetic fixture overlay: a simple mainline-only finding (no separate FIPS product) used to exercise the CVSS v3.1 scores[] path.",
+    "fixed_versions": ["5.9.1"],
+    "remediation": "Update to wolfSSL 5.9.1 or later."
+  }
+}

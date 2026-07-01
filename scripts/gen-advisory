@@ -1,0 +1,900 @@
+#!/usr/bin/env python3
+"""Generate CSAF 2.0 advisories and CycloneDX 1.6 VEX documents from wolfSSL
+CVE Program records (CVE JSON 5.x).
+
+The CVE record (the authoritative artefact wolfSSL authors as a CNA, e.g. with
+Vulnogram and published to cve.org / cvelistV5) supplies the structural facts:
+CVE id, title, description, CWE, CVSS, affected/fixed version ranges,
+references, credits, and dates.
+
+What a CVE record does NOT carry in machine-readable form is the VEX
+*determination* and the wolfSSL-specific product nuances.  Those live in a
+small per-CVE overlay (--vex-overlay):
+
+  * state / justification / response / detail  -- the VEX determination.
+  * fixed_versions / remediation               -- the mainline fix guidance.
+  * fips { ... }                               -- a separate FIPS product entry
+        (own module version + CMVP certificate, own status, own remediation):
+        FIPS customers cannot freely upgrade, and many CVEs fall outside the
+        FIPS module boundary, so FIPS is modelled as a distinct product.
+  * requires_defines / default_status          -- a no-cost hedge: which build
+        flag gates the vulnerable code.  Recorded as an informational note
+        only; this tool does NOT compute per-build reachability (that would be
+        a future, safety-critical "build-aware VEX" feature).
+
+Granularity follows Red Hat's model: per-CVE is the default (the VEX
+automation primitive); pass several records to emit one *bundled* per-release
+CSAF advisory + one CycloneDX BOM carrying all vulnerabilities[].
+
+This mirrors scripts/gen-sbom: pure stdlib, SOURCE_DATE_EPOCH-reproducible,
+deterministic UUIDs, fail-rather-than-emit-garbage on malformed input.
+"""
+
+import argparse
+import json
+import os
+import pathlib
+import sys
+import urllib.request
+import uuid
+from datetime import datetime, timezone
+
+
+GEN_TOOL_NAME = 'wolfssl-advisory-gen'
+GEN_TOOL_VERSION = '0.3'
+
+_SCRIPTS_DIR = pathlib.Path(__file__).resolve().parent
+_REPO_ROOT = _SCRIPTS_DIR.parent
+
+# Canonical single-source-of-truth for wolfSSL advisories.  `make advisory`
+# and a bare `gen-advisory` invocation both default to these locations, so the
+# tool and the build target are interchangeable.  testdata/ is a *separate*,
+# frozen copy used only by the test suite (see scripts/testdata/README.md).
+DEFAULT_RECORDS_DIR = _REPO_ROOT / 'advisories' / 'records'
+DEFAULT_OVERLAY = _REPO_ROOT / 'advisories' / 'vex-overlay.json'
+DEFAULT_OUT_DIR = _REPO_ROOT / 'advisories' / 'out'
+
+# Official CWE id -> name catalogue, shipped alongside this script.  CSAF
+# mandatory test 6.1.11 requires /vulnerabilities[]/cwe/name to be the *exact*
+# MITRE name for the id, so we resolve the name from the catalogue rather than
+# trusting the (often differently-cased) free text in the CVE record's
+# problemType.  Regenerate scripts/cwe-names.json from the official CWE list
+# when MITRE publishes a new version.
+_CWE_NAMES_PATH = _SCRIPTS_DIR / 'cwe-names.json'
+
+
+def _load_cwe_names():
+    try:
+        with open(_CWE_NAMES_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        # Absence is non-fatal: gen-advisory simply omits cwe.name (and hence
+        # the whole cwe object) from CSAF, which keeps the output conformant.
+        return {}
+
+
+CWE_NAMES = _load_cwe_names()
+
+WOLFSSL_VENDOR = 'wolfSSL'
+WOLFSSL_PUBLISHER = {
+    'category': 'vendor',
+    'name': 'wolfSSL Inc.',
+    'namespace': 'https://www.wolfssl.com',
+}
+WOLFSSL_ADVISORIES_URL = 'https://www.wolfssl.com/docs/security-vulnerabilities/'
+# Canonical directory under which the generated CSAF JSON documents are
+# published.  CSAF 2.0 requires the document's `self` reference to point at the
+# canonical location of *this* document (not a generic landing page), so the
+# self URL is built as <base>/<tracking-id>.csaf.json, matching the on-disk
+# filename this script writes.
+#
+# DEPLOY-TIME FOLLOW-UPS (not enforced by the CSAF mandatory-test gate in
+# .github/workflows/advisory.yml, which validates document content, not the
+# distribution layout):
+#   - Base URL: this is a placeholder and will 404 until the documents are
+#     actually hosted.  Point it at wolfSSL's real CSAF distribution location.
+#   - Filename convention: CSAF's recommended filename is the tracking id
+#     lowercased with every char outside [+\-a-z0-9] replaced by '_' and a
+#     plain '.json' extension (e.g. cve-2026-5501.json).  We keep the
+#     '<ID>.csaf.json' form here so the self URL stays consistent with the
+#     emitted file and so co-located '<ID>.cdx.json' VEX docs remain glob-
+#     selectable; switch both the self URL and the writer to the canonical
+#     lowercase name when the hosting layout is finalized.
+WOLFSSL_CSAF_BASE_URL = WOLFSSL_ADVISORIES_URL + 'csaf/'
+
+ADVISORY_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL,
+                                     'https://wolfssl.com/advisory/')
+
+# Severity ordering for picking a bundle's aggregate_severity.
+_SEV_RANK = {'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'MODERATE': 2, 'LOW': 1,
+             'NONE': 0}
+
+# CycloneDX analysis.state -> CSAF product_status bucket for the *vulnerable*
+# version ranges (those the CVE record marks status=affected).  Every state in
+# the CycloneDX 1.6 vocabulary (mirrored by the overlay schema) is mapped
+# explicitly; _bucket_for() hard-fails on anything else rather than silently
+# defaulting an unknown determination to the worst case (known_affected).
+#
+# 'resolved' / 'resolved_with_pedigree' map to known_affected on purpose: the
+# ranges placed in this bucket are the vulnerable versions, which remain
+# affected even after a fix ships.  The fixed version is emitted separately
+# into the 'fixed' bucket (see the per-product registration loop), so a
+# resolved CVE correctly reports old ranges as known_affected and the patched
+# release as fixed.  Mapping 'resolved' to 'fixed' here would wrongly mark the
+# vulnerable ranges as patched.
+#
+# not_affected / false_positive map to known_not_affected (and also emit a CSAF
+# flag justification).
+_STATE_TO_BUCKET = {
+    'exploitable': 'known_affected',
+    'in_triage': 'under_investigation',
+    'resolved': 'known_affected',
+    'resolved_with_pedigree': 'known_affected',
+    'false_positive': 'known_not_affected',
+    'not_affected': 'known_not_affected',
+}
+
+
+def _bucket_for(state):
+    """Map a CycloneDX analysis state to its CSAF product_status bucket,
+    failing loudly on an unrecognized state instead of defaulting to the
+    worst-case (known_affected) bucket."""
+    try:
+        return _STATE_TO_BUCKET[state]
+    except KeyError:
+        sys.exit(f"ERROR: unknown analysis state {state!r}; expected one of "
+                 f"{', '.join(sorted(_STATE_TO_BUCKET))}")
+
+# CycloneDX not_affected justification -> CSAF flag label (same VEX concept).
+_JUSTIFICATION_TO_CSAF_FLAG = {
+    'code_not_present': 'vulnerable_code_not_present',
+    'code_not_reachable': 'vulnerable_code_not_in_execute_path',
+    'requires_configuration': 'vulnerable_code_not_in_execute_path',
+    'requires_dependency': 'vulnerable_code_not_in_execute_path',
+    'requires_environment': 'vulnerable_code_not_in_execute_path',
+    'protected_by_compiler': 'inline_mitigations_already_exist',
+    'protected_at_perimeter': 'inline_mitigations_already_exist',
+    'protected_at_runtime': 'inline_mitigations_already_exist',
+    'protected_by_mitigating_control': 'inline_mitigations_already_exist',
+}
+
+
+def derived_uuid(*parts):
+    """Deterministic UUID from joined parts (NUL-separated, no aliasing)."""
+    return str(uuid.uuid5(ADVISORY_UUID_NAMESPACE, '\x00'.join(parts)))
+
+
+def build_timestamp():
+    """(datetime, ISO-8601-Z) honoring SOURCE_DATE_EPOCH for reproducibility."""
+    sde = os.environ.get('SOURCE_DATE_EPOCH', '').strip()
+    if sde:
+        try:
+            dt = datetime.fromtimestamp(int(sde), tz=timezone.utc)
+        except (ValueError, OverflowError, OSError) as e:
+            print(f"WARNING: ignoring invalid SOURCE_DATE_EPOCH={sde!r}: {e}",
+                  file=sys.stderr)
+            dt = datetime.now(timezone.utc)
+    else:
+        dt = datetime.now(timezone.utc)
+    return dt, dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def cpe_for(product, version):
+    """CPE 2.3 for a wolfSSL product at a version (matches gen-sbom)."""
+    return f'cpe:2.3:a:wolfssl:{product.lower()}:{version}:*:*:*:*:*:*:*'
+
+
+def purl_for(product, version):
+    """PURL for a wolfSSL product release (matches gen-sbom: pkg:github)."""
+    return f'pkg:github/wolfSSL/{product.lower()}@v{version}'
+
+
+# --------------------------------------------------------------------------- #
+# CVE record parsing
+# --------------------------------------------------------------------------- #
+
+def load_cve_record(path=None, cve_id=None):
+    if path:
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            sys.exit(f"ERROR: cannot read CVE record {path!r}: {e}")
+    url = f'https://cveawg.mitre.org/api/cve/{cve_id}'
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            return json.loads(r.read().decode())
+    except Exception as e:  # noqa: BLE001 - surface any fetch/parse failure
+        sys.exit(f"ERROR: cannot fetch {url}: {e}")
+
+
+def _cna(record):
+    try:
+        return record['containers']['cna']
+    except (KeyError, TypeError):
+        sys.exit("ERROR: CVE record has no containers.cna section")
+
+
+def _best_cvss(metrics):
+    """Pick the highest-priority CVSS block (v4 > v3.1 > v3.0 > v2).
+
+    Used for the CycloneDX rating (which supports v4) and for the document's
+    aggregate_severity."""
+    for key, ver, method in (
+        ('cvssV4_0', 'v4', 'CVSSv4'),
+        ('cvssV3_1', 'v3', 'CVSSv31'),
+        ('cvssV3_0', 'v3', 'CVSSv3'),
+        ('cvssV2_0', 'v2', 'CVSSv2'),
+    ):
+        for m in metrics:
+            if key in m:
+                return {'data': m[key], 'csaf_key': f'cvss_{ver}',
+                        'cdx_method': method}
+    return None
+
+
+def _best_cvss_csaf20(metrics):
+    """Pick the highest-priority CVSS block that CSAF 2.0 scores[] can carry.
+
+    The CSAF 2.0 schema predates CVSS v4 and only defines cvss_v2 / cvss_v3 in
+    a score object, so a v4 block must NOT be placed there (it fails the strict
+    schema).  When only v4 exists the CSAF emitter records it as a note and
+    relies on the CycloneDX VEX output for the machine-readable v4 rating."""
+    for key, ver in (('cvssV3_1', 'v3'), ('cvssV3_0', 'v3'), ('cvssV2_0', 'v2')):
+        for m in metrics:
+            if key in m:
+                return {'data': m[key], 'csaf_key': f'cvss_{ver}'}
+    return None
+
+
+def parse_record(record):
+    """Reduce a CVE 5.x record to the fields the emitters need."""
+    meta = record.get('cveMetadata', {})
+    cna = _cna(record)
+
+    cve_id = meta.get('cveId') or cna.get('cveId')
+    if not cve_id:
+        sys.exit("ERROR: CVE record has no cveId")
+
+    description = ''
+    for d in cna.get('descriptions', []):
+        if d.get('lang', '').lower().startswith('en'):
+            description = d.get('value', '')
+            break
+
+    # CSAF 2.0 carries a single `cwe` {id, name}; take the primary one.  The
+    # name is resolved from the official CWE catalogue (CWE_NAMES) so it is the
+    # exact MITRE string CSAF test 6.1.11 checks against -- the record's
+    # free-text problemType often differs in casing.  `name` may be None when
+    # the id is absent from the catalogue; the CSAF emitter then omits cwe.
+    cwe = None
+    for pt in cna.get('problemTypes', []):
+        for d in pt.get('descriptions', []):
+            cid = d.get('cweId')
+            if not cid:
+                continue
+            cwe = {'id': cid, 'name': CWE_NAMES.get(cid)}
+            break
+        if cwe:
+            break
+
+    metrics = cna.get('metrics', [])
+    cvss = _best_cvss(metrics)
+    cvss_csaf = _best_cvss_csaf20(metrics)
+
+    affected = []
+    for a in cna.get('affected', []):
+        affected.append({
+            'vendor': a.get('vendor', WOLFSSL_VENDOR),
+            'product': a.get('product', 'wolfSSL'),
+            'versions': a.get('versions', []),
+            'default_status': a.get('defaultStatus', 'unknown'),
+        })
+
+    references = [r['url'] for r in cna.get('references', []) if r.get('url')]
+    credits = [c.get('value', '') for c in cna.get('credits', [])
+               if c.get('value')]
+
+    return {
+        'cve': cve_id,
+        'title': cna.get('title') or cve_id,
+        'description': description,
+        'cwe': cwe,
+        'cvss': cvss,
+        'cvss_csaf': cvss_csaf,
+        'affected': affected,
+        'references': references,
+        'credits': credits,
+        'date_published': meta.get('datePublished'),
+        'date_updated': meta.get('dateUpdated'),
+    }
+
+
+def _range_label(v):
+    base = v.get('version', '0')
+    if v.get('lessThanOrEqual'):
+        return f'<= {v["lessThanOrEqual"]}' if base in ('0', '*') \
+            else f'{base} <= x <= {v["lessThanOrEqual"]}'
+    if v.get('lessThan'):
+        return f'< {v["lessThan"]}' if base in ('0', '*') \
+            else f'{base} <= x < {v["lessThan"]}'
+    return base
+
+
+def _vers_range(v):
+    parts = []
+    base = v.get('version')
+    if base and base not in ('0', '*'):
+        parts.append(f'>={base}')
+    if v.get('lessThanOrEqual'):
+        parts.append(f'<={v["lessThanOrEqual"]}')
+    elif v.get('lessThan'):
+        parts.append(f'<{v["lessThan"]}')
+    elif base and base not in ('0', '*'):
+        return f'vers:generic/{base}'
+    return 'vers:generic/' + '|'.join(parts) if parts else 'vers:generic/*'
+
+
+# --------------------------------------------------------------------------- #
+# Product model: normalize record + overlay into a list of product entries.
+# --------------------------------------------------------------------------- #
+
+def product_model(adv, ov):
+    """Return the products this CVE describes: the mainline wolfSSL product
+    (from the CVE record) plus an optional, separately-modelled FIPS product
+    (from the overlay)."""
+    products = []
+
+    state = ov.get('state', 'exploitable')
+    bucket = _bucket_for(state)
+
+    # ---- mainline product(s) from the CVE record's affected[] ----
+    for a in adv['affected']:
+        product = a['product']
+        affected_ranges = []
+        for v in a['versions']:
+            if v.get('status') == 'affected' or a['default_status'] == 'affected':
+                affected_ranges.append({
+                    'label': _range_label(v),
+                    'cpe': cpe_for(product, '*'),
+                    'vers': _vers_range(v),
+                })
+        fixed = []
+        for fv in ov.get('fixed_versions', []):
+            fixed.append({'version': fv, 'cpe': cpe_for(product, fv),
+                          'purl': purl_for(product, fv)})
+        remediation = ov.get('remediation')
+        if not remediation and fixed:
+            remediation = f'Update to {product} {fixed[0]["version"]} or later.'
+        products.append({
+            'product_name': product,
+            'cdx_key': product.lower(),
+            'bucket': bucket,
+            'justification': ov.get('justification') if bucket
+            == 'known_not_affected' else None,
+            'remediation': remediation,
+            'remediation_category': 'vendor_fix' if fixed else 'none_available',
+            'affected_ranges': affected_ranges,
+            'fixed': fixed,
+            'model_numbers': [],
+        })
+
+    # ---- optional FIPS product from the overlay ----
+    fips = ov.get('fips')
+    if fips:
+        name = fips.get('name', 'wolfCrypt FIPS Module')
+        modver = fips.get('module_version')
+        fbucket = _bucket_for(fips.get('status', 'exploitable'))
+        affected_ranges = []
+        if modver:
+            affected_ranges.append({
+                'label': modver,
+                'cpe': cpe_for('wolfcrypt', modver),
+                'vers': f'vers:generic/{modver}',
+            })
+        fixed = []
+        for fv in fips.get('fixed_versions', []):
+            fixed.append({'version': fv, 'cpe': cpe_for('wolfcrypt', fv),
+                          'purl': purl_for('wolfcrypt', fv)})
+        model_numbers = []
+        if fips.get('cmvp_cert'):
+            model_numbers.append(f'CMVP Certificate #{fips["cmvp_cert"]}')
+        products.append({
+            'product_name': name,
+            'cdx_key': 'wolfcrypt-fips',
+            'bucket': fbucket,
+            'justification': fips.get('justification') if fbucket
+            == 'known_not_affected' else None,
+            'remediation': fips.get('remediation'),
+            'remediation_category': 'vendor_fix' if fixed else (
+                'no_fix_planned' if fbucket == 'known_not_affected'
+                else 'none_available'),
+            'affected_ranges': affected_ranges,
+            'fixed': fixed,
+            'model_numbers': model_numbers,
+            'module_version': modver,
+        })
+
+    return products
+
+
+def _hedge_note(ov):
+    """Render the no-cost reachability hedge as informational text (only)."""
+    bits = []
+    defines = ov.get('requires_defines')
+    if defines:
+        bits.append('Reachable only in builds compiled with: '
+                    + ', '.join(defines) + '.')
+    if ov.get('default_status') in ('off', 'disabled'):
+        bits.append('The affected feature is disabled by default.')
+    return ' '.join(bits) if bits else None
+
+
+# --------------------------------------------------------------------------- #
+# CSAF 2.0 emitter (handles 1..N vulnerabilities in one document)
+# --------------------------------------------------------------------------- #
+
+def generate_csaf(advs, ov_map, advisory_id, timestamp):
+    # Shared product_tree: product leaves are deduplicated by product_id across
+    # all CVEs in the bundle (Red Hat-style shared product ids).
+    tree = {}          # (vendor, product_name) -> {product_id: leaf}
+    tree_order = []     # preserve insertion order of (vendor, product_name)
+    vulns = []
+    agg_rank = -1
+    agg_text = None
+    init_dates = []
+    cur_dates = []
+
+    def _leaf_range(pname, label, cpe, model_numbers):
+        pid = derived_uuid(pname, 'range', label)
+        helper = {'cpe': cpe}
+        if model_numbers:
+            helper['model_numbers'] = model_numbers
+        return pid, {
+            'category': 'product_version_range',
+            'name': label,
+            'product': {
+                'product_id': pid,
+                'name': f'{pname} {label}',
+                'product_identification_helper': helper,
+            },
+        }
+
+    def _leaf_fixed(pname, fx, model_numbers):
+        pid = derived_uuid(pname, 'fixed', fx['version'])
+        helper = {'cpe': fx['cpe'], 'purl': fx['purl']}
+        if model_numbers:
+            helper['model_numbers'] = model_numbers
+        return pid, {
+            'category': 'product_version',
+            'name': fx['version'],
+            'product': {
+                'product_id': pid,
+                'name': f'{pname} {fx["version"]}',
+                'product_identification_helper': helper,
+            },
+        }
+
+    def _register(pname, pid, leaf):
+        key = (WOLFSSL_VENDOR, pname)
+        if key not in tree:
+            tree[key] = {}
+            tree_order.append(key)
+        tree[key].setdefault(pid, leaf)
+
+    for adv in advs:
+        ov = ov_map.get(adv['cve'], {})
+        products = product_model(adv, ov)
+
+        status_buckets = {}     # bucket -> [pids]
+        score_targets = []
+        flags = {}              # flag_label -> [pids]
+        remediations = {}       # (category, text, url) -> [pids]
+
+        for prod in products:
+            pname = prod['product_name']
+            affected_pids = []
+            for r in prod['affected_ranges']:
+                pid, leaf = _leaf_range(pname, r['label'], r['cpe'],
+                                        prod['model_numbers'])
+                _register(pname, pid, leaf)
+                affected_pids.append(pid)
+                status_buckets.setdefault(prod['bucket'], []).append(pid)
+                if prod['bucket'] in ('known_affected', 'under_investigation'):
+                    score_targets.append(pid)
+                if prod['bucket'] == 'known_not_affected':
+                    flag = _JUSTIFICATION_TO_CSAF_FLAG.get(
+                        prod['justification'] or '',
+                        'vulnerable_code_not_in_execute_path')
+                    flags.setdefault(flag, []).append(pid)
+            for fx in prod['fixed']:
+                pid, leaf = _leaf_fixed(pname, fx, prod['model_numbers'])
+                _register(pname, pid, leaf)
+                status_buckets.setdefault('fixed', []).append(pid)
+            if prod['remediation'] and affected_pids:
+                url = adv['references'][0] if adv['references'] else None
+                key = (prod['remediation_category'], prod['remediation'], url)
+                remediations.setdefault(key, []).extend(affected_pids)
+
+        vuln = {
+            'cve': adv['cve'],
+            'notes': [{
+                'category': 'description',
+                'text': adv['description'],
+                'title': 'Vulnerability description',
+            }],
+            'product_status': {k: v for k, v in status_buckets.items() if v},
+        }
+        hedge = _hedge_note(ov)
+        if hedge:
+            vuln['notes'].append({
+                'category': 'other', 'title': 'Build reachability', 'text': hedge})
+        # Emit cwe only when we resolved the exact catalogue name (CSAF 6.1.11).
+        if adv['cwe'] and adv['cwe'].get('name'):
+            vuln['cwe'] = {'id': adv['cwe']['id'], 'name': adv['cwe']['name']}
+        if adv['references']:
+            vuln['references'] = [{'summary': u, 'url': u, 'category': 'external'}
+                                  for u in adv['references']]
+        if flags:
+            vuln['flags'] = [{'label': lbl, 'product_ids': pids}
+                             for lbl, pids in flags.items()]
+        if remediations:
+            vuln['remediations'] = []
+            for (cat, text, url), pids in remediations.items():
+                rem = {'category': cat, 'details': text, 'product_ids': pids}
+                if url:
+                    rem['url'] = url
+                vuln['remediations'].append(rem)
+        # CSAF 2.0 scores[] can only carry CVSS v2/v3 (the schema predates v4).
+        if adv['cvss_csaf'] and score_targets:
+            vuln['scores'] = [{adv['cvss_csaf']['csaf_key']:
+                               adv['cvss_csaf']['data'],
+                               'products': score_targets}]
+        # aggregate_severity uses the best CVSS available (which may be v4).
+        best = adv['cvss']
+        if best:
+            sev = best['data'].get('baseSeverity', '').upper()
+            if _SEV_RANK.get(sev, -1) > agg_rank:
+                agg_rank = _SEV_RANK[sev]
+                agg_text = best['data'].get('baseSeverity')
+            # A v4-only finding cannot be represented in CSAF 2.0 scores[];
+            # preserve the rating as a note so it is not silently dropped.
+            if best['csaf_key'] == 'cvss_v4' and not adv['cvss_csaf']:
+                v4 = best['data']
+                vuln['notes'].append({
+                    'category': 'other',
+                    'title': 'CVSS v4.0',
+                    'text': (f"CVSS v4.0 base score {v4.get('baseScore')} "
+                             f"({v4.get('baseSeverity')}); vector "
+                             f"{v4.get('vectorString')}. CSAF 2.0 scores[] "
+                             f"cannot encode CVSS v4; the machine-readable v4 "
+                             f"rating is provided in the CycloneDX VEX output."),
+                })
+        if adv['credits']:
+            vuln['acknowledgments'] = [{'summary': c} for c in adv['credits']]
+        vulns.append(vuln)
+
+        if adv['date_published']:
+            init_dates.append(adv['date_published'])
+        cur_dates.append(adv['date_updated'] or adv['date_published'] or timestamp)
+
+    # Assemble product_tree branches.
+    branches = []
+    for (vendor, pname) in tree_order:
+        branches.append({
+            'category': 'vendor', 'name': vendor,
+            'branches': [{
+                'category': 'product_name', 'name': pname,
+                'branches': list(tree[(vendor, pname)].values()),
+            }],
+        })
+
+    bundle = len(advs) > 1
+    if bundle:
+        title = f'wolfSSL Security Advisory {advisory_id}'
+    else:
+        title = f'wolfSSL: {advs[0]["title"]}'
+
+    doc = {
+        'document': {
+            'category': 'csaf_security_advisory',
+            'csaf_version': '2.0',
+            'title': title,
+            'publisher': WOLFSSL_PUBLISHER,
+            'tracking': {
+                'id': advisory_id,
+                'status': 'final',
+                'version': '1',
+                'initial_release_date': min(init_dates) if init_dates
+                else timestamp,
+                'current_release_date': max(cur_dates) if cur_dates
+                else timestamp,
+                'revision_history': [{
+                    'number': '1',
+                    'date': min(init_dates) if init_dates else timestamp,
+                    'summary': 'Initial release',
+                }],
+                'generator': {
+                    'engine': {'name': GEN_TOOL_NAME, 'version': GEN_TOOL_VERSION},
+                },
+            },
+            'distribution': {'tlp': {'label': 'WHITE'}},
+            'references': [
+                {
+                    'summary': f'Canonical CSAF document for {advisory_id}',
+                    'url': f'{WOLFSSL_CSAF_BASE_URL}{advisory_id}.csaf.json',
+                    'category': 'self',
+                },
+                {
+                    'summary': 'wolfSSL published security vulnerabilities',
+                    'url': WOLFSSL_ADVISORIES_URL,
+                    'category': 'external',
+                },
+            ],
+            'notes': [{
+                'category': 'summary',
+                'title': 'Summary',
+                'text': (f'wolfSSL security advisory {advisory_id} covering '
+                         f'{len(advs)} vulnerabilities.' if bundle
+                         else advs[0]['description']),
+            }],
+        },
+        'product_tree': {'branches': branches},
+        'vulnerabilities': vulns,
+    }
+    if agg_text:
+        doc['document']['aggregate_severity'] = {'text': agg_text}
+    return doc
+
+
+# --------------------------------------------------------------------------- #
+# CycloneDX 1.6 VEX emitter (handles 1..N vulnerabilities in one BOM)
+# --------------------------------------------------------------------------- #
+
+def _cdx_severity(cvss_data):
+    sev = (cvss_data or {}).get('baseSeverity', '').lower()
+    return sev if sev in ('critical', 'high', 'medium', 'low', 'none') \
+        else 'unknown'
+
+
+def generate_cdx_vex(advs, ov_map, advisory_id, timestamp):
+    main_ref = derived_uuid('cdx-component', 'wolfssl')
+    extra_components = {}     # ref -> component dict (e.g. FIPS module)
+    vulns = []
+
+    for adv in advs:
+        ov = ov_map.get(adv['cve'], {})
+        products = product_model(adv, ov)
+
+        affects = []
+        for prod in products:
+            if prod['cdx_key'] == 'wolfcrypt-fips':
+                ref = derived_uuid('cdx-component', 'wolfcrypt-fips',
+                                   prod.get('module_version') or '')
+                if ref not in extra_components:
+                    comp = {
+                        'bom-ref': ref, 'type': 'library',
+                        'supplier': {'name': 'wolfSSL Inc.'},
+                        'name': prod['product_name'],
+                        'cpe': cpe_for('wolfcrypt', prod.get('module_version')
+                                       or '*'),
+                    }
+                    if prod.get('module_version'):
+                        comp['version'] = prod['module_version']
+                    if prod['model_numbers']:
+                        comp['properties'] = [
+                            {'name': 'wolfssl:fips:cmvp', 'value': m}
+                            for m in prod['model_numbers']]
+                    extra_components[ref] = comp
+            else:
+                ref = main_ref
+            # CycloneDX affects[].versions[].status uses 'unaffected' for a
+            # not-affected product; the 'not_affected' term belongs to
+            # analysis.state only.
+            astatus = 'unaffected' if prod['bucket'] == 'known_not_affected' \
+                else 'affected'
+            versions = [{'range': r['vers'], 'status': astatus}
+                        for r in prod['affected_ranges']]
+            versions += [{'version': fx['version'], 'status': 'unaffected'}
+                         for fx in prod['fixed']]
+            if versions:
+                affects.append({'ref': ref, 'versions': versions})
+
+        vuln = {
+            'id': adv['cve'],
+            'source': {'name': 'wolfSSL', 'url': WOLFSSL_ADVISORIES_URL},
+            'description': adv['description'],
+            'affects': affects or [{'ref': main_ref}],
+        }
+        if adv['cvss']:
+            rating = {'source': {'name': 'wolfSSL'},
+                      'severity': _cdx_severity(adv['cvss']['data']),
+                      'method': adv['cvss']['cdx_method']}
+            if 'baseScore' in adv['cvss']['data']:
+                rating['score'] = adv['cvss']['data']['baseScore']
+            if 'vectorString' in adv['cvss']['data']:
+                rating['vector'] = adv['cvss']['data']['vectorString']
+            vuln['ratings'] = [rating]
+        if adv['cwe']:
+            try:
+                vuln['cwes'] = [int(adv['cwe']['id'].split('-')[-1])]
+            except ValueError:
+                pass
+        if adv['references']:
+            vuln['advisories'] = [{'url': u} for u in adv['references']]
+
+        analysis = {'state': ov.get('state', 'exploitable')}
+        if analysis['state'] == 'not_affected' and ov.get('justification'):
+            analysis['justification'] = ov['justification']
+        if ov.get('response'):
+            analysis['response'] = ov['response']
+        detail_bits = [b for b in (ov.get('detail'), _hedge_note(ov)) if b]
+        if detail_bits:
+            analysis['detail'] = ' '.join(detail_bits)
+        vuln['analysis'] = analysis
+
+        if adv['credits']:
+            vuln['credits'] = {'individuals': [{'name': c}
+                                               for c in adv['credits']]}
+        if adv['date_published']:
+            vuln['published'] = adv['date_published']
+        if adv['date_updated']:
+            vuln['updated'] = adv['date_updated']
+        vulns.append(vuln)
+
+    return {
+        '$schema': 'http://cyclonedx.org/schema/bom-1.6.schema.json',
+        'bomFormat': 'CycloneDX',
+        'specVersion': '1.6',
+        'serialNumber': f'urn:uuid:{derived_uuid(advisory_id, "serial")}',
+        'version': 1,
+        'metadata': {
+            'timestamp': timestamp,
+            'tools': {'components': [{
+                'type': 'application', 'author': 'wolfSSL Inc.',
+                'name': GEN_TOOL_NAME, 'version': GEN_TOOL_VERSION}]},
+            'component': {
+                'bom-ref': main_ref, 'type': 'library',
+                'supplier': {'name': 'wolfSSL Inc.'},
+                'name': 'wolfssl',
+                'cpe': cpe_for('wolfssl', '*'),
+                'purl': 'pkg:github/wolfSSL/wolfssl',
+            },
+        },
+        'components': list(extra_components.values()),
+        'vulnerabilities': vulns,
+    }
+
+
+# --------------------------------------------------------------------------- #
+
+def load_overlay(path):
+    if not path:
+        return {}
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        sys.exit(f"ERROR: cannot read --vex-overlay {path!r}: {e}")
+
+
+def _write_json(obj, path):
+    try:
+        with open(path, 'w') as f:
+            json.dump(obj, f, indent=2)
+            f.write('\n')
+    except OSError as e:
+        sys.exit(f"ERROR: cannot write {path}: {e}")
+
+
+def _emit(advs, ov_map, advisory_id, timestamp, csaf_out, cdx_out):
+    """Emit one CSAF and/or one CycloneDX document covering `advs`."""
+    if csaf_out:
+        _write_json(generate_csaf(advs, ov_map, advisory_id, timestamp),
+                    csaf_out)
+        print(f"Generated: {csaf_out}")
+    if cdx_out:
+        _write_json(generate_cdx_vex(advs, ov_map, advisory_id, timestamp),
+                    cdx_out)
+        print(f"Generated: {cdx_out}")
+
+
+def main():
+    p = argparse.ArgumentParser(
+        description='Generate CSAF 2.0 advisories and CycloneDX 1.6 VEX from '
+                    'wolfSSL CVE Program records. With no record arguments it '
+                    'processes every record in the canonical advisories/ tree '
+                    '(the same inputs `make advisory` uses), writing one CSAF '
+                    '+ one CycloneDX document per CVE into the output '
+                    'directory.')
+    p.add_argument('--cve-record', action='append', default=[],
+                   help='Path to a CVE JSON 5.x record (repeatable). Overrides '
+                        'the default --records-dir scan.')
+    p.add_argument('--cve-id', action='append', default=[],
+                   help='Fetch a record from cve.org by id (repeatable). '
+                        'Overrides the default --records-dir scan.')
+    p.add_argument('--records-dir', default=str(DEFAULT_RECORDS_DIR),
+                   help='Directory of CVE JSON 5.x records scanned when no '
+                        f'--cve-record/--cve-id is given (default: '
+                        f'{DEFAULT_RECORDS_DIR}).')
+    p.add_argument('--vex-overlay', default=None,
+                   help='JSON file mapping CVE id -> VEX overlay (state, '
+                        'justification, detail, response, fixed_versions, '
+                        'remediation, fips{}, requires_defines, '
+                        f'default_status). Default: {DEFAULT_OVERLAY} if it '
+                        'exists.')
+    p.add_argument('--advisory-id',
+                   help='Tracking id when bundling several records into ONE '
+                        'document. Defaults to the CVE id for a single record.')
+    p.add_argument('--out-dir', default=str(DEFAULT_OUT_DIR),
+                   help='Output directory for the per-CVE documents written in '
+                        'batch mode (default: ' f'{DEFAULT_OUT_DIR}).')
+    p.add_argument('--csaf-out',
+                   help='Write a single CSAF document to this path instead of '
+                        'batch mode (one record, or several with '
+                        '--advisory-id).')
+    p.add_argument('--cdx-vex-out',
+                   help='Write a single CycloneDX VEX document to this path '
+                        'instead of batch mode.')
+    args = p.parse_args()
+
+    # ---- resolve the input records ----
+    explicit = bool(args.cve_record or args.cve_id)
+    if explicit:
+        records = [load_cve_record(path=pth) for pth in args.cve_record]
+        records += [load_cve_record(cve_id=cid) for cid in args.cve_id]
+    else:
+        rec_dir = pathlib.Path(args.records_dir)
+        paths = sorted(rec_dir.glob('*.json'))
+        if not paths:
+            sys.exit(f"ERROR: no CVE records found in {rec_dir}. Add records "
+                     f"there, or pass --cve-record / --cve-id.")
+        records = [load_cve_record(path=str(pth)) for pth in paths]
+    advs = [parse_record(r) for r in records]
+
+    # ---- resolve the overlay (explicit > default-if-present > none) ----
+    overlay_path = args.vex_overlay
+    if overlay_path is None and DEFAULT_OVERLAY.exists():
+        overlay_path = str(DEFAULT_OVERLAY)
+    ov_map = load_overlay(overlay_path)
+    if overlay_path:
+        for adv in advs:
+            if adv['cve'] not in ov_map:
+                print(f"WARNING: no VEX overlay entry for {adv['cve']}; "
+                      f"defaulting to state=exploitable", file=sys.stderr)
+
+    _, timestamp = build_timestamp()
+
+    # ---- single-document mode (explicit output path) ----
+    if args.csaf_out or args.cdx_vex_out:
+        if args.advisory_id:
+            advisory_id = args.advisory_id
+        elif len(advs) == 1:
+            advisory_id = advs[0]['cve']
+        else:
+            sys.exit("ERROR: --advisory-id is required when bundling several "
+                     "records into one --csaf-out/--cdx-vex-out document.")
+        _emit(advs, ov_map, advisory_id, timestamp,
+              args.csaf_out, args.cdx_vex_out)
+        return
+
+    # ---- batch mode: one CSAF + one CycloneDX per CVE into --out-dir ----
+    out_dir = pathlib.Path(args.out_dir)
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        sys.exit(f"ERROR: cannot create output directory {out_dir}: {e}")
+    if args.advisory_id and len(advs) > 1:
+        _emit(advs, ov_map, args.advisory_id, timestamp,
+              str(out_dir / f'{args.advisory_id}.csaf.json'),
+              str(out_dir / f'{args.advisory_id}.cdx.json'))
+    else:
+        for adv in advs:
+            _emit([adv], ov_map, adv['cve'], timestamp,
+                  str(out_dir / f"{adv['cve']}.csaf.json"),
+                  str(out_dir / f"{adv['cve']}.cdx.json"))
+    print(f"Wrote {len(advs)} advisory document set(s) to {out_dir}")
+
+
+if __name__ == '__main__':
+    main()

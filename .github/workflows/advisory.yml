@@ -1,0 +1,217 @@
+name: Advisory Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+# Defence-in-depth: this workflow only reads the tree and validates generated
+# advisories (no API writes, no git push, no release upload), so pin the token
+# to read-only per GitHub's supply-chain hardening guidance.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  # Tier 1 - pure-Python unit + semantic tests for scripts/gen-advisory.
+  # No build, no pip deps.  Runs in seconds and is the cheapest gate for the
+  # record->model logic and the CSAF semantic invariants (every product_id
+  # defined/used, no contradicting status, flags only on not-affected
+  # products, no cvss_v4 in CSAF 2.0 scores, canonical CWE names, ...).
+  unit:
+    name: gen-advisory unit tests
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Syntax check
+        run: python3 -m py_compile scripts/gen-advisory
+
+      - name: Unit tests
+        run: python3 -W error::ResourceWarning -m unittest scripts/test_gen_advisory.py -v
+
+  # Tier 2 - format-level validation: generate per-CVE and bundled advisories
+  # from the committed CVE fixtures + example overlay, then validate the
+  # CycloneDX VEX against the 1.6 strict schema (same validator the SBOM
+  # workflow uses) and the VEX overlay against its JSON Schema.  Also pins
+  # SOURCE_DATE_EPOCH reproducibility for both emitters.
+  schema:
+    name: advisory schema validation
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install validators
+        # cyclonedx-bom provides the CycloneDX 1.6 strict JSON validator (same
+        # pin as .github/workflows/sbom.yml); jsonschema validates the VEX
+        # overlay against scripts/advisory-vex-overlay.schema.json.  Pinned so
+        # a validator release cannot silently change what "valid" means.
+        run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user 'cyclonedx-bom==7.*' 'jsonschema==4.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Overlay validates against its JSON Schema
+        run: |
+          python3 - <<'PY'
+          import json, jsonschema
+          schema = json.load(open('scripts/advisory-vex-overlay.schema.json'))
+          overlay = json.load(open('scripts/advisory-vex-overlay.example.json'))
+          jsonschema.Draft202012Validator.check_schema(schema)
+          jsonschema.Draft202012Validator(schema).validate(overlay)
+          print('OK: example overlay matches advisory-vex-overlay.schema.json')
+          PY
+
+      - name: Generate advisories (per-CVE + bundled)
+        # Mirrors how a release would be cut: one document per CVE, plus a
+        # bundled per-release advisory carrying both.  SOURCE_DATE_EPOCH makes
+        # the run deterministic for the reproducibility check below.
+        run: |
+          mkdir -p /tmp/adv
+          for id in CVE-2026-5501 CVE-2026-5778 CVE-2026-5999; do
+            SOURCE_DATE_EPOCH=1700000000 \
+            python3 scripts/gen-advisory \
+              --cve-record "scripts/testdata/$id.json" \
+              --vex-overlay scripts/advisory-vex-overlay.example.json \
+              --csaf-out "/tmp/adv/$id.csaf.json" \
+              --cdx-vex-out "/tmp/adv/$id.cdx.json"
+          done
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-advisory \
+            --cve-record scripts/testdata/CVE-2026-5501.json \
+            --cve-record scripts/testdata/CVE-2026-5778.json \
+            --vex-overlay scripts/advisory-vex-overlay.example.json \
+            --advisory-id wolfSSL-SA-5.9.1 \
+            --csaf-out /tmp/adv/wolfSSL-SA-5.9.1.csaf.json \
+            --cdx-vex-out /tmp/adv/wolfSSL-SA-5.9.1.cdx.json
+
+      - name: CycloneDX VEX validates per CycloneDX 1.6 strict schema
+        run: |
+          python3 - <<'PY'
+          import glob, sys
+          from cyclonedx.validation.json import JsonStrictValidator
+          from cyclonedx.schema import SchemaVersion
+          v = JsonStrictValidator(SchemaVersion.V1_6)
+          paths = sorted(glob.glob('/tmp/adv/*.cdx.json'))
+          assert paths, 'no CycloneDX VEX documents were generated'
+          for p in paths:
+              errs = v.validate_str(open(p).read())
+              if errs:
+                  print(f'INVALID: {p}: {errs}', file=sys.stderr)
+                  sys.exit(1)
+              print(f'OK: {p}')
+          PY
+
+      - name: Reproducibility - two runs are byte-identical
+        run: |
+          mkdir -p /tmp/adv-r2
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-advisory \
+            --cve-record scripts/testdata/CVE-2026-5501.json \
+            --cve-record scripts/testdata/CVE-2026-5778.json \
+            --vex-overlay scripts/advisory-vex-overlay.example.json \
+            --advisory-id wolfSSL-SA-5.9.1 \
+            --csaf-out /tmp/adv-r2/wolfSSL-SA-5.9.1.csaf.json \
+            --cdx-vex-out /tmp/adv-r2/wolfSSL-SA-5.9.1.cdx.json
+          diff /tmp/adv/wolfSSL-SA-5.9.1.csaf.json \
+               /tmp/adv-r2/wolfSSL-SA-5.9.1.csaf.json
+          diff /tmp/adv/wolfSSL-SA-5.9.1.cdx.json \
+               /tmp/adv-r2/wolfSSL-SA-5.9.1.cdx.json
+
+      - name: Default/batch path matches `make advisory`
+        # No record flags: gen-advisory falls back to the canonical
+        # advisories/ tree (the exact inputs `make advisory` feeds it via
+        # --records-dir/--vex-overlay), proving the script and the build target
+        # are interchangeable and that the committed real records + overlay
+        # generate and validate.
+        run: |
+          python3 scripts/gen-advisory --out-dir /tmp/adv-default
+          python3 - <<'PY'
+          import glob, sys
+          from cyclonedx.validation.json import JsonStrictValidator
+          from cyclonedx.schema import SchemaVersion
+          v = JsonStrictValidator(SchemaVersion.V1_6)
+          paths = sorted(glob.glob('/tmp/adv-default/*.cdx.json'))
+          assert paths, 'batch mode produced no CycloneDX documents'
+          for p in paths:
+              errs = v.validate_str(open(p).read())
+              if errs:
+                  print(f'INVALID: {p}: {errs}', file=sys.stderr)
+                  sys.exit(1)
+              print(f'OK: {p}')
+          PY
+
+      - name: Upload generated advisories
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: advisories-${{ github.sha }}
+          path: /tmp/adv/*.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  # Tier 2 - CSAF 2.0 conformance: the real gate.  JSON-schema validity is
+  # necessary but not sufficient; CSAF defines mandatory tests (section 6.1.*)
+  # -- CVSS/vector consistency, contradicting product status, product_id
+  # defined/used, tracking.version vs revision_history, CWE name match, ... --
+  # that a bare schema pass accepts.  scripts/csaf_validate.mjs runs the strict
+  # 2.0 schema + all mandatory tests via the Secvisogram reference
+  # implementation (bundles every schema incl. the first.org CVSS schemas, so
+  # it is fully offline once installed).
+  csaf-conformance:
+    name: CSAF 2.0 mandatory tests
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+
+      - name: Install csaf-validator-lib (pinned)
+        # Pinned: csaf-validator-lib implements the CSAF mandatory tests, and
+        # an unpinned upgrade could change pass/fail semantics under us.  The
+        # bare `csaf-validator-lib` name on npm is an unrelated placeholder;
+        # the reference implementation is the @secvisogram scope.
+        run: npm install --no-save @secvisogram/csaf-validator-lib@2.0.25
+
+      - name: Generate CSAF advisories (per-CVE + bundled)
+        run: |
+          mkdir -p /tmp/adv
+          for id in CVE-2026-5501 CVE-2026-5778 CVE-2026-5999; do
+            python3 scripts/gen-advisory \
+              --cve-record "scripts/testdata/$id.json" \
+              --vex-overlay scripts/advisory-vex-overlay.example.json \
+              --csaf-out "/tmp/adv/$id.csaf.json"
+          done
+          python3 scripts/gen-advisory \
+            --cve-record scripts/testdata/CVE-2026-5501.json \
+            --cve-record scripts/testdata/CVE-2026-5778.json \
+            --vex-overlay scripts/advisory-vex-overlay.example.json \
+            --advisory-id wolfSSL-SA-5.9.1 \
+            --csaf-out /tmp/adv/wolfSSL-SA-5.9.1.csaf.json
+
+      - name: CSAF strict schema + mandatory tests
+        run: node scripts/csaf_validate.mjs /tmp/adv/*.csaf.json
+
+      - name: CSAF default/batch path (canonical advisories/ tree)
+        # Same conformance gate, but driven through the zero-argument default
+        # path `make advisory` uses, against the committed real records +
+        # advisories/vex-overlay.json.
+        run: |
+          python3 scripts/gen-advisory --out-dir /tmp/adv-default
+          node scripts/csaf_validate.mjs /tmp/adv-default/*.csaf.json
