@@ -467,16 +467,19 @@ def summarize(results: list[tuple[Config, str | None, float]],
               wall_min: float, cpu_min: float, nthreads: int) -> None:
     lines = ["| Config | Result | Minutes |", "|---|---|---|"]
     for cfg, failed, minutes in results:
+        # Literal emoji, not GitHub :shortcodes:, so the status renders in the
+        # plain stdout log too - shortcodes only expand on GitHub's Markdown
+        # surfaces (the step summary), not in the console log this also prints.
         if failed == "aborted":
-            ok = ":heavy_minus_sign: aborted (fail-fast)"
+            ok = "\N{HEAVY MINUS SIGN} aborted (fail-fast)"
         elif failed:
-            ok = f":x: FAIL ({failed})"
+            ok = f"\N{CROSS MARK} FAIL ({failed})"
         else:
-            ok = ":white_check_mark: pass"
+            ok = "\N{WHITE HEAVY CHECK MARK} pass"
             if stale_estimate(cfg, minutes):
                 # Non-fatal nudge mirroring the per-config warning, kept in
                 # the summary next to the Minutes value to copy over.
-                ok += (f' :warning: "minutes" {cfg.minutes:g} is >50% off, '
+                ok += (f' \N{WARNING SIGN}\uFE0F "minutes" {cfg.minutes:g} is >50% off, '
                        f"update to ~{minutes:.1f}")
         lines.append(f"| {cfg.name} | {ok} | {minutes:.1f} |")
     # Two views of how efficiently the pool used the machine: thread
