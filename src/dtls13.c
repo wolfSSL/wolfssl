@@ -2813,14 +2813,30 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
          * shared WriteDup struct so the write side sends the ACK instead. */
         if (ssl->dupWrite != NULL && ssl->dupSide == READ_DUP_SIDE) {
             struct Dtls13RecordNumber** tail = NULL;
+            int count = 0;
             if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
                 return BAD_MUTEX_E;
+            /* Walk to the tail, counting what is already queued. */
             tail = (struct Dtls13RecordNumber**)&ssl->dupWrite->sendAckList;
-            while (*tail != NULL)
+            while (*tail != NULL) {
                 tail = &(*tail)->next;
-            *tail = ssl->dtls13Rtx.seenRecords;
-            ssl->dtls13Rtx.seenRecords = NULL;
-            ssl->dtls13Rtx.seenRecordsCount = 0;
+                count++;
+            }
+            /* Each transferred batch is already capped at
+             * DTLS13_ACK_MAX_RECORDS. Only splice a new batch while the queue
+             * is below the cap so repeated scheduled-work cycles cannot grow
+             * it without bound (aggregate stays under 2 *
+             * DTLS13_ACK_MAX_RECORDS). Otherwise drop the batch: ACKs are
+             * best-effort and the peer retransmits if one is lost. */
+            if (count < DTLS13_ACK_MAX_RECORDS) {
+                *tail = ssl->dtls13Rtx.seenRecords;
+                ssl->dtls13Rtx.seenRecords = NULL;
+                ssl->dtls13Rtx.seenRecordsCount = 0;
+            }
+            else {
+                /* Queue already at the cap: drop this batch. */
+                Dtls13RtxFlushAcks(ssl);
+            }
             ssl->dupWrite->sendAcks = 1;
             wc_UnLockMutex(&ssl->dupWrite->dupMutex);
         }
