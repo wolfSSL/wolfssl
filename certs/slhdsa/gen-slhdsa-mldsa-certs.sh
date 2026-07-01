@@ -80,7 +80,7 @@ gen_variant() {
     openssl genpkey -algorithm "$alg" -out "${root_base}-priv.pem"
     check_result $? "Generate SLH-DSA root key (${tag})"
 
-    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SLH-DSA\\nRoot-SLH-DSA-${tag}\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | \
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SLH-DSA\\nRoot-SLH-DSA-${tag}\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | \
         openssl req -new -key "${root_base}-priv.pem" -config "$CNF" -nodes \
             -out "${root_base}.csr"
     check_result $? "Generate root CSR (${tag})"
@@ -106,7 +106,7 @@ gen_variant() {
     ############################################################
     local server_cert="server-mldsa44-${tag}.pem"
     echo "Generating ${server_cert}"
-    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SLH-DSA\\nServer-mldsa44-${tag}\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | \
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SLH-DSA\\nServer-mldsa44-${tag}\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | \
         openssl req -new -key "$SERVER_KEY" -config "$CNF" -nodes \
             -out "server-mldsa44-${tag}.csr"
     check_result $? "Generate server CSR (${tag})"
@@ -135,7 +135,7 @@ gen_variant() {
     ############################################################
     local client_cert="client-mldsa44-${tag}.pem"
     echo "Generating ${client_cert}"
-    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SLH-DSA\\nClient-mldsa44-${tag}\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | \
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SLH-DSA\\nClient-mldsa44-${tag}\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | \
         openssl req -new -key "$CLIENT_KEY" -config "$CNF" -nodes \
             -out "client-mldsa44-${tag}.csr"
     check_result $? "Generate client CSR (${tag})"

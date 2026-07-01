@@ -22,7 +22,7 @@ fi
 echo "Updating root-ed448.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_Ed448\\nRoot-Ed448\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | \
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_Ed448\\nRoot-Ed448\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | \
 openssl req -new -key root-ed448-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out root-ed448.csr
 check_result $? "Generate request"
 
@@ -44,7 +44,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating ca-ed448.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_ed448\\nCA-ed448\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key ca-ed448-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out ca-ed448.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_ed448\\nCA-ed448\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key ca-ed448-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out ca-ed448.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in ca-ed448.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions ca_ecc_cert -CA root-ed448.pem -CAkey root-ed448-priv.pem -set_serial 01 -out ca-ed448.pem
@@ -65,7 +65,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating server-ed448.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_ed448\\nServer-ed448\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key server-ed448-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out server-ed448.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_ed448\\nServer-ed448\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key server-ed448-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out server-ed448.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in server-ed448.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions server_ecc -CA ca-ed448.pem -CAkey ca-ed448-priv.pem -set_serial 01 -out server-ed448-cert.pem
@@ -88,7 +88,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating client-ed448.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_ed448\\nClient-ed448\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key client-ed448-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out client-ed448.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_ed448\\nClient-ed448\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key client-ed448-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out client-ed448.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in client-ed448.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions wolfssl_opts -signkey client-ed448-priv.pem -out client-ed448.pem

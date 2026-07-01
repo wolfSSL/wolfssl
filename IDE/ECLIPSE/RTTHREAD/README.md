@@ -170,4 +170,4 @@ ED     25519 verify          2 ops took 1.000 sec, avg 500.000 ms, 2.000 ops/sec
 
 ## References
 
-For more information please contact info@wolfssl.com.
+For more information please contact facts@wolfssl.com.

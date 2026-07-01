@@ -93,9 +93,9 @@ int test_wolfssl_PKCS7(void)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntEQ(i2d_PKCS7_bio(bio, pkcs7), 1);
 #ifndef NO_ASN_TIME
-    ExpectIntEQ(i2d_PKCS7(pkcs7, &out), 655);
+    ExpectIntEQ(i2d_PKCS7(pkcs7, &out), 656);
 #else
-    ExpectIntEQ(i2d_PKCS7(pkcs7, &out), 625);
+    ExpectIntEQ(i2d_PKCS7(pkcs7, &out), 626);
 #endif
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     BIO_free(bio);

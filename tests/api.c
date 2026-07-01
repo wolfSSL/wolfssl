@@ -3424,9 +3424,9 @@ static int test_wolfSSL_CheckOCSPResponse(void)
         byte serial[] = {0x02};
 
         byte issuerHash[] = {
-            0x44, 0xA8, 0xDB, 0xD1, 0xBC, 0x97, 0x0A, 0x83,
-            0x3B, 0x5B, 0x31, 0x9A, 0x4C, 0xB8, 0xD2, 0x52,
-            0x37, 0x15, 0x8A, 0x88
+            0x7A, 0x34, 0xEC, 0xB3, 0x2B, 0x4F, 0x1B, 0xA2,
+            0x72, 0x22, 0x92, 0xA8, 0x4C, 0xC0, 0x12, 0xC7,
+            0x7A, 0x56, 0x9E, 0x20
         };
         byte issuerKeyHash[] = {
             0x73, 0xB0, 0x1C, 0xA4, 0x2F, 0x82, 0xCB, 0xCF,
@@ -19218,8 +19218,8 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
                             {0x20, 0x21, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
                              0x00, 0x00, 0xff, 0x00, 0x00, 0x42, 0x77, 0x77};
     const unsigned char email[]  =
-                             {'i', 'n', 'f', 'o', '@', 'w', 'o', 'l',
-                              'f', 's', 's', 'l', '.', 'c', 'o', 'm'};
+                             {'f', 'a', 'c', 't', 's', '@', 'w', 'o',
+                              'l', 'f', 's', 's', 'l', '.', 'c', 'o', 'm'};
     const unsigned char ridData[] = { 0x06, 0x04, 0x2a, 0x03, 0x04, 0x05 };
     const unsigned char* p;
     unsigned long len;
@@ -19228,7 +19228,7 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     const char* uriStr     = "URI:http://127.0.0.1:22220";
     const char* v4addStr   = "IP Address:192.168.53.1";
     const char* v6addStr   = "IP Address:2021:DB8:0:0:0:FF00:42:7777";
-    const char* emailStr   = "email:info@wolfssl.com";
+    const char* emailStr   = "email:facts@wolfssl.com";
     const char* othrStr    = "othername:<unsupported>";
     const char* x400Str    = "X400Name:<unsupported>";
     const char* ediStr     = "EdiPartyName:<unsupported>";
@@ -23941,9 +23941,9 @@ static int test_sk_X509_CRL_decode(void)
     ExpectIntEQ(wolfSSL_X509_CRL_print(bio, &empty), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_X509_CRL_print(bio, crl), WOLFSSL_SUCCESS);
 #ifndef NO_ASN_TIME
-    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 1466);
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 1467);
 #else
-    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 1324);
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 1325);
 #endif
     BIO_free(bio);
     bio = NULL;
@@ -23977,7 +23977,7 @@ static int test_sk_X509_CRL_decode(void)
     crl = NULL;
 
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.der", "rb")) != XBADFILE);
-    ExpectIntEQ(len = (int)XFREAD(buff, 1, sizeof(buff), fp), 520);
+    ExpectIntEQ(len = (int)XFREAD(buff, 1, sizeof(buff), fp), 521);
     if (fp != XBADFILE) {
         XFCLOSE(fp);
         fp = XBADFILE;
@@ -25905,33 +25905,33 @@ static int test_wolfSSL_X509_print(void)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
   #if defined(WC_DISABLE_RADIX_ZERO_PAD)
      /* Will print IP address subject alt name. */
-     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3349);
+     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3351);
   #elif defined(NO_ASN_TIME)
       /* Will print IP address subject alt name but not Validity. */
-     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3235);
+     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3237);
   #else
       /* Will print IP address subject alt name. */
-     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3350);
+     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3352);
   #endif
 #elif defined(IGNORE_NAME_CONSTRAINTS)
     /* DecodeGeneralName skips iPAddress entries when name constraints
      * are disabled, so the IP SAN never reaches the print path. */
   #if defined(NO_ASN_TIME)
-    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3213);
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3215);
   #else
-    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3328);
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3330);
   #endif
 #elif defined(NO_ASN_TIME)
     /* With NO_ASN_TIME defined, X509_print skips printing Validity.
      * iPAddress SAN now always parsed; prints as
      * "IP Address:<unavailable>" (+26 bytes) without
      * WOLFSSL_IP_ALT_NAME. */
-    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3239);
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3241);
 #else
     /* iPAddress SAN now always parsed; prints as
      * "IP Address:<unavailable>" (+26 bytes) without
      * WOLFSSL_IP_ALT_NAME. */
-    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3354);
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3356);
 #endif
     BIO_free(bio);
     bio = NULL;

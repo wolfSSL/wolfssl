@@ -5,43 +5,43 @@
 # Result is chains that looks like:
 # RSA Server
 #  ROOT: ./certs/ca-cert.pem
-#      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=info@wolfssl.com)
+#      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=facts@wolfssl.com)
 #    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem
-#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=info@wolfssl.com
+#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=facts@wolfssl.com
 #      INTERMEDIATE2: ./certs/intermediate/ca-int2-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=info@wolfssl.com
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=facts@wolfssl.com
 #        SERVER: ./certs/intermediate/server-int-cert.pem
-#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain/emailAddress=info@wolfssl.com
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain/emailAddress=facts@wolfssl.com
 
 # RSA Client
 #  ROOT: ./certs/ca-cert.pem
-#      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=info@wolfssl.com)
+#      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=facts@wolfssl.com)
 #    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem
-#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=info@wolfssl.com
+#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=facts@wolfssl.com
 #      INTERMEDIATE: ./certs/intermediate/ca-int2-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=info@wolfssl.com
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=facts@wolfssl.com
 #        CLIENT: ./certs/intermediate/client-int-cert.pem
-#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain/emailAddress=info@wolfssl.com
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain/emailAddress=facts@wolfssl.com
 
 # ECC Server
 #  ROOT: ./certs/ca-ecc-cert.pem
-#      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=info@wolfssl.com
+#      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=facts@wolfssl.com
 #    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem
-#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=info@wolfssl.com
+#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=facts@wolfssl.com
 #      INTERMEDIATE2: ./certs/intermediate/ca-int-ecc-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=info@wolfssl.com
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=facts@wolfssl.com
 #        SERVER: ./certs/intermediate/server-int-ecc-cert.pem
-#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain ECC/emailAddress=info@wolfssl.com
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain ECC/emailAddress=facts@wolfssl.com
 
 # ECC Client
 #  ROOT: ./certs/ca-ecc-cert.pem
-#      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=info@wolfssl.com
+#      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=facts@wolfssl.com
 #    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem
-#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=info@wolfssl.com
+#        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=facts@wolfssl.com
 #      INTERMEDIATE2: ./certs/intermediate/ca-int2-ecc-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=info@wolfssl.com
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=facts@wolfssl.com
 #        CLIENT: ./certs/intermediate/client-int-ecc-cert.pem
-#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain ECC/emailAddress=info@wolfssl.com
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain ECC/emailAddress=facts@wolfssl.com
 
 
 # Run from wolfssl-root as  `./certs/intermediate/genintcerts.sh`
@@ -127,7 +127,7 @@ create_ca_config() {
     echo "organizationName                = wolfSSL"            >> "$1"
     echo "organizationalUnitName          = Development"        >> "$1"
     echo "commonName                      = www.wolfssl.com"    >> "$1"
-    echo "emailAddress                    = info@wolfssl.com"   >> "$1"
+    echo "emailAddress                    = facts@wolfssl.com"   >> "$1"
     echo ""                                                     >> "$1"
     echo "[ v3_ca ]"                                            >> "$1"
     echo "subjectKeyIdentifier = hash"                          >> "$1"
@@ -172,7 +172,7 @@ create_cert() {
     openssl req -config ./certs/intermediate/$1.cnf -new -sha256 \
         -key $3 \
         -out ./certs/intermediate/tmp.csr \
-        -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Development/CN=$6/emailAddress=info@wolfssl.com"
+        -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Development/CN=$6/emailAddress=facts@wolfssl.com"
     check_result $?
     openssl ca -config ./certs/intermediate/$2.cnf -extensions $5 -days $7 -notext -md sha256 \
         -in ./certs/intermediate/tmp.csr -out ./certs/intermediate/$4.pem -batch

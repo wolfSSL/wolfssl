@@ -48,7 +48,7 @@ build_test_cert_conf() {
     echo "L = Bozeman"                                  >> "$1".conf
     echo "OU = Engineering"                             >> "$1".conf
     echo "CN = $2"                                      >> "$1".conf
-    echo "emailAddress = info@wolfssl.com"              >> "$1".conf
+    echo "emailAddress = facts@wolfssl.com"              >> "$1".conf
     echo ""                                             >> "$1".conf
     echo "[ req_ext ]"                                  >> "$1".conf
     if [ -n "$3" ]; then

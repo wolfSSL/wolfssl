@@ -18,7 +18,7 @@
 
 pkg.name: "crypto/wolfssl"
 pkg.description: "wolfSSL Embedded SSL/TLS Library"
-pkg.author: "wolfSSL<info@wolfssl.com>"
+pkg.author: "wolfSSL<facts@wolfssl.com>"
 pkg.homepage: "https://www.wolfssl.com"
 pkg.keywords:
 

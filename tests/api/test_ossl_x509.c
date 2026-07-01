@@ -234,8 +234,8 @@ int test_wolfSSL_i2d_X509_NAME_canon(void)
     !defined(NO_FILESYSTEM) && !defined(NO_SHA) && \
      defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && !defined(NO_RSA)
-    const long ex_hash1 = 0x0fdb2da4;
-    const long ex_hash2 = 0x9f3e8c9e;
+    const long ex_hash1 = 0xb59c2f94;
+    const long ex_hash2 = 0xd9a48713;
     X509_NAME *name = NULL;
     X509 *x509 = NULL;
     XFILE file = XBADFILE;
@@ -441,8 +441,8 @@ int test_wolfSSL_X509_check_email(void)
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
     X509* x509 = NULL;
     X509* empty = NULL;
-    const char goodEmail[] = "info@wolfssl.com";
-    const char badEmail[] = "disinfo@wolfssl.com";
+    const char goodEmail[] = "facts@wolfssl.com";
+    const char badEmail[] = "disfacts@wolfssl.com";
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
                 SSL_FILETYPE_PEM));
@@ -972,7 +972,7 @@ int test_wolfSSL_get_tbs(void)
     ExpectNull(tbs = wolfSSL_X509_get_tbs(NULL, &tbsSz));
     ExpectNull(tbs = wolfSSL_X509_get_tbs(x509, NULL));
     ExpectNotNull(tbs = wolfSSL_X509_get_tbs(x509, &tbsSz));
-    ExpectIntEQ(tbsSz, 1003);
+    ExpectIntEQ(tbsSz, 1006);
 
     wolfSSL_FreeX509(x509);
 #endif

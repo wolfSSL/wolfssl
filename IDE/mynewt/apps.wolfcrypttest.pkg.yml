@@ -19,7 +19,7 @@
 pkg.name: "apps/wolfcrypttest"
 pkg.type: app
 pkg.description: "wolfCrypt Test Application"
-pkg.author: "wolfSSL <info@wolfssl.com>"
+pkg.author: "wolfSSL <facts@wolfssl.com>"
 pkg.homepage: "https://www.wolfssl.com"
 pkg.keywords:
 pkg.deps:

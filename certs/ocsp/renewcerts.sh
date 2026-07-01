@@ -28,7 +28,7 @@ openssl req                \
     -key  root-ca-key.pem  \
     -out  root-ca-cert.csr \
     -config ../renewcerts/wolfssl.cnf \
-    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=info@wolfssl.com"
+    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=facts@wolfssl.com"
 check_result $? ""
 
 echo "OCSP renew certs Step 2"
@@ -63,7 +63,7 @@ openssl req                       \
     -key  imposter-root-ca-key.pem \
     -out  imposter-root-ca-cert.csr \
     -config ../renewcerts/wolfssl.cnf \
-    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=info@wolfssl.com"
+    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=facts@wolfssl.com"
 check_result $? ""
 
 echo "OCSP renew certs imposter root step 2"
@@ -99,7 +99,7 @@ update_cert() {
         -key  "$1"-key.pem  \
         -out  "$1"-cert.csr \
         -config ../renewcerts/wolfssl.cnf \
-        -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=$2/emailAddress=info@wolfssl.com"
+        -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=$2/emailAddress=facts@wolfssl.com"
     check_result $? "Step 1"
 
     openssl x509               \

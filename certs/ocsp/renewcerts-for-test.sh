@@ -16,7 +16,7 @@ update_cert(){
         -config "$WOLF_REQ_CONF" \
         -key  $1-key.pem  \
         -out  $1-cert.csr \
-        -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=$2/emailAddress=info@wolfssl.com"
+        -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=$2/emailAddress=facts@wolfssl.com"
 
     openssl x509             \
         -req -in $1-cert.csr \
@@ -44,7 +44,7 @@ openssl req                \
     -config "$WOLF_REQ_CONF" \
     -key  root-ca-key.pem  \
     -out  root-ca-cert.csr \
-    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=info@wolfssl.com"
+    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=facts@wolfssl.com"
 
 openssl x509                  \
     -req -in root-ca-cert.csr \
@@ -68,7 +68,7 @@ openssl req                            \
     -config "$WOLF_REQ_CONF"           \
     -key  imposter-root-ca-key.pem     \
     -out  imposter-root-ca-cert.csr    \
-    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=info@wolfssl.com"
+    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=facts@wolfssl.com"
 
 openssl x509                                \
     -req -in imposter-root-ca-cert.csr      \

@@ -173,9 +173,9 @@ int test_wolfSSL_PEM_X509_INFO_read_bio(void)
     STACK_OF(X509_INFO)* sk2 = NULL;
     char* subject = NULL;
     char exp1[] = "/C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting/"
-                  "CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+                  "CN=www.wolfssl.com/emailAddress=facts@wolfssl.com";
     char exp2[] = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=Support/"
-                  "CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+                  "CN=www.wolfssl.com/emailAddress=facts@wolfssl.com";
 
     ExpectNotNull(bio = BIO_new(BIO_s_file()));
     ExpectIntGT(BIO_read_filename(bio, svrCertFile), 0);

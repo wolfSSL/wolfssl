@@ -334,8 +334,8 @@ int test_wolfSSL_X509_NAME_hash(void)
     ExpectNotNull(bio = BIO_new(BIO_s_file()));
     ExpectIntGT(BIO_read_filename(bio, svrCertFile), 0);
     ExpectNotNull(PEM_read_bio_X509(bio, &x509, NULL, NULL));
-    ExpectIntEQ(X509_NAME_hash(X509_get_subject_name(x509)), 0x137DC03F);
-    ExpectIntEQ(X509_NAME_hash(X509_get_issuer_name(x509)), 0xFDB2DA4);
+    ExpectIntEQ(X509_NAME_hash(X509_get_subject_name(x509)), 0x6903FF67);
+    ExpectIntEQ(X509_NAME_hash(X509_get_issuer_name(x509)), 0xB59C2F94);
     X509_free(x509);
     BIO_free(bio);
 #endif

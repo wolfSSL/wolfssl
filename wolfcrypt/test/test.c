@@ -25753,7 +25753,7 @@ static void initDefaultName(void)
     XMEMCPY(certDefaultName.joiC, "Oregon", sizeof("Oregon"));
     certDefaultName.joiCEnc = CTC_PRINTABLE;
 #endif
-    XMEMCPY(certDefaultName.email, "info@wolfssl.com", sizeof("info@wolfssl.com"));
+    XMEMCPY(certDefaultName.email, "facts@wolfssl.com", sizeof("facts@wolfssl.com"));
     XMEMCPY(certDefaultName.userId, "TestUserID", sizeof("TestUserID"));
     certDefaultName.userIdEnc = CTC_PRINTABLE;
 

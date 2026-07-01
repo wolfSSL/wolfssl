@@ -872,9 +872,9 @@ int test_certificate_authorities_certificate_request(void) {
         struct client_cb_arg cb_arg = { NULL, NULL };
         const char *expected_names[] = {
             "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048"
-                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com",
+                "/CN=www.wolfssl.com/emailAddress=facts@wolfssl.com",
             "/C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting"
-                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+                "/CN=www.wolfssl.com/emailAddress=facts@wolfssl.com"
         };
 
         if (EXPECT_FAIL())
@@ -1164,9 +1164,9 @@ int test_certificate_authorities_client_hello(void) {
         X509_NAME *name = NULL;
         const char *expected_names[] = {
             "/C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting"
-                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com",
+                "/CN=www.wolfssl.com/emailAddress=facts@wolfssl.com",
             "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048"
-                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+                "/CN=www.wolfssl.com/emailAddress=facts@wolfssl.com"
         };
 
         if (EXPECT_FAIL())

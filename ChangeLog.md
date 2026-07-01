@@ -4534,7 +4534,7 @@ Release 3.15.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Add a disable option (--disable-optflags) to turn off the default optimization flags so user may supply their own custom flags.
 * Correctly touch the dummy fips.h header.
 
-If you have questions on any of this, then email us at info@wolfssl.com.
+If you have questions on any of this, then email us at facts@wolfssl.com.
 See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
