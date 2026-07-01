@@ -123,8 +123,9 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-#if (defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
-                                !defined(HAVE_ED448)) || defined(WOLFSSL_LEANPSK)
+#if defined(NO_CERTS) || defined(WOLFSSL_LEANPSK) || \
+    (defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
+                                !defined(HAVE_ED448))
     doPSK = 1;
 #else
     doPSK = 0;
@@ -178,7 +179,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
 
 #ifndef NO_FILESYSTEM
     if (doPSK == 0) {
-    #if defined(HAVE_ECC) && !defined(WOLFSSL_SNIFFER)
+    #if defined(HAVE_ECC) && !defined(NO_CERTS) && !defined(WOLFSSL_SNIFFER)
         /* ecc */
         if (wolfSSL_CTX_use_certificate_file(ctx, eccCertFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
@@ -189,7 +190,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
-    #elif defined(HAVE_ED25519) && !defined(WOLFSSL_SNIFFER)
+    #elif defined(HAVE_ED25519) && !defined(NO_CERTS) && !defined(WOLFSSL_SNIFFER)
         /* ed25519 */
         if (wolfSSL_CTX_use_certificate_chain_file(ctx, edCertFile)
                 != WOLFSSL_SUCCESS)
@@ -200,7 +201,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
-    #elif defined(HAVE_ED448) && !defined(WOLFSSL_SNIFFER)
+    #elif defined(HAVE_ED448) && !defined(NO_CERTS) && !defined(WOLFSSL_SNIFFER)
         /* ed448 */
         if (wolfSSL_CTX_use_certificate_chain_file(ctx, ed448CertFile)
                 != WOLFSSL_SUCCESS)

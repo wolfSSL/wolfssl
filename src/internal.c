@@ -3367,7 +3367,7 @@ void InitCipherSpecs(CipherSpecs* cs)
 }
 
 #if defined(USE_ECDSA_KEYSZ_HASH_ALGO) || (defined(WOLFSSL_TLS13) && \
-                                                              defined(HAVE_ECC))
+                                  defined(HAVE_ECC) && !defined(NO_CERTS))
 static int GetMacDigestSize(byte macAlgo)
 {
     switch (macAlgo) {
@@ -7177,7 +7177,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->eccTempKeySz = ctx->eccTempKeySz;
     ssl->ecdhCurveOID = ctx->ecdhCurveOID;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
 
@@ -8683,9 +8684,10 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     return ret;
 }
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
-    defined(HAVE_CURVE448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+#if (!defined(NO_CERTS) || !defined(WOLFSSL_NO_TLS12)) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
+     defined(HAVE_CURVE448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA))
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
@@ -30501,7 +30503,8 @@ static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
 }
 
 #if defined(HAVE_ECC) && \
-    (defined(WOLFSSL_TLS13) || defined(USE_ECDSA_KEYSZ_HASH_ALGO))
+    ((defined(WOLFSSL_TLS13) && !defined(NO_CERTS)) || \
+     defined(USE_ECDSA_KEYSZ_HASH_ALGO))
 static int CmpEccStrength(int hashAlgo, int curveSz)
 {
     int dgstSz = GetMacDigestSize((byte)hashAlgo);
@@ -30675,7 +30678,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
                "be used together"
     #endif
 
-    #if defined(HAVE_ECC) && (defined(WOLFSSL_TLS13) || \
+    #if defined(HAVE_ECC) && !defined(NO_CERTS) && (defined(WOLFSSL_TLS13) || \
                                               defined(WOLFSSL_ECDSA_MATCH_HASH))
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         if (sigAlgo == sm2_sa_algo && hashAlgo == sm3_mac

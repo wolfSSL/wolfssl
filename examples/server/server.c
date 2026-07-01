@@ -3110,7 +3110,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(NO_CERTS)
     /* Use ECDHE key size that matches long term key.
      * Zero means use ctx->privateKeySz.
      * Default ECDHE_SIZE is 32 bytes

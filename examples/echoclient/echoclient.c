@@ -121,8 +121,8 @@ void echoclient_test(void* args)
 #ifdef WOLFSSL_LEANPSK
     doPSK = 1;
 #endif
-#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
-                                                            !defined(HAVE_ED448)
+#if defined(NO_CERTS) || (defined(NO_RSA) && !defined(HAVE_ECC) && \
+                          !defined(HAVE_ED25519) && !defined(HAVE_ED448))
     doPSK = 1;
 #endif
     (void)doPSK;
@@ -146,7 +146,7 @@ void echoclient_test(void* args)
 #endif
     ctx    = SSL_CTX_new(method);
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     #ifndef NO_RSA
     if (SSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLFSSL_SUCCESS)
         err_sys("can't load ca file, Please run from wolfSSL home dir");

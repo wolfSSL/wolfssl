@@ -772,7 +772,7 @@ int test_wc_Curve25519KeyToDer_oneasymkey_version(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT) && \
-    defined(HAVE_CURVE25519_KEY_IMPORT)
+    defined(HAVE_CURVE25519_KEY_IMPORT) && !defined(NO_ASN)
     curve25519_key key;
     curve25519_key key2;
     WC_RNG rng;

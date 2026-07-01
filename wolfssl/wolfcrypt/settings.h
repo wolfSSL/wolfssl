@@ -1912,6 +1912,244 @@
     #define TFM_TIMING_RESISTANT
 #endif
 
+/* tiny TLS 1.3 profile: TLS1.3-only footprint build expressed purely in
+ * standard macros (translation layer). WOLFSSL_TINY_TLS13 = PSK+ECDHE floor
+ * (no X.509); WOLFSSL_TINY_TLS13_CERT adds minimal X.509 verify (implies core). */
+/* mTLS (X.509 client auth) needs the cert profile. */
+#ifdef WOLFSSL_TINY_TLS13_MUTUAL_AUTH
+    #undef  WOLFSSL_TINY_TLS13_CERT
+    #define WOLFSSL_TINY_TLS13_CERT
+#endif
+#ifdef WOLFSSL_TINY_TLS13_CERT
+    #undef  WOLFSSL_TINY_TLS13
+    #define WOLFSSL_TINY_TLS13
+#endif
+
+#ifdef WOLFSSL_TINY_TLS13
+    #undef  WOLFSSL_TLS13
+    #define WOLFSSL_TLS13
+    #undef  WOLFSSL_NO_TLS12
+    #define WOLFSSL_NO_TLS12
+    #undef  NO_OLD_TLS
+    #define NO_OLD_TLS
+    #undef  HAVE_TLS_EXTENSIONS
+    #define HAVE_TLS_EXTENSIONS
+    #undef  HAVE_SUPPORTED_CURVES
+    #define HAVE_SUPPORTED_CURVES
+    #undef  HAVE_HKDF
+    #define HAVE_HKDF
+
+    /* Default curve: X25519 for the PSK floor; P-256 for the cert profile
+     * (P-256 serves both ECDHE and ECDSA cert verify). Override by selecting a
+     * curve beforehand or with WOLFSSL_TINY_TLS13_NO_DEFAULT_CURVE. */
+    #if !defined(HAVE_CURVE25519) && !defined(HAVE_ECC) && \
+        !defined(WOLFSSL_TINY_TLS13_NO_DEFAULT_CURVE)
+        #ifdef WOLFSSL_TINY_TLS13_CERT
+            #undef  HAVE_ECC
+            #define HAVE_ECC
+            #undef  ECC_USER_CURVES
+            #define ECC_USER_CURVES
+        #else
+            #undef  HAVE_CURVE25519
+            #define HAVE_CURVE25519
+            #undef  CURVE25519_SMALL
+            #define CURVE25519_SMALL
+        #endif
+    #endif
+
+    /* SP math drives the ECC asm; small C at the headline, asm via *_ASM.
+     * Respect an SP variant already chosen by configure (avoids clashing with
+     * WOLFSSL_SP_MATH_ALL); only provide one for the user_settings path. */
+    #ifdef HAVE_ECC
+        #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
+            #define WOLFSSL_SP_MATH
+        #endif
+        #undef  WOLFSSL_HAVE_SP_ECC
+        #define WOLFSSL_HAVE_SP_ECC
+        #undef  ECC_TIMING_RESISTANT
+        #define ECC_TIMING_RESISTANT
+        #ifndef WOLFSSL_TINY_TLS13_ASM
+            #undef  WOLFSSL_SP_SMALL
+            #define WOLFSSL_SP_SMALL
+        #endif
+    #endif
+
+    /* AEAD + hash floor: AES-128-GCM + SHA-256. */
+    #undef  HAVE_AESGCM
+    #define HAVE_AESGCM
+    #undef  WOLFSSL_AES_128
+    #define WOLFSSL_AES_128
+    /* Floor is AES-128 only, but let a user adder (WOLFSSL_AES_192 /
+     * WOLFSSL_AES_256) opt back in; user_settings.h is processed before this. */
+    #ifndef WOLFSSL_AES_192
+        #undef  NO_AES_192
+        #define NO_AES_192
+    #endif
+    #ifndef WOLFSSL_AES_256
+        #undef  NO_AES_256
+        #define NO_AES_256
+    #endif
+    #undef  GCM_SMALL
+    #define GCM_SMALL
+    /* Small AES tables at the size-first headline; fast AES with the asm toggle. */
+    #ifndef WOLFSSL_TINY_TLS13_ASM
+        #undef  WOLFSSL_AES_SMALL_TABLES
+        #define WOLFSSL_AES_SMALL_TABLES
+        #undef  WOLFSSL_AES_NO_UNROLL
+        #define WOLFSSL_AES_NO_UNROLL
+    #endif
+    #undef  WOLFSSL_NOSHA512_224
+    #define WOLFSSL_NOSHA512_224
+    #undef  WOLFSSL_NOSHA512_256
+    #define WOLFSSL_NOSHA512_256
+    /* Floor is SHA-256. SHA-384/512 share the large SHA-512 core; keep them out
+     * unless asked (the sha384 adder defines WOLFSSL_SHA384). This matches the
+     * configure path so both build methods give the same SHA-256 floor. */
+    #if !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512)
+        #undef  NO_SHA512
+        #define NO_SHA512
+    #endif
+
+    /* Strip legacy / unused algorithms. */
+    #undef  NO_DSA
+    #define NO_DSA
+    #undef  NO_DH
+    #define NO_DH
+    #undef  NO_DES3
+    #define NO_DES3
+    #undef  NO_RC4
+    #define NO_RC4
+    #undef  NO_MD4
+    #define NO_MD4
+    #undef  NO_MD5
+    #define NO_MD5
+    #undef  NO_SHA
+    #define NO_SHA
+    #undef  NO_PWDBASED
+    #define NO_PWDBASED
+
+    /* Footprint hygiene. NO_FILESYSTEM stays template-only so examples link. */
+    #undef  NO_ERROR_STRINGS
+    #define NO_ERROR_STRINGS
+    #undef  WOLFSSL_SMALL_STACK
+    #define WOLFSSL_SMALL_STACK
+    #undef  NO_SESSION_CACHE
+    #define NO_SESSION_CACHE
+    #undef  NO_CLIENT_CACHE
+    #define NO_CLIENT_CACHE
+    #undef  NO_HANDSHAKE_DONE_CB
+    #define NO_HANDSHAKE_DONE_CB
+    #undef  NO_SIG_WRAPPER
+    #define NO_SIG_WRAPPER
+    #undef  SINGLE_THREADED
+    #define SINGLE_THREADED
+
+    /* Client by default; server is an opt-in adder. */
+    #ifndef WOLFSSL_TINY_TLS13_SERVER
+        #undef  NO_WOLFSSL_SERVER
+        #define NO_WOLFSSL_SERVER
+    #endif
+
+    /* Optional static memory: serve TLS allocations from a caller-provided
+     * static pool (deterministic RAM, no fragmentation). Requires
+     * wolfSSL_CTX_load_static_memory() at runtime. For a true zero-heap build
+     * (no system malloc at all), also define WOLFSSL_NO_MALLOC in your
+     * user_settings; that is left opt-in because it removes the allocator the
+     * standard test suite relies on. */
+    #ifdef WOLFSSL_TINY_TLS13_STATIC_MEM
+        #undef  WOLFSSL_STATIC_MEMORY
+        #define WOLFSSL_STATIC_MEMORY
+        /* Size a tiny WOLFMEM_* pool with the memory-bucket-optimizer; see the
+         * measured starting point in user_settings_tinytls13.h. */
+    #endif
+
+    /* Profile A: no X.509 at all (the cert variant keeps ASN/certs). */
+    #ifndef WOLFSSL_TINY_TLS13_CERT
+        #undef  NO_RSA
+        #define NO_RSA
+        #undef  NO_CERTS
+        #define NO_CERTS
+        #undef  NO_ASN
+        #define NO_ASN
+    #endif
+#endif /* WOLFSSL_TINY_TLS13 */
+
+/* Profile B delta: minimal X.509 chain verify on top of the core. Curve/SP
+ * (P-256) come from the cert-aware default above; this adds the ASN/verify
+ * surface, trimmed to chain-verify essentials. NOTE: a reduced-security verify
+ * (no name constraints, relaxed ASN); intended for a known/pinned CA, not
+ * general public-internet PKI. ECDSA-only by default; RSA verify is an adder. */
+#ifdef WOLFSSL_TINY_TLS13_CERT
+    #undef  WOLFSSL_ASN_TEMPLATE
+    #define WOLFSSL_ASN_TEMPLATE
+    #undef  WOLFSSL_SMALL_CERT_VERIFY
+    #define WOLFSSL_SMALL_CERT_VERIFY
+    #undef  IGNORE_NAME_CONSTRAINTS
+    #define IGNORE_NAME_CONSTRAINTS
+    #undef  WOLFSSL_NO_ASN_STRICT
+    #define WOLFSSL_NO_ASN_STRICT
+    #undef  NO_CRL
+    #define NO_CRL
+
+    #ifdef WOLFSSL_TINY_TLS13_RSA_VERIFY
+        #undef  WOLFSSL_RSA_VERIFY_ONLY
+        #define WOLFSSL_RSA_VERIFY_ONLY
+        #undef  WC_RSA_PSS
+        #define WC_RSA_PSS
+    #else
+        #undef  NO_RSA
+        #define NO_RSA
+    #endif
+#endif /* WOLFSSL_TINY_TLS13_CERT */
+
+/* PQC adders need SHA-3/SHAKE, which the floor otherwise leaves out. Pull it in
+ * automatically so ML-DSA / ML-KEM "just work" as adders on the tiny profile. */
+#if defined(WOLFSSL_TINY_TLS13) && \
+    (defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM) || \
+     defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_KYBER))
+    #undef  WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
+    #undef  WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE128
+    #undef  WOLFSSL_SHAKE256
+    #define WOLFSSL_SHAKE256
+#endif
+
+/* tiny TLS 1.3 sanity checks: catch incompatible selections early. */
+#ifdef WOLFSSL_TINY_TLS13
+    #if !defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || \
+        !defined(NO_OLD_TLS)
+        #error "tiny TLS 1.3 must be TLS 1.3 only (WOLFSSL_TLS13, WOLFSSL_NO_TLS12, NO_OLD_TLS)"
+    #endif
+    #if !defined(HAVE_CURVE25519) && !defined(HAVE_ECC)
+        #error "tiny TLS 1.3 needs an ECDHE curve (HAVE_CURVE25519 or HAVE_ECC)"
+    #endif
+    #if !defined(HAVE_AESGCM) && !defined(HAVE_CHACHA)
+        #error "tiny TLS 1.3 needs an AEAD (HAVE_AESGCM or ChaCha20-Poly1305)"
+    #endif
+    #if defined(NO_SHA256)
+        #error "tiny TLS 1.3 needs SHA-256"
+    #endif
+    #if !defined(HAVE_HKDF)
+        #error "tiny TLS 1.3 needs HKDF"
+    #endif
+    #ifndef WOLFSSL_TINY_TLS13_CERT
+        #if defined(NO_PSK)
+            #error "tiny-psk profile needs PSK (do not define NO_PSK; use the cert profile for X.509)"
+        #endif
+        #if !defined(NO_CERTS)
+            #error "tiny-psk profile expects NO_CERTS (use WOLFSSL_TINY_TLS13_CERT for X.509)"
+        #endif
+    #else
+        #if defined(NO_CERTS) || defined(NO_ASN)
+            #error "tiny-cert profile must not disable certs/ASN"
+        #endif
+        #if !defined(HAVE_ECC) && defined(NO_RSA) && !defined(WOLFSSL_HAVE_MLDSA)
+            #error "tiny-cert profile needs a verify alg (ECDSA, RSA verify, or ML-DSA)"
+        #endif
+    #endif
+#endif /* WOLFSSL_TINY_TLS13 */
+
 /* To support storing some of the large constant tables in flash memory rather than SRAM.
    Useful for processors that have limited SRAM, such as the AVR family of microtrollers. */
 #ifdef WOLFSSL_USE_FLASHMEM

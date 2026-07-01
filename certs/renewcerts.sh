@@ -1109,6 +1109,26 @@ EOF
 
             echo "End of ML-DSA-${level} section"
         done
+
+        # ECC P-256 leaf signed by the ML-DSA-44 CA; used by
+        # examples/tls13/tls13_memio.c to drive ML-DSA cert verify.
+        echo "Generating ecc-leaf-mldsa44.pem (P-256 leaf signed by ML-DSA-44 CA)..."
+        cat > mldsa/ecc-leaf.ext <<EOF
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always
+EOF
+        "$OPENSSL3" req -new -key ecc-key.pem -subj "/CN=localhost" \
+            -out mldsa/ecc-leaf-mldsa44.csr
+        check_result $? "ecc-leaf-mldsa44 request"
+
+        "$OPENSSL3" x509 -req -in mldsa/ecc-leaf-mldsa44.csr \
+            -CA mldsa/mldsa44-cert.pem -CAkey mldsa/mldsa44-key.pem \
+            -CAcreateserial -days 3650 -extfile mldsa/ecc-leaf.ext \
+            -out mldsa/ecc-leaf-mldsa44.pem
+        check_result $? "ecc-leaf-mldsa44 certificate"
+
+        rm -f mldsa/ecc-leaf-mldsa44.csr mldsa/ecc-leaf.ext mldsa/mldsa44-cert.srl
+        echo "End of ecc-leaf-mldsa44 section"
         echo "---------------------------------------------------------------------"
     else
         echo "Skipping ML-DSA cert generation (no OpenSSL 3.3+ with ML-DSA support found)"

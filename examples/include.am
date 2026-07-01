@@ -12,4 +12,5 @@ include examples/configs/include.am
 include examples/asn1/include.am
 include examples/pem/include.am
 include examples/ocsp_responder/include.am
+include examples/tls13/include.am
 EXTRA_DIST += examples/README.md
