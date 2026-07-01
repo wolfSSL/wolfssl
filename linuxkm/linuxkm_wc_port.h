@@ -349,13 +349,33 @@
     _Pragma("clang diagnostic ignored \"-Wshorten-64-to-32\"");
     _Pragma("clang diagnostic ignored \"-Wframe-address\"");
 #endif
+#if defined(__GNUC__) && (__GNUC__ >= 17)
+    _Pragma("GCC diagnostic ignored \"-Wconstant-logical-operand\"");
+#endif
 
-    #ifdef CONFIG_KASAN
+    /* KASAN and KMSAN are mutually exclusive, so we need to consider at most
+     * one of them here.
+     */
+    #if defined(CONFIG_KASAN)
         #ifndef WC_SANITIZE_DISABLE
             #define WC_SANITIZE_DISABLE() kasan_disable_current()
         #endif
         #ifndef WC_SANITIZE_ENABLE
             #define WC_SANITIZE_ENABLE() kasan_enable_current()
+        #endif
+    #elif defined(CONFIG_KMSAN)
+        #ifndef WC_SANITIZE_DISABLE
+            #define WC_SANITIZE_DISABLE() kmsan_disable_current()
+        #endif
+        #ifndef WC_SANITIZE_ENABLE
+            #define WC_SANITIZE_ENABLE() kmsan_enable_current()
+        #endif
+    #else
+        #ifndef WC_SANITIZE_DISABLE
+            #define WC_SANITIZE_DISABLE() do {} while (0)
+        #endif
+        #ifndef WC_SANITIZE_ENABLE
+            #define WC_SANITIZE_ENABLE() do {} while (0)
         #endif
     #endif
 
@@ -1725,12 +1745,12 @@
             pr_err("ERROR: bottom of stack is not STACK_END_MAGIC.\n");
 
         local_irq_save(flags);
-        kasan_disable_current();
+        WC_SANITIZE_DISABLE();
         z = wc_linuxkm_stack_left();
         if (z > WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP)
             memset((void *)(s + WC_KERNEL_STACK_MARGIN_BOTTOM), sentinel,
                    z - (WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP));
-        kasan_enable_current();
+        WC_SANITIZE_ENABLE();
         local_irq_restore(flags);
         if (z <= WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP)
             pr_err("ERROR: wc_linuxkm_stack_hwm_prepare() called with only %lu bytes of stack left, "
@@ -1742,11 +1762,11 @@
         unsigned char *i;
         if (z <= WC_KERNEL_STACK_MARGIN_BOTTOM + WC_KERNEL_STACK_MARGIN_TOP)
             return (unsigned long)-1;
-        kasan_disable_current();
+        WC_SANITIZE_DISABLE();
         for (i = (unsigned char *)s + WC_KERNEL_STACK_MARGIN_BOTTOM;
              i < ((unsigned char *)s + z) && (*i == sentinel);
              ++i);
-        kasan_enable_current();
+        WC_SANITIZE_ENABLE();
         return z - ((unsigned long)i - s);
     }
     static __always_inline unsigned long wc_linuxkm_stack_hwm_measure_total(unsigned char sentinel) {
@@ -1808,6 +1828,21 @@
     #define WOLFSSL_GMTIME
     #define XGMTIME(c, t) gmtime(c)
     #define NO_TIMEVAL 1
+
+    /* MSAN needs to intercept these string functions to properly instrument
+     * them, but we build with -ffreestanding, which inhibits the interception.
+     * Fix that with explicit mappings here.
+     */
+    #ifdef CONFIG_KMSAN
+        #define memcpy(d,s,l)  __builtin_memcpy((d),(s),(l))
+        #define memset(d,v,l)  __builtin_memset((d),(v),(l))
+        #define memmove(d,s,l) __builtin_memmove((d),(s),(l))
+        #define strcpy(d,s,l) __builtin_strcpy((d),(s),(l))
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
+            #define strncpy(d,s,l) __builtin_strncpy((d),(s),(l))
+        #endif
+        #define strncat(d,s,l) __builtin_strncat((d),(s),(l))
+    #endif
 
     #endif /* BUILDING_WOLFSSL */
 
