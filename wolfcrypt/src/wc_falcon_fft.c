@@ -565,7 +565,7 @@ const fpr falcon_gm_tab[2048] = {
     0x3F6921F8BECCA62FULL, 0x3FEFFFF621621D02ULL,     0xBFEFFFF621621D02ULL, 0x3F6921F8BECCA4BCULL,
 };
 
-#if !defined(WOLFSSL_FALCON_FFT_AVX2)
+#if !defined(WOLFSSL_FALCON_FFT_AVX2) && !defined(WOLFSSL_FALCON_FFT_NEON)
 /* When the AVX2 backend is selected, falcon_FFT/falcon_iFFT are provided by
  * wc_falcon_fft_avx2.c instead; the twiddle table above is still shared. */
 
