@@ -5170,15 +5170,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #endif
 #endif
 
-/* Falcon is the only algorithm we still pull from liboqs, so the two options
- * go together: Falcon cannot be built without liboqs, and enabling liboqs
- * without Falcon leaves nothing for it to do. */
-#if defined(HAVE_LIBOQS) && !defined(HAVE_FALCON)
-#error "HAVE_LIBOQS without HAVE_FALCON has no effect; enable Falcon or drop liboqs."
-#endif
-#if defined(HAVE_FALCON) && !defined(HAVE_LIBOQS)
-#error "HAVE_FALCON requires HAVE_LIBOQS (enable liboqs via --with-liboqs)."
-#endif
+/* Falcon (the pre-standardization name for FN-DSA / FIPS 206) is provided by the
+ * native wolfCrypt implementation in falcon.[ch] + wc_falcon*.[ch]; it no longer
+ * requires liboqs. HAVE_FALCON is the build gate. */
 
 #if (defined(HAVE_LIBOQS) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS) ||                                 \
