@@ -14097,24 +14097,6 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     WOLFSSL_ENTER("DoTls13HandShakeMsg");
 
-    if (ssl->arrays == NULL) {
-        if (GetHandshakeHeader(ssl, input, inOutIdx, &type, &size,
-                                                                totalSz) != 0) {
-            SendAlert(ssl, alert_fatal, unexpected_message);
-            WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
-            return PARSE_ERROR;
-        }
-
-        ret = EarlySanityCheckMsgReceived(ssl, type, size);
-        if (ret != 0) {
-            WOLFSSL_ERROR(ret);
-            return ret;
-        }
-
-        return DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
-                                       totalSz);
-    }
-
     /* totalSz is now curStartIdx + curSize (content-only, padSz already
      * subtracted in ProcessReply). */
     if (*inOutIdx > totalSz)
@@ -14123,7 +14105,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
-    if (ssl->arrays->pendingMsgSz == 0) {
+    if (ssl->pendingMsgSz == 0) {
 
         if (GetHandshakeHeader(ssl, input, inOutIdx, &type, &size,
                                totalSz) != 0) {
@@ -14150,17 +14132,17 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         /* size is the size of the certificate message payload */
         if (inputLength - HANDSHAKE_HEADER_SZ < size) {
-            ssl->arrays->pendingMsgType = type;
-            ssl->arrays->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
-            ssl->arrays->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
-                                                     ssl->heap,
-                                                     DYNAMIC_TYPE_ARRAYS);
-            if (ssl->arrays->pendingMsg == NULL)
+            /* Commit pending state only after the allocation succeeds. */
+            ssl->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
+                                             ssl->heap, DYNAMIC_TYPE_ARRAYS);
+            if (ssl->pendingMsg == NULL)
                 return MEMORY_E;
-            XMEMCPY(ssl->arrays->pendingMsg,
+            ssl->pendingMsgType = type;
+            ssl->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
+            XMEMCPY(ssl->pendingMsg,
                     input + *inOutIdx - HANDSHAKE_HEADER_SZ,
                     inputLength);
-            ssl->arrays->pendingMsgOffset = inputLength;
+            ssl->pendingMsgOffset = inputLength;
             *inOutIdx += inputLength - HANDSHAKE_HEADER_SZ;
             return 0;
         }
@@ -14169,45 +14151,43 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                       totalSz);
     }
     else {
-        if (inputLength + ssl->arrays->pendingMsgOffset >
-                                                    ssl->arrays->pendingMsgSz) {
-            inputLength = ssl->arrays->pendingMsgSz -
-                                                  ssl->arrays->pendingMsgOffset;
+        if (inputLength + ssl->pendingMsgOffset > ssl->pendingMsgSz) {
+            inputLength = ssl->pendingMsgSz - ssl->pendingMsgOffset;
         }
 
-        ret = EarlySanityCheckMsgReceived(ssl, ssl->arrays->pendingMsgType,
+        ret = EarlySanityCheckMsgReceived(ssl, ssl->pendingMsgType,
                 inputLength);
         if (ret != 0) {
             WOLFSSL_ERROR(ret);
             return ret;
         }
 
-        XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
+        XMEMCPY(ssl->pendingMsg + ssl->pendingMsgOffset,
                 input + *inOutIdx, inputLength);
-        ssl->arrays->pendingMsgOffset += inputLength;
+        ssl->pendingMsgOffset += inputLength;
         *inOutIdx += inputLength;
 
-        if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
+        if (ssl->pendingMsgOffset == ssl->pendingMsgSz)
         {
             word32 idx = 0;
             ret = DoTls13HandShakeMsgType(ssl,
-                                ssl->arrays->pendingMsg + HANDSHAKE_HEADER_SZ,
-                                &idx, ssl->arrays->pendingMsgType,
-                                ssl->arrays->pendingMsgSz - HANDSHAKE_HEADER_SZ,
-                                ssl->arrays->pendingMsgSz);
+                                ssl->pendingMsg + HANDSHAKE_HEADER_SZ,
+                                &idx, ssl->pendingMsgType,
+                                ssl->pendingMsgSz - HANDSHAKE_HEADER_SZ,
+                                ssl->pendingMsgSz);
         #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
                 ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
                 /* setup to process fragment again */
-                ssl->arrays->pendingMsgOffset -= inputLength;
+                ssl->pendingMsgOffset -= inputLength;
                 *inOutIdx -= inputLength;
             }
             else
         #endif
             {
-                XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
-                ssl->arrays->pendingMsg = NULL;
-                ssl->arrays->pendingMsgSz = 0;
+                XFREE(ssl->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+                ssl->pendingMsg = NULL;
+                ssl->pendingMsgSz = 0;
             }
         }
     }
