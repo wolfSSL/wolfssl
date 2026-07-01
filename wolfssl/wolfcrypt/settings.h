@@ -5736,6 +5736,32 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error "WOLF_CRYPTO_CB_ONLY_ED25519 with " \
            "WOLFSSL_ED25519_STREAMING_VERIFY is not supported"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && !defined(HAVE_CURVE25519)
+    #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 requires HAVE_CURVE25519"
+#endif
+/* Software X25519 is stripped, so no in-tree hardware backend may be present
+ * and the nonblock/async paths (which have no callback path) must be off. */
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && defined(WOLFSSL_SE050)
+    #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 is incompatible with WOLFSSL_SE050"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && defined(FREESCALE_LTC_ECC)
+    #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 is incompatible with " \
+           "FREESCALE_LTC_ECC"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 is incompatible with FIPS builds"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && defined(WC_X25519_NONBLOCK)
+    #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 is incompatible with " \
+           "WC_X25519_NONBLOCK"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && defined(WC_ASYNC_ENABLE_X25519)
+    #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 is incompatible with " \
+           "WC_ASYNC_ENABLE_X25519"
+#endif
 
 /* Early Data / Session Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
