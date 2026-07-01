@@ -385,6 +385,18 @@ int test_wolfSSL_EVP_DecodeUpdate(void)
     );
     ExpectIntEQ( outl, 0);
 
+    /* pass negative length */
+    ExpectIntEQ(
+        EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            &outl,
+            enc1,
+            -1),             /* negative inl */
+        -1                    /* expected result code -1: fail */
+    );
+    ExpectIntEQ( outl, 0);
+
     ExpectIntEQ(EVP_DecodeBlock(NULL, NULL, 0), -1);
 
     /* pass zero length input */
