@@ -1158,6 +1158,150 @@ static int test_dtls_communication(WOLFSSL *s, WOLFSSL *c)
     return EXPECT_RESULT();
 }
 
+/* Drive a DTLS handshake until the dropping peer reads a genuine flight record,
+ * corrupt its header, confirm the peer silently discards it, then re-deliver
+ * the record and confirm the handshake still completes. */
+static int test_dtls_drop_invalid_record(method_provider method_c,
+    method_provider method_s, int dropServer, int unknownType)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Holds one cookie-exchange/HRR/ClientHello datagram. Pinning a classical
+     * group below keeps that flight small, and the ExpectIntLE(recSz) guard
+     * fails loudly rather than overflowing. */
+    unsigned char rec[2048];
+    unsigned char* recBuf;
+    int recSz = 0;
+    int readIsClient = dropServer ? 0 : 1;
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_ECC_SECP) && \
+    !defined(NO_ECC256)
+    int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    recBuf = readIsClient ? test_ctx.c_buff : test_ctx.s_buff;
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    method_c, method_s), 0);
+
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_ECC_SECP) && \
+    !defined(NO_ECC256)
+    /* Pin a classical group so a PQC-default build cannot fragment the first
+     * flight across datagrams and break the corrupt/replay model. Set it on the
+     * WOLFSSL objects, which test_memio_setup() has already created. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, groups, 1), WOLFSSL_SUCCESS);
+#endif
+
+    /* Client sends the ClientHello into the server's buffer. */
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* When dropping at the client, let the server produce its first flight into
+     * the client's buffer. */
+    if (!dropServer) {
+        wolfSSL_SetLoggingPrefix("server");
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    }
+
+    /* Corrupt then replay the datagram the dropping peer is about to read. This
+     * assumes a single-datagram flight (asserted below) so re-injecting cannot
+     * merge record boundaries or drop other queued datagrams. */
+    ExpectIntEQ(readIsClient ? test_ctx.c_msg_count : test_ctx.s_msg_count, 1);
+    recSz = readIsClient ? test_ctx.c_len : test_ctx.s_len;
+    ExpectIntGT(recSz, DTLS_RECORD_HEADER_SZ);
+    ExpectIntLE(recSz, (int)sizeof(rec));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(rec, recBuf, (size_t)recSz);
+        if (unknownType) {
+            /* Not a valid ContentType, and not a DTLS 1.3 unified-header byte
+             * (those have top bits 001, i.e. 0x20-0x3F). */
+            recBuf[0] = 0x63;
+        }
+        else {
+            recBuf[DTLS_RECORD_HEADER_SZ - 2] = 0xff;
+            recBuf[DTLS_RECORD_HEADER_SZ - 1] = 0xff;
+        }
+    }
+
+    /* The dropping peer must silently discard the datagram: no fatal error and
+     * nothing sent back to the other peer. */
+    if (dropServer) {
+        wolfSSL_SetLoggingPrefix("server");
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_ctx.c_len, 0);
+    }
+    else {
+        wolfSSL_SetLoggingPrefix("client");
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_ctx.s_len, 0);
+    }
+
+    /* Re-deliver the genuine record and finish the handshake to prove the
+     * association was preserved. */
+    test_memio_clear_buffer(&test_ctx, readIsClient);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, readIsClient,
+                    (const char*)rec, recSz),
+        0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+
+    wolfSSL_SetLoggingPrefix(NULL);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
+/* A DTLS peer must silently discard a handshake record whose header fails
+ * validation (UNKNOWN_RECORD_TYPE, LENGTH_ERROR) and still finish the handshake.
+ * Cover client and server paths for DTLS 1.2 and 1.3. */
+int test_dtls_drop_invalid_record_during_handshake(void)
+{
+    EXPECT_DECLS;
+
+    /* Client drops a corrupted server flight: unknown type, then over-length. */
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method, 0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method, 0, 0), TEST_SUCCESS);
+    /* Server drops a ClientHello with a bad record header: over-length, then
+     * unknown ContentType (dropped by the new UNKNOWN_RECORD_TYPE clause, which
+     * precedes the server-side non-stateful drop branch). */
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method, 1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method, 1, 1), TEST_SUCCESS);
+
+#ifdef WOLFSSL_DTLS13
+    /* Same silent-drop behavior on the DTLS 1.3 receive path (all four
+     * side/corruption combinations). */
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method, 0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method, 1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method, 1, 1), TEST_SUCCESS);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS)
 int test_dtls13_longer_length(void)
 {
@@ -1490,6 +1634,10 @@ int test_dtls_short_ciphertext(void)
     return EXPECT_RESULT();
 }
 #else
+int test_dtls_drop_invalid_record_during_handshake(void)
+{
+    return TEST_SKIPPED;
+}
 int test_dtls_short_ciphertext(void)
 {
     return TEST_SKIPPED;
