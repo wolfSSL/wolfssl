@@ -26353,6 +26353,15 @@ static int test_wolfSSL_CTX_LoadCRL_largeCRLnum(void)
         WOLFSSL_SUCCESS);
     AssertIntEQ(XMEMCMP(
         crlInfo.crlNumber, exp_crlnum, XSTRLEN(exp_crlnum)), 0);
+    /* The pointer fields must reference storage inside crlInfo so they stay
+     * valid after the call returns; before the fix they pointed into the
+     * freed decoded CRL. */
+    AssertTrue((byte*)crlInfo.issuerHash >= (byte*)&crlInfo &&
+               (byte*)crlInfo.issuerHash <  (byte*)(&crlInfo + 1));
+    AssertTrue((byte*)crlInfo.lastDate   >= (byte*)&crlInfo &&
+               (byte*)crlInfo.lastDate   <  (byte*)(&crlInfo + 1));
+    AssertTrue((byte*)crlInfo.nextDate   >= (byte*)&crlInfo &&
+               (byte*)crlInfo.nextDate   <  (byte*)(&crlInfo + 1));
     ExpectIntEQ(wolfSSL_CertManagerGetCRLInfo(
         cm, &crlInfo, crlLrgCrlNumBuff, -1, WOLFSSL_FILETYPE_PEM),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));

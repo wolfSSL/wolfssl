@@ -687,13 +687,22 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 #ifdef HAVE_CRL_UPDATE_CB
 static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
 {
-    info->issuerHash = (byte *)entry->issuerHash;
-    info->issuerHashLen = CRL_DIGEST_SIZE;
-    info->lastDate = (byte *)entry->lastDate;
-    info->lastDateMaxLen = MAX_DATE_SIZE;
+    /* Ensure the copy below stays within bounds. */
+    wc_static_assert(sizeof(info->issuerHashData) == sizeof(entry->issuerHash));
+
+    /* Copy into info's own buffers so the pointers stay valid for the
+     * lifetime of the CrlInfo, not just that of the source entry. */
+    info->issuerHashLen = sizeof(info->issuerHashData);
+    XMEMCPY(info->issuerHashData, entry->issuerHash,
+            sizeof(info->issuerHashData));
+    info->issuerHash = info->issuerHashData;
+    info->lastDateMaxLen = sizeof(info->lastDateData);
+    XMEMCPY(info->lastDateData, entry->lastDate, sizeof(info->lastDateData));
+    info->lastDate = info->lastDateData;
     info->lastDateFormat = entry->lastDateFormat;
-    info->nextDate = (byte *)entry->nextDate;
-    info->nextDateMaxLen = MAX_DATE_SIZE;
+    info->nextDateMaxLen = sizeof(info->nextDateData);
+    XMEMCPY(info->nextDateData, entry->nextDate, sizeof(info->nextDateData));
+    info->nextDate = info->nextDateData;
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
@@ -702,13 +711,19 @@ static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
 
 static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
 {
-    info->issuerHash = (byte *)entry->issuerHash;
-    info->issuerHashLen = SIGNER_DIGEST_SIZE;
-    info->lastDate = (byte *)entry->lastDate;
-    info->lastDateMaxLen = MAX_DATE_SIZE;
+    /* Copy into info's own buffers so the pointers stay valid after the
+     * decoded CRL is freed by the caller. */
+    info->issuerHashLen = sizeof(info->issuerHashData);
+    XMEMCPY(info->issuerHashData, entry->issuerHash,
+            sizeof(info->issuerHashData));
+    info->issuerHash = info->issuerHashData;
+    info->lastDateMaxLen = sizeof(info->lastDateData);
+    XMEMCPY(info->lastDateData, entry->lastDate, sizeof(info->lastDateData));
+    info->lastDate = info->lastDateData;
     info->lastDateFormat = entry->lastDateFormat;
-    info->nextDate = (byte *)entry->nextDate;
-    info->nextDateMaxLen = MAX_DATE_SIZE;
+    info->nextDateMaxLen = sizeof(info->nextDateData);
+    XMEMCPY(info->nextDateData, entry->nextDate, sizeof(info->nextDateData));
+    info->nextDate = info->nextDateData;
     info->nextDateFormat = entry->nextDateFormat;
     info->crlNumberSet = entry->crlNumberSet;
     if (info->crlNumberSet)
