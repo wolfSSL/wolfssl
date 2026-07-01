@@ -200,8 +200,27 @@ jobs:
             "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
             "--enable-tls13",
             "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_AES -DSWDEV_AES_ONLYECB"]},
+          {"name": "curve25519", "minutes": 2,
+           "comment": "WOLF_CRYPTO_CB_ONLY_CURVE25519: strips software X25519 (keygen/shared-secret); swdev provides the software path via cryptocb. Nonblock and async X25519 have no callback path and are left disabled.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
           {"name": "all", "minutes": 2,
-           "comment": "All five ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
+           "comment": "All six ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
            "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
             "--enable-rsa", "--enable-dh", "--enable-aesgcm",
             "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
@@ -219,7 +238,7 @@ jobs:
             "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
             "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
             "--enable-tls13",
-            "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES"]}
+            "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
