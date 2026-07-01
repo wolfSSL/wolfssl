@@ -21,8 +21,8 @@
 
 /* Falcon encode/decode routines for the
  * signing and key-generation paths. The verification-side decoders
- * (modq_decode, comp_decode) live as statics in wc_falcon.c and are not
- * referenced here. */
+ * (modq_decode, comp_decode) live as static functions in wc_falcon.c and are
+ * not referenced here. */
 
 #ifndef FALCON_CODEC_H
 #define FALCON_CODEC_H
