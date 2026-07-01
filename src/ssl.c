@@ -15723,12 +15723,21 @@ int wolfSSL_RAND_write_file(const char* fname)
             return 0;
         }
 
+        if (wc_LockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
+            WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return 0;
+        }
+
         if (wc_RNG_GenerateBlock(&globalRNG, buf, (word32)bytes) != 0) {
+            wc_UnLockMutex(&globalRNGMutex);
             WOLFSSL_MSG("Error generating random buffer");
             bytes = 0;
         }
         else {
             XFILE f;
+
+            wc_UnLockMutex(&globalRNGMutex);
 
         #ifdef WOLFSSL_CHECK_MEM_ZERO
             wc_MemZero_Add("wolfSSL_RAND_write_file buf", buf, bytes);
@@ -15745,7 +15754,9 @@ int wolfSSL_RAND_write_file(const char* fname)
                 XFCLOSE(f);
             }
         }
-        ForceZero(buf, (word32)bytes);
+        /* wipe the whole buffer, not just (word32)bytes: error paths set
+         * bytes = 0 but the buffer may still hold generated random data */
+        ForceZero(buf, 1024);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -15879,21 +15890,30 @@ int wolfSSL_RAND_egd(const char* nm)
             WOLFSSL_MSG("Error with initializing global RNG structure");
             ret = WOLFSSL_FATAL_ERROR;
         }
-        else if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
-                != 0) {
-            WOLFSSL_MSG("Error with reseeding DRBG structure");
+        else if (wc_LockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
             ret = WOLFSSL_FATAL_ERROR;
         }
-        #ifdef SHOW_SECRETS
-        else { /* print out entropy found only when no error occurred */
-            word32 i;
-            printf("EGD Entropy = ");
-            for (i = 0; i < bytes; i++) {
-                printf("%02X", buf[i]);
+        else {
+            if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
+                    != 0) {
+                WOLFSSL_MSG("Error with reseeding DRBG structure");
+                ret = WOLFSSL_FATAL_ERROR;
             }
-            printf("\n");
+            wc_UnLockMutex(&globalRNGMutex);
+
+            #ifdef SHOW_SECRETS
+            /* print out entropy found only when no error occurred */
+            if (ret == WOLFSSL_SUCCESS) {
+                word32 i;
+                printf("EGD Entropy = ");
+                for (i = 0; i < bytes; i++) {
+                    printf("%02X", buf[i]);
+                }
+                printf("\n");
+            }
+            #endif
         }
-        #endif
     }
 
     ForceZero(buf, bytes);
@@ -16121,18 +16141,21 @@ int wolfSSL_RAND_poll(void)
         WOLFSSL_MSG("Global RNG no Init");
         return  WOLFSSL_FAILURE;
     }
+
+    /* lock intentionally covers wc_GenerateSeed as well, since it writes
+     * globalRNG.seed; do not narrow this scope or the seed write races */
+    if (wc_LockMutex(&globalRNGMutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex rng");
+        return WOLFSSL_FAILURE;
+    }
+
     ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
     if (ret != 0) {
-        WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+        WOLFSSL_MSG("Bad wc_GenerateSeed");
         ret = WOLFSSL_FAILURE;
     }
     else {
 #ifdef HAVE_HASHDRBG
-        if (wc_LockMutex(&globalRNGMutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex rng");
-            return ret;
-        }
-
         ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
         if (ret != 0) {
             WOLFSSL_MSG("Error reseeding DRBG");
@@ -16141,7 +16164,6 @@ int wolfSSL_RAND_poll(void)
         else {
             ret = WOLFSSL_SUCCESS;
         }
-        wc_UnLockMutex(&globalRNGMutex);
 #elif defined(HAVE_INTEL_RDRAND)
         WOLFSSL_MSG("Not polling with RAND_poll, RDRAND used without "
                     "HAVE_HASHDRBG");
@@ -16151,6 +16173,8 @@ int wolfSSL_RAND_poll(void)
         ret = WOLFSSL_FAILURE;
 #endif
     }
+
+    wc_UnLockMutex(&globalRNGMutex);
 
     return ret;
 }

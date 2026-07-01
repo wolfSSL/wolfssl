@@ -1560,11 +1560,19 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
                 ret = 0;
             }
 
+            if ((ret > 0) && (wc_LockMutex(&globalRNGMutex) != 0)) {
+                WOLFSSL_MSG("Bad Lock Mutex rng");
+                ret = 0;
+            }
+
             /* no need to generate random byte for null terminator (size-1) */
-            if ((ret > 0) && (wc_RNG_GenerateBlock(&globalRNG, (byte*)boundary,
-                                  sizeof(boundary) - 1 ) != 0)) {
+            if (ret > 0) {
+                if (wc_RNG_GenerateBlock(&globalRNG, (byte*)boundary,
+                                  sizeof(boundary) - 1 ) != 0) {
                     WOLFSSL_MSG("Error in wc_RNG_GenerateBlock");
                     ret = 0;
+                }
+                wc_UnLockMutex(&globalRNGMutex);
             }
 
             if (ret > 0) {
