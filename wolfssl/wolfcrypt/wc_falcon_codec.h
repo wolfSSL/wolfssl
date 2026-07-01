@@ -24,8 +24,8 @@
  * (modq_decode, comp_decode) live as static functions in wc_falcon.c and are
  * not referenced here. */
 
-#ifndef FALCON_CODEC_H
-#define FALCON_CODEC_H
+#ifndef WOLF_CRYPT_WC_FALCON_CODEC_H
+#define WOLF_CRYPT_WC_FALCON_CODEC_H
 
 #include <wolfssl/wolfcrypt/types.h>
 
@@ -72,4 +72,4 @@ WOLFSSL_LOCAL size_t falcon_privkey_encode(byte* sk, size_t max_sk,
 
 #endif /* HAVE_FALCON && !WOLFSSL_FALCON_VERIFY_ONLY */
 
-#endif /* FALCON_CODEC_H */
+#endif /* WOLF_CRYPT_WC_FALCON_CODEC_H */

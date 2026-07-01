@@ -100,7 +100,7 @@ static const word32 l2bound[] = {
  * the real (lower) half of the FFT representation, divide by f, inverse-FFT and
  * round to integers. */
 int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
-        const sword8* F, unsigned logn)
+        const sword8* F, unsigned logn, void* heap)
 {
     size_t n, hn, u;
     fpr* t1;
@@ -117,7 +117,7 @@ int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
     hn = n >> 1;
 
     /* Three working polynomials. */
-    t1 = (fpr*)XMALLOC((size_t)3 * n * sizeof(fpr), NULL,
+    t1 = (fpr*)XMALLOC((size_t)3 * n * sizeof(fpr), heap,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (t1 == NULL) {
         return MEMORY_E;
@@ -161,7 +161,7 @@ int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
 
     /* t1 held the FFT images of the secret basis (g, F, f) and the derived G. */
     wc_ForceZero(t1, (word32)((size_t)3 * n * sizeof(fpr)));
-    XFREE(t1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(t1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -271,7 +271,7 @@ static WC_INLINE size_t skoff_b11(unsigned logn) { return 3 * MKN(logn); }
 static WC_INLINE size_t skoff_tree(unsigned logn) { return 4 * MKN(logn); }
 
 int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
-        const sword8* F, const sword8* G, unsigned logn)
+        const sword8* F, const sword8* G, unsigned logn, void* heap)
 {
     size_t n;
     fpr* rf;
@@ -297,7 +297,7 @@ int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
     n = MKN(logn);
 
     /* Internal scratch: six polynomials (matches the reference 48*2^logn). */
-    tmp = (fpr*)XMALLOC((size_t)6 * n * sizeof(fpr), NULL,
+    tmp = (fpr*)XMALLOC((size_t)6 * n * sizeof(fpr), heap,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         return MEMORY_E;
@@ -357,7 +357,7 @@ int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
 
     /* tmp held the secret-derived Gram matrix and ffLDL intermediates. */
     wc_ForceZero(tmp, (word32)((size_t)6 * n * sizeof(fpr)));
-    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
 
@@ -657,7 +657,8 @@ static int do_sign_tree_once(falcon_samplerZ samp, void* samp_ctx, sword16* s2,
 }
 
 int falcon_do_sign_tree(falcon_samplerZ samp, void* samp_ctx, sword16* s2,
-        const fpr* expanded, const word16* hm, unsigned logn, fpr* tmp)
+        const fpr* expanded, const word16* hm, unsigned logn, fpr* tmp,
+        const int* samplerErr)
 {
     if (samp == NULL || s2 == NULL || expanded == NULL || hm == NULL
             || tmp == NULL || logn < 1 || logn > 10) {
@@ -675,6 +676,12 @@ int falcon_do_sign_tree(falcon_samplerZ samp, void* samp_ctx, sword16* s2,
         for (iter = 0; iter < FALCON_SIGN_MAX_RESTARTS; iter++) {
             if (do_sign_tree_once(samp, samp_ctx, s2, expanded, hm, logn, tmp)) {
                 return 0;
+            }
+            /* Fail fast on a sampler PRNG error (non-secret, already latched):
+             * no point burning restarts on candidates built from invalid
+             * randomness. */
+            if (samplerErr != NULL && *samplerErr != 0) {
+                return *samplerErr;
             }
 #ifdef WOLFSSL_FALCON_SIGN_STATS
             /* Optional instrumentation for test harnesses: counts the rare
@@ -696,7 +703,8 @@ int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
     if (spc == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = falcon_do_sign_tree(falcon_sampler_z, spc, s2, expanded, c, logn, tmp);
+    ret = falcon_do_sign_tree(falcon_sampler_z, spc, s2, expanded, c, logn, tmp,
+            &spc->p.err);
     /* Reject the signature if the sampler's PRNG failed at any point: the
      * squeezed bytes it consumed would be invalid, so the result is unsafe. */
     if (ret == 0 && spc->p.err != 0) {

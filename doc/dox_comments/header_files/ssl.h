@@ -14466,7 +14466,7 @@ int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
     | ML_KEM_1024 |
 
     ML-KEM hybrid groups additionally require HAVE_ECC together with either
-    WOLFSSL_WC_MLKEM or HAVE_LIBOQS, and WOLFSSL_PQC_HYBRIDS (or
+    WOLFSSL_WC_MLKEM, and WOLFSSL_PQC_HYBRIDS (or
     WOLFSSL_EXTRA_PQC_HYBRIDS for the "extra" set):
 
     | Name                | Hybrid flag set            |
@@ -14481,7 +14481,7 @@ int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
     | X448MLKEM768        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
 
     Legacy Kyber groups (require WOLFSSL_MLKEM_KYBER; hybrids additionally
-    require HAVE_ECC together with WOLFSSL_WC_MLKEM or HAVE_LIBOQS):
+    require HAVE_ECC together with WOLFSSL_WC_MLKEM):
 
     | Name                  |
     | --------------------- |
@@ -14685,7 +14685,7 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
     | WOLFSSL_ML_KEM_1024|
 
     ML-KEM hybrid groups additionally require HAVE_ECC together with either
-    WOLFSSL_WC_MLKEM or HAVE_LIBOQS, and WOLFSSL_PQC_HYBRIDS (or
+    WOLFSSL_WC_MLKEM, and WOLFSSL_PQC_HYBRIDS (or
     WOLFSSL_EXTRA_PQC_HYBRIDS for the "extra" set):
 
     | Identifier                       | Hybrid flag set            |
@@ -14700,8 +14700,7 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
     | WOLFSSL_X448MLKEM768             | WOLFSSL_EXTRA_PQC_HYBRIDS  |
 
     Legacy Kyber groups (require HAVE_PQC and WOLFSSL_MLKEM_KYBER; hybrids
-    additionally require HAVE_ECC together with WOLFSSL_WC_MLKEM or
-    HAVE_LIBOQS):
+    additionally require HAVE_ECC together with WOLFSSL_WC_MLKEM):
 
     | Identifier                  |
     | --------------------------- |
