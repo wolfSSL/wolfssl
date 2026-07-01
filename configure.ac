@@ -1821,6 +1821,17 @@ then
 fi
 
 
+# liboqs support has been removed: the only consumer (Falcon) is now provided
+# by the native wolfCrypt implementation. Keep --with-liboqs as a deprecated,
+# recognised no-op so existing scripts and CI matrices that still pass it do not
+# hard-fail on an unknown option (enable_option_checking is fatal); it links no
+# liboqs and has no effect on the build. Warn when it is given.
+AC_ARG_WITH([liboqs],
+    [AS_HELP_STRING([--with-liboqs],[DEPRECATED and ignored: liboqs support has been removed. Use --enable-falcon for the native implementation.])],
+    [AS_IF([test "x$withval" != "xno"],
+        [AC_MSG_WARN([--with-liboqs is deprecated and has no effect: liboqs support has been removed; Falcon is now provided natively via --enable-falcon.])])],
+    [])
+
 # Falcon post-quantum signatures, provided by the native wolfCrypt
 # implementation (no liboqs); it needs SHA-3 / SHAKE256 (forced on in the CFLAG
 # section below). Because the algorithm is not yet standardized and its API name
