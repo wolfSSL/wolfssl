@@ -1725,6 +1725,9 @@ int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
     int ret = 0;
     word32 i;
 
+    if (prime == NULL || pub == NULL)
+        return BAD_FUNC_ARG;
+
     for (i = 0; i < pubSz && pub[i] == 0; i++) {
     }
     pubSz -= i;
