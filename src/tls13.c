@@ -5454,7 +5454,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (args->pv.major != ssl->version.major ||
         args->pv.minor != tls12minor) {
-        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
         WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
         return VERSION_ERROR;
     }
@@ -5559,14 +5558,14 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         ssl->options.haveEMS = 0;
         if (args->pv.minor < ssl->options.minDowngrade) {
-            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
         }
 #ifndef WOLFSSL_NO_TLS12
         ssl->options.tls1_3 = 0;
         return DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
-        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
+        WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
         return VERSION_ERROR;
 #endif
     }
@@ -5588,10 +5587,24 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
         }
         if (!foundVersion) {
+            /* RFC 8446 4.1.4: "The server's extensions MUST contain
+             * 'supported_versions'." (also 9.2: "supported_versions" is
+             * REQUIRED for all ... HelloRetryRequest messages). The HRR random
+             * unambiguously identifies a TLS 1.3 server, so its absence is not
+             * a downgrade attempt but a missing mandatory extension, which per
+             * the "missing_extension" alert definition must be reported as
+             * such. Return INCOMPLETE_DATA (which maps to a missing_extension
+             * alert) and let the caller emit the alert via
+             * TranslateErrorToAlert(). */
+            if (*extMsgType == hello_retry_request) {
+                WOLFSSL_MSG("HelloRetryRequest missing supported_versions "
+                            "extension");
+                WOLFSSL_ERROR_VERBOSE(INCOMPLETE_DATA);
+                return INCOMPLETE_DATA;
+            }
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Server trying to downgrade to version less than "
                             "TLS v1.3");
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
@@ -5610,14 +5623,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             if (!ssl->options.dtls &&
                 args->pv.minor < ssl->options.minDowngrade) {
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
 
             if (ssl->options.dtls &&
                 args->pv.minor > ssl->options.minDowngrade) {
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
