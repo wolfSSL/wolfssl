@@ -2323,6 +2323,10 @@ if BUILD_FALCON_AVX2
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft_avx2.c
 endif
 
+if BUILD_FALCON_NEON
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft_neon.c
+endif
+
 
 if BUILD_LIBZ
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/compress.c

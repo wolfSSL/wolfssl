@@ -1889,6 +1889,27 @@ if test "$ENABLED_FALCON_AVX2" = "yes"; then
     esac
 fi
 
+# --enable-falcon-neon adds the AArch64 NEON (2-wide float64x2_t + FMA) vectorized
+# FFT for the signing path. It composes with --enable-falcon-double (which it
+# implies). AArch64 Advanced SIMD is part of the ARMv8-A baseline, so no special
+# -march is required.
+AC_ARG_ENABLE([falcon-neon],
+    [AS_HELP_STRING([--enable-falcon-neon],[Enable FN-DSA AArch64 NEON vectorized FFT (default: disabled)])],
+    [ ENABLED_FALCON_NEON=$enableval ],
+    [ ENABLED_FALCON_NEON=no ])
+if test "$ENABLED_FALCON_NEON" = "yes"; then
+    case $host_cpu in
+        *aarch64*|*arm64*)
+            if test "$ENABLED_FALCON_ASM" = "yes"; then
+                AC_MSG_ERROR([--enable-falcon-neon and --enable-falcon-asm are mutually exclusive.])
+            fi
+            ENABLED_FALCON=yes
+            ENABLED_FALCON_DOUBLE=yes ;;
+        *) AC_MSG_WARN([--enable-falcon-neon is only supported on AArch64; ignoring.])
+           ENABLED_FALCON_NEON=no ;;
+    esac
+fi
+
 
 # MLKEM
 # Used:
@@ -8142,6 +8163,10 @@ if test "$ENABLED_FALCON_AVX2" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_FFT_AVX2"
 fi
+if test "$ENABLED_FALCON_NEON" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_FFT_NEON"
+fi
 
 # XMSS CFLAG processing (after FIPS section for sandwich pattern)
 if test "$ENABLED_XMSS" != "no"
@@ -12925,6 +12950,7 @@ AM_CONDITIONAL([BUILD_MLDSA],[test "x$ENABLED_MLDSA" != "xno" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_FALCON],[test "x$ENABLED_FALCON" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FALCON_ASM],[test "x$ENABLED_FALCON_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_FALCON_AVX2],[test "x$ENABLED_FALCON_AVX2" = "xyes"])
+AM_CONDITIONAL([BUILD_FALCON_NEON],[test "x$ENABLED_FALCON_NEON" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
