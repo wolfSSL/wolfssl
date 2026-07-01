@@ -946,6 +946,11 @@ impl Ed25519 {
             sys::wc_ed25519_verify_msg(signature.as_ptr(), signature_size,
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_SIG_VERIFY_E {
+            // A well-formed but invalid signature is reported as Ok(false)
+            // rather than an error.
+            return Ok(false);
+        }
         if rc != 0 {
             return Err(rc);
         }
@@ -998,6 +1003,11 @@ impl Ed25519 {
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key,
                 context.as_ptr(), context_size)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_SIG_VERIFY_E {
+            // A well-formed but invalid signature is reported as Ok(false)
+            // rather than an error.
+            return Ok(false);
+        }
         if rc != 0 {
             return Err(rc);
         }
@@ -1066,6 +1076,11 @@ impl Ed25519 {
                 hash.as_ptr(), hash_size, &mut res, &mut self.ws_key,
                 context_ptr, context_size)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_SIG_VERIFY_E {
+            // A well-formed but invalid signature is reported as Ok(false)
+            // rather than an error.
+            return Ok(false);
+        }
         if rc != 0 {
             return Err(rc);
         }
@@ -1124,6 +1139,11 @@ impl Ed25519 {
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key,
                 context_ptr, context_size)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_SIG_VERIFY_E {
+            // A well-formed but invalid signature is reported as Ok(false)
+            // rather than an error.
+            return Ok(false);
+        }
         if rc != 0 {
             return Err(rc);
         }
@@ -1182,6 +1202,11 @@ impl Ed25519 {
                 din.as_ptr(), din_size, &mut res, &mut self.ws_key, typ,
                 context_ptr, context_size)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_SIG_VERIFY_E {
+            // A well-formed but invalid signature is reported as Ok(false)
+            // rather than an error.
+            return Ok(false);
+        }
         if rc != 0 {
             return Err(rc);
         }
@@ -1323,6 +1348,11 @@ impl Ed25519 {
             sys::wc_ed25519_verify_msg_final(signature.as_ptr(), signature_size,
                 &mut res, &mut self.ws_key)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_SIG_VERIFY_E {
+            // A well-formed but invalid signature is reported as Ok(false)
+            // rather than an error.
+            return Ok(false);
+        }
         if rc != 0 {
             return Err(rc);
         }

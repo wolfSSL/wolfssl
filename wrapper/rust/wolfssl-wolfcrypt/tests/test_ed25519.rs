@@ -211,6 +211,121 @@ fn test_ph_sign_verify() {
     assert!(signature_valid);
 }
 
+// The following tests exercise the Ok(false) return path (a well-formed but
+// invalid signature) of every Ed25519 verify function. Each test signs a
+// message, then flips a bit in the R portion (first byte) of the signature.
+// This keeps the signature structurally valid (the S portion remains less
+// than the group order) but makes the verification comparison fail, which is
+// expected to produce Ok(false).
+//
+// The underlying wolfCrypt verify functions return SIG_VERIFY_E for a
+// well-formed but invalid signature instead of returning 0 with the result
+// flag cleared. The Rust wrappers map SIG_VERIFY_E to Ok(false) so that an
+// invalid signature is reported as Ok(false) rather than an error.
+
+#[test]
+#[cfg(all(ed25519_sign, ed25519_verify))]
+fn test_verify_msg_bad_sig() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+    ed.sign_msg(&message, &mut signature).expect("Error with sign_msg()");
+    signature[0] ^= 0x01;
+
+    assert_eq!(ed.verify_msg(&signature, &message), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed25519_sign, ed25519_verify))]
+fn test_verify_msg_ex_bad_sig() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+    ed.sign_msg_ex(&message, None, Ed25519::ED25519, &mut signature).expect("Error with sign_msg_ex()");
+    signature[0] ^= 0x01;
+
+    assert_eq!(ed.verify_msg_ex(&signature, &message, None, Ed25519::ED25519), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed25519_sign, ed25519_verify))]
+fn test_verify_msg_ctx_bad_sig() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let context = b"context";
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+    ed.sign_msg_ctx(&message, context, &mut signature).expect("Error with sign_msg_ctx()");
+    signature[0] ^= 0x01;
+
+    assert_eq!(ed.verify_msg_ctx(&signature, &message, context), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed25519_sign, ed25519_verify))]
+fn test_verify_msg_ph_bad_sig() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let context = b"context";
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+    ed.sign_msg_ph(&message, Some(context), &mut signature).expect("Error with sign_msg_ph()");
+    signature[0] ^= 0x01;
+
+    assert_eq!(ed.verify_msg_ph(&signature, &message, Some(context)), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed25519_sign, ed25519_verify))]
+fn test_verify_hash_ph_bad_sig() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let hash = [0x55u8; 64];
+    let context = b"context";
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+    ed.sign_hash_ph(&hash, Some(context), &mut signature).expect("Error with sign_hash_ph()");
+    signature[0] ^= 0x01;
+
+    assert_eq!(ed.verify_hash_ph(&signature, &hash, Some(context)), Ok(false));
+}
+
+#[test]
+#[cfg(all(ed25519_sign, ed25519_streaming_verify))]
+fn test_verify_msg_final_bad_sig() {
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+
+    let message = [0x42u8, 33, 55, 66];
+    let mut signature = [0u8; Ed25519::SIG_SIZE];
+    ed.sign_msg(&message, &mut signature).expect("Error with sign_msg()");
+    signature[0] ^= 0x01;
+
+    ed.verify_msg_init(&signature, None, Ed25519::ED25519).expect("Error with verify_msg_init()");
+    ed.verify_msg_update(&message[0..2]).expect("Error with verify_msg_update()");
+    ed.verify_msg_update(&message[2..4]).expect("Error with verify_msg_update()");
+
+    assert_eq!(ed.verify_msg_final(&signature), Ok(false));
+}
+
 #[test]
 #[cfg(all(ed25519_import, ed25519_export))]
 fn test_import_export() {
