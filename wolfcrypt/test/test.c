@@ -43802,9 +43802,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
     wc_test_ret_t ret;
     word32 idx = 0;
 #ifndef WC_NO_RNG
-    /* pad our test message to 32 bytes so evenly divisible by AES_BLOCK_SZ */
+    /* pad our test message to 32 bytes so evenly divisible by AES_BLOCK_SZ
+     * and >= WC_MIN_DIGEST_SIZE for the ecc sign path (zd22053) */
     byte   in[] = "Everyone gets Friday off. ecc p";
-    word32 inLen = (word32)XSTRLEN((char*)in);
+    word32 inLen = (word32)sizeof(in); /* 32, incl. trailing NUL */
     byte   out[256];
     byte   plain[256];
     WOLFSSL_ENTER("ecc_test_buffers");
