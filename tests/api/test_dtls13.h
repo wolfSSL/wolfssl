@@ -31,6 +31,7 @@
 int test_dtls13_bad_epoch_ch(void);
 int test_wolfSSL_dtls13_null_cipher(void);
 int test_dtls13_frag_ch_pq(void);
+int test_dtls13_frag_ch_pq_no_cookie(void);
 int test_dtls_frag_ch(void);
 int test_dtls_empty_keyshare_with_cookie(void);
 int test_dtls13_missing_finished_client(void);
@@ -58,6 +59,7 @@ int test_dtls13_oversized_cert_chain(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_bad_epoch_ch),                       \
     TEST_DECL_GROUP("dtls13", test_wolfSSL_dtls13_null_cipher),                \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch_pq),                         \
+    TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch_pq_no_cookie),               \
     TEST_DECL_GROUP("dtls13", test_dtls_frag_ch),                              \
     TEST_DECL_GROUP("dtls13", test_dtls_empty_keyshare_with_cookie),           \
     TEST_DECL_GROUP("dtls13", test_dtls13_missing_finished_client),            \
