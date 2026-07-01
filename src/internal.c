@@ -22920,7 +22920,9 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
     if ((ssl->options.handShakeDone && retcode != 0)
         || retcode == WC_NO_ERR_TRACE(SEQUENCE_ERROR)
         || retcode == WC_NO_ERR_TRACE(DTLS_CID_ERROR)
-        || retcode == WC_NO_ERR_TRACE(DTLS_PARTIAL_RECORD_READ)) {
+        || retcode == WC_NO_ERR_TRACE(DTLS_PARTIAL_RECORD_READ)
+        || retcode == WC_NO_ERR_TRACE(UNKNOWN_RECORD_TYPE)
+        || retcode == WC_NO_ERR_TRACE(LENGTH_ERROR)) {
         WOLFSSL_MSG_EX("Silently dropping DTLS message: %d", retcode);
         return 1;
     }
