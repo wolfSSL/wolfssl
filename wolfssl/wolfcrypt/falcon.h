@@ -213,7 +213,10 @@ WOLFSSL_API int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output,
                                          word32 inLen, int withAlg);
 
 /* Native implementation core (internal). The public wc_falcon_* functions in
- * falcon.c wrap these with cryptocb dispatch and argument checking. */
+ * falcon.c wrap these with cryptocb dispatch and argument checking. With
+ * WOLF_CRYPTO_CB_ONLY_FALCON the native core is not compiled: all operations go
+ * through the crypto callback. */
+#ifndef WOLF_CRYPTO_CB_ONLY_FALCON
 #ifndef WOLFSSL_FALCON_VERIFY_ONLY
 /* Signals that native signing and key generation are available. */
 #define WC_FALCON_HAVE_NATIVE_SIGN
@@ -223,6 +226,7 @@ WOLFSSL_LOCAL int falcon_native_sign_msg(const byte* in, word32 inLen,
 #endif
 WOLFSSL_LOCAL int falcon_native_verify_msg(const byte* sig, word32 sigLen,
         const byte* msg, word32 msgLen, int* res, falcon_key* key);
+#endif /* !WOLF_CRYPTO_CB_ONLY_FALCON */
 
 #ifdef __cplusplus
     }    /* extern "C" */

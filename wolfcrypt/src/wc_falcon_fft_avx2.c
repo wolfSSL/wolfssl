@@ -53,7 +53,7 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+#if defined(HAVE_FALCON) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
     defined(WOLFSSL_FALCON_FFT_AVX2)
 
 #include <wolfssl/wolfcrypt/wc_falcon_fft.h>

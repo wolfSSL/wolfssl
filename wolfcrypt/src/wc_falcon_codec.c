@@ -29,7 +29,7 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY)
+#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
 
 #include <wolfssl/wolfcrypt/falcon.h>
 #include <wolfssl/wolfcrypt/wc_falcon_codec.h>
