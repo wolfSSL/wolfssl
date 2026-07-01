@@ -6,7 +6,7 @@ compiled separately from the main library, linked into the test
 programs only, and exposes exactly two C symbols. **It is not a
 production component and must not be linked into shipping binaries.**
 
-The four switches it supports are:
+The switches it supports are:
 
 | Macro                          | Strips         | Test target        |
 |--------------------------------|----------------|--------------------|
@@ -14,6 +14,7 @@ The four switches it supports are:
 | `WOLF_CRYPTO_CB_ONLY_ECC`      | software ECC   | ECC via CryptoCb   |
 | `WOLF_CRYPTO_CB_ONLY_SHA256`   | software SHA-256 | SHA-256 via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_AES`      | software AES   | AES via CryptoCb   |
+| `WOLF_CRYPTO_CB_ONLY_CURVE25519` | software X25519 | X25519 via CryptoCb |
 
 When a test program calls e.g. `wc_AesCbcEncrypt()` against a libwolfssl
 built with `-DWOLF_CRYPTO_CB_ONLY_AES`, the software AES path is gone;
@@ -55,7 +56,7 @@ internal copy of the AES code, and returns the result.
    |   wc_SwDev_Callback(devId, info, ctx)                     |
    |     - swdev_ensure_init() lazy wolfCrypt_Init             |
    |     - switch (info->algo_type):                           |
-   |         PK     -> RSA / ECC software impl                 |
+   |         PK     -> RSA / ECC / X25519 software impl        |
    |         HASH   -> SHA-256 software impl                   |
    |         CIPHER -> AES (CBC/CTR/ECB/GCM/CCM) software impl |
    |                                                           |
@@ -70,10 +71,10 @@ internal copy of the AES code, and returns the result.
 The whole mechanism rests on compiling the wolfcrypt sources twice:
 
 1. **libwolfssl** is built normally with the user's `_ONLY_*` flags
-   set, so its software RSA/ECC/SHA-256/AES paths are gone.
+   set, so its software RSA/ECC/SHA-256/AES/X25519 paths are gone.
 2. **swdev** recompiles the same source set under
-   `tests/swdev/user_settings.h`, which `#undef`s all four `_ONLY_*`
-   macros. swdev therefore contains the full software implementations.
+   `tests/swdev/user_settings.h`, which `#undef`s every `_ONLY_*`
+   macro. swdev therefore contains the full software implementations.
 
 To prevent symbol collisions when both are linked into the same test
 binary, `tests/swdev/Makefile` does the following:
