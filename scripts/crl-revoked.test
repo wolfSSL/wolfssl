@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
+
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
                                   && exit 1
 
@@ -99,7 +106,7 @@ run_test() {
     # starts the server on crl_port, -R generates ready file to be used as a
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -R "$ready_file" -p $crl_port \
+    timeout -s KILL 2m ./examples/server/server -R "$ready_file" -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
     server_pid=$!
@@ -176,7 +183,7 @@ run_hashdir_test() {
   # starts the server on crl_port, -R generates ready file to be used as a
   # mutex lock, -c loads the revoked certificate. We capture the processid
   # into the variable server_pid
-  ./examples/server/server -R "$ready_file" -p $crl_port \
+  timeout -s KILL 2m ./examples/server/server -R "$ready_file" -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
   server_pid=$!

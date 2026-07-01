@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
+
 # ocsp-stapling_tls13multi.test
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
@@ -455,7 +462,7 @@ if [ "$tls13" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE 6 LOAD CERT IN SSL -------------------"
     remove_single_rF "$ready_file5"
-    ./examples/server/server -c certs/ocsp/server1-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem \
                             -k certs/ocsp/server1-key.pem -R "$ready_file5" -v 4 \
                             -p "$port5" -H loadSSL &
     server_pid5=$!
@@ -470,7 +477,7 @@ if [ "$tls13" == "yes" ]; then
     printf '%s\n\n' "Test successful"
     printf '%s\n\n' "------------- TEST CASE 7 SHOULD REVOKE ----------------------"
     remove_single_rF "$ready_file5"
-    ./examples/server/server -c certs/ocsp/server4-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server4-cert.pem \
                             -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                             -p "$port5" -H loadSSL -v 4 &
     server_pid5=$!
