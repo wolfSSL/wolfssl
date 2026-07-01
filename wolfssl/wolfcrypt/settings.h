@@ -5720,6 +5720,25 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(WOLF_CRYPTO_CB_ONLY_AES) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_AES requires WOLF_CRYPTO_CB"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_ED25519) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_ED25519 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_ED25519) && !defined(HAVE_ED25519)
+    #error "WOLF_CRYPTO_CB_ONLY_ED25519 requires HAVE_ED25519"
+#endif
+/* Software Ed25519 is stripped, so no in-tree Ed25519 backend may be present
+ * and the streaming verify API (which has no callback path) must be off. */
+#if defined(WOLF_CRYPTO_CB_ONLY_ED25519) && defined(WOLFSSL_SE050)
+    #error "WOLF_CRYPTO_CB_ONLY_ED25519 is incompatible with WOLFSSL_SE050"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_ED25519) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB_ONLY_ED25519 is incompatible with FIPS builds"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_ED25519) && \
+    defined(WOLFSSL_ED25519_STREAMING_VERIFY)
+    #error "WOLF_CRYPTO_CB_ONLY_ED25519 is incompatible with " \
+           "WOLFSSL_ED25519_STREAMING_VERIFY"
+#endif
 
 /* Early Data / Session Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
