@@ -12353,7 +12353,7 @@ _AES_GCM_encrypt_avx2:
         movl	64(%rsp), %r14d
         movq	72(%rsp), %rsi
         movl	80(%rsp), %r9d
-        subq	$0xa0, %rsp
+        subq	$0xb8, %rsp
         vpxor	%xmm4, %xmm4, %xmm4
         vpxor	%xmm6, %xmm6, %xmm6
         movl	%ebx, %edx
@@ -12602,9 +12602,183 @@ L_AES_GCM_encrypt_avx2_iv_done:
         cmpl	$0x00, %edx
         je	L_AES_GCM_encrypt_avx2_calc_aad_done
         xorl	%ecx, %ecx
-        cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_avx2_calc_aad_lt16
+        cmpl	$0x80, %edx
+        jl	L_AES_GCM_encrypt_avx2_calc_aad_after_agg
+        movl	%edx, %r13d
+        andl	$0xffffffc0, %r13d
+        vmovdqu	%xmm5, 168(%rsp)
+        vpsrlq	$63, %xmm5, %xmm1
+        vpsllq	$0x01, %xmm5, %xmm0
+        vpslldq	$8, %xmm1, %xmm1
+        vpor	%xmm1, %xmm0, %xmm0
+        vpshufd	$0xff, %xmm5, %xmm5
+        vpsrad	$31, %xmm5, %xmm5
+        vpand	L_avx2_aes_gcm_mod2_128(%rip), %xmm5, %xmm5
+        vpxor	%xmm0, %xmm5, %xmm5
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
+        # H ^ 1 and H ^ 2
+        vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm9
+        vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm9, %xmm8
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpxor	%xmm8, %xmm9, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm9, %xmm8
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpxor	%xmm8, %xmm9, %xmm9
+        vpxor	%xmm9, %xmm10, %xmm0
+        vmovdqu	%xmm5, (%rsp)
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3 and H ^ 4
+        vpclmulqdq	$16, %xmm5, %xmm0, %xmm11
+        vpclmulqdq	$0x01, %xmm5, %xmm0, %xmm10
+        vpclmulqdq	$0x00, %xmm5, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm5, %xmm0, %xmm12
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm13
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm14
+        vpxor	%xmm10, %xmm11, %xmm11
+        vpslldq	$8, %xmm11, %xmm10
+        vpsrldq	$8, %xmm11, %xmm11
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm11, %xmm12, %xmm12
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpxor	%xmm12, %xmm10, %xmm10
+        vpxor	%xmm14, %xmm13, %xmm2
+        vpxor	%xmm9, %xmm10, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        vmovdqu	%xmm2, 48(%rsp)
+        # H ^ 5 and H ^ 6
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm12
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm13
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm14
+        vpxor	%xmm10, %xmm11, %xmm11
+        vpslldq	$8, %xmm11, %xmm10
+        vpsrldq	$8, %xmm11, %xmm11
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm11, %xmm12, %xmm12
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpxor	%xmm12, %xmm10, %xmm10
+        vpxor	%xmm14, %xmm13, %xmm0
+        vpxor	%xmm9, %xmm10, %xmm7
+        vmovdqu	%xmm7, 64(%rsp)
+        vmovdqu	%xmm0, 80(%rsp)
+        # H ^ 7 and H ^ 8
+        vpclmulqdq	$16, %xmm1, %xmm2, %xmm11
+        vpclmulqdq	$0x01, %xmm1, %xmm2, %xmm10
+        vpclmulqdq	$0x00, %xmm1, %xmm2, %xmm9
+        vpclmulqdq	$0x11, %xmm1, %xmm2, %xmm12
+        vpclmulqdq	$0x00, %xmm2, %xmm2, %xmm13
+        vpclmulqdq	$0x11, %xmm2, %xmm2, %xmm14
+        vpxor	%xmm10, %xmm11, %xmm11
+        vpslldq	$8, %xmm11, %xmm10
+        vpsrldq	$8, %xmm11, %xmm11
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm11, %xmm12, %xmm12
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpxor	%xmm12, %xmm10, %xmm10
+        vpxor	%xmm14, %xmm13, %xmm0
+        vpxor	%xmm9, %xmm10, %xmm7
+        vmovdqu	%xmm7, 96(%rsp)
+        vmovdqu	%xmm0, 112(%rsp)
+L_AES_GCM_encrypt_avx2_calc_aad_agg:
+        # 64 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	(%rbx), %xmm8
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
+        vmovdqu	16(%rbx), %xmm9
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm9, %xmm9
+        vmovdqu	32(%rbx), %xmm10
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm10, %xmm10
+        vmovdqu	48(%rbx), %xmm11
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm11, %xmm11
+        vpxor	%xmm6, %xmm8, %xmm8
+        vmovdqu	48(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm8, %xmm7, %xmm13
+        vpclmulqdq	$0x01, %xmm8, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm8, %xmm7, %xmm12
+        vpclmulqdq	$0x11, %xmm8, %xmm7, %xmm6
+        vpxor	%xmm1, %xmm13, %xmm13
+        vmovdqu	32(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm9, %xmm7, %xmm2
+        vpclmulqdq	$0x01, %xmm9, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm9, %xmm7, %xmm0
+        vpclmulqdq	$0x11, %xmm9, %xmm7, %xmm3
+        vpxor	%xmm1, %xmm2, %xmm2
+        vpxor	%xmm3, %xmm6, %xmm6
+        vpxor	%xmm2, %xmm13, %xmm13
+        vpxor	%xmm0, %xmm12, %xmm12
+        vmovdqu	16(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm10, %xmm7, %xmm2
+        vpclmulqdq	$0x01, %xmm10, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm10, %xmm7, %xmm0
+        vpclmulqdq	$0x11, %xmm10, %xmm7, %xmm3
+        vpxor	%xmm1, %xmm2, %xmm2
+        vpxor	%xmm3, %xmm6, %xmm6
+        vpxor	%xmm2, %xmm13, %xmm13
+        vpxor	%xmm0, %xmm12, %xmm12
+        vmovdqu	(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm11, %xmm7, %xmm2
+        vpclmulqdq	$0x01, %xmm11, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm11, %xmm7, %xmm0
+        vpclmulqdq	$0x11, %xmm11, %xmm7, %xmm3
+        vpxor	%xmm1, %xmm2, %xmm2
+        vpxor	%xmm3, %xmm6, %xmm6
+        vpxor	%xmm2, %xmm13, %xmm13
+        vpxor	%xmm0, %xmm12, %xmm12
+        vpslldq	$8, %xmm13, %xmm7
+        vpsrldq	$8, %xmm13, %xmm13
+        vpxor	%xmm7, %xmm12, %xmm12
+        vpxor	%xmm13, %xmm6, %xmm6
+        # ghash_red
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vpclmulqdq	$16, %xmm2, %xmm12, %xmm0
+        vpshufd	$0x4e, %xmm12, %xmm1
+        vpxor	%xmm0, %xmm1, %xmm1
+        vpclmulqdq	$16, %xmm2, %xmm1, %xmm0
+        vpshufd	$0x4e, %xmm1, %xmm1
+        vpxor	%xmm0, %xmm1, %xmm1
+        vpxor	%xmm1, %xmm6, %xmm6
+        addl	$0x40, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_encrypt_avx2_calc_aad_agg
+        vmovdqu	168(%rsp), %xmm5
+L_AES_GCM_encrypt_avx2_calc_aad_after_agg:
+        movl	%r11d, %edx
         andl	$0xfffffff0, %edx
+        cmpl	%edx, %ecx
+        je	L_AES_GCM_encrypt_avx2_calc_aad_partial
 L_AES_GCM_encrypt_avx2_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
@@ -12642,6 +12816,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_16_loop:
         addl	$16, %ecx
         cmpl	%edx, %ecx
         jl	L_AES_GCM_encrypt_avx2_calc_aad_16_loop
+L_AES_GCM_encrypt_avx2_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_avx2_calc_aad_done
@@ -13624,7 +13799,7 @@ L_AES_GCM_encrypt_avx2_store_tag_16:
         vmovdqu	%xmm0, (%r15)
 L_AES_GCM_encrypt_avx2_store_tag_done:
         vzeroupper
-        addq	$0xa0, %rsp
+        addq	$0xb8, %rsp
         popq	%r14
         popq	%rbx
         popq	%r15
@@ -13663,7 +13838,7 @@ _AES_GCM_decrypt_avx2:
         movq	80(%rsp), %rsi
         movl	88(%rsp), %r9d
         movq	96(%rsp), %rbp
-        subq	$0xa8, %rsp
+        subq	$0xb8, %rsp
         vpxor	%xmm4, %xmm4, %xmm4
         vpxor	%xmm6, %xmm6, %xmm6
         movl	%ebx, %edx
@@ -13912,9 +14087,183 @@ L_AES_GCM_decrypt_avx2_iv_done:
         cmpl	$0x00, %edx
         je	L_AES_GCM_decrypt_avx2_calc_aad_done
         xorl	%ecx, %ecx
-        cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_avx2_calc_aad_lt16
+        cmpl	$0x80, %edx
+        jl	L_AES_GCM_decrypt_avx2_calc_aad_after_agg
+        movl	%edx, %r13d
+        andl	$0xffffffc0, %r13d
+        vmovdqu	%xmm5, 168(%rsp)
+        vpsrlq	$63, %xmm5, %xmm1
+        vpsllq	$0x01, %xmm5, %xmm0
+        vpslldq	$8, %xmm1, %xmm1
+        vpor	%xmm1, %xmm0, %xmm0
+        vpshufd	$0xff, %xmm5, %xmm5
+        vpsrad	$31, %xmm5, %xmm5
+        vpand	L_avx2_aes_gcm_mod2_128(%rip), %xmm5, %xmm5
+        vpxor	%xmm0, %xmm5, %xmm5
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
+        # H ^ 1 and H ^ 2
+        vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm9
+        vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm9, %xmm8
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpxor	%xmm8, %xmm9, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm9, %xmm8
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpxor	%xmm8, %xmm9, %xmm9
+        vpxor	%xmm9, %xmm10, %xmm0
+        vmovdqu	%xmm5, (%rsp)
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3 and H ^ 4
+        vpclmulqdq	$16, %xmm5, %xmm0, %xmm11
+        vpclmulqdq	$0x01, %xmm5, %xmm0, %xmm10
+        vpclmulqdq	$0x00, %xmm5, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm5, %xmm0, %xmm12
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm13
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm14
+        vpxor	%xmm10, %xmm11, %xmm11
+        vpslldq	$8, %xmm11, %xmm10
+        vpsrldq	$8, %xmm11, %xmm11
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm11, %xmm12, %xmm12
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpxor	%xmm12, %xmm10, %xmm10
+        vpxor	%xmm14, %xmm13, %xmm2
+        vpxor	%xmm9, %xmm10, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        vmovdqu	%xmm2, 48(%rsp)
+        # H ^ 5 and H ^ 6
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm12
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm13
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm14
+        vpxor	%xmm10, %xmm11, %xmm11
+        vpslldq	$8, %xmm11, %xmm10
+        vpsrldq	$8, %xmm11, %xmm11
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm11, %xmm12, %xmm12
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpxor	%xmm12, %xmm10, %xmm10
+        vpxor	%xmm14, %xmm13, %xmm0
+        vpxor	%xmm9, %xmm10, %xmm7
+        vmovdqu	%xmm7, 64(%rsp)
+        vmovdqu	%xmm0, 80(%rsp)
+        # H ^ 7 and H ^ 8
+        vpclmulqdq	$16, %xmm1, %xmm2, %xmm11
+        vpclmulqdq	$0x01, %xmm1, %xmm2, %xmm10
+        vpclmulqdq	$0x00, %xmm1, %xmm2, %xmm9
+        vpclmulqdq	$0x11, %xmm1, %xmm2, %xmm12
+        vpclmulqdq	$0x00, %xmm2, %xmm2, %xmm13
+        vpclmulqdq	$0x11, %xmm2, %xmm2, %xmm14
+        vpxor	%xmm10, %xmm11, %xmm11
+        vpslldq	$8, %xmm11, %xmm10
+        vpsrldq	$8, %xmm11, %xmm11
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm9, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpclmulqdq	$16, %xmm3, %xmm10, %xmm9
+        vpclmulqdq	$16, %xmm3, %xmm13, %xmm8
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm13, %xmm13
+        vpxor	%xmm11, %xmm12, %xmm12
+        vpxor	%xmm8, %xmm13, %xmm13
+        vpxor	%xmm12, %xmm10, %xmm10
+        vpxor	%xmm14, %xmm13, %xmm0
+        vpxor	%xmm9, %xmm10, %xmm7
+        vmovdqu	%xmm7, 96(%rsp)
+        vmovdqu	%xmm0, 112(%rsp)
+L_AES_GCM_decrypt_avx2_calc_aad_agg:
+        # 64 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	(%rbx), %xmm8
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
+        vmovdqu	16(%rbx), %xmm9
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm9, %xmm9
+        vmovdqu	32(%rbx), %xmm10
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm10, %xmm10
+        vmovdqu	48(%rbx), %xmm11
+        vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm11, %xmm11
+        vpxor	%xmm6, %xmm8, %xmm8
+        vmovdqu	48(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm8, %xmm7, %xmm13
+        vpclmulqdq	$0x01, %xmm8, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm8, %xmm7, %xmm12
+        vpclmulqdq	$0x11, %xmm8, %xmm7, %xmm6
+        vpxor	%xmm1, %xmm13, %xmm13
+        vmovdqu	32(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm9, %xmm7, %xmm2
+        vpclmulqdq	$0x01, %xmm9, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm9, %xmm7, %xmm0
+        vpclmulqdq	$0x11, %xmm9, %xmm7, %xmm3
+        vpxor	%xmm1, %xmm2, %xmm2
+        vpxor	%xmm3, %xmm6, %xmm6
+        vpxor	%xmm2, %xmm13, %xmm13
+        vpxor	%xmm0, %xmm12, %xmm12
+        vmovdqu	16(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm10, %xmm7, %xmm2
+        vpclmulqdq	$0x01, %xmm10, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm10, %xmm7, %xmm0
+        vpclmulqdq	$0x11, %xmm10, %xmm7, %xmm3
+        vpxor	%xmm1, %xmm2, %xmm2
+        vpxor	%xmm3, %xmm6, %xmm6
+        vpxor	%xmm2, %xmm13, %xmm13
+        vpxor	%xmm0, %xmm12, %xmm12
+        vmovdqu	(%rsp), %xmm7
+        vpclmulqdq	$16, %xmm11, %xmm7, %xmm2
+        vpclmulqdq	$0x01, %xmm11, %xmm7, %xmm1
+        vpclmulqdq	$0x00, %xmm11, %xmm7, %xmm0
+        vpclmulqdq	$0x11, %xmm11, %xmm7, %xmm3
+        vpxor	%xmm1, %xmm2, %xmm2
+        vpxor	%xmm3, %xmm6, %xmm6
+        vpxor	%xmm2, %xmm13, %xmm13
+        vpxor	%xmm0, %xmm12, %xmm12
+        vpslldq	$8, %xmm13, %xmm7
+        vpsrldq	$8, %xmm13, %xmm13
+        vpxor	%xmm7, %xmm12, %xmm12
+        vpxor	%xmm13, %xmm6, %xmm6
+        # ghash_red
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vpclmulqdq	$16, %xmm2, %xmm12, %xmm0
+        vpshufd	$0x4e, %xmm12, %xmm1
+        vpxor	%xmm0, %xmm1, %xmm1
+        vpclmulqdq	$16, %xmm2, %xmm1, %xmm0
+        vpshufd	$0x4e, %xmm1, %xmm1
+        vpxor	%xmm0, %xmm1, %xmm1
+        vpxor	%xmm1, %xmm6, %xmm6
+        addl	$0x40, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_decrypt_avx2_calc_aad_agg
+        vmovdqu	168(%rsp), %xmm5
+L_AES_GCM_decrypt_avx2_calc_aad_after_agg:
+        movl	%r11d, %edx
         andl	$0xfffffff0, %edx
+        cmpl	%edx, %ecx
+        je	L_AES_GCM_decrypt_avx2_calc_aad_partial
 L_AES_GCM_decrypt_avx2_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
@@ -13952,6 +14301,7 @@ L_AES_GCM_decrypt_avx2_calc_aad_16_loop:
         addl	$16, %ecx
         cmpl	%edx, %ecx
         jl	L_AES_GCM_decrypt_avx2_calc_aad_16_loop
+L_AES_GCM_decrypt_avx2_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_avx2_calc_aad_done
@@ -14594,7 +14944,7 @@ L_AES_GCM_decrypt_avx2_cmp_tag_16:
 L_AES_GCM_decrypt_avx2_cmp_tag_done:
         movl	%eax, (%rbp)
         vzeroupper
-        addq	$0xa8, %rsp
+        addq	$0xb8, %rsp
         popq	%rbp
         popq	%r15
         popq	%rbx
@@ -17026,7 +17376,7 @@ _AES_GCM_encrypt_vaes:
         movl	64(%rsp), %r14d
         movq	72(%rsp), %r15
         movl	80(%rsp), %r10d
-        subq	$0x230, %rsp
+        subq	$0x250, %rsp
         vpxor	%xmm5, %xmm5, %xmm5
         vpxor	%xmm15, %xmm15, %xmm15
         movl	%ebx, %edx
@@ -17320,9 +17670,527 @@ L_AES_GCM_encrypt_vaes_iv_done:
         cmpl	$0x00, %edx
         je	L_AES_GCM_encrypt_vaes_calc_aad_done
         xorl	%ecx, %ecx
-        cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_vaes_calc_aad_lt16
+        cmpl	$0x80, %edx
+        jl	L_AES_GCM_encrypt_vaes_calc_aad_ser
+        vmovdqu	%xmm6, 560(%rsp)
+        vmovdqu	%xmm5, 576(%rsp)
+        vpsrlq	$63, %xmm6, %xmm8
+        vpsllq	$0x01, %xmm6, %xmm7
+        vpslldq	$8, %xmm8, %xmm8
+        vpor	%xmm8, %xmm7, %xmm7
+        vpshufd	$0xff, %xmm6, %xmm6
+        vpsrad	$31, %xmm6, %xmm6
+        vpand	L_vaes_aes_gcm_mod2_128(%rip), %xmm6, %xmm6
+        vpxor	%xmm7, %xmm6, %xmm6
+        vmovdqa	%xmm15, %xmm2
+        # H ^ 1
+        vmovdqu	%xmm6, (%rsp)
+        # H ^ 2
+        vpclmulqdq	$0x00, %xmm6, %xmm6, %xmm7
+        vpclmulqdq	$0x11, %xmm6, %xmm6, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm0
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm6, %xmm0, %xmm7
+        vpclmulqdq	$0x01, %xmm6, %xmm0, %xmm8
+        vpclmulqdq	$16, %xmm6, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm6, %xmm0, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        # H ^ 4
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm3
+        vmovdqu	%xmm3, 48(%rsp)
+        # H ^ 5
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 64(%rsp)
+        # H ^ 6
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm7
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 80(%rsp)
+        # H ^ 7
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm1, %xmm3, %xmm7
+        vpclmulqdq	$0x01, %xmm1, %xmm3, %xmm8
+        vpclmulqdq	$16, %xmm1, %xmm3, %xmm9
+        vpclmulqdq	$0x11, %xmm1, %xmm3, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 96(%rsp)
+        # H ^ 8
+        vpclmulqdq	$0x00, %xmm3, %xmm3, %xmm7
+        vpclmulqdq	$0x11, %xmm3, %xmm3, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 112(%rsp)
+        cmpl	$0x100, %edx
+        jl	L_AES_GCM_encrypt_vaes_calc_aad_no_ext
+        # H ^ 9
+        vmovdqu	48(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 128(%rsp)
+        # H ^ 10
+        vmovdqu	64(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 144(%rsp)
+        # H ^ 11
+        vmovdqu	64(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 160(%rsp)
+        # H ^ 12
+        vmovdqu	80(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 176(%rsp)
+        # H ^ 13
+        vmovdqu	80(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 192(%rsp)
+        # H ^ 14
+        vmovdqu	96(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 208(%rsp)
+        # H ^ 15
+        vmovdqu	96(%rsp), %xmm0
+        vmovdqu	112(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 224(%rsp)
+        # H ^ 16
+        vmovdqu	112(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 240(%rsp)
+        vmovdqu	224(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	192(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	160(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	128(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vmovdqu	%ymm7, 256(%rsp)
+        vmovdqu	%ymm8, 288(%rsp)
+        vmovdqu	%ymm9, 320(%rsp)
+        vmovdqu	%ymm10, 352(%rsp)
+        vmovdqu	96(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	64(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	32(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vmovdqu	%ymm7, 384(%rsp)
+        vmovdqu	%ymm8, 416(%rsp)
+        vmovdqu	%ymm9, 448(%rsp)
+        vmovdqu	%ymm10, 480(%rsp)
+L_AES_GCM_encrypt_vaes_calc_aad_no_ext:
+        vbroadcasti128	L_vaes_aes_gcm_mod2_128(%rip), %ymm14
+        movl	%r11d, %r13d
+        andl	$0xffffff00, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_encrypt_vaes_calc_aad_a256
+L_AES_GCM_encrypt_vaes_calc_aad_l256:
+        # 256 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
+        vpxor	%ymm4, %ymm4, %ymm4
+        vinserti128	$0x00, %xmm15, %ymm4, %ymm4
+        vmovdqu	256(%rsp), %ymm7
+        vmovdqu	288(%rsp), %ymm8
+        vmovdqu	320(%rsp), %ymm9
+        vmovdqu	352(%rsp), %ymm10
+        vmovdqu	(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpxor	%ymm4, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vmovdqa	%ymm0, %ymm11
+        vpxor	%ymm1, %ymm2, %ymm12
+        vmovdqa	%ymm3, %ymm13
+        vmovdqu	32(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	64(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	96(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	384(%rsp), %ymm7
+        vmovdqu	416(%rsp), %ymm8
+        vmovdqu	448(%rsp), %ymm9
+        vmovdqu	480(%rsp), %ymm10
+        vmovdqu	128(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	160(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	192(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	224(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vpclmulqdq	$0x01, %ymm11, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm11, %ymm11
+        vpxor	%ymm5, %ymm12, %ymm12
+        vpxor	%ymm11, %ymm12, %ymm12
+        vpclmulqdq	$0x01, %ymm12, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm12, %ymm12
+        vpxor	%ymm5, %ymm13, %ymm13
+        vpxor	%ymm12, %ymm13, %ymm13
+        vextracti128	$0x01, %ymm13, %xmm0
+        vpxor	%xmm0, %xmm13, %xmm15
+        addl	$0x100, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_encrypt_vaes_calc_aad_l256
+L_AES_GCM_encrypt_vaes_calc_aad_a256:
+        movl	%r11d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_encrypt_vaes_calc_aad_a128
+        # 128 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	96(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	64(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	32(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
+        vpxor	%ymm4, %ymm4, %ymm4
+        vinserti128	$0x00, %xmm15, %ymm4, %ymm4
+        vmovdqu	(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpxor	%ymm4, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vmovdqa	%ymm0, %ymm11
+        vpxor	%ymm1, %ymm2, %ymm12
+        vmovdqa	%ymm3, %ymm13
+        vmovdqu	32(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	64(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	96(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vpclmulqdq	$0x01, %ymm11, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm11, %ymm11
+        vpxor	%ymm5, %ymm12, %ymm12
+        vpxor	%ymm11, %ymm12, %ymm12
+        vpclmulqdq	$0x01, %ymm12, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm12, %ymm12
+        vpxor	%ymm5, %ymm13, %ymm13
+        vpxor	%ymm12, %ymm13, %ymm13
+        vextracti128	$0x01, %ymm13, %xmm0
+        vpxor	%xmm0, %xmm13, %xmm15
+        addl	$0x80, %ecx
+L_AES_GCM_encrypt_vaes_calc_aad_a128:
+        movl	%r11d, %r13d
+        andl	$0xfffffff0, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_encrypt_vaes_calc_aad_arem
+        vmovdqu	(%rsp), %xmm6
+L_AES_GCM_encrypt_vaes_calc_aad_rem:
+        # 16 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	(%rbx), %xmm7
+        vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
+        vpxor	%xmm7, %xmm15, %xmm15
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm6, %xmm15, %xmm7
+        vpclmulqdq	$0x01, %xmm6, %xmm15, %xmm8
+        vpclmulqdq	$16, %xmm6, %xmm15, %xmm9
+        vpclmulqdq	$0x11, %xmm6, %xmm15, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm15
+        addl	$16, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_encrypt_vaes_calc_aad_rem
+L_AES_GCM_encrypt_vaes_calc_aad_arem:
+        vmovdqu	560(%rsp), %xmm6
+        vmovdqu	576(%rsp), %xmm5
+        jmp	L_AES_GCM_encrypt_vaes_calc_aad_partial
+L_AES_GCM_encrypt_vaes_calc_aad_ser:
+        movl	%r11d, %edx
         andl	$0xfffffff0, %edx
+        cmpl	%edx, %ecx
+        je	L_AES_GCM_encrypt_vaes_calc_aad_partial
 L_AES_GCM_encrypt_vaes_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm7
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -17373,6 +18241,7 @@ L_AES_GCM_encrypt_vaes_calc_aad_16_loop:
         addl	$16, %ecx
         cmpl	%edx, %ecx
         jl	L_AES_GCM_encrypt_vaes_calc_aad_16_loop
+L_AES_GCM_encrypt_vaes_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_vaes_calc_aad_done
@@ -18476,7 +19345,7 @@ L_AES_GCM_encrypt_vaes_store_tag_16:
         vmovdqu	%xmm0, (%r8)
 L_AES_GCM_encrypt_vaes_store_tag_done:
         vzeroupper
-        addq	$0x230, %rsp
+        addq	$0x250, %rsp
         popq	%r15
         popq	%r14
         popq	%rbx
@@ -18512,7 +19381,7 @@ _AES_GCM_decrypt_vaes:
         movq	80(%rsp), %r15
         movl	88(%rsp), %r10d
         movq	96(%rsp), %rbp
-        subq	$0x220, %rsp
+        subq	$0x250, %rsp
         vpxor	%xmm5, %xmm5, %xmm5
         vpxor	%xmm15, %xmm15, %xmm15
         cmpl	$12, %ebx
@@ -18806,9 +19675,527 @@ L_AES_GCM_decrypt_vaes_iv_done:
         cmpl	$0x00, %edx
         je	L_AES_GCM_decrypt_vaes_calc_aad_done
         xorl	%ecx, %ecx
-        cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_vaes_calc_aad_lt16
+        cmpl	$0x80, %edx
+        jl	L_AES_GCM_decrypt_vaes_calc_aad_ser
+        vmovdqu	%xmm6, 560(%rsp)
+        vmovdqu	%xmm5, 576(%rsp)
+        vpsrlq	$63, %xmm6, %xmm8
+        vpsllq	$0x01, %xmm6, %xmm7
+        vpslldq	$8, %xmm8, %xmm8
+        vpor	%xmm8, %xmm7, %xmm7
+        vpshufd	$0xff, %xmm6, %xmm6
+        vpsrad	$31, %xmm6, %xmm6
+        vpand	L_vaes_aes_gcm_mod2_128(%rip), %xmm6, %xmm6
+        vpxor	%xmm7, %xmm6, %xmm6
+        vmovdqa	%xmm15, %xmm2
+        # H ^ 1
+        vmovdqu	%xmm6, (%rsp)
+        # H ^ 2
+        vpclmulqdq	$0x00, %xmm6, %xmm6, %xmm7
+        vpclmulqdq	$0x11, %xmm6, %xmm6, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm0
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm6, %xmm0, %xmm7
+        vpclmulqdq	$0x01, %xmm6, %xmm0, %xmm8
+        vpclmulqdq	$16, %xmm6, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm6, %xmm0, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        # H ^ 4
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm3
+        vmovdqu	%xmm3, 48(%rsp)
+        # H ^ 5
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 64(%rsp)
+        # H ^ 6
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm7
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 80(%rsp)
+        # H ^ 7
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm1, %xmm3, %xmm7
+        vpclmulqdq	$0x01, %xmm1, %xmm3, %xmm8
+        vpclmulqdq	$16, %xmm1, %xmm3, %xmm9
+        vpclmulqdq	$0x11, %xmm1, %xmm3, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 96(%rsp)
+        # H ^ 8
+        vpclmulqdq	$0x00, %xmm3, %xmm3, %xmm7
+        vpclmulqdq	$0x11, %xmm3, %xmm3, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 112(%rsp)
+        cmpl	$0x100, %edx
+        jl	L_AES_GCM_decrypt_vaes_calc_aad_no_ext
+        # H ^ 9
+        vmovdqu	48(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 128(%rsp)
+        # H ^ 10
+        vmovdqu	64(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 144(%rsp)
+        # H ^ 11
+        vmovdqu	64(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 160(%rsp)
+        # H ^ 12
+        vmovdqu	80(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 176(%rsp)
+        # H ^ 13
+        vmovdqu	80(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 192(%rsp)
+        # H ^ 14
+        vmovdqu	96(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 208(%rsp)
+        # H ^ 15
+        vmovdqu	96(%rsp), %xmm0
+        vmovdqu	112(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 224(%rsp)
+        # H ^ 16
+        vmovdqu	112(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 240(%rsp)
+        vmovdqu	224(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	192(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	160(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	128(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vmovdqu	%ymm7, 256(%rsp)
+        vmovdqu	%ymm8, 288(%rsp)
+        vmovdqu	%ymm9, 320(%rsp)
+        vmovdqu	%ymm10, 352(%rsp)
+        vmovdqu	96(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	64(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	32(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vmovdqu	%ymm7, 384(%rsp)
+        vmovdqu	%ymm8, 416(%rsp)
+        vmovdqu	%ymm9, 448(%rsp)
+        vmovdqu	%ymm10, 480(%rsp)
+L_AES_GCM_decrypt_vaes_calc_aad_no_ext:
+        vbroadcasti128	L_vaes_aes_gcm_mod2_128(%rip), %ymm14
+        movl	%r11d, %r13d
+        andl	$0xffffff00, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_decrypt_vaes_calc_aad_a256
+L_AES_GCM_decrypt_vaes_calc_aad_l256:
+        # 256 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
+        vpxor	%ymm4, %ymm4, %ymm4
+        vinserti128	$0x00, %xmm15, %ymm4, %ymm4
+        vmovdqu	256(%rsp), %ymm7
+        vmovdqu	288(%rsp), %ymm8
+        vmovdqu	320(%rsp), %ymm9
+        vmovdqu	352(%rsp), %ymm10
+        vmovdqu	(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpxor	%ymm4, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vmovdqa	%ymm0, %ymm11
+        vpxor	%ymm1, %ymm2, %ymm12
+        vmovdqa	%ymm3, %ymm13
+        vmovdqu	32(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	64(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	96(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	384(%rsp), %ymm7
+        vmovdqu	416(%rsp), %ymm8
+        vmovdqu	448(%rsp), %ymm9
+        vmovdqu	480(%rsp), %ymm10
+        vmovdqu	128(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	160(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	192(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	224(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vpclmulqdq	$0x01, %ymm11, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm11, %ymm11
+        vpxor	%ymm5, %ymm12, %ymm12
+        vpxor	%ymm11, %ymm12, %ymm12
+        vpclmulqdq	$0x01, %ymm12, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm12, %ymm12
+        vpxor	%ymm5, %ymm13, %ymm13
+        vpxor	%ymm12, %ymm13, %ymm13
+        vextracti128	$0x01, %ymm13, %xmm0
+        vpxor	%xmm0, %xmm13, %xmm15
+        addl	$0x100, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_decrypt_vaes_calc_aad_l256
+L_AES_GCM_decrypt_vaes_calc_aad_a256:
+        movl	%r11d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_decrypt_vaes_calc_aad_a128
+        # 128 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	96(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	64(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	32(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
+        vpxor	%ymm4, %ymm4, %ymm4
+        vinserti128	$0x00, %xmm15, %ymm4, %ymm4
+        vmovdqu	(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpxor	%ymm4, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vmovdqa	%ymm0, %ymm11
+        vpxor	%ymm1, %ymm2, %ymm12
+        vmovdqa	%ymm3, %ymm13
+        vmovdqu	32(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	64(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	96(%rbx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vpclmulqdq	$0x01, %ymm11, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm11, %ymm11
+        vpxor	%ymm5, %ymm12, %ymm12
+        vpxor	%ymm11, %ymm12, %ymm12
+        vpclmulqdq	$0x01, %ymm12, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm12, %ymm12
+        vpxor	%ymm5, %ymm13, %ymm13
+        vpxor	%ymm12, %ymm13, %ymm13
+        vextracti128	$0x01, %ymm13, %xmm0
+        vpxor	%xmm0, %xmm13, %xmm15
+        addl	$0x80, %ecx
+L_AES_GCM_decrypt_vaes_calc_aad_a128:
+        movl	%r11d, %r13d
+        andl	$0xfffffff0, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_decrypt_vaes_calc_aad_arem
+        vmovdqu	(%rsp), %xmm6
+L_AES_GCM_decrypt_vaes_calc_aad_rem:
+        # 16 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	(%rbx), %xmm7
+        vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
+        vpxor	%xmm7, %xmm15, %xmm15
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm6, %xmm15, %xmm7
+        vpclmulqdq	$0x01, %xmm6, %xmm15, %xmm8
+        vpclmulqdq	$16, %xmm6, %xmm15, %xmm9
+        vpclmulqdq	$0x11, %xmm6, %xmm15, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm15
+        addl	$16, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_decrypt_vaes_calc_aad_rem
+L_AES_GCM_decrypt_vaes_calc_aad_arem:
+        vmovdqu	560(%rsp), %xmm6
+        vmovdqu	576(%rsp), %xmm5
+        jmp	L_AES_GCM_decrypt_vaes_calc_aad_partial
+L_AES_GCM_decrypt_vaes_calc_aad_ser:
+        movl	%r11d, %edx
         andl	$0xfffffff0, %edx
+        cmpl	%edx, %ecx
+        je	L_AES_GCM_decrypt_vaes_calc_aad_partial
 L_AES_GCM_decrypt_vaes_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm7
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
@@ -18859,6 +20246,7 @@ L_AES_GCM_decrypt_vaes_calc_aad_16_loop:
         addl	$16, %ecx
         cmpl	%edx, %ecx
         jl	L_AES_GCM_decrypt_vaes_calc_aad_16_loop
+L_AES_GCM_decrypt_vaes_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_vaes_calc_aad_done
@@ -19914,7 +21302,7 @@ L_AES_GCM_decrypt_vaes_cmp_tag_16:
 L_AES_GCM_decrypt_vaes_cmp_tag_done:
         movl	%ebx, (%rbp)
         vzeroupper
-        addq	$0x220, %rsp
+        addq	$0x250, %rsp
         popq	%rbp
         popq	%r15
         popq	%r14
@@ -20255,61 +21643,523 @@ AES_GCM_aad_update_vaes:
 .p2align	4
 _AES_GCM_aad_update_vaes:
 #endif /* __APPLE__ */
-        movq	%rcx, %rax
-        vmovdqa	(%rdx), %xmm5
-        vmovdqa	(%rax), %xmm6
-        xorl	%ecx, %ecx
-L_AES_GCM_aad_update_vaes_16_loop:
-        vmovdqu	(%rdi,%rcx,1), %xmm7
+        movq	%rdx, %r8
+        movq	%rcx, %r9
+        subq	$0x200, %rsp
+        vmovdqa	(%r8), %xmm15
+        vmovdqa	(%r9), %xmm6
+        xorl	%edx, %edx
+        vpsrlq	$63, %xmm6, %xmm8
+        vpsllq	$0x01, %xmm6, %xmm7
+        vpslldq	$8, %xmm8, %xmm8
+        vpor	%xmm8, %xmm7, %xmm7
+        vpshufd	$0xff, %xmm6, %xmm6
+        vpsrad	$31, %xmm6, %xmm6
+        vpand	L_vaes_aes_gcm_mod2_128(%rip), %xmm6, %xmm6
+        vpxor	%xmm7, %xmm6, %xmm6
+        vmovdqa	%xmm15, %xmm2
+        # H ^ 1
+        vmovdqu	%xmm6, (%rsp)
+        # H ^ 2
+        vpclmulqdq	$0x00, %xmm6, %xmm6, %xmm7
+        vpclmulqdq	$0x11, %xmm6, %xmm6, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm0
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm6, %xmm0, %xmm7
+        vpclmulqdq	$0x01, %xmm6, %xmm0, %xmm8
+        vpclmulqdq	$16, %xmm6, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm6, %xmm0, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        # H ^ 4
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm3
+        vmovdqu	%xmm3, 48(%rsp)
+        # H ^ 5
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 64(%rsp)
+        # H ^ 6
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm7
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 80(%rsp)
+        # H ^ 7
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm1, %xmm3, %xmm7
+        vpclmulqdq	$0x01, %xmm1, %xmm3, %xmm8
+        vpclmulqdq	$16, %xmm1, %xmm3, %xmm9
+        vpclmulqdq	$0x11, %xmm1, %xmm3, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 96(%rsp)
+        # H ^ 8
+        vpclmulqdq	$0x00, %xmm3, %xmm3, %xmm7
+        vpclmulqdq	$0x11, %xmm3, %xmm3, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 112(%rsp)
+        cmpl	$0x100, %esi
+        jl	L_AES_GCM_aad_update_vaes_no_ext
+        # H ^ 9
+        vmovdqu	48(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 128(%rsp)
+        # H ^ 10
+        vmovdqu	64(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 144(%rsp)
+        # H ^ 11
+        vmovdqu	64(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 160(%rsp)
+        # H ^ 12
+        vmovdqu	80(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 176(%rsp)
+        # H ^ 13
+        vmovdqu	80(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 192(%rsp)
+        # H ^ 14
+        vmovdqu	96(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 208(%rsp)
+        # H ^ 15
+        vmovdqu	96(%rsp), %xmm0
+        vmovdqu	112(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm7
+        vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$16, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 224(%rsp)
+        # H ^ 16
+        vmovdqu	112(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm7
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm10
+        vpxor	%xmm8, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm4
+        vmovdqu	%xmm4, 240(%rsp)
+        vmovdqu	224(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	192(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	160(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	128(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vmovdqu	%ymm7, 256(%rsp)
+        vmovdqu	%ymm8, 288(%rsp)
+        vmovdqu	%ymm9, 320(%rsp)
+        vmovdqu	%ymm10, 352(%rsp)
+        vmovdqu	96(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	64(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	32(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vmovdqu	%ymm7, 384(%rsp)
+        vmovdqu	%ymm8, 416(%rsp)
+        vmovdqu	%ymm9, 448(%rsp)
+        vmovdqu	%ymm10, 480(%rsp)
+L_AES_GCM_aad_update_vaes_no_ext:
+        vbroadcasti128	L_vaes_aes_gcm_mod2_128(%rip), %ymm14
+        movl	%esi, %eax
+        andl	$0xffffff00, %eax
+        cmpl	%eax, %edx
+        jge	L_AES_GCM_aad_update_vaes_after_256
+L_AES_GCM_aad_update_vaes_loop_256:
+        # 256 bytes of input
+        leaq	(%rdi,%rdx,1), %rcx
+        vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
+        vpxor	%ymm4, %ymm4, %ymm4
+        vinserti128	$0x00, %xmm15, %ymm4, %ymm4
+        vmovdqu	256(%rsp), %ymm7
+        vmovdqu	288(%rsp), %ymm8
+        vmovdqu	320(%rsp), %ymm9
+        vmovdqu	352(%rsp), %ymm10
+        vmovdqu	(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpxor	%ymm4, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vmovdqa	%ymm0, %ymm11
+        vpxor	%ymm1, %ymm2, %ymm12
+        vmovdqa	%ymm3, %ymm13
+        vmovdqu	32(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	64(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	96(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	384(%rsp), %ymm7
+        vmovdqu	416(%rsp), %ymm8
+        vmovdqu	448(%rsp), %ymm9
+        vmovdqu	480(%rsp), %ymm10
+        vmovdqu	128(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	160(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	192(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	224(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vpclmulqdq	$0x01, %ymm11, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm11, %ymm11
+        vpxor	%ymm5, %ymm12, %ymm12
+        vpxor	%ymm11, %ymm12, %ymm12
+        vpclmulqdq	$0x01, %ymm12, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm12, %ymm12
+        vpxor	%ymm5, %ymm13, %ymm13
+        vpxor	%ymm12, %ymm13, %ymm13
+        vextracti128	$0x01, %ymm13, %xmm0
+        vpxor	%xmm0, %xmm13, %xmm15
+        addl	$0x100, %edx
+        cmpl	%eax, %edx
+        jl	L_AES_GCM_aad_update_vaes_loop_256
+L_AES_GCM_aad_update_vaes_after_256:
+        movl	%esi, %eax
+        andl	$0xffffff80, %eax
+        cmpl	%eax, %edx
+        jge	L_AES_GCM_aad_update_vaes_after_128
+        # 128 bytes of input
+        leaq	(%rdi,%rdx,1), %rcx
+        vmovdqu	96(%rsp), %ymm7
+        vpermq	$0x4e, %ymm7, %ymm7
+        vmovdqu	64(%rsp), %ymm8
+        vpermq	$0x4e, %ymm8, %ymm8
+        vmovdqu	32(%rsp), %ymm9
+        vpermq	$0x4e, %ymm9, %ymm9
+        vmovdqu	(%rsp), %ymm10
+        vpermq	$0x4e, %ymm10, %ymm10
+        vbroadcasti128	L_vaes_aes_gcm_bswap_mask(%rip), %ymm6
+        vpxor	%ymm4, %ymm4, %ymm4
+        vinserti128	$0x00, %xmm15, %ymm4, %ymm4
+        vmovdqu	(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpxor	%ymm4, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm7, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm7, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm7, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm7, %ymm5, %ymm3
+        vmovdqa	%ymm0, %ymm11
+        vpxor	%ymm1, %ymm2, %ymm12
+        vmovdqa	%ymm3, %ymm13
+        vmovdqu	32(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm8, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm8, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm8, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm8, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	64(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm9, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm9, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm9, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm9, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vmovdqu	96(%rcx), %ymm5
+        vpshufb	%ymm6, %ymm5, %ymm5
+        vpclmulqdq	$0x00, %ymm10, %ymm5, %ymm0
+        vpclmulqdq	$0x01, %ymm10, %ymm5, %ymm1
+        vpclmulqdq	$16, %ymm10, %ymm5, %ymm2
+        vpclmulqdq	$0x11, %ymm10, %ymm5, %ymm3
+        vpxor	%ymm0, %ymm11, %ymm11
+        vpxor	%ymm1, %ymm12, %ymm12
+        vpxor	%ymm2, %ymm12, %ymm12
+        vpxor	%ymm3, %ymm13, %ymm13
+        vpclmulqdq	$0x01, %ymm11, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm11, %ymm11
+        vpxor	%ymm5, %ymm12, %ymm12
+        vpxor	%ymm11, %ymm12, %ymm12
+        vpclmulqdq	$0x01, %ymm12, %ymm14, %ymm5
+        vpshufd	$0x4e, %ymm12, %ymm12
+        vpxor	%ymm5, %ymm13, %ymm13
+        vpxor	%ymm12, %ymm13, %ymm13
+        vextracti128	$0x01, %ymm13, %xmm0
+        vpxor	%xmm0, %xmm13, %xmm15
+        addl	$0x80, %edx
+L_AES_GCM_aad_update_vaes_after_128:
+        vmovdqu	(%rsp), %xmm6
+        movl	%esi, %eax
+        andl	$0xfffffff0, %eax
+        cmpl	%eax, %edx
+        jge	L_AES_GCM_aad_update_vaes_done
+L_AES_GCM_aad_update_vaes_tail:
+        # 16 bytes of input
+        vmovdqu	(%rdi,%rdx,1), %xmm7
         vpshufb	L_vaes_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
-        vpxor	%xmm7, %xmm5, %xmm5
-        # ghash_gfmul_avx
-        vpshufd	$0x4e, %xmm5, %xmm1
-        vpshufd	$0x4e, %xmm6, %xmm2
-        vpclmulqdq	$0x11, %xmm5, %xmm6, %xmm3
-        vpclmulqdq	$0x00, %xmm5, %xmm6, %xmm0
-        vpxor	%xmm5, %xmm1, %xmm1
-        vpxor	%xmm6, %xmm2, %xmm2
-        vpclmulqdq	$0x00, %xmm2, %xmm1, %xmm1
-        vpxor	%xmm0, %xmm1, %xmm1
-        vpxor	%xmm3, %xmm1, %xmm1
-        vmovdqa	%xmm0, %xmm4
-        vmovdqa	%xmm3, %xmm5
-        vpslldq	$8, %xmm1, %xmm2
-        vpsrldq	$8, %xmm1, %xmm1
-        vpxor	%xmm2, %xmm4, %xmm4
-        vpxor	%xmm1, %xmm5, %xmm5
-        vpsrld	$31, %xmm4, %xmm0
-        vpsrld	$31, %xmm5, %xmm1
-        vpslld	$0x01, %xmm4, %xmm4
-        vpslld	$0x01, %xmm5, %xmm5
-        vpsrldq	$12, %xmm0, %xmm2
-        vpslldq	$4, %xmm0, %xmm0
-        vpslldq	$4, %xmm1, %xmm1
-        vpor	%xmm2, %xmm5, %xmm5
-        vpor	%xmm0, %xmm4, %xmm4
-        vpor	%xmm1, %xmm5, %xmm5
-        vpslld	$31, %xmm4, %xmm0
-        vpslld	$30, %xmm4, %xmm1
-        vpslld	$25, %xmm4, %xmm2
-        vpxor	%xmm1, %xmm0, %xmm0
-        vpxor	%xmm2, %xmm0, %xmm0
-        vmovdqa	%xmm0, %xmm1
-        vpsrldq	$4, %xmm1, %xmm1
-        vpslldq	$12, %xmm0, %xmm0
-        vpxor	%xmm0, %xmm4, %xmm4
-        vpsrld	$0x01, %xmm4, %xmm2
-        vpsrld	$2, %xmm4, %xmm3
-        vpsrld	$7, %xmm4, %xmm0
-        vpxor	%xmm3, %xmm2, %xmm2
-        vpxor	%xmm0, %xmm2, %xmm2
-        vpxor	%xmm1, %xmm2, %xmm2
-        vpxor	%xmm4, %xmm2, %xmm2
-        vpxor	%xmm2, %xmm5, %xmm5
-        addl	$16, %ecx
-        cmpl	%esi, %ecx
-        jl	L_AES_GCM_aad_update_vaes_16_loop
-        vmovdqa	%xmm5, (%rdx)
+        vpxor	%xmm7, %xmm15, %xmm15
+        # ghash_gfmul_red_avx
+        vpclmulqdq	$0x00, %xmm6, %xmm15, %xmm7
+        vpclmulqdq	$0x01, %xmm6, %xmm15, %xmm8
+        vpclmulqdq	$16, %xmm6, %xmm15, %xmm9
+        vpclmulqdq	$0x11, %xmm6, %xmm15, %xmm10
+        vpxor	%xmm9, %xmm8, %xmm8
+        vmovdqa	L_vaes_aes_gcm_mod2_128(%rip), %xmm9
+        vpclmulqdq	$0x01, %xmm7, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm7, %xmm7
+        vpxor	%xmm11, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vpclmulqdq	$0x01, %xmm8, %xmm9, %xmm11
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpxor	%xmm11, %xmm10, %xmm10
+        vpxor	%xmm8, %xmm10, %xmm10
+        vmovdqa	%xmm10, %xmm15
+        addl	$16, %edx
+        cmpl	%eax, %edx
+        jl	L_AES_GCM_aad_update_vaes_tail
+L_AES_GCM_aad_update_vaes_done:
+        vmovdqa	%xmm15, (%r8)
+        vzeroupper
+        addq	$0x200, %rsp
         repz retq
 #ifndef __APPLE__
 .size	AES_GCM_aad_update_vaes,.-AES_GCM_aad_update_vaes
@@ -22923,7 +24773,7 @@ _AES_GCM_encrypt_avx512:
         movl	64(%rsp), %r14d
         movq	72(%rsp), %r15
         movl	80(%rsp), %r10d
-        subq	$0x440, %rsp
+        subq	$0x460, %rsp
         vpxor	%xmm4, %xmm4, %xmm4
         vpxor	%xmm6, %xmm6, %xmm6
         movl	%ebx, %edx
@@ -23217,9 +25067,426 @@ L_AES_GCM_encrypt_avx512_iv_done:
         cmpl	$0x00, %edx
         je	L_AES_GCM_encrypt_avx512_calc_aad_done
         xorl	%ecx, %ecx
-        cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_avx512_calc_aad_lt16
+        cmpl	$0x80, %edx
+        jl	L_AES_GCM_encrypt_avx512_calc_aad_ser
+        vmovdqu	%xmm5, 1088(%rsp)
+        vmovdqu	%xmm4, 1104(%rsp)
+        vpsrlq	$63, %xmm5, %xmm9
+        vpsllq	$0x01, %xmm5, %xmm8
+        vpslldq	$8, %xmm9, %xmm9
+        vpor	%xmm9, %xmm8, %xmm8
+        vpshufd	$0xff, %xmm5, %xmm5
+        vpsrad	$31, %xmm5, %xmm5
+        vpand	L_avx512_aes_gcm_mod2_128(%rip), %xmm5, %xmm5
+        vpxor	%xmm8, %xmm5, %xmm5
+        vmovdqa	%xmm6, %xmm2
+        # H ^ 1
+        vmovdqu	%xmm5, (%rsp)
+        # H ^ 2
+        vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm8
+        vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm0
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm5, %xmm9
+        vpxor	%xmm5, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm0, %xmm10
+        vpxor	%xmm0, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm5, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm5, %xmm0, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        # H ^ 4
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm3
+        vmovdqu	%xmm3, 48(%rsp)
+        # H ^ 5
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 64(%rsp)
+        # H ^ 6
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 80(%rsp)
+        # H ^ 7
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm1, %xmm9
+        vpxor	%xmm1, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm3, %xmm10
+        vpxor	%xmm3, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm1, %xmm3, %xmm8
+        vpclmulqdq	$0x11, %xmm1, %xmm3, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 96(%rsp)
+        # H ^ 8
+        vpclmulqdq	$0x00, %xmm3, %xmm3, %xmm8
+        vpclmulqdq	$0x11, %xmm3, %xmm3, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 112(%rsp)
+        # H ^ 9
+        vmovdqu	48(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 128(%rsp)
+        # H ^ 10
+        vmovdqu	64(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 144(%rsp)
+        # H ^ 11
+        vmovdqu	64(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 160(%rsp)
+        # H ^ 12
+        vmovdqu	80(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 176(%rsp)
+        # H ^ 13
+        vmovdqu	80(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 192(%rsp)
+        # H ^ 14
+        vmovdqu	96(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 208(%rsp)
+        # H ^ 15
+        vmovdqu	96(%rsp), %xmm0
+        vmovdqu	112(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 224(%rsp)
+        # H ^ 16
+        vmovdqu	112(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 240(%rsp)
+        vbroadcasti32x4	L_avx512_aes_gcm_bswap_mask(%rip), %zmm30
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vmovdqu64	192(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	128(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vmovdqu64	64(%rsp), %zmm25
+        vshufi64x2	$27, %zmm25, %zmm25, %zmm25
+        vmovdqu64	(%rsp), %zmm26
+        vshufi64x2	$27, %zmm26, %zmm26, %zmm26
+        movl	%r11d, %r13d
+        andl	$0xffffff00, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_encrypt_avx512_calc_aad_a256
+L_AES_GCM_encrypt_avx512_calc_aad_l256:
+        # 256 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vmovdqu64	128(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm25, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm25, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm25, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm25, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vmovdqu64	192(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm26, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm26, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm26, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm26, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        addl	$0x100, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_encrypt_avx512_calc_aad_l256
+L_AES_GCM_encrypt_avx512_calc_aad_a256:
+        movl	%r11d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_encrypt_avx512_calc_aad_a128
+        # 128 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu64	64(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        addl	$0x80, %ecx
+L_AES_GCM_encrypt_avx512_calc_aad_a128:
+        movl	%r11d, %r13d
+        andl	$0xfffffff0, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_encrypt_avx512_calc_aad_arem
+        vmovdqu	(%rsp), %xmm5
+L_AES_GCM_encrypt_avx512_calc_aad_rem:
+        # 16 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	(%rbx), %xmm8
+        vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
+        vpxor	%xmm8, %xmm6, %xmm6
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm5, %xmm9
+        vpxor	%xmm5, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm6, %xmm10
+        vpxor	%xmm6, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm5, %xmm6, %xmm8
+        vpclmulqdq	$0x11, %xmm5, %xmm6, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm6
+        addl	$16, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_encrypt_avx512_calc_aad_rem
+L_AES_GCM_encrypt_avx512_calc_aad_arem:
+        vmovdqu	1088(%rsp), %xmm5
+        vmovdqu	1104(%rsp), %xmm4
+        jmp	L_AES_GCM_encrypt_avx512_calc_aad_partial
+L_AES_GCM_encrypt_avx512_calc_aad_ser:
+        movl	%r11d, %edx
         andl	$0xfffffff0, %edx
+        cmpl	%edx, %ecx
+        je	L_AES_GCM_encrypt_avx512_calc_aad_partial
 L_AES_GCM_encrypt_avx512_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm8
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -23270,6 +25537,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_16_loop:
         addl	$16, %ecx
         cmpl	%edx, %ecx
         jl	L_AES_GCM_encrypt_avx512_calc_aad_16_loop
+L_AES_GCM_encrypt_avx512_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_encrypt_avx512_calc_aad_done
@@ -23346,7 +25614,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_done:
         vpxor	%xmm8, %xmm5, %xmm5
         vmovdqu	%xmm4, 1024(%rsp)
         xorl	%ebx, %ebx
-        cmpl	$0x100, %r9d
+        cmpl	$0x80, %r9d
         jl	L_AES_GCM_encrypt_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -23460,6 +25728,8 @@ L_AES_GCM_encrypt_avx512_calc_aad_done:
         vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
+        cmpl	$0x100, %r9d
+        jl	L_AES_GCM_encrypt_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -23883,6 +26153,7 @@ L_AES_GCM_encrypt_avx512_calc_aad_done:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 496(%rsp)
 L_AES_GCM_encrypt_avx512_no_ext:
+L_AES_GCM_encrypt_avx512_no_ext2:
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_epi64(%rip), %zmm22
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_mask(%rip), %zmm30
         vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
@@ -24827,6 +27098,116 @@ L_AES_GCM_encrypt_avx512_last_ghash:
         vpxorq	%xmm0, %xmm29, %xmm6
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
 L_AES_GCM_encrypt_avx512_after_256:
+        movl	%r9d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %ebx
+        jge	L_AES_GCM_encrypt_avx512_after_128
+        # 128 bytes of input
+        vbroadcasti32x4	(%r15), %zmm9
+        vbroadcasti32x4	16(%r15), %zmm10
+        vbroadcasti32x4	32(%r15), %zmm11
+        vbroadcasti32x4	48(%r15), %zmm12
+        vbroadcasti32x4	64(%r15), %zmm13
+        vbroadcasti32x4	80(%r15), %zmm14
+        vbroadcasti32x4	96(%r15), %zmm15
+        vbroadcasti32x4	112(%r15), %zmm1
+        vbroadcasti32x4	128(%r15), %zmm2
+        vbroadcasti32x4	144(%r15), %zmm3
+        vbroadcasti32x4	1024(%rsp), %zmm20
+        vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
+        vpshufb	%zmm22, %zmm16, %zmm16
+        vpaddd	L_avx512_aes_gcm_inc_z1(%rip), %zmm20, %zmm17
+        vpshufb	%zmm22, %zmm17, %zmm17
+        vmovdqu	1024(%rsp), %xmm8
+        vpaddd	L_avx512_aes_gcm_eight(%rip), %xmm8, %xmm8
+        vmovdqu	%xmm8, 1024(%rsp)
+        vpxorq	%zmm9, %zmm16, %zmm16
+        vpxorq	%zmm9, %zmm17, %zmm17
+        vaesenc	%zmm10, %zmm16, %zmm16
+        vaesenc	%zmm10, %zmm17, %zmm17
+        vaesenc	%zmm11, %zmm16, %zmm16
+        vaesenc	%zmm11, %zmm17, %zmm17
+        vaesenc	%zmm12, %zmm16, %zmm16
+        vaesenc	%zmm12, %zmm17, %zmm17
+        vaesenc	%zmm13, %zmm16, %zmm16
+        vaesenc	%zmm13, %zmm17, %zmm17
+        vaesenc	%zmm14, %zmm16, %zmm16
+        vaesenc	%zmm14, %zmm17, %zmm17
+        vaesenc	%zmm15, %zmm16, %zmm16
+        vaesenc	%zmm15, %zmm17, %zmm17
+        vaesenc	%zmm1, %zmm16, %zmm16
+        vaesenc	%zmm1, %zmm17, %zmm17
+        vaesenc	%zmm2, %zmm16, %zmm16
+        vaesenc	%zmm2, %zmm17, %zmm17
+        vaesenc	%zmm3, %zmm16, %zmm16
+        vaesenc	%zmm3, %zmm17, %zmm17
+        cmpl	$11, %r10d
+        vbroadcasti32x4	160(%r15), %zmm20
+        jl	L_AES_GCM_encrypt_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	176(%r15), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        cmpl	$13, %r10d
+        vbroadcasti32x4	192(%r15), %zmm20
+        jl	L_AES_GCM_encrypt_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	208(%r15), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	224(%r15), %zmm20
+L_AES_GCM_encrypt_avx512_8_avx512_ctr8_last:
+        vaesenclast	%zmm20, %zmm16, %zmm16
+        vaesenclast	%zmm20, %zmm17, %zmm17
+        leaq	(%rdi,%rbx,1), %rcx
+        leaq	(%rsi,%rbx,1), %rdx
+        vmovdqu64	(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm16, %zmm16
+        vmovdqu64	%zmm16, (%rdx)
+        vmovdqu64	64(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm17, %zmm17
+        vmovdqu64	%zmm17, 64(%rdx)
+        vmovdqu64	64(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rdx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%rdx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        addl	$0x80, %ebx
+L_AES_GCM_encrypt_avx512_after_128:
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_encrypt_avx512_done_128:
         movl	%r9d, %edx
@@ -25060,7 +27441,7 @@ L_AES_GCM_encrypt_avx512_store_tag_16:
         vmovdqu	%xmm0, (%r8)
 L_AES_GCM_encrypt_avx512_store_tag_done:
         vzeroupper
-        addq	$0x440, %rsp
+        addq	$0x460, %rsp
         popq	%r15
         popq	%r14
         popq	%rbx
@@ -25096,7 +27477,7 @@ _AES_GCM_decrypt_avx512:
         movq	80(%rsp), %r15
         movl	88(%rsp), %r10d
         movq	96(%rsp), %rbp
-        subq	$0x420, %rsp
+        subq	$0x460, %rsp
         vpxor	%xmm4, %xmm4, %xmm4
         vpxor	%xmm6, %xmm6, %xmm6
         cmpl	$12, %ebx
@@ -25390,9 +27771,426 @@ L_AES_GCM_decrypt_avx512_iv_done:
         cmpl	$0x00, %edx
         je	L_AES_GCM_decrypt_avx512_calc_aad_done
         xorl	%ecx, %ecx
-        cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_avx512_calc_aad_lt16
+        cmpl	$0x80, %edx
+        jl	L_AES_GCM_decrypt_avx512_calc_aad_ser
+        vmovdqu	%xmm5, 1088(%rsp)
+        vmovdqu	%xmm4, 1104(%rsp)
+        vpsrlq	$63, %xmm5, %xmm9
+        vpsllq	$0x01, %xmm5, %xmm8
+        vpslldq	$8, %xmm9, %xmm9
+        vpor	%xmm9, %xmm8, %xmm8
+        vpshufd	$0xff, %xmm5, %xmm5
+        vpsrad	$31, %xmm5, %xmm5
+        vpand	L_avx512_aes_gcm_mod2_128(%rip), %xmm5, %xmm5
+        vpxor	%xmm8, %xmm5, %xmm5
+        vmovdqa	%xmm6, %xmm2
+        # H ^ 1
+        vmovdqu	%xmm5, (%rsp)
+        # H ^ 2
+        vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm8
+        vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm0
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm5, %xmm9
+        vpxor	%xmm5, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm0, %xmm10
+        vpxor	%xmm0, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm5, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm5, %xmm0, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        # H ^ 4
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm3
+        vmovdqu	%xmm3, 48(%rsp)
+        # H ^ 5
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 64(%rsp)
+        # H ^ 6
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 80(%rsp)
+        # H ^ 7
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm1, %xmm9
+        vpxor	%xmm1, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm3, %xmm10
+        vpxor	%xmm3, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm1, %xmm3, %xmm8
+        vpclmulqdq	$0x11, %xmm1, %xmm3, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 96(%rsp)
+        # H ^ 8
+        vpclmulqdq	$0x00, %xmm3, %xmm3, %xmm8
+        vpclmulqdq	$0x11, %xmm3, %xmm3, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 112(%rsp)
+        # H ^ 9
+        vmovdqu	48(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 128(%rsp)
+        # H ^ 10
+        vmovdqu	64(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 144(%rsp)
+        # H ^ 11
+        vmovdqu	64(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 160(%rsp)
+        # H ^ 12
+        vmovdqu	80(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 176(%rsp)
+        # H ^ 13
+        vmovdqu	80(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 192(%rsp)
+        # H ^ 14
+        vmovdqu	96(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 208(%rsp)
+        # H ^ 15
+        vmovdqu	96(%rsp), %xmm0
+        vmovdqu	112(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm9
+        vpxor	%xmm0, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 224(%rsp)
+        # H ^ 16
+        vmovdqu	112(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm8
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm11
+        vpxor	%xmm9, %xmm9, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm7
+        vmovdqu	%xmm7, 240(%rsp)
+        vbroadcasti32x4	L_avx512_aes_gcm_bswap_mask(%rip), %zmm30
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vmovdqu64	192(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	128(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vmovdqu64	64(%rsp), %zmm25
+        vshufi64x2	$27, %zmm25, %zmm25, %zmm25
+        vmovdqu64	(%rsp), %zmm26
+        vshufi64x2	$27, %zmm26, %zmm26, %zmm26
+        movl	%r11d, %r13d
+        andl	$0xffffff00, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_decrypt_avx512_calc_aad_a256
+L_AES_GCM_decrypt_avx512_calc_aad_l256:
+        # 256 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vmovdqu64	128(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm25, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm25, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm25, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm25, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vmovdqu64	192(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm26, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm26, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm26, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm26, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        addl	$0x100, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_decrypt_avx512_calc_aad_l256
+L_AES_GCM_decrypt_avx512_calc_aad_a256:
+        movl	%r11d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_decrypt_avx512_calc_aad_a128
+        # 128 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu64	64(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        addl	$0x80, %ecx
+L_AES_GCM_decrypt_avx512_calc_aad_a128:
+        movl	%r11d, %r13d
+        andl	$0xfffffff0, %r13d
+        cmpl	%r13d, %ecx
+        jge	L_AES_GCM_decrypt_avx512_calc_aad_arem
+        vmovdqu	(%rsp), %xmm5
+L_AES_GCM_decrypt_avx512_calc_aad_rem:
+        # 16 bytes of AAD
+        leaq	(%r12,%rcx,1), %rbx
+        vmovdqu	(%rbx), %xmm8
+        vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
+        vpxor	%xmm8, %xmm6, %xmm6
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm5, %xmm9
+        vpxor	%xmm5, %xmm9, %xmm9
+        vpshufd	$0x4e, %xmm6, %xmm10
+        vpxor	%xmm6, %xmm10, %xmm10
+        vpclmulqdq	$0x00, %xmm5, %xmm6, %xmm8
+        vpclmulqdq	$0x11, %xmm5, %xmm6, %xmm11
+        vpclmulqdq	$0x00, %xmm10, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm8, %xmm11, %xmm9
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm10
+        vpclmulqdq	$0x01, %xmm8, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm8, %xmm8
+        vpternlogq	$0x96, %xmm12, %xmm8, %xmm9
+        vpclmulqdq	$0x01, %xmm9, %xmm10, %xmm12
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
+        vmovdqa	%xmm11, %xmm6
+        addl	$16, %ecx
+        cmpl	%r13d, %ecx
+        jl	L_AES_GCM_decrypt_avx512_calc_aad_rem
+L_AES_GCM_decrypt_avx512_calc_aad_arem:
+        vmovdqu	1088(%rsp), %xmm5
+        vmovdqu	1104(%rsp), %xmm4
+        jmp	L_AES_GCM_decrypt_avx512_calc_aad_partial
+L_AES_GCM_decrypt_avx512_calc_aad_ser:
+        movl	%r11d, %edx
         andl	$0xfffffff0, %edx
+        cmpl	%edx, %ecx
+        je	L_AES_GCM_decrypt_avx512_calc_aad_partial
 L_AES_GCM_decrypt_avx512_calc_aad_16_loop:
         vmovdqu	(%r12,%rcx,1), %xmm8
         vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm8, %xmm8
@@ -25443,6 +28241,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_16_loop:
         addl	$16, %ecx
         cmpl	%edx, %ecx
         jl	L_AES_GCM_decrypt_avx512_calc_aad_16_loop
+L_AES_GCM_decrypt_avx512_calc_aad_partial:
         movl	%r11d, %edx
         cmpl	%edx, %ecx
         je	L_AES_GCM_decrypt_avx512_calc_aad_done
@@ -25519,7 +28318,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_done:
         vpxor	%xmm8, %xmm5, %xmm5
         vmovdqu	%xmm4, 1024(%rsp)
         xorl	%ebx, %ebx
-        cmpl	$0x100, %r9d
+        cmpl	$0x80, %r9d
         jl	L_AES_GCM_decrypt_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -25633,6 +28432,8 @@ L_AES_GCM_decrypt_avx512_calc_aad_done:
         vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
+        cmpl	$0x100, %r9d
+        jl	L_AES_GCM_decrypt_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -26056,6 +28857,7 @@ L_AES_GCM_decrypt_avx512_calc_aad_done:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 496(%rsp)
 L_AES_GCM_decrypt_avx512_no_ext:
+L_AES_GCM_decrypt_avx512_no_ext2:
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_epi64(%rip), %zmm22
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_mask(%rip), %zmm30
         vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
@@ -26841,6 +29643,117 @@ L_AES_GCM_decrypt_avx512_t_avx512_ctr16_last:
         vmovdqu64	%zmm19, 192(%rdx)
         addl	$0x100, %ebx
 L_AES_GCM_decrypt_avx512_after_256:
+        movl	%r9d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %ebx
+        jge	L_AES_GCM_decrypt_avx512_after_128
+        # 128 bytes of input
+        leaq	(%rdi,%rbx,1), %rax
+        vmovdqu64	64(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rax), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%rax), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        vbroadcasti32x4	(%r15), %zmm9
+        vbroadcasti32x4	16(%r15), %zmm10
+        vbroadcasti32x4	32(%r15), %zmm11
+        vbroadcasti32x4	48(%r15), %zmm12
+        vbroadcasti32x4	64(%r15), %zmm13
+        vbroadcasti32x4	80(%r15), %zmm14
+        vbroadcasti32x4	96(%r15), %zmm15
+        vbroadcasti32x4	112(%r15), %zmm1
+        vbroadcasti32x4	128(%r15), %zmm2
+        vbroadcasti32x4	144(%r15), %zmm3
+        vbroadcasti32x4	1024(%rsp), %zmm20
+        vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
+        vpshufb	%zmm22, %zmm16, %zmm16
+        vpaddd	L_avx512_aes_gcm_inc_z1(%rip), %zmm20, %zmm17
+        vpshufb	%zmm22, %zmm17, %zmm17
+        vmovdqu	1024(%rsp), %xmm8
+        vpaddd	L_avx512_aes_gcm_eight(%rip), %xmm8, %xmm8
+        vmovdqu	%xmm8, 1024(%rsp)
+        vpxorq	%zmm9, %zmm16, %zmm16
+        vpxorq	%zmm9, %zmm17, %zmm17
+        vaesenc	%zmm10, %zmm16, %zmm16
+        vaesenc	%zmm10, %zmm17, %zmm17
+        vaesenc	%zmm11, %zmm16, %zmm16
+        vaesenc	%zmm11, %zmm17, %zmm17
+        vaesenc	%zmm12, %zmm16, %zmm16
+        vaesenc	%zmm12, %zmm17, %zmm17
+        vaesenc	%zmm13, %zmm16, %zmm16
+        vaesenc	%zmm13, %zmm17, %zmm17
+        vaesenc	%zmm14, %zmm16, %zmm16
+        vaesenc	%zmm14, %zmm17, %zmm17
+        vaesenc	%zmm15, %zmm16, %zmm16
+        vaesenc	%zmm15, %zmm17, %zmm17
+        vaesenc	%zmm1, %zmm16, %zmm16
+        vaesenc	%zmm1, %zmm17, %zmm17
+        vaesenc	%zmm2, %zmm16, %zmm16
+        vaesenc	%zmm2, %zmm17, %zmm17
+        vaesenc	%zmm3, %zmm16, %zmm16
+        vaesenc	%zmm3, %zmm17, %zmm17
+        cmpl	$11, %r10d
+        vbroadcasti32x4	160(%r15), %zmm20
+        jl	L_AES_GCM_decrypt_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	176(%r15), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        cmpl	$13, %r10d
+        vbroadcasti32x4	192(%r15), %zmm20
+        jl	L_AES_GCM_decrypt_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	208(%r15), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	224(%r15), %zmm20
+L_AES_GCM_decrypt_avx512_8_avx512_ctr8_last:
+        vaesenclast	%zmm20, %zmm16, %zmm16
+        vaesenclast	%zmm20, %zmm17, %zmm17
+        leaq	(%rdi,%rbx,1), %rcx
+        leaq	(%rsi,%rbx,1), %rdx
+        vmovdqu64	(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm16, %zmm16
+        vmovdqu64	%zmm16, (%rdx)
+        vmovdqu64	64(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm17, %zmm17
+        vmovdqu64	%zmm17, 64(%rdx)
+        addl	$0x80, %ebx
+L_AES_GCM_decrypt_avx512_after_128:
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_decrypt_avx512_done_128:
         movl	%r9d, %edx
@@ -27029,7 +29942,7 @@ L_AES_GCM_decrypt_avx512_cmp_tag_16:
 L_AES_GCM_decrypt_avx512_cmp_tag_done:
         movl	%ebx, (%rbp)
         vzeroupper
-        addq	$0x420, %rsp
+        addq	$0x460, %rsp
         popq	%rbp
         popq	%r15
         popq	%r14
@@ -27370,61 +30283,422 @@ AES_GCM_aad_update_avx512:
 .p2align	4
 _AES_GCM_aad_update_avx512:
 #endif /* __APPLE__ */
-        movq	%rcx, %rax
-        vmovdqa	(%rdx), %xmm5
-        vmovdqa	(%rax), %xmm6
-        xorl	%ecx, %ecx
-L_AES_GCM_aad_update_avx512_16_loop:
-        vmovdqu	(%rdi,%rcx,1), %xmm7
-        vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm7, %xmm7
-        vpxor	%xmm7, %xmm5, %xmm5
-        # ghash_gfmul_avx
-        vpshufd	$0x4e, %xmm5, %xmm1
-        vpshufd	$0x4e, %xmm6, %xmm2
-        vpclmulqdq	$0x11, %xmm5, %xmm6, %xmm3
-        vpclmulqdq	$0x00, %xmm5, %xmm6, %xmm0
-        vpxor	%xmm5, %xmm1, %xmm1
-        vpxor	%xmm6, %xmm2, %xmm2
-        vpclmulqdq	$0x00, %xmm2, %xmm1, %xmm1
-        vpxor	%xmm0, %xmm1, %xmm1
-        vpxor	%xmm3, %xmm1, %xmm1
-        vmovdqa	%xmm0, %xmm4
-        vmovdqa	%xmm3, %xmm5
-        vpslldq	$8, %xmm1, %xmm2
-        vpsrldq	$8, %xmm1, %xmm1
-        vpxor	%xmm2, %xmm4, %xmm4
-        vpxor	%xmm1, %xmm5, %xmm5
-        vpsrld	$31, %xmm4, %xmm0
-        vpsrld	$31, %xmm5, %xmm1
-        vpslld	$0x01, %xmm4, %xmm4
-        vpslld	$0x01, %xmm5, %xmm5
-        vpsrldq	$12, %xmm0, %xmm2
-        vpslldq	$4, %xmm0, %xmm0
-        vpslldq	$4, %xmm1, %xmm1
-        vpor	%xmm2, %xmm5, %xmm5
-        vpor	%xmm0, %xmm4, %xmm4
-        vpor	%xmm1, %xmm5, %xmm5
-        vpslld	$31, %xmm4, %xmm0
-        vpslld	$30, %xmm4, %xmm1
-        vpslld	$25, %xmm4, %xmm2
-        vpxor	%xmm1, %xmm0, %xmm0
-        vpxor	%xmm2, %xmm0, %xmm0
-        vmovdqa	%xmm0, %xmm1
-        vpsrldq	$4, %xmm1, %xmm1
-        vpslldq	$12, %xmm0, %xmm0
-        vpxor	%xmm0, %xmm4, %xmm4
-        vpsrld	$0x01, %xmm4, %xmm2
-        vpsrld	$2, %xmm4, %xmm3
-        vpsrld	$7, %xmm4, %xmm0
-        vpxor	%xmm3, %xmm2, %xmm2
-        vpxor	%xmm0, %xmm2, %xmm2
-        vpxor	%xmm1, %xmm2, %xmm2
-        vpxor	%xmm4, %xmm2, %xmm2
-        vpxor	%xmm2, %xmm5, %xmm5
-        addl	$16, %ecx
-        cmpl	%esi, %ecx
-        jl	L_AES_GCM_aad_update_avx512_16_loop
-        vmovdqa	%xmm5, (%rdx)
+        movq	%rdx, %r8
+        movq	%rcx, %r9
+        subq	$0x100, %rsp
+        vmovdqa	(%r8), %xmm6
+        vmovdqa	(%r9), %xmm7
+        xorl	%edx, %edx
+        vpsrlq	$63, %xmm7, %xmm10
+        vpsllq	$0x01, %xmm7, %xmm9
+        vpslldq	$8, %xmm10, %xmm10
+        vpor	%xmm10, %xmm9, %xmm9
+        vpshufd	$0xff, %xmm7, %xmm7
+        vpsrad	$31, %xmm7, %xmm7
+        vpand	L_avx512_aes_gcm_mod2_128(%rip), %xmm7, %xmm7
+        vpxor	%xmm9, %xmm7, %xmm7
+        vmovdqa	%xmm6, %xmm2
+        # H ^ 1
+        vmovdqu	%xmm7, (%rsp)
+        # H ^ 2
+        vpclmulqdq	$0x00, %xmm7, %xmm7, %xmm9
+        vpclmulqdq	$0x11, %xmm7, %xmm7, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm0
+        vmovdqu	%xmm0, 16(%rsp)
+        # H ^ 3
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm7, %xmm10
+        vpxor	%xmm7, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm0, %xmm11
+        vpxor	%xmm0, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm7, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm7, %xmm0, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm1
+        vmovdqu	%xmm1, 32(%rsp)
+        # H ^ 4
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm3
+        vmovdqu	%xmm3, 48(%rsp)
+        # H ^ 5
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm10
+        vpxor	%xmm0, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm1, %xmm11
+        vpxor	%xmm1, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 64(%rsp)
+        # H ^ 6
+        vpclmulqdq	$0x00, %xmm1, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm1, %xmm1, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 80(%rsp)
+        # H ^ 7
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm1, %xmm10
+        vpxor	%xmm1, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm3, %xmm11
+        vpxor	%xmm3, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm1, %xmm3, %xmm9
+        vpclmulqdq	$0x11, %xmm1, %xmm3, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 96(%rsp)
+        # H ^ 8
+        vpclmulqdq	$0x00, %xmm3, %xmm3, %xmm9
+        vpclmulqdq	$0x11, %xmm3, %xmm3, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 112(%rsp)
+        # H ^ 9
+        vmovdqu	48(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm10
+        vpxor	%xmm0, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm1, %xmm11
+        vpxor	%xmm1, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 128(%rsp)
+        # H ^ 10
+        vmovdqu	64(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 144(%rsp)
+        # H ^ 11
+        vmovdqu	64(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm10
+        vpxor	%xmm0, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm1, %xmm11
+        vpxor	%xmm1, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 160(%rsp)
+        # H ^ 12
+        vmovdqu	80(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 176(%rsp)
+        # H ^ 13
+        vmovdqu	80(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm10
+        vpxor	%xmm0, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm1, %xmm11
+        vpxor	%xmm1, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 192(%rsp)
+        # H ^ 14
+        vmovdqu	96(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 208(%rsp)
+        # H ^ 15
+        vmovdqu	96(%rsp), %xmm0
+        vmovdqu	112(%rsp), %xmm1
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm0, %xmm10
+        vpxor	%xmm0, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm1, %xmm11
+        vpxor	%xmm1, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm0, %xmm1, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm1, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 224(%rsp)
+        # H ^ 16
+        vmovdqu	112(%rsp), %xmm0
+        vpclmulqdq	$0x00, %xmm0, %xmm0, %xmm9
+        vpclmulqdq	$0x11, %xmm0, %xmm0, %xmm12
+        vpxor	%xmm10, %xmm10, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm8
+        vmovdqu	%xmm8, 240(%rsp)
+        vbroadcasti32x4	L_avx512_aes_gcm_bswap_mask(%rip), %zmm22
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm23
+        vmovdqu64	192(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vmovdqu64	128(%rsp), %zmm25
+        vshufi64x2	$27, %zmm25, %zmm25, %zmm25
+        vmovdqu64	64(%rsp), %zmm26
+        vshufi64x2	$27, %zmm26, %zmm26, %zmm26
+        vmovdqu64	(%rsp), %zmm27
+        vshufi64x2	$27, %zmm27, %zmm27, %zmm27
+        movl	%esi, %eax
+        andl	$0xffffff00, %eax
+        cmpl	%eax, %edx
+        jge	L_AES_GCM_aad_update_avx512_after_256
+L_AES_GCM_aad_update_avx512_loop_256:
+        # 256 bytes of input
+        leaq	(%rdi,%rdx,1), %rcx
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rcx), %zmm21
+        vpshufb	%zmm22, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm28
+        vpxorq	%zmm17, %zmm18, %zmm29
+        vmovdqa64	%zmm19, %zmm30
+        vmovdqu64	64(%rcx), %zmm21
+        vpshufb	%zmm22, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm25, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm25, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm25, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm25, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm29
+        vpxorq	%zmm19, %zmm30, %zmm30
+        vmovdqu64	128(%rcx), %zmm21
+        vpshufb	%zmm22, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm26, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm26, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm26, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm26, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm29
+        vpxorq	%zmm19, %zmm30, %zmm30
+        vmovdqu64	192(%rcx), %zmm21
+        vpshufb	%zmm22, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm27, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm27, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm27, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm27, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm29
+        vpxorq	%zmm19, %zmm30, %zmm30
+        vpclmulqdq	$0x01, %zmm28, %zmm23, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vpclmulqdq	$0x01, %zmm29, %zmm23, %zmm21
+        vpshufd	$0x4e, %zmm29, %zmm29
+        vpternlogq	$0x96, %zmm21, %zmm29, %zmm30
+        vextracti32x4	$0x01, %zmm30, %xmm0
+        vextracti32x4	$2, %zmm30, %xmm4
+        vextracti32x4	$3, %zmm30, %xmm5
+        vpxorq	%xmm0, %xmm30, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        addl	$0x100, %edx
+        cmpl	%eax, %edx
+        jl	L_AES_GCM_aad_update_avx512_loop_256
+L_AES_GCM_aad_update_avx512_after_256:
+        movl	%esi, %eax
+        andl	$0xffffff80, %eax
+        cmpl	%eax, %edx
+        jge	L_AES_GCM_aad_update_avx512_after_128
+        # 128 bytes of input
+        leaq	(%rdi,%rdx,1), %rcx
+        vmovdqu64	64(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vmovdqu64	(%rsp), %zmm25
+        vshufi64x2	$27, %zmm25, %zmm25, %zmm25
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rcx), %zmm21
+        vpshufb	%zmm22, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm28
+        vpxorq	%zmm17, %zmm18, %zmm29
+        vmovdqa64	%zmm19, %zmm30
+        vmovdqu64	64(%rcx), %zmm21
+        vpshufb	%zmm22, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm25, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm25, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm25, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm25, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm29
+        vpxorq	%zmm19, %zmm30, %zmm30
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm23
+        vpclmulqdq	$0x01, %zmm28, %zmm23, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vpclmulqdq	$0x01, %zmm29, %zmm23, %zmm21
+        vpshufd	$0x4e, %zmm29, %zmm29
+        vpternlogq	$0x96, %zmm21, %zmm29, %zmm30
+        vextracti32x4	$0x01, %zmm30, %xmm0
+        vextracti32x4	$2, %zmm30, %xmm4
+        vextracti32x4	$3, %zmm30, %xmm5
+        vpxorq	%xmm0, %xmm30, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        addl	$0x80, %edx
+L_AES_GCM_aad_update_avx512_after_128:
+        movl	%esi, %eax
+        andl	$0xfffffff0, %eax
+        cmpl	%eax, %edx
+        jge	L_AES_GCM_aad_update_avx512_done
+        vmovdqu	(%rsp), %xmm7
+L_AES_GCM_aad_update_avx512_tail:
+        # 16 bytes of input
+        vmovdqu	(%rdi,%rdx,1), %xmm9
+        vpshufb	L_avx512_aes_gcm_bswap_mask(%rip), %xmm9, %xmm9
+        vpxor	%xmm9, %xmm6, %xmm6
+        # ghash_gfmul_red_avx
+        vpshufd	$0x4e, %xmm7, %xmm10
+        vpxor	%xmm7, %xmm10, %xmm10
+        vpshufd	$0x4e, %xmm6, %xmm11
+        vpxor	%xmm6, %xmm11, %xmm11
+        vpclmulqdq	$0x00, %xmm7, %xmm6, %xmm9
+        vpclmulqdq	$0x11, %xmm7, %xmm6, %xmm12
+        vpclmulqdq	$0x00, %xmm11, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm9, %xmm12, %xmm10
+        vmovdqa	L_avx512_aes_gcm_mod2_128(%rip), %xmm11
+        vpclmulqdq	$0x01, %xmm9, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm9, %xmm9
+        vpternlogq	$0x96, %xmm13, %xmm9, %xmm10
+        vpclmulqdq	$0x01, %xmm10, %xmm11, %xmm13
+        vpshufd	$0x4e, %xmm10, %xmm10
+        vpternlogq	$0x96, %xmm13, %xmm10, %xmm12
+        vmovdqa	%xmm12, %xmm6
+        addl	$16, %edx
+        cmpl	%eax, %edx
+        jl	L_AES_GCM_aad_update_avx512_tail
+L_AES_GCM_aad_update_avx512_done:
+        vmovdqa	%xmm6, (%r8)
+        vzeroupper
+        addq	$0x100, %rsp
         repz retq
 #ifndef __APPLE__
 .size	AES_GCM_aad_update_avx512,.-AES_GCM_aad_update_avx512
@@ -27579,7 +30853,7 @@ _AES_GCM_encrypt_update_avx512:
         vpand	L_avx512_aes_gcm_mod2_128(%rip), %xmm5, %xmm5
         vpxor	%xmm8, %xmm5, %xmm5
         xorl	%r14d, %r14d
-        cmpl	$0x100, %r8d
+        cmpl	$0x80, %r8d
         jl	L_AES_GCM_encrypt_update_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -27693,6 +30967,8 @@ _AES_GCM_encrypt_update_avx512:
         vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
+        cmpl	$0x100, %r8d
+        jl	L_AES_GCM_encrypt_update_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -28116,6 +31392,7 @@ _AES_GCM_encrypt_update_avx512:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 496(%rsp)
 L_AES_GCM_encrypt_update_avx512_no_ext:
+L_AES_GCM_encrypt_update_avx512_no_ext2:
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_epi64(%rip), %zmm22
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_mask(%rip), %zmm30
         vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
@@ -29053,6 +32330,117 @@ L_AES_GCM_encrypt_update_avx512_last_ghash:
         vpxorq	%xmm0, %xmm29, %xmm6
         vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
 L_AES_GCM_encrypt_update_avx512_after_256:
+        movl	%r8d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %r14d
+        jge	L_AES_GCM_encrypt_update_avx512_after_128
+        # 128 bytes of input
+        vbroadcasti32x4	(%rdi), %zmm9
+        vbroadcasti32x4	16(%rdi), %zmm10
+        vbroadcasti32x4	32(%rdi), %zmm11
+        vbroadcasti32x4	48(%rdi), %zmm12
+        vbroadcasti32x4	64(%rdi), %zmm13
+        vbroadcasti32x4	80(%rdi), %zmm14
+        vbroadcasti32x4	96(%rdi), %zmm15
+        vbroadcasti32x4	112(%rdi), %zmm1
+        vbroadcasti32x4	128(%rdi), %zmm2
+        vbroadcasti32x4	144(%rdi), %zmm3
+        leaq	(%r10,%r14,1), %r15
+        vbroadcasti32x4	(%r12), %zmm20
+        vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
+        vpshufb	%zmm22, %zmm16, %zmm16
+        vpaddd	L_avx512_aes_gcm_inc_z1(%rip), %zmm20, %zmm17
+        vpshufb	%zmm22, %zmm17, %zmm17
+        vmovdqu	(%r12), %xmm8
+        vpaddd	L_avx512_aes_gcm_eight(%rip), %xmm8, %xmm8
+        vmovdqu	%xmm8, (%r12)
+        vpxorq	%zmm9, %zmm16, %zmm16
+        vpxorq	%zmm9, %zmm17, %zmm17
+        vaesenc	%zmm10, %zmm16, %zmm16
+        vaesenc	%zmm10, %zmm17, %zmm17
+        vaesenc	%zmm11, %zmm16, %zmm16
+        vaesenc	%zmm11, %zmm17, %zmm17
+        vaesenc	%zmm12, %zmm16, %zmm16
+        vaesenc	%zmm12, %zmm17, %zmm17
+        vaesenc	%zmm13, %zmm16, %zmm16
+        vaesenc	%zmm13, %zmm17, %zmm17
+        vaesenc	%zmm14, %zmm16, %zmm16
+        vaesenc	%zmm14, %zmm17, %zmm17
+        vaesenc	%zmm15, %zmm16, %zmm16
+        vaesenc	%zmm15, %zmm17, %zmm17
+        vaesenc	%zmm1, %zmm16, %zmm16
+        vaesenc	%zmm1, %zmm17, %zmm17
+        vaesenc	%zmm2, %zmm16, %zmm16
+        vaesenc	%zmm2, %zmm17, %zmm17
+        vaesenc	%zmm3, %zmm16, %zmm16
+        vaesenc	%zmm3, %zmm17, %zmm17
+        cmpl	$11, %esi
+        vbroadcasti32x4	160(%rdi), %zmm20
+        jl	L_AES_GCM_encrypt_update_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	176(%rdi), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        cmpl	$13, %esi
+        vbroadcasti32x4	192(%rdi), %zmm20
+        jl	L_AES_GCM_encrypt_update_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	208(%rdi), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	224(%rdi), %zmm20
+L_AES_GCM_encrypt_update_avx512_8_avx512_ctr8_last:
+        vaesenclast	%zmm20, %zmm16, %zmm16
+        vaesenclast	%zmm20, %zmm17, %zmm17
+        leaq	(%r11,%r14,1), %rcx
+        leaq	(%r10,%r14,1), %rdx
+        vmovdqu64	(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm16, %zmm16
+        vmovdqu64	%zmm16, (%rdx)
+        vmovdqu64	64(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm17, %zmm17
+        vmovdqu64	%zmm17, 64(%rdx)
+        addl	$0x80, %r14d
+        vmovdqu64	64(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%r15), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%r15), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+L_AES_GCM_encrypt_update_avx512_after_128:
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_encrypt_update_avx512_done_128:
         movl	%r8d, %edx
@@ -29294,7 +32682,7 @@ _AES_GCM_decrypt_update_avx512:
         vpand	L_avx512_aes_gcm_mod2_128(%rip), %xmm5, %xmm5
         vpxor	%xmm8, %xmm5, %xmm5
         xorl	%r14d, %r14d
-        cmpl	$0x100, %r8d
+        cmpl	$0x80, %r8d
         jl	L_AES_GCM_decrypt_update_avx512_done_128
         vmovdqa	%xmm6, %xmm2
         # H ^ 1
@@ -29408,6 +32796,8 @@ _AES_GCM_decrypt_update_avx512:
         vpternlogq	$0x96, %xmm12, %xmm9, %xmm11
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 112(%rsp)
+        cmpl	$0x100, %r8d
+        jl	L_AES_GCM_decrypt_update_avx512_no_ext2
         # H ^ 9
         vmovdqu	48(%rsp), %xmm0
         vmovdqu	64(%rsp), %xmm1
@@ -29831,6 +33221,7 @@ _AES_GCM_decrypt_update_avx512:
         vmovdqa	%xmm11, %xmm7
         vmovdqu	%xmm7, 496(%rsp)
 L_AES_GCM_decrypt_update_avx512_no_ext:
+L_AES_GCM_decrypt_update_avx512_no_ext2:
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_epi64(%rip), %zmm22
         vbroadcasti32x4	L_avx512_aes_gcm_bswap_mask(%rip), %zmm30
         vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
@@ -30616,6 +34007,117 @@ L_AES_GCM_decrypt_update_avx512_t_avx512_ctr16_last:
         vmovdqu64	%zmm19, 192(%rdx)
         addl	$0x100, %r14d
 L_AES_GCM_decrypt_update_avx512_after_256:
+        movl	%r8d, %r13d
+        andl	$0xffffff80, %r13d
+        cmpl	%r13d, %r14d
+        jge	L_AES_GCM_decrypt_update_avx512_after_128
+        # 128 bytes of input
+        leaq	(%r11,%r14,1), %rbx
+        vmovdqu64	64(%rsp), %zmm23
+        vshufi64x2	$27, %zmm23, %zmm23, %zmm23
+        vmovdqu64	(%rsp), %zmm24
+        vshufi64x2	$27, %zmm24, %zmm24, %zmm24
+        vpxorq	%zmm20, %zmm20, %zmm20
+        vinserti32x4	$0x00, %xmm6, %zmm20, %zmm20
+        vmovdqu64	(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpxorq	%zmm20, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm23, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm23, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm23, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm23, %zmm21, %zmm19
+        vmovdqa64	%zmm16, %zmm27
+        vpxorq	%zmm17, %zmm18, %zmm28
+        vmovdqa64	%zmm19, %zmm29
+        vmovdqu64	64(%rbx), %zmm21
+        vpshufb	%zmm30, %zmm21, %zmm21
+        vpclmulqdq	$0x00, %zmm24, %zmm21, %zmm16
+        vpclmulqdq	$0x01, %zmm24, %zmm21, %zmm17
+        vpclmulqdq	$16, %zmm24, %zmm21, %zmm18
+        vpclmulqdq	$0x11, %zmm24, %zmm21, %zmm19
+        vpxorq	%zmm16, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm17, %zmm18, %zmm28
+        vpxorq	%zmm19, %zmm29, %zmm29
+        vbroadcasti32x4	L_avx512_aes_gcm_mod2_128(%rip), %zmm31
+        vpclmulqdq	$0x01, %zmm27, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm27, %zmm27
+        vpternlogq	$0x96, %zmm21, %zmm27, %zmm28
+        vpclmulqdq	$0x01, %zmm28, %zmm31, %zmm21
+        vpshufd	$0x4e, %zmm28, %zmm28
+        vpternlogq	$0x96, %zmm21, %zmm28, %zmm29
+        vextracti32x4	$0x01, %zmm29, %xmm0
+        vextracti32x4	$2, %zmm29, %xmm4
+        vextracti32x4	$3, %zmm29, %xmm5
+        vpxorq	%xmm0, %xmm29, %xmm6
+        vpternlogq	$0x96, %xmm4, %xmm5, %xmm6
+        vbroadcasti32x4	(%rdi), %zmm9
+        vbroadcasti32x4	16(%rdi), %zmm10
+        vbroadcasti32x4	32(%rdi), %zmm11
+        vbroadcasti32x4	48(%rdi), %zmm12
+        vbroadcasti32x4	64(%rdi), %zmm13
+        vbroadcasti32x4	80(%rdi), %zmm14
+        vbroadcasti32x4	96(%rdi), %zmm15
+        vbroadcasti32x4	112(%rdi), %zmm1
+        vbroadcasti32x4	128(%rdi), %zmm2
+        vbroadcasti32x4	144(%rdi), %zmm3
+        vbroadcasti32x4	(%r12), %zmm20
+        vpaddd	L_avx512_aes_gcm_inc_z0(%rip), %zmm20, %zmm16
+        vpshufb	%zmm22, %zmm16, %zmm16
+        vpaddd	L_avx512_aes_gcm_inc_z1(%rip), %zmm20, %zmm17
+        vpshufb	%zmm22, %zmm17, %zmm17
+        vmovdqu	(%r12), %xmm8
+        vpaddd	L_avx512_aes_gcm_eight(%rip), %xmm8, %xmm8
+        vmovdqu	%xmm8, (%r12)
+        vpxorq	%zmm9, %zmm16, %zmm16
+        vpxorq	%zmm9, %zmm17, %zmm17
+        vaesenc	%zmm10, %zmm16, %zmm16
+        vaesenc	%zmm10, %zmm17, %zmm17
+        vaesenc	%zmm11, %zmm16, %zmm16
+        vaesenc	%zmm11, %zmm17, %zmm17
+        vaesenc	%zmm12, %zmm16, %zmm16
+        vaesenc	%zmm12, %zmm17, %zmm17
+        vaesenc	%zmm13, %zmm16, %zmm16
+        vaesenc	%zmm13, %zmm17, %zmm17
+        vaesenc	%zmm14, %zmm16, %zmm16
+        vaesenc	%zmm14, %zmm17, %zmm17
+        vaesenc	%zmm15, %zmm16, %zmm16
+        vaesenc	%zmm15, %zmm17, %zmm17
+        vaesenc	%zmm1, %zmm16, %zmm16
+        vaesenc	%zmm1, %zmm17, %zmm17
+        vaesenc	%zmm2, %zmm16, %zmm16
+        vaesenc	%zmm2, %zmm17, %zmm17
+        vaesenc	%zmm3, %zmm16, %zmm16
+        vaesenc	%zmm3, %zmm17, %zmm17
+        cmpl	$11, %esi
+        vbroadcasti32x4	160(%rdi), %zmm20
+        jl	L_AES_GCM_decrypt_update_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	176(%rdi), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        cmpl	$13, %esi
+        vbroadcasti32x4	192(%rdi), %zmm20
+        jl	L_AES_GCM_decrypt_update_avx512_8_avx512_ctr8_last
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	208(%rdi), %zmm20
+        vaesenc	%zmm20, %zmm16, %zmm16
+        vaesenc	%zmm20, %zmm17, %zmm17
+        vbroadcasti32x4	224(%rdi), %zmm20
+L_AES_GCM_decrypt_update_avx512_8_avx512_ctr8_last:
+        vaesenclast	%zmm20, %zmm16, %zmm16
+        vaesenclast	%zmm20, %zmm17, %zmm17
+        leaq	(%r11,%r14,1), %rcx
+        leaq	(%r10,%r14,1), %rdx
+        vmovdqu64	(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm16, %zmm16
+        vmovdqu64	%zmm16, (%rdx)
+        vmovdqu64	64(%rcx), %zmm21
+        vpxorq	%zmm21, %zmm17, %zmm17
+        vmovdqu64	%zmm17, 64(%rdx)
+        addl	$0x80, %r14d
+L_AES_GCM_decrypt_update_avx512_after_128:
         vmovdqu	(%rsp), %xmm5
 L_AES_GCM_decrypt_update_avx512_done_128:
         movl	%r8d, %edx

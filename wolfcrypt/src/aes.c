@@ -839,9 +839,12 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #elif WC_VAES_MIN_BLOCKS < 1
             #error Invalid WC_VAES_MIN_BLOCKS
         #endif
-        /* CFB/ECB: wide ECB setup (key broadcast) doesn't pay off below this. */
+        /* ECB/CBC/CTR/XTS: the wide ladder handles 2+ blocks in parallel and
+         * only caches round keys once it pays off (>= 32B), so the wide path
+         * beats the single-block AES-NI fallback from 2 blocks up; a lone block
+         * stays on AES-NI. (Measured +8..+58% at 2-6 blocks on Zen5.) */
         #ifndef WC_VAES_ECB_MIN_BLOCKS
-            #define WC_VAES_ECB_MIN_BLOCKS WC_VAES_MIN_BLOCKS
+            #define WC_VAES_ECB_MIN_BLOCKS 2
         #elif WC_VAES_ECB_MIN_BLOCKS < 1
             #error Invalid WC_VAES_ECB_MIN_BLOCKS
         #endif
@@ -15587,23 +15590,52 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
 #ifndef WOLFSSL_SMALL_STACK
         ALIGN16 byte tmp[WC_AES_CFB_DEC_BUF_BLOCKS * WC_AES_BLOCK_SIZE];
 #endif
-        while (sz >= 2 * WC_AES_BLOCK_SIZE) {
-            word32 blocks = sz / WC_AES_BLOCK_SIZE;
-            word32 nbytes;
-            if (blocks > WC_AES_CFB_DEC_BUF_BLOCKS)
-                blocks = WC_AES_CFB_DEC_BUF_BLOCKS;
-            nbytes = blocks * WC_AES_BLOCK_SIZE;
-            XMEMCPY(tmp, aes->reg, WC_AES_BLOCK_SIZE);
-            XMEMCPY(tmp + WC_AES_BLOCK_SIZE, in, nbytes - WC_AES_BLOCK_SIZE);
-            XMEMCPY(aes->reg, in + nbytes - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
-            ret = wc_AesEcbEncrypt(aes, tmp, tmp, nbytes);
-            if (ret != 0) {
-                break;
+        if (sz >= 2 * WC_AES_BLOCK_SIZE) {
+            /* CFB-decrypt keystream block i is E(C_{i-1}): block 0 uses the
+             * feedback register, block i>=1 uses the previous cipher block.  So
+             * ECB the ciphertext straight out of 'in' (no shift-copy) to get
+             * E(C_0..C_{n-1}), XOR block i with the (i-1)th ECB output, and
+             * carry E(C_{n-1}) as the next chunk's block-0 keystream - E(reg)
+             * is computed only once here. */
+            ALIGN16 byte ks[WC_AES_BLOCK_SIZE];
+            ret = AesEncrypt_preFetchOpt(aes, (byte*)aes->reg, ks,
+                                         &did_prefetches);
+            while ((ret == 0) && (sz >= 2 * WC_AES_BLOCK_SIZE)) {
+                word32 blocks = sz / WC_AES_BLOCK_SIZE;
+                word32 nbytes;
+                if (blocks > WC_AES_CFB_DEC_BUF_BLOCKS)
+                    blocks = WC_AES_CFB_DEC_BUF_BLOCKS;
+                nbytes = blocks * WC_AES_BLOCK_SIZE;
+                /* tmp[i] = E(C_i), read directly from the input. Already inside
+                 * VECTOR_REGISTERS_PUSH, so use the inner ECB (no nested
+                 * save/restore or re-dispatch) where available. */
+            #if defined(WOLFSSL_AESNI) && defined(WOLFSSL_X86_64_BUILD)
+                if (aes->use_aesni) {
+                    AesEcbEncryptBlocks(in, tmp, nbytes, (byte*)aes->key,
+                                        (int)aes->rounds);
+                }
+                else
+            #endif
+                {
+                    ret = wc_AesEcbEncrypt(aes, tmp, in, nbytes);
+                    if (ret != 0)
+                        break;
+                }
+                /* Feedback for the tail = last cipher block; save it before the
+                 * XOR can overwrite 'in' (in == out case). */
+                XMEMCPY((byte*)aes->reg, in + nbytes - WC_AES_BLOCK_SIZE,
+                        WC_AES_BLOCK_SIZE);
+                /* P_0 = C_0 ^ E(feedback); P_i = C_i ^ E(C_{i-1}) =
+                 *       C_i ^ tmp[i-1]. */
+                xorbufout(out, in, ks, WC_AES_BLOCK_SIZE);
+                xorbufout(out + WC_AES_BLOCK_SIZE, in + WC_AES_BLOCK_SIZE, tmp,
+                          nbytes - WC_AES_BLOCK_SIZE);
+                /* Carry E(last cipher block) as the next chunk's block-0 KS. */
+                XMEMCPY(ks, tmp + nbytes - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+                out += nbytes;
+                in  += nbytes;
+                sz  -= nbytes;
             }
-            xorbufout(out, in, tmp, nbytes);
-            out += nbytes;
-            in  += nbytes;
-            sz  -= nbytes;
         }
     }
     #endif
@@ -16903,8 +16935,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-        if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_XTS_encrypt_avx512(in, out, sz, i,
                                    (const byte*)aes->key,
                                    (const byte*)xaes->tweak.key,
@@ -16914,8 +16945,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         else
 #endif
 #if defined(HAVE_INTEL_VAES)
-        if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
-            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_XTS_encrypt_vaes(in, out, sz, i,
                                  (const byte*)aes->key,
                                  (const byte*)xaes->tweak.key,
@@ -17140,8 +17170,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
-                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_XTS_encrypt_update_avx512(in, out, sz,
                                               (const byte*)aes->key,
                                               stream->tweak_block,
@@ -17445,8 +17474,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-        if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
-            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_XTS_decrypt_avx512(in, out, sz, i,
                                    (const byte*)aes->key,
                                    (const byte*)xaes->tweak.key,
@@ -17676,8 +17704,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
-                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_XTS_decrypt_update_avx512(in, out, sz,
                                               (const byte*)aes->key,
                                               stream->tweak_block,
@@ -17687,8 +17714,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
             else
 #endif
 #if defined(HAVE_INTEL_VAES)
-            if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
-                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_XTS_decrypt_update_vaes(in, out, sz,
                                             (const byte*)aes->key,
                                             stream->tweak_block,
