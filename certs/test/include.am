@@ -104,3 +104,18 @@ EXTRA_DIST += \
          certs/test/expired/expired-ca.der \
          certs/test/expired/expired-cert.pem \
          certs/test/expired/expired-cert.der
+
+EXTRA_DIST += \
+         certs/test/nc-ancestor/gen-nc-ancestor.sh \
+         certs/test/nc-ancestor/00-root-cert.pem \
+         certs/test/nc-ancestor/00-root-key.pem \
+         certs/test/nc-ancestor/00-uri-permit-ca-permissive-cert.pem \
+         certs/test/nc-ancestor/00-uri-permit-ca-permissive-key.pem \
+         certs/test/nc-ancestor/01-uri-permit-ca-cert.pem \
+         certs/test/nc-ancestor/01-uri-permit-ca-key.pem \
+         certs/test/nc-ancestor/02-benign-sub-ca-cert.pem \
+         certs/test/nc-ancestor/02-benign-sub-ca-key.pem \
+         certs/test/nc-ancestor/03-leaf-attacker-key.pem \
+         certs/test/nc-ancestor/03-leaf-chain.pem \
+         certs/test/nc-ancestor/03-valid-leaf-cert.pem \
+         certs/test/nc-ancestor/03-valid-leaf-key.pem

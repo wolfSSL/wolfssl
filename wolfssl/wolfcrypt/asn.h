@@ -1736,6 +1736,11 @@ typedef struct EncodedName {
     #define WOLFSSL_MAX_PATH_LEN 127
 #endif
 
+#ifndef WOLFSSL_MAX_CHAIN_DEPTH
+    /* Max cert chain depth for ancestor walks. */
+    #define WOLFSSL_MAX_CHAIN_DEPTH 20
+#endif
+
 typedef struct DecodedName DecodedName;
 typedef struct DecodedCert DecodedCert;
 typedef struct Signer      Signer;
@@ -2207,6 +2212,10 @@ struct Signer {
      */
     WC_BITFIELD extNameConstraintCrit:1;
     WC_BITFIELD extNameConstraintHasUnsupported:1;
+#ifndef NO_SKID
+    WC_BITFIELD authKeyIdSet:1;      /* true when authKeyIdHash holds the
+                                      * AKID extension's keyId */
+#endif
 #endif
     const byte* publicKey;
     int     nameLen;
@@ -2218,15 +2227,20 @@ struct Signer {
 #endif
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
-#if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
+#if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME) || \
+    !defined(IGNORE_NAME_CONSTRAINTS)
     byte    issuerNameHash[SIGNER_DIGEST_SIZE];
-                                    /* sha hash of issuer names in certificate.
-                                    * Used in OCSP to check for authorized
-                                    * responders. */
+                                     /* sha hash of issuer names; used by
+                                      * OCSP and name-constraint walk */
 #endif
 #ifndef NO_SKID
     byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
                                     /* sha hash of key in certificate */
+#ifndef IGNORE_NAME_CONSTRAINTS
+    byte    authKeyIdHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of AKID; locates signer
+                                      * during name-constraint walk */
+#endif
 #endif
 #ifdef HAVE_OCSP
     byte subjectKeyHash[KEYID_SIZE];
