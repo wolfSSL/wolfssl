@@ -376,7 +376,10 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     key->pubKeySet = 0;
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Ed25519Gen(rng, keySz, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -384,6 +387,9 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_ED25519
+    return NO_VALID_DEVID;
+#else
     ret = wc_RNG_GenerateBlock(rng, key->k, ED25519_KEY_SIZE);
     if (ret != 0)
         return ret;
@@ -407,6 +413,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 #endif
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 }
 #endif /* HAVE_ED25519_MAKE_KEY */
 
@@ -434,6 +441,30 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     (void)contextLen;
     (void)type;
     ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
+#elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+    ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
+                                         (context == NULL && contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((type == Ed25519ph) &&
+        (inLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed25519Sign(in, inLen, out, outLen, key, type,
+            context, contextLen);
+    }
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        ret = NO_VALID_DEVID;
+    }
 #else
 #ifdef FREESCALE_LTC_ECC
     ALIGN16 byte tempBuf[ED25519_PRV_KEY_SIZE];
@@ -461,7 +492,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Ed25519Sign(in, inLen, out, outLen, key, type,
             context, contextLen);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -599,7 +633,8 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     ForceZero(nonce, sizeof(nonce));
 #endif /* WOLFSSL_SE050 */
 
-#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+#if defined(WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
     if (ret == 0) {
         int  i;
         byte c = 0;
@@ -696,7 +731,7 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
 #endif /* HAVE_ED25519_SIGN */
 
 #ifdef HAVE_ED25519_VERIFY
-#ifndef WOLFSSL_SE050
+#if !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
 
 #ifdef WOLFSSL_CHECK_VER_FAULTS
 static const byte sha512_empty[] = {
@@ -928,7 +963,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 
     return ret;
 }
-#endif /* WOLFSSL_SE050 */
+#endif /* !WOLFSSL_SE050 && !WOLF_CRYPTO_CB_ONLY_ED25519 */
 
 #if defined(WOLFSSL_ED25519_STREAMING_VERIFY) && !defined(WOLFSSL_SE050)
 
@@ -972,6 +1007,30 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     (void)contextLen;
     (void)ed25519Ctx;
     ret = se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
+#elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+    (void)ed25519Ctx;
+    ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (sig == NULL || msg == NULL || res == NULL || key == NULL ||
+                                         (context == NULL && contextLen != 0))
+        return BAD_FUNC_ARG;
+
+    if ((type == Ed25519ph) &&
+        (msgLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed25519Verify(sig, sigLen, msg, msgLen, res, key,
+            type, context, contextLen);
+    }
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        ret = NO_VALID_DEVID;
+    }
 #else
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 *sha;
@@ -991,7 +1050,10 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Ed25519Verify(sig, sigLen, msg, msgLen, res, key,
             type, context, contextLen);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
