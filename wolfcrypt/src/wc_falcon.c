@@ -161,6 +161,42 @@ static WC_INLINE word32 falcon_csub(word32 a)
     return a;
 }
 
+/* Optional ARM DSP acceleration for the verify path (NTT/iNTT/pointwise/norm).
+ * On cores with the DSP extension (__ARM_FEATURE_DSP: Cortex-M4/M7/M33, ...) the
+ * butterflies process two packed 16-bit coefficients per iteration using the
+ * SMLA* 16x16 multiplies, SADD16/SSUB16 packed adds, and a USUB16+SEL packed
+ * conditional subtract; the squared-norm accumulates two lanes per SMUAD. Every
+ * result is bit-identical to the scalar Barrett path below. Define
+ * WOLFSSL_FALCON_NO_NTT_DSP to force the portable C path. */
+#if !defined(WOLFSSL_FALCON_NTT_DSP) && defined(__ARM_FEATURE_DSP) && \
+    !defined(WOLFSSL_FALCON_NO_NTT_DSP)
+    #define WOLFSSL_FALCON_NTT_DSP
+#endif
+
+#ifdef WOLFSSL_FALCON_NTT_DSP
+#include <arm_acle.h>
+/* q replicated into both halfword lanes. */
+#define FALCON_QPK (((word32)FALCON_Q << 16) | (word32)FALCON_Q)
+/* Signed 16x16 -> 32 products (coefficients are < q < 2^14, so they fit s16). */
+static WC_INLINE word32 falcon_smulbb(word32 a, word32 b) /* a.lo * b.lo */
+    { return (word32)__smlabb(a, b, 0); }
+static WC_INLINE word32 falcon_smultb(word32 a, word32 b) /* a.hi * b.lo */
+    { return (word32)__smlatb(a, b, 0); }
+static WC_INLINE word32 falcon_smultt(word32 a, word32 b) /* a.hi * b.hi */
+    { return (word32)__smlatt(a, b, 0); }
+static WC_INLINE word32 falcon_pack(word32 lo, word32 hi)
+    { return (lo & 0xffffu) | (hi << 16); }
+/* Two packed halfword lanes, each in [0, 2q) -> [0, q): USUB16 sets APSR.GE per
+ * lane (set where x >= q), SEL then selects (x - q) on those lanes. */
+static WC_INLINE word32 falcon_pcsub(word32 x)
+    { word32 d = __usub16(x, FALCON_QPK); return __sel(d, x); }
+/* Aliasing-safe packed load/store of a coefficient pair (lowers to LDR/STR). */
+static WC_INLINE word32 falcon_ld2(const word16* p)
+    { word32 v; XMEMCPY(&v, p, sizeof(v)); return v; }
+static WC_INLINE void falcon_st2(word16* p, word32 v)
+    { XMEMCPY(p, &v, sizeof(v)); }
+#endif /* WOLFSSL_FALCON_NTT_DSP */
+
 /* Forward negacyclic NTT, Cooley-Tukey: natural -> bit-reversed order. */
 static void falcon_ntt(word16* a, int n, const word16* zetas)
 {
@@ -170,6 +206,21 @@ static void falcon_ntt(word16* a, int n, const word16* zetas)
         for (i = 0; i < m; i++) {
             word32 z = zetas[m + i];
             int start = 2 * i * t;
+#ifdef WOLFSSL_FALCON_NTT_DSP
+            if (t >= 2) {
+                for (j = start; j < start + t; j += 2) {
+                    word32 A = falcon_ld2(a + j);       /* [a[j]   | a[j+1]]   */
+                    word32 B = falcon_ld2(a + j + t);   /* [a[j+t] | a[j+1+t]] */
+                    word32 v0 = falcon_barrett(falcon_smulbb(B, z));
+                    word32 v1 = falcon_barrett(falcon_smultb(B, z));
+                    word32 V = falcon_pack(v0, v1);
+                    falcon_st2(a + j,     falcon_pcsub(__sadd16(A, V)));
+                    falcon_st2(a + j + t,
+                        falcon_pcsub(__ssub16(__sadd16(A, FALCON_QPK), V)));
+                }
+                continue;
+            }
+#endif
             for (j = start; j < start + t; j++) {
                 word32 u = a[j];
                 word32 v = falcon_barrett((word32)a[j + t] * z);
@@ -191,6 +242,22 @@ static void falcon_intt(word16* a, int n, const word16* izetas)
         for (i = 0; i < h; i++) {
             word32 z = izetas[h + i];
             int start = j1;
+#ifdef WOLFSSL_FALCON_NTT_DSP
+            if (t >= 2) {
+                for (j = start; j < start + t; j += 2) {
+                    word32 A = falcon_ld2(a + j);
+                    word32 B = falcon_ld2(a + j + t);
+                    word32 W = falcon_pcsub(
+                        __ssub16(__sadd16(A, FALCON_QPK), B)); /* csub(u+q-v) */
+                    word32 w0 = falcon_barrett(falcon_smulbb(W, z));
+                    word32 w1 = falcon_barrett(falcon_smultb(W, z));
+                    falcon_st2(a + j,     falcon_pcsub(__sadd16(A, B)));
+                    falcon_st2(a + j + t, falcon_pack(w0, w1));
+                }
+                j1 += 2 * t;
+                continue;
+            }
+#endif
             for (j = start; j < start + t; j++) {
                 word32 u = a[j];
                 word32 v = a[j + t];
@@ -684,8 +751,17 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     falcon_ntt(t, n, zetas);
     falcon_ntt(h, n, zetas);
     {
-        int i;
-        for (i = 0; i < n; i++) {
+        int i = 0;
+#ifdef WOLFSSL_FALCON_NTT_DSP
+        for (; i + 1 < n; i += 2) {
+            word32 T = falcon_ld2(t + i);
+            word32 H = falcon_ld2(h + i);
+            word32 p0 = falcon_barrett(falcon_smulbb(T, H));
+            word32 p1 = falcon_barrett(falcon_smultt(T, H));
+            falcon_st2(t + i, falcon_pack(p0, p1));
+        }
+#endif
+        for (; i < n; i++) {
             t[i] = (word16)falcon_barrett((word32)t[i] * h[i]);
         }
     }
@@ -694,8 +770,23 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     /* s1 = c - s2*h mod q (centered); accept iff ||(s1,s2)||^2 <= bound. */
     {
         word64 norm = 0;
-        int i;
-        for (i = 0; i < n; i++) {
+        int i = 0;
+#ifdef WOLFSSL_FALCON_NTT_DSP
+        /* Accumulate two squared coefficients per SMUAD (a.lo^2 + a.hi^2).
+         * |centered| <= q/2 < 2^13, so each SMUAD result < 2^27 (no overflow);
+         * the running total is 64-bit. */
+        for (; i + 1 < n; i += 2) {
+            word32 d0 = falcon_csub(c[i]     + FALCON_Q - t[i]);
+            word32 d1 = falcon_csub(c[i + 1] + FALCON_Q - t[i + 1]);
+            word32 s1p = falcon_pack((word32)(sword16)falcon_center(d0),
+                                     (word32)(sword16)falcon_center(d1));
+            word32 s2p = falcon_pack((word32)(sword16)s2[i],
+                                     (word32)(sword16)s2[i + 1]);
+            norm += (word64)(word32)__smuad(s1p, s1p);
+            norm += (word64)(word32)__smuad(s2p, s2p);
+        }
+#endif
+        for (; i < n; i++) {
             word32 d = falcon_csub(c[i] + FALCON_Q - t[i]);
             sword32 s1c = falcon_center(d);
             sword32 s2c = s2[i];

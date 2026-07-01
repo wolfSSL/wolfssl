@@ -37,9 +37,10 @@
 
 #if defined(HAVE_FALCON)
 
-#ifndef WOLFSSL_FALCON_VERIFY_ONLY
-    #include <wolfssl/wolfcrypt/random.h>
-#endif
+/* wc_falcon_sign_msg / wc_falcon_make_key are declared with a WC_RNG* even in
+ * verify-only builds (the sign path then returns NOT_COMPILED_IN), so WC_RNG
+ * must be visible unconditionally. */
+#include <wolfssl/wolfcrypt/random.h>
 
 /* Falcon is the PRE-STANDARDIZATION name for this NIST post-quantum signature
  * scheme. NIST is standardizing it as FN-DSA (FIPS 206), which is still a draft.
