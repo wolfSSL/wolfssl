@@ -1153,6 +1153,21 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://host.com.evil.com",    "host.com"), 0);
     ExpectIntEQ(uriNC("https://other.com",            "host.com"), 0);
 
+    /* A single trailing dot is the absolute-FQDN marker: "host.com." and
+     * "host.com" denote the same host and must compare equal, matching the
+     * DNS name-constraint path. */
+    ExpectIntEQ(uriNC("https://host.com./",           "host.com"), 1);
+    ExpectIntEQ(uriNC("https://host.com.:8443/x",     "host.com"), 1);
+    ExpectIntEQ(uriNC("https://host.com",             "host.com."), 1);
+    ExpectIntEQ(uriNC("https://host.com./",           "host.com."), 1);
+    ExpectIntEQ(uriNC("https://v1.addr./",            "v1.addr"), 1);
+    ExpectIntEQ(uriNC("https://v1.addr/",             "v1.addr."), 1);
+    /* Only ONE trailing dot is the marker; an empty last label is not. */
+    ExpectIntEQ(uriNC("https://host.com../",          "host.com"), 0);
+    ExpectIntEQ(uriNC("https://a.host.com../",        ".host.com"), 0);
+    /* Empty interior labels are not valid DNS host labels. */
+    ExpectIntEQ(uriNC("https://a..host.com/",         ".host.com"), 0);
+
     /*
      * Leading-dot constraint: proper subtree of hosts (apex excluded).
      */
@@ -1164,10 +1179,18 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://evilhost.com",         ".host.com"), 0);
 
     /*
-     * IPv6 literal host extraction ([..]) then exact match.
+     * RFC 5280 URI constraints require a DNS host. IP-literals / IPvFuture
+     * hosts in brackets and IPv4address hosts are not DNS reg-names.
      */
-    ExpectIntEQ(uriNC("https://[2001:db8::1]:443/x",  "2001:db8::1"), 1);
+    ExpectIntEQ(uriNC("https://[2001:db8::1]:443/x",  "2001:db8::1"), 0);
     ExpectIntEQ(uriNC("https://[2001:db8::1]",        "2001:db8::2"), 0);
+    ExpectIntEQ(uriNC("https://[v1.addr.]/",          "v1.addr"), 0);
+    ExpectIntEQ(uriNC("https://[v1.addr.]/",          "v1.addr."), 0);
+    ExpectIntEQ(uriNC("https://12.31.2.3/",           "12.31.2.3"), 0);
+    /* An IPv4address host is still not a DNS reg-name when written with the
+     * absolute-FQDN trailing dot. */
+    ExpectIntEQ(uriNC("https://12.31.2.3./",          "12.31.2.3"), 0);
+    ExpectIntEQ(uriNC("https://12.31.2.3./",          "12.31.2.3."), 0);
 
     /*
      * Malformed / degenerate URIs and inputs (reject).
