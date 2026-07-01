@@ -38166,6 +38166,17 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         word16 i;
         word16 j;
 
+        if (outSuites == NULL) {
+            WOLFSSL_MSG("refineSuites called with NULL outSuites");
+            return;
+        }
+
+        if (sslSuites == NULL || peerSuites == NULL) {
+            WOLFSSL_MSG("refineSuites called with NULL suite list");
+            outSuites->suiteSz = 0;
+            return;
+        }
+
         XMEMSET(suites, 0, sizeof(suites));
 
         if (!useClientOrder) {
