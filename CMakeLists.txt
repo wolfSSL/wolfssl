@@ -708,6 +708,22 @@ if (WOLFSSL_MLDSA OR WOLFSSL_DILITHIUM)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
 endif()
 
+# FN-DSA (native Falcon, FIPS 206 draft). Native implementation: no liboqs
+# dependency (unlike WOLFSSL_FALCON). Needs SHA-3 / SHAKE256 for hash-to-point.
+add_option(WOLFSSL_FALCON
+    "Enable the native wolfSSL PQ FN-DSA/Falcon (FIPS 206) implementation (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_FALCON)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_FALCON")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
+
+    set_wolfssl_definitions("HAVE_FALCON" RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
+endif()
+
 # LMS
 add_option(WOLFSSL_LMS
     "Enable the PQ LMS Stateful Hash-based Signature Scheme (default: disabled)"

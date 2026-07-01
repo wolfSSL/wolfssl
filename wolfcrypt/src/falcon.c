@@ -27,16 +27,62 @@
 
 #include <wolfssl/wolfcrypt/asn.h>
 
-/* HAVE_FALCON implies HAVE_LIBOQS (enforced in settings.h and falcon.h). */
-#include <oqs/oqs.h>
-
+/* The wc_falcon_* API here wraps the native implementation core
+ * (falcon_native_*, in wc_falcon.c) with cryptocb dispatch and argument
+ * checking. The core operates directly on falcon_key. No liboqs dependency. */
 #include <wolfssl/wolfcrypt/falcon.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+/* Store a second copy of the public key in key->k immediately after the private
+ * key, reproducing the historical concat(private,public) layout that
+ * wc_falcon_check_key compares against. No-op unless both halves are set. */
+static void falcon_store_pub_behind_priv(falcon_key* key)
+{
+    if (!key->pubKeySet || !key->prvKeySet) {
+        return;
+    }
+    if (key->level == 1) {
+        XMEMCPY(key->k + FALCON_LEVEL1_KEY_SIZE, key->p,
+                FALCON_LEVEL1_PUB_KEY_SIZE);
+    }
+    else if (key->level == 5) {
+        XMEMCPY(key->k + FALCON_LEVEL5_KEY_SIZE, key->p,
+                FALCON_LEVEL5_PUB_KEY_SIZE);
+    }
+}
+
+/* Generate a new Falcon key pair into key (key->level must be set first).
+ *
+ * key  [in/out]  Falcon key to populate.
+ * rng  [in]      Random number generator.
+ * returns BAD_FUNC_ARG when a parameter is NULL or level is unset,
+ *         0 on success, other -ve value on failure.
+ */
+int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
+{
+    int ret;
+
+    if ((key == NULL) || (rng == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((key->level != 1) && (key->level != 5)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = falcon_native_make_key(key, rng);
+    if (ret == 0) {
+        falcon_store_pub_behind_priv(key);
+    }
+    return ret;
+}
+#endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
 
 /* Sign the message using the falcon private key.
  *
@@ -55,10 +101,6 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
                               falcon_key* key, WC_RNG* rng)
 {
     int ret = 0;
-#ifdef HAVE_LIBOQS
-    OQS_SIG *oqssig = NULL;
-    size_t localOutLen = 0;
-#endif
 
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL)) {
@@ -79,53 +121,13 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     }
 #endif
 
-#ifdef HAVE_LIBOQS
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
     if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
-        if (key->level == 1) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_512);
-        }
-        else if (key->level == 5) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_1024);
-        }
-
-        if (oqssig == NULL) {
-            ret = SIG_TYPE_E;
-        }
-    }
-
-    /* check and set up out length */
-    if (ret == 0) {
-        if ((key->level == 1) && (*outLen < FALCON_LEVEL1_SIG_SIZE)) {
-            *outLen = FALCON_LEVEL1_SIG_SIZE;
-            ret = BUFFER_E;
-        }
-        else if ((key->level == 5) && (*outLen < FALCON_LEVEL5_SIG_SIZE)) {
-            *outLen = FALCON_LEVEL5_SIG_SIZE;
-            ret = BUFFER_E;
-        }
-        localOutLen = *outLen;
-    }
-
-    if (ret == 0) {
-        ret = wolfSSL_liboqsRngMutexLock(rng);
-        if (ret == 0) {
-            if (OQS_SIG_sign(oqssig, out, &localOutLen, in, inLen, key->k)
-                == OQS_ERROR) {
-                ret = BAD_FUNC_ARG;
-            }
-        }
-        if (ret == 0) {
-            *outLen = (word32)localOutLen;
-        }
-        wolfSSL_liboqsRngMutexUnlock();
-    }
-
-    if (oqssig != NULL) {
-        OQS_SIG_free(oqssig);
+        ret = falcon_native_sign_msg(in, inLen, out, outLen, key, rng);
     }
 #else
     ret = NOT_COMPILED_IN;
@@ -149,9 +151,6 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* res, falcon_key* key)
 {
     int ret = 0;
-#ifdef HAVE_LIBOQS
-    OQS_SIG *oqssig = NULL;
-#endif
 
     if (key == NULL || sig == NULL || msg == NULL || res == NULL) {
         return BAD_FUNC_ARG;
@@ -171,40 +170,13 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     }
 #endif
 
-#ifdef HAVE_LIBOQS
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
-        if (key->level == 1) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_512);
-        }
-        else if (key->level == 5) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_1024);
-        }
-
-        if (oqssig == NULL) {
-            ret = SIG_TYPE_E;
-        }
+        ret = falcon_native_verify_msg(sig, sigLen, msg, msgLen, res, key);
     }
-
-    if ((ret == 0) &&
-        (OQS_SIG_verify(oqssig, msg, msgLen, sig, sigLen, key->p)
-         == OQS_ERROR)) {
-         ret = SIG_VERIFY_E;
-    }
-
-    if (ret == 0) {
-        *res = 1;
-    }
-
-    if (oqssig != NULL) {
-        OQS_SIG_free(oqssig);
-    }
-#else
-    ret = NOT_COMPILED_IN;
-#endif
 
     return ret;
 }
@@ -233,6 +205,8 @@ int wc_falcon_init_ex(falcon_key* key, void* heap, int devId)
     }
 
     ForceZero(key, sizeof(*key));
+
+    key->heap = heap;
 
 #ifdef WOLF_CRYPTO_CB
     key->devCtx = NULL;
@@ -432,6 +406,8 @@ int wc_falcon_import_public(const byte* in, word32 inLen,
 
     XMEMCPY(key->p, in, inLen);
     key->pubKeySet = 1;
+    /* Keep the concat(private,public) copy in sync if a private key is loaded. */
+    falcon_store_pub_behind_priv(key);
 
     return 0;
 }
@@ -485,6 +461,7 @@ int wc_falcon_import_private_only(const byte* priv, word32 privSz,
     if (privSz == concatSz) {
         XMEMCPY(key->p, priv + keySz, concatSz - keySz);
         key->pubKeySet = 1;
+        falcon_store_pub_behind_priv(key);
     }
 
     return 0;
