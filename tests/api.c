@@ -23187,6 +23187,47 @@ static word32 build_simple_nameConstraints(byte* out, word32 outSz,
     XMEMCPY(out + 8, val, vlen);
     return n1 + 2;
 }
+
+/* Build a NameConstraints extension value with a single subtree ([0]
+ * permitted or [1] excluded) whose GeneralSubtree carries a base GeneralName
+ * of context tag `gnTag` plus optional minimum ([0]) and maximum ([1])
+ * BaseDistance fields. Used to confirm that a non-zero minimum or any
+ * maximum is rejected (RFC 5280 4.2.1.10 requires minimum 0, maximum absent
+ * within this profile). */
+static word32 build_minmax_nameConstraints(byte* out, word32 outSz,
+    int excluded, byte gnTag, const char* val, int minPresent, byte minVal,
+    int maxPresent, byte maxVal)
+{
+    word32 vlen = (word32)XSTRLEN(val);
+    word32 extra = (word32)((minPresent ? 3 : 0) + (maxPresent ? 3 : 0));
+    word32 n3 = vlen + 2 + extra; /* GeneralSubtree content: base GN + min/max */
+    word32 n2 = n3 + 2;           /* subtrees list content: one GeneralSubtree */
+    word32 n1 = n2 + 2;           /* SEQUENCE content: the subtrees list */
+    word32 idx;
+    if (vlen > 0x7F || n3 > 0x7F || outSz < n1 + 2)
+        return 0;
+    out[0] = 0x30;                              /* SEQUENCE */
+    out[1] = (byte)n1;
+    out[2] = excluded ? 0xA1 : 0xA0;            /* [1] excluded / [0] permitted */
+    out[3] = (byte)n2;
+    out[4] = 0x30;                              /* GeneralSubtree */
+    out[5] = (byte)n3;
+    out[6] = gnTag;                             /* base GeneralName */
+    out[7] = (byte)vlen;
+    XMEMCPY(out + 8, val, vlen);
+    idx = 8 + vlen;
+    if (minPresent) {
+        out[idx++] = 0x80;                      /* [0] minimum BaseDistance */
+        out[idx++] = 0x01;
+        out[idx++] = minVal;
+    }
+    if (maxPresent) {
+        out[idx++] = 0x81;                      /* [1] maximum BaseDistance */
+        out[idx++] = 0x01;
+        out[idx++] = maxVal;
+    }
+    return n1 + 2;
+}
 #endif
 
 /* End-to-end enforcement of DNS and URI nameConstraints against wildcard and
@@ -23344,6 +23385,60 @@ static int test_NameConstraints_DnsUriWildcard(void)
     ExpectIntGT((int)ncSz, 0);
     ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
         WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A GeneralSubtree's minimum/maximum BaseDistance fields were parsed but
+ * never stored or checked, so a subtree carrying a non-zero minimum or any
+ * maximum was silently accepted and then enforced as if it were minimum 0 /
+ * maximum absent. RFC 5280 4.2.1.10 requires minimum 0 and maximum absent
+ * within this profile, so such a constraint must be rejected. The bad
+ * constraint rides on the issuing CA, so a rejection surfaces as a failure
+ * to build the chain rather than a specific leaf error code. */
+static int test_NameConstraints_SubtreeMinMax(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS)
+    byte nc[64];
+    word32 ncSz;
+    const byte DNS = 0x82;  /* [2] dnsName */
+
+    /* (1) Control: minimum and maximum both absent -> conformant, accepts. */
+    ncSz = build_minmax_nameConstraints(nc, sizeof(nc), 1, DNS, "example.com",
+                0, 0, 0, 0);
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, NULL, 0), 0);
+
+    /* (2) Control: explicit minimum == 0 is conformant -> accepts. Pins the
+     *     rejection below to a non-zero minimum, not to any minimum field. */
+    ncSz = build_minmax_nameConstraints(nc, sizeof(nc), 1, DNS, "example.com",
+                1, 0, 0, 0);
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, NULL, 0), 0);
+
+    /* (3) minimum == 1 must be rejected. */
+    ncSz = build_minmax_nameConstraints(nc, sizeof(nc), 1, DNS, "example.com",
+                1, 1, 0, 0);
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntNE(verify_with_otherName_chain(nc, ncSz, 1, NULL, 0), 0);
+
+    /* (4) maximum present (== 0) must be rejected. */
+    ncSz = build_minmax_nameConstraints(nc, sizeof(nc), 1, DNS, "example.com",
+                0, 0, 1, 0);
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntNE(verify_with_otherName_chain(nc, ncSz, 1, NULL, 0), 0);
+
+    /* (5) maximum present (== 5) must be rejected. */
+    ncSz = build_minmax_nameConstraints(nc, sizeof(nc), 0, DNS, "example.com",
+                0, 0, 1, 5);
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntNE(verify_with_otherName_chain(nc, ncSz, 1, NULL, 0), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -34967,6 +35062,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_PathLenNoKeyUsage),
     TEST_DECL(test_NameConstraints_OtherName),
     TEST_DECL(test_NameConstraints_DnsUriWildcard),
+    TEST_DECL(test_NameConstraints_SubtreeMinMax),
     TEST_DECL(test_ParseSerial0FixtureMatrix),
     TEST_DECL(test_MakeCertWithCaFalse),
 #ifdef WOLFSSL_CERT_SIGN_CB

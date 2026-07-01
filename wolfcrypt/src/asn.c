@@ -20537,7 +20537,20 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         ret = GetASN_Items(subTreeASN, dataASN, subTreeASN_Length, 0, input,
                            &idx, sz);
         if (ret == 0) {
-            byte t = dataASN[SUBTREEASN_IDX_BASE].tag;
+            byte t;
+
+            /* RFC 5280 Sec. 4.2.1.10: within this profile minimum must be 0
+             * and maximum must be absent. Reject a subtree that carries a
+             * non-zero minimum or any maximum rather than enforcing it as if
+             * those fields were the defaults. */
+            if ((minVal != 0) ||
+                    (dataASN[SUBTREEASN_IDX_MAX].length > 0)) {
+                WOLFSSL_MSG("unsupported name constraint minimum/maximum");
+                ret = ASN_NAME_INVALID_E;
+                break;
+            }
+
+            t = dataASN[SUBTREEASN_IDX_BASE].tag;
 
             /* Check GeneralName tag is one of the types we can handle.
              * registeredID is included so that ConfirmNameConstraints can
