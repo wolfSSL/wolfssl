@@ -218,7 +218,6 @@ function(generate_build_flags)
     endif()
     if(WOLFSSL_FALCON OR WOLFSSL_USER_SETTINGS)
         set(BUILD_FALCON "yes" PARENT_SCOPE)
-        set(BUILD_OQS_HELPER "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_LMS OR WOLFSSL_USER_SETTINGS)
         set(BUILD_WC_LMS "yes" PARENT_SCOPE)
@@ -769,11 +768,6 @@ function(generate_lib_src_list LIB_SOURCES)
         wolfcrypt/src/logging.c
         wolfcrypt/src/wc_port.c
         wolfcrypt/src/error.c)
-
-    if(BUILD_OQS_HELPER)
-        list(APPEND LIB_SOURCES
-            wolfcrypt/src/port/liboqs/liboqs.c)
-    endif()
 
     if(BUILD_ARIA)
         list(APPEND LIB_SOURCES

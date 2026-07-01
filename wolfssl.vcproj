@@ -423,10 +423,6 @@
 				RelativePath=".\wolfcrypt\src\wolfevent.c"
 				>
 			</File>
-			<File
-				RelativePath=".\wolfcrypt\src\port\liboqs\liboqs.c"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"

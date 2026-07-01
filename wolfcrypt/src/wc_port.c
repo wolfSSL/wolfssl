@@ -223,9 +223,6 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
-#if defined(HAVE_LIBOQS)
-    #include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
-#endif
 
 #if defined(FREERTOS) && defined(WOLFSSL_ESPIDF)
     #include <freertos/FreeRTOS.h>
@@ -759,11 +756,6 @@ int wolfCrypt_Init(void)
         rpcmem_init();
 #endif
 
-#if defined(HAVE_LIBOQS)
-        if ((ret = wolfSSL_liboqsInit()) != 0) {
-            WOLFCRYPT_INIT_RAISE_BAD_STATE();
-        }
-#endif
 
 #undef WOLFCRYPT_INIT_RAISE_BAD_STATE
 
@@ -918,9 +910,6 @@ int wolfCrypt_Cleanup(void)
         wc_MemZero_Free();
     #endif
 
-#if defined(HAVE_LIBOQS)
-        wolfSSL_liboqsClose();
-#endif
 
         {
             int ret2 = wc_local_InitDownDone(&wolfcrypt_init_state);

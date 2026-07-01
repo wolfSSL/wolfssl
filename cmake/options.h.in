@@ -125,8 +125,6 @@ extern "C" {
 #cmakedefine HAVE_HPKE
 #undef HAVE_KEYING_MATERIAL
 #cmakedefine HAVE_KEYING_MATERIAL
-#undef HAVE_LIBOQS
-#cmakedefine HAVE_LIBOQS
 #undef HAVE_MAX_FRAGMENT
 #cmakedefine HAVE_MAX_FRAGMENT
 #undef HAVE_OCSP
