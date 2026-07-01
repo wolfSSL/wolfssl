@@ -36,7 +36,7 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(HAVE_FALCON)
+#if defined(HAVE_FALCON) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
 
 #include <wolfssl/wolfcrypt/wc_falcon_fpr.h>
 

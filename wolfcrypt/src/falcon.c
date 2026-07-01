@@ -67,7 +67,7 @@ static void falcon_store_pub_behind_priv(falcon_key* key)
  */
 int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
 {
-    int ret;
+    int ret = 0;
 
     if ((key == NULL) || (rng == NULL)) {
         return BAD_FUNC_ARG;
@@ -76,10 +76,29 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_MakePqcSignatureKey(rng, WC_PQC_SIG_TYPE_FALCON,
+                key->level, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif /* WOLF_CRYPTO_CB */
+
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* No software fallback: only a crypto callback can service the request. */
+    ret = NO_VALID_DEVID;
+#else
     ret = falcon_native_make_key(key, rng);
     if (ret == 0) {
         falcon_store_pub_behind_priv(key);
     }
+#endif
     return ret;
 }
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
@@ -119,9 +138,14 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
         /* fall-through when unavailable */
         ret = 0;
     }
-#endif
+#endif /* WOLF_CRYPTO_CB */
 
-#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* No software fallback: only a crypto callback can service the request. */
+    ret = NO_VALID_DEVID;
+#elif defined(WOLFSSL_FALCON_VERIFY_ONLY)
+    ret = NOT_COMPILED_IN;
+#else
     if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
@@ -129,8 +153,6 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     if (ret == 0) {
         ret = falcon_native_sign_msg(in, inLen, out, outLen, key, rng);
     }
-#else
-    ret = NOT_COMPILED_IN;
 #endif
     return ret;
 }
@@ -168,8 +190,12 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         /* fall-through when unavailable */
         ret = 0;
     }
-#endif
+#endif /* WOLF_CRYPTO_CB */
 
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* No software fallback: only a crypto callback can service the request. */
+    ret = NO_VALID_DEVID;
+#else
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
@@ -177,6 +203,7 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     if (ret == 0) {
         ret = falcon_native_verify_msg(sig, sigLen, msg, msgLen, res, key);
     }
+#endif
 
     return ret;
 }
