@@ -513,6 +513,68 @@ static int swdev_aes_ctr(wc_CryptoInfo* info)
 }
 #endif
 
+#ifdef WOLFSSL_AES_CFB
+static int swdev_aes_cfb(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aescfb.aes;
+    byte* out = info->cipher.aescfb.out;
+    const byte* in = info->cipher.aescfb.in;
+    word32 sz = info->cipher.aescfb.sz;
+    Aes shadow;
+    int ret;
+
+    /* CFB is a stream mode built on the forward cipher, so the shadow key
+     * schedule is always AES_ENCRYPTION (as for CTR), even when decrypting. */
+    ret = swdev_aes_shadow_init(&shadow, aes, AES_ENCRYPTION);
+    if (ret != 0)
+        return ret;
+
+    if (info->cipher.enc)
+        ret = wc_AesCfbEncrypt(&shadow, out, in, sz);
+#ifdef HAVE_AES_DECRYPT
+    else
+        ret = wc_AesCfbDecrypt(&shadow, out, in, sz);
+#else
+    else
+        ret = CRYPTOCB_UNAVAILABLE;
+#endif
+    swdev_aes_shadow_sync(aes, &shadow);
+    wc_AesFree(&shadow);
+    return ret;
+}
+#endif /* WOLFSSL_AES_CFB */
+
+#ifdef WOLFSSL_AES_OFB
+static int swdev_aes_ofb(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aesofb.aes;
+    byte* out = info->cipher.aesofb.out;
+    const byte* in = info->cipher.aesofb.in;
+    word32 sz = info->cipher.aesofb.sz;
+    Aes shadow;
+    int ret;
+
+    /* OFB is a stream mode built on the forward cipher, so the shadow key
+     * schedule is always AES_ENCRYPTION (as for CTR), even when decrypting. */
+    ret = swdev_aes_shadow_init(&shadow, aes, AES_ENCRYPTION);
+    if (ret != 0)
+        return ret;
+
+    if (info->cipher.enc)
+        ret = wc_AesOfbEncrypt(&shadow, out, in, sz);
+#ifdef HAVE_AES_DECRYPT
+    else
+        ret = wc_AesOfbDecrypt(&shadow, out, in, sz);
+#else
+    else
+        ret = CRYPTOCB_UNAVAILABLE;
+#endif
+    swdev_aes_shadow_sync(aes, &shadow);
+    wc_AesFree(&shadow);
+    return ret;
+}
+#endif /* WOLFSSL_AES_OFB */
+
 #if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)
 static int swdev_aes_ecb(wc_CryptoInfo* info)
 {
@@ -761,6 +823,14 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     #ifdef WOLFSSL_AES_COUNTER
         case WC_CIPHER_AES_CTR:
             return swdev_aes_ctr(info);
+    #endif
+    #ifdef WOLFSSL_AES_CFB
+        case WC_CIPHER_AES_CFB:
+            return swdev_aes_cfb(info);
+    #endif
+    #ifdef WOLFSSL_AES_OFB
+        case WC_CIPHER_AES_OFB:
+            return swdev_aes_ofb(info);
     #endif
     #if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)
         case WC_CIPHER_AES_ECB:

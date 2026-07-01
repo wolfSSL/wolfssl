@@ -170,6 +170,7 @@ static const char* GetCipherTypeStr(int cipher)
         case WC_CIPHER_AES_CTR: return "AES CTR";
         case WC_CIPHER_AES_XTS: return "AES XTS";
         case WC_CIPHER_AES_CFB: return "AES CFB";
+        case WC_CIPHER_AES_OFB: return "AES OFB";
         case WC_CIPHER_DES3: return "DES3";
         case WC_CIPHER_DES: return "DES";
         case WC_CIPHER_CHACHA: return "ChaCha20";
@@ -1745,6 +1746,136 @@ int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* WOLFSSL_AES_COUNTER */
+#ifdef WOLFSSL_AES_CFB
+int wc_CryptoCb_AesCfbEncrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_CFB;
+        cryptoInfo.cipher.enc = 1;
+        cryptoInfo.cipher.aescfb.aes = aes;
+        cryptoInfo.cipher.aescfb.out = out;
+        cryptoInfo.cipher.aescfb.in = in;
+        cryptoInfo.cipher.aescfb.sz = sz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_AesCfbDecrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_CFB;
+        cryptoInfo.cipher.enc = 0;
+        cryptoInfo.cipher.aescfb.aes = aes;
+        cryptoInfo.cipher.aescfb.out = out;
+        cryptoInfo.cipher.aescfb.in = in;
+        cryptoInfo.cipher.aescfb.sz = sz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_AES_CFB */
+#ifdef WOLFSSL_AES_OFB
+int wc_CryptoCb_AesOfbEncrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_OFB;
+        cryptoInfo.cipher.enc = 1;
+        cryptoInfo.cipher.aesofb.aes = aes;
+        cryptoInfo.cipher.aesofb.out = out;
+        cryptoInfo.cipher.aesofb.in = in;
+        cryptoInfo.cipher.aesofb.sz = sz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_AesOfbDecrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_OFB;
+        cryptoInfo.cipher.enc = 0;
+        cryptoInfo.cipher.aesofb.aes = aes;
+        cryptoInfo.cipher.aesofb.out = out;
+        cryptoInfo.cipher.aesofb.in = in;
+        cryptoInfo.cipher.aesofb.sz = sz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_AES_OFB */
 #if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
     defined(WOLF_CRYPTO_CB_ONLY_AES)
 int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,

@@ -1536,6 +1536,7 @@ enum wc_CipherType {
     WC_CIPHER_AES_CFB = 6,
     WC_CIPHER_AES_CCM = 12,
     WC_CIPHER_AES_ECB = 13,
+    WC_CIPHER_AES_OFB = 14,
     WC_CIPHER_DES3 = 7,
     WC_CIPHER_DES = 8,
     WC_CIPHER_CHACHA = 9,
