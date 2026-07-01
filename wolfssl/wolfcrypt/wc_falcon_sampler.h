@@ -70,6 +70,7 @@ typedef struct falcon_prng {
     byte     buf[FALCON_PRNG_BUFLEN];/* squeezed stream buffer         */
     word32   ptr;                   /* index of next byte to consume  */
     word32   len;                   /* number of valid bytes in buf   */
+    int      err;                   /* sticky: first refill error, or 0 */
 } falcon_prng;
 
 /* Sampler context: the PRNG plus the parameter-set-dependent sigma_min. */

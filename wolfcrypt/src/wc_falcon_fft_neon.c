@@ -79,13 +79,22 @@ static WC_INLINE double falcon_neon_d(fpr x)
         (out_im) = vfmaq_f64(vmulq_f64((yr), (si)), (yi), (sr)); \
     } while (0)
 
+/* Aliasing-safe vector load/store.  fpr is a word64 IEEE-754 bit pattern, so
+ * the backing store's real object type is the 64-bit integer, not double.
+ * Load/store through uint64_t (the actual type) and reinterpret the vector
+ * register to/from f64 -- casting fpr* to double* and using vld1q_f64/vst1q_f64
+ * would be a strict-aliasing violation that can miscompile at -O2/-O3. */
+#define FALCON_VLD(pf) \
+    vreinterpretq_f64_u64(vld1q_u64((const uint64_t*)(const void*)(pf)))
+#define FALCON_VST(pf, v) \
+    vst1q_u64((uint64_t*)(void*)(pf), vreinterpretq_u64_f64(v))
+
 /* ------------------------------------------------------------------------- */
 /* Forward FFT                                                               */
 /* ------------------------------------------------------------------------- */
 
 void falcon_FFT(fpr* f, unsigned logn)
 {
-    double* fd = (double*)f;
     unsigned u;
     size_t t, n, hn, m;
 
@@ -102,16 +111,16 @@ void falcon_FFT(fpr* f, unsigned logn)
                 float64x2_t vsr = vdupq_n_f64(falcon_neon_d(s_re));
                 float64x2_t vsi = vdupq_n_f64(falcon_neon_d(s_im));
                 for (j = j1; j < j2; j += 2) {
-                    float64x2_t xr = vld1q_f64(fd + j);
-                    float64x2_t xi = vld1q_f64(fd + j + hn);
-                    float64x2_t yr = vld1q_f64(fd + j + ht);
-                    float64x2_t yi = vld1q_f64(fd + j + ht + hn);
+                    float64x2_t xr = FALCON_VLD(f + j);
+                    float64x2_t xi = FALCON_VLD(f + j + hn);
+                    float64x2_t yr = FALCON_VLD(f + j + ht);
+                    float64x2_t yi = FALCON_VLD(f + j + ht + hn);
                     float64x2_t tr, ti;
                     FALCON_VCMUL(tr, ti, yr, yi, vsr, vsi);
-                    vst1q_f64(fd + j,           vaddq_f64(xr, tr));
-                    vst1q_f64(fd + j + hn,      vaddq_f64(xi, ti));
-                    vst1q_f64(fd + j + ht,      vsubq_f64(xr, tr));
-                    vst1q_f64(fd + j + ht + hn, vsubq_f64(xi, ti));
+                    FALCON_VST(f + j, vaddq_f64(xr, tr));
+                    FALCON_VST(f + j + hn, vaddq_f64(xi, ti));
+                    FALCON_VST(f + j + ht, vsubq_f64(xr, tr));
+                    FALCON_VST(f + j + ht + hn, vsubq_f64(xi, ti));
                 }
             }
             else {
@@ -135,7 +144,6 @@ void falcon_FFT(fpr* f, unsigned logn)
 
 void falcon_iFFT(fpr* f, unsigned logn)
 {
-    double* fd = (double*)f;
     int u;
     size_t n = (size_t)1 << logn, hn = n >> 1;
 
@@ -151,18 +159,18 @@ void falcon_iFFT(fpr* f, unsigned logn)
                 float64x2_t vsr = vdupq_n_f64(falcon_neon_d(s_re));
                 float64x2_t vsi = vdupq_n_f64(falcon_neon_d(s_im));
                 for (j = j1; j < j2; j += 2) {
-                    float64x2_t ar = vld1q_f64(fd + j);
-                    float64x2_t ai = vld1q_f64(fd + j + hn);
-                    float64x2_t br = vld1q_f64(fd + j + t);
-                    float64x2_t bi = vld1q_f64(fd + j + t + hn);
+                    float64x2_t ar = FALCON_VLD(f + j);
+                    float64x2_t ai = FALCON_VLD(f + j + hn);
+                    float64x2_t br = FALCON_VLD(f + j + t);
+                    float64x2_t bi = FALCON_VLD(f + j + t + hn);
                     float64x2_t dr = vsubq_f64(ar, br);
                     float64x2_t di = vsubq_f64(ai, bi);
                     float64x2_t pr, pi;
-                    vst1q_f64(fd + j,      vaddq_f64(ar, br));
-                    vst1q_f64(fd + j + hn, vaddq_f64(ai, bi));
+                    FALCON_VST(f + j, vaddq_f64(ar, br));
+                    FALCON_VST(f + j + hn, vaddq_f64(ai, bi));
                     FALCON_VCMUL(pr, pi, dr, di, vsr, vsi);
-                    vst1q_f64(fd + j + t,      pr);
-                    vst1q_f64(fd + j + t + hn, pi);
+                    FALCON_VST(f + j + t, pr);
+                    FALCON_VST(f + j + t + hn, pi);
                 }
             }
             else {
@@ -184,7 +192,7 @@ void falcon_iFFT(fpr* f, unsigned logn)
             float64x2_t vni = vdupq_n_f64(falcon_neon_d(ni));
             size_t j;
             for (j = 0; j < n; j += 2) {
-                vst1q_f64(fd + j, vmulq_f64(vld1q_f64(fd + j), vni));
+                FALCON_VST(f + j, vmulq_f64(FALCON_VLD(f + j), vni));
             }
         }
         else {

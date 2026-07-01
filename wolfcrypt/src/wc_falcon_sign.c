@@ -44,6 +44,15 @@
 
 #define FALCON_Q     12289
 
+/* Safety bound on the sign-tree restart loop. The per-iteration restart
+ * probability is well below 1 (expected iteration count ~1), so the chance of
+ * legitimately reaching even a few dozen restarts is astronomically small; this
+ * bound is never approached in normal operation. It only guarantees termination
+ * if the sampler can no longer produce accepting candidates (e.g. a failed PRNG
+ * squeeze), in which case falcon_sign_core additionally rejects the result via
+ * the PRNG's sticky error. */
+#define FALCON_SIGN_MAX_RESTARTS  4096UL
+
 /* IEEE-754 binary64 bit patterns (the fpr seam carries doubles as word64).
  * These mirror named constants from the reference fpr.h that are not part of
  * the public wc_falcon_fpr.h API. fpr_invsqrt2 / fpr_invsqrt8 ARE exported by
@@ -656,27 +665,44 @@ int falcon_do_sign_tree(falcon_samplerZ samp, void* samp_ctx, sword16* s2,
     }
 
     /* Loop until the candidate (s1, s2) is short enough. With degrees 512 and
-     * 1024 a restart is very rare. */
-    for (;;) {
-        if (do_sign_tree_once(samp, samp_ctx, s2, expanded, hm, logn, tmp)) {
-            return 0;
-        }
+     * 1024 a restart is very rare (expected iteration count is ~1), so the
+     * bound below is astronomically beyond any legitimate run; it exists only
+     * so a wedged sampler -- e.g. a PRNG whose SHAKE256 squeeze started failing,
+     * yielding candidates that never pass the norm bound -- terminates instead
+     * of spinning forever. */
+    {
+        unsigned long iter;
+        for (iter = 0; iter < FALCON_SIGN_MAX_RESTARTS; iter++) {
+            if (do_sign_tree_once(samp, samp_ctx, s2, expanded, hm, logn, tmp)) {
+                return 0;
+            }
 #ifdef WOLFSSL_FALCON_SIGN_STATS
-        /* Optional instrumentation for test harnesses: counts the rare
-         * ffSampling restarts. Not compiled into production builds. */
-        extern unsigned long falcon_sign_restart_count;
-        falcon_sign_restart_count++;
+            /* Optional instrumentation for test harnesses: counts the rare
+             * ffSampling restarts. Not compiled into production builds. */
+            extern unsigned long falcon_sign_restart_count;
+            falcon_sign_restart_count++;
 #endif
+        }
     }
+    /* Exhausted the restart bound: treat as an operational failure. */
+    return WC_FAILURE;
 }
 
 int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
         const word16* c, sword16* s2, fpr* tmp, unsigned logn)
 {
+    int ret;
+
     if (spc == NULL) {
         return BAD_FUNC_ARG;
     }
-    return falcon_do_sign_tree(falcon_sampler_z, spc, s2, expanded, c, logn, tmp);
+    ret = falcon_do_sign_tree(falcon_sampler_z, spc, s2, expanded, c, logn, tmp);
+    /* Reject the signature if the sampler's PRNG failed at any point: the
+     * squeezed bytes it consumed would be invalid, so the result is unsafe. */
+    if (ret == 0 && spc->p.err != 0) {
+        ret = spc->p.err;
+    }
+    return ret;
 }
 
 #endif /* HAVE_FALCON && !WOLFSSL_FALCON_VERIFY_ONLY */
