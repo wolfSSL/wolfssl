@@ -2923,6 +2923,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_mldsa.c
         tests/api/test_mldsa_legacy.c
         tests/api/test_slhdsa.c
+        tests/api/test_falcon.c
         tests/api/test_signature.c
         tests/api/test_lms_xmss.c
         tests/api/test_dtls.c
