@@ -39,10 +39,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_FALCON_VERIFY_ONLY
 /* Store a second copy of the public key in key->k immediately after the private
  * key, reproducing the historical concat(private,public) layout that
- * wc_falcon_check_key compares against. No-op unless both halves are set. */
+ * wc_falcon_check_key compares against. No-op unless both halves are set.
+ * Defined unconditionally: wc_falcon_import_public (a verify-only operation)
+ * calls it. */
 static void falcon_store_pub_behind_priv(falcon_key* key)
 {
     if (!key->pubKeySet || !key->prvKeySet) {
@@ -58,6 +59,7 @@ static void falcon_store_pub_behind_priv(falcon_key* key)
     }
 }
 
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
 /* Generate a new Falcon key pair into key (key->level must be set first).
  *
  * key  [in/out]  Falcon key to populate.
@@ -144,6 +146,9 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     /* No software fallback: only a crypto callback can service the request. */
     ret = NO_VALID_DEVID;
 #elif defined(WOLFSSL_FALCON_VERIFY_ONLY)
+    /* inLen/rng are only consumed by the (absent) software or cryptocb paths. */
+    (void)inLen;
+    (void)rng;
     ret = NOT_COMPILED_IN;
 #else
     if ((ret == 0) && (!key->prvKeySet)) {
