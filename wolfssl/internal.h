@@ -3131,13 +3131,6 @@ typedef enum {
     ECH_PARSED_INTERNAL,
 } EchState;
 
-typedef enum {
-    ECH_OUTER_SNI,
-    ECH_INNER_SNI,
-    ECH_INNER_SNI_ATTEMPT,
-    ECH_SNI_DONE,
-} EchStateSNI;
-
 typedef struct EchCipherSuite {
     word16 kdfId;
     word16 aeadId;
@@ -3161,11 +3154,12 @@ typedef struct WOLFSSL_ECH {
     Hpke* hpke;
     HpkeBaseContext* hpkeContext;
     const byte* aad;
-    const char* privateName;
     void* ephemeralKey;
     WOLFSSL_EchConfig* echConfig;
     byte* innerClientHello;
     byte* outerClientPayload;
+    /* the 'public' extensions (i.e., the public SNI would be stored here) */
+    TLSX* extensions;
     byte* confBuf;
     EchCipherSuite cipherSuite;
     word32 aadLen;
@@ -3174,7 +3168,6 @@ typedef struct WOLFSSL_ECH {
     word16 kemId;
     word16 encLen;
     EchState state;
-    EchStateSNI sniState;
     byte type;
     byte configId;
     byte enc[HPKE_Npk_MAX];
@@ -3187,6 +3180,19 @@ WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
 WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL* ssl, WOLFSSL_ECH* ech, byte* aad,
     word32 aadLen);
 
+WOLFSSL_LOCAL void TLSX_EchReplaceExtensions(WOLFSSL* ssl, byte accepted);
+
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_EchSwapExtensions wolfSSL_TLSX_EchSwapExtensions
+#endif
+WOLFSSL_TEST_VIS word16 TLSX_EchSwapExtensions(TLSX** sslExts, TLSX** echExts,
+    word16 popCount);
+
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_ServerECH_Use wolfSSL_TLSX_ServerECH_Use
+#endif
+WOLFSSL_TEST_VIS int TLSX_ServerECH_Use(TLSX** extensions, void* heap,
+    WOLFSSL_EchConfig* configs);
 
 WOLFSSL_LOCAL int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen);
