@@ -23,7 +23,7 @@
     \file wolfssl/wolfcrypt/wc_falcon_keygen.h
 */
 
-/* FN-DSA / Falcon key-pair generation.
+/* Falcon key-pair generation.
  *
  * Generates an (f, g, F, G) NTRU lattice basis together with the public key
  * h = g/f mod q. The procedure is a faithful port of the key-generation half
@@ -55,7 +55,7 @@
     extern "C" {
 #endif
 
-/* Generate a complete FN-DSA / Falcon key pair of degree n = 2^logn.
+/* Generate a complete Falcon key pair of degree n = 2^logn.
  *
  *   rng   initialized WC_RNG used to seed the SHAKE256 sampler stream.
  *   f,g   output secret polynomials (n signed coefficients each).
@@ -64,7 +64,7 @@
  *   h     output public key polynomial (n coefficients in [0, q)); may be
  *         NULL if only the (f,g,F,G) basis is required.
  *   logn  base-2 logarithm of the ring degree (1..10; 9 and 10 are the
- *         standardized FN-DSA-512 and FN-DSA-1024 levels).
+ *         Falcon-512 and Falcon-1024 levels).
  *
  * The routine loops, drawing fresh (f,g) until every acceptance test passes
  * and the NTRU equation is solved, exactly as the reference does. Returns 0

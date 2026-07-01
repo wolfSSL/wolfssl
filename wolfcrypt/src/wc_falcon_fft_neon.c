@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* AArch64 NEON (float64x2_t + FMA) FFT backend for the native FN-DSA / Falcon
+/* AArch64 NEON (float64x2_t + FMA) FFT backend for the native Falcon
  * signing path. This is the 2-wide-double counterpart of the AVX2 backend in
  * wc_falcon_fft_avx2.c: it processes two doubles per 128-bit vector and uses
  * fused multiply-add for the complex butterflies. The algorithm and the

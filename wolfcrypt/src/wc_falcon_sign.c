@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FN-DSA / Falcon signing orchestration. See wolfssl/wolfcrypt/wc_falcon_sign.h.
+/* Falcon signing orchestration. See wolfssl/wolfcrypt/wc_falcon_sign.h.
  *
  * Faithful port of the signature-generation core of the MIT-licensed Falcon
  * reference implementation sign.c (Thomas Pornin, Falcon Project, 2017-2019):

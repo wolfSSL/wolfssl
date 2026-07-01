@@ -1726,20 +1726,18 @@ then
 fi
 
 
-# Falcon (legacy name for FN-DSA, now provided by the native implementation)
-# Falcon post-quantum signatures. "Falcon" is the pre-standardization name; NIST
-# is standardizing this scheme as FN-DSA (FIPS 206, draft). This is the native
-# wolfCrypt implementation (no liboqs); it needs SHA-3 / SHAKE256 (forced on in
-# the CFLAG section below). Because the algorithm is not yet standardized and its
-# API name is subject to change, it requires --enable-experimental (checked in
-# the CFLAG section, once all backend sub-options have been resolved).
+# Falcon post-quantum signatures, provided by the native wolfCrypt
+# implementation (no liboqs); it needs SHA-3 / SHAKE256 (forced on in the CFLAG
+# section below). Because the algorithm is not yet standardized and its API name
+# is subject to change, it requires --enable-experimental (checked in the CFLAG
+# section, once all backend sub-options have been resolved).
 AC_ARG_ENABLE([falcon],
     [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental) (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
 # --enable-falcon-asm selects the per-architecture assembly fpr backend for
-# FN-DSA (currently x86-64 SSE2 only); the portable constant-time integer
+# Falcon (currently x86-64 SSE2 only); the portable constant-time integer
 # emulation remains the default. It implies --enable-falcon.
 AC_ARG_ENABLE([falcon-asm],
     [AS_HELP_STRING([--enable-falcon-asm],[Enable Falcon x86-64 assembly fpr backend (default: disabled)])],

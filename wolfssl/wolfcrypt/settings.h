@@ -4684,9 +4684,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #endif
 #endif
 
-/* Falcon (the pre-standardization name for FN-DSA / FIPS 206) is provided by the
- * native wolfCrypt implementation in falcon.[ch] + wc_falcon*.[ch]; it no longer
- * requires liboqs. HAVE_FALCON is the build gate. */
+/* Falcon is provided by the native wolfCrypt implementation in falcon.[ch] +
+ * wc_falcon*.[ch]; it no longer requires liboqs. HAVE_FALCON is the build
+ * gate. */
 
 #if (defined(HAVE_FALCON) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS) ||                                 \

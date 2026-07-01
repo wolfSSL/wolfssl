@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Discrete Gaussian sampler (SamplerZ) for FN-DSA / Falcon signing.
+/* Discrete Gaussian sampler (SamplerZ) for Falcon signing.
  *
  * This is a faithful port of the constant-time reference sampler written by
  * Thomas Pornin for the Falcon submission (MIT licensed). The identical code
@@ -87,9 +87,9 @@ static const fpr falcon_fpr_inv_2sqrsigma0 = (fpr)4594603506513722306U;
 
 /* sigma_min, indexed by logn (degree = 2^logn). These match the Falcon
  * specification's sigma_min(n) table; entries decode to a smooth monotonic
- * curve from 1.1165 (n=2) to 1.2983 (n=1024). FN-DSA uses logn 9 and 10:
- *   logn = 9  (FN-DSA-512 / Falcon-512 ) : 1.2778336969128337
- *   logn = 10 (FN-DSA-1024 / Falcon-1024) : 1.298280334344292            */
+ * curve from 1.1165 (n=2) to 1.2983 (n=1024). Falcon uses logn 9 and 10:
+ *   logn = 9  (Falcon-512 ) : 1.2778336969128337
+ *   logn = 10 (Falcon-1024) : 1.298280334344292            */
 static const fpr falcon_fpr_sigma_min[11] = {
     (fpr)0U,                      /* logn 0 : unused        */
     (fpr)4607707126469777035U,    /* logn 1 : 1.1165085072  */

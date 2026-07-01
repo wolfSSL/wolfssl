@@ -698,10 +698,10 @@ if (WOLFSSL_MLDSA OR WOLFSSL_DILITHIUM)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
 endif()
 
-# FN-DSA (native Falcon, FIPS 206 draft). Native implementation: no liboqs
-# dependency (unlike WOLFSSL_FALCON). Needs SHA-3 / SHAKE256 for hash-to-point.
+# Native Falcon. Native implementation: no liboqs dependency. Needs SHA-3 /
+# SHAKE256 for hash-to-point.
 add_option(WOLFSSL_FALCON
-    "Enable the native wolfSSL PQ FN-DSA/Falcon (FIPS 206) implementation (default: disabled)"
+    "Enable the native wolfSSL PQ Falcon implementation (default: disabled)"
     "no" "yes;no")
 
 if (WOLFSSL_FALCON)
@@ -764,8 +764,8 @@ if (WOLFSSL_EXPERIMENTAL)
 
     set_wolfssl_definitions("WOLFSSL_EXPERIMENTAL_SETTINGS" RESULT)
 
-    # Native Falcon (FN-DSA) is an experimental feature (unstandardized; API
-    # name subject to change). It has no liboqs dependency.
+    # Native Falcon is an experimental feature (unstandardized; API name
+    # subject to change). It has no liboqs dependency.
     if (WOLFSSL_FALCON)
         set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
     endif()

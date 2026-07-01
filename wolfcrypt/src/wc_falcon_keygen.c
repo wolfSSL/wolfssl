@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FN-DSA / Falcon key-pair generation. See wolfssl/wolfcrypt/wc_falcon_keygen.h.
+/* Falcon key-pair generation. See wolfssl/wolfcrypt/wc_falcon_keygen.h.
  *
  * Faithful port of the key-generation half of the MIT-licensed Falcon
  * reference implementation keygen.c (Thomas Pornin, Falcon Project,

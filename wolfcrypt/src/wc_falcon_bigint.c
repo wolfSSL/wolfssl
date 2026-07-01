@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Self-contained big-integer / RNS arithmetic for native FN-DSA (Falcon)
+/* Self-contained big-integer / RNS arithmetic for native Falcon
  * key generation. See wolfssl/wolfcrypt/wc_falcon_bigint.h.
  *
  * Ported from the Falcon reference implementation keygen.c by Thomas Pornin

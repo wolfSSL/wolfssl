@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* AVX2 (__m256d + FMA) FFT backend for the native FN-DSA / Falcon signing path.
+/* AVX2 (__m256d + FMA) FFT backend for the native Falcon signing path.
  *
  * This is a vectorization of the scalar FFT in wc_falcon_fft.c and the hot
  * FFT-domain pointwise polynomial operations in wc_falcon_poly.c. It processes

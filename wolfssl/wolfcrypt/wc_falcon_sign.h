@@ -23,7 +23,7 @@
     \file wolfssl/wolfcrypt/wc_falcon_sign.h
 */
 
-/* FN-DSA / Falcon signing orchestration (the "tree" signer).
+/* Falcon signing orchestration (the "tree" signer).
  *
  * Faithful port of the signature-generation core of the MIT-licensed Falcon
  * reference implementation sign.c (Thomas Pornin, Falcon Project, 2017-2019):

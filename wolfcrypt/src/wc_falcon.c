@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Native FN-DSA (FIPS 206 draft) / Falcon implementation for wolfCrypt.
+/* Native Falcon implementation for wolfCrypt.
  *
  * Phase 1: verification only (integer arithmetic, no floating point).
  * The signature/keygen paths and the floating-point primitive seam are added
@@ -49,8 +49,8 @@
  * specification / reference implementation (l2bound table). */
 static const word32 falcon_l2bound[] = {
     /* 0..8 unused */ 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    34034726u,   /* logn = 9  (FN-DSA-512)  */
-    70265242u    /* logn = 10 (FN-DSA-1024) */
+    34034726u,   /* logn = 9  (Falcon-512)  */
+    70265242u    /* logn = 10 (Falcon-1024) */
 };
 
 /* ------------------------------------------------------------------------ */

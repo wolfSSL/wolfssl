@@ -23,7 +23,7 @@
     \file wolfssl/wolfcrypt/wc_falcon_sampler.h
 */
 
-/* Discrete Gaussian sampler for FN-DSA / Falcon signing (SamplerZ).
+/* Discrete Gaussian sampler for Falcon signing (SamplerZ).
  *
  * This is a faithful port of the constant-time reference sampler by Thomas
  * Pornin (MIT-licensed Falcon reference implementation; the same code ships in

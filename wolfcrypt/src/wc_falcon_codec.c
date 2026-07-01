@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FN-DSA (FIPS 206 draft) / Falcon encode/decode routines for the signing and
+/* Falcon encode/decode routines for the signing and
  * key-generation paths. These are faithful ports of the Falcon reference
  * implementation (codec.c): modq_encode, comp_encode, trim_i8_encode and
  * trim_i8_decode, plus the secret-key decoder that drives them.

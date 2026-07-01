@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Integer-emulated IEEE-754 binary64 backend for the FN-DSA / Falcon
+/* Integer-emulated IEEE-754 binary64 backend for the Falcon
  * floating-point primitive seam (wolfssl/wolfcrypt/wc_falcon_fpr.h).
  *
  * This is the portable, FP-unit-free, fully deterministic and constant-time

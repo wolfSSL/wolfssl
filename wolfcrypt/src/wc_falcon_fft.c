@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FN-DSA / Falcon FFT over the fpr seam. See wolfssl/wolfcrypt/wc_falcon_fft.h.
+/* Falcon FFT over the fpr seam. See wolfssl/wolfcrypt/wc_falcon_fft.h.
  * Algorithm and twiddle-table layout validated against a schoolbook negacyclic
  * reference (round-trip and FFT-based multiplication) for n in {8,512,1024}. */
 

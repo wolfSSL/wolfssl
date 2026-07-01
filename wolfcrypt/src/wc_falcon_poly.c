@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FN-DSA / Falcon FFT-domain polynomial operations over the fpr seam. Faithful
+/* Falcon FFT-domain polynomial operations over the fpr seam. Faithful
  * port of the poly_* functions from the MIT-licensed Falcon reference (fft.c,
  * Thomas Pornin). See wolfssl/wolfcrypt/wc_falcon_poly.h. */
 
