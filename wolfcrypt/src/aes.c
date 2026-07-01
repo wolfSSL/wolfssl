@@ -5928,6 +5928,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }                                                            \
         WC_DO_NOTHING
 
+#define VECTOR_REGISTERS_PUSH2(fail_clause) {                        \
+        int orig_use_aesni = aes->use_aesni;                         \
+        if (aes->use_aesni && (SAVE_VECTOR_REGISTERS2() != 0)) {     \
+            aes->use_aesni = 0;                                      \
+        }                                                            \
+        WC_DO_NOTHING
+
+
 #define VECTOR_REGISTERS_POP                                         \
         if (aes->use_aesni)                                          \
             RESTORE_VECTOR_REGISTERS();                              \
@@ -5941,14 +5949,24 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #define VECTOR_REGISTERS_PUSH { \
         WC_DO_NOTHING
 
+#define VECTOR_REGISTERS_PUSH2(fail_clause) { \
+        WC_DO_NOTHING
+
 #define VECTOR_REGISTERS_POP                                         \
     }                                                                \
     WC_DO_NOTHING
 
 #else
 
-#define VECTOR_REGISTERS_PUSH { \
+#define VECTOR_REGISTERS_PUSH {                                          \
         if (aes->use_aesni && ((ret = SAVE_VECTOR_REGISTERS2()) != 0)) { \
+            return ret;                                                  \
+        }                                                                \
+        WC_DO_NOTHING
+
+#define VECTOR_REGISTERS_PUSH2(fail_clause) {                            \
+        if (aes->use_aesni && ((ret = SAVE_VECTOR_REGISTERS2()) != 0)) { \
+            { fail_clause }                                              \
             return ret;                                                  \
         }                                                                \
         WC_DO_NOTHING
@@ -5965,6 +5983,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #else /* !WOLFSSL_AESNI */
 
 #define VECTOR_REGISTERS_PUSH WC_DO_NOTHING
+#define VECTOR_REGISTERS_PUSH2(fail_clause) WC_DO_NOTHING
 #define VECTOR_REGISTERS_POP WC_DO_NOTHING
 
 #endif /* !WOLFSSL_AESNI */
@@ -15552,9 +15571,11 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
      */
     if (sz >= WC_AES_CFB_DEC_BUF_BLOCKS * WC_AES_BLOCK_SIZE)
         tmp = (byte *)XMALLOC(WC_AES_CFB_DEC_BUF_BLOCKS * WC_AES_BLOCK_SIZE, NULL, DYNAMIC_TYPE_AES);
-#endif
 
+    VECTOR_REGISTERS_PUSH2(XFREE(tmp, NULL, DYNAMIC_TYPE_AES););
+#else
     VECTOR_REGISTERS_PUSH;
+#endif
 
     #if defined(HAVE_AES_ECB) && \
         !defined(WOLFSSL_PIC32MZ_CRYPT) && \

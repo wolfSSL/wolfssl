@@ -1834,14 +1834,14 @@
      * Fix that with explicit mappings here.
      */
     #ifdef CONFIG_KMSAN
-        #define memcpy(d,s,l)  __builtin_memcpy((d),(s),(l))
-        #define memset(d,v,l)  __builtin_memset((d),(v),(l))
-        #define memmove(d,s,l) __builtin_memmove((d),(s),(l))
-        #define strcpy(d,s,l) __builtin_strcpy((d),(s),(l))
+        #define memcpy(d, s, l)  __builtin_memcpy(d, s, l)
+        #define memset(d, v, l)  __builtin_memset(d, v, l)
+        #define memmove(d, s, l) __builtin_memmove(d, s, l)
+        #define strcpy(d, s)     __builtin_strcpy(d, s)
         #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
-            #define strncpy(d,s,l) __builtin_strncpy((d),(s),(l))
+        #define strncpy(d, s, l) __builtin_strncpy(d, s, l)
         #endif
-        #define strncat(d,s,l) __builtin_strncat((d),(s),(l))
+        #define strncat(d, s, l) __builtin_strncat(d, s, l)
     #endif
 
     #endif /* BUILDING_WOLFSSL */
