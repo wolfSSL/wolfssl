@@ -574,6 +574,7 @@ int test_wolfSSL_ALPN_GetPeerProtocol_inval_ext(void)
     ExpectIntEQ(wolfSSL_ALPN_GetPeerProtocol(ssl, &list, &listSz),
         WC_NO_ERR_TRACE(BUFFER_ERROR));
 
+    wolfSSL_ALPN_FreePeerProtocol(ssl, &list);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif

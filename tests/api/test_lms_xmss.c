@@ -122,7 +122,7 @@ int test_wc_LmsKey_sign_verify(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(test_lms_init_key(&key, &rng), 0);
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
 
@@ -134,7 +134,7 @@ int test_wc_LmsKey_sign_verify(void)
 
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
 #endif
     return EXPECT_RESULT();
 }
@@ -180,7 +180,7 @@ int test_wc_LmsKey_reload_cache(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     /* Phase 1: Generate key and sign past cache window */
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(test_lms_init_key(&key, &rng), 0);
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
 
@@ -214,7 +214,7 @@ int test_wc_LmsKey_reload_cache(void)
     wc_LmsKey_Free(&vkey);
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
 #endif
     return EXPECT_RESULT();
 }
@@ -975,7 +975,7 @@ int test_rfc9802_lms_x509_gen(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     /* Single-level LMS (L1-H5-W8). */
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(rfc9802_gen_lms_init(&key, 1, 5, 8), 0);
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ(rfc9802_gen_roundtrip(&key, LMS_TYPE, CTC_HSS_LMS, &rng, 8192),
@@ -1012,31 +1012,31 @@ int test_rfc9802_lms_x509_gen(void)
 #endif
 
     wc_LmsKey_Free(&key);
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
 
 #if !defined(WOLFSSL_LMS_MAX_LEVELS) || (WOLFSSL_LMS_MAX_LEVELS >= 2)
     /* Multi-level HSS (L2-H5-W8): the signature embeds a lower-level LMS
      * public key + signature, exercising the larger, multi-level encoding. */
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(rfc9802_gen_lms_init(&key, 2, 5, 8), 0);
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ(rfc9802_gen_roundtrip(&key, LMS_TYPE, CTC_HSS_LMS, &rng, 8192),
         TEST_SUCCESS);
     wc_LmsKey_Free(&key);
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
 #endif
 
 #if !defined(WOLFSSL_LMS_MAX_LEVELS) || (WOLFSSL_LMS_MAX_LEVELS >= 3)
     /* Three-level HSS with Winternitz 4 (L3-H5-W4): exercises the deepest
      * multi-level encoding and a different Winternitz parameter than the
      * W8 cases above. */
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(rfc9802_gen_lms_init(&key, 3, 5, 4), 0);
     ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ(rfc9802_gen_roundtrip(&key, LMS_TYPE, CTC_HSS_LMS, &rng, 8192),
         TEST_SUCCESS);
     wc_LmsKey_Free(&key);
-    remove(LMS_TEST_PRIV_KEY_FILE);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
 #endif
 
     wc_FreeRng(&rng);
@@ -1180,7 +1180,7 @@ int test_rfc9802_xmss_x509_gen(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     /* Single-tree XMSS. */
-    remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
+    (void)remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(rfc9802_gen_xmss_init(&key, "XMSS-SHA2_10_256"), 0);
     ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ((int)key.is_xmssmt, 0);
@@ -1224,11 +1224,11 @@ int test_rfc9802_xmss_x509_gen(void)
         /* XMSS */ 0x22, /* swap */ 0x23), TEST_SUCCESS);
 
     wc_XmssKey_Free(&key);
-    remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
+    (void)remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
 
     /* Multi-tree XMSS^MT: exercises the XMSSMT_TYPE selector, the
      * XMSSMTk public-key OID branch and the CTC_XMSSMT signature OID. */
-    remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
+    (void)remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(rfc9802_gen_xmss_init(&key, "XMSSMT-SHA2_20/2_256"), 0);
     ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ((int)key.is_xmssmt, 1);
@@ -1241,19 +1241,19 @@ int test_rfc9802_xmss_x509_gen(void)
     ExpectIntEQ(rfc9802_gen_xmss_oid_tamper(&key, XMSSMT_TYPE, CTC_XMSSMT, &rng,
         /* XMSS^MT */ 0x23, /* swap */ 0x22), TEST_SUCCESS);
     wc_XmssKey_Free(&key);
-    remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
+    (void)remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
 
     /* A second XMSS^MT parameter set (different embedded param-set OID and a
      * larger signature) to keep the encoder/auto-derive decoder exercised
      * across sizes now that the committed multi-size fixtures are gone. */
-    remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
+    (void)remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
     ExpectIntEQ(rfc9802_gen_xmss_init(&key, "XMSSMT-SHA2_20/4_256"), 0);
     ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng), 0);
     ExpectIntEQ((int)key.is_xmssmt, 1);
     ExpectIntEQ(rfc9802_gen_roundtrip(&key, XMSSMT_TYPE, CTC_XMSSMT, &rng,
         16384), TEST_SUCCESS);
     wc_XmssKey_Free(&key);
-    remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
+    (void)remove(XMSS_GEN_TEST_PRIV_KEY_FILE);
 
     wc_FreeRng(&rng);
 #endif
