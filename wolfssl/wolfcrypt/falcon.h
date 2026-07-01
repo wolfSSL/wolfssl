@@ -42,19 +42,17 @@
  * must be visible unconditionally. */
 #include <wolfssl/wolfcrypt/random.h>
 
-/* Falcon is the PRE-STANDARDIZATION name for this NIST post-quantum signature
- * scheme. NIST is standardizing it as FN-DSA (FIPS 206), which is still a draft.
- * Until FN-DSA is finalized, wolfCrypt exposes the algorithm under its current
- * name -- "falcon" (wc_falcon_* / falcon_key) -- and it requires
- * --enable-experimental to build.
+/* Falcon is a NIST post-quantum signature scheme that has NOT been standardized
+ * yet. wolfCrypt exposes it under its current name -- "falcon" (wc_falcon_* /
+ * falcon_key) -- and it requires --enable-experimental to build.
  *
  * NOTE: this API and its "falcon" spelling are TEMPORARY and subject to change.
- * When FN-DSA is finalized the canonical API will be renamed to the
- * standardized name -- exactly as the pre-standardization Kyber and Dilithium
- * APIs were renamed to ML-KEM (FIPS 203) and ML-DSA (FIPS 204) in wolfSSL 5.7 --
- * and this <falcon.h> is expected to be retained thereafter as a temporary
- * compatibility shim. Application code that uses wc_falcon_* / falcon_key should
- * expect to migrate to the standardized spelling. */
+ * Once the algorithm is standardized, the canonical API is expected to be
+ * renamed to the standardized name -- exactly as the pre-standardization Kyber
+ * and Dilithium APIs were renamed to ML-KEM (FIPS 203) and ML-DSA (FIPS 204) in
+ * wolfSSL 5.7 -- and this <falcon.h> is expected to be retained thereafter as a
+ * temporary compatibility shim. Application code that uses wc_falcon_* /
+ * falcon_key should expect to migrate to the standardized spelling. */
 
 /* This is the native wolfCrypt implementation (no liboqs dependency). */
 

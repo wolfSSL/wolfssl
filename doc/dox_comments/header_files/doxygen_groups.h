@@ -15,6 +15,15 @@
     \defgroup ECC Algorithms - ECC
     \defgroup ED25519 Algorithms - ED25519
     \defgroup ED448 Algorithms - ED448
+    \defgroup Falcon Algorithms - Falcon
+    Falcon is a quantum-resistant lattice-based digital signature scheme
+    (NTRU / fast Fourier sampling). It has not been standardized by NIST yet;
+    because the algorithm is not yet standardized and its API name is subject
+    to change, wolfCrypt gates it behind --enable-experimental, and the
+    wc_falcon_* / falcon_key spelling is expected to follow the standardized
+    name once it is final. Two parameter sets are supported, selected with
+    wc_falcon_set_level(): level 1 (Falcon-512) and level 5 (Falcon-1024).
+    See <wolfssl/wolfcrypt/falcon.h>.
     \defgroup ML_DSA Algorithms - ML-DSA (FIPS 204)
     ML-DSA (Module-Lattice-based Digital Signature Algorithm) is a
     quantum-resistant digital signature scheme standardized by NIST as
