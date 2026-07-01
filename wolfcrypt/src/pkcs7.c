@@ -13611,6 +13611,12 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
             }
         #else
+            /* ensure IV bytes are within the input buffer before copying */
+            if (length < 0 || (word32)length > pkiMsgSz ||
+                    idx > pkiMsgSz - (word32)length) {
+                ret = BUFFER_E;
+                break;
+            }
             ret = 0;
         #endif
 
