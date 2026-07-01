@@ -5051,6 +5051,34 @@ WOLFSSL_API int wolfSSL_CTX_set_num_tickets(WOLFSSL_CTX* ctx, size_t mxTickets);
 
 #endif /* HAVE_SESSION_TICKET */
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS)
+/* OpenSSL-compatible application-defined ("custom") TLS extension callbacks.
+ *
+ * add_cb is invoked while building an outgoing message. On return:
+ *   1  - include the extension; out and outlen describe the data to send.
+ *   0  - omit the extension.
+ *  <0  - fatal error; *al holds the TLS alert to send.
+ * If add_cb is NULL a zero-length extension is added to the ClientHello.
+ *
+ * free_cb (if set) is called after the data returned by add_cb has been
+ * copied into the message, to release any allocation it made.
+ *
+ * parse_cb is invoked for a received extension of the registered type. On
+ * return 1 the handshake continues; on return <=0 it is aborted with the
+ * alert placed in *al. */
+typedef int  (*wolfSSL_custom_ext_add_cb)(WOLFSSL* s, unsigned int ext_type,
+        const unsigned char** out, size_t* outlen, int* al, void* add_arg);
+typedef void (*wolfSSL_custom_ext_free_cb)(WOLFSSL* s, unsigned int ext_type,
+        const unsigned char* out, void* add_arg);
+typedef int  (*wolfSSL_custom_ext_parse_cb)(WOLFSSL* s, unsigned int ext_type,
+        const unsigned char* in, size_t inlen, int* al, void* parse_arg);
+
+WOLFSSL_API int wolfSSL_CTX_add_client_custom_ext(WOLFSSL_CTX* ctx,
+        unsigned int ext_type, wolfSSL_custom_ext_add_cb add_cb,
+        wolfSSL_custom_ext_free_cb free_cb, void* add_arg,
+        wolfSSL_custom_ext_parse_cb parse_cb, void* parse_arg);
+#endif /* OPENSSL_EXTRA && HAVE_TLS_EXTENSIONS */
+
 /* TLS Extended Master Secret Extension */
 WOLFSSL_API int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);

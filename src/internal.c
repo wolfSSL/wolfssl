@@ -3088,6 +3088,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifdef HAVE_TLS_EXTENSIONS
 #if !defined(NO_TLS)
     TLSX_FreeAll(ctx->extensions, ctx->heap);
+#ifdef OPENSSL_EXTRA
+    TLSX_CustomExt_FreeAll(ctx->customExt, ctx->heap);
+    ctx->customExt = NULL;
+#endif
 #endif /* !NO_TLS */
 #ifndef NO_WOLFSSL_SERVER
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
@@ -9104,6 +9108,14 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #if !defined(NO_TLS)
     TLSX_FreeAll(ssl->extensions, ssl->heap);
     ssl->extensions = NULL;
+#ifdef OPENSSL_EXTRA
+    XFREE(ssl->customExtData, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ssl->customExtData = NULL;
+    ssl->customExtSz = 0;
+    XFREE(ssl->customExtSent, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->customExtSent = NULL;
+    ssl->customExtSentCnt = 0;
+#endif
 #if defined(HAVE_SECURE_RENEGOTIATION) \
  || defined(HAVE_SERVER_RENEGOTIATION_INFO)
     ssl->secure_renegotiation = NULL;
