@@ -94,6 +94,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build
 
+      # Check out wolfSSL first: actions/checkout runs "git clean -ffdx", which
+      # would delete an untracked oqs-install/ placed in the workspace by the
+      # cache/artifact steps below. Restoring liboqs after the checkout keeps it.
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
       - name: Restore liboqs from cache
         uses: actions/cache/restore@v5
         id: cache
@@ -111,11 +119,6 @@ jobs:
       - name: Untar liboqs artifact
         if: steps.cache.outputs.cache-hit != 'true'
         run: tar -zxf liboqs.tgz
-
-      - name: Checkout wolfSSL
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
 
       - name: Build wolfSSL with native Falcon
         run: |
