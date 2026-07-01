@@ -6,8 +6,23 @@ Source: https://github.com/wolfssl/wolfssl/releases
 Files:
  *
 Copyright:
- 2006-2023 wolfSSL Inc.
-License: GPL-2+
+ 2006-2026 wolfSSL Inc.
+License: GPL-3+
+
+Files:
+ wolfcrypt/src/camellia.c
+ wolfssl/wolfcrypt/camellia.h
+Copyright:
+ 2006-2007 NTT (Nippon Telegraph and Telephone Corporation)
+ 2006-2026 wolfSSL Inc.
+License: NTT-BSD-2-Clause
+
+Files:
+ wolfcrypt/src/blake2b.c
+ wolfcrypt/src/blake2s.c
+Copyright:
+ 2012 Samuel Neves <sneves@dei.uc.pt>
+License: CC0-1.0
 
 Files:
  zephyr/Kconfig
@@ -21,14 +36,6 @@ Copyright:
  2018 Intel Corporation
  2018 Nordic Semiconductor ASA
 License: Apache-2.0
-
-Files:
- wolfcrypt/src/camellia.c
- wolfssl/wolfcrypt/camellia.h
-Copyright:
- 2006-2007 NTT (Nippon Telegraph and Telephone Corporation)
- 2006-2016 wolfSSL Inc.
-License: GPL-2+
 
 Files:
  m4/ax_append_link_flags.m4
@@ -85,32 +92,27 @@ Files:
  m4/ax_vcs_checkout.m4
 Copyright:
  2012 Brian Aker
-License: BSD-3-clause
+License: BSD-3-Clause
 
 Files:
  m4/ax_append_to_file.m4
  m4/ax_file_escapes.m4
  m4/ax_print_to_file.m4
 Copyright:
- 2008 Tom Howard <tomhoward@users.sf.net
+ 2008 Tom Howard <tomhoward@users.sf.net>
 License: FSFAP
 
 Files:
  m4/ax_add_am_macro.m4
+ m4/ax_am_macros.m4
 Copyright:
- 2009 Tom Howard <tomhoward@users.sf.net
+ 2009 Tom Howard <tomhoward@users.sf.net>
 License: FSFAP
 
 Files:
  m4/ax_am_jobserver.m4
 Copyright:
  2008 Michael Paul Bailey <jinxidoru@byu.net>
-License: FSFAP
-
-Files:
- m4/ax_am_macros.m4
-Copyright:
- 2009 Tom Howard <tomhoward@users.sf.net
 License: FSFAP
 
 Files:
@@ -122,36 +124,65 @@ Copyright:
 License: FSFAP
 
 Files:
+ m4/visibility.m4
+Copyright:
+ 2005, 2008, 2010-2018 Free Software Foundation, Inc.
+License: FSFAP
+
+Files:
  debian/*
 Copyright:
  2014-2022 Felix Lechner <felix.lechner@lease-up.com>
-License: GPL-2+
+ 2024-2026 wolfSSL Inc.
+License: GPL-3+
 
 
-License: FSFAP
- Copying and distribution of this file, with or without modification, are
- permitted in any medium without royalty provided the copyright notice
- and this notice are preserved. This file is offered as-is, without any
- warranty.
-
-
-License: GPL-2+
- This package is free software; you can redistribute it and/or modify
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
+ the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
  .
- This package is distributed in the hope that it will be useful,
+ This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
  .
  You should have received a copy of the GNU General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
  .
  On Debian systems, the complete text of the GNU General
- Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
+ Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
 
+License: NTT-BSD-2-Clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer as
+    the first lines of this file unmodified.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+ .
+ THIS SOFTWARE IS PROVIDED BY NTT ``AS IS'' AND ANY EXPRESS OR
+ IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ IN NO EVENT SHALL NTT BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: CC0-1.0
+ To the extent possible under law, the author(s) have dedicated all copyright
+ and related and neighboring rights to this software to the public domain
+ worldwide. This software is distributed without any warranty.
+ .
+ On Debian systems, the complete text of the CC0 1.0 Universal license
+ can be found in "/usr/share/common-licenses/CC0-1.0".
 
 License: GPL-3+-with-autoconf
  This program is free software; you can redistribute it and/or modify it
@@ -180,8 +211,7 @@ License: GPL-3+-with-autoconf
  modified version of the Autoconf Macro, you may extend this special
  exception to the GPL to apply to your modified version as well.
 
-
-License: BSD-3-clause
+License: BSD-3-Clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
  met:
@@ -210,8 +240,12 @@ License: BSD-3-clause
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 License: Apache-2.0
- On modern Debian systems, the text of this license can be found
- at:  /usr/share/common-licenses/Apache-2.0
+ On Debian systems, the complete text of the Apache License version 2.0
+ can be found in "/usr/share/common-licenses/Apache-2.0".
 
+License: FSFAP
+ Copying and distribution of this file, with or without modification, are
+ permitted in any medium without royalty provided the copyright notice
+ and this notice are preserved. This file is offered as-is, without any
+ warranty.
