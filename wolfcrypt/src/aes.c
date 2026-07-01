@@ -907,7 +907,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     /* Pick the widest available implementation at runtime.  Callers must
      * already be inside a VECTOR_REGISTERS_PUSH / SAVE_VECTOR_REGISTERS
      * region (all bulk AES-NI call sites are). */
-    static WC_INLINE void AesEcbEncryptBlocks(const unsigned char* in,
+    static WC_MAYBE_UNUSED WC_INLINE void AesEcbEncryptBlocks(const unsigned char* in,
         unsigned char* out, word32 sz, const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
@@ -936,7 +936,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
 
     #ifdef HAVE_AES_DECRYPT
-    static WC_INLINE void AesEcbDecryptBlocks(const unsigned char* in,
+    static WC_MAYBE_UNUSED WC_INLINE void AesEcbDecryptBlocks(const unsigned char* in,
         unsigned char* out, word32 sz, const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
@@ -966,7 +966,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 
     #ifdef HAVE_AES_CBC
-    static WC_INLINE void AesCbcEncryptBlocks(const unsigned char* in,
+    static WC_MAYBE_UNUSED WC_INLINE void AesCbcEncryptBlocks(const unsigned char* in,
         unsigned char* out, unsigned char* iv, word32 sz,
         const unsigned char* key, int nr)
     {
@@ -997,7 +997,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif /* HAVE_AES_CBC */
 
     #ifdef HAVE_AES_DECRYPT
-    static WC_INLINE void AesCbcDecryptBlocks(const unsigned char* in,
+    static WC_MAYBE_UNUSED WC_INLINE void AesCbcDecryptBlocks(const unsigned char* in,
         unsigned char* out, unsigned char* iv, word32 sz,
         const unsigned char* key, int nr)
     {
@@ -1027,7 +1027,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
     #endif /* HAVE_AES_DECRYPT */
 
-    static WC_INLINE void AesCtrEncryptBlocks(const unsigned char* in,
+    static WC_MAYBE_UNUSED WC_INLINE void AesCtrEncryptBlocks(const unsigned char* in,
         unsigned char* out, word32 sz, const unsigned char* key, int nr,
         unsigned char* ctr)
     {
@@ -5928,6 +5928,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }                                                            \
         WC_DO_NOTHING
 
+#define VECTOR_REGISTERS_PUSH2(fail_clause) {                        \
+        int orig_use_aesni = aes->use_aesni;                         \
+        if (aes->use_aesni && (SAVE_VECTOR_REGISTERS2() != 0)) {     \
+            aes->use_aesni = 0;                                      \
+        }                                                            \
+        WC_DO_NOTHING
+
+
 #define VECTOR_REGISTERS_POP                                         \
         if (aes->use_aesni)                                          \
             RESTORE_VECTOR_REGISTERS();                              \
@@ -5941,14 +5949,24 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #define VECTOR_REGISTERS_PUSH { \
         WC_DO_NOTHING
 
+#define VECTOR_REGISTERS_PUSH2(fail_clause) { \
+        WC_DO_NOTHING
+
 #define VECTOR_REGISTERS_POP                                         \
     }                                                                \
     WC_DO_NOTHING
 
 #else
 
-#define VECTOR_REGISTERS_PUSH { \
+#define VECTOR_REGISTERS_PUSH {                                          \
         if (aes->use_aesni && ((ret = SAVE_VECTOR_REGISTERS2()) != 0)) { \
+            return ret;                                                  \
+        }                                                                \
+        WC_DO_NOTHING
+
+#define VECTOR_REGISTERS_PUSH2(fail_clause) {                            \
+        if (aes->use_aesni && ((ret = SAVE_VECTOR_REGISTERS2()) != 0)) { \
+            { fail_clause }                                              \
             return ret;                                                  \
         }                                                                \
         WC_DO_NOTHING
@@ -5965,6 +5983,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #else /* !WOLFSSL_AESNI */
 
 #define VECTOR_REGISTERS_PUSH WC_DO_NOTHING
+#define VECTOR_REGISTERS_PUSH2(fail_clause) WC_DO_NOTHING
 #define VECTOR_REGISTERS_POP WC_DO_NOTHING
 
 #endif /* !WOLFSSL_AESNI */
@@ -15511,6 +15530,14 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
 #ifdef WC_AES_HAVE_PREFETCH_ARG
     int did_prefetches = 0;
 #endif
+#ifndef WC_AES_CFB_DEC_BUF_BLOCKS
+    #define WC_AES_CFB_DEC_BUF_BLOCKS 32
+#elif WC_AES_CFB_DEC_BUF_BLOCKS < 2
+    #error Invalid WC_AES_CFB_DEC_BUF_BLOCKS
+#endif
+#ifdef WOLFSSL_SMALL_STACK
+    byte *tmp = NULL;
+#endif
 
     (void)mode;
 
@@ -15534,18 +15561,32 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
         sz -= processed;
     }
 
-    VECTOR_REGISTERS_PUSH;
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_AES_ECB) &&    \
+    !defined(WOLFSSL_PIC32MZ_CRYPT) &&                          \
+    (defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM))
+    /* Only suffer the heap overhead if sz is enough to warrant it.
+     *
+     * Allocate the working buffer before suspending interrupts, so that we can
+     * allocate with regular GFP_KERNEL.
+     */
+    if (sz >= WC_AES_CFB_DEC_BUF_BLOCKS * WC_AES_BLOCK_SIZE)
+        tmp = (byte *)XMALLOC(WC_AES_CFB_DEC_BUF_BLOCKS * WC_AES_BLOCK_SIZE, NULL, DYNAMIC_TYPE_AES);
 
-    #if !defined(WOLFSSL_SMALL_STACK) && defined(HAVE_AES_ECB) && \
+    VECTOR_REGISTERS_PUSH2(XFREE(tmp, NULL, DYNAMIC_TYPE_AES););
+#else
+    VECTOR_REGISTERS_PUSH;
+#endif
+
+    #if defined(HAVE_AES_ECB) && \
         !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         (defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM))
+#ifdef WOLFSSL_SMALL_STACK
+    if (tmp != NULL)
+#endif
     {
-        #ifndef WC_AES_CFB_DEC_BUF_BLOCKS
-            #define WC_AES_CFB_DEC_BUF_BLOCKS 32
-        #elif WC_AES_CFB_DEC_BUF_BLOCKS < 2
-            #error Invalid WC_AES_CFB_DEC_BUF_BLOCKS
-        #endif
+#ifndef WOLFSSL_SMALL_STACK
         ALIGN16 byte tmp[WC_AES_CFB_DEC_BUF_BLOCKS * WC_AES_BLOCK_SIZE];
+#endif
         while (sz >= 2 * WC_AES_BLOCK_SIZE) {
             word32 blocks = sz / WC_AES_BLOCK_SIZE;
             word32 nbytes;
@@ -15591,6 +15632,11 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
     }
 
     VECTOR_REGISTERS_POP;
+
+#ifdef WOLFSSL_SMALL_STACK
+    /* Free tmp after restoring interrupts, so that GFP_KERNEL is usable. */
+    XFREE(tmp, NULL, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }

@@ -240,14 +240,21 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && ((ivSz != WC_SYSTEM_AESGCM_IV) ||
-                                       (authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ))) {
+    if ((ret == 0) && ((ivSz != WC_SYSTEM_AESGCM_IV)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+                       || (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)
+                       || (authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ)
+#endif
+            ))
+    {
         WOLFSSL_MSG("IV/AAD size not supported on system");
         ret = BAD_FUNC_ARG;
     }
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     if (ret == 0)
         ret = wc_local_AesGcmCheckTagSz(authTagSz);
+#endif
 
     if (ret == 0) {
         ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);
@@ -353,14 +360,21 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && ((ivSz != WC_SYSTEM_AESGCM_IV) ||
-                                       (authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ))) {
+    if ((ret == 0) && ((ivSz != WC_SYSTEM_AESGCM_IV)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+                       || (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)
+                       || (authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ)
+#endif
+            ))
+    {
         WOLFSSL_MSG("IV/AAD size not supported on system");
         ret = BAD_FUNC_ARG;
     }
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     if (ret == 0)
         ret = wc_local_AesGcmCheckTagSz(authTagSz);
+#endif
 
     if (ret == 0) {
         ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);
