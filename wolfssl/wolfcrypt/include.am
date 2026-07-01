@@ -253,3 +253,17 @@ if BUILD_RISCV_ASM
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h
 endif
 
+if BUILD_FALCON
+# Internal Falcon headers (the public API is wolfssl/wolfcrypt/falcon.h, listed
+# unconditionally above). Automake distributes both branches of a conditional,
+# so these are still included in "make dist" when Falcon is disabled.
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_bigint.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_codec.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_fft.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_fpr.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_keygen.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_poly.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_sampler.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_sign.h
+endif
+

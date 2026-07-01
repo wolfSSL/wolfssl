@@ -121,6 +121,12 @@ static int falcon_prng_refill(falcon_prng* p)
     int ret = wc_Shake256_SqueezeBlocks(&p->shake, p->buf, FALCON_PRNG_BLOCKS);
     p->ptr = 0;
     p->len = (ret == 0) ? (word32)FALCON_PRNG_BUFLEN : 0;
+    /* Latch the first failure. get_u8/get_u64 have no error return, so a squeeze
+     * failure is made sticky here and checked by the signer (falcon_sign_core),
+     * which rejects any signature produced from an invalid PRNG state instead of
+     * consuming stale buffer bytes. */
+    if (ret != 0 && p->err == 0)
+        p->err = ret;
     return ret;
 }
 
@@ -140,6 +146,7 @@ int falcon_prng_init(falcon_prng* p, WC_RNG* rng)
 
     p->ptr = 0;
     p->len = 0;
+    p->err = 0;
     ForceZero(seed, (word32)sizeof(seed));
 
     if (ret == 0)
@@ -152,6 +159,9 @@ byte falcon_prng_get_u8(falcon_prng* p)
 {
     byte v;
 
+    /* On a refill failure len becomes 0 and p->err is latched; the buffer read
+     * below stays in bounds (ptr reset to 0) but yields a discarded value --
+     * falcon_sign_core checks p->err and rejects the resulting signature. */
     if (p->ptr + 1U > p->len)
         (void)falcon_prng_refill(p);
     v = p->buf[p->ptr];
