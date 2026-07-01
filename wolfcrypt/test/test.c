@@ -30003,18 +30003,6 @@ static wc_test_ret_t dh_generate_test(WC_RNG *rng)
 #endif
     byte   p[2] = { 1, 7 }; /* 263 in decimal */
     byte   g[2] = { 0, 2 };
-#if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FFDHE)
-#ifdef WOLFSSL_DH_CONST
-    /* the table for constant DH lookup will round to the lowest byte size 21 */
-    byte   priv[21];
-    byte   pub[21];
-#else
-    byte   priv[2];
-    byte   pub[2];
-#endif
-    word32 privSz = sizeof(priv);
-    word32 pubSz = sizeof(pub);
-#endif
     int smallKey_inited = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -30057,20 +30045,12 @@ static wc_test_ret_t dh_generate_test(WC_RNG *rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
 
-#if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FFDHE)
-    /* Use API. */
-    ret = wc_DhGenerateKeyPair(smallKey, rng, priv, &privSz, pub, &pubSz);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &smallKey->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0) {
-        ret = WC_TEST_RET_ENC_EC(ret);
-    }
-#else
+    /* Generation with this sub-DH_MIN_SIZE prime is intentionally not
+     * exercised here; wc_DhGenerateKeyPair is covered with a valid group in
+     * dh_fips_generate_test. */
     (void)rng;
-    #if defined(HAVE_FIPS) || !defined(WOLFSSL_NO_DH186)
+#if defined(HAVE_FIPS) || !defined(WOLFSSL_NO_DH186)
     ret = 0;
-    #endif
 #endif
 
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186)

@@ -1231,10 +1231,8 @@ enum {
         #elif WOLFSSL_HARDEN_TLS >= 112
             #define WOLFSSL_MIN_DHKEY_BITS 2048
         #endif
-    #elif defined(WOLFSSL_MAX_STRENGTH)
-        #define WOLFSSL_MIN_DHKEY_BITS 2048
     #else
-        #define WOLFSSL_MIN_DHKEY_BITS 1024
+        #define WOLFSSL_MIN_DHKEY_BITS DH_MIN_SIZE
     #endif
 #endif
 #if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_DHKEY_BITS < 2048 && \
@@ -1251,6 +1249,12 @@ enum {
 #endif
 #if (WOLFSSL_MIN_DHKEY_BITS > 16000)
     #error DH minimum bit size must not be greater than 16000
+#endif
+#if (WOLFSSL_MIN_DHKEY_BITS < DH_MIN_SIZE)
+    /* The TLS-layer minimum must not be looser than the wolfCrypt DH primitive
+     * minimum (DH_MIN_SIZE), otherwise a key size accepted during negotiation
+     * is later rejected by wc_DhAgree with WC_KEY_SIZE_E. */
+    #error "WOLFSSL_MIN_DHKEY_BITS must be >= DH_MIN_SIZE"
 #endif
 #define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
 /* set maximum DH key size allowed */

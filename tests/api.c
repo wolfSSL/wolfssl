@@ -12610,12 +12610,7 @@ static int test_wolfSSL_tmp_dh(void)
 #endif
     static const unsigned char g[] = { 0x02 };
     int gSz = (int)sizeof(g);
-#if !defined(NO_DSA)
-    char file[] = "./certs/dsaparams.pem";
-    DSA* dsa = NULL;
-#else
     char file[] = "./certs/dh2048.pem";
-#endif
     XFILE f = XBADFILE;
     int  bytes = 0;
     DH*  dh = NULL;
@@ -12657,14 +12652,7 @@ static int test_wolfSSL_tmp_dh(void)
 
     ExpectNotNull(bio = BIO_new_mem_buf((void*)buff, bytes));
 
-#if !defined(NO_DSA)
-    dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
-    ExpectNotNull(dsa);
-
-    dh = wolfSSL_DSA_dup_DH(dsa);
-#else
     dh = wolfSSL_PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
-#endif
     ExpectNotNull(dh);
 #if defined(WOLFSSL_DH_EXTRA) && \
     (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
@@ -12750,9 +12738,6 @@ static int test_wolfSSL_tmp_dh(void)
 #endif
 
     BIO_free(bio);
-#if !defined(NO_DSA)
-    DSA_free(dsa);
-#endif
     DH_free(dh);
     dh = NULL;
 #ifndef NO_WOLFSSL_CLIENT
@@ -20525,13 +20510,12 @@ static int test_wolfSSL_CTX_ctrl(void)
     char clientFile[] = "./certs/client-cert.pem";
     SSL_CTX* ctx = NULL;
     X509* x509 = NULL;
-#if !defined(NO_DH) && !defined(NO_DSA) && !defined(NO_BIO)
+#if !defined(NO_DH) && !defined(NO_BIO)
     byte buf[6000];
-    char file[] = "./certs/dsaparams.pem";
+    char file[] = "./certs/dh2048.pem";
     XFILE f = XBADFILE;
     int  bytes = 0;
     BIO* bio = NULL;
-    DSA* dsa = NULL;
     DH*  dh = NULL;
 #endif
 #ifdef HAVE_ECC
@@ -20550,7 +20534,7 @@ static int test_wolfSSL_CTX_ctrl(void)
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(clientFile,
          WOLFSSL_FILETYPE_PEM));
 
-#if !defined(NO_DH) && !defined(NO_DSA) && !defined(NO_BIO)
+#if !defined(NO_DH) && !defined(NO_BIO)
     /* Initialize DH */
     ExpectTrue((f = XFOPEN(file, "rb")) != XBADFILE);
     ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
@@ -20559,9 +20543,7 @@ static int test_wolfSSL_CTX_ctrl(void)
 
     ExpectNotNull(bio = BIO_new_mem_buf((void*)buf, bytes));
 
-    ExpectNotNull(dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL));
-
-    ExpectNotNull(dh = wolfSSL_DSA_dup_DH(dsa));
+    ExpectNotNull(dh = wolfSSL_PEM_read_bio_DHparams(bio, NULL, NULL, NULL));
 #endif
 #ifdef HAVE_ECC
     /* Initialize WOLFSSL_EC_KEY */
@@ -20606,7 +20588,7 @@ static int test_wolfSSL_CTX_ctrl(void)
     /* Tests should fail with passed in NULL pointer */
     ExpectIntEQ((int)wolfSSL_CTX_ctrl(ctx, SSL_CTRL_EXTRA_CHAIN_CERT, 0, NULL),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
-#if !defined(NO_DH) && !defined(NO_DSA)
+#if !defined(NO_DH)
     ExpectIntEQ((int)wolfSSL_CTX_ctrl(ctx, SSL_CTRL_SET_TMP_DH, 0, NULL),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 #endif
@@ -20634,7 +20616,7 @@ static int test_wolfSSL_CTX_ctrl(void)
     /* Test with SSL_CTRL_SET_TMP_DH
      * wolfSSL_CTX_ctrl should succesffuly call wolfSSL_SSL_CTX_set_tmp_dh
      */
-#if !defined(NO_DH) && !defined(NO_DSA) && !defined(NO_BIO)
+#if !defined(NO_DH) && !defined(NO_BIO)
     ExpectIntEQ((int)wolfSSL_CTX_ctrl(ctx, SSL_CTRL_SET_TMP_DH, 0, dh),
         SSL_SUCCESS);
 #endif
@@ -20674,13 +20656,10 @@ static int test_wolfSSL_CTX_ctrl(void)
 #endif
 #endif
     /* Cleanup and Pass */
-#if !defined(NO_DH) && !defined(NO_DSA)
-#ifndef NO_BIO
+#if !defined(NO_DH) && !defined(NO_BIO)
     BIO_free(bio);
-    DSA_free(dsa);
     DH_free(dh);
     dh = NULL;
-#endif
 #endif
 #ifdef HAVE_ECC
     wolfSSL_EC_KEY_free(ecKey);
