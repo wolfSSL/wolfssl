@@ -194,6 +194,10 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#if defined(WOLFSSL_VERSAL_GEN2_ASU)
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cryptocb.h>
+#endif
+
 #ifdef HAVE_INTEL_QA_SYNC
     #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
 #endif
@@ -568,6 +572,16 @@ int wolfCrypt_Init(void)
     #if defined(MAX3266X_AES) && defined(WOLF_CRYPTO_CB)
         ret = wc_CryptoCb_RegisterDevice(WOLFSSL_MAX3266X_DEVID, wc_MxcCryptoCb,
                                             NULL);
+        if (ret != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
+    /* Register the Versal Gen2 ASU device so wolfCrypt operations route to the
+     * ASU hardware. The ASU client must already be initialized by the
+     * application with XAsu_ClientInit. */
+    #if defined(WOLFSSL_VERSAL_GEN2_ASU) && defined(WOLF_CRYPTO_CB)
+        ret = wc_AsuCryptoCb_RegisterDevice(WOLFSSL_VERSAL_GEN2_ASU_DEVID);
         if (ret != 0) {
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }

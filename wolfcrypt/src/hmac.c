@@ -392,6 +392,23 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
 
     ret = HmacKeyCopyHash(src->macType, &src->hash, &dst->hash);
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_COPY)
+    /* The shallow copy above left dst sharing any per-context state a device
+     * hung off devCtx; let the device give dst its own copy. The struct and the
+     * hash context are already copied, so the callback only fixes up devCtx. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (src->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
+        int cbRet = wc_CryptoCb_Copy(src->devId, WC_ALGO_TYPE_HMAC,
+            src->macType, (void*)src, (void*)dst);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            ret = cbRet;
+    }
+#endif
+
     if (ret != 0)
         XMEMSET(dst, 0, sizeof(*dst));
     return ret;
@@ -1582,6 +1599,21 @@ void wc_HmacFree(Hmac* hmac)
 {
     if (hmac == NULL)
         return;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    /* Let a device release any per-context state it hung off devCtx directly. If
+     * a device handles it, devCtx is cleared and the finalize fallback below is
+     * skipped; otherwise this is a no-op and the fallback still runs. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (hmac->devId != INVALID_DEVID && hmac->devCtx != NULL)
+    #else
+    if (hmac->devCtx != NULL)
+    #endif
+    {
+        (void)wc_CryptoCb_Free(hmac->devId, WC_ALGO_TYPE_HMAC, hmac->macType, 0,
+            (void*)hmac);
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     /* handle cleanup case where final is not called */
