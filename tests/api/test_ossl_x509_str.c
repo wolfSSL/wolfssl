@@ -2335,6 +2335,72 @@ int test_X509_STORE_get0_objects(void)
     return EXPECT_RESULT();
 }
 
+/* Regression test for #10123: an X509_STORE with an intermediate in
+ * store->certs, enumerated repeatedly with a CRL present. get0_objects used to
+ * free the borrowed intermediate, faulting on a later deref. */
+int test_X509_STORE_get0_objects_extern_repeat(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_SIGNER_DER_CERT) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_TLS) && !defined(NO_WOLFSSL_DIR) && \
+    !defined(NO_RSA)
+    X509_STORE *store = NULL;
+    STACK_OF(X509_OBJECT) *objs = NULL;
+    int call;
+    int i;
+
+    ExpectNotNull(store = X509_STORE_new());
+    /* self-signed root -> store->trusted + CertManager */
+    ExpectIntEQ(X509_STORE_load_locations(store, caCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    /* non-self-signed intermediate -> store->certs (the borrowed cert) */
+    ExpectIntEQ(X509_STORE_load_locations(store,
+        "./certs/intermediate/ca-int-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    /* Repeated get0 + deref; the unfixed code faults once the borrowed
+     * intermediate is freed. */
+    for (call = 0; call < 4 && EXPECT_SUCCESS(); call++) {
+        int x509Cnt = 0;
+    #ifdef HAVE_CRL
+        int sawCrl = 0;
+    #endif
+        ExpectNotNull(objs = X509_STORE_get0_objects(store));
+        for (i = 0; i < sk_X509_OBJECT_num(objs) && EXPECT_SUCCESS(); i++) {
+            X509_OBJECT *obj = (X509_OBJECT*)sk_X509_OBJECT_value(objs, i);
+            if (X509_OBJECT_get_type(obj) == X509_LU_X509) {
+                X509 *x509 = X509_OBJECT_get0_X509(obj);
+                X509_NAME *nm = NULL;
+                ExpectNotNull(x509);
+                ExpectNotNull(nm = X509_get_subject_name(x509));
+                /* the deref that used to read freed memory; assert only when
+                 * SHA is built in (X509_NAME_hash returns 0 under NO_SHA) */
+            #ifndef NO_SHA
+                ExpectIntNE(X509_NAME_hash(nm), 0);
+            #else
+                (void)X509_NAME_hash(nm);
+            #endif
+                x509Cnt++;
+            }
+    #ifdef HAVE_CRL
+            else if (X509_OBJECT_get_type(obj) == X509_LU_CRL) {
+                sawCrl = 1;
+            }
+    #endif
+        }
+        /* exactly root + intermediate; == catches a lost or duplicated cert */
+        ExpectIntEQ(x509Cnt, 2);
+    #ifdef HAVE_CRL
+        /* the trailing CRL is what mis-shifted the old cleanup; assert it's
+         * present so the trigger stays exercised */
+        ExpectIntEQ(sawCrl, 1);
+    #endif
+    }
+
+    X509_STORE_free(store);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_get1_certs(void)
 {
     EXPECT_DECLS;
