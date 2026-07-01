@@ -973,7 +973,7 @@ void modp_iNTT2_ext(word32* a, size_t stride, const word32* igm,
 
     /*
      * We need 1/n in Montgomery representation, i.e. R/n. Since
-     * 1 <= logn <= 10, R/n is an integer; morever, R/n <= 2^30 < p,
+     * 1 <= logn <= 10, R/n is an integer; moreover, R/n <= 2^30 < p,
      * thus a simple shift will do.
      */
     ni = (word32)1 << (31 - logn);
@@ -1011,7 +1011,7 @@ word32 zint_sub(word32* a, const word32* b, size_t len, word32 ctl)
 }
 
 /*
- * Mutiply the provided big integer m with a small value x.
+ * Multiply the provided big integer m with a small value x.
  * This function assumes that x < 2^31. The carry word is returned.
  */
 word32 zint_mul_small(word32* m, size_t mlen, word32 x)
