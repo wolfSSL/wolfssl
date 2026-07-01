@@ -2223,6 +2223,40 @@ int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+
+#if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
+    word32 inSz, byte* out, word32 outSz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (shake) {
+        dev = wc_CryptoCb_FindDevice(shake->devId, WC_ALGO_TYPE_HASH);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+        cryptoInfo.hash.type = type;
+        cryptoInfo.hash.sha3 = shake; /* wc_Shake is a wc_Sha3 */
+        cryptoInfo.hash.in = in;
+        cryptoInfo.hash.inSz = inSz;
+        cryptoInfo.hash.digest = out;
+        cryptoInfo.hash.outSz = outSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_SHAKE128 || WOLFSSL_SHAKE256 */
 #endif /* WOLFSSL_SHA3 && (!HAVE_FIPS || FIPS_VERSION_GE(6, 0)) */
 
 #ifndef NO_HMAC
