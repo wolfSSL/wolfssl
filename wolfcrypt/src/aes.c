@@ -11416,6 +11416,9 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     ret = (ret & ~res);
     ret |= (res & WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
 #endif
+    if (ret != 0) {
+        ForceZero(out, sz);
+    }
     return ret;
 }
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
