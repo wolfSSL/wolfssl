@@ -37,16 +37,30 @@ fn wolfssl_repo_lib_dir() -> Result<String> {
     Ok(format!("{}/src/.libs", wolfssl_repo_base_dir()?))
 }
 
+fn wolfssl_user_prefix() -> Option<String> {
+    match env::var("WOLFSSL_PREFIX") {
+        Ok(prefix) => {
+            if !prefix.is_empty() && !prefix.contains('\n') {
+                Some(prefix)
+            } else {
+                println!("cargo:warning=ignoring WOLFSSL_PREFIX");
+                None
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 /// Returns the include directory for wolfssl headers.
 ///
 /// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/include`.
 /// Otherwise falls back to the repo root if it exists (for in-tree host builds).
 fn wolfssl_include_dir() -> Result<Option<String>> {
-    if let Ok(prefix) = env::var("WOLFSSL_PREFIX") {
+    if let Some(prefix) = wolfssl_user_prefix() {
         let include_dir = format!("{}/include", prefix);
         let wolfssl_dir = Path::new(&include_dir).join("wolfssl");
         if !wolfssl_dir.is_dir() {
-            println!("cargo:warning=WOLFSSL_PREFIX is set but {} does not exist", wolfssl_dir.display());
+            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", wolfssl_dir.display());
             return Ok(None);
         }
         Ok(Some(include_dir))
@@ -69,8 +83,14 @@ fn wolfssl_include_dir() -> Result<Option<String>> {
 /// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/lib`.
 /// Otherwise falls back to the in-tree build output directory if it exists.
 fn wolfssl_lib_dir() -> Result<Option<String>> {
-    if let Ok(prefix) = env::var("WOLFSSL_PREFIX") {
-        Ok(Some(format!("{}/lib", prefix)))
+    if let Some(prefix) = wolfssl_user_prefix() {
+        let lib_dir = format!("{}/lib", prefix);
+        let lib_path = Path::new(&lib_dir);
+        if !lib_path.is_dir() {
+            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", lib_dir);
+            return Ok(None);
+        }
+        Ok(Some(lib_dir))
     } else {
         let repo_lib_dir = wolfssl_repo_lib_dir()?;
         if Path::new(&repo_lib_dir).exists() {
