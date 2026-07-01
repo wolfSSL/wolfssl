@@ -15246,6 +15246,9 @@ authenv_atrbend:
             localIdx = idx;
 
             /* Get authTag OCTET STRING */
+            if (ret == 0 && localIdx >= pkiMsgSz) {
+                ret = BUFFER_E;
+            }
             if (ret == 0 && pkiMsg[localIdx] != ASN_OCTET_STRING) {
                 ret = ASN_PARSE_E;
             }
@@ -15305,6 +15308,17 @@ authenv_atrbend:
                 WOLFSSL_MSG("AuthEnvelopedData authTag too large for buffer");
                 ret = ASN_PARSE_E;
             }
+
+        #ifdef NO_PKCS7_STREAM
+            /* In the streaming build the block above re-buffers enough data for
+             * the auth tag. Without streaming, verify the tag fits within the
+             * provided input before copying. */
+            if (ret == 0 &&
+                    (idx > pkiMsgSz || authTagSz > pkiMsgSz - idx)) {
+                WOLFSSL_MSG("AuthEnvelopedData authTag exceeds input buffer");
+                ret = BUFFER_E;
+            }
+        #endif
 
             if (ret == 0) {
                 XMEMCPY(authTag, &pkiMsg[idx], authTagSz);
