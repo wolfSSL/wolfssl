@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Phase-5 FN-DSA (Falcon) interop harness.
+/* Phase-5 Falcon interop harness.
  *
  * Cross-checks the native wolfCrypt Falcon implementation (wc_falcon_*,
  * <wolfssl/wolfcrypt/falcon.h>) against liboqs (open-quantum-safe), called
@@ -35,7 +35,7 @@
  *   (3) native keygen+sign  -> native verify
  *   (4) native keygen+sign  -> liboqs verify
  *
- * Build wolfSSL with native FN-DSA (no liboqs needed by the library itself):
+ * Build wolfSSL with native Falcon (no liboqs needed by the library itself):
  *   ./configure --enable-falcon && make
  * Then compile + run against the built lib + liboqs:
  *   gcc -I. -I<oqs>/include scripts/falcon-interop.c \
@@ -60,7 +60,7 @@
     #error "This harness requires wolfSSL built with --enable-falcon"
 #endif
 
-static const char* kMsg = "wolfSSL FN-DSA native<->liboqs interop message";
+static const char* kMsg = "wolfSSL Falcon native<->liboqs interop message";
 
 typedef struct {
     byte        level;          /* FALCON_LEVEL1 / FALCON_LEVEL5 */
@@ -163,7 +163,7 @@ int main(void) {
     falcon_params l1 = { FALCON_LEVEL1, OQS_SIG_alg_falcon_512 };
     falcon_params l5 = { FALCON_LEVEL5, OQS_SIG_alg_falcon_1024 };
 
-    printf("FN-DSA native<->liboqs interop matrix\n");
+    printf("Falcon native<->liboqs interop matrix\n");
     if (wc_InitRng(&rng) != 0) { printf("rng init failed\n"); return 1; }
     f |= run_level(&l1, &rng);
     f |= run_level(&l5, &rng);

@@ -23,7 +23,7 @@
     \file wolfssl/wolfcrypt/wc_falcon_poly.h
 */
 
-/* FN-DSA / Falcon FFT-domain polynomial operations over the fpr seam. A real
+/* Falcon FFT-domain polynomial operations over the fpr seam. A real
  * polynomial of n coefficients is carried as n fpr values: the n/2 complex
  * evaluations at the roots of x^n+1, real parts in [0, n/2), imaginary parts in
  * [n/2, n) (see wc_falcon_fft.h). These primitives feed ffSampling and signing;

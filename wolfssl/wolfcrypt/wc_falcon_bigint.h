@@ -23,10 +23,10 @@
     \file wolfssl/wolfcrypt/wc_falcon_bigint.h
 */
 
-/* Self-contained big-integer / RNS arithmetic for native FN-DSA (Falcon)
+/* Self-contained big-integer / RNS arithmetic for native Falcon
  * key generation.
  *
- * FN-DSA key generation solves the NTRU equation g*F - f*G = q, which is
+ * Falcon key generation solves the NTRU equation g*F - f*G = q, which is
  * performed by the Falcon "ntru_solve" routine. That routine relies on a
  * specialized integer-only big-number layer using a residue number system
  * (RNS) of 31-bit prime moduli, with a small-modulus NTT for fast

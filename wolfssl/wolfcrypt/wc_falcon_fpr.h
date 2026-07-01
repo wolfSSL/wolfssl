@@ -23,7 +23,7 @@
     \file wolfssl/wolfcrypt/wc_falcon_fpr.h
 */
 
-/* The FN-DSA / Falcon floating-point primitive seam.
+/* The Falcon floating-point primitive seam.
  *
  * Everything above this seam (FFT, Gaussian samplers, ffSampling, parts of
  * keygen) is written ONCE against the abstract fpr_* API declared here, and is

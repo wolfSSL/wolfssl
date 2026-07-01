@@ -1,4 +1,4 @@
-name: FN-DSA (Falcon) native<->liboqs interop Tests
+name: Falcon native<->liboqs interop Tests
 
 # START OF COMMON SECTION
 on:
@@ -83,7 +83,7 @@ jobs:
           retention-days: 1
 
   falcon_interop:
-    name: Interop (native FN-DSA vs liboqs Falcon)
+    name: Interop (native Falcon vs liboqs Falcon)
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     needs: build_liboqs
@@ -117,13 +117,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Build wolfSSL with native FN-DSA
+      - name: Build wolfSSL with native Falcon
         run: |
           ./autogen.sh
           ./configure --enable-falcon --enable-experimental --enable-static
           make -j$(nproc)
 
-      - name: Build and run the interop harness (native FN-DSA vs liboqs)
+      - name: Build and run the interop harness (native Falcon vs liboqs)
         run: |
           gcc -O2 -I. -I$GITHUB_WORKSPACE/oqs-install/include \
             scripts/falcon-interop.c \

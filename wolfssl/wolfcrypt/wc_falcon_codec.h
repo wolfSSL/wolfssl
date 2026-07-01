@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FN-DSA (FIPS 206 draft) / Falcon encode/decode routines for the
+/* Falcon encode/decode routines for the
  * signing and key-generation paths. The verification-side decoders
  * (modq_decode, comp_decode) live as statics in wc_falcon.c and are not
  * referenced here. */

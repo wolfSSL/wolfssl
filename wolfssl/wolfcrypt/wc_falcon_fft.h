@@ -23,7 +23,7 @@
     \file wolfssl/wolfcrypt/wc_falcon_fft.h
 */
 
-/* FN-DSA / Falcon FFT over the fpr seam. A real polynomial of n coefficients is
+/* Falcon FFT over the fpr seam. A real polynomial of n coefficients is
  * carried as n fpr values: the n/2 complex evaluations at the roots of x^n+1,
  * real parts in [0, n/2), imaginary parts in [n/2, n). Used by the Gaussian
  * sampler and signing; not needed for verification. */
