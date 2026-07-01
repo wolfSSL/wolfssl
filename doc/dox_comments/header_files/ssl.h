@@ -13859,6 +13859,14 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 
     \param cert a pointer to the wolfSSL_X509 structure.
 
+    \warning The returned value is a bare C string with no length. A dNSName,
+    rfc822Name, or uniformResourceIdentifier SAN may legally contain an embedded
+    NUL byte (RFC 6125 Sec. 6.3 treats such a name as an invalid presented
+    identifier, not a malformed certificate, so the certificate still parses),
+    which silently truncates the returned string. Do not use strlen or strcmp on
+    the result for security comparisons; use wolfSSL_X509_get_ext_d2i and the
+    GENERAL_NAME ASN1_STRING length instead.
+
     _Example_
     \code
     WOLFSSL_X509 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
@@ -13872,6 +13880,7 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 
     \sa wolfSSL_X509_get_issuer_name
     \sa wolfSSL_X509_get_subject_name
+    \sa wolfSSL_X509_get_ext_d2i
 */
 char* wolfSSL_X509_get_next_altname(WOLFSSL_X509*);
 

@@ -3125,19 +3125,6 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
     return ret;
 }
 
-/* Reject IA5String SAN content that cannot legally appear in
- * dNSName / rfc822Name / URI per RFC 5280 4.2.1.6. Currently just NUL. */
-static int DecodeGeneralNameCheckChars(const byte* input, int len)
-{
-    int i;
-    for (i = 0; i < len; i++) {
-        if (input[i] == 0) {
-            return ASN_PARSE_E;
-        }
-    }
-    return 0;
-}
-
 static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -3200,9 +3187,12 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             if ((word32)strLen + idx > sz) {
                 return BUFFER_E;
             }
-            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
-                return ASN_PARSE_E;
-            }
+            /* An embedded NUL makes a dNSName an invalid presented identifier
+             * (RFC 6125 Sec. 6.3), not a malformed certificate. Store it so
+             * its presence still suppresses Subject CN fallback; length-based
+             * matching in MatchDomainName never matches a NUL-free hostname,
+             * giving DOMAIN_NAME_MISMATCH at verification rather than
+             * ASN_PARSE_E at parse time. */
 
             dnsEntry = AltNameNew(cert->heap);
             if (dnsEntry == NULL) {
@@ -3292,9 +3282,6 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             if ((word32)strLen + idx > sz) {
                 return BUFFER_E;
             }
-            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
-                return ASN_PARSE_E;
-            }
 
             emailEntry = AltNameNew(cert->heap);
             if (emailEntry == NULL) {
@@ -3339,10 +3326,6 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             /* check that strLen at index is not past input buffer */
             if ((word32)strLen + idx > sz) {
                 return BUFFER_E;
-            }
-
-            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
-                return ASN_PARSE_E;
             }
 
         #ifndef WOLFSSL_NO_ASN_STRICT
