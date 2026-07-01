@@ -23434,12 +23434,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         SendAlert(ssl, alert_fatal,
                             wolfssl_alert_protocol_version);
                     break;
-#ifdef HAVE_MAX_FRAGMENT
                 case WC_NO_ERR_TRACE(LENGTH_ERROR):
+                    /* invalid record length, RFC 8446 section 5.1 */
                     SendAlert(ssl, alert_fatal, record_overflow);
                     break;
-#endif /* HAVE_MAX_FRAGMENT */
-default:
+                default:
                     break;
                 }
                 return ret;

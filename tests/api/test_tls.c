@@ -192,6 +192,111 @@ int test_tls13_unexpected_ccs(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A record whose length field exceeds the protocol limit must be answered
+ * with a record_overflow alert (RFC 8446 section 5.1, RFC 5246 section 6.2.1).
+ * Before the fix the alert was only sent when HAVE_MAX_FRAGMENT was defined,
+ * so a default build dropped the connection with no alert on the wire. */
+int test_tls_record_overflow_alert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+    /* Record header only: handshake type, legacy version, length 0xFFFF.
+     * 0xFFFF is past MAX_RECORD_SIZE + MAX_MSG_EXTRA, so GetRecordHeader()
+     * returns LENGTH_ERROR before any body bytes are needed. The handshake
+     * type keeps the server off the OLD_HELLO_ALLOWED SSLv2 detection path. */
+    const byte oversized[] = {
+        0x16,       /* handshake type */
+        0x03, 0x03, /* legacy record version */
+        0xFF, 0xFF  /* length 65535 */
+    };
+    /* Cleartext record_overflow alert the peer is expected to emit. */
+    const byte overflowAlert[] = {
+        0x15,       /* alert record */
+        0x03, 0x03, /* version */
+        0x00, 0x02, /* length */
+        0x02,       /* level: fatal */
+        0x16        /* description: record_overflow (22) */
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+#ifdef WOLFSSL_TLS13
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL_ALERT_HISTORY history;
+    byte readBuf[64];
+#endif
+
+    /* Server side before negotiation: the alert is in the clear, so the exact
+     * record can be matched on the wire. */
+#ifndef WOLFSSL_NO_TLS12
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)oversized, sizeof(oversized)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR), LENGTH_ERROR);
+    ExpectIntEQ(test_ctx.c_len, sizeof(overflowAlert));
+    ExpectBufEQ(test_ctx.c_buff, overflowAlert, sizeof(overflowAlert));
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_s = NULL;
+    ctx_s = NULL;
+#endif /* !WOLFSSL_NO_TLS12 */
+
+#ifdef WOLFSSL_TLS13
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)oversized, sizeof(oversized)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR), LENGTH_ERROR);
+    ExpectIntEQ(test_ctx.c_len, sizeof(overflowAlert));
+    ExpectBufEQ(test_ctx.c_buff, overflowAlert, sizeof(overflowAlert));
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_s = NULL;
+    ctx_s = NULL;
+
+    /* Client side after a completed TLS 1.3 handshake: the reported scenario.
+     * The alert is encrypted now, so it is decoded by letting the server read
+     * it and inspecting its received-alert history. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drop any queued post-handshake traffic (session tickets) so only the
+     * crafted record and the resulting alert remain in the buffers. */
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char*)oversized, sizeof(oversized)), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
+            WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR), LENGTH_ERROR);
+
+    /* Server consumes the encrypted alert and records it. */
+    ExpectIntLE(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 0);
+    XMEMSET(&history, 0, sizeof(history));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_rx.code, record_overflow);
+    ExpectIntEQ(history.last_rx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* WOLFSSL_TLS13 */
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && (!NO_TLS12 || TLS13) */
+    return EXPECT_RESULT();
+}
+
 int test_tls12_curve_intersection(void) {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
