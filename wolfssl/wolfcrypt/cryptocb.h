@@ -245,6 +245,25 @@ typedef struct wc_CryptoInfo {
                 const ecc_key* key;
                 int*           sigSize;
             } ecc_get_sig_size;
+            struct {
+                ecc_key* key;       /* routing (devId), curve (key->dp), heap,
+                                     * resident/sw private scalar d            */
+                byte*    pubOut;    /* [out] X9.63 0x04||X||Y, uncompressed     */
+                word32*  pubOutSz;  /* in: buf size; out: bytes written         */
+            } ecc_make_pub;
+            #ifdef HAVE_ECC_CHECK_KEY
+            struct {
+                ecc_key*    key;      /* routing, curve, heap, resident priv    */
+                const byte* pubKey;   /* X9.63 0x04||X||Y of key->pubkey; NULL
+                                       * when key state is ECC_PRIVATEKEY_ONLY  */
+                word32      pubKeySz;  /* 0 when pubKey is NULL                 */
+                int         checkOrder; /* 1: validate the point has the curve
+                                          * order (point * order == infinity)   */
+                int         checkPriv;  /* 1: also validate the private part
+                                          * (scalar range, consistency with the
+                                          * public point)                       */
+            } ecc_check_pub;          /* distinct from ecc_check (priv-key cmp)  */
+            #endif
         #endif /* HAVE_ECC */
         #ifdef HAVE_CURVE25519
             struct {
@@ -748,6 +767,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
 
 WOLFSSL_LOCAL int wc_CryptoCb_EccGetSize(const ecc_key* key, int* keySize);
 WOLFSSL_LOCAL int wc_CryptoCb_EccGetSigSize(const ecc_key* key, int* sigSize);
+
+WOLFSSL_LOCAL int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
+#ifdef HAVE_ECC_CHECK_KEY
+WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder,
+    int checkPriv);
+#endif
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519

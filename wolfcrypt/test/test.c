@@ -42783,7 +42783,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
+    (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_SWDEV)) && \
+    !defined(NO_ECC_SECP)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!\n");
@@ -72303,6 +72304,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blob_test(void)
 /* Example custom context for crypto callback */
 typedef struct {
     int exampleVar; /* flag for testing if only crypt is enabled. */
+#ifdef HAVE_ECC
+    int eccMakePubCount;  /* EC make-pub callback invocations */
+    int eccCheckPubCount; /* EC check-pubkey callback invocations */
+    int eccMakePubBadFormat; /* when set, return a malformed (non-uncompressed)
+                              * point to exercise the wrapper's BUFFER_E path */
+    int eccMakePubBadLen; /* when set, claim a result size different from the
+                           * curve's X9.63 length to exercise the wrapper's
+                           * size check */
+    int eccCheckPubExpectZeroPoint; /* require serialized 0,0 input */
+    int eccCheckPubSawZeroPoint;    /* EC check-pubkey saw X9.63 0,0 */
+    ecc_key* eccResidentKey; /* when set, the make-pub callback emits this key's
+                              * public point, simulating a private scalar
+                              * resident in the device (input key->k empty) */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -72895,6 +72910,33 @@ exit_onlycb:
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_AES */
 
+#if defined(HAVE_ECC) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(HAVE_ECC_KEY_EXPORT)
+/* Serialize pub to X9.63 uncompressed (0x04 || X || Y) using the curve size
+ * from dp, so custom-curve keys (idx == ECC_CUSTOM_IDX) work too;
+ * wc_ecc_export_point_der rejects negative curve indices. */
+static int myCryptoCbExportPointX963(const ecc_set_type* dp, ecc_point* pub,
+    byte* out, word32* outSz)
+{
+    int    ret;
+    word32 curveSz = (word32)dp->size;
+    word32 ptSz    = 1 + 2 * curveSz;
+    word32 xSz     = curveSz;
+    word32 ySz     = curveSz;
+
+    if (*outSz < ptSz)
+        return BUFFER_E;
+    out[0] = ECC_POINT_UNCOMP;
+    ret = wc_export_int(pub->x, out + 1, &xSz, curveSz, WC_TYPE_UNSIGNED_BIN);
+    if (ret == MP_OKAY)
+        ret = wc_export_int(pub->y, out + 1 + curveSz, &ySz, curveSz,
+            WC_TYPE_UNSIGNED_BIN);
+    if (ret == MP_OKAY)
+        *outSz = ptSz;
+    return ret;
+}
+#endif /* HAVE_ECC && !WOLFSSL_NO_MALLOC && HAVE_ECC_KEY_EXPORT */
+
 /* Example crypto dev callback function that calls software version */
 static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
@@ -73132,6 +73174,132 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 ret = 0;
             }
         }
+        else if (info->pk.type == WC_PK_TYPE_EC_MAKE_PUB) {
+        #if !defined(WOLFSSL_NO_MALLOC) && defined(HAVE_ECC_KEY_EXPORT)
+            ecc_key*   k = info->pk.ecc_make_pub.key;
+            ecc_point* pub;
+            if (myCtx->eccResidentKey != NULL) {
+                /* Secure-element case: the private scalar lives in the device,
+                 * so the input key's k is empty. Emit the resident key's
+                 * public point directly. Reaching this code at all proves the
+                 * dispatch ran before ecc_make_pub_ex's software
+                 * private-scalar range check. */
+                ecc_key* src = myCtx->eccResidentKey;
+                ret = myCryptoCbExportPointX963(src->dp, &src->pubkey,
+                    info->pk.ecc_make_pub.pubOut,
+                    info->pk.ecc_make_pub.pubOutSz);
+                myCtx->eccMakePubCount++;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                k->devId = INVALID_DEVID;
+                pub = wc_ecc_new_point_h(HEAP_HINT);
+                if (pub == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    /* derive Q = d*G then emit X9.63 uncompressed bytes */
+                    ret = wc_ecc_make_pub(k, pub);
+                    if (ret == 0)
+                        ret = myCryptoCbExportPointX963(k->dp, pub,
+                            info->pk.ecc_make_pub.pubOut,
+                            info->pk.ecc_make_pub.pubOutSz);
+                    /* negative test: corrupt the X9.63 tag so the wrapper
+                     * rejects the result with BUFFER_E instead of accepting
+                     * it */
+                    if (ret == 0 && myCtx->eccMakePubBadFormat)
+                        info->pk.ecc_make_pub.pubOut[0] = ECC_POINT_COMP_EVEN;
+                    /* negative test: claim a result size different from the
+                     * curve's X9.63 length so the wrapper rejects the result
+                     * with BUFFER_E instead of accepting it */
+                    if (ret == 0 && myCtx->eccMakePubBadLen)
+                        (*info->pk.ecc_make_pub.pubOutSz)++;
+                    wc_ecc_del_point_h(pub, HEAP_HINT);
+                }
+                myCtx->eccMakePubCount++;
+                /* reset devId */
+                k->devId = devIdArg;
+            }
+        #else
+            ret = CRYPTOCB_UNAVAILABLE; /* no software emulation available */
+        #endif
+        }
+        #ifdef HAVE_ECC_CHECK_KEY
+        else if (info->pk.type == WC_PK_TYPE_EC_CHECK_PUB_KEY) {
+            ecc_key* k = info->pk.ecc_check_pub.key;
+            int validatedFromWire = 0;
+            myCtx->eccCheckPubCount++;
+            if (info->pk.ecc_check_pub.pubKeySz == 0) {
+                /* no host-side public point and this software device holds no
+                 * resident key, so there is nothing to validate (matches the
+                 * software answer for a missing public point) */
+                ret = ECC_INF_E;
+            }
+            else {
+                ret = 0;
+                if (myCtx != NULL && myCtx->eccCheckPubExpectZeroPoint) {
+                    const byte* pub = info->pk.ecc_check_pub.pubKey;
+                    word32 curveSz = (word32)k->dp->size;
+                    word32 ptSz = 1 + 2 * curveSz;
+                    word32 i;
+
+                    if (info->pk.ecc_check_pub.pubKeySz != ptSz ||
+                            pub[0] != ECC_POINT_UNCOMP) {
+                        ret = BAD_STATE_E;
+                    }
+                    for (i = 1; ret == 0 && i < ptSz; i++) {
+                        if (pub[i] != 0)
+                            ret = BAD_STATE_E;
+                    }
+                    if (ret == 0)
+                        myCtx->eccCheckPubSawZeroPoint = 1;
+                }
+            #ifdef HAVE_ECC_KEY_IMPORT
+                /* vault-style consumption: rebuild the public key from the
+                 * wire bytes and validate the rebuilt key, proving the
+                 * serialized point is sufficient and consistent with
+                 * key->pubkey. The named-curve import does not apply to
+                 * custom-curve keys (idx == ECC_CUSTOM_IDX). */
+                if (k->idx >= 0) {
+                    WC_DECLARE_VAR(pubOnly, ecc_key, 1, HEAP_HINT);
+                    WC_ALLOC_VAR(pubOnly, ecc_key, 1, HEAP_HINT);
+                    if (!WC_VAR_OK(pubOnly))
+                        ret = MEMORY_E;
+                    else
+                        ret = wc_ecc_init_ex(pubOnly, HEAP_HINT, INVALID_DEVID);
+                    if (ret == 0) {
+                        ret = wc_ecc_import_x963_ex(
+                            info->pk.ecc_check_pub.pubKey,
+                            info->pk.ecc_check_pub.pubKeySz, pubOnly,
+                            k->dp->id);
+                        if (ret == 0 && wc_ecc_cmp_point(&pubOnly->pubkey,
+                                &k->pubkey) != MP_EQ) {
+                            /* wire bytes disagree with key->pubkey */
+                            ret = BAD_STATE_E;
+                        }
+                        if (ret == 0)
+                            ret = wc_ecc_check_key(pubOnly);
+                        wc_ecc_free(pubOnly);
+                    }
+                    WC_FREE_VAR(pubOnly, HEAP_HINT);
+                    validatedFromWire = 1;
+                }
+            #endif
+                /* private/resident part (and custom-curve keys, where the
+                 * named-curve import above is unavailable): validate via the
+                 * key handle */
+                if (ret == 0 && (!validatedFromWire ||
+                        (info->pk.ecc_check_pub.checkPriv &&
+                         k->type == ECC_PRIVATEKEY))) {
+                    /* set devId to invalid, so software is used */
+                    k->devId = INVALID_DEVID;
+                    ret = wc_ecc_check_key(k);
+                    /* reset devId */
+                    k->devId = devIdArg;
+                }
+            }
+        }
+        #endif
     #endif /* HAVE_ECC */
     #ifdef HAVE_CURVE25519
         if (info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN) {
@@ -74943,6 +75111,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
     /* example data for callback */
     myCtx.exampleVar = 1;
+#ifdef HAVE_ECC
+    myCtx.eccMakePubCount = 0;
+    myCtx.eccCheckPubCount = 0;
+    myCtx.eccMakePubBadFormat = 0;
+    myCtx.eccMakePubBadLen = 0;
+    myCtx.eccCheckPubExpectZeroPoint = 0;
+    myCtx.eccCheckPubSawZeroPoint = 0;
+    myCtx.eccResidentKey = NULL;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -74974,6 +75151,206 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = ecc_test();
     PRIVATE_KEY_LOCK();
+    /* Confirm the new ECC pubkey callbacks were routed through the device and
+     * not silently handled in software. The check-pubkey callback is only
+     * exercised when wc_ecc_check_key is built (HAVE_ECC_CHECK_KEY) and the
+     * ecc_test calls to it are not skipped (WC_TEST_SKIP_ECC_CHECK_KEY); the
+     * counter legitimately stays 0 otherwise. CAAM is excluded because the
+     * check-pubkey dispatch in _ecc_validate_public_key is compiled out there
+     * (CAAM uses software validation failure to detect black keys). */
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && defined(HAVE_ECC_CHECK_KEY) && \
+    !defined(WC_TEST_SKIP_ECC_CHECK_KEY) && !defined(WOLFSSL_CAAM)
+    if (ret == 0 && myCtx.eccCheckPubCount == 0)
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+    /* Regression: an explicit public point with zero coordinates must cross
+     * the callback boundary as X9.63 0x04||0||0, not as pubKey = NULL. */
+#if !defined(WOLFSSL_SWDEV) && defined(HAVE_ECC_CHECK_KEY) && \
+    !defined(WOLFSSL_CAAM) && !defined(NO_ECC256)
+    if (ret == 0) {
+        WC_DECLARE_VAR(zeroKey, ecc_key, 1, HEAP_HINT);
+        int haveZeroKey = 0;
+
+        WC_ALLOC_VAR(zeroKey, ecc_key, 1, HEAP_HINT);
+        PRIVATE_KEY_UNLOCK();
+        if (!WC_VAR_OK(zeroKey))
+            ret = MEMORY_E;
+        else
+            ret = wc_ecc_init_ex(zeroKey, HEAP_HINT, devId);
+        if (ret == 0) {
+            haveZeroKey = 1;
+            ret = wc_ecc_set_curve(zeroKey, 32, ECC_SECP256R1);
+        }
+        if (ret == 0) {
+            zeroKey->type = ECC_PUBLICKEY;
+            myCtx.eccCheckPubExpectZeroPoint = 1;
+            myCtx.eccCheckPubSawZeroPoint = 0;
+            ret = wc_ecc_check_key(zeroKey);
+            myCtx.eccCheckPubExpectZeroPoint = 0;
+
+            if (ret == 0) {
+                ret = WC_TEST_RET_ENC_NC; /* invalid point was accepted */
+            }
+            else if (!myCtx.eccCheckPubSawZeroPoint) {
+                ret = WC_TEST_RET_ENC_NC; /* callback saw NULL/other point */
+            }
+            else {
+                ret = 0; /* expected validation failure after serialization */
+            }
+        }
+        myCtx.eccCheckPubExpectZeroPoint = 0;
+        if (haveZeroKey)
+            wc_ecc_free(zeroKey);
+        WC_FREE_VAR(zeroKey, HEAP_HINT);
+        PRIVATE_KEY_LOCK();
+    }
+#endif
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(NO_ECC_SECP) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(NO_ECC256) && \
+    defined(HAVE_ECC_KEY_EXPORT)
+    if (ret == 0 && myCtx.eccMakePubCount == 0)
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+    /* Exercise the make-pub wrapper's device-result validation and the
+     * resident-key dispatch path. Only meaningful where myCryptoDevCb (not
+     * swdev) services the make-pub callback.
+     *
+     * WOLFSSL_SE050 is excluded: its wc_ecc_make_key generates the key in the
+     * element, so srcKey has no host-side scalar (key->k) for the callback's
+     * software Q = d*G derivation to use. */
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_SWDEV) && !defined(NO_ECC_SECP) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SE050) && \
+    !defined(NO_ECC256) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+    if (ret == 0) {
+        /* generated keypair: private scalar for the negative tests, public
+         * point for the resident-key test */
+        WC_DECLARE_VAR(srcKey, ecc_key, 1, HEAP_HINT);
+        /* device-backed key with an empty private scalar */
+        WC_DECLARE_VAR(resKey, ecc_key, 1, HEAP_HINT);
+        WC_DECLARE_VAR(eccRng, WC_RNG, 1, HEAP_HINT);
+        ecc_point* outPub = NULL;
+        int        haveSrc = 0, haveRes = 0, haveRng = 0;
+        int        beforeCount = 0;
+
+        WC_ALLOC_VAR(srcKey, ecc_key, 1, HEAP_HINT);
+        WC_ALLOC_VAR(resKey, ecc_key, 1, HEAP_HINT);
+        WC_ALLOC_VAR(eccRng, WC_RNG, 1, HEAP_HINT);
+        PRIVATE_KEY_UNLOCK();
+        if (!WC_VAR_OK(srcKey) || !WC_VAR_OK(resKey) || !WC_VAR_OK(eccRng))
+            ret = MEMORY_E;
+        else
+            ret = wc_InitRng_ex(eccRng, HEAP_HINT, devId);
+        if (ret == 0) {
+            haveRng = 1;
+            ret = wc_ecc_init_ex(srcKey, HEAP_HINT, devId);
+        }
+        if (ret == 0) {
+            haveSrc = 1;
+            ret = wc_ecc_make_key(eccRng, 32, srcKey);
+        }
+        if (ret == 0) {
+            outPub = wc_ecc_new_point_h(HEAP_HINT);
+            if (outPub == NULL)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        /* Negative test: when the device returns a malformed
+         * (non-uncompressed) point, wc_CryptoCb_EccMakePub must reject it
+         * with BUFFER_E rather than accept a bad public key. */
+        if (ret == 0) {
+            myCtx.eccMakePubBadFormat = 1;
+            ret = wc_ecc_make_pub(srcKey, outPub);
+            myCtx.eccMakePubBadFormat = 0;
+            /* expect the wrapper to reject the malformed point */
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
+                ret = 0;
+            else if (ret == 0)
+                ret = WC_TEST_RET_ENC_NC; /* must not silently succeed */
+            else
+                ret = WC_TEST_RET_ENC_EC(ret); /* unexpected error */
+        }
+        /* Negative test: when the device claims a result size different from
+         * the curve's X9.63 length, wc_CryptoCb_EccMakePub must reject it
+         * with BUFFER_E rather than silently truncate it. */
+        if (ret == 0) {
+            myCtx.eccMakePubBadLen = 1;
+            ret = wc_ecc_make_pub(srcKey, outPub);
+            myCtx.eccMakePubBadLen = 0;
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
+                ret = 0;
+            else if (ret == 0)
+                ret = WC_TEST_RET_ENC_NC; /* must not silently succeed */
+            else
+                ret = WC_TEST_RET_ENC_EC(ret); /* unexpected error */
+        }
+        /* Regression: a key whose private scalar is resident in the device
+         * (the input key's k is empty here) must still produce its public
+         * key. The make-pub dispatch has to run before ecc_make_pub_ex's
+         * software private-scalar range check; otherwise this returns
+         * ECC_PRIV_KEY_E and the callback is never reached. */
+        if (ret == 0)
+            ret = wc_ecc_init_ex(resKey, HEAP_HINT, devId);
+        if (ret == 0) {
+            haveRes = 1;
+            /* device-backed key: same curve, but no private scalar present */
+            ret = wc_ecc_set_curve(resKey, 32, ECC_SECP256R1);
+        }
+        if (ret == 0) {
+            /* device serves make-pub from srcKey's resident public point */
+            myCtx.eccResidentKey = srcKey;
+            beforeCount = myCtx.eccMakePubCount;
+            ret = wc_ecc_make_pub(resKey, NULL);
+            myCtx.eccResidentKey = NULL;
+
+            if (ret != 0) {
+                /* before the fix this is ECC_PRIV_KEY_E: the empty scalar was
+                 * rejected before the dispatch could run */
+                ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            else if (myCtx.eccMakePubCount != beforeCount + 1) {
+                ret = WC_TEST_RET_ENC_NC; /* callback was bypassed */
+            }
+            else if (wc_ecc_cmp_point(&resKey->pubkey, &srcKey->pubkey)
+                     != MP_EQ) {
+                ret = WC_TEST_RET_ENC_NC; /* wrong public point produced */
+            }
+        }
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        /* Regression: make-pub via the device for a custom-curve key
+         * (idx == ECC_CUSTOM_IDX): the handler must serialize the point
+         * using key->dp->size, not ecc_sets[key->idx]. Reuse srcKey's P-256
+         * parameters under a custom-curve identity. */
+        if (ret == 0)
+            ret = wc_ecc_set_custom_curve(srcKey,
+                wc_ecc_get_curve_params(srcKey->idx));
+        if (ret == 0) {
+            ret = wc_ecc_make_pub(srcKey, outPub);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else if (wc_ecc_cmp_point(outPub, &srcKey->pubkey) != MP_EQ)
+                ret = WC_TEST_RET_ENC_NC; /* wrong public point produced */
+        }
+    #endif /* WOLFSSL_CUSTOM_CURVES */
+        if (outPub != NULL)
+            wc_ecc_del_point_h(outPub, HEAP_HINT);
+        if (haveRes)
+            wc_ecc_free(resKey);
+        if (haveSrc)
+            wc_ecc_free(srcKey);
+        if (haveRng)
+            wc_FreeRng(eccRng);
+        WC_FREE_VAR(srcKey, HEAP_HINT);
+        WC_FREE_VAR(resKey, HEAP_HINT);
+        WC_FREE_VAR(eccRng, HEAP_HINT);
+        PRIVATE_KEY_LOCK();
+    }
+#endif
 #endif
 #if defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_SWDEV)
     PRIVATE_KEY_UNLOCK();

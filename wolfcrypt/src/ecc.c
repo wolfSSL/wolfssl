@@ -293,8 +293,7 @@ ECC Curve Sizes:
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
         !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB)
     #undef  HAVE_ECC_MAKE_PUB
     #define HAVE_ECC_MAKE_PUB
 #endif
@@ -5435,64 +5434,28 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
 }
 
 
-/* create the public ECC key from a private key
+#if defined(HAVE_ECC_MAKE_PUB) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+/* compute the public key Q = d*G in software.
  *
- * key     an initialized private key to generate public part from
- * curve   [in]curve for key, cannot be NULL
- * pubOut  [out]ecc_point holding the public key, if NULL then public key part
- *         is cached in key instead.
- *
- * Note this function is local to the file because of the argument type
- *      ecc_curve_spec. Having this argument allows for not having to load the
- *      curve type multiple times when generating a key with wc_ecc_make_key().
- * For async the results are placed directly into pubOut, so this function
- *      does not need to be called again
+ * key    private key holding the scalar d, must be present and in range
+ * curve  [in]curve for key, cannot be NULL
+ * pub    [out]initialized ecc_point receiving the public key
+ * rng    optional RNG for a timing-resistant point multiply, may be NULL
  *
  * returns MP_OKAY on success
  */
-static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
-        ecc_point* pubOut, WC_RNG* rng)
+static int ecc_make_pub_sw(ecc_key* key, ecc_curve_spec* curve,
+        ecc_point* pub, WC_RNG* rng)
 {
     int err = MP_OKAY;
-#ifdef HAVE_ECC_MAKE_PUB
-    ecc_point* pub;
-#endif /* HAVE_ECC_MAKE_PUB */
 
     (void)rng;
 
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifdef HAVE_ECC_MAKE_PUB
-    /* if ecc_point passed in then use it as output for public key point */
-    if (pubOut != NULL) {
-        pub = pubOut;
-    }
-    else {
-        /* caching public key making it a ECC_PRIVATEKEY instead of
-           ECC_PRIVATEKEY_ONLY */
-        pub = &key->pubkey;
-        key->type = ECC_PRIVATEKEY_ONLY;
-    }
-
-    if ((err == MP_OKAY) && (mp_iszero(ecc_get_k(key)) ||
-            mp_isneg(ecc_get_k(key)) ||
-            (mp_cmp(ecc_get_k(key), curve->order) != MP_LT))) {
+    /* The private scalar must be in range for the base-point multiply
+     * below. */
+    if (mp_iszero(ecc_get_k(key)) || mp_isneg(ecc_get_k(key)) ||
+            (mp_cmp(ecc_get_k(key), curve->order) != MP_LT)) {
         err = ECC_PRIV_KEY_E;
-    }
-
-    if (err == MP_OKAY) {
-    #ifndef ALT_ECC_SIZE
-        err = mp_init_multi(pub->x, pub->y, pub->z, NULL, NULL, NULL);
-    #else
-        pub->x = (mp_int*)&pub->xyz[0];
-        pub->y = (mp_int*)&pub->xyz[1];
-        pub->z = (mp_int*)&pub->xyz[2];
-        alt_fp_init(pub->x);
-        alt_fp_init(pub->y);
-        alt_fp_init(pub->z);
-    #endif
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC_KEYGEN) && \
@@ -5584,6 +5547,106 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
     }
 #endif /* WOLFSSL_SP_MATH */
     } /* END: Software Crypto */
+
+    return err;
+}
+#endif /* HAVE_ECC_MAKE_PUB && !WOLF_CRYPTO_CB_ONLY_ECC */
+
+/* create the public ECC key from a private key
+ *
+ * key     an initialized private key to generate public part from
+ * curve   [in]curve for key, cannot be NULL
+ * pubOut  [out]ecc_point holding the public key, if NULL then public key part
+ *         is cached in key instead.
+ *
+ * Note this function is local to the file because of the argument type
+ *      ecc_curve_spec. Having this argument allows for not having to load the
+ *      curve type multiple times when generating a key with wc_ecc_make_key().
+ * For async the results are placed directly into pubOut, so this function
+ *      does not need to be called again
+ *
+ * returns MP_OKAY on success
+ */
+static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
+        ecc_point* pubOut, WC_RNG* rng)
+{
+    int err = MP_OKAY;
+#ifdef HAVE_ECC_MAKE_PUB
+    ecc_point* pub;
+    int doneInCb = 0;
+#endif /* HAVE_ECC_MAKE_PUB */
+
+    (void)rng;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef HAVE_ECC_MAKE_PUB
+    /* if ecc_point passed in then use it as output for public key point */
+    if (pubOut != NULL) {
+        pub = pubOut;
+    }
+    else {
+        /* caching public key making it a ECC_PRIVATEKEY instead of
+           ECC_PRIVATEKEY_ONLY */
+        pub = &key->pubkey;
+        key->type = ECC_PRIVATEKEY_ONLY;
+    }
+
+    if (err == MP_OKAY) {
+    #ifndef ALT_ECC_SIZE
+        err = mp_init_multi(pub->x, pub->y, pub->z, NULL, NULL, NULL);
+    #else
+        pub->x = (mp_int*)&pub->xyz[0];
+        pub->y = (mp_int*)&pub->xyz[1];
+        pub->z = (mp_int*)&pub->xyz[2];
+        alt_fp_init(pub->x);
+        alt_fp_init(pub->y);
+        alt_fp_init(pub->z);
+    #endif
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    /* offload Q = d*G to the device; fall through to software only when the
+     * device reports the operation unavailable.
+     *
+     * Under WOLF_CRYPTO_CB_FIND the devId gate is dropped so a find callback
+     * can route a key initialized with INVALID_DEVID. This helper is also
+     * shared by internal callers that compute a point from a transient scalar
+     * in key->k - the ECDSA software-sign nonce R = k*G (ecc_sign_hash_sw),
+     * keygen public-part derivation, and verify-time public-key recovery.
+     * Reaching the software signer means the device already declined to sign
+     * (the whole-sign offload wc_CryptoCb_EccSign ran first), so a find
+     * callback that hands this make-pub to a device notwithstanding the
+     * INVALID_DEVID is expected to likewise decline it. If it does not decline
+     * *and* the device ignores key->k (e.g. relying on an internal key
+     * representation), it returns d*G instead of the requested k*G and the
+     * resulting signature is wrong - but such a scenario is very unlikely. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((err == MP_OKAY) && (key->devId != INVALID_DEVID))
+    #else
+    if (err == MP_OKAY)
+    #endif
+    {
+        err = wc_CryptoCb_EccMakePub(key, pub);
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            doneInCb = 1;
+        else
+            err = MP_OKAY; /* device declined the offload; fall back */
+    }
+#endif
+
+    if ((err == MP_OKAY) && !doneInCb) {
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        /* software derivation is stripped and no device handled the op;
+         * fail closed */
+        (void)curve;
+        err = NO_VALID_DEVID;
+#else
+        err = ecc_make_pub_sw(key, curve, pub, rng);
+#endif
+    }
 
     if (err != MP_OKAY
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -10731,13 +10794,38 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC_CHECK_KEY) && \
+    !defined(WOLFSSL_CAAM)
+    /* Device-first: when a device is configured, let it validate the public
+     * key. Fall through to the software/HW path below only when the
+     * device reports the operation unavailable.
+     * CAAM is excluded: it relies on the software order-check below to detect
+     * whether an imported private key is an encrypted black key. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        err = wc_CryptoCb_EccCheckPubKey(key, !partial, priv);
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return err;
+        /* device declined; fall through. Every software/HW path below
+         * re-initializes err before reading it, so no reset is needed here. */
+    }
+#endif
+
 #ifndef HAVE_ECC_CHECK_PUBKEY_ORDER
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+    /* Software validation is stripped; the device-first check above either
+     * handled the key or reported the op unavailable, so fail closed rather
+     * than accept an unvalidated key. */
+    err = NO_VALID_DEVID;
+#else
     /* consider key check success on HW crypto
-     * ex: ATECC508/608A, CryptoCell and Silabs
-     *
-     * consider key check success on most Crypt Cb only builds
+     * ex: ATECC508/608A, CryptoCell and Silabs which validate the key
+     * internally
      */
     err = MP_OKAY;
+#endif
 
 #else
 
@@ -10879,6 +10967,10 @@ WOLFSSL_ABI
 int wc_ecc_check_key(ecc_key* key)
 {
     int ret;
+    /* _ecc_validate_public_key is the single validation entry point: it is
+     * device-first (offloads to the crypto callback when a device is
+     * configured) and otherwise runs the software/HW checks, or fails closed
+     * under WOLF_CRYPTO_CB_ONLY_ECC. */
     ret = _ecc_validate_public_key(key, 0, 1);
     return ret;
 }

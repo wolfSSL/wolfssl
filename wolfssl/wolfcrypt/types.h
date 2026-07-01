@@ -1595,6 +1595,10 @@ enum wc_PkType {
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT
 #endif
+    WC_PK_TYPE_EC_MAKE_PUB      = 34,
+    WC_PK_TYPE_EC_CHECK_PUB_KEY = 35,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_EC_CHECK_PUB_KEY
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
