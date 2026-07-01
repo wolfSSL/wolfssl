@@ -54,6 +54,21 @@
 #      "cflags": "-fsanitize=address", "ldflags": "-fsanitize=address"}
 #   ]
 #
+# Shared setup: instead of a bare list, the top level may be an object
+#
+#   {"base": {...}, "configs": [...]}
+#
+# where "base" carries keys common to every config. List keys (configure,
+# prepare, run) are prepended to each config's own; any other key is a
+# default the config may override. This keeps one long shared flag list in
+# a single place instead of repeating it per config:
+#
+#   {"base": {"configure": ["--enable-cryptocb", "--enable-ecc"]},
+#    "configs": [
+#      {"name": "ecc", "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC"]},
+#      {"name": "rsa", "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_RSA"]}
+#   ]}
+#
 # Driven by CI workflows, which keep their config lists next to the
 # invocation (see .github/workflows/smoke-test.yml), but also runnable
 # locally - copy the JSON block out of the workflow into a file:
@@ -175,6 +190,27 @@ def nproc() -> int:
         return os.cpu_count() or 1
 
 
+# Every recognized config key (and every key allowed inside "base").
+CONFIG_KEYS = {"name", "configure", "cc", "cflags", "ldflags", "minutes",
+               "user_settings", "check", "prepare", "run", "comment",
+               "build", "netns", "shards"}
+# List-valued keys are concatenated (base first) when merging "base" into a
+# config; every other key is a default the config overrides.
+MERGE_LIST_KEYS = ("configure", "prepare", "run")
+
+
+def merge_base(base: dict, entry: dict) -> dict:
+    if not base:
+        return entry
+    merged = dict(base)
+    for key, value in entry.items():
+        if key in MERGE_LIST_KEYS:
+            merged[key] = list(base.get(key, [])) + list(value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def load_configs(opts: argparse.Namespace,
                  error: Callable[[str], NoReturn]) -> list[Config]:
     try:
@@ -184,19 +220,39 @@ def load_configs(opts: argparse.Namespace,
             entries = json.loads(Path(opts.json).read_text())
     except (OSError, ValueError) as e:
         error(f"{opts.json}: {e}")
+    # Two top-level shapes: a bare list of configs, or an object
+    # {"base": {...}, "configs": [...]} whose "base" keys are shared by every
+    # config (list keys prepended, other keys overridable defaults).
+    base: dict = {}
+    if isinstance(entries, dict):
+        unknown_top = set(entries) - {"base", "configs"}
+        if unknown_top:
+            error(f"{opts.json}: unknown top-level key(s): "
+                  f"{' '.join(sorted(unknown_top))}")
+        base = entries.get("base", {})
+        if not isinstance(base, dict):
+            error(f"{opts.json}: \"base\" must be an object")
+        if "name" in base:
+            error(f"{opts.json}: \"base\" must not set \"name\"")
+        unknown = set(base) - CONFIG_KEYS
+        if unknown:
+            error(f"{opts.json}: unknown key(s) in \"base\": "
+                  f"{' '.join(sorted(unknown))}")
+        for key in MERGE_LIST_KEYS:
+            if key in base and not isinstance(base[key], list):
+                error(f"{opts.json}: \"{key}\" in \"base\" must be a list")
+        entries = entries.get("configs", [])
     if not isinstance(entries, list):
         error(f"{opts.json}: expected a JSON list of config objects")
     configs = []
     for entry in entries:
         if not isinstance(entry, dict):
             error(f"{opts.json}: config entries must be objects: {entry!r}")
-        unknown = set(entry) - {"name", "configure", "cc", "cflags",
-                                "ldflags", "minutes", "user_settings",
-                                "check", "prepare", "run", "comment",
-                                "build", "netns", "shards"}
+        unknown = set(entry) - CONFIG_KEYS
         if unknown:
             error(f"{opts.json}: unknown key(s) in {entry.get('name', entry)!r}: "
                   f"{' '.join(sorted(unknown))}")
+        entry = merge_base(base, entry)
         name = entry.get("name")
         if not isinstance(name, str) or not name or "/" in name:
             error(f"{opts.json}: every config needs a \"name\" usable as a "

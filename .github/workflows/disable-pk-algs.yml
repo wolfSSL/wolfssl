@@ -57,78 +57,51 @@ jobs:
       - name: Allow unprivileged user namespaces (for bwrap)
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
-      # The JSON list below is the former runner-per-config matrix; add new
-      # configs as new entries (a "comment" key is allowed for notes).
+      # The JSON below feeds .github/scripts/parallel-make-check.py: a shared
+      # "base" that disables every PK alg, then one entry per combination
+      # whose "configure" re-enables just the algs under test (appended to
+      # the base). Add configs as new entries (a "comment" key is allowed).
       # "minutes" is the expected duration driving longest-first scheduling:
       # take it from the Minutes column of a previous run's step summary, or
-      # omit it for a new config (defaults to 1) and refresh later. The list
-      # is kept sorted by minutes for readability, but the schedule sorts by
-      # the values, not list order.
+      # omit it for a new config (defaults to 1) and refresh later.
       - name: Build and make check all configs (parallel, out-of-tree)
         run: |
           cat > "$RUNNER_TEMP/disable-pk-algs-configs.json" <<'EOF'
-          [
+          {"base": {"configure": ["--disable-rsa", "--disable-dh",
+             "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
+             "--disable-curve448", "--disable-ed448"]},
+           "configs": [
           {"name": "rsa-dh", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-rsa", "--enable-dh"]},
+           "configure": ["--enable-rsa", "--enable-dh"]},
           {"name": "ecc", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-ecc"]},
+           "configure": ["--enable-ecc"]},
           {"name": "rsa-curve25519", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-rsa", "--enable-curve25519"]},
+           "configure": ["--enable-rsa", "--enable-curve25519"]},
           {"name": "ecc-curve25519", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-ecc", "--enable-curve25519"]},
+           "configure": ["--enable-ecc", "--enable-curve25519"]},
           {"name": "rsa-curve448", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-rsa", "--enable-curve448"]},
+           "configure": ["--enable-rsa", "--enable-curve448"]},
           {"name": "ecc-curve448", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-ecc", "--enable-curve448"]},
+           "configure": ["--enable-ecc", "--enable-curve448"]},
           {"name": "curve25519-ed25519", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-curve25519", "--enable-ed25519"]},
+           "configure": ["--enable-curve25519", "--enable-ed25519"]},
           {"name": "curve448-ed448", "minutes": 1.2,
-           "configure": ["--disable-rsa", "--disable-dh", "--disable-ecc",
-            "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
-            "--disable-ed448", "--enable-curve448", "--enable-ed448"]},
+           "configure": ["--enable-curve448", "--enable-ed448"]},
           {"name": "cryptonly-rsa", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
-            "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
-            "--disable-curve448", "--disable-ed448", "--enable-rsa"]},
+           "configure": ["--enable-cryptonly", "--enable-rsa"]},
           {"name": "cryptonly-dh", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
-            "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
-            "--disable-curve448", "--disable-ed448", "--enable-dh"]},
+           "configure": ["--enable-cryptonly", "--enable-dh"]},
           {"name": "cryptonly-ecc", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
-            "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
-            "--disable-curve448", "--disable-ed448", "--enable-ecc"]},
+           "configure": ["--enable-cryptonly", "--enable-ecc"]},
           {"name": "cryptonly-curve25519", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
-            "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
-            "--disable-curve448", "--disable-ed448", "--enable-curve25519"]},
+           "configure": ["--enable-cryptonly", "--enable-curve25519"]},
           {"name": "cryptonly-ed25519", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
-            "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
-            "--disable-curve448", "--disable-ed448", "--enable-ed25519"]},
+           "configure": ["--enable-cryptonly", "--enable-ed25519"]},
           {"name": "cryptonly-curve448", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
-            "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
-            "--disable-curve448", "--disable-ed448", "--enable-curve448"]},
+           "configure": ["--enable-cryptonly", "--enable-curve448"]},
           {"name": "cryptonly-ed448", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
-            "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
-            "--disable-curve448", "--disable-ed448", "--enable-ed448"]}
-          ]
+           "configure": ["--enable-cryptonly", "--enable-ed448"]}
+          ]}
           EOF
           .github/scripts/parallel-make-check.py \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
