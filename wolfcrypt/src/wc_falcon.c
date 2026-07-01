@@ -105,7 +105,7 @@ static void falcon_build_tables(int logn, word32 psi, word16* zetas,
 
 /* Twiddle tables are identical for every verification at a given level, so
  * compute them once and cache them (the previous code rebuilt them per call
- * via O(n) modular exponentiations — the dominant verify cost). The lazy-init
+ * via O(n) modular exponentiations -- the dominant verify cost). The lazy-init
  * race is benign: the values are deterministic, so concurrent first-callers
  * write identical data. */
 static word16 falcon_zetas_l1[FALCON_LEVEL1_N];
@@ -541,7 +541,7 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     byte nonce[FALCON_NONCE_SIZE];
     void* heap;
     int attempt, haveSpc = 0;
-    size_t clen = 0;
+    size_t compLen = 0;
 
     if ((in == NULL && inLen != 0) || out == NULL || outLen == NULL ||
             key == NULL || rng == NULL) {
@@ -615,17 +615,17 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         }
         out[0] = (byte)(FALCON_SIG_HEAD_COMPRESSED | logn);
         XMEMCPY(out + 1, nonce, FALCON_NONCE_SIZE);
-        clen = falcon_comp_encode(out + 1 + FALCON_NONCE_SIZE,
+        compLen = falcon_comp_encode(out + 1 + FALCON_NONCE_SIZE,
                 (size_t)(*outLen - 1 - FALCON_NONCE_SIZE), s2, logn);
-        if (clen != 0) {
+        if (compLen != 0) {
             break;
         }
     }
-    if (clen == 0) {
+    if (compLen == 0) {
         ret = BUFFER_E;
         goto out;
     }
-    *outLen = (word32)(1 + FALCON_NONCE_SIZE + clen);
+    *outLen = (word32)(1 + FALCON_NONCE_SIZE + compLen);
 
 out:
     /* Always zeroize: the SHAKE sponge may hold seed-derived state even if

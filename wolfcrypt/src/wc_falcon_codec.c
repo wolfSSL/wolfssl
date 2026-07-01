@@ -24,8 +24,8 @@
  * implementation (codec.c): modq_encode, comp_encode, trim_i8_encode and
  * trim_i8_decode, plus the secret-key decoder that drives them.
  *
- * The verification-side decoders (modq_decode, comp_decode) are statics in
- * wc_falcon.c and are deliberately not duplicated here. */
+ * The verification-side decoders (modq_decode, comp_decode) are static
+ * functions in wc_falcon.c and are deliberately not duplicated here. */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
