@@ -10282,6 +10282,227 @@ static int test_wolfSSL_PKCS8(void)
     return EXPECT_RESULT();
 }
 
+/* Exercise Ed25519 through the OpenSSL-compatibility EVP/X509 surface the
+ * way an application does: generate a key, serialise the public
+ * (SubjectPublicKeyInfo) and private (PKCS#8) parts, build and sign an
+ * in-memory self-signed certificate with a NULL digest, read the public key
+ * back out, and load the key + cert into an SSL_CTX. */
+static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_KEY_IMPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_CERTS)
+    WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_PKEY* certPub = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_ASN1_TIME* notBefore = NULL;
+    WOLFSSL_ASN1_TIME* notAfter = NULL;
+    unsigned char* spki = NULL;
+    unsigned char* spki2 = NULL;
+    int spkiSz = 0;
+    int spki2Sz = 0;
+    time_t t = 0;
+
+    /* (1) Generate an Ed25519 key purely through the EVP API. */
+    ExpectNotNull(ctx = wolfSSL_EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(ctx, &pkey), WOLFSSL_SUCCESS);
+    ExpectNotNull(pkey);
+
+    /* (2) Encode the public key as SubjectPublicKeyInfo. */
+    ExpectIntGT((spkiSz = wolfSSL_i2d_PUBKEY(pkey, &spki)), 0);
+
+    /* (2b) Raw-key constructors populate the EVP_PKEY differently from
+     * keygen/decode (no cached PKCS#8 DER), so exercise them directly: a
+     * public-only raw key must serialize to the same SPKI, and a raw private
+     * seed must import as an Ed25519 key. */
+    {
+        /* RFC 8032 Ed25519 test-vector 1 secret seed. */
+        static const unsigned char ed25519Seed[ED25519_KEY_SIZE] = {
+            0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60,
+            0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
+            0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19,
+            0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60
+        };
+        WOLFSSL_EVP_PKEY* rawPub = NULL;
+        WOLFSSL_EVP_PKEY* rawPriv = NULL;
+        unsigned char* rawSpki = NULL;
+        int rawSpkiSz = 0;
+
+        /* An Ed25519 SPKI is a 12-byte header followed by the raw public key,
+         * which is what new_raw_public_key() wants. */
+        ExpectIntEQ(spkiSz, (int)(ED25519_PUB_KEY_SIZE + 12));
+        if ((spki != NULL) && (spkiSz == (int)(ED25519_PUB_KEY_SIZE + 12))) {
+            ExpectNotNull(rawPub = wolfSSL_EVP_PKEY_new_raw_public_key(
+                EVP_PKEY_ED25519, NULL, spki + 12, ED25519_PUB_KEY_SIZE));
+            ExpectIntGT((rawSpkiSz = wolfSSL_i2d_PUBKEY(rawPub, &rawSpki)), 0);
+            ExpectIntEQ(rawSpkiSz, spkiSz);
+            if ((rawSpki != NULL) && (rawSpkiSz == spkiSz)) {
+                ExpectIntEQ(XMEMCMP(spki, rawSpki, (size_t)spkiSz), 0);
+            }
+        }
+
+        ExpectNotNull(rawPriv = wolfSSL_EVP_PKEY_new_raw_private_key(
+            EVP_PKEY_ED25519, NULL, ed25519Seed, ED25519_KEY_SIZE));
+
+        /* A raw private key caches the bare 32-byte seed, not PKCS#8, so
+         * pkcs8_encode() must build the PKCS#8 wrapper from the key object
+         * rather than emit the seed as-is. */
+#if defined(OPENSSL_ALL) && !defined(NO_BIO) && !defined(NO_PWDBASED) && \
+    defined(HAVE_PKCS8)
+        if (rawPriv != NULL) {
+            WOLFSSL_BIO* rawBio = NULL;
+            WOLFSSL_EVP_PKEY* decRaw = NULL;
+
+            ExpectNotNull(rawBio = BIO_new(BIO_s_mem()));
+            ExpectIntGT(PEM_write_bio_PKCS8PrivateKey(rawBio, rawPriv, NULL,
+                NULL, 0, NULL, NULL), 0);
+            /* The emitted PEM must be a real PKCS#8 PrivateKeyInfo: reading it
+             * back recovers an Ed25519 key only if the seed was wrapped, not
+             * emitted as the bare 32 bytes. */
+            ExpectNotNull(decRaw = PEM_read_bio_PrivateKey(rawBio, NULL, NULL,
+                NULL));
+            wolfSSL_EVP_PKEY_free(decRaw);
+            BIO_free(rawBio);
+        }
+#endif
+
+        XFREE(rawSpki, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        wolfSSL_EVP_PKEY_free(rawPub);
+        wolfSSL_EVP_PKEY_free(rawPriv);
+    }
+
+    /* (3) Encode the private key as PKCS#8 PrivateKeyInfo and (7) decode it
+     * back.  These compat helpers (EVP_PKEY2PKCS8, i2d_PKCS8_PKEY,
+     * d2i_AutoPrivateKey) are only built with OPENSSL_ALL. */
+#if defined(OPENSSL_ALL) && !defined(NO_AES)
+    {
+        WOLFSSL_PKCS8_PRIV_KEY_INFO* p8 = NULL;
+        WOLFSSL_EVP_PKEY* decPriv = NULL;
+        unsigned char* p8der = NULL;
+        const unsigned char* tmp = NULL;
+        int p8Sz = 0;
+
+        ExpectNotNull(p8 = wolfSSL_EVP_PKEY2PKCS8(pkey));
+        ExpectIntGT((p8Sz = wolfSSL_i2d_PKCS8_PKEY(p8, &p8der)), 0);
+        tmp = p8der;
+        ExpectNotNull(decPriv = wolfSSL_d2i_AutoPrivateKey(NULL, &tmp, p8Sz));
+
+        /* The PKCS#8-decoded private key must re-export the same public key /
+         * SPKI, not merely decode to non-NULL. */
+        {
+            unsigned char* decSpki = NULL;
+            int decSpkiSz = 0;
+
+            ExpectIntGT((decSpkiSz = wolfSSL_i2d_PUBKEY(decPriv, &decSpki)), 0);
+            ExpectIntEQ(decSpkiSz, spkiSz);
+            if ((spki != NULL) && (decSpki != NULL) && (decSpkiSz == spkiSz)) {
+                ExpectIntEQ(XMEMCMP(spki, decSpki, (size_t)spkiSz), 0);
+            }
+            XFREE(decSpki, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        }
+
+        XFREE(p8der, NULL, DYNAMIC_TYPE_ASN1);
+        wolfSSL_EVP_PKEY_free(decPriv);
+        wolfSSL_EVP_PKEY_free((WOLFSSL_EVP_PKEY*)p8);
+    }
+#endif
+
+    /* (4)(5) Build an in-memory self-signed cert; Ed25519 signs with a NULL
+     * digest (it carries its own hash). */
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+    ExpectIntEQ(wolfSSL_X509_set_version(x509, 2), WOLFSSL_SUCCESS);
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+        (const byte*)"ed25519 test", -1, -1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_SUCCESS);
+    t = XTIME(NULL);
+    ExpectNotNull(notBefore = wolfSSL_ASN1_TIME_adj(NULL, t, 0, 0));
+    ExpectNotNull(notAfter = wolfSSL_ASN1_TIME_adj(NULL, t, 365, 0));
+    ExpectTrue(wolfSSL_X509_set_notBefore(x509, notBefore));
+    ExpectTrue(wolfSSL_X509_set_notAfter(x509, notAfter));
+    ExpectIntGT(wolfSSL_X509_sign(x509, pkey, NULL), 0);
+
+    /* (5b) The self-signed certificate verifies under its own key, proving
+     * the generated Ed25519 signature, OID and public-key encoding are
+     * usable. */
+    ExpectIntEQ(wolfSSL_X509_verify(x509, pkey), WOLFSSL_SUCCESS);
+
+    /* (8) The certificate's public key round-trips to the same SPKI. */
+    ExpectNotNull(certPub = wolfSSL_X509_get_pubkey(x509));
+    ExpectIntGT((spki2Sz = wolfSSL_i2d_PUBKEY(certPub, &spki2)), 0);
+    ExpectIntEQ(spki2Sz, spkiSz);
+    if ((spki != NULL) && (spki2 != NULL) && (spkiSz == spki2Sz)) {
+        ExpectIntEQ(XMEMCMP(spki, spki2, (size_t)spkiSz), 0);
+    }
+
+    /* (8b) PKCS#8 private-key export from a public-only key (certPub holds
+     * only the raw public key) must fail cleanly rather than emit the raw
+     * public bytes or cached non-PKCS#8 data as if they were a private key. */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)
+    ExpectNull(wolfSSL_EVP_PKEY2PKCS8(certPub));
+#endif
+
+    /* (8c) The PKCS#8 PEM writer drives pkcs8_encode() directly (unlike
+     * EVP_PKEY2PKCS8 above, which re-decodes the cached DER): the generated
+     * key carries a cached PKCS#8 PrivateKeyInfo and must write, while the
+     * public-only key has no private half and must fail rather than emit its
+     * raw public bytes wrapped as a bogus PKCS#8 private key. */
+#if defined(OPENSSL_ALL) && !defined(NO_BIO) && !defined(NO_PWDBASED) && \
+    defined(HAVE_PKCS8)
+    {
+        WOLFSSL_BIO* pkcs8Bio = NULL;
+
+        ExpectNotNull(pkcs8Bio = BIO_new(BIO_s_mem()));
+        ExpectIntGT(PEM_write_bio_PKCS8PrivateKey(pkcs8Bio, pkey, NULL, NULL, 0,
+            NULL, NULL), 0);
+        BIO_free(pkcs8Bio);
+
+        pkcs8Bio = NULL;
+        ExpectNotNull(pkcs8Bio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(pkcs8Bio, certPub, NULL, NULL,
+            0, NULL, NULL), 0);
+        BIO_free(pkcs8Bio);
+    }
+#endif
+
+    /* (6) Load the generated key and cert into an SSL_CTX. */
+#if !defined(NO_TLS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    {
+        WOLFSSL_CTX* sslCtx = NULL;
+#ifndef NO_WOLFSSL_SERVER
+        ExpectNotNull(sslCtx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+        ExpectNotNull(sslCtx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+        ExpectIntEQ(wolfSSL_CTX_use_certificate(sslCtx, x509),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(sslCtx, pkey),
+            WOLFSSL_SUCCESS);
+        wolfSSL_CTX_free(sslCtx);
+    }
+#endif
+
+    XFREE(spki, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(spki2, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    wolfSSL_ASN1_TIME_free(notBefore);
+    wolfSSL_ASN1_TIME_free(notAfter);
+    wolfSSL_X509_NAME_free(name);
+    wolfSSL_X509_free(x509);
+    wolfSSL_EVP_PKEY_free(certPub);
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_EVP_PKEY_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_PKCS8_ED25519(void)
 {
     EXPECT_DECLS;
@@ -35302,6 +35523,7 @@ TEST_CASE testCases[] = {
     /* PKCS8 testing */
     TEST_DECL(test_wolfSSL_no_password_cb),
     TEST_DECL(test_wolfSSL_PKCS8),
+    TEST_DECL(test_wolfSSL_EVP_PKEY_ED25519_openssl),
     TEST_DECL(test_wolfSSL_PKCS8_ED25519),
     TEST_DECL(test_wolfSSL_PKCS8_ED448),
 
