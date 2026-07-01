@@ -46,10 +46,10 @@ IFNDEF WOLFSSL_SP_NO_2048
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_from_bin_bswap PROC
@@ -134,10 +134,10 @@ IFNDEF NO_MOVBE_SUPPORT
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the movbe instruction which is an optional instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_from_bin_movbe PROC
@@ -211,8 +211,8 @@ ENDIF
 ;  * Fixed length number of bytes written: 256
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_to_bin_bswap_32 PROC
@@ -320,8 +320,8 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * Fixed length number of bytes written: 256
 ;  * Uses the movbe instruction which is optional.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_to_bin_movbe_32 PROC
@@ -395,9 +395,9 @@ _TEXT ENDS
 ENDIF
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_16 PROC
@@ -2039,9 +2039,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply.
-;  * b   Second number to multiply.
+;  * @param [out] r  Result of multiplication.
+;  * @param [in]  a  First number to multiply.
+;  * @param [in]  b  Second number to multiply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_avx2_16 PROC
@@ -3710,9 +3710,9 @@ _TEXT ENDS
 ENDIF
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_add_16 PROC
@@ -3772,8 +3772,8 @@ sp_2048_add_16 ENDP
 _TEXT ENDS
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_sub_in_place_32 PROC
@@ -3879,9 +3879,9 @@ sp_2048_sub_in_place_32 ENDP
 _TEXT ENDS
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_add_32 PROC
@@ -3989,9 +3989,9 @@ sp_2048_add_32 ENDP
 _TEXT ENDS
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_32 PROC
@@ -4695,9 +4695,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_avx2_32 PROC
@@ -5353,8 +5353,8 @@ _TEXT ENDS
 ENDIF
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_sqr_16 PROC
@@ -6442,8 +6442,8 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_sqr_avx2_16 PROC
@@ -7497,8 +7497,8 @@ ENDIF
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_sqr_32 PROC
@@ -8015,8 +8015,8 @@ IFDEF HAVE_INTEL_AVX2
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_sqr_avx2_32 PROC
@@ -8531,8 +8531,8 @@ _TEXT ENDS
 ENDIF
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_sub_in_place_16 PROC
@@ -8590,9 +8590,9 @@ sp_2048_sub_in_place_16 ENDP
 _TEXT ENDS
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_d_32 PROC
@@ -8859,10 +8859,11 @@ _TEXT ENDS
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cond_sub_16 PROC
@@ -8986,9 +8987,10 @@ sp_2048_cond_sub_16 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 2048 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mont_reduce_16 PROC
@@ -9194,10 +9196,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cond_sub_avx2_16 PROC
@@ -9290,9 +9293,9 @@ _TEXT ENDS
 ENDIF
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_d_16 PROC
@@ -9431,9 +9434,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_d_avx2_16 PROC
@@ -9546,10 +9549,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_2048_word_asm_16 PROC
@@ -9563,10 +9567,11 @@ _TEXT ENDS
 ENDIF
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cmp_16 PROC
@@ -9711,9 +9716,10 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 2048 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mont_reduce_avx2_16 PROC
@@ -10596,10 +10602,11 @@ ENDIF
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cond_sub_32 PROC
@@ -10835,9 +10842,10 @@ sp_2048_cond_sub_32 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 2048 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mont_reduce_32 PROC
@@ -11201,9 +11209,9 @@ sp_2048_mont_reduce_32 ENDP
 _TEXT ENDS
 ; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_sub_32 PROC
@@ -11310,9 +11318,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mul_d_avx2_32 PROC
@@ -11521,10 +11529,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_2048_word_asm_32 PROC
@@ -11540,10 +11549,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cond_sub_avx2_32 PROC
@@ -11716,10 +11726,11 @@ _TEXT ENDS
 ENDIF
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cmp_32 PROC
@@ -11992,9 +12003,10 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 2048 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_mont_reduce_avx2_32 PROC
@@ -14564,10 +14576,11 @@ ENDIF
 ; /* Conditionally add a and b using the mask m.
 ;  * m is -1 to add and 0 when not.
 ;  *
-;  * r  A single precision number representing conditional add result.
-;  * a  A single precision number to add with.
-;  * b  A single precision number to add.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing conditional add
+;  *                 result.
+;  * @param [in]  a  A single precision number to add with.
+;  * @param [in]  b  A single precision number to add.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cond_add_16 PROC
@@ -14694,10 +14707,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally add a and b using the mask m.
 ;  * m is -1 to add and 0 when not.
 ;  *
-;  * r  A single precision number representing conditional add result.
-;  * a  A single precision number to add with.
-;  * b  A single precision number to add.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing conditional add
+;  *                 result.
+;  * @param [in]  a  A single precision number to add with.
+;  * @param [in]  b  A single precision number to add.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_cond_add_avx2_16 PROC
@@ -14791,9 +14805,9 @@ _TEXT ENDS
 ENDIF
 ; /* Shift number left by n bit. (r = a << n)
 ;  *
-;  * r  Result of left shift by n.
-;  * a  Number to shift.
-;  * n  Amoutnt o shift.
+;  * @param [out] r  Result of left shift by n.
+;  * @param [in]  a  Number to shift.
+;  * @param [in]  n  Amoutnt o shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_2048_lshift_32 PROC
@@ -14912,10 +14926,10 @@ IFNDEF WOLFSSL_SP_NO_3072
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_from_bin_bswap PROC
@@ -15000,10 +15014,10 @@ IFNDEF NO_MOVBE_SUPPORT
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the movbe instruction which is an optional instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_from_bin_movbe PROC
@@ -15077,8 +15091,8 @@ ENDIF
 ;  * Fixed length number of bytes written: 384
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_to_bin_bswap_48 PROC
@@ -15234,8 +15248,8 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * Fixed length number of bytes written: 384
 ;  * Uses the movbe instruction which is optional.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_to_bin_movbe_48 PROC
@@ -15341,9 +15355,9 @@ _TEXT ENDS
 ENDIF
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_12 PROC
@@ -16289,9 +16303,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply.
-;  * b   Second number to multiply.
+;  * @param [out] r  Result of multiplication.
+;  * @param [in]  a  First number to multiply.
+;  * @param [in]  b  Second number to multiply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_avx2_12 PROC
@@ -17260,9 +17274,9 @@ _TEXT ENDS
 ENDIF
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_add_12 PROC
@@ -17310,8 +17324,8 @@ sp_3072_add_12 ENDP
 _TEXT ENDS
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sub_in_place_24 PROC
@@ -17393,9 +17407,9 @@ sp_3072_sub_in_place_24 ENDP
 _TEXT ENDS
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_add_24 PROC
@@ -17479,9 +17493,9 @@ sp_3072_add_24 ENDP
 _TEXT ENDS
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_24 PROC
@@ -18029,9 +18043,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_avx2_24 PROC
@@ -18543,8 +18557,8 @@ _TEXT ENDS
 ENDIF
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sub_in_place_48 PROC
@@ -18698,9 +18712,9 @@ sp_3072_sub_in_place_48 ENDP
 _TEXT ENDS
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_add_48 PROC
@@ -18856,9 +18870,9 @@ sp_3072_add_48 ENDP
 _TEXT ENDS
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_48 PROC
@@ -19874,9 +19888,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_avx2_48 PROC
@@ -20820,8 +20834,8 @@ _TEXT ENDS
 ENDIF
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sqr_12 PROC
@@ -21489,8 +21503,8 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sqr_avx2_12 PROC
@@ -22133,8 +22147,8 @@ ENDIF
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sqr_24 PROC
@@ -22535,8 +22549,8 @@ IFDEF HAVE_INTEL_AVX2
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sqr_avx2_24 PROC
@@ -22937,8 +22951,8 @@ ENDIF
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sqr_48 PROC
@@ -23687,8 +23701,8 @@ IFDEF HAVE_INTEL_AVX2
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sqr_avx2_48 PROC
@@ -24435,9 +24449,9 @@ _TEXT ENDS
 ENDIF
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_d_48 PROC
@@ -24832,10 +24846,11 @@ _TEXT ENDS
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cond_sub_24 PROC
@@ -25015,9 +25030,10 @@ sp_3072_cond_sub_24 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 3072 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mont_reduce_24 PROC
@@ -25303,10 +25319,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cond_sub_avx2_24 PROC
@@ -25439,9 +25456,9 @@ _TEXT ENDS
 ENDIF
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_d_24 PROC
@@ -25644,9 +25661,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_d_avx2_24 PROC
@@ -25807,10 +25824,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_3072_word_asm_24 PROC
@@ -25824,10 +25842,11 @@ _TEXT ENDS
 ENDIF
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cmp_24 PROC
@@ -26036,9 +26055,10 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 3072 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mont_reduce_avx2_24 PROC
@@ -27268,10 +27288,11 @@ ENDIF
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cond_sub_48 PROC
@@ -27619,9 +27640,10 @@ sp_3072_cond_sub_48 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 3072 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mont_reduce_48 PROC
@@ -28145,9 +28167,9 @@ sp_3072_mont_reduce_48 ENDP
 _TEXT ENDS
 ; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_sub_48 PROC
@@ -28302,9 +28324,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mul_d_avx2_48 PROC
@@ -28609,10 +28631,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_3072_word_asm_48 PROC
@@ -28628,10 +28651,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cond_sub_avx2_48 PROC
@@ -28884,10 +28908,11 @@ _TEXT ENDS
 ENDIF
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cmp_48 PROC
@@ -29288,9 +29313,10 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 3072 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_mont_reduce_avx2_48 PROC
@@ -30736,10 +30762,11 @@ ENDIF
 ; /* Conditionally add a and b using the mask m.
 ;  * m is -1 to add and 0 when not.
 ;  *
-;  * r  A single precision number representing conditional add result.
-;  * a  A single precision number to add with.
-;  * b  A single precision number to add.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing conditional add
+;  *                 result.
+;  * @param [in]  a  A single precision number to add with.
+;  * @param [in]  b  A single precision number to add.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cond_add_24 PROC
@@ -30922,10 +30949,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally add a and b using the mask m.
 ;  * m is -1 to add and 0 when not.
 ;  *
-;  * r  A single precision number representing conditional add result.
-;  * a  A single precision number to add with.
-;  * b  A single precision number to add.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing conditional add
+;  *                 result.
+;  * @param [in]  a  A single precision number to add with.
+;  * @param [in]  b  A single precision number to add.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_cond_add_avx2_24 PROC
@@ -31059,9 +31087,9 @@ _TEXT ENDS
 ENDIF
 ; /* Shift number left by n bit. (r = a << n)
 ;  *
-;  * r  Result of left shift by n.
-;  * a  Number to shift.
-;  * n  Amoutnt o shift.
+;  * @param [out] r  Result of left shift by n.
+;  * @param [in]  a  Number to shift.
+;  * @param [in]  n  Amoutnt o shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_3072_lshift_48 PROC
@@ -31228,10 +31256,10 @@ IFDEF WOLFSSL_SP_4096
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_from_bin_bswap PROC
@@ -31316,10 +31344,10 @@ IFNDEF NO_MOVBE_SUPPORT
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the movbe instruction which is an optional instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_from_bin_movbe PROC
@@ -31393,8 +31421,8 @@ ENDIF
 ;  * Fixed length number of bytes written: 512
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_to_bin_bswap_64 PROC
@@ -31598,8 +31626,8 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * Fixed length number of bytes written: 512
 ;  * Uses the movbe instruction which is optional.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_to_bin_movbe_64 PROC
@@ -31737,8 +31765,8 @@ _TEXT ENDS
 ENDIF
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_sub_in_place_64 PROC
@@ -31940,9 +31968,9 @@ sp_4096_sub_in_place_64 ENDP
 _TEXT ENDS
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_add_64 PROC
@@ -32146,9 +32174,9 @@ sp_4096_add_64 ENDP
 _TEXT ENDS
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_mul_64 PROC
@@ -33476,9 +33504,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_mul_avx2_64 PROC
@@ -34712,8 +34740,8 @@ ENDIF
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_sqr_64 PROC
@@ -35694,8 +35722,8 @@ IFDEF HAVE_INTEL_AVX2
 ;  *
 ;  * Karatsuba: ah^2, al^2, (al - ah)^2
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_sqr_avx2_64 PROC
@@ -36674,9 +36702,9 @@ _TEXT ENDS
 ENDIF
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_mul_d_64 PROC
@@ -37199,10 +37227,11 @@ _TEXT ENDS
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_cond_sub_64 PROC
@@ -37662,9 +37691,10 @@ sp_4096_cond_sub_64 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 4096 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_mont_reduce_64 PROC
@@ -38348,9 +38378,9 @@ sp_4096_mont_reduce_64 ENDP
 _TEXT ENDS
 ; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_sub_64 PROC
@@ -38553,9 +38583,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_mul_d_avx2_64 PROC
@@ -38956,10 +38986,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_4096_word_asm_64 PROC
@@ -38975,10 +39006,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_cond_sub_avx2_64 PROC
@@ -39311,10 +39343,11 @@ _TEXT ENDS
 ENDIF
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_cmp_64 PROC
@@ -39843,9 +39876,10 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 4096 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_mont_reduce_avx2_64 PROC
@@ -41751,10 +41785,11 @@ ENDIF
 ; /* Conditionally add a and b using the mask m.
 ;  * m is -1 to add and 0 when not.
 ;  *
-;  * r  A single precision number representing conditional add result.
-;  * a  A single precision number to add with.
-;  * b  A single precision number to add.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing conditional add
+;  *                 result.
+;  * @param [in]  a  A single precision number to add with.
+;  * @param [in]  b  A single precision number to add.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_cond_add_32 PROC
@@ -41993,10 +42028,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally add a and b using the mask m.
 ;  * m is -1 to add and 0 when not.
 ;  *
-;  * r  A single precision number representing conditional add result.
-;  * a  A single precision number to add with.
-;  * b  A single precision number to add.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing conditional add
+;  *                 result.
+;  * @param [in]  a  A single precision number to add with.
+;  * @param [in]  b  A single precision number to add.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_cond_add_avx2_32 PROC
@@ -42170,9 +42206,9 @@ _TEXT ENDS
 ENDIF
 ; /* Shift number left by n bit. (r = a << n)
 ;  *
-;  * r  Result of left shift by n.
-;  * a  Number to shift.
-;  * n  Amoutnt o shift.
+;  * @param [out] r  Result of left shift by n.
+;  * @param [in]  a  Number to shift.
+;  * @param [in]  n  Amoutnt o shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_4096_lshift_64 PROC
@@ -42385,9 +42421,9 @@ ENDIF
 IFNDEF WOLFSSL_SP_NO_256
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mul_4 PROC
@@ -42517,9 +42553,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply.
-;  * b   Second number to multiply.
+;  * @param [out] r  Result of multiplication.
+;  * @param [in]  a  First number to multiply.
+;  * @param [in]  b  Second number to multiply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mul_avx2_4 PROC
@@ -42627,8 +42663,8 @@ _TEXT ENDS
 ENDIF
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_sqr_4 PROC
@@ -42744,8 +42780,8 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r   Result of squaring.
-;  * a   Number to square in Montgomery form.
+;  * @param [out] r  Result of squaring.
+;  * @param [in]  a  Number to square in Montgomery form.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_sqr_avx2_4 PROC
@@ -42835,9 +42871,9 @@ _TEXT ENDS
 ENDIF
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_add_4 PROC
@@ -42862,9 +42898,9 @@ sp_256_add_4 ENDP
 _TEXT ENDS
 ; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_sub_4 PROC
@@ -42890,9 +42926,9 @@ _TEXT ENDS
 ; /* Conditionally copy a into r using the mask m.
 ;  * m is -1 to copy and 0 when not.
 ;  *
-;  * r  A single precision number to copy over.
-;  * a  A single precision number to copy.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number to copy over.
+;  * @param [in]  a  A single precision number to copy.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_cond_copy_4 PROC
@@ -42918,11 +42954,11 @@ _TEXT ENDS
 ; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply in Montgomery form.
-;  * b   Second number to multiply in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of multiplication.
+;  * @param [in]  a   First number to multiply in Montgomery form.
+;  * @param [in]  b   Second number to multiply in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_mul_4 PROC
@@ -43115,10 +43151,10 @@ sp_256_mont_mul_4 ENDP
 _TEXT ENDS
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
-;  * r   Result of squaring.
-;  * a   Number to square in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of squaring.
+;  * @param [in]  a   Number to square in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_sqr_4 PROC
@@ -43282,10 +43318,11 @@ sp_256_mont_sqr_4 ENDP
 _TEXT ENDS
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_cmp_4 PROC
@@ -43334,10 +43371,11 @@ _TEXT ENDS
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_cond_sub_4 PROC
@@ -43379,9 +43417,10 @@ sp_256_cond_sub_4 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 256 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_reduce_4 PROC
@@ -43484,9 +43523,10 @@ sp_256_mont_reduce_4 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 256 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_reduce_order_4 PROC
@@ -43585,10 +43625,10 @@ sp_256_mont_reduce_order_4 ENDP
 _TEXT ENDS
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_add_4 PROC
@@ -43628,9 +43668,9 @@ sp_256_mont_add_4 ENDP
 _TEXT ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
-;  * r   Result of doubling.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of doubling.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_dbl_4 PROC
@@ -43671,9 +43711,9 @@ sp_256_mont_dbl_4 ENDP
 _TEXT ENDS
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
-;  * r   Result of Tripling.
-;  * a   Number to triple in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of Tripling.
+;  * @param [in]  a  Number to triple in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_tpl_4 PROC
@@ -43732,10 +43772,10 @@ sp_256_mont_tpl_4 ENDP
 _TEXT ENDS
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
-;  * r   Result of subtration.
-;  * a   Number to subtract from in Montgomery form.
-;  * b   Number to subtract with in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of subtration.
+;  * @param [in]  a  Number to subtract from in Montgomery form.
+;  * @param [in]  b  Number to subtract with in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_sub_4 PROC
@@ -43775,9 +43815,9 @@ sp_256_mont_sub_4 ENDP
 _TEXT ENDS
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_div2_4 PROC
@@ -43814,10 +43854,10 @@ sp_256_mont_div2_4 ENDP
 _TEXT ENDS
 ; /* Two Montgomery numbers, subtract double second from first (r = a - 2.b % m).
 ;  *
-;  * r   Result of subtration.
-;  * a   Number to subtract from in Montgomery form.
-;  * b   Number to double and subtract with in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of subtration.
+;  * @param [in]  a  Number to subtract from in Montgomery form.
+;  * @param [in]  b  Number to double and subtract with in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_rsb_sub_dbl_4 PROC
@@ -43916,9 +43956,9 @@ _TEXT ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible point that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of point to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of point to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_get_point_33_4 PROC
@@ -43996,9 +44036,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible point that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of point to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of point to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_get_point_33_avx2_4 PROC
@@ -44051,11 +44091,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply in Montgomery form.
-;  * b   Second number to multiply in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of multiplication.
+;  * @param [in]  a   First number to multiply in Montgomery form.
+;  * @param [in]  b   Second number to multiply in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_mul_avx2_4 PROC
@@ -44227,10 +44267,10 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
-;  * r   Result of squaring.
-;  * a   Number to square in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of squaring.
+;  * @param [in]  a   Number to square in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_sqr_avx2_4 PROC
@@ -44385,10 +44425,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_cond_sub_avx2_4 PROC
@@ -44432,9 +44473,10 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 256 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_reduce_order_avx2_4 PROC
@@ -44591,9 +44633,9 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_div2_avx2_4 PROC
@@ -44632,9 +44674,9 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_get_entry_64_4 PROC
@@ -44695,9 +44737,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_get_entry_64_avx2_4 PROC
@@ -44740,9 +44782,9 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_get_entry_65_4 PROC
@@ -44803,9 +44845,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_get_entry_65_avx2_4 PROC
@@ -44847,7 +44889,7 @@ ENDIF
 ENDIF
 ; /* Add 1 to a. (a = a + 1)
 ;  *
-;  * a  A single precision integer.
+;  * @param [in, out] a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_add_one_4 PROC
@@ -44861,10 +44903,10 @@ _TEXT ENDS
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_from_bin_bswap PROC
@@ -44949,10 +44991,10 @@ IFNDEF NO_MOVBE_SUPPORT
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the movbe instruction which is an optional instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_from_bin_movbe PROC
@@ -45026,8 +45068,8 @@ ENDIF
 ;  * Fixed length number of bytes written: 32
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_to_bin_bswap_4 PROC
@@ -45051,8 +45093,8 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * Fixed length number of bytes written: 32
 ;  * Uses the movbe instruction which is optional.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_to_bin_movbe_4 PROC
@@ -45070,8 +45112,8 @@ _TEXT ENDS
 ENDIF
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_sub_in_place_4 PROC
@@ -45089,9 +45131,9 @@ sp_256_sub_in_place_4 ENDP
 _TEXT ENDS
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mul_d_4 PROC
@@ -45134,9 +45176,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mul_d_avx2_4 PROC
@@ -45177,10 +45219,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_256_word_asm_4 PROC
@@ -45196,9 +45239,9 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply in Montgomery form.
-;  * b   Second number to multiply in Montgomery form.
+;  * @param [out] r  Result of multiplication.
+;  * @param [in]  a  First number to multiply in Montgomery form.
+;  * @param [in]  b  Second number to multiply in Montgomery form.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_mul_order_avx2_4 PROC
@@ -45416,8 +45459,8 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
-;  * r   Result of squaring.
-;  * a   Number to square in Montgomery form.
+;  * @param [out] r  Result of squaring.
+;  * @param [in]  a  Number to square in Montgomery form.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_256_mont_sqr_order_avx2_4 PROC
@@ -45618,9 +45661,10 @@ _TEXT ENDS
 ENDIF
 ; /* Non-constant time modular inversion.
 ;  *
-;  * @param  [out]  r   Resulting number.
-;  * @param  [in]   a   Number to invert.
-;  * @param  [in]   m   Modulus.
+;  * @param [out] r  Resulting number.
+;  * @param [in]  a  Number to invert.
+;  * @param [in]  m  Modulus.
+;  *
 ;  * @return  MP_OKAY on success.
 ;  */
 _TEXT SEGMENT READONLY PARA
@@ -45897,9 +45941,10 @@ ptr_L_sp256_mod_inv_avx2_4_mask26 QWORD L_sp256_mod_inv_avx2_4_mask26
 _DATA ENDS
 ; /* Non-constant time modular inversion.
 ;  *
-;  * @param  [out]  r   Resulting number.
-;  * @param  [in]   a   Number to invert.
-;  * @param  [in]   m   Modulus.
+;  * @param [out] r  Resulting number.
+;  * @param [in]  a  Number to invert.
+;  * @param [in]  m  Modulus.
+;  *
 ;  * @return  MP_OKAY on success.
 ;  */
 _TEXT SEGMENT READONLY PARA
@@ -46220,9 +46265,9 @@ ENDIF
 IFDEF WOLFSSL_SP_384
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mul_6 PROC
@@ -46484,9 +46529,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply.
-;  * b   Second number to multiply.
+;  * @param [out] r  Result of multiplication.
+;  * @param [in]  a  First number to multiply.
+;  * @param [in]  b  Second number to multiply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mul_avx2_6 PROC
@@ -46700,8 +46745,8 @@ _TEXT ENDS
 ENDIF
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_sqr_6 PROC
@@ -46919,8 +46964,8 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r   Result of squaring.
-;  * a   Number to square in Montgomery form.
+;  * @param [out] r  Result of squaring.
+;  * @param [in]  a  Number to square in Montgomery form.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_sqr_avx2_6 PROC
@@ -47076,9 +47121,9 @@ _TEXT ENDS
 ENDIF
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_add_6 PROC
@@ -47113,9 +47158,9 @@ sp_384_add_6 ENDP
 _TEXT ENDS
 ; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_sub_6 PROC
@@ -47151,9 +47196,9 @@ _TEXT ENDS
 ; /* Conditionally copy a into r using the mask m.
 ;  * m is -1 to copy and 0 when not.
 ;  *
-;  * r  A single precision number to copy over.
-;  * a  A single precision number to copy.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number to copy over.
+;  * @param [in]  a  A single precision number to copy.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_cond_copy_6 PROC
@@ -47191,10 +47236,11 @@ _TEXT ENDS
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_cond_sub_6 PROC
@@ -47248,9 +47294,10 @@ sp_384_cond_sub_6 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 384 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_reduce_6 PROC
@@ -47420,9 +47467,10 @@ sp_384_mont_reduce_6 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 384 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_reduce_order_6 PROC
@@ -47526,10 +47574,11 @@ sp_384_mont_reduce_order_6 ENDP
 _TEXT ENDS
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_cmp_6 PROC
@@ -47593,10 +47642,10 @@ sp_384_cmp_6 ENDP
 _TEXT ENDS
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_add_6 PROC
@@ -47655,9 +47704,9 @@ sp_384_mont_add_6 ENDP
 _TEXT ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
-;  * r   Result of doubling.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of doubling.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_dbl_6 PROC
@@ -47717,9 +47766,9 @@ sp_384_mont_dbl_6 ENDP
 _TEXT ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
-;  * r   Result of doubling.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of doubling.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_tpl_6 PROC
@@ -47807,10 +47856,10 @@ sp_384_mont_tpl_6 ENDP
 _TEXT ENDS
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
-;  * r   Result of subtration.
-;  * a   Number to subtract from in Montgomery form.
-;  * b   Number to subtract with in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of subtration.
+;  * @param [in]  a  Number to subtract from in Montgomery form.
+;  * @param [in]  b  Number to subtract with in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_sub_6 PROC
@@ -47869,9 +47918,9 @@ sp_384_mont_sub_6 ENDP
 _TEXT ENDS
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_div2_6 PROC
@@ -47940,9 +47989,9 @@ _TEXT ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible point that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of point to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of point to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_get_point_33_6 PROC
@@ -48051,9 +48100,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible point that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of point to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of point to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_get_point_33_avx2_6 PROC
@@ -48132,9 +48181,10 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 384 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_reduce_order_avx2_6 PROC
@@ -48456,10 +48506,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_cond_sub_avx2_6 PROC
@@ -48503,9 +48554,9 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mont_div2_avx2_6 PROC
@@ -48574,9 +48625,9 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_get_entry_64_6 PROC
@@ -48655,9 +48706,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_get_entry_64_avx2_6 PROC
@@ -48718,9 +48769,9 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_get_entry_65_6 PROC
@@ -48799,9 +48850,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_get_entry_65_avx2_6 PROC
@@ -48861,7 +48912,7 @@ ENDIF
 ENDIF
 ; /* Add 1 to a. (a = a + 1)
 ;  *
-;  * a  A single precision integer.
+;  * @param [in, out] a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_add_one_6 PROC
@@ -48877,10 +48928,10 @@ _TEXT ENDS
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_from_bin_bswap PROC
@@ -48965,10 +49016,10 @@ IFNDEF NO_MOVBE_SUPPORT
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the movbe instruction which is an optional instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_from_bin_movbe PROC
@@ -49042,8 +49093,8 @@ ENDIF
 ;  * Fixed length number of bytes written: 48
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_to_bin_bswap_6 PROC
@@ -49073,8 +49124,8 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * Fixed length number of bytes written: 48
 ;  * Uses the movbe instruction which is optional.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_to_bin_movbe_6 PROC
@@ -49096,8 +49147,8 @@ _TEXT ENDS
 ENDIF
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_sub_in_place_6 PROC
@@ -49123,9 +49174,9 @@ sp_384_sub_in_place_6 ENDP
 _TEXT ENDS
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mul_d_6 PROC
@@ -49184,9 +49235,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_mul_d_avx2_6 PROC
@@ -49239,10 +49290,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_384_word_asm_6 PROC
@@ -49256,8 +49308,8 @@ _TEXT ENDS
 ENDIF
 ; /* Shift number right by 1 bit. (r = a >> 1)
 ;  *
-;  * r  Result of right shift by 1.
-;  * a  Number to shift.
+;  * @param [out] r  Result of right shift by 1.
+;  * @param [in]  a  Number to shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_rshift1_6 PROC
@@ -49286,9 +49338,9 @@ sp_384_rshift1_6 ENDP
 _TEXT ENDS
 ; /* Divide the number by 2 mod the prime. (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_384_div2_mod_6 PROC
@@ -49406,9 +49458,9 @@ ENDIF
 IFDEF WOLFSSL_SP_521
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mul_9 PROC
@@ -49958,9 +50010,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply.
-;  * b   Second number to multiply.
+;  * @param [out] r  Result of multiplication.
+;  * @param [in]  a  First number to multiply.
+;  * @param [in]  b  Second number to multiply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mul_avx2_9 PROC
@@ -50536,8 +50588,8 @@ _TEXT ENDS
 ENDIF
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_sqr_9 PROC
@@ -50953,8 +51005,8 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_sqr_avx2_9 PROC
@@ -51351,9 +51403,9 @@ _TEXT ENDS
 ENDIF
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_add_9 PROC
@@ -51392,9 +51444,9 @@ sp_521_add_9 ENDP
 _TEXT ENDS
 ; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_sub_9 PROC
@@ -51432,9 +51484,9 @@ _TEXT ENDS
 ; /* Conditionally copy a into r using the mask m.
 ;  * m is -1 to copy and 0 when not.
 ;  *
-;  * r  A single precision number to copy over.
-;  * a  A single precision number to copy.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number to copy over.
+;  * @param [in]  a  A single precision number to copy.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_cond_copy_9 PROC
@@ -51482,11 +51534,11 @@ _TEXT ENDS
 ; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply in Montgomery form.
-;  * b   Second number to multiply in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of multiplication.
+;  * @param [in]  a   First number to multiply in Montgomery form.
+;  * @param [in]  b   Second number to multiply in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_mul_9 PROC
@@ -52073,10 +52125,10 @@ sp_521_mont_mul_9 ENDP
 _TEXT ENDS
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
-;  * r   Result of squaring.
-;  * a   Number to square in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of squaring.
+;  * @param [in]  a   Number to square in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_sqr_9 PROC
@@ -52525,10 +52577,11 @@ sp_521_mont_sqr_9 ENDP
 _TEXT ENDS
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_cmp_9 PROC
@@ -52617,10 +52670,11 @@ _TEXT ENDS
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_cond_sub_9 PROC
@@ -52695,9 +52749,10 @@ sp_521_cond_sub_9 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 521 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_reduce_9 PROC
@@ -52764,9 +52819,10 @@ sp_521_mont_reduce_9 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 521 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_reduce_order_9 PROC
@@ -52939,10 +52995,10 @@ sp_521_mont_reduce_order_9 ENDP
 _TEXT ENDS
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_add_9 PROC
@@ -53002,9 +53058,9 @@ sp_521_mont_add_9 ENDP
 _TEXT ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
-;  * r   Result of addition.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_dbl_9 PROC
@@ -53062,9 +53118,9 @@ sp_521_mont_dbl_9 ENDP
 _TEXT ENDS
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
-;  * r   Result of Tripling.
-;  * a   Number to triple in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of Tripling.
+;  * @param [in]  a  Number to triple in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_tpl_9 PROC
@@ -53131,10 +53187,10 @@ sp_521_mont_tpl_9 ENDP
 _TEXT ENDS
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_sub_9 PROC
@@ -53195,9 +53251,9 @@ sp_521_mont_sub_9 ENDP
 _TEXT ENDS
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_div2_9 PROC
@@ -53257,9 +53313,9 @@ _TEXT ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible point that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of point to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of point to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_get_point_33_9 PROC
@@ -53417,9 +53473,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible point that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of point to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of point to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_get_point_33_avx2_9 PROC
@@ -53530,11 +53586,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply in Montgomery form.
-;  * b   Second number to multiply in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of multiplication.
+;  * @param [in]  a   First number to multiply in Montgomery form.
+;  * @param [in]  b   Second number to multiply in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_mul_avx2_9 PROC
@@ -54141,10 +54197,10 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
-;  * r   Result of squaring.
-;  * a   Number to square in Montgomery form.
-;  * m   Modulus (prime).
-;  * mp  Montgomery multiplier.
+;  * @param [out] r   Result of squaring.
+;  * @param [in]  a   Number to square in Montgomery form.
+;  * @param [in]  m   Modulus (prime).
+;  * @param [in]  mp  Montgomery multiplier.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_sqr_avx2_9 PROC
@@ -54584,10 +54640,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_cond_sub_avx2_9 PROC
@@ -54646,9 +54703,10 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 521 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_reduce_order_avx2_9 PROC
@@ -54958,9 +55016,9 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mont_div2_avx2_9 PROC
@@ -55021,9 +55079,9 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_get_entry_64_9 PROC
@@ -55153,9 +55211,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_get_entry_64_avx2_9 PROC
@@ -55238,9 +55296,9 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_get_entry_65_9 PROC
@@ -55370,9 +55428,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Touch each possible entry that could be being copied.
 ;  *
-;  * r      Point to copy into.
-;  * table  Table - start of the entries to access
-;  * idx    Index of entry to retrieve.
+;  * @param [out] r      Point to copy into.
+;  * @param [in]  table  Table - start of the entries to access
+;  * @param [in]  idx    Index of entry to retrieve.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_get_entry_65_avx2_9 PROC
@@ -55454,7 +55512,7 @@ ENDIF
 ENDIF
 ; /* Add 1 to a. (a = a + 1)
 ;  *
-;  * a  A single precision integer.
+;  * @param [in, out] a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_add_one_9 PROC
@@ -55473,10 +55531,10 @@ _TEXT ENDS
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_from_bin_bswap PROC
@@ -55561,10 +55619,10 @@ IFNDEF NO_MOVBE_SUPPORT
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the movbe instruction which is an optional instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_from_bin_movbe PROC
@@ -55638,8 +55696,8 @@ ENDIF
 ;  * Fixed length number of bytes written: 65
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_to_bin_bswap_9 PROC
@@ -55679,8 +55737,8 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * Fixed length number of bytes written: 65
 ;  * Uses the movbe instruction which is optional.
 ;  *
-;  * r  A single precision integer.
-;  * a  Byte array.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  Byte array.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_to_bin_movbe_9 PROC
@@ -55710,8 +55768,8 @@ _TEXT ENDS
 ENDIF
 ; /* Shift number right by 1 bit. (r = a >> 1)
 ;  *
-;  * r  Result of right shift by 1.
-;  * a  Number to shift.
+;  * @param [out] r  Result of right shift by 1.
+;  * @param [in]  a  Number to shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_rshift_9 PROC
@@ -55751,9 +55809,9 @@ sp_521_rshift_9 ENDP
 _TEXT ENDS
 ; /* Shift number left by n bit. (r = a << n)
 ;  *
-;  * r  Result of left shift by n.
-;  * a  Number to shift.
-;  * n  Amoutnt o shift.
+;  * @param [out] r  Result of left shift by n.
+;  * @param [in]  a  Number to shift.
+;  * @param [in]  n  Amoutnt o shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_lshift_9 PROC
@@ -55798,9 +55856,9 @@ sp_521_lshift_9 ENDP
 _TEXT ENDS
 ; /* Shift number left by n bit. (r = a << n)
 ;  *
-;  * r  Result of left shift by n.
-;  * a  Number to shift.
-;  * n  Amoutnt o shift.
+;  * @param [out] r  Result of left shift by n.
+;  * @param [in]  a  Number to shift.
+;  * @param [in]  n  Amoutnt o shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_lshift_18 PROC
@@ -55872,8 +55930,8 @@ sp_521_lshift_18 ENDP
 _TEXT ENDS
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_sub_in_place_9 PROC
@@ -55910,9 +55968,9 @@ sp_521_sub_in_place_9 ENDP
 _TEXT ENDS
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mul_d_9 PROC
@@ -55995,9 +56053,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_mul_d_avx2_9 PROC
@@ -56068,10 +56126,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_521_word_asm_9 PROC
@@ -56085,8 +56144,8 @@ _TEXT ENDS
 ENDIF
 ; /* Shift number right by 1 bit. (r = a >> 1)
 ;  *
-;  * r  Result of right shift by 1.
-;  * a  Number to shift.
+;  * @param [out] r  Result of right shift by 1.
+;  * @param [in]  a  Number to shift.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_rshift1_9 PROC
@@ -56124,9 +56183,9 @@ sp_521_rshift1_9 ENDP
 _TEXT ENDS
 ; /* Divide the number by 2 mod the prime. (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_521_div2_mod_9 PROC
@@ -56285,9 +56344,9 @@ ENDIF
 IFDEF WOLFSSL_SP_1024
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mul_16 PROC
@@ -57928,8 +57987,8 @@ sp_1024_mul_16 ENDP
 _TEXT ENDS
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_sqr_16 PROC
@@ -59017,9 +59076,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Multiply a and b into r. (r = a * b)
 ;  *
-;  * r   Result of multiplication.
-;  * a   First number to multiply.
-;  * b   Second number to multiply.
+;  * @param [out] r  Result of multiplication.
+;  * @param [in]  a  First number to multiply.
+;  * @param [in]  b  Second number to multiply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mul_avx2_16 PROC
@@ -60689,8 +60748,8 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Square a and put result in r. (r = a * a)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_sqr_avx2_16 PROC
@@ -61742,9 +61801,9 @@ _TEXT ENDS
 ENDIF
 ; /* Add b to a into r. (r = a + b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_add_16 PROC
@@ -61804,8 +61863,8 @@ sp_1024_add_16 ENDP
 _TEXT ENDS
 ; /* Sub b from a into a. (a -= b)
 ;  *
-;  * a  A single precision integer and result.
-;  * b  A single precision integer.
+;  * @param [in, out] a  A single precision integer and result.
+;  * @param [in]      b  A single precision integer.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_sub_in_place_16 PROC
@@ -61864,10 +61923,11 @@ _TEXT ENDS
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_cond_sub_16 PROC
@@ -61993,10 +62053,11 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Conditionally subtract b from a using the mask m.
 ;  * m is -1 to subtract and 0 when not copying.
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number representing condition subtract
+;  *                 result.
+;  * @param [in]  a  A single precision number to subtract from.
+;  * @param [in]  b  A single precision number to subtract.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_cond_sub_avx2_16 PROC
@@ -62089,9 +62150,9 @@ _TEXT ENDS
 ENDIF
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mul_d_16 PROC
@@ -62230,9 +62291,9 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision digit.
+;  * @param [out] r  A single precision integer.
+;  * @param [in]  a  A single precision integer.
+;  * @param [in]  b  A single precision digit.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mul_d_avx2_16 PROC
@@ -62345,10 +62406,11 @@ ENDIF
 IFDEF _WIN64
 ; /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
 ;  *
-;  * d1   The high order half of the number to divide.
-;  * d0   The low order half of the number to divide.
-;  * div  The dividend.
-;  * returns the result of the division.
+;  * @param [in] d1   The high order half of the number to divide.
+;  * @param [in] d0   The low order half of the number to divide.
+;  * @param [in] div  The dividend.
+;  *
+;  * @return  The result of the division.
 ;  */
 _TEXT SEGMENT READONLY PARA
 div_1024_word_asm_16 PROC
@@ -62362,10 +62424,11 @@ _TEXT ENDS
 ENDIF
 ; /* Compare a with b in constant time.
 ;  *
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  * return -ve, 0 or +ve if a is less than, equal to or greater than b
-;  * respectively.
+;  * @param [in] a  A single precision integer.
+;  * @param [in] b  A single precision integer.
+;  *
+;  * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+;  *          respectively.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_cmp_16 PROC
@@ -62510,9 +62573,9 @@ _TEXT ENDS
 ; /* Conditionally copy a into r using the mask m.
 ;  * m is -1 to copy and 0 when not.
 ;  *
-;  * r  A single precision number to copy over.
-;  * a  A single precision number to copy.
-;  * m  Mask value to apply.
+;  * @param [out] r  A single precision number to copy over.
+;  * @param [in]  a  A single precision number to copy.
+;  * @param [in]  m  Mask value to apply.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_cond_copy_16 PROC
@@ -62585,9 +62648,10 @@ sp_1024_cond_copy_16 ENDP
 _TEXT ENDS
 ; /* Reduce the number back to 1024 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_reduce_16 PROC
@@ -62796,10 +62860,10 @@ sp_1024_mont_reduce_16 ENDP
 _TEXT ENDS
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_add_16 PROC
@@ -62964,9 +63028,9 @@ sp_1024_mont_add_16 ENDP
 _TEXT ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
-;  * r   Result of addition.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_dbl_16 PROC
@@ -63129,9 +63193,9 @@ sp_1024_mont_dbl_16 ENDP
 _TEXT ENDS
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
-;  * r   Result of addition.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_tpl_16 PROC
@@ -63444,10 +63508,10 @@ sp_1024_mont_tpl_16 ENDP
 _TEXT ENDS
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_sub_16 PROC
@@ -63608,9 +63672,9 @@ sp_1024_mont_sub_16 ENDP
 _TEXT ENDS
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_div2_16 PROC
@@ -63759,9 +63823,10 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 1024 bits using Montgomery reduction.
 ;  *
-;  * a   A single precision number to reduce in place.
-;  * m   The single precision number representing the modulus.
-;  * mp  The digit representing the negative inverse of m mod 2^n.
+;  * @param [in, out] a   A single precision number to reduce in place.
+;  * @param [in]      m   The single precision number representing the modulus.
+;  * @param [in]      mp  The digit representing the negative inverse of
+;  *                      m mod 2^n.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_reduce_avx2_16 PROC
@@ -64094,10 +64159,10 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_add_avx2_16 PROC
@@ -64246,9 +64311,9 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
-;  * r   Result of addition.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_dbl_avx2_16 PROC
@@ -64395,9 +64460,9 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
-;  * r   Result of addition.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  Number to double in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_tpl_avx2_16 PROC
@@ -64678,10 +64743,10 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
-;  * r   Result of addition.
-;  * a   First number to add in Montgomery form.
-;  * b   Second number to add in Montgomery form.
-;  * m   Modulus (prime).
+;  * @param [out] r  Result of addition.
+;  * @param [in]  a  First number to add in Montgomery form.
+;  * @param [in]  b  Second number to add in Montgomery form.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_sub_avx2_16 PROC
@@ -64826,9 +64891,9 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
-;  * r  Result of division by 2.
-;  * a  Number to divide.
-;  * m  Modulus (prime).
+;  * @param [out] r  Result of division by 2.
+;  * @param [in]  a  Number to divide.
+;  * @param [in]  m  Modulus (prime).
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_mont_div2_avx2_16 PROC
@@ -64977,10 +65042,10 @@ ENDIF
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the bswap instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_from_bin_bswap PROC
@@ -65065,10 +65130,10 @@ IFNDEF NO_MOVBE_SUPPORT
 ; /* Read big endian unsigned byte array into r.
 ;  * Uses the movbe instruction which is an optional instruction.
 ;  *
-;  * r  A single precision integer.
-;  * size  Maximum number of bytes to convert
-;  * a  Byte array.
-;  * n  Number of bytes in array to read.
+;  * @param [out] r     A single precision integer.
+;  * @param [in]  size  Maximum number of bytes to convert
+;  * @param [in]  a     Byte array.
+;  * @param [in]  n     Number of bytes in array to read.
 ;  */
 _TEXT SEGMENT READONLY PARA
 sp_1024_from_bin_movbe PROC
