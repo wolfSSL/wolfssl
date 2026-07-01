@@ -1829,7 +1829,7 @@ fi
 # API name is subject to change, it requires --enable-experimental (checked in
 # the CFLAG section, once all backend sub-options have been resolved).
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures (native, no liboqs; pre-standardization name for FN-DSA; requires --enable-experimental) (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental) (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
@@ -1837,7 +1837,7 @@ AC_ARG_ENABLE([falcon],
 # FN-DSA (currently x86-64 SSE2 only); the portable constant-time integer
 # emulation remains the default. It implies --enable-falcon.
 AC_ARG_ENABLE([falcon-asm],
-    [AS_HELP_STRING([--enable-falcon-asm],[Enable FN-DSA x86-64 assembly fpr backend (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon-asm],[Enable Falcon x86-64 assembly fpr backend (default: disabled)])],
     [ ENABLED_FALCON_ASM=$enableval ],
     [ ENABLED_FALCON_ASM=no ])
 if test "$ENABLED_FALCON_ASM" = "yes"; then
@@ -1856,7 +1856,7 @@ fi
 # but like --enable-falcon-asm it relies on the native FPU's rounding behavior.
 # It implies --enable-falcon and is mutually exclusive with --enable-falcon-asm.
 AC_ARG_ENABLE([falcon-double],
-    [AS_HELP_STRING([--enable-falcon-double],[Enable FN-DSA inline native-double fpr backend (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon-double],[Enable Falcon inline native-double fpr backend (default: disabled)])],
     [ ENABLED_FALCON_DOUBLE=$enableval ],
     [ ENABLED_FALCON_DOUBLE=no ])
 if test "$ENABLED_FALCON_DOUBLE" = "yes"; then
@@ -1873,7 +1873,7 @@ fi
 # host must support AVX2+FMA at run time. Signing is sampler-bound, so the FFT
 # vectorization yields a modest (~1.1x) end-to-end speedup.
 AC_ARG_ENABLE([falcon-avx2],
-    [AS_HELP_STRING([--enable-falcon-avx2],[Enable FN-DSA x86-64 AVX2 vectorized FFT (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon-avx2],[Enable Falcon x86-64 AVX2 vectorized FFT (default: disabled)])],
     [ ENABLED_FALCON_AVX2=$enableval ],
     [ ENABLED_FALCON_AVX2=no ])
 if test "$ENABLED_FALCON_AVX2" = "yes"; then
@@ -1894,7 +1894,7 @@ fi
 # implies). AArch64 Advanced SIMD is part of the ARMv8-A baseline, so no special
 # -march is required.
 AC_ARG_ENABLE([falcon-neon],
-    [AS_HELP_STRING([--enable-falcon-neon],[Enable FN-DSA AArch64 NEON vectorized FFT (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon-neon],[Enable Falcon AArch64 NEON vectorized FFT (default: disabled)])],
     [ ENABLED_FALCON_NEON=$enableval ],
     [ ENABLED_FALCON_NEON=no ])
 if test "$ENABLED_FALCON_NEON" = "yes"; then
@@ -7920,7 +7920,7 @@ then
     ENABLED_SHAKE128=yes
     ENABLED_SHAKE256=yes
 fi
-# FN-DSA (native Falcon) uses SHA-3 / SHAKE256 for hash-to-point.
+# Falcon uses SHA-3 / SHAKE256 for hash-to-point.
 if test "$ENABLED_FALCON" != "no"
 then
     ENABLED_SHA3=yes
@@ -13520,7 +13520,7 @@ echo "   * XMSS:                       $ENABLED_XMSS"
 echo "   * SLH-DSA                     $ENABLED_SLHDSA"
 echo "   * MLKEM:                      $ENABLED_MLKEM"
 echo "   * ML-DSA:                     $ENABLED_MLDSA"
-echo "   * FN-DSA (native Falcon):     $ENABLED_FALCON"
+echo "   * Falcon:     $ENABLED_FALCON"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"
@@ -13578,7 +13578,7 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
-echo "   * Falcon (native FN-DSA):     $ENABLED_FALCON"
+echo "   * Falcon:     $ENABLED_FALCON"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
