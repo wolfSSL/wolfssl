@@ -917,16 +917,6 @@ endif()
 
 set(WOLFSSL_SLOW_MATH "yes")
 
-# liboqs
-add_option(WOLFSSL_OQS
-    "Enable integration with the OQS (Open Quantum Safe) liboqs library (default: disabled)"
-    "no" "yes;no")
-
-# Falcon (provided via liboqs)
-add_option(WOLFSSL_FALCON
-    "Enable Falcon post-quantum signatures via liboqs (default: disabled)"
-    "no" "yes;no")
-
 # ML-KEM/Kyber
 add_option(WOLFSSL_MLKEM
     "Enable the wolfSSL PQ ML-KEM library (default: disabled)"
@@ -1143,39 +1133,10 @@ if (WOLFSSL_EXPERIMENTAL)
 
     set_wolfssl_definitions("WOLFSSL_EXPERIMENTAL_SETTINGS" RESULT)
 
-    # Cross-validate WOLFSSL_OQS and WOLFSSL_FALCON: liboqs is only linked
-    # when a liboqs-backed algorithm (Falcon) is actually enabled.
-    if (WOLFSSL_FALCON AND NOT WOLFSSL_OQS)
-        message(FATAL_ERROR "WOLFSSL_FALCON requires WOLFSSL_OQS.")
-    endif()
-    if (WOLFSSL_OQS AND NOT WOLFSSL_FALCON)
-        message(FATAL_ERROR "WOLFSSL_OQS requires WOLFSSL_FALCON.")
-    endif()
-
-    # Checking for experimental feature: OQS
-    message(STATUS "Looking for WOLFSSL_OQS")
-    if (WOLFSSL_OQS)
+    # Native Falcon (FN-DSA) is an experimental feature (unstandardized; API
+    # name subject to change). It has no liboqs dependency.
+    if (WOLFSSL_FALCON)
         set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
-        message(STATUS "Looking for WOLFSSL_OQS - found")
-
-        message(STATUS "Checking OQS")
-        find_package(OQS)
-        if (OQS_FOUND)
-            message(STATUS "Checking OQS - found")
-            list(APPEND WOLFSSL_LINK_LIBS ${OQS_LIBRARY})
-            list(APPEND WOLFSSL_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
-
-            set_wolfssl_definitions("HAVE_LIBOQS"          RESULT)
-            set_wolfssl_definitions("HAVE_TLS_EXTENSIONS"  RESULT)
-            set_wolfssl_definitions("OPENSSL_EXTRA"        RESULT)
-            set_wolfssl_definitions("HAVE_FALCON"          RESULT)
-
-        else()
-            message(STATUS "Checking OQS - not found")
-            message(STATUS "WARNING: WOLFSSL_OQS enabled but not found: OQS_LIBRARY=${OQS_LIBRARY}, OQS_INCLUDE_DIR=${OQS_INCLUDE_DIR} ")
-        endif()
-    else()
-        message(STATUS "Looking for WOLFSSL_OQS - not found")
     endif()
 
     # Checking for experimental feature: extra PQ/T hybrid combinations
@@ -1292,9 +1253,6 @@ if (WOLFSSL_EXPERIMENTAL)
 else()
     # Experimental mode not enabled, but were any experimental features enabled? Error out if so:
     message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - not found")
-    if (WOLFSSL_OQS)
-        message(FATAL_ERROR "Error: WOLFSSL_OQS requires WOLFSSL_EXPERIMENTAL at this time.")
-    endif()
     if (WOLFSSL_FALCON)
         message(FATAL_ERROR "Error: WOLFSSL_FALCON requires WOLFSSL_EXPERIMENTAL at this time.")
     endif()

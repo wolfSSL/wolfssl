@@ -3703,7 +3703,7 @@
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
-      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS) || \
+      defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
@@ -3716,7 +3716,7 @@
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
-      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS) || \
+      defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
@@ -5174,7 +5174,7 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
  * native wolfCrypt implementation in falcon.[ch] + wc_falcon*.[ch]; it no longer
  * requires liboqs. HAVE_FALCON is the build gate. */
 
-#if (defined(HAVE_LIBOQS) ||                                            \
+#if (defined(HAVE_FALCON) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS) ||                                 \
      defined(HAVE_ASCON)) &&                                            \
     !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)

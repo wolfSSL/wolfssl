@@ -1820,53 +1820,6 @@ then
     fi
 fi
 
-# liboqs
-ENABLED_LIBOQS="no"
-tryliboqsdir=""
-AC_ARG_WITH([liboqs],
-    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) (requires --enable-experimental)])],
-    [
-        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
-        AC_MSG_CHECKING([for liboqs])
-        LIBS="$LIBS -loqs"
-        AM_CFLAGS="$AM_CFLAGS -pthread"
-
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
-
-        if test "x$liboqs_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                tryliboqsdir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                tryliboqsdir="/usr/local"
-            fi
-
-            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include -pthread"
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
-
-            if test "x$liboqs_linked" = "xno" ; then
-                AC_MSG_ERROR([liboqs isn't found.
-                If it's already installed, specify its path using --with-liboqs=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            AM_CPPFLAGS="$CPPFLAGS"
-            AM_LDFLAGS="$AM_LDFLAGS -L$tryliboqsdir/lib"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
-        then
-            ENABLED_OPENSSLEXTRA="yes"
-            AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
-        ENABLED_LIBOQS="yes"
-    ]
-)
 
 # Falcon (legacy name for FN-DSA, now provided by the native implementation)
 # Falcon post-quantum signatures. "Falcon" is the pre-standardization name; NIST
@@ -13019,7 +12972,6 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING_MULTI],[test "x$ENABLED_CERTIFICATE_STATUS_R
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
-AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
@@ -13600,7 +13552,6 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
-echo "   * liboqs:                     $ENABLED_LIBOQS"
 echo "   * Falcon (native FN-DSA):     $ENABLED_FALCON"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"

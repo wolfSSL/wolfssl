@@ -256,10 +256,12 @@
     - ML-DSA (FIPS 204, CRYSTALS-Dilithium) (signature scheme)
     - SLH-DSA (FIPS 205, SPHINCS+) (signature scheme)
 
-    Falcon (signature scheme) is still provided through liboqs integration.
-    To enable it, pass both --with-liboqs and --enable-falcon to configure
-    (CMake: -DWOLFSSL_OQS=yes -DWOLFSSL_FALCON=yes). Passing --with-liboqs
-    without --enable-falcon (or vice versa) is now an error.
+    Falcon (signature scheme) is provided by the native wolfSSL
+    implementation; liboqs is no longer required or supported. NIST is
+    standardizing Falcon as FN-DSA (FIPS 206, still a draft). Because it is
+    not yet standardized and its API name is subject to change, enable it with
+    --enable-falcon --enable-experimental (CMake: -DWOLFSSL_FALCON=yes
+    -DWOLFSSL_EXPERIMENTAL=yes).
 
     The following NIST Competition Round 3 finalist algorithms were supported,
     but have been removed after 5.3.3
