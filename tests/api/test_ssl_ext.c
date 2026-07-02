@@ -188,7 +188,18 @@ int test_wolfSSL_CTX_set_TicketHint_ext(void)
     ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 604801),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 0), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_TICKET_KEY_LIFETIME
+    /* The default ticket encryption callback can only honor a hint below half
+     * the ticket key lifetime; larger values are rejected. */
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, WOLFSSL_TICKET_KEY_LIFETIME / 2),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx,
+        WOLFSSL_TICKET_KEY_LIFETIME / 2 - 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 604800),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
     ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 604800), WOLFSSL_SUCCESS);
+#endif
 
     wolfSSL_CTX_free(ctx);
 #endif
