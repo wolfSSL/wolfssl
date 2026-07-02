@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     printf("Cipher Suite is %s\n",
            wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
 
-    int got = wolfSSL_read(ssl, buffer, sizeof(buffer));
+    int got = wolfSSL_read(ssl, buffer, sizeof(buffer) - 1);
     if (got > 0) {
         buffer[got] = 0;
         printf("client said: %s\n", buffer);

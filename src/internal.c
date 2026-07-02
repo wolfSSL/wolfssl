@@ -24467,6 +24467,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         /* in buffer */
         ret |= wc_Md5Update(&md5, in, sz);
         if (ret != 0) {
+            wc_Md5Free(&md5);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
@@ -24478,6 +24479,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         }
     #endif
         if (ret != 0) {
+            wc_Md5Free(&md5);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
@@ -24487,6 +24489,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         ret |= wc_Md5Update(&md5, PAD2, padSz);
         ret |= wc_Md5Update(&md5, result, digestSz);
         if (ret != 0) {
+            wc_Md5Free(&md5);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
@@ -24498,6 +24501,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         }
     #endif
         if (ret != 0) {
+            wc_Md5Free(&md5);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
@@ -24517,6 +24521,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         /* in buffer */
         ret |= wc_ShaUpdate(&sha, in, sz);
         if (ret != 0) {
+            wc_ShaFree(&sha);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
@@ -24528,6 +24533,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         }
     #endif
         if (ret != 0) {
+            wc_ShaFree(&sha);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
@@ -24537,6 +24543,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         ret |= wc_ShaUpdate(&sha, PAD2, padSz);
         ret |= wc_ShaUpdate(&sha, result, digestSz);
         if (ret != 0) {
+            wc_ShaFree(&sha);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
@@ -24548,6 +24555,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         }
     #endif
         if (ret != 0) {
+            wc_ShaFree(&sha);
             WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
             return VERIFY_MAC_ERROR;
         }
