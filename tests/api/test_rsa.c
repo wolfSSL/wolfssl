@@ -30,6 +30,12 @@
 
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifndef NO_SHA256
+#include <wolfssl/wolfcrypt/sha256.h>
+#endif
+#ifdef WOLFSSL_SHA384
+#include <wolfssl/wolfcrypt/sha512.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_rsa.h>
 
@@ -1400,3 +1406,366 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
     return EXPECT_RESULT();
 } /* END test_wc_RsaKeyToDer_SizeOverflow */
 
+/*
+ * MC/DC wave 2 — decision-targeted negative paths for the high-level RSA
+ * encrypt/decrypt/sign surfaces. The existing tests above deliberately leave
+ * bad-arg coverage "tested in another testing function" for
+ * wc_RsaPublicEncrypt{,_ex}, wc_RsaPrivateDecrypt{,Inline}{,_ex}, and
+ * wc_RsaSetRNG. This function closes that gap by hitting the argument-check,
+ * short-buffer, and invalid-mode branches in wolfcrypt/src/rsa.c without
+ * changing any library source.
+ */
+int test_wc_RsaDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    RsaKey key;
+    WC_RNG rng;
+    const char inStr[] = TEST_STRING;
+    const word32 inLen = (word32)TEST_STRING_SZ;
+    int bits = TEST_RSA_BITS;
+    const word32 cipherLen = TEST_RSA_BYTES;
+    int cipherOutLen = 0;
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_DECLARE_VAR(plain, byte, TEST_RSA_BYTES, NULL);
+
+    WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_ALLOC_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_ALLOC_VAR(plain, byte, TEST_RSA_BYTES, NULL);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(in);
+    ExpectNotNull(cipher);
+    ExpectNotNull(plain);
+#endif
+    ExpectNotNull(XMEMCPY(in, inStr, inLen));
+
+    XMEMSET(&key, 0, sizeof(RsaKey));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
+
+    /* ---- wc_RsaPublicEncrypt: argument-check decision branches ---- */
+    ExpectIntEQ(wc_RsaPublicEncrypt(NULL, inLen, cipher, cipherLen, &key, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPublicEncrypt(in, inLen, NULL, cipherLen, &key, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Short output buffer: cipher buffer smaller than modulus byte length
+     * must return RSA_BUFFER_E (short-buffer decision branch). */
+    ExpectIntEQ(wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen - 1, &key,
+        &rng), WC_NO_ERR_TRACE(RSA_BUFFER_E));
+
+    /* One real encrypt so the decrypt-side negative cases have a valid
+     * cipher text to work with. */
+    ExpectIntGT(cipherOutLen = wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen,
+        &key, &rng), 0);
+
+    /* ---- wc_RsaPrivateDecrypt: argument-check + short-buffer branches ---- */
+#if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+    /* wc_RsaSetRNG NULL arg decision branches. */
+    ExpectIntEQ(wc_RsaSetRNG(NULL, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaSetRNG(&key, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    ExpectIntEQ(wc_RsaPrivateDecrypt(NULL, (word32)cipherOutLen, plain,
+        cipherLen, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, (word32)cipherOutLen, NULL,
+        cipherLen, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, (word32)cipherOutLen, plain,
+        cipherLen, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ---- wc_RsaPrivateDecryptInline: argument-check decision branches ---- */
+    {
+        byte* outPtr = NULL;
+        ExpectIntEQ(wc_RsaPrivateDecryptInline(NULL, (word32)cipherOutLen,
+            &outPtr, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        {
+            int ret = wc_RsaPrivateDecryptInline(cipher, (word32)cipherOutLen,
+                NULL, &key);
+            ExpectTrue(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG) || ret > 0);
+        }
+        ExpectIntEQ(wc_RsaPrivateDecryptInline(cipher, (word32)cipherOutLen,
+            &outPtr, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+#if !defined(HAVE_FIPS) && !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256)
+    /* ---- wc_RsaPublicEncrypt_ex: argument-check + invalid-mode branches --- */
+    ExpectIntEQ(wc_RsaPublicEncrypt_ex(NULL, inLen, cipher, cipherLen, &key,
+        &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPublicEncrypt_ex(in, inLen, NULL, cipherLen, &key, &rng,
+        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherLen, NULL, &rng,
+        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Invalid padding type selector: should not dispatch to any valid path. */
+    ExpectIntLT(wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherLen, &key,
+        &rng, /* bogus pad type */ 99, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+        NULL, 0), 0);
+
+    /* Produce a valid OAEP-SHA256 cipher text for the decrypt negative path. */
+    cipherOutLen = wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherLen, &key,
+        &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+    ExpectIntGT(cipherOutLen, 0);
+
+    /* ---- wc_RsaPrivateDecrypt_ex: argument-check + padding-mismatch ---- */
+    ExpectIntEQ(wc_RsaPrivateDecrypt_ex(NULL, (word32)cipherOutLen, plain,
+        cipherLen, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+        NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, NULL,
+        cipherLen, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+        NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
+        cipherLen, NULL, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+        NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Cipher text is OAEP-SHA256: decoding it as PKCS#1 v1.5 must fail and
+     * exercise the padding-mismatch decision branch in rsa.c. */
+    ExpectIntLT(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
+        cipherLen, &key, WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0),
+        0);
+
+    /* ---- wc_RsaPrivateDecryptInline_ex argument-check branches ---- */
+    {
+        byte* outPtr = NULL;
+        ExpectIntEQ(wc_RsaPrivateDecryptInline_ex(NULL, (word32)cipherOutLen,
+            &outPtr, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+            NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        {
+            int ret = wc_RsaPrivateDecryptInline_ex(cipher,
+                (word32)cipherOutLen, NULL, &key, WC_RSA_OAEP_PAD,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+            ExpectTrue(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG) || ret > 0);
+        }
+        ExpectIntEQ(wc_RsaPrivateDecryptInline_ex(cipher, (word32)cipherOutLen,
+            &outPtr, NULL, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+            NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif /* !HAVE_FIPS && !WC_NO_RSA_OAEP && !NO_SHA256 */
+
+    WC_FREE_VAR(in, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    WC_FREE_VAR(plain, NULL);
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaDecisionCoverage */
+
+/*
+ * MC/DC wave 2 — feature-oriented positive paths to lift rsa.c MC/DC by
+ * exercising OAEP, PSS, and PKCS#1 v1.5 sign/verify across multiple hash
+ * algorithms and label/salt configurations using the static client key DER
+ * (no runtime key generation).
+ */
+int test_wc_RsaFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS)
+    RsaKey key;
+    WC_RNG rng;
+    word32 idx = 0;
+    byte cipher[256];
+    byte plain[256];
+    byte sig[256];
+    int  cipherLen;
+    int  sigLen;
+    int  initKey = 0;
+    int  initRng = 0;
+    static const byte msg[16] = {
+        0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+    };
+    static const byte label[4] = { 0xde, 0xad, 0xbe, 0xef };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    if (EXPECT_SUCCESS()) initKey = 1;
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) initRng = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+        sizeof_client_key_der_2048), 0);
+#ifdef WC_RSA_BLINDING
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+#endif
+
+#if !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256)
+    /* ---- OAEP-SHA256 round trip with empty label ---- */
+    cipherLen = wc_RsaPublicEncrypt_ex(msg, sizeof(msg), cipher,
+        sizeof(cipher), &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+        WC_MGF1SHA256, NULL, 0);
+    ExpectIntGT(cipherLen, 0);
+    if (cipherLen > 0) {
+        int n = wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherLen, plain,
+            sizeof(plain), &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+            WC_MGF1SHA256, NULL, 0);
+        ExpectIntEQ(n, (int)sizeof(msg));
+        if (n == (int)sizeof(msg))
+            ExpectBufEQ(plain, msg, sizeof(msg));
+    }
+
+    /* ---- OAEP-SHA256 round trip with non-empty label ---- */
+    cipherLen = wc_RsaPublicEncrypt_ex(msg, sizeof(msg), cipher,
+        sizeof(cipher), &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+        WC_MGF1SHA256, (byte*)label, sizeof(label));
+    ExpectIntGT(cipherLen, 0);
+    if (cipherLen > 0) {
+        int n = wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherLen, plain,
+            sizeof(plain), &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+            WC_MGF1SHA256, (byte*)label, sizeof(label));
+        ExpectIntEQ(n, (int)sizeof(msg));
+        /* Wrong label must reject. */
+        n = wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherLen, plain,
+            sizeof(plain), &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+            WC_MGF1SHA256, NULL, 0);
+        ExpectIntLT(n, 0);
+    }
+#endif /* !WC_NO_RSA_OAEP && !NO_SHA256 */
+
+#if !defined(WC_NO_RSA_OAEP) && defined(WOLFSSL_SHA384)
+    /* ---- OAEP-SHA384 round trip ---- */
+    cipherLen = wc_RsaPublicEncrypt_ex(msg, sizeof(msg), cipher,
+        sizeof(cipher), &key, &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA384,
+        WC_MGF1SHA384, NULL, 0);
+    ExpectIntGT(cipherLen, 0);
+    if (cipherLen > 0) {
+        int n = wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherLen, plain,
+            sizeof(plain), &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA384,
+            WC_MGF1SHA384, NULL, 0);
+        ExpectIntEQ(n, (int)sizeof(msg));
+    }
+#endif /* !WC_NO_RSA_OAEP && WOLFSSL_SHA384 */
+
+    /* ---- PKCS#1 v1.5 raw encrypt/decrypt round trip ---- */
+    cipherLen = wc_RsaPublicEncrypt(msg, sizeof(msg), cipher, sizeof(cipher),
+        &key, &rng);
+    ExpectIntGT(cipherLen, 0);
+    if (cipherLen > 0) {
+        int n = wc_RsaPrivateDecrypt(cipher, (word32)cipherLen, plain,
+            sizeof(plain), &key);
+        ExpectIntEQ(n, (int)sizeof(msg));
+        if (n == (int)sizeof(msg))
+            ExpectBufEQ(plain, msg, sizeof(msg));
+    }
+
+    /* ---- PKCS#1 v1.5 sign / verify ---- */
+    sigLen = wc_RsaSSL_Sign(msg, sizeof(msg), sig, sizeof(sig), &key, &rng);
+    ExpectIntGT(sigLen, 0);
+    if (sigLen > 0) {
+        int n = wc_RsaSSL_Verify(sig, (word32)sigLen, plain, sizeof(plain),
+            &key);
+        ExpectIntEQ(n, (int)sizeof(msg));
+        if (n == (int)sizeof(msg))
+            ExpectBufEQ(plain, msg, sizeof(msg));
+    }
+    /* Tampered signature must be rejected. */
+    if (sigLen > 0) {
+        sig[0] ^= 0x01;
+        ExpectIntLT(wc_RsaSSL_Verify(sig, (word32)sigLen, plain, sizeof(plain),
+            &key), 0);
+        sig[0] ^= 0x01;
+    }
+
+#if defined(WC_RSA_PSS) && !defined(NO_SHA256)
+    /* ---- PSS-SHA256 sign / verify with default salt length ----
+     * PSS expects a hash-sized input, not arbitrary plaintext. */
+    {
+        byte hash256[WC_SHA256_DIGEST_SIZE];
+        ExpectIntEQ(wc_Sha256Hash(msg, sizeof(msg), hash256), 0);
+
+        sigLen = wc_RsaPSS_Sign(hash256, sizeof(hash256), sig, sizeof(sig),
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+        ExpectIntGT(sigLen, 0);
+        if (sigLen > 0) {
+            ExpectIntGT(wc_RsaPSS_Verify(sig, (word32)sigLen, plain,
+                sizeof(plain), WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), 0);
+        }
+
+        /* ---- PSS-SHA256 sign / verify with explicit salt length ---- */
+        sigLen = wc_RsaPSS_Sign_ex(hash256, sizeof(hash256), sig, sizeof(sig),
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, /* saltLen */ 16, &key, &rng);
+        ExpectIntGT(sigLen, 0);
+        if (sigLen > 0) {
+            ExpectIntGT(wc_RsaPSS_Verify_ex(sig, (word32)sigLen, plain,
+                sizeof(plain), WC_HASH_TYPE_SHA256, WC_MGF1SHA256, 16, &key),
+                0);
+        }
+    }
+#endif /* WC_RSA_PSS && !NO_SHA256 */
+
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_SHA384)
+    /* ---- PSS-SHA384 sign / verify ---- */
+    {
+        byte hash384[WC_SHA384_DIGEST_SIZE];
+        ExpectIntEQ(wc_Sha384Hash(msg, sizeof(msg), hash384), 0);
+
+        sigLen = wc_RsaPSS_Sign(hash384, sizeof(hash384), sig, sizeof(sig),
+            WC_HASH_TYPE_SHA384, WC_MGF1SHA384, &key, &rng);
+        ExpectIntGT(sigLen, 0);
+        if (sigLen > 0) {
+            ExpectIntGT(wc_RsaPSS_Verify(sig, (word32)sigLen, plain,
+                sizeof(plain), WC_HASH_TYPE_SHA384, WC_MGF1SHA384, &key), 0);
+        }
+    }
+#endif /* WC_RSA_PSS && WOLFSSL_SHA384 */
+
+    /* ---- wc_CheckRsaKey: exercise consistency checks on a good key ---- */
+    #ifdef WOLFSSL_RSA_KEY_CHECK
+    ExpectIntEQ(wc_CheckRsaKey(&key), 0);
+    #endif
+
+    /* ---- wc_InitRsaKey_Id / wc_InitRsaKey_Label: positive path ---- */
+    #ifdef WOLF_PRIVATE_KEY_ID
+    {
+        RsaKey tmpKey;
+        static const byte idBuf[4] = { 0x01, 0x02, 0x03, 0x04 };
+        XMEMSET(&tmpKey, 0, sizeof(tmpKey));
+        ExpectIntEQ(wc_InitRsaKey_Id(&tmpKey, (byte*)idBuf, sizeof(idBuf),
+            HEAP_HINT, INVALID_DEVID), 0);
+        DoExpectIntEQ(wc_FreeRsaKey(&tmpKey), 0);
+    }
+    {
+        RsaKey tmpKey;
+        XMEMSET(&tmpKey, 0, sizeof(tmpKey));
+        ExpectIntEQ(wc_InitRsaKey_Label(&tmpKey, "test-label", HEAP_HINT,
+            INVALID_DEVID), 0);
+        DoExpectIntEQ(wc_FreeRsaKey(&tmpKey), 0);
+    }
+    #endif /* WOLF_PRIVATE_KEY_ID */
+
+    /* ---- wc_RsaKeyToPublicDer_ex: with and without algorithm header ---- */
+    #ifdef WOLFSSL_KEY_GEN
+    {
+        byte pubDer[512];
+        ExpectIntGT(wc_RsaKeyToPublicDer_ex(&key, pubDer, sizeof(pubDer), 1),
+            0);
+        ExpectIntGT(wc_RsaKeyToPublicDer_ex(&key, pubDer, sizeof(pubDer), 0),
+            0);
+    }
+    #endif
+
+    /* ---- wc_RsaEncryptSize / wc_RsaFlattenPublicKey positive path ---- */
+    ExpectIntGT(wc_RsaEncryptSize(&key), 0);
+    {
+        byte n[256];
+        byte e[8];
+        word32 nSz = sizeof(n);
+        word32 eSz = sizeof(e);
+        ExpectIntEQ(wc_RsaFlattenPublicKey(&key, e, &eSz, n, &nSz), 0);
+        ExpectIntGT(nSz, 0);
+        ExpectIntGT(eSz, 0);
+    }
+
+    if (initKey) DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaFeatureCoverage */

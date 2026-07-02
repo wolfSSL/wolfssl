@@ -31,7 +31,14 @@
 #include <wolfssl/wolfcrypt/signature.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/types.h>
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+    #include <wolfssl/wolfcrypt/falcon.h>
+    #ifdef HAVE_LIBOQS
+        #include <oqs/oqs.h>
+    #endif
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_signature.h>
 
@@ -161,3 +168,46 @@ int test_wc_SignatureGetSize_rsa(void)
     return EXPECT_RESULT();
 } /* END test_wc_SignatureGetSize_rsa(void) */
 
+int test_wc_falcon_sign_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PQC) && defined(HAVE_FALCON) && defined(HAVE_LIBOQS)
+    falcon_key key;
+    WC_RNG rng;
+    OQS_SIG* oqssig = NULL;
+    byte pub[FALCON_LEVEL1_PUB_KEY_SIZE];
+    byte priv[FALCON_LEVEL1_KEY_SIZE];
+    byte sig[FALCON_LEVEL1_SIG_SIZE];
+    word32 sigLen = (word32)sizeof(sig);
+    int verified = 0;
+    static const byte msg[] = "wolfssl falcon coverage";
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectNotNull(oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_512));
+    if (oqssig != NULL) {
+        ExpectIntEQ(OQS_SIG_keypair(oqssig, pub, priv), OQS_SUCCESS);
+        ExpectIntEQ(wc_falcon_import_private_key(priv, (word32)sizeof(priv), pub,
+            (word32)sizeof(pub), &key), 0);
+        ExpectIntGT(wc_falcon_size(&key), 0);
+        ExpectIntGT(wc_falcon_pub_size(&key), 0);
+        ExpectIntGT(wc_falcon_priv_size(&key), 0);
+        ExpectIntGT(wc_falcon_sig_size(&key), 0);
+        ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+            &key, &rng), 0);
+        ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+            &verified, &key), 0);
+        ExpectIntEQ(verified, 1);
+    }
+
+    if (oqssig != NULL) {
+        OQS_SIG_free(oqssig);
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_falcon_free(&key);
+#endif
+    return EXPECT_RESULT();
+}

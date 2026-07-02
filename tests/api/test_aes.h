@@ -56,6 +56,10 @@ int test_wc_AesGcmStream(void);
 int test_wc_AesGcmStream_MidStreamState(void);
 int test_wc_AesGcmStream_ReinitAfterFinal(void);
 int test_wc_AesGcmStream_BadAuthTag(void);
+int test_wc_AesKeyWrapVectors(void);
+int test_wc_AesKeyWrapDecisionCoverage(void);
+int test_wc_AesGcmDecisionCoverage(void);
+int test_wc_AesFeatureCoverage(void);
 int test_wc_AesCcmSetKey(void);
 int test_wc_AesCcmEncryptDecrypt(void);
 int test_wc_AesCcmEncryptDecrypt_InPlace(void);
@@ -179,6 +183,10 @@ int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_MidStreamState),  \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_ReinitAfterFinal), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_BadAuthTag),       \
+    TEST_DECL_GROUP("aes", test_wc_AesKeyWrapVectors),          \
+    TEST_DECL_GROUP("aes", test_wc_AesKeyWrapDecisionCoverage), \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmDecisionCoverage),     \
+    TEST_DECL_GROUP("aes", test_wc_AesFeatureCoverage),         \
     TEST_DECL_GROUP("aes", test_wc_AesCcmSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt),        \
     TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt_InPlace),            \

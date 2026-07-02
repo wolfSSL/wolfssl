@@ -42,6 +42,8 @@ int test_ToTraditional_ex_handcrafted(void);
 int test_ToTraditional_ex_roundtrip(void);
 int test_ToTraditional_ex_negative(void);
 int test_ToTraditional_ex_mldsa_bad_params(void);
+int test_wc_AsnDecisionCoverage(void);
+int test_wc_AsnFeatureCoverage(void);
 
 #define TEST_ASN_DECLS                                              \
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
@@ -61,6 +63,8 @@ int test_ToTraditional_ex_mldsa_bad_params(void);
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_negative),         \
-    TEST_DECL_GROUP("asn", test_ToTraditional_ex_mldsa_bad_params)
+    TEST_DECL_GROUP("asn", test_ToTraditional_ex_mldsa_bad_params), \
+    TEST_DECL_GROUP("asn", test_wc_AsnDecisionCoverage),           \
+    TEST_DECL_GROUP("asn", test_wc_AsnFeatureCoverage)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */

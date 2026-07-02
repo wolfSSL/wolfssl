@@ -199,6 +199,72 @@ int test_wc_PKCS12_create(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_PKCS12_create_guardrails(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+    byte* inKey = (byte*)server_key_der_2048;
+    const word32 inKeySz = sizeof_server_key_der_2048;
+    byte* inCert = (byte*)server_cert_der_2048;
+    const word32 inCertSz = sizeof_server_cert_der_2048;
+    WC_DerCertList inCa = {
+        (byte*)ca_cert_der_2048, sizeof_ca_cert_der_2048, NULL
+    };
+    char pkcs12Passwd[] = "test_wc_PKCS12_create_guardrails";
+
+    ExpectNull(wc_PKCS12_create(pkcs12Passwd, sizeof(pkcs12Passwd) - 1,
+        (char*)"friendlyName", inKey, inKeySz, inCert, inCertSz, &inCa, 9999,
+        -1, 0, 0, 0, NULL));
+    ExpectNull(wc_PKCS12_create(pkcs12Passwd, sizeof(pkcs12Passwd) - 1,
+        (char*)"friendlyName", inKey, inKeySz, inCert, inCertSz, &inCa, -1,
+        9999, 0, 0, 0, NULL));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_PKCS12_parse_guardrails(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+    WC_PKCS12* pkcs12 = NULL;
+    byte* outKey = NULL;
+    byte* outCert = NULL;
+    WC_DerCertList* outCa = (WC_DerCertList*)1;
+    word32 outKeySz = 0;
+    word32 outCertSz = 0;
+
+    ExpectIntEQ(wc_PKCS12_parse(NULL, "", &outKey, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+
+    ExpectNotNull(pkcs12 = wc_PKCS12_new());
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, NULL, &outKey, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", NULL, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, NULL, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, NULL,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, &outCert,
+        NULL, &outCa), BAD_FUNC_ARG);
+
+    outKey = (byte*)1;
+    outCert = (byte*)1;
+    outKeySz = 17;
+    outCertSz = 19;
+    ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, &outCert,
+        &outCertSz, &outCa), BAD_FUNC_ARG);
+    ExpectNull(outKey);
+    ExpectNull(outCert);
+    ExpectNull(outCa);
+
+    wc_PKCS12_free(pkcs12);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_d2i_PKCS12_bad_mac_salt(void)
 {
     EXPECT_DECLS;
