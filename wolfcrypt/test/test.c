@@ -28909,6 +28909,65 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     TEST_SLEEP();
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
+    /* RFC 8017 Section 7.1: OAEP permits zero-length messages. Verify
+     * encrypt/decrypt round-trip succeeds with inLen == 0 and that
+     * corrupted ciphertext still produces a negative error code. */
+    #ifndef NO_SHA256
+    #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    #ifndef WOLFSSL_SE050
+    {
+        byte emptyBuf = 0;
+        XMEMSET(out, 0, outSz);
+        XMEMSET(plain, 0, plainSz);
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPublicEncrypt_ex(&emptyBuf, 0, out, outSz, key, rng,
+                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                    NULL, 0);
+            }
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+        if (ret < 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+
+        idx = (word32)ret;
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                    NULL, 0);
+            }
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+        TEST_SLEEP();
+
+        /* Corrupt the ciphertext and verify decryption returns an error,
+         * not a zero-length success. */
+        out[idx / 2] ^= 0x01;
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                    NULL, 0);
+            }
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+        if (ret >= 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
+        ret = 0;
+    }
+    #endif /* WOLFSSL_SE050 */
+    #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+    #endif /* NO_SHA256 */
+
 exit_rsa:
     WC_FREE_VAR(in, HEAP_HINT);
     WC_FREE_VAR(out, HEAP_HINT);

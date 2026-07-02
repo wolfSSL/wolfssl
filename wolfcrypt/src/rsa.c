@@ -1870,8 +1870,10 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
         c = c + (pkcsBlock[idx++] ^ 0x01); /* separator value is 0x01 */
         c = c + (pkcsBlock[0]     ^ 0x00); /* Y, the first value, should be 0 */
 
-        /* Return 0 data length on error. */
-        idx = ctMaskSelWord32(ctMaskEq(c, 0), idx, pkcsBlockLen);
+        /* On error, set idx past the end so the return value is negative.
+         * This distinguishes padding errors (ret == -1) from a valid
+         * zero-length message (ret == 0), which RFC 8017 permits. */
+        idx = ctMaskSelWord32(ctMaskEq(c, 0), idx, pkcsBlockLen + 1);
     }
 
     /* adjust pointer to correct location in array and return size of M */
@@ -3686,7 +3688,14 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     RsaPadding padding;
 #endif
 
-    if (in == NULL || inLen == 0 || out == NULL || key == NULL) {
+    if (out == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* RFC 8017 Section 7.1.1 step 1b permits mLen == 0 for OAEP because
+     * the message-length bound (mLen <= k - 2*hLen - 2) is satisfied.
+     * Other padding types require non-empty input. */
+    if (in == NULL || (inLen == 0 && pad_type != WC_RSA_OAEP_PAD)) {
         return BAD_FUNC_ARG;
     }
 
@@ -4117,8 +4126,14 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             ret = ctMaskSelInt(ctMaskLTE(ret, (int)outLen), ret,
                                WC_NO_ERR_TRACE(RSA_BUFFER_E));
     #ifndef WOLFSSL_RSA_DECRYPT_TO_0_LEN
-            ret = ctMaskSelInt(ctMaskNotEq(ret, 0), ret,
-                               WC_NO_ERR_TRACE(RSA_BUFFER_E));
+            /* RFC 8017 Section 7.1.2 step 3g: OAEP decryption may yield a
+             * valid zero-length message (mLen == 0). Only reject ret == 0
+             * for non-OAEP padding types. */
+            {
+                byte zeroOkMask = ctMaskEq(pad_type, WC_RSA_OAEP_PAD);
+                ret = ctMaskSelInt(ctMaskNotEq(ret, 0) | zeroOkMask, ret,
+                                   WC_NO_ERR_TRACE(RSA_BUFFER_E));
+            }
     #endif
 #else
             if (outLen < (word32)ret)
