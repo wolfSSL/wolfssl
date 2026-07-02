@@ -329,6 +329,13 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             ret = DataToDerBuffer(buff + consumed, (word32)(sz - consumed),
                 format, type, info, heap, &part, NULL);
             if (ret == 0) {
+                /* Enforce maximum chain depth once a real cert is parsed. */
+                if (cnt >= MAX_CHAIN_DEPTH) {
+                    WOLFSSL_MSG("Chain depth limit reached");
+                    FreeDer(&part);
+                    ret = MAX_CHAIN_ERROR;
+                    break;
+                }
                 /* Process the user certificate. */
                 ret = ProcessUserCert(ctx->cm, &part, type, verify,
                    chain.buffer, &idx, (word32)maxSz);

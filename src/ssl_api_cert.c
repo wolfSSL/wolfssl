@@ -1991,7 +1991,7 @@ int wolfSSL_get_chain_count(WOLFSSL_X509_CHAIN* chain)
  * @param [in] chain  Certificate chain object.
  * @param [in] idx    Index of the certificate in the chain.
  * @return  Length of the DER certificate in bytes on success.
- * @return  0 when chain is NULL.
+ * @return  0 when chain is NULL or idx is out of range.
  */
 int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
 {
@@ -1999,7 +1999,7 @@ int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
 
     WOLFSSL_ENTER("wolfSSL_get_chain_length");
 
-    if (chain != NULL) {
+    if ((chain != NULL) && (idx >= 0) && (idx < chain->count)) {
         /* DER length of the certificate stored at the given index. */
         length = chain->certs[idx].length;
     }
@@ -2013,7 +2013,7 @@ int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
  * @param [in] chain  Certificate chain object.
  * @param [in] idx    Index of the certificate in the chain.
  * @return  Buffer holding the DER certificate on success.
- * @return  0 when chain is NULL.
+ * @return  0 when chain is NULL or idx is out of range.
  */
 byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 {
@@ -2021,7 +2021,7 @@ byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert");
 
-    if (chain != NULL) {
+    if ((chain != NULL) && (idx >= 0) && (idx < chain->count)) {
         /* DER buffer of the certificate stored at the given index. */
         cert = chain->certs[idx].buffer;
     }
@@ -2049,7 +2049,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 
     WOLFSSL_ENTER("wolfSSL_get_chain_X509");
 
-    if ((chain != NULL) && (idx < MAX_CHAIN_DEPTH)) {
+    if ((chain != NULL) && (idx >= 0) && (idx < chain->count)) {
         x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
             DYNAMIC_TYPE_X509);
         if (x509 == NULL) {

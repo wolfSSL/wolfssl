@@ -2849,6 +2849,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
             ato16(clientHello + offset, &listLen);
             offset += OPAQUE16_LEN;
 
+            if (listLen != extLen - OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
             if (helloSz < offset + listLen)
                 return BUFFER_ERROR;
 
@@ -2858,6 +2861,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
                 ato16(clientHello + offset, &sniLen);
                 offset += OPAQUE16_LEN;
+
+                if (sniLen > listLen - (ENUM_LEN + OPAQUE16_LEN))
+                    return BUFFER_ERROR;
 
                 if (helloSz < offset + sniLen)
                     return BUFFER_ERROR;
@@ -3434,7 +3440,7 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
 
     switch (csr->status_type) {
         case WOLFSSL_CSR_OCSP:
-            for (i = 0; i <= csr->requests; i++) {
+            for (i = 0; i < csr->requests; i++) {
                 FreeOcspRequest(&csr->request.ocsp[i]);
             }
         break;

@@ -15028,6 +15028,12 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
             }
 
+        #ifdef NO_PKCS7_STREAM
+            if (ret == 0 && encryptedContentSz > (int)(pkiMsgSz - idx)) {
+                ret = BUFFER_E;
+            }
+        #endif
+
             if (ret < 0)
                 break;
 
@@ -15251,6 +15257,12 @@ authenv_atrbend:
 
             localIdx = idx;
 
+        #ifdef NO_PKCS7_STREAM
+            if (ret == 0 && localIdx >= pkiMsgSz) {
+                ret = BUFFER_E;
+            }
+        #endif
+
             /* Get authTag OCTET STRING */
             if (ret == 0 && pkiMsg[localIdx] != ASN_OCTET_STRING) {
                 ret = ASN_PARSE_E;
@@ -15306,6 +15318,12 @@ authenv_atrbend:
             }
         #endif
             idx = localIdx;
+
+        #ifdef NO_PKCS7_STREAM
+            if (ret == 0 && authTagSz > (word32)(pkiMsgSz - idx)) {
+                ret = BUFFER_E;
+            }
+        #endif
 
             if (ret == 0 && authTagSz > (word32)sizeof(authTag)) {
                 WOLFSSL_MSG("AuthEnvelopedData authTag too large for buffer");
