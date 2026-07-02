@@ -1,0 +1,32 @@
+name: Check certificate chains
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  check-cert-chains:
+    name: check-cert-chains
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    # A quick openssl-only check; no wolfSSL build required.
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Report openssl version
+        run: openssl version
+
+      - name: Verify committed leaf certificates chain to their CA
+        working-directory: certs
+        run: ./check_cert_chains.sh
