@@ -21339,6 +21339,102 @@ static int test_wolfSSL_OCSP_parse_url(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfIO_OcspDestAllowed(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP) && defined(HAVE_SOCKADDR) && \
+    defined(HAVE_GETADDRINFO) && defined(WOLFSSL_OCSP_SCREEN_RESPONDER)
+    /* Boundary tests for the OCSP responder SSRF destination screening
+     * (wolfIO_OcspDestAllowed). Literal IP strings resolve locally via
+     * getaddrinfo (no DNS), so results are deterministic. The HAVE_GETADDRINFO
+     * guard matters: the gethostbyname fallback cannot parse IPv6 literals.
+     * 1 = permitted, 0 = blocked. */
+#define EXPECT_BLOCKED(ip) ExpectIntEQ(wolfIO_OcspDestAllowed(ip), 0)
+#define EXPECT_ALLOWED(ip) ExpectIntEQ(wolfIO_OcspDestAllowed(ip), 1)
+
+    /* A NULL or unresolvable host cannot be verified -> denied. */
+    EXPECT_BLOCKED(NULL);
+
+    /* IPv4 blocked ranges. */
+    EXPECT_BLOCKED("0.0.0.1");           /* 0.0.0.0/8     "this" network */
+    EXPECT_BLOCKED("127.0.0.1");         /* 127.0.0.0/8   loopback */
+    EXPECT_BLOCKED("10.0.0.1");          /* 10.0.0.0/8    private */
+    EXPECT_BLOCKED("192.168.1.1");       /* 192.168.0.0/16 private */
+    EXPECT_BLOCKED("169.254.169.254");   /* 169.254.0.0/16 cloud metadata */
+    EXPECT_BLOCKED("224.0.0.1");         /* 224.0.0.0/4   multicast */
+    EXPECT_BLOCKED("240.0.0.1");         /* 240.0.0.0/4   reserved */
+
+    /* IPv4 /12 (172.16.0.0/12) edges. */
+    EXPECT_ALLOWED("172.15.255.255");    /* just below */
+    EXPECT_BLOCKED("172.16.0.0");        /* low edge */
+    EXPECT_BLOCKED("172.31.255.255");    /* high edge */
+    EXPECT_ALLOWED("172.32.0.0");        /* just above */
+
+    /* IPv4 /10 CGNAT (100.64.0.0/10) edges. */
+    EXPECT_ALLOWED("100.63.255.255");    /* just below */
+    EXPECT_BLOCKED("100.64.0.0");        /* low edge */
+    EXPECT_BLOCKED("100.127.255.255");   /* high edge */
+    EXPECT_ALLOWED("100.128.0.0");       /* just above */
+
+    /* IPv4 multicast lower edge. */
+    EXPECT_ALLOWED("223.255.255.255");   /* just below 224/4 */
+
+    /* IPv4 permitted (public) addresses. */
+    EXPECT_ALLOWED("8.8.8.8");
+    EXPECT_ALLOWED("1.1.1.1");
+
+#ifdef WOLFSSL_IPV6
+    /* IPv6 blocked ranges. */
+    EXPECT_BLOCKED("::1");               /* loopback */
+    EXPECT_BLOCKED("::");                /* unspecified */
+    EXPECT_BLOCKED("fc00::1");           /* fc00::/7 unique local */
+    EXPECT_BLOCKED("fd00::1");           /* fc00::/7 unique local */
+    EXPECT_BLOCKED("fe80::1");           /* fe80::/10 link-local */
+    EXPECT_BLOCKED("ff02::1");           /* ff00::/8 multicast */
+    EXPECT_BLOCKED("::ffff:127.0.0.1");  /* IPv4-mapped loopback */
+    EXPECT_BLOCKED("::7f00:1");          /* IPv4-compatible 127.0.0.1 */
+    EXPECT_BLOCKED("64:ff9b::7f00:1");   /* NAT64 of 127.0.0.1 */
+
+    /* IPv6 permitted addresses. */
+    EXPECT_ALLOWED("::ffff:8.8.8.8");    /* IPv4-mapped public */
+    EXPECT_ALLOWED("2001:4860:4860::8888");
+#endif /* WOLFSSL_IPV6 */
+
+#undef EXPECT_BLOCKED
+#undef EXPECT_ALLOWED
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfIO_OcspDestAllowed_fallback(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP) && defined(HAVE_SOCKADDR) && \
+    !defined(HAVE_GETADDRINFO) && defined(WOLFSSL_OCSP_SCREEN_RESPONDER)
+    /* Exercises the gethostbyname() fallback resolver path of
+     * wolfIO_OcspDestAllowed (the getaddrinfo path is covered by
+     * test_wolfIO_OcspDestAllowed). The fallback is IPv4-only and relies on the
+     * resolver parsing numeric IPv4 literals locally (glibc does). Only runs in
+     * a build configured without getaddrinfo -- see the ocsp_ssrf_screen
+     * fallback CI job. IPv4 deny/allow boundaries plus the NULL-host deny. */
+#define EXPECT_BLOCKED(ip) ExpectIntEQ(wolfIO_OcspDestAllowed(ip), 0)
+#define EXPECT_ALLOWED(ip) ExpectIntEQ(wolfIO_OcspDestAllowed(ip), 1)
+    EXPECT_BLOCKED(NULL);
+    EXPECT_BLOCKED("127.0.0.1");
+    EXPECT_BLOCKED("10.0.0.1");
+    EXPECT_BLOCKED("169.254.169.254");
+    EXPECT_BLOCKED("172.16.0.0");        /* /12 low edge */
+    EXPECT_ALLOWED("172.15.255.255");    /* just below /12 */
+    EXPECT_BLOCKED("100.64.0.0");        /* CGNAT /10 low edge */
+    EXPECT_ALLOWED("100.63.255.255");    /* just below /10 */
+    EXPECT_ALLOWED("8.8.8.8");
+    EXPECT_ALLOWED("1.1.1.1");
+#undef EXPECT_BLOCKED
+#undef EXPECT_ALLOWED
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && \
     defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN_TIME) && \
@@ -35310,6 +35406,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_OCSP_resp_count),
     TEST_DECL(test_wolfSSL_OCSP_resp_get0),
     TEST_DECL(test_wolfSSL_OCSP_parse_url),
+    TEST_DECL(test_wolfIO_OcspDestAllowed),
+    TEST_DECL(test_wolfIO_OcspDestAllowed_fallback),
     TEST_DECL(test_wolfSSL_OCSP_REQ_CTX),
     TEST_DECL(test_wolfSSL_X509_get1_ca_issuers),
     TEST_DECL(test_wolfSSL_X509_get1_aia_multi),
