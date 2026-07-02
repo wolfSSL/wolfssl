@@ -1591,16 +1591,20 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
     !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
     defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
-    !defined(NO_SHA256)
-    /* Test that DNS name constraints are enforced against the Subject CN
-     * when no SAN extension is present. The CA cert (cert-ext-ncdns.der)
-     * permits only DNS:wolfssl.com and DNS:example.com. A leaf cert with
-     * CN=evil.attacker.com and no SAN should be REJECTED. */
+    !defined(NO_SHA256) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* CA (cert-ext-ncdns.der) permits DNS:wolfssl.com and DNS:example.com. The
+     * Subject CN is checked against these dNSName constraints as a fallback
+     * only when the leaf has no dNSName SAN (RFC 6125 6.4.4); a non-dNSName
+     * SAN must not suppress that check. */
     WOLFSSL_CERT_MANAGER* cm = NULL;
     WOLFSSL_EVP_PKEY *priv = NULL;
     WOLFSSL_X509_NAME* name = NULL;
     const char* ca_cert = "./certs/test/cert-ext-ncdns.der";
     const char* server_cert = "./certs/test/server-goodcn.pem";
+    /* non-dNSName SAN values. The CA declares no registeredID or iPAddress
+     * constraint, so these names are themselves unconstrained. */
+    static const byte rid_dummy[] = { 0x2A, 0x03, 0x04 };  /* OID 1.2.3.4 */
+    static const byte ip_dummy[]  = { 203, 0, 113, 7 };
 
     byte    *der = NULL;
     int     derSz;
@@ -1619,7 +1623,7 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
-    /* Sanity check: cert with SAN=evil.attacker.com is correctly rejected */
+    /* Negative case: leaf with an out-of-scope dNSName SAN. */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
@@ -1645,9 +1649,33 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
     wolfSSL_X509_free(x509);
     x509 = NULL;
 
-    /* NOW the actual vulnerability test: cert with CN=evil.attacker.com
-     * but NO SAN. The DNS name constraint should still reject this, since
-     * wolfSSL's hostname verification falls back to CN when no SAN exists. */
+    /* Positive case: leaf with an out-of-scope CN but an in-scope dNSName
+     * SAN; the dNSName SAN suppresses the CN fallback, so it is accepted. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
+                                       (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                             (byte*)"evil.attacker.com", 17, -1, 0),
+                SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname(x509, "wolfssl.com",
+                                         ASN_DNS_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Negative case: leaf with an out-of-scope CN and no SAN; the CN is
+     * checked against the DNS constraint as a fallback. */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
@@ -1664,17 +1692,15 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
     X509_NAME_free(name);
     name = NULL;
 
-    /* Do NOT add any SAN this is the bypass vector */
+    /* No SAN added; CN=evil.attacker.com violates the DNS constraint. */
     ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
     ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
-    /* Should be ASN_NAME_INVALID_E because CN violates the constraint */
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
     wolfSSL_X509_free(x509);
     x509 = NULL;
 
-    /* Positive test: CN matches a permitted name (wolfssl.com) and no SAN is
-     * present. The CN fallback should accept this cert. */
+    /* Positive case: leaf with an in-scope CN and no SAN. */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
@@ -1692,6 +1718,80 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
     name = NULL;
 
     /* No SAN added; CN=wolfssl.com matches the permitted DNS constraint. */
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Negative case: leaf with an out-of-scope CN and a registeredID SAN;
+     * a non-dNSName SAN must not suppress the CN check. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
+                                       (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                             (byte*)"evil.attacker.com", 17, -1, 0),
+                SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)rid_dummy,
+                sizeof(rid_dummy), ASN_RID_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Negative case: leaf with an out-of-scope CN and an iPAddress SAN. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
+                                       (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                             (byte*)"evil.attacker.com", 17, -1, 0),
+                SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)ip_dummy,
+                sizeof(ip_dummy), ASN_IP_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Positive case: leaf with an in-scope CN and a registeredID SAN; the
+     * check must not over-reject. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
+                                       (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                             (byte*)"wolfssl.com", 11, -1, 0),
+                SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)rid_dummy,
+                sizeof(rid_dummy), ASN_RID_TYPE), WOLFSSL_SUCCESS);
     ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
     ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
