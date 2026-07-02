@@ -102,7 +102,7 @@ int main(int argc, char **argv)
            wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
 
     wolfSSL_write(ssl, response, (int)strlen(response));
-    int got = wolfSSL_read(ssl, buffer, sizeof(buffer));
+    int got = wolfSSL_read(ssl, buffer, sizeof(buffer) - 1);
     if (got > 0) {
         buffer[got] = 0;
         printf("server said: %s\n", buffer);
