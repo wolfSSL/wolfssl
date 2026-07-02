@@ -1426,6 +1426,7 @@ int DtlsCidReplaceTx(WOLFSSL* ssl, const byte* cid, byte size)
         return MEMORY_ERROR;
     XFREE(cidInfo->tx, ssl->heap, DYNAMIC_TYPE_TLSX);
     cidInfo->tx = newCid;
+    ssl->recordSzOverhead = 0;
     return 0;
 }
 

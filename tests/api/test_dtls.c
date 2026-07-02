@@ -807,15 +807,32 @@ int test_dtls13_new_connection_id(void)
     unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     /* one 3-byte CID, usage cid_spare */
     const byte spareBody[] = { 0x00, 0x04, 0x03, 0xaa, 0xbb, 0xcc, 0x01 };
-    /* one zero-length CID followed by a 3-byte CID, usage cid_immediate */
-    const byte immBody[] = { 0x00, 0x05, 0x00, 0x03, 0x11, 0x22, 0x33, 0x00 };
-    const byte newCid[] = { 0x11, 0x22, 0x33 };
-    unsigned char cidBuf[DTLS_CID_MAX_SIZE];
+    /* NewConnectionId(cid_immediate) carrying a CID longer than the negotiated
+     * one, so a stale AEAD record-size cache would under-allocate. This ensures
+     * the cache is cleared when setting the CID.
+     * The cids list holds a leading empty CID (must be skipped) followed by the
+     * 20-byte CID. */
+    byte newCid[20];
+    byte immBody[2 + 1 + 1 + sizeof(newCid) + 1];
+    word16 immBodyLen = 0;
+    unsigned char cidBuf[64];
     unsigned int cidSz = 0;
+    word16 i;
+    int grsOld = 0, grsNew = 0;
     byte rec[256];
     int recSz = (int)sizeof(rec);
     byte readBuf[16];
     const byte* parsedCid = NULL;
+
+    for (i = 0; i < (word16)sizeof(newCid); i++)
+        newCid[i] = (byte)(0xA0 + i);
+    immBody[immBodyLen++] = 0x00;                              /* cidsLen hi */
+    immBody[immBodyLen++] = (byte)(1 + 1 + sizeof(newCid));    /* cidsLen lo */
+    immBody[immBodyLen++] = 0x00;                 /* leading empty CID */
+    immBody[immBodyLen++] = (byte)sizeof(newCid); /* CID length */
+    XMEMCPY(immBody + immBodyLen, newCid, sizeof(newCid));
+    immBodyLen += (word16)sizeof(newCid);
+    immBody[immBodyLen++] = 0x00;                 /* usage cid_immediate */
 
     /* usage cid_spare: the new CID may be discarded, ours must not change */
     ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
@@ -860,9 +877,18 @@ int test_dtls13_new_connection_id(void)
      * records sent from now on, including the ACK of this message */
     ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
             &ssl_s, 1), TEST_SUCCESS);
+    /* Exchange application data first so the server's traffic-epoch keys are
+     * fully installed. Otherwise the injected NewConnectionId would be the
+     * first epoch-3 record the server decrypts, which installs keys and
+     * incidentally clears the record-size cache. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hi", 3), 3);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 3);
+    /* prime the record-size overhead cache while the negotiated CID is
+     * still in use */
+    ExpectIntGT(grsOld = wolfssl_local_GetRecordSize(ssl_s, 200, 1), 0);
     recSz = (int)sizeof(rec);
     ExpectIntEQ(test_dtls13_build_post_hs_msg(ssl_c, ssl_s, new_connection_id,
-            immBody, sizeof(immBody), rec, &recSz), TEST_SUCCESS);
+            immBody, immBodyLen, rec, &recSz), TEST_SUCCESS);
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)rec,
             recSz), 0);
     ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
@@ -878,6 +904,10 @@ int test_dtls13_new_connection_id(void)
             (unsigned int)test_ctx.c_len, sizeof(newCid)));
     if (parsedCid != NULL)
         ExpectBufEQ(parsedCid, newCid, sizeof(newCid));
+    /* the cached record-size overhead must now reflect the longer CID */
+    ExpectIntGT(grsNew = wolfssl_local_GetRecordSize(ssl_s, 200, 1), 0);
+    ExpectIntEQ(grsNew - grsOld,
+            (int)sizeof(newCid) - (int)sizeof(server_cid));
 
     wolfSSL_free(ssl_s);
     wolfSSL_free(ssl_c);
