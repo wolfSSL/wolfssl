@@ -67613,6 +67613,395 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
 }
 
 
+#if !defined(NO_RSA) || defined(HAVE_ECC)
+/* Exercise the degenerate (certs-only) encode path through the public API: a
+ * SignedData with DEGENERATE_SID and no signer (hashOID left 0). This covers
+ * the hashOID==0 relaxation in PKCS7_EncodeSigned(); the output round-trips
+ * through wc_PKCS7_VerifySignedData(), which repopulates pkcs7->cert[].
+ *
+ * Called for both an RSA and an ECDSA cert: InitWithCert parses the cert and
+ * sets pkcs7->publicKeyOID, and the ECDSA case additionally covers the
+ * DEGENERATE_SID exclusion of the "pre-calculated content hash is needed"
+ * publicKeyOID==ECDSAk/RSAPSSk check (a degenerate bundle has no signer). */
+static wc_test_ret_t pkcs7_degenerate_encode_test(byte* cert, word32 certSz)
+{
+    wc_test_ret_t ret = 0;
+    wc_PKCS7* pkcs7 = NULL;
+    byte*  out = NULL;
+    int    encSz = 0;
+    const word32 outSz = FOURK_BUF * 2;
+
+    out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* degenerate: no signer, no eContent, hashOID deliberately left 0 */
+    ret = wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    pkcs7->detached   = 1;
+    pkcs7->contentOID = DATA;
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* round-trip: degenerate verify repopulates the certificate */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    wc_PKCS7_AllowDegenerate(pkcs7, 1);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (pkcs7->certSz[0] != certSz ||
+        XMEMCMP(pkcs7->cert[0], cert, certSz) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = 0;
+
+out:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* !NO_RSA || HAVE_ECC */
+
+
+#if !defined(NO_RSA) && !defined(NO_SHA256)
+/* The nine-attribute case below needs more slots than the inline array holds
+ * (MAX_SIGNED_ATTRIBS_SZ), which requires a heap allocation; skip it on
+ * no-malloc builds unless the inline array was enlarged at build time. */
+#if !defined(WOLFSSL_NO_MALLOC) || (MAX_SIGNED_ATTRIBS_SZ >= 9)
+/* Test that a SignedData carrying six user signed attributes plus the three
+ * CMS auto-defaults (nine total) encodes and verifies. This exceeds the
+ * default inline capacity (MAX_SIGNED_ATTRIBS_SZ == 7). */
+static wc_test_ret_t pkcs7_signed_attribs_count_test(byte* cert, word32 certSz,
+                                                     byte* key, word32 keySz)
+{
+    wc_test_ret_t ret = 0;
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    int    rngInit = 0;
+    byte*  out = NULL;
+    int    encSz = 0;
+    const word32 outSz = FOURK_BUF * 2;
+    int    i;
+    byte   content[] = "signed attribs count test";
+
+    /* six distinct user attribute OIDs (arbitrary, well-formed OID TLVs) and
+     * PrintableString values */
+    static const byte oid0[] = { 0x06,0x03, 0x55,0x04,0x03 };
+    static const byte oid1[] = { 0x06,0x03, 0x55,0x04,0x04 };
+    static const byte oid2[] = { 0x06,0x03, 0x55,0x04,0x05 };
+    static const byte oid3[] = { 0x06,0x03, 0x55,0x04,0x06 };
+    static const byte oid4[] = { 0x06,0x03, 0x55,0x04,0x07 };
+    static const byte oid5[] = { 0x06,0x03, 0x55,0x04,0x08 };
+    static const byte val0[] = { 0x13,0x01, 0x30 };
+    static const byte val1[] = { 0x13,0x01, 0x31 };
+    static const byte val2[] = { 0x13,0x01, 0x32 };
+    static const byte val3[] = { 0x13,0x01, 0x33 };
+    static const byte val4[] = { 0x13,0x01, 0x34 };
+    static const byte val5[] = { 0x13,0x01, 0x35 };
+
+    PKCS7Attrib attribs[6] = {
+        { oid0, sizeof(oid0), val0, sizeof(val0) },
+        { oid1, sizeof(oid1), val1, sizeof(val1) },
+        { oid2, sizeof(oid2), val2, sizeof(val2) },
+        { oid3, sizeof(oid3), val3, sizeof(val3) },
+        { oid4, sizeof(oid4), val4, sizeof(val4) },
+        { oid5, sizeof(oid5), val5, sizeof(val5) }
+    };
+
+    out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    rngInit = 1;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    pkcs7->rng           = &rng;
+    pkcs7->content       = content;
+    pkcs7->contentSz     = (word32)XSTRLEN((char*)content);
+    pkcs7->contentOID    = DATA;
+    pkcs7->hashOID       = SHA256h;
+    pkcs7->encryptOID    = RSAk;
+    pkcs7->privateKey    = key;
+    pkcs7->privateKeySz  = keySz;
+    pkcs7->signedAttribs   = attribs;
+    pkcs7->signedAttribsSz = (word32)(sizeof(attribs) / sizeof(attribs[0]));
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* verify */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* all six user attributes should be present in the decoded list.
+     * wc_PKCS7_GetAttributeValue() matches on the OID content (no tag/len),
+     * so skip the 2-byte OID TLV header. */
+    for (i = 0; i < 6; i++) {
+        word32 vSz = 0;
+        ret = wc_PKCS7_GetAttributeValue(pkcs7, attribs[i].oid + 2,
+                attribs[i].oidSz - 2, NULL, &vSz);
+        if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E) || vSz == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    ret = 0;
+
+out:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* !WOLFSSL_NO_MALLOC || MAX_SIGNED_ATTRIBS_SZ >= 9 */
+
+/* Test that decoded signed-attribute values follow the documented, stable
+ * shape (the contents of the SET OF AttributeValue, outer SET tag stripped)
+ * for both PrintableString and OCTET STRING value types, as fetched via
+ * wc_PKCS7_GetAttributeValue(). */
+static wc_test_ret_t pkcs7_decoded_attrib_shape_test(byte* cert, word32 certSz,
+                                                     byte* key, word32 keySz)
+{
+    wc_test_ret_t ret = 0;
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    int    rngInit = 0;
+    byte*  out = NULL;
+    int    encSz = 0;
+    const word32 outSz = FOURK_BUF * 2;
+    byte   getBuf[32];
+    word32 getBufSz;
+    byte   content[] = "decoded attrib shape test";
+
+    /* one PrintableString-valued and one OCTET STRING-valued attribute */
+    static const byte oidPS[] = { 0x06,0x03, 0x55,0x04,0x0A };
+    static const byte oidOS[] = { 0x06,0x03, 0x55,0x04,0x0B };
+    static const byte valPS[] = { 0x13,0x03, 0x61,0x62,0x63 };       /* "abc" */
+    static const byte valOS[] = { 0x04,0x04, 0xDE,0xAD,0xBE,0xEF };
+
+    PKCS7Attrib attribs[2] = {
+        { oidPS, sizeof(oidPS), valPS, sizeof(valPS) },
+        { oidOS, sizeof(oidOS), valOS, sizeof(valOS) }
+    };
+
+    out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    rngInit = 1;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    pkcs7->rng             = &rng;
+    pkcs7->content         = content;
+    pkcs7->contentSz       = (word32)XSTRLEN((char*)content);
+    pkcs7->contentOID      = DATA;
+    pkcs7->hashOID         = SHA256h;
+    pkcs7->encryptOID      = RSAk;
+    pkcs7->privateKey      = key;
+    pkcs7->privateKeySz    = keySz;
+    pkcs7->signedAttribs   = attribs;
+    pkcs7->signedAttribsSz = 2;
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* PrintableString attribute: decoded value is the SET contents, i.e. the
+     * AttributeValue TLV (0x13 ...), NOT the outer SET (0x31 ...). Lookups
+     * match on the OID content, so skip the 2-byte OID TLV header. */
+    getBufSz = sizeof(getBuf);
+    /* return value is the value length; *outSz is only set on the size probe */
+    ret = wc_PKCS7_GetAttributeValue(pkcs7, oidPS + 2, sizeof(oidPS) - 2,
+            getBuf, &getBufSz);
+    if (ret != (int)sizeof(valPS) || XMEMCMP(getBuf, valPS, sizeof(valPS)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (getBuf[0] != 0x13)        /* value tag, not 0x31 SET */
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* OCTET STRING attribute */
+    getBufSz = sizeof(getBuf);
+    ret = wc_PKCS7_GetAttributeValue(pkcs7, oidOS + 2, sizeof(oidOS) - 2,
+            getBuf, &getBufSz);
+    if (ret != (int)sizeof(valOS) || XMEMCMP(getBuf, valOS, sizeof(valOS)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (getBuf[0] != 0x04)        /* value tag, not 0x31 SET */
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = 0;
+
+out:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* Regression test for the multi-certificate decode bound. A SignedData whose
+ * eContent is larger than the certificate set pushes the cert set to a large
+ * offset within the message; the decoder must still parse every certificate.
+ *
+ * IMPORTANT - build dependency: this only guards the bound fix under
+ * NO_PKCS7_STREAM. In the default streaming build wc_PKCS7_VerifySignedData()
+ * copies the cert set into a standalone buffer and resets idx to 0, so
+ * certSetEnd == length and both the pre-fix and post-fix code parse every
+ * certificate - the test passes either way and is just a general multi-cert
+ * round-trip sanity check. Only a NO_PKCS7_STREAM build actually exercises
+ * the off-by-idx bound this fix corrects. */
+static wc_test_ret_t pkcs7_signed_multi_cert_test(
+        byte* cert1, word32 cert1Sz, byte* key, word32 keySz,
+        byte* cert2, word32 cert2Sz, byte* cert3, word32 cert3Sz)
+{
+#if MAX_PKCS7_CERTS < 3
+    /* needs at least three certificate slots to exercise the bound */
+    (void)cert1; (void)cert1Sz; (void)key; (void)keySz;
+    (void)cert2; (void)cert2Sz; (void)cert3; (void)cert3Sz;
+    return 0;
+#else
+    wc_test_ret_t ret = 0;
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    int    rngInit = 0;
+    byte*  out = NULL;
+    byte*  content = NULL;
+    int    encSz = 0;
+    const word32 outSz = FOURK_BUF * 4;
+    const word32 contentSz = FOURK_BUF;   /* larger than the certificate set */
+    int    found1 = 0, found2 = 0, found3 = 0, j;
+
+    content = (byte*)XMALLOC(contentSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    out     = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (content == NULL || out == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    XMEMSET(content, 0xA5, contentSz);
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    rngInit = 1;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert1, cert1Sz);
+    if (ret == 0)
+        ret = wc_PKCS7_AddCertificate(pkcs7, cert2, cert2Sz);
+    if (ret == 0)
+        ret = wc_PKCS7_AddCertificate(pkcs7, cert3, cert3Sz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    pkcs7->rng          = &rng;
+    pkcs7->content      = content;
+    pkcs7->contentSz    = contentSz;
+    pkcs7->contentOID   = DATA;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* all three certificates must be decoded (SET OF is unordered) */
+    for (j = 0; j < MAX_PKCS7_CERTS; j++) {
+        if (pkcs7->certSz[j] == cert1Sz &&
+            XMEMCMP(pkcs7->cert[j], cert1, cert1Sz) == 0)
+            found1 = 1;
+        if (pkcs7->certSz[j] == cert2Sz &&
+            XMEMCMP(pkcs7->cert[j], cert2, cert2Sz) == 0)
+            found2 = 1;
+        if (pkcs7->certSz[j] == cert3Sz &&
+            XMEMCMP(pkcs7->cert[j], cert3, cert3Sz) == 0)
+            found3 = 1;
+    }
+    if (!found1 || !found2 || !found3)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = 0;
+
+out:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(content, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+#endif /* MAX_PKCS7_CERTS < 3 */
+}
+#endif /* !NO_RSA && !NO_SHA256 */
+
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -67741,6 +68130,46 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
         ret = pkcs7callback_test(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,
                             rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
+#endif
+
+#ifndef NO_RSA
+    /* degenerate (certs-only) encode via the public API */
+    if (ret >= 0)
+        ret = pkcs7_degenerate_encode_test(
+                            rsaClientCertBuf, (word32)rsaClientCertBufSz);
+#endif
+#ifdef HAVE_ECC
+    /* same path with an ECDSA cert: covers the DEGENERATE_SID exclusion of the
+     * ECDSAk/RSAPSSk pre-hash check that InitWithCert would otherwise trip */
+    if (ret >= 0)
+        ret = pkcs7_degenerate_encode_test(
+                            eccClientCertBuf, (word32)eccClientCertBufSz);
+#endif
+
+#if !defined(NO_RSA) && !defined(NO_SHA256)
+#if !defined(WOLFSSL_NO_MALLOC) || (MAX_SIGNED_ATTRIBS_SZ >= 9)
+    /* signed-attribute count beyond the inline capacity */
+    if (ret >= 0)
+        ret = pkcs7_signed_attribs_count_test(
+                            rsaClientCertBuf, (word32)rsaClientCertBufSz,
+                            rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
+#endif
+
+    /* decoded signed-attribute value shape */
+    if (ret >= 0)
+        ret = pkcs7_decoded_attrib_shape_test(
+                            rsaClientCertBuf, (word32)rsaClientCertBufSz,
+                            rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
+
+    /* multi-certificate decode with large content (cert-set bound). NOTE: only
+     * validates the bound fix under NO_PKCS7_STREAM; in streaming builds it is a
+     * general multi-cert round-trip check (see the function comment). */
+    if (ret >= 0)
+        ret = pkcs7_signed_multi_cert_test(
+                            rsaClientCertBuf, (word32)rsaClientCertBufSz,
+                            rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz,
+                            rsaServerCertBuf, (word32)rsaServerCertBufSz,
+                            rsaCaCertBuf,     (word32)rsaCaCertBufSz);
 #endif
 
     XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

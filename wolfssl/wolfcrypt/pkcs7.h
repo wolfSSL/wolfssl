@@ -63,6 +63,15 @@
     #define MAX_ORI_VALUE_SZ 512
 #endif
 
+/* Bound on the number of signed attributes the encoder can place in a
+ * SignedData SignerInfo without a heap allocation. At encode time the working
+ * attribute array is sized to the actual attribute count (user-supplied
+ * attributes plus up to three CMS auto-defaults: contentType, messageDigest,
+ * signingTime); counts up to this bound use an inline buffer, and only larger
+ * counts fall back to a heap allocation (or fail under WOLFSSL_NO_MALLOC).
+ * The macro therefore no longer caps the attribute count, but it does set the
+ * size of that inline working buffer (in the transient encode-time ESD
+ * structure, not in wc_PKCS7), so raising it increases that buffer. */
 #ifndef MAX_SIGNED_ATTRIBS_SZ
     #define MAX_SIGNED_ATTRIBS_SZ 7
 #endif
@@ -175,6 +184,22 @@ typedef struct PKCS7Attrib {
 } PKCS7Attrib;
 
 
+/* A single decoded signed/unsigned attribute, as produced when verifying a
+ * SignedData. The fields follow a stable, guaranteed shape:
+ *
+ *   oid, oidSz:
+ *       The attribute OID, encoded as <tag><len><content> (the full OBJECT
+ *       IDENTIFIER TLV).
+ *
+ *   value, valueSz:
+ *       The contents of the SET OF AttributeValue, i.e. the bytes inside the
+ *       attribute's SET with the outer SET (tag 0x31) and its length removed.
+ *       A CMS attribute is a SET OF AttributeValue and may legitimately carry
+ *       more than one value, so this is the concatenation of all AttributeValue
+ *       TLVs. For the common single-valued case it is exactly one AttributeValue
+ *       encoded as <tag><len><content> (for example 0x13 PrintableString or
+ *       0x04 OCTET STRING).
+ */
 typedef struct PKCS7DecodedAttrib {
     struct PKCS7DecodedAttrib* next;
     byte* oid;
