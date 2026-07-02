@@ -11410,39 +11410,58 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
         /* Get s1, s2 and t0 from private key. */
         mldsa_vec_decode_eta_bits(s1p, params->eta, s1, params->l);
         mldsa_vec_decode_eta_bits(s2p, params->eta, s2, params->k);
-        mldsa_vec_decode_t0(t0p, params->k, t0);
-
-        /* Get t1 from public key. */
-        mldsa_vec_decode_t1(t1p, params->k, t1);
-
-        /* Calcaluate t = NTT-1(A o NTT(s1)) + s2 */
-        mldsa_vec_ntt_small_full(s1, params->l);
-        mldsa_matrix_mul(t, a, s1, params->k, params->l);
-    #ifdef WOLFSSL_MLDSA_SMALL
-        mldsa_vec_red(t, params->k);
-    #endif
-        mldsa_vec_invntt_full(t, params->k);
-        mldsa_vec_add(t, s2, params->k);
-        /* Subtract t0 from t. */
-        mldsa_vec_sub(t, t0, params->k);
-        /* Make t positive to match t1. */
-        mldsa_vec_make_pos(t, params->k);
-
-        /* Check t - t0 and t1 are the same. */
-        for (i = 0; i < params->k; i++) {
-            for (j = 0; j < MLDSA_N; j++) {
-                x |= tt[j] ^ t1[j];
+        /* Validate s1 and s2 coefficients are within [-eta, eta]. */
+        {
+            sword32 eta = (sword32)params->eta;
+            word32 c;
+            for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
+                if (s1[c] < -eta || s1[c] > eta) {
+                    ret = PUBLIC_KEY_E;
+                    break;
+                }
             }
-            tt += MLDSA_N;
-            t1 += MLDSA_N;
+            for (c = 0; (ret == 0) && (c < (word32)(params->k * MLDSA_N)); c++) {
+                if (s2[c] < -eta || s2[c] > eta) {
+                    ret = PUBLIC_KEY_E;
+                    break;
+                }
+            }
         }
-        /* Check the public seed is the same in private and public key. */
-        for (i = 0; i < MLDSA_PUB_SEED_SZ; i++) {
-            x |= key->p[i] ^ key->k[i];
-        }
+        if (ret == 0) {
+            mldsa_vec_decode_t0(t0p, params->k, t0);
 
-        if ((ret == 0) && (x != 0)) {
-            ret = PUBLIC_KEY_E;
+            /* Get t1 from public key. */
+            mldsa_vec_decode_t1(t1p, params->k, t1);
+
+            /* Calculate t = NTT-1(A o NTT(s1)) + s2 */
+            mldsa_vec_ntt_small_full(s1, params->l);
+            mldsa_matrix_mul(t, a, s1, params->k, params->l);
+        #ifdef WOLFSSL_MLDSA_SMALL
+            mldsa_vec_red(t, params->k);
+        #endif
+            mldsa_vec_invntt_full(t, params->k);
+            mldsa_vec_add(t, s2, params->k);
+            /* Subtract t0 from t. */
+            mldsa_vec_sub(t, t0, params->k);
+            /* Make t positive to match t1. */
+            mldsa_vec_make_pos(t, params->k);
+
+            /* Check t - t0 and t1 are the same. */
+            for (i = 0; i < params->k; i++) {
+                for (j = 0; j < MLDSA_N; j++) {
+                    x |= tt[j] ^ t1[j];
+                }
+                tt += MLDSA_N;
+                t1 += MLDSA_N;
+            }
+            /* Check the public seed is the same in private and public key. */
+            for (i = 0; i < MLDSA_PUB_SEED_SZ; i++) {
+                x |= key->p[i] ^ key->k[i];
+            }
+
+            if (x != 0) {
+                ret = PUBLIC_KEY_E;
+            }
         }
     }
 
