@@ -46,6 +46,16 @@
 #define HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
+#ifndef NO_VAES_SUPPORT
+#ifndef HAVE_INTEL_VAES
+#define HAVE_INTEL_VAES
+#endif /* HAVE_INTEL_VAES */
+#endif /* NO_VAES_SUPPORT */
+#ifndef NO_AVX512_SUPPORT
+#ifndef HAVE_INTEL_AVX512
+#define HAVE_INTEL_AVX512
+#endif /* HAVE_INTEL_AVX512 */
+#endif /* NO_AVX512_SUPPORT */
 
 #ifdef WOLFSSL_SP_X86_64_ASM
 #ifndef WOLFSSL_SP_NO_2048
@@ -53,10 +63,10 @@
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -148,10 +158,10 @@ L_2048_from_bin_bswap_zero_end:
 /* Read big endian unsigned byte array into r.
  * Uses the movbe instruction which is an optional instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -234,8 +244,8 @@ L_2048_from_bin_movbe_zero_end:
  * Fixed length number of bytes written: 256
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -354,8 +364,8 @@ _sp_2048_to_bin_bswap_32:
  * Fixed length number of bytes written: 256
  * Uses the movbe instruction which is optional.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -440,9 +450,9 @@ _sp_2048_to_bin_movbe_32:
 #endif /* NO_MOVBE_SUPPORT */
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -2093,9 +2103,9 @@ _sp_2048_mul_16:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r   Result of multiplication.
- * a   First number to multiply.
- * b   Second number to multiply.
+ * @param [out] r  Result of multiplication.
+ * @param [in]  a  First number to multiply.
+ * @param [in]  b  Second number to multiply.
  */
 #ifndef __APPLE__
 .text
@@ -3769,9 +3779,9 @@ L_end_2048_mul_avx2_16:
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -3842,8 +3852,8 @@ _sp_2048_add_16:
 #endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -3960,9 +3970,9 @@ _sp_2048_sub_in_place_32:
 #endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -4081,9 +4091,9 @@ _sp_2048_add_32:
 #endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -4806,9 +4816,9 @@ _sp_2048_mul_32:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -5483,8 +5493,8 @@ _sp_2048_mul_avx2_32:
 #endif /* HAVE_INTEL_AVX2 */
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -6578,8 +6588,8 @@ _sp_2048_sqr_16:
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -7638,8 +7648,8 @@ L_end_2048_sqr_avx2_16:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -8179,8 +8189,8 @@ _sp_2048_sqr_32:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -8718,8 +8728,8 @@ _sp_2048_sqr_avx2_32:
 #endif /* HAVE_INTEL_AVX2 */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -8788,9 +8798,9 @@ _sp_2048_sub_in_place_16:
 #endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -9066,10 +9076,11 @@ _sp_2048_mul_d_32:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -9204,9 +9215,10 @@ _sp_2048_cond_sub_16:
 #endif /* __APPLE__ */
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -9423,10 +9435,11 @@ L_2048_mont_reduce_16_loop:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -9528,9 +9541,9 @@ _sp_2048_cond_sub_avx2_16:
 #endif /* HAVE_INTEL_AVX2 */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -9678,9 +9691,9 @@ _sp_2048_mul_d_16:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -9800,10 +9813,11 @@ _sp_2048_mul_d_avx2_16:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -9828,10 +9842,11 @@ _div_2048_word_asm_16:
 #endif /* _WIN64 */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -9985,9 +10000,10 @@ _sp_2048_cmp_16:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -10869,10 +10885,11 @@ _sp_2048_get_from_table_avx2_16:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -11119,9 +11136,10 @@ _sp_2048_cond_sub_32:
 #endif /* __APPLE__ */
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -11496,9 +11514,9 @@ L_2048_mont_reduce_32_loop:
 #endif /* __APPLE__ */
 /* Sub b from a into r. (r = a - b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -11616,9 +11634,9 @@ _sp_2048_sub_32:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -11834,10 +11852,11 @@ _sp_2048_mul_d_avx2_32:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -11864,10 +11883,11 @@ _div_2048_word_asm_32:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -12049,10 +12069,11 @@ _sp_2048_cond_sub_avx2_32:
 #endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -12334,9 +12355,10 @@ _sp_2048_cmp_32:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -14905,10 +14927,11 @@ _sp_2048_get_from_table_avx2_32:
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
- * r  A single precision number representing conditional add result.
- * a  A single precision number to add with.
- * b  A single precision number to add.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing conditional add
+ *                 result.
+ * @param [in]  a  A single precision number to add with.
+ * @param [in]  b  A single precision number to add.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -15046,10 +15069,11 @@ _sp_2048_cond_add_16:
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
- * r  A single precision number representing conditional add result.
- * a  A single precision number to add with.
- * b  A single precision number to add.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing conditional add
+ *                 result.
+ * @param [in]  a  A single precision number to add with.
+ * @param [in]  b  A single precision number to add.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -15152,9 +15176,9 @@ _sp_2048_cond_add_avx2_16:
 #endif /* HAVE_INTEL_AVX2 */
 /* Shift number left by n bit. (r = a << n)
  *
- * r  Result of left shift by n.
- * a  Number to shift.
- * n  Amoutnt o shift.
+ * @param [out] r  Result of left shift by n.
+ * @param [in]  a  Number to shift.
+ * @param [in]  n  Amoutnt o shift.
  */
 #ifndef __APPLE__
 .text
@@ -15279,10 +15303,10 @@ _sp_2048_lshift_32:
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -15374,10 +15398,10 @@ L_3072_from_bin_bswap_zero_end:
 /* Read big endian unsigned byte array into r.
  * Uses the movbe instruction which is an optional instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -15460,8 +15484,8 @@ L_3072_from_bin_movbe_zero_end:
  * Fixed length number of bytes written: 384
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -15628,8 +15652,8 @@ _sp_3072_to_bin_bswap_48:
  * Fixed length number of bytes written: 384
  * Uses the movbe instruction which is optional.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -15746,9 +15770,9 @@ _sp_3072_to_bin_movbe_48:
 #endif /* NO_MOVBE_SUPPORT */
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -16703,9 +16727,9 @@ _sp_3072_mul_12:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r   Result of multiplication.
- * a   First number to multiply.
- * b   Second number to multiply.
+ * @param [out] r  Result of multiplication.
+ * @param [in]  a  First number to multiply.
+ * @param [in]  b  Second number to multiply.
  */
 #ifndef __APPLE__
 .text
@@ -17679,9 +17703,9 @@ L_end_3072_mul_avx2_12:
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -17740,8 +17764,8 @@ _sp_3072_add_12:
 #endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -17834,9 +17858,9 @@ _sp_3072_sub_in_place_24:
 #endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -17931,9 +17955,9 @@ _sp_3072_add_24:
 #endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -18500,9 +18524,9 @@ _sp_3072_mul_24:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -19033,8 +19057,8 @@ _sp_3072_mul_avx2_24:
 #endif /* HAVE_INTEL_AVX2 */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -19199,9 +19223,9 @@ _sp_3072_sub_in_place_48:
 #endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -19368,9 +19392,9 @@ _sp_3072_add_48:
 #endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -20405,9 +20429,9 @@ _sp_3072_mul_48:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -21370,8 +21394,8 @@ _sp_3072_mul_avx2_48:
 #endif /* HAVE_INTEL_AVX2 */
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -22045,8 +22069,8 @@ _sp_3072_sqr_12:
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -22694,8 +22718,8 @@ L_end_3072_sqr_avx2_12:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -23119,8 +23143,8 @@ _sp_3072_sqr_24:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -23544,8 +23568,8 @@ _sp_3072_sqr_avx2_24:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -24317,8 +24341,8 @@ _sp_3072_sqr_48:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -25088,9 +25112,9 @@ _sp_3072_sqr_avx2_48:
 #endif /* HAVE_INTEL_AVX2 */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -25494,10 +25518,11 @@ _sp_3072_mul_d_48:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -25688,9 +25713,10 @@ _sp_3072_cond_sub_24:
 #endif /* __APPLE__ */
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -25987,10 +26013,11 @@ L_3072_mont_reduce_24_loop:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -26132,9 +26159,9 @@ _sp_3072_cond_sub_avx2_24:
 #endif /* HAVE_INTEL_AVX2 */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -26346,9 +26373,9 @@ _sp_3072_mul_d_24:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -26516,10 +26543,11 @@ _sp_3072_mul_d_avx2_24:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -26544,10 +26572,11 @@ _div_3072_word_asm_24:
 #endif /* _WIN64 */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -26765,9 +26794,10 @@ _sp_3072_cmp_24:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -27996,10 +28026,11 @@ _sp_3072_get_from_table_avx2_24:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -28358,9 +28389,10 @@ _sp_3072_cond_sub_48:
 #endif /* __APPLE__ */
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -28895,9 +28927,9 @@ L_3072_mont_reduce_48_loop:
 #endif /* __APPLE__ */
 /* Sub b from a into r. (r = a - b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -29063,9 +29095,9 @@ _sp_3072_sub_48:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -29377,10 +29409,11 @@ _sp_3072_mul_d_avx2_48:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -29407,10 +29440,11 @@ _div_3072_word_asm_48:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -29672,10 +29706,11 @@ _sp_3072_cond_sub_avx2_48:
 #endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -30085,9 +30120,10 @@ _sp_3072_cmp_48:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -31532,10 +31568,11 @@ _sp_3072_get_from_table_avx2_48:
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
- * r  A single precision number representing conditional add result.
- * a  A single precision number to add with.
- * b  A single precision number to add.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing conditional add
+ *                 result.
+ * @param [in]  a  A single precision number to add with.
+ * @param [in]  b  A single precision number to add.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -31729,10 +31766,11 @@ _sp_3072_cond_add_24:
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
- * r  A single precision number representing conditional add result.
- * a  A single precision number to add with.
- * b  A single precision number to add.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing conditional add
+ *                 result.
+ * @param [in]  a  A single precision number to add with.
+ * @param [in]  b  A single precision number to add.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -31875,9 +31913,9 @@ _sp_3072_cond_add_avx2_24:
 #endif /* HAVE_INTEL_AVX2 */
 /* Shift number left by n bit. (r = a << n)
  *
- * r  Result of left shift by n.
- * a  Number to shift.
- * n  Amoutnt o shift.
+ * @param [out] r  Result of left shift by n.
+ * @param [in]  a  Number to shift.
+ * @param [in]  n  Amoutnt o shift.
  */
 #ifndef __APPLE__
 .text
@@ -32050,10 +32088,10 @@ _sp_3072_lshift_48:
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -32145,10 +32183,10 @@ L_4096_from_bin_bswap_zero_end:
 /* Read big endian unsigned byte array into r.
  * Uses the movbe instruction which is an optional instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -32231,8 +32269,8 @@ L_4096_from_bin_movbe_zero_end:
  * Fixed length number of bytes written: 512
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -32447,8 +32485,8 @@ _sp_4096_to_bin_bswap_64:
  * Fixed length number of bytes written: 512
  * Uses the movbe instruction which is optional.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -32597,8 +32635,8 @@ _sp_4096_to_bin_movbe_64:
 #endif /* NO_MOVBE_SUPPORT */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -32811,9 +32849,9 @@ _sp_4096_sub_in_place_64:
 #endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -33028,9 +33066,9 @@ _sp_4096_add_64:
 #endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -34377,9 +34415,9 @@ _sp_4096_mul_64:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -35632,8 +35670,8 @@ _sp_4096_mul_avx2_64:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -36637,8 +36675,8 @@ _sp_4096_sqr_64:
  *
  * Karatsuba: ah^2, al^2, (al - ah)^2
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -37640,9 +37678,9 @@ _sp_4096_sqr_avx2_64:
 #endif /* HAVE_INTEL_AVX2 */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -38174,10 +38212,11 @@ _sp_4096_mul_d_64:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -38648,9 +38687,10 @@ _sp_4096_cond_sub_64:
 #endif /* __APPLE__ */
 /* Reduce the number back to 4096 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -39345,9 +39385,9 @@ L_4096_mont_reduce_64_loop:
 #endif /* __APPLE__ */
 /* Sub b from a into r. (r = a - b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -39561,9 +39601,9 @@ _sp_4096_sub_64:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -39971,10 +40011,11 @@ _sp_4096_mul_d_avx2_64:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -40001,10 +40042,11 @@ _div_4096_word_asm_64:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -40346,10 +40388,11 @@ _sp_4096_cond_sub_avx2_64:
 #endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -40887,9 +40930,10 @@ _sp_4096_cmp_64:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 4096 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -42794,10 +42838,11 @@ _sp_4096_get_from_table_avx2_64:
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
- * r  A single precision number representing conditional add result.
- * a  A single precision number to add with.
- * b  A single precision number to add.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing conditional add
+ *                 result.
+ * @param [in]  a  A single precision number to add with.
+ * @param [in]  b  A single precision number to add.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -43047,10 +43092,11 @@ _sp_4096_cond_add_32:
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
- * r  A single precision number representing conditional add result.
- * a  A single precision number to add with.
- * b  A single precision number to add.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing conditional add
+ *                 result.
+ * @param [in]  a  A single precision number to add with.
+ * @param [in]  b  A single precision number to add.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -43233,9 +43279,9 @@ _sp_4096_cond_add_avx2_32:
 #endif /* HAVE_INTEL_AVX2 */
 /* Shift number left by n bit. (r = a << n)
  *
- * r  Result of left shift by n.
- * a  Number to shift.
- * n  Amoutnt o shift.
+ * @param [out] r  Result of left shift by n.
+ * @param [in]  a  Number to shift.
+ * @param [in]  n  Amoutnt o shift.
  */
 #ifndef __APPLE__
 .text
@@ -43454,9 +43500,9 @@ _sp_4096_lshift_64:
 #ifndef WOLFSSL_SP_NO_256
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -43595,9 +43641,9 @@ _sp_256_mul_4:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r   Result of multiplication.
- * a   First number to multiply.
- * b   Second number to multiply.
+ * @param [out] r  Result of multiplication.
+ * @param [in]  a  First number to multiply.
+ * @param [in]  b  Second number to multiply.
  */
 #ifndef __APPLE__
 .text
@@ -43711,8 +43757,8 @@ _sp_256_mul_avx2_4:
 #endif /* HAVE_INTEL_AVX2 */
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -43834,8 +43880,8 @@ _sp_256_sqr_4:
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
- * r   Result of squaring.
- * a   Number to square in Montgomery form.
+ * @param [out] r  Result of squaring.
+ * @param [in]  a  Number to square in Montgomery form.
  */
 #ifndef __APPLE__
 .text
@@ -43931,9 +43977,9 @@ _sp_256_sqr_avx2_4:
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -43967,9 +44013,9 @@ _sp_256_add_4:
 #endif /* __APPLE__ */
 /* Sub b from a into r. (r = a - b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -44004,9 +44050,9 @@ _sp_256_sub_4:
 /* Conditionally copy a into r using the mask m.
  * m is -1 to copy and 0 when not.
  *
- * r  A single precision number to copy over.
- * a  A single precision number to copy.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number to copy over.
+ * @param [in]  a  A single precision number to copy.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -44043,11 +44089,11 @@ _sp_256_cond_copy_4:
 /* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
- * r   Result of multiplication.
- * a   First number to multiply in Montgomery form.
- * b   Second number to multiply in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of multiplication.
+ * @param [in]  a   First number to multiply in Montgomery form.
+ * @param [in]  b   Second number to multiply in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -44247,10 +44293,10 @@ _sp_256_mont_mul_4:
 #endif /* __APPLE__ */
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
- * r   Result of squaring.
- * a   Number to square in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of squaring.
+ * @param [in]  a   Number to square in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -44420,10 +44466,11 @@ _sp_256_mont_sqr_4:
 #endif /* __APPLE__ */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -44481,10 +44528,11 @@ _sp_256_cmp_4:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -44533,9 +44581,10 @@ _sp_256_cond_sub_4:
 #endif /* __APPLE__ */
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -44644,9 +44693,10 @@ _sp_256_mont_reduce_4:
 #endif /* __APPLE__ */
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -44752,10 +44802,10 @@ L_mont_loop_4:
 #endif /* __APPLE__ */
 /* Add two Montgomery form numbers (r = a + b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -44802,9 +44852,9 @@ _sp_256_mont_add_4:
 #endif /* __APPLE__ */
 /* Double a Montgomery form number (r = a + a % m).
  *
- * r   Result of doubling.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of doubling.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -44852,9 +44902,9 @@ _sp_256_mont_dbl_4:
 #endif /* __APPLE__ */
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
- * r   Result of Tripling.
- * a   Number to triple in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of Tripling.
+ * @param [in]  a  Number to triple in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -44920,10 +44970,10 @@ _sp_256_mont_tpl_4:
 #endif /* __APPLE__ */
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
- * r   Result of subtration.
- * a   Number to subtract from in Montgomery form.
- * b   Number to subtract with in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of subtration.
+ * @param [in]  a  Number to subtract from in Montgomery form.
+ * @param [in]  b  Number to subtract with in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -44970,9 +45020,9 @@ _sp_256_mont_sub_4:
 #endif /* __APPLE__ */
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -45016,10 +45066,10 @@ _sp_256_mont_div2_4:
 #endif /* __APPLE__ */
 /* Two Montgomery numbers, subtract double second from first (r = a - 2.b % m).
  *
- * r   Result of subtration.
- * a   Number to subtract from in Montgomery form.
- * b   Number to double and subtract with in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of subtration.
+ * @param [in]  a  Number to subtract from in Montgomery form.
+ * @param [in]  b  Number to double and subtract with in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -45125,9 +45175,9 @@ _sp_256_mont_rsb_sub_dbl_4:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible point that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of point to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of point to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -45194,9 +45244,9 @@ L_256_get_point_33_4_start_1:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible point that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of point to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of point to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -45250,11 +45300,11 @@ L_256_get_point_33_avx2_4_start:
 /* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
- * r   Result of multiplication.
- * a   First number to multiply in Montgomery form.
- * b   Second number to multiply in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of multiplication.
+ * @param [in]  a   First number to multiply in Montgomery form.
+ * @param [in]  b   Second number to multiply in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -45432,10 +45482,10 @@ _sp_256_mont_mul_avx2_4:
 #ifdef HAVE_INTEL_AVX2
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
- * r   Result of squaring.
- * a   Number to square in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of squaring.
+ * @param [in]  a   Number to square in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -45596,10 +45646,11 @@ _sp_256_mont_sqr_avx2_4:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -45650,9 +45701,10 @@ _sp_256_cond_sub_avx2_4:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -45814,9 +45866,9 @@ _sp_256_mont_reduce_order_avx2_4:
 #ifdef HAVE_INTEL_AVX2
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -45862,9 +45914,9 @@ _sp_256_mont_div2_avx2_4:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -45922,9 +45974,9 @@ L_256_get_entry_64_4_start_0:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -45972,9 +46024,9 @@ L_256_get_entry_64_avx2_4_start:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -46032,9 +46084,9 @@ L_256_get_entry_65_4_start_0:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -46081,7 +46133,7 @@ L_256_get_entry_65_avx2_4_start:
 #endif /* !WC_NO_CACHE_RESISTANT */
 /* Add 1 to a. (a = a + 1)
  *
- * a  A single precision integer.
+ * @param [in, out] a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -46106,10 +46158,10 @@ _sp_256_add_one_4:
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -46201,10 +46253,10 @@ L_256_from_bin_bswap_zero_end:
 /* Read big endian unsigned byte array into r.
  * Uses the movbe instruction which is an optional instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -46287,8 +46339,8 @@ L_256_from_bin_movbe_zero_end:
  * Fixed length number of bytes written: 32
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -46323,8 +46375,8 @@ _sp_256_to_bin_bswap_4:
  * Fixed length number of bytes written: 32
  * Uses the movbe instruction which is optional.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -46353,8 +46405,8 @@ _sp_256_to_bin_movbe_4:
 #endif /* NO_MOVBE_SUPPORT */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -46383,9 +46435,9 @@ _sp_256_sub_in_place_4:
 #endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -46437,9 +46489,9 @@ _sp_256_mul_d_4:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -46487,10 +46539,11 @@ _sp_256_mul_d_avx2_4:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -46517,9 +46570,9 @@ _div_256_word_asm_4:
 /* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
- * r   Result of multiplication.
- * a   First number to multiply in Montgomery form.
- * b   Second number to multiply in Montgomery form.
+ * @param [out] r  Result of multiplication.
+ * @param [in]  a  First number to multiply in Montgomery form.
+ * @param [in]  b  Second number to multiply in Montgomery form.
  */
 #ifndef __APPLE__
 .text
@@ -46743,8 +46796,8 @@ _sp_256_mont_mul_order_avx2_4:
 #ifdef HAVE_INTEL_AVX2
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
- * r   Result of squaring.
- * a   Number to square in Montgomery form.
+ * @param [out] r  Result of squaring.
+ * @param [in]  a  Number to square in Montgomery form.
  */
 #ifndef __APPLE__
 .text
@@ -46951,9 +47004,10 @@ _sp_256_mont_sqr_order_avx2_4:
 #endif /* HAVE_INTEL_AVX2 */
 /* Non-constant time modular inversion.
  *
- * @param  [out]  r   Resulting number.
- * @param  [in]   a   Number to invert.
- * @param  [in]   m   Modulus.
+ * @param [out] r  Resulting number.
+ * @param [in]  a  Number to invert.
+ * @param [in]  m  Modulus.
+ *
  * @return  MP_OKAY on success.
  */
 #ifndef __APPLE__
@@ -47285,9 +47339,10 @@ L_sp256_mod_inv_avx2_4_mask26:
 .long	0x03ffffff,0x00000000,0x00000000,0x00000000
 /* Non-constant time modular inversion.
  *
- * @param  [out]  r   Resulting number.
- * @param  [in]   a   Number to invert.
- * @param  [in]   m   Modulus.
+ * @param [out] r  Resulting number.
+ * @param [in]  a  Number to invert.
+ * @param [in]  m  Modulus.
+ *
  * @return  MP_OKAY on success.
  */
 #ifndef __APPLE__
@@ -47595,9 +47650,9 @@ L_256_mod_inv_avx2_4_no_add_order:
 #ifdef WOLFSSL_SP_384
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -47868,9 +47923,9 @@ _sp_384_mul_6:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r   Result of multiplication.
- * a   First number to multiply.
- * b   Second number to multiply.
+ * @param [out] r  Result of multiplication.
+ * @param [in]  a  First number to multiply.
+ * @param [in]  b  Second number to multiply.
  */
 #ifndef __APPLE__
 .text
@@ -48091,8 +48146,8 @@ _sp_384_mul_avx2_6:
 #endif /* HAVE_INTEL_AVX2 */
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -48316,8 +48371,8 @@ _sp_384_sqr_6:
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
- * r   Result of squaring.
- * a   Number to square in Montgomery form.
+ * @param [out] r  Result of squaring.
+ * @param [in]  a  Number to square in Montgomery form.
  */
 #ifndef __APPLE__
 .text
@@ -48479,9 +48534,9 @@ _sp_384_sqr_avx2_6:
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -48523,9 +48578,9 @@ _sp_384_add_6:
 #endif /* __APPLE__ */
 /* Sub b from a into r. (r = a - b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -48568,9 +48623,9 @@ _sp_384_sub_6:
 /* Conditionally copy a into r using the mask m.
  * m is -1 to copy and 0 when not.
  *
- * r  A single precision number to copy over.
- * a  A single precision number to copy.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number to copy over.
+ * @param [in]  a  A single precision number to copy.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -48615,10 +48670,11 @@ _sp_384_cond_copy_6:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -48683,9 +48739,10 @@ _sp_384_cond_sub_6:
 #endif /* __APPLE__ */
 /* Reduce the number back to 384 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -48862,9 +48919,10 @@ _sp_384_mont_reduce_6:
 #endif /* __APPLE__ */
 /* Reduce the number back to 384 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -48979,10 +49037,11 @@ L_384_mont_reduce_order_6_loop:
 #endif /* __APPLE__ */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -49055,10 +49114,10 @@ _sp_384_cmp_6:
 #endif /* __APPLE__ */
 /* Add two Montgomery form numbers (r = a + b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -49124,9 +49183,9 @@ _sp_384_mont_add_6:
 #endif /* __APPLE__ */
 /* Double a Montgomery form number (r = a + a % m).
  *
- * r   Result of doubling.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of doubling.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -49193,9 +49252,9 @@ _sp_384_mont_dbl_6:
 #endif /* __APPLE__ */
 /* Double a Montgomery form number (r = a + a % m).
  *
- * r   Result of doubling.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of doubling.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -49290,10 +49349,10 @@ _sp_384_mont_tpl_6:
 #endif /* __APPLE__ */
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
- * r   Result of subtration.
- * a   Number to subtract from in Montgomery form.
- * b   Number to subtract with in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of subtration.
+ * @param [in]  a  Number to subtract from in Montgomery form.
+ * @param [in]  b  Number to subtract with in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -49359,9 +49418,9 @@ _sp_384_mont_sub_6:
 #endif /* __APPLE__ */
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -49437,9 +49496,9 @@ _sp_384_mont_div2_6:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible point that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of point to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of point to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -49537,9 +49596,9 @@ L_384_get_point_33_6_start_2:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible point that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of point to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of point to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -49607,9 +49666,10 @@ L_384_get_point_33_avx2_6_start:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 384 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -49938,10 +49998,11 @@ L_mont_loop_order_avx2_6:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -49994,9 +50055,9 @@ _sp_384_cond_sub_avx2_6:
 #ifdef HAVE_INTEL_AVX2
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -50072,9 +50133,9 @@ _sp_384_mont_div2_avx2_6:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -50142,9 +50203,9 @@ L_384_get_entry_64_6_start_0:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -50202,9 +50263,9 @@ L_384_get_entry_64_avx2_6_start:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -50272,9 +50333,9 @@ L_384_get_entry_65_6_start_0:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -50331,7 +50392,7 @@ L_384_get_entry_65_avx2_6_start:
 #endif /* !WC_NO_CACHE_RESISTANT */
 /* Add 1 to a. (a = a + 1)
  *
- * a  A single precision integer.
+ * @param [in, out] a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -50358,10 +50419,10 @@ _sp_384_add_one_6:
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -50453,10 +50514,10 @@ L_384_from_bin_bswap_zero_end:
 /* Read big endian unsigned byte array into r.
  * Uses the movbe instruction which is an optional instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -50539,8 +50600,8 @@ L_384_from_bin_movbe_zero_end:
  * Fixed length number of bytes written: 48
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -50581,8 +50642,8 @@ _sp_384_to_bin_bswap_6:
  * Fixed length number of bytes written: 48
  * Uses the movbe instruction which is optional.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -50615,8 +50676,8 @@ _sp_384_to_bin_movbe_6:
 #endif /* NO_MOVBE_SUPPORT */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -50649,9 +50710,9 @@ _sp_384_sub_in_place_6:
 #endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -50719,9 +50780,9 @@ _sp_384_mul_d_6:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -50781,10 +50842,11 @@ _sp_384_mul_d_avx2_6:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -50809,8 +50871,8 @@ _div_384_word_asm_6:
 #endif /* _WIN64 */
 /* Shift number right by 1 bit. (r = a >> 1)
  *
- * r  Result of right shift by 1.
- * a  Number to shift.
+ * @param [out] r  Result of right shift by 1.
+ * @param [in]  a  Number to shift.
  */
 #ifndef __APPLE__
 .text
@@ -50848,9 +50910,9 @@ _sp_384_rshift1_6:
 #endif /* __APPLE__ */
 /* Divide the number by 2 mod the prime. (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus
  */
 #ifndef __APPLE__
 .text
@@ -50986,9 +51048,9 @@ L_384_num_bits_6_done:
 #ifdef WOLFSSL_SP_521
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -51547,9 +51609,9 @@ _sp_521_mul_9:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r   Result of multiplication.
- * a   First number to multiply.
- * b   Second number to multiply.
+ * @param [out] r  Result of multiplication.
+ * @param [in]  a  First number to multiply.
+ * @param [in]  b  Second number to multiply.
  */
 #ifndef __APPLE__
 .text
@@ -52130,8 +52192,8 @@ L_end_521_mul_avx2_9:
 #endif /* HAVE_INTEL_AVX2 */
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -52553,8 +52615,8 @@ _sp_521_sqr_9:
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -52956,9 +53018,9 @@ L_end_521_sqr_avx2_9:
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -53008,9 +53070,9 @@ _sp_521_add_9:
 #endif /* __APPLE__ */
 /* Sub b from a into r. (r = a - b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -53059,9 +53121,9 @@ _sp_521_sub_9:
 /* Conditionally copy a into r using the mask m.
  * m is -1 to copy and 0 when not.
  *
- * r  A single precision number to copy over.
- * a  A single precision number to copy.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number to copy over.
+ * @param [in]  a  A single precision number to copy.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -53118,11 +53180,11 @@ _sp_521_cond_copy_9:
 /* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
- * r   Result of multiplication.
- * a   First number to multiply in Montgomery form.
- * b   Second number to multiply in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of multiplication.
+ * @param [in]  a   First number to multiply in Montgomery form.
+ * @param [in]  b   Second number to multiply in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -53716,10 +53778,10 @@ _sp_521_mont_mul_9:
 #endif /* __APPLE__ */
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
- * r   Result of squaring.
- * a   Number to square in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of squaring.
+ * @param [in]  a   Number to square in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -54174,10 +54236,11 @@ _sp_521_mont_sqr_9:
 #endif /* __APPLE__ */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -54275,10 +54338,11 @@ _sp_521_cmp_9:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -54364,9 +54428,10 @@ _sp_521_cond_sub_9:
 #endif /* __APPLE__ */
 /* Reduce the number back to 521 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -54442,9 +54507,10 @@ _sp_521_mont_reduce_9:
 #endif /* __APPLE__ */
 /* Reduce the number back to 521 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -54628,10 +54694,10 @@ L_521_mont_reduce_order_9_nomask:
 #endif /* __APPLE__ */
 /* Add two Montgomery form numbers (r = a + b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -54698,9 +54764,9 @@ _sp_521_mont_add_9:
 #endif /* __APPLE__ */
 /* Double a Montgomery form number (r = a + a % m).
  *
- * r   Result of addition.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -54765,9 +54831,9 @@ _sp_521_mont_dbl_9:
 #endif /* __APPLE__ */
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
- * r   Result of Tripling.
- * a   Number to triple in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of Tripling.
+ * @param [in]  a  Number to triple in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -54841,10 +54907,10 @@ _sp_521_mont_tpl_9:
 #endif /* __APPLE__ */
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -54912,9 +54978,9 @@ _sp_521_mont_sub_9:
 #endif /* __APPLE__ */
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -54981,9 +55047,9 @@ _sp_521_mont_div2_9:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible point that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of point to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of point to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -55126,9 +55192,9 @@ L_521_get_point_33_9_start_2:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible point that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of point to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of point to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -55224,11 +55290,11 @@ L_521_get_point_33_avx2_9_start:
 /* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
- * r   Result of multiplication.
- * a   First number to multiply in Montgomery form.
- * b   Second number to multiply in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of multiplication.
+ * @param [in]  a   First number to multiply in Montgomery form.
+ * @param [in]  b   Second number to multiply in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -55840,10 +55906,10 @@ _sp_521_mont_mul_avx2_9:
 #ifdef HAVE_INTEL_AVX2
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
- * r   Result of squaring.
- * a   Number to square in Montgomery form.
- * m   Modulus (prime).
- * mp  Montgomery multiplier.
+ * @param [out] r   Result of squaring.
+ * @param [in]  a   Number to square in Montgomery form.
+ * @param [in]  m   Modulus (prime).
+ * @param [in]  mp  Montgomery multiplier.
  */
 #ifndef __APPLE__
 .text
@@ -56288,10 +56354,11 @@ _sp_521_mont_sqr_avx2_9:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -56359,9 +56426,10 @@ _sp_521_cond_sub_avx2_9:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 521 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -56677,9 +56745,9 @@ L_521_mont_reduce_order_avx2_9_loop:
 #ifdef HAVE_INTEL_AVX2
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -56747,9 +56815,9 @@ _sp_521_mont_div2_avx2_9:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -56866,9 +56934,9 @@ L_521_get_entry_64_9_start_1:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -56944,9 +57012,9 @@ L_521_get_entry_64_avx2_9_start:
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -57063,9 +57131,9 @@ L_521_get_entry_65_9_start_1:
 #ifdef HAVE_INTEL_AVX2
 /* Touch each possible entry that could be being copied.
  *
- * r      Point to copy into.
- * table  Table - start of the entries to access
- * idx    Index of entry to retrieve.
+ * @param [out] r      Point to copy into.
+ * @param [in]  table  Table - start of the entries to access
+ * @param [in]  idx    Index of entry to retrieve.
  */
 #ifndef __APPLE__
 .text
@@ -57140,7 +57208,7 @@ L_521_get_entry_65_avx2_9_start:
 #endif /* !WC_NO_CACHE_RESISTANT */
 /* Add 1 to a. (a = a + 1)
  *
- * a  A single precision integer.
+ * @param [in, out] a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -57170,10 +57238,10 @@ _sp_521_add_one_9:
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -57265,10 +57333,10 @@ L_521_from_bin_bswap_zero_end:
 /* Read big endian unsigned byte array into r.
  * Uses the movbe instruction which is an optional instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -57351,8 +57419,8 @@ L_521_from_bin_movbe_zero_end:
  * Fixed length number of bytes written: 65
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -57403,8 +57471,8 @@ _sp_521_to_bin_bswap_9:
  * Fixed length number of bytes written: 65
  * Uses the movbe instruction which is optional.
  *
- * r  A single precision integer.
- * a  Byte array.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  Byte array.
  */
 #ifndef __APPLE__
 .text
@@ -57445,8 +57513,8 @@ _sp_521_to_bin_movbe_9:
 #endif /* NO_MOVBE_SUPPORT */
 /* Shift number right by 1 bit. (r = a >> 1)
  *
- * r  Result of right shift by 1.
- * a  Number to shift.
+ * @param [out] r  Result of right shift by 1.
+ * @param [in]  a  Number to shift.
  */
 #ifndef __APPLE__
 .text
@@ -57494,9 +57562,9 @@ _sp_521_rshift_9:
 #endif /* __APPLE__ */
 /* Shift number left by n bit. (r = a << n)
  *
- * r  Result of left shift by n.
- * a  Number to shift.
- * n  Amoutnt o shift.
+ * @param [out] r  Result of left shift by n.
+ * @param [in]  a  Number to shift.
+ * @param [in]  n  Amoutnt o shift.
  */
 #ifndef __APPLE__
 .text
@@ -57547,9 +57615,9 @@ _sp_521_lshift_9:
 #endif /* __APPLE__ */
 /* Shift number left by n bit. (r = a << n)
  *
- * r  Result of left shift by n.
- * a  Number to shift.
- * n  Amoutnt o shift.
+ * @param [out] r  Result of left shift by n.
+ * @param [in]  a  Number to shift.
+ * @param [in]  n  Amoutnt o shift.
  */
 #ifndef __APPLE__
 .text
@@ -57627,8 +57695,8 @@ _sp_521_lshift_18:
 #endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -57676,9 +57744,9 @@ _sp_521_sub_in_place_9:
 #endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -57770,9 +57838,9 @@ _sp_521_mul_d_9:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -57850,10 +57918,11 @@ _sp_521_mul_d_avx2_9:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -57878,8 +57947,8 @@ _div_521_word_asm_9:
 #endif /* _WIN64 */
 /* Shift number right by 1 bit. (r = a >> 1)
  *
- * r  Result of right shift by 1.
- * a  Number to shift.
+ * @param [out] r  Result of right shift by 1.
+ * @param [in]  a  Number to shift.
  */
 #ifndef __APPLE__
 .text
@@ -57926,9 +57995,9 @@ _sp_521_rshift1_9:
 #endif /* __APPLE__ */
 /* Divide the number by 2 mod the prime. (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus
  */
 #ifndef __APPLE__
 .text
@@ -58107,9 +58176,9 @@ L_521_num_bits_9_done:
 #ifdef WOLFSSL_SP_1024
 /* Multiply a and b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -59759,8 +59828,8 @@ _sp_1024_mul_16:
 #endif /* __APPLE__ */
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -60854,9 +60923,9 @@ _sp_1024_sqr_16:
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
- * r   Result of multiplication.
- * a   First number to multiply.
- * b   Second number to multiply.
+ * @param [out] r  Result of multiplication.
+ * @param [in]  a  First number to multiply.
+ * @param [in]  b  Second number to multiply.
  */
 #ifndef __APPLE__
 .text
@@ -62531,8 +62600,8 @@ L_end_1024_mul_avx2_16:
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
- * r  A single precision integer.
- * a  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -63589,9 +63658,9 @@ L_end_1024_sqr_avx2_16:
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -63662,8 +63731,8 @@ _sp_1024_add_16:
 #endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
- * a  A single precision integer and result.
- * b  A single precision integer.
+ * @param [in, out] a  A single precision integer and result.
+ * @param [in]      b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
@@ -63733,10 +63802,11 @@ _sp_1024_sub_in_place_16:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -63873,10 +63943,11 @@ _sp_1024_cond_sub_16:
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number representing condition subtract
+ *                 result.
+ * @param [in]  a  A single precision number to subtract from.
+ * @param [in]  b  A single precision number to subtract.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -63978,9 +64049,9 @@ _sp_1024_cond_sub_avx2_16:
 #endif /* HAVE_INTEL_AVX2 */
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -64128,9 +64199,9 @@ _sp_1024_mul_d_16:
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  b  A single precision digit.
  */
 #ifndef __APPLE__
 .text
@@ -64250,10 +64321,11 @@ _sp_1024_mul_d_avx2_16:
 #ifdef _WIN64
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
+ * @param [in] d1   The high order half of the number to divide.
+ * @param [in] d0   The low order half of the number to divide.
+ * @param [in] div  The dividend.
+ *
+ * @return  The result of the division.
  */
 #ifndef __APPLE__
 .text
@@ -64278,10 +64350,11 @@ _div_1024_word_asm_16:
 #endif /* _WIN64 */
 /* Compare a with b in constant time.
  *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
+ * @param [in] a  A single precision integer.
+ * @param [in] b  A single precision integer.
+ *
+ * @return  -ve, 0 or +ve if a is less than, equal to or greater than b
+ *          respectively.
  */
 #ifndef __APPLE__
 .text
@@ -64435,9 +64508,9 @@ _sp_1024_cmp_16:
 /* Conditionally copy a into r using the mask m.
  * m is -1 to copy and 0 when not.
  *
- * r  A single precision number to copy over.
- * a  A single precision number to copy.
- * m  Mask value to apply.
+ * @param [out] r  A single precision number to copy over.
+ * @param [in]  a  A single precision number to copy.
+ * @param [in]  m  Mask value to apply.
  */
 #ifndef __APPLE__
 .text
@@ -64521,9 +64594,10 @@ _sp_1024_cond_copy_16:
 #endif /* __APPLE__ */
 /* Reduce the number back to 1024 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -64743,10 +64817,10 @@ L_1024_mont_reduce_16_loop:
 #endif /* __APPLE__ */
 /* Add two Montgomery form numbers (r = a + b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -64918,9 +64992,9 @@ _sp_1024_mont_add_16:
 #endif /* __APPLE__ */
 /* Double a Montgomery form number (r = a + a % m).
  *
- * r   Result of addition.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -65092,9 +65166,9 @@ _sp_1024_mont_dbl_16:
 #endif /* __APPLE__ */
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
- * r   Result of addition.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -65416,10 +65490,10 @@ _sp_1024_mont_tpl_16:
 #endif /* __APPLE__ */
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -65587,9 +65661,9 @@ _sp_1024_mont_sub_16:
 #endif /* __APPLE__ */
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -65745,9 +65819,10 @@ _sp_1024_mont_div2_16:
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 1024 bits using Montgomery reduction.
  *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
+ * @param [in, out] a   A single precision number to reduce in place.
+ * @param [in]      m   The single precision number representing the modulus.
+ * @param [in]      mp  The digit representing the negative inverse of
+ *                      m mod 2^n.
  */
 #ifndef __APPLE__
 .text
@@ -66086,10 +66161,10 @@ L_1024_mont_reduce_avx2_16_loop:
 #ifdef HAVE_INTEL_AVX2
 /* Add two Montgomery form numbers (r = a + b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -66245,9 +66320,9 @@ _sp_1024_mont_add_avx2_16:
 #ifdef HAVE_INTEL_AVX2
 /* Double a Montgomery form number (r = a + a % m).
  *
- * r   Result of addition.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -66403,9 +66478,9 @@ _sp_1024_mont_dbl_avx2_16:
 #ifdef HAVE_INTEL_AVX2
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
- * r   Result of addition.
- * a   Number to double in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  Number to double in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -66695,10 +66770,10 @@ _sp_1024_mont_tpl_avx2_16:
 #ifdef HAVE_INTEL_AVX2
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
- * r   Result of addition.
- * a   First number to add in Montgomery form.
- * b   Second number to add in Montgomery form.
- * m   Modulus (prime).
+ * @param [out] r  Result of addition.
+ * @param [in]  a  First number to add in Montgomery form.
+ * @param [in]  b  Second number to add in Montgomery form.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -66850,9 +66925,9 @@ _sp_1024_mont_sub_avx2_16:
 #ifdef HAVE_INTEL_AVX2
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
- * r  Result of division by 2.
- * a  Number to divide.
- * m  Modulus (prime).
+ * @param [out] r  Result of division by 2.
+ * @param [in]  a  Number to divide.
+ * @param [in]  m  Modulus (prime).
  */
 #ifndef __APPLE__
 .text
@@ -67008,10 +67083,10 @@ _sp_1024_mont_div2_avx2_16:
 /* Read big endian unsigned byte array into r.
  * Uses the bswap instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
@@ -67103,10 +67178,10 @@ L_1024_from_bin_bswap_zero_end:
 /* Read big endian unsigned byte array into r.
  * Uses the movbe instruction which is an optional instruction.
  *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
+ * @param [out] r     A single precision integer.
+ * @param [in]  size  Maximum number of bytes to convert
+ * @param [in]  a     Byte array.
+ * @param [in]  n     Number of bytes in array to read.
  */
 #ifndef __APPLE__
 .text
