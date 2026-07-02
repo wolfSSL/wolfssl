@@ -148,6 +148,9 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
 * [High] CVE-2026-55961
   wolfSSL_PKCS7_verify() returning success for a degenerate (certs-only) PKCS#7 object that contains no signer. Such an object has empty signerInfos, so the underlying signed-data verification succeeds without authenticating any content. The compatibility-layer verify path now rejects the object when no signer signature has actually been verified, so a PKCS#7 carrying no valid signature is no longer reported as verified. This is enforced regardless of the PKCS7_NOVERIFY flag, which only suppresses signer certificate chain validation and was never intended to waive the requirement that a signature exist. Only affects OpenSSL compatibility builds that call the PKCS7_verify() compatibility API on potentially degenerate PKCS#7 bundles. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10702.
 
+* [High] CVE-2026-10097
+  wolfSSL's AVX2-optimized ML-KEM implementation (mlkem_cmp_avx2) compares only 1536 of the 1568 ciphertext bytes during the Fujisaki-Okamoto re-encryption check in ML-KEM-1024 decapsulation. Ciphertexts that differ from the expected re-encryption solely in bytes 1536-1567 bypass implicit rejection and are accepted as valid, breaking IND-CCA2 security. An attacker able to submit chosen ciphertexts to a decapsulation oracle that uses a static ML-KEM-1024 key, and to observe whether the genuine shared secret or the implicit-rejection secret was produced, can use this as a plaintext-checking oracle to recover the private key. A proof of concept recovered a full ML-KEM-1024 private key with approximately 98% success using roughly 350 chosen ciphertexts. The flaw is a deterministic logic error and does not rely on timing measurements. Thanks to 007bsd @007bsd for the report. Fixed in PR 10430.
+
 * [Med] CVE-2026-6731
   X.509 name constraint bypass via the Subject Common Name when treated as a DNS-type name. A certificate whose Subject CN violates an issuing CA's DNS name constraints could be accepted. Thanks to d0sf3t (Aradex) for the report. Fixed in PR 10223.
 
@@ -165,9 +168,6 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
 
 * [Med] CVE-2026-8720
   wc_Blake2bHmacFinal and wc_Blake2sHmacFinal discard the message when the key length exceeds the block size, producing a MAC that is independent of the input. This bug is specific to the HMAC-BLAKE2 API’s that were added in wolfSSL version 5.9.0. Fixed in PR 10447.
-
-* [Med] CVE-2026-10097
-  ML-KEM-1024 x64 AVX2 implicit rejection failure in the Fujisaki-Okamoto transform breaks IND-CCA2 security, allowing decapsulation to deviate from the implicit-rejection behavior required by the standard. Thanks to 007bsd for the report. Fixed in PR 10430.
 
 * [Med] CVE-2026-10098
   OCSP CertID serial-number length-confusion in wolfSSL_OCSP_resp_find_status allows a same-issuer SingleResponse whose serial is a prefix of the target serial to be reported as the revocation status of a different certificate. Thanks to Kim Youngjoon (Team-Atlanta and Georgia Institute of Technology) for the report. Fixed in PR 10554.
