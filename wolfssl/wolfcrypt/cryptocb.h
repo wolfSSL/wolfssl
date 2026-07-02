@@ -68,6 +68,9 @@
 #ifdef WOLFSSL_SHE
     #include <wolfssl/wolfcrypt/wc_she.h>
 #endif
+#ifdef WOLFSSL_HWPUF
+    #include <wolfssl/wolfcrypt/hwpuf.h>
+#endif
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
@@ -595,6 +598,35 @@ typedef struct wc_CryptoInfo {
         } op;
     } she;
 #endif
+#ifdef WOLFSSL_HWPUF
+    struct {
+        wc_HWPUF*   hwpuf;      /* wc_HWPUF* context */
+        int         type;       /* enum wc_HwpufType - discriminator */
+        const void* ctx;        /* read-only caller context */
+        union {
+            struct {
+                byte*   actCode;
+                word32  actCodeSz;
+            } enroll;
+            struct {
+                byte*   actCode;
+                word32  actCodeSz;
+            } start;
+            struct {
+                byte    keyIdx;
+                word32  keySz;
+                byte*   keyCode;
+                word32  keyCodeSz;
+            } generateKey;
+            struct {
+                byte*   keyCode;
+                word32  keyCodeSz;
+                byte*   key;
+                word32  keySz;
+            } getKey;
+        } op;
+    } hwpuf;
+#endif
 #ifndef NO_CERTS
     struct {
         const byte *id;
@@ -997,7 +1029,22 @@ WOLFSSL_LOCAL int wc_CryptoCb_SheExportKey(wc_SHE* she,
                                             byte* m4, word32 m4Sz,
                                             byte* m5, word32 m5Sz,
                                             const void* ctx);
-#endif
+#endif /* WOLFSSL_SHE */
+
+#ifdef WOLFSSL_HWPUF
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufInit(wc_HWPUF* hwpuf);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufDeinit(wc_HWPUF* hwpuf);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf,
+                                byte* actCode, word32 actCodeSz);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf,
+                                byte* actCode, word32 actCodeSz);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx,
+                                word32 keySz, byte* keyCode, word32 keyCodeSz);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
+                                byte* keyCode, word32 keyCodeSz,
+                                byte* key, word32 keySz);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufZeroize(wc_HWPUF* hwpuf);
+#endif /* WOLFSSL_HWPUF */
 
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int wc_CryptoCb_GetCert(int devId, const char *label,
