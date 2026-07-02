@@ -66,8 +66,13 @@ typedef struct Gcm {
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
+/* This two-byte-pointer GMULT is the GCM_SMALL form; GCM_TABLE/
+ * GCM_TABLE_4BIT use a static GMULT taking byte m[N][16].  Scope to GCM_SMALL
+ * so it doesn't clash with the table-mode GMULT on 32-bit ARM armasm +
+ * WOLFSSL_AESGCM_STREAM (streaming path now uses the software table GHASH).
+ * See SP 800-38D AES-GCM GHASH. */
 #if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(GCM_SMALL)
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
 #endif
 WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,

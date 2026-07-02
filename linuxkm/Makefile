@@ -45,7 +45,14 @@ ifndef SRC_TOP
     SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls -DLIBWOLFSSL_GLOBAL_EXTRA_CFLAGS="\" $(KERNEL_EXTRA_CFLAGS)\""
+# -Wno-nested-externs: the kernel's _compiletime_assert (<linux/compiler_types.h>,
+# via atomic/per-CPU/printk-once macros in x86_vector_register_glue.c) emits an
+# "extern ... __compiletime_assert_N(void)" inside a function body, tripping
+# -Wnested-externs; with -Werror this breaks the i386 + AES-NI build (glue compiles
+# only when WOLFSSL_USE_SAVE_VECTOR_REGISTERS / a PAA is enabled).  Strip it
+# build-wide like the other kernel-incompatible warnings; diagnostic-only, so object
+# code (and the FIPS in-core hash) stays byte-identical on every arch.
+WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls -Wno-nested-externs -DLIBWOLFSSL_GLOBAL_EXTRA_CFLAGS="\" $(KERNEL_EXTRA_CFLAGS)\""
 ifdef KERNEL_EXTRA_CFLAGS
     WOLFSSL_CFLAGS += $(KERNEL_EXTRA_CFLAGS)
 endif
@@ -55,7 +62,12 @@ endif
 
 WOLFSSL_ASFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CCASFLAGS) $(CCASFLAGS)
 
-WOLFSSL_OBJ_FILES=$(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/%, $(patsubst src/libwolfssl_la-%, src/%, $(patsubst wolfcrypt/src/src_libwolfssl_la-%, wolfcrypt/src/%, $(src_libwolfssl_la_OBJECTS)))))
+# Strip libtool's per-target object prefix (src_libwolfssl_la-) so Kbuild sees the
+# real object names.  The innermost patsubst covers wolfcrypt/src/port/arm/ asm
+# (armv8-*/armv8-32-*/thumb2-*), which the src/ and wolfcrypt/src/ patsubsts miss;
+# without it --enable-armasm kernel builds fail ("No rule to make target
+# .../src_libwolfssl_la-armv8-aes-asm.o").
+WOLFSSL_OBJ_FILES=$(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/%, $(patsubst src/libwolfssl_la-%, src/%, $(patsubst wolfcrypt/src/src_libwolfssl_la-%, wolfcrypt/src/%, $(patsubst wolfcrypt/src/port/arm/src_libwolfssl_la-%, wolfcrypt/src/port/arm/%, $(src_libwolfssl_la_OBJECTS))))))
 
 ifeq "$(ENABLED_CRYPT_TESTS)" "yes"
     WOLFSSL_OBJ_FILES+=wolfcrypt/test/test.o
@@ -160,7 +172,7 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 	function open_seg(seg) {							\
 	    seen_seg[seg] = 1;								\
 	    printf("%s\n    ",								\
-		"WOLFSSL_LOCAL const struct wc_reloc_table_ent wc_linuxkm_pie_" seg "_reloc_tab[] = { ");	\
+		"WOLFSSL_LOCAL const struct wc_reloc_table_ent wc_linuxkm_pie_" seg "_reloc_tab[] = {");	\
 	    cur_seg = seg;								\
 	}										\
 	function close_cur_seg() {							\
@@ -197,7 +209,7 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		next;									\
 	}										\
 	/^0/ {										\
-		if ($$3 !~ "^(R_X86_.*|R_AARCH64_.*|R_ARM.*)$$") {			\
+		if ($$3 !~ "^(R_X86_.*|R_386_.*|R_AARCH64_.*|R_ARM.*)$$") {		\
 		    print "Unexpected relocation type in " cur_seg ":\n" $$0 >"/dev/stderr";		\
 		    ++bad_relocs;							\
 		}									\
@@ -361,12 +373,12 @@ module-update-fips-hash: $(LIBWOLFSSL_NAME).ko
 	readarray -t verifyCore_attrs < <($(READELF) --wide --symbols "$<" | \
 	    sed -E -n 's/^[[:space:]]*[0-9]+: ([0-9a-fA-F]+)[[:space:]]+([0-9]+)[[:space:]]+OBJECT[[:space:]]+[A-Z]+[[:space:]]+[A-Z]+[[:space:]]+'"$${rodata_segment[0]}"'[[:space:]]+verifyCore$$/\1\n\2/p'); \
 	if [[ $${#verifyCore_attrs[@]} != 2 ]]; then echo '  unexpected verifyCore_attrs.' >&2; exit 1; fi; \
-	if [[ "$${verifyCore_attrs[1]}" != "65" ]]; then echo "	 verifyCore has unexpected length $${verifyCore_attrs[1]}." >&2; exit 1; fi; \
+	if [[ "$${verifyCore_attrs[1]}" != "129" ]]; then echo "	 verifyCore has unexpected length $${verifyCore_attrs[1]}." >&2; exit 1; fi; \
 	verifyCore_offset=$$((0x$${rodata_segment[1]} + 0x$${verifyCore_attrs[0]})); \
-	current_verifyCore=$$(dd bs=1 if="$<" skip=$$verifyCore_offset count=64 status=none); \
+	current_verifyCore=$$(dd bs=1 if="$<" skip=$$verifyCore_offset count=128 status=none); \
 	if [[ ! "$$current_verifyCore" =~ [0-9a-fA-F]{64} ]]; then echo "  verifyCore at offset $$verifyCore_offset has unexpected value." >&2; exit 1; fi; \
 	if [[ '$(FIPS_HASH)' == "$$current_verifyCore" ]]; then echo '	Supplied FIPS_HASH matches existing verifyCore -- no update needed.'; exit 0; fi; \
-	echo -n '$(FIPS_HASH)' | dd bs=1 conv=notrunc of="$<" seek=$$verifyCore_offset count=64 status=none && \
+	echo -n '$(FIPS_HASH)' | dd bs=1 conv=notrunc of="$<" seek=$$verifyCore_offset count=128 status=none && \
 	echo "	FIPS verifyCore updated successfully." && \
             if [[ -f '$(LIBWOLFSSL_NAME).ko.signed' ]]; then $(MAKE) $(QFLAG) --no-print-directory --no-silent -C . '$(LIBWOLFSSL_NAME).ko.signed'; fi
 

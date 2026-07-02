@@ -142,6 +142,14 @@
 #if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
+
+    /* Windows orders the FIPS in-core integrity boundary by named linker
+     * sections.  Keep ML-DSA (FIPS 204) code/const inside the boundary,
+     * sorted between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nc")
+        #pragma const_seg(".fipsB$nc")
+    #endif
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
@@ -772,8 +780,95 @@ static int mldsa_hash256_ctx_msg(wc_Shake* shake256, const byte* tr,
  * @return  0 on success.
  * @return  BAD_FUNC_ARG if hash algorithm not known.
  */
-static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
+/* HashML-DSA PH-vs-paramSet enforcement.
+ *
+ * FIPS 204 sec. 5.4 (Table 4) restricts the HashML-DSA pre-hash PH to
+ * algorithms whose collision-resistance strength meets or exceeds the
+ * paramSet's security level; enforced for both sigGen and sigVer.  Returns
+ * 0 for an approved (hashAlg, level) pair, else BAD_FUNC_ARG (including any
+ * hash not on the approved list).
+ */
+static int mldsa_check_hash_for_level(int hashAlg, byte level)
 {
+    int strengthBits;  /* collision-resistance strength of the chosen hash */
+    int requiredBits;  /* security level required by the paramSet */
+
+    switch (hashAlg) {
+    #ifndef NO_SHA256
+        case WC_HASH_TYPE_SHA256:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case WC_HASH_TYPE_SHA384:
+            strengthBits = 192;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case WC_HASH_TYPE_SHA512:
+            strengthBits = 256;
+            break;
+        #ifndef WOLFSSL_NOSHA512_256
+        case WC_HASH_TYPE_SHA512_256:
+            /* SHA-512/256 has 128-bit collision resistance (truncated). */
+            strengthBits = 128;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_256
+        case WC_HASH_TYPE_SHA3_256:
+            strengthBits = 128;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        case WC_HASH_TYPE_SHA3_384:
+            strengthBits = 192;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        case WC_HASH_TYPE_SHA3_512:
+            strengthBits = 256;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHAKE128
+        case WC_HASH_TYPE_SHAKE128:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHAKE256
+        case WC_HASH_TYPE_SHAKE256:
+            strengthBits = 256;
+            break;
+    #endif
+        default:
+            /* Hash not on the FIPS 204 Table 4 approved list (e.g. SHA-224,
+             * SHA-512/224, SHA3-224, MD5).  Reject regardless of level. */
+            return BAD_FUNC_ARG;
+    }
+
+    switch (level) {
+        case WC_ML_DSA_44:
+            requiredBits = 128;
+            break;
+        case WC_ML_DSA_65:
+            requiredBits = 192;
+            break;
+        case WC_ML_DSA_87:
+            requiredBits = 256;
+            break;
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    if (strengthBits < requiredBits) {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+
+static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen){
     int ret = 0;
     const byte* oid;
 
@@ -9467,9 +9562,15 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
     byte oidMsgHash[MLDSA_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
     word32 oidMsgHashLen = 0;
 
-    /* Check that the input hash length is valid. */
+    /* Check that the input hash length is valid (guards against caller-side
+     * buffer overruns before we touch hash). */
     if ((int)hashLen != wc_HashGetDigestSize((enum wc_HashType)hashAlg)) {
         ret = BAD_LENGTH_E;
+    }
+
+    /* FIPS 204 sec. 5.4 Table 4: enforce hash <-> paramSet matching. */
+    if (ret == 0) {
+        ret = mldsa_check_hash_for_level(hashAlg, key->level);
     }
 
     if (ret == 0) {
@@ -10140,11 +10241,16 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check that the input hash length is valid. */
+    /* Check that the input hash length is valid (guards against caller-side
+     * buffer overruns before we touch hash). */
     if ((ret == 0) &&
         ((int)hashLen != wc_HashGetDigestSize((enum wc_HashType)hashAlg)))
     {
         ret = BAD_LENGTH_E;
+    }
+    /* FIPS 204 sec. 5.4 Table 4: enforce hash <-> paramSet matching. */
+    if (ret == 0) {
+        ret = mldsa_check_hash_for_level(hashAlg, key->level);
     }
 
     if (ret == 0) {

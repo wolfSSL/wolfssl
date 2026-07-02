@@ -732,8 +732,11 @@
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
+    /* x86 (kernel_fpu_*) and ARM/ARM64 (kernel_neon_*) share the arch-neutral
+     * tracker in x86_vector_register_glue.c; the glue keeps its wc_*_x86 names
+     * on all arches (outside-boundary glue via the PIE redirect table). */
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
-        defined(CONFIG_X86)
+        (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
 
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
@@ -741,18 +744,23 @@
         WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
         WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
 
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-            #include <asm/i387.h>
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
-                /* added by a62b01cd6c */
-                #include <asm-generic/simd.h>
+        #ifdef CONFIG_X86
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+                #include <asm/i387.h>
+                #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+                    /* added by a62b01cd6c */
+                    #include <asm-generic/simd.h>
+                #endif
+            #else
+                #include <asm/simd.h>
+                #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+                    /* added by 266d051601 */
+                    #include <crypto/internal/simd.h>
+                #endif
             #endif
-        #else
-            #include <asm/simd.h>
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
-                /* added by 266d051601 */
-                #include <crypto/internal/simd.h>
-            #endif
+        #else /* CONFIG_ARM || CONFIG_ARM64 */
+            #include <asm/simd.h>   /* may_use_simd() */
+            #include <asm/neon.h>   /* kernel_neon_begin() / kernel_neon_end() */
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
@@ -781,42 +789,6 @@
         #endif
         #ifndef REENABLE_VECTOR_REGISTERS
             #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
-        #endif
-
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
-
-        #error kernel module ARM SIMD is not yet tested or usable.
-
-        #include <asm/fpsimd.h>
-
-        static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
-        {
-            preempt_disable();
-            if (! may_use_simd()) {
-                preempt_enable();
-                return BAD_STATE_E;
-            } else {
-                fpsimd_preserve_current_state();
-                return 0;
-            }
-        }
-        static inline void restore_vector_registers_arm(void)
-        {
-            fpsimd_restore_current_state();
-            preempt_enable();
-        }
-
-        #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
-        #endif
-        #ifndef SAVE_VECTOR_REGISTERS2
-            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
-        #endif
-        #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_arm()
-        #endif
-        #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
         #endif
 
     #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
@@ -1028,6 +1000,20 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
+#ifdef CONFIG_X86_32
+    /* arch/x86/include/asm/string_32.h #defines memcpy/memcmp/memset as
+     * __builtin_* macros (x86_64's string_64.h uses plain functions, so this
+     * does not arise on K2).  Left active they expand inside the PIE
+     * redirect-table member declarations below ("typeof(memcmp) *memcmp;" ->
+     * "... *__builtin_memcmp;"), dropping those members and breaking the
+     * WC_PIE_INDIRECT_SYM(memcmp) lookups.  #undef before the struct;
+     * string_32.h still declares the functions so typeof() and the canonical
+     * names resolve.  Mirrors the CONFIG_MIPS handling just above. */
+    #undef memcpy
+    #undef memcmp
+    #undef memset
+#endif
+
     struct wolfssl_linuxkm_pie_redirect_table {
     #ifdef HAVE_FIPS
         typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
@@ -1164,13 +1150,13 @@
 
         #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
 
-            #ifdef CONFIG_X86
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
                 typeof(allocate_wolfcrypt_linuxkm_fpu_states) *allocate_wolfcrypt_linuxkm_fpu_states;
                 typeof(wc_can_save_vector_registers_x86) *wc_can_save_vector_registers_x86;
                 typeof(free_wolfcrypt_linuxkm_fpu_states) *free_wolfcrypt_linuxkm_fpu_states;
                 typeof(wc_restore_vector_registers_x86) *wc_restore_vector_registers_x86;
                 typeof(wc_save_vector_registers_x86) *wc_save_vector_registers_x86;
-            #else /* !CONFIG_X86 */
+            #else
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
             #endif /* arch */
 
@@ -1521,7 +1507,8 @@
     #undef get_current
     #define get_current WC_PIE_INDIRECT_SYM(get_current)
 
-    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+        (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
         #define allocate_wolfcrypt_linuxkm_fpu_states WC_PIE_INDIRECT_SYM(allocate_wolfcrypt_linuxkm_fpu_states)
         #define wc_can_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_can_save_vector_registers_x86)
         #define free_wolfcrypt_linuxkm_fpu_states WC_PIE_INDIRECT_SYM(free_wolfcrypt_linuxkm_fpu_states)
@@ -1866,7 +1853,7 @@
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */
         #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
-            #if defined(CONFIG_X86)
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
                 WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
                 WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
                 WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
@@ -1876,9 +1863,9 @@
                 #ifndef REENABLE_VECTOR_REGISTERS
                     #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
-            #else /* !CONFIG_X86 */
+            #else
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
-            #endif /* !CONFIG_X86 */
+            #endif
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
         #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
             WOLFSSL_API extern void *wc_linuxkm_malloc(size_t size);

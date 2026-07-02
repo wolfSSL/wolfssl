@@ -1572,6 +1572,15 @@ then
     enable_aesgcm_stream=no
 fi
 
+# FIPS 140-3 v7 guard support: capture whether DSA/DH were EXPLICITLY requested
+# (--enable-dsa / --enable-dh) here, before any default (enable_dsa=yes path,
+# --enable-all) sets them.  The v7 out-of-scope guard hard-errors only on an
+# explicit request, otherwise silently forces the algorithm off.  (FIPS 186-5
+# retires DSA; classic finite-field DH and DSA are out of scope for the FIPS
+# 140-3 v7 PQ module.)
+explicit_enable_dsa="$enable_dsa"
+explicit_enable_dh="$enable_dh"
+
 # All wolfCrypt features:
 AC_ARG_ENABLE([all-crypto],
     [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms (default: disabled)])],
@@ -3913,13 +3922,21 @@ then
             AC_MSG_NOTICE([32bit ARMv4 found])
             ;;
         *)
-            AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8 -marm"
+            # AArch32 ARMv8 crypto-extension asm (armv8-32-*-asm.S: sha256h,
+            # aese/aesmc, pmull) needs an explicit -march=armv8-a+crypto: the
+            # ARMv8-A crypto extension is OPTIONAL, so "+crypto" gates these
+            # instructions -- not -mfpu alone, nor a bare -march=armv8-a (nor
+            # -mcpu=cortex-a53 on some toolchains).  Cross toolchains defaulting
+            # to ARMv7 (e.g. Xilinx Vitis cortex-a9) otherwise reject them:
+            # "selected processor does not support sha256h.32 in ARM mode".
+            # Mirrors the in-kernel ARM armasm enablement (port/arm/*.S crypto).
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv8-a+crypto -mfpu=crypto-neon-fp-armv8 -marm"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
             ENABLED_ARMASM_NEON=yes
             ENABLED_ARM_32=yes
-            AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8])
+            AC_MSG_NOTICE([32bit ARMv8 found, setting -march=armv8-a+crypto + mfpu=crypto-neon-fp-armv8])
             ;;
         esac
     esac
@@ -5938,6 +5955,13 @@ if test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
 then
     ENABLED_ANON=yes
 fi
+# Anonymous ciphers require classic DH (enforced below and by settings.h:
+# HAVE_ANON => DH).  DH is out of scope only for the LOCKED FIPS 140-3 v7
+# module, so force anon off there however it was enabled (--enable-all, a TLS-
+# integration option like wpas/nginx, or --enable-anon).  dev/ready keep DH
+# (and thus anon) when --enable-all/--enable-dh ask.
+AS_IF([test "$FIPS_VERSION" = "v7"],
+    [ENABLED_ANON=no])
 if test "x$ENABLED_ANON" = "xyes"
 then
     if test "$ENABLED_DH" = "no"
@@ -6481,13 +6505,7 @@ AS_CASE([$FIPS_VERSION],
             -DWC_RSA_NO_PADDING \
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
-            -DHAVE_ECC521 \
-            -DWOLFSSL_VALIDATE_FFC_IMPORT \
-            -DHAVE_FFDHE_Q \
-            -DHAVE_FFDHE_3072 \
-            -DHAVE_FFDHE_4096 \
-            -DHAVE_FFDHE_6144 \
-            -DHAVE_FFDHE_8192"
+            -DHAVE_ECC521"
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and don't use seed callback
         AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
@@ -6501,6 +6519,28 @@ AS_CASE([$FIPS_VERSION],
                 -DHAVE_ECC256"])
 
         DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
+
+# Classic finite-field DH and DSA scope by FIPS mode (FIPS 186-5 retires DSA;
+# the v7 boundary keeps only ECDH/ECDSA + PQ KEM/DSA):
+#   v7        -- LOCKED release module: DH/DSA OUT OF SCOPE.  Hard-error on an
+#                explicit --enable-dh/--enable-dsa, otherwise force off.
+#   dev/ready -- pre-release: DH/DSA OFF BY DEFAULT but turn-on-able
+#                (--enable-all, --enable-dh/--enable-dsa) for test coverage and
+#                v6 migration.
+        AS_IF([test "$FIPS_VERSION" = "v7"],
+            [AS_IF([test "$explicit_enable_dh" = "yes"],
+                 [AC_MSG_ERROR([--enable-dh is not supported with --enable-fips=v7. Classic finite-field DH is out of scope for the FIPS 140-3 v7 PQ module. Use --enable-fips=v6 if you need DH support.])],
+                 [test "$ENABLED_DH" != "no"],
+                 [ENABLED_DH="no"; enable_dh="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
+             AS_IF([test "$explicit_enable_dsa" = "yes"],
+                 [AC_MSG_ERROR([--enable-dsa is not supported with --enable-fips=v7. DSA is retired by FIPS 186-5 and is out of scope for the FIPS 140-3 v7 PQ module. Use --enable-fips=v6 if you need DSA support.])],
+                 [test "$ENABLED_DSA" != "no"],
+                 [ENABLED_DSA="no"; enable_dsa="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DSA"])],
+            [AS_IF([test "$explicit_enable_dh" != "yes" && test "x$enable_all" != "xyes"],
+                 [ENABLED_DH="no"; enable_dh="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
+             AS_IF([test "$explicit_enable_dsa" != "yes" && test "x$enable_all" != "xyes"],
+                 [ENABLED_DSA="no"; enable_dsa="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DSA"])])
+
 # optimizations section
 
 # protocol section
@@ -9058,8 +9098,16 @@ then
     fi
     if test "x$ENABLED_DH" = "xno"
     then
-        ENABLED_DH="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+        # Classic DH is out of scope for the FIPS 140-3 v7 PQ module.  JNI
+        # normally auto-enables DH for legacy TLS suites; with FIPS v7+ we
+        # report and skip rather than silently re-enabling DH off-boundary.
+        if test "$FIPS_VERSION" = "v7" || test "$FIPS_VERSION" = "ready" || test "$FIPS_VERSION" = "dev"
+        then
+            AC_MSG_NOTICE([JNI enabled but FIPS is $FIPS_VERSION, NOT turning on DH with this module])
+        else
+            ENABLED_DH="yes"
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+        fi
     fi
     if test "x$ENABLED_PSK" = "xno"
     then

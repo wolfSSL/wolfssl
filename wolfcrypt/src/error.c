@@ -692,6 +692,21 @@ const char* wc_GetErrorString(int error)
     case SLH_DSA_KAT_FIPS_E:
         return "SLH-DSA Known Answer Test check FIPS error";
 
+    case SLH_DSA_PCT_E:
+        return "wolfcrypt SLH-DSA Pairwise Consistency Test Failure";
+
+    case CMAC_KAT_FIPS_E:
+        return "AES-CMAC Known Answer Test FIPS error";
+
+    case SHAKE_KAT_FIPS_E:
+        return "SHAKE Known Answer Test FIPS error";
+
+    case DH_PCT_E:
+        return "wolfcrypt DH (FFC) Pairwise Consistency Test Failure";
+
+    case AES_KW_KAT_FIPS_E:
+        return "AES-KW Known Answer Test FIPS error";
+
     case SEQ_OVERFLOW_E:
         return "Sequence counter would overflow";
 

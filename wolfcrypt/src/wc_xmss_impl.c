@@ -33,6 +33,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep this XMSS (SP 800-208) implementation's code/const inside the FIPS
+     * in-core integrity boundary (Windows orders it by named sections). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$ng")
+        #pragma const_seg(".fipsB$ng")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 #include <wolfssl/wolfcrypt/hash.h>
 

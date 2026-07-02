@@ -418,6 +418,20 @@ int wc_DrbgState_MutexFree(void)
 static int LockDrbgState(void)
 {
 #ifndef SINGLE_THREADED
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* drbgStateMutex needs run-time init on platforms without a static mutex
+     * initializer (e.g. Windows CRITICAL_SECTION).  The FIPS pre-operational
+     * self-test locks the DRBG from a load-time constructor that runs before
+     * wolfCrypt_Init(), and locking an uninitialized CRITICAL_SECTION is UB
+     * (faults on the degraded CAST re-run).  Init on demand here -- idempotent,
+     * and the first lock is the single-threaded POST so it is race-free.
+     * Guards the SP 800-90A DRBG enable/disable state. */
+    {
+        int initRet = wc_DrbgState_MutexInit();
+        if (initRet != 0)
+            return initRet;
+    }
+#endif
     return wc_LockMutex(&drbgStateMutex);
 #else
     return 0;
@@ -1825,7 +1839,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
 
 #ifdef HAVE_INTEL_RDRAND
-    /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
+    /* if CPU supports RDRAND, use it directly and bypass DRBG init */
     if (IS_INTEL_RDRAND(intel_flags)) {
     #ifdef HAVE_HASHDRBG
         rng->status = DRBG_OK;
@@ -3619,23 +3633,70 @@ int wc_FreeNetRandom(void)
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
     defined(HAVE_AMD_RDSEED)
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    /* need more retries if multiple cores */
-    #define INTELRD_RETRY (32 * 8)
-#else
-    #define INTELRD_RETRY 32
+/* Bounds the RDRAND/RDSEED retry loop below.  RDSEED legitimately sets CF=0
+ * until the on-chip entropy is replenished; per Intel's DRNG guidance software
+ * must retry.  Overridable via -D for OEs needing a different budget. */
+#ifndef INTELRD_RETRY
+    #if defined(WOLFSSL_LINUXKM)
+        /* Linux kernel module: boot-time FIPS CASTs poll RDSEED during
+         * module_init while the RNG is warming up and RDSEED is contended
+         * (especially virtualized, funnelled to a busy host CPU).  CF=0 then
+         * far exceeds the 32-retry userspace default, making
+         * --enable-{amd,intel}rdseed modules fail the ECDSA CAST and refuse to
+         * load.  The budget is a ceiling, not a fixed cost -- RDSEED succeeds in
+         * ~1 read once entropy is up, so post-boot use is unaffected. */
+        #define INTELRD_RETRY 100000
+    #elif defined(WOLFSSL_ASYNC_CRYPT)
+        /* need more retries if multiple cores */
+        #define INTELRD_RETRY (32 * 8)
+    #else
+        #define INTELRD_RETRY 32
+    #endif
 #endif
 
 #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
 
+/* Vendor tag for the optional FIPS_CODE_REVIEW evidence prints below.  Intel
+ * and AMD RDSEED share the one x86 RDSEED primitive; exactly one of
+ * HAVE_INTEL_RDSEED / HAVE_AMD_RDSEED is set per OE, so this resolves cleanly. */
+#if defined(HAVE_AMD_RDSEED)
+#define WC_RDSEED_VENDOR "AMD"
+#else
+#define WC_RDSEED_VENDOR "Intel"
+#endif
+
 #ifndef USE_INTEL_INTRINSICS
 
-    /* return 0 on success */
+    /* return 0 on success.  Per the E27 Public Use Document (CMVP entropy
+     * disclosure), wolfSSL polls the x86 Carry Flag to check each RDSEED:
+     *   CF=1 -> dest holds 64 bits of conditioned entropy, usable;
+     *   CF=0 -> seed pool empty this cycle, dest unusable, must retry
+     *           (IntelRDseed64_r below loops up to INTELRD_RETRY times).
+     * "setc %1" materialises CF into (ok); the "=qm" constraint pins it to a
+     * q-class register so setc can target its low byte. */
     static WC_INLINE int IntelRDseed64(word64* seed)
     {
         unsigned char ok;
 
         __asm__ volatile("rdseed %0; setc %1":"=r"(*seed), "=qm"(ok));
+#ifdef FIPS_CODE_REVIEW
+        /* One-shot tracer: confirm this path is alive on the first call, then
+         * go silent -- RDSEED fires per 64-bit chunk, so per-chunk prints would
+         * flood the sanity-log.  Per-request volume is shown by the outer
+         * wc_GenerateSeed_IntelRD print below. */
+        {
+            static int printed_asm = 0;
+            if (!printed_asm) {
+                printed_asm = 1;
+                printf("FIPS_CODE_REVIEW IntelRDseed64 [asm path, %s] "
+                       "(one-shot): delivered %u bits, CF=%u\n",
+                       WC_RDSEED_VENDOR, (unsigned)(sizeof(word64) * 8u),
+                       (unsigned)ok);
+            }
+        }
+#endif
+        /* CF set (ok != 0) -> 64 bits captured in *seed, return 0; CF clear ->
+         * sample invalid, return -1 so IntelRDseed64_r() retries. */
         return (ok) ? 0 : -1;
     }
 
@@ -3643,7 +3704,14 @@ int wc_FreeNetRandom(void)
     /* The compiler Visual Studio uses does not allow inline assembly.
      * It does allow for Intel intrinsic functions. */
 
-    /* return 0 on success */
+    /* return 0 on success.
+     *
+     * E27 PUD (NIST CMVP) cited path: _rdseed64_step is the compiler intrinsic
+     * front-end for the same RDSEED instruction documented in the asm path
+     * above.  The intrinsic returns 1 when CF was set by the underlying RDSEED
+     * (i.e. the 64-bit conditioned entropy sample in *seed is valid this
+     * cycle) and 0 when CF was clear (caller MUST retry; *seed MUST NOT be
+     * consumed). */
 # ifdef __GNUC__
     __attribute__((target("rdseed")))
 # endif
@@ -3652,6 +3720,23 @@ int wc_FreeNetRandom(void)
         int ok;
 
         ok = _rdseed64_step((unsigned long long*) seed);
+#ifdef FIPS_CODE_REVIEW
+        /* One-shot tracer; see asm-path comment above for rationale. */
+        {
+            static int printed_intrinsic = 0;
+            if (!printed_intrinsic) {
+                printed_intrinsic = 1;
+                printf("FIPS_CODE_REVIEW IntelRDseed64 [intrinsic path, %s] "
+                       "(one-shot): delivered %u bits, "
+                       "intrinsic_ret=%d (== CF)\n",
+                       WC_RDSEED_VENDOR, (unsigned)(sizeof(word64) * 8u), ok);
+            }
+        }
+#endif
+        /* intrinsic_ret == 1 -> CF was set, 64 bits of conditioned entropy
+         * captured in *seed; return 0 to signal success to the retry wrapper.
+         * intrinsic_ret == 0 -> CF was clear; return -1 so the retry wrapper
+         * re-attempts. */
         return (ok) ? 0 : -1;
     }
 
@@ -3664,6 +3749,12 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
     for (i = 0; i < INTELRD_RETRY; i++) {
         if (IntelRDseed64(rnd) == 0)
             return 0;
+        /* Give the hardware entropy source a chance to replenish between
+         * attempts (Intel DRNG guidance) and yield the CPU when it is safe to
+         * block.  WC_RELAX_LONG_LOOP() is a no-op where blocking is unsafe, so
+         * this only ever helps -- e.g. it lets other work (and the entropy
+         * conditioner) run during a long boot-time RDSEED starvation. */
+        WC_RELAX_LONG_LOOP();
     }
     return -1;
 }
@@ -3676,6 +3767,19 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     static int rdseed_sanity_status = 0;
 
     (void)os;
+
+#ifdef FIPS_CODE_REVIEW
+    /* Each conditioned entropy sample produced by IntelRDseed64() is 64 bits
+     * wide.  This entry-level trace makes the per-request entropy volume
+     * obvious in evidence logs: sz bytes requested -> ceil(sz/8) RDSEED
+     * invocations expected (plus the two-or-three sanity-status reads on the
+     * first ever call into this function). */
+    printf("FIPS_CODE_REVIEW wc_GenerateSeed_IntelRD [%s]: "
+           "requested %u bytes = %u bits "
+           "(expect %u RDSEED 64-bit samples)\n",
+           WC_RDSEED_VENDOR, (unsigned)sz, (unsigned)(sz * 8u),
+           (unsigned)((sz + sizeof(word64) - 1u) / sizeof(word64)));
+#endif
 
     if (!IS_INTEL_RDSEED(intel_flags))
         return -1;

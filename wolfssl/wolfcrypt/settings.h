@@ -557,6 +557,15 @@
     #endif
     /* blinding adds API not available yet in FIPS mode */
     #undef WC_RSA_BLINDING
+
+    /* NIST SP 800-38A sec 6.2: CBC requires plaintext a multiple of the
+     * block size, and the cipher does not pad (project_aes_no_padding_policy).
+     * Force the wc_AesCbcEncrypt / wc_AesCbcDecrypt block-alignment check
+     * so a length not a multiple of WC_AES_BLOCK_SIZE returns BAD_LENGTH_E
+     * instead of silently truncating to the largest aligned prefix. */
+    #ifndef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        #define WOLFSSL_AES_CBC_LENGTH_CHECKS
+    #endif
 #endif
 
 /* old FIPS has only AES_BLOCK_SIZE. */

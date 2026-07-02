@@ -1457,15 +1457,31 @@ static void (*Transform_Sha512_p)(wc_Sha512* sha512, const byte* data) = NULL;
 static void (*Transform_Sha512_Len_p)(wc_Sha512* sha512, const byte* data,
     word32 len) = NULL;
 
+/* 32-bit ARM SHA-512 NEON asm below needs SAVE/RESTORE_VECTOR_REGISTERS
+ * (kernel_neon_begin/end) in a Linux kernel module, else the first NEON insn
+ * faults "undefined instruction".  Scoped to !__aarch64__ so aarch64 and the
+ * THUMB2/NO_NEON base path stay unchanged.  (FIPS 180-4 SHA-512.) */
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+    #define WC_SHA512_ARM_SVR_BEGIN(fail) SAVE_VECTOR_REGISTERS(fail)
+    #define WC_SHA512_ARM_SVR_END()       RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA512_ARM_SVR_BEGIN(fail) WC_DO_NOTHING
+    #define WC_SHA512_ARM_SVR_END()       WC_DO_NOTHING
+#endif
 static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512, const byte* data)
 {
+    WC_SHA512_ARM_SVR_BEGIN(return _svr_ret;);
     (*Transform_Sha512_p)(sha512, data);
+    WC_SHA512_ARM_SVR_END();
     return 0;
 }
 static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, const byte* data,
     word32 len)
 {
+    WC_SHA512_ARM_SVR_BEGIN(return _svr_ret;);
     (*Transform_Sha512_Len_p)(sha512, data, len);
+    WC_SHA512_ARM_SVR_END();
     return 0;
 }
 

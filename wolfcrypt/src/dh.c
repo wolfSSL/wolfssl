@@ -1436,8 +1436,18 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
     if (ret == 0)
         ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
-    if (ret == 0)
-        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, privSz);
+    if (ret == 0) {
+        /* FFC key-pair PCT per SP 800-56A r3 sec 5.6.2.1.4, required
+         * after KeyGen by FIPS 140-3 IG 10.3.B.  Under FIPS, failure is
+         * remapped to DH_PCT_E so DEGRADE_STATE moves
+         * FIPS_CAST_DH_PRIMITIVE_Z to the error state. */
+        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv,
+                                             privSz);
+    #ifdef HAVE_FIPS
+        if (ret != 0)
+            ret = DH_PCT_E;
+    #endif
+    }
     #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
 
     return ret;
@@ -1460,8 +1470,18 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
 #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
     if (ret == 0)
         ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
-    if (ret == 0)
-        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
+    if (ret == 0) {
+        /* FFC key-pair PCT per SP 800-56A r3 sec 5.6.2.1.4, required
+         * after KeyGen by FIPS 140-3 IG 10.3.B.  Under FIPS, failure is
+         * remapped to DH_PCT_E so DEGRADE_STATE moves
+         * FIPS_CAST_DH_PRIMITIVE_Z to the error state. */
+        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv,
+                                             *privSz);
+    #ifdef HAVE_FIPS
+        if (ret != 0)
+            ret = DH_PCT_E;
+    #endif
+    }
 #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
 
     return ret;

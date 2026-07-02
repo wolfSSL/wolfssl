@@ -13,7 +13,10 @@ then
 fi
 
 OUT=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
-NEWHASH=$(echo "$OUT" | cut -c1-64)
+# Take the whole hash: FIPS v7.0.0+ is HMAC-SHA-512 (128 hex), older is
+# HMAC-SHA-256 (64 hex). static_assert on sizeof(verifyCore) catches a
+# wrong length at compile time.
+NEWHASH=$(echo "$OUT" | head -n1 | tr -d '[:space:]')
 if test -n "$NEWHASH"
 then
     cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak

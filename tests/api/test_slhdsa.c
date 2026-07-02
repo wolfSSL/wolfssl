@@ -1081,12 +1081,14 @@ int test_wc_slhdsa_sign_hash(void)
         WC_HASH_TYPE_SHA256, sig, sigLen),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
 
-    /* Unsupported hashType (FIPS 205 doesn't list WC_HASH_TYPE_NONE) hits
-     * the default branch of slhdsakey_validate_prehash. */
+    /* WC_HASH_TYPE_NONE (pure SLH-DSA sentinel) is never a valid pre-hash
+     * (FIPS 205 Section 10.2.2 / Table 9), so HashSLH-DSA signing rejects it
+     * with an explicit early check (BAD_FUNC_ARG), not via the
+     * slhdsa_check_hash_for_n() switch default. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, sizeof(ctx), hash, 32,
         WC_HASH_TYPE_NONE, sig, &sigLen, &rng),
-        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Test SignHash with SHA-256. */
     sigLen = WC_SLHDSA_MAX_SIG_LEN;
