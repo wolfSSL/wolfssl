@@ -430,6 +430,114 @@ int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp)
     }
     return ret;
 }
+
+#ifndef NO_SHA256
+/* Store the SHA-256 digest of a DER SubjectPublicKeyInfo as an expected Raw
+ * Public Key (RFC 7250) for out-of-band trust.
+ *
+ * @param [in] cfg     RPK configuration to add the pin to.
+ * @param [in] spki    DER-encoded SubjectPublicKeyInfo.
+ * @param [in] spkiSz  Length of spki in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when cfg or spki is NULL, or spkiSz is 0.
+ * @return  BUFFER_E when no more pins can be stored.
+ * @return  negative hashing error on failure.
+ */
+static int rpk_add_expected(RpkConfig* cfg, const unsigned char* spki,
+    unsigned int spkiSz)
+{
+    int ret;
+
+    if ((cfg == NULL) || (spki == NULL) || (spkiSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+    if (cfg->expectedRpkCnt >= WOLFSSL_MAX_RPK_PINS) {
+        return BUFFER_E;
+    }
+
+    ret = wc_Sha256Hash(spki, spkiSz, cfg->expectedRpk[cfg->expectedRpkCnt]);
+    if (ret == 0) {
+        cfg->expectedRpkCnt++;
+    }
+    return ret;
+}
+
+/* Pin an expected peer Raw Public Key on the SSL/TLS CTX object.
+ *
+ * @param [in] ctx     SSL/TLS CTX object.
+ * @param [in] spki    DER-encoded SubjectPublicKeyInfo the peer will present.
+ * @param [in] spkiSz  Length of spki in bytes.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx or spki is NULL, or spkiSz is 0.
+ * @return  BUFFER_E when the pin table is full (WOLFSSL_MAX_RPK_PINS reached).
+ * @return  Other negative error code on hashing failure.
+ */
+int wolfSSL_CTX_set_expected_rpk(WOLFSSL_CTX* ctx, const unsigned char* spki,
+    unsigned int spkiSz)
+{
+    int ret;
+
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ret = rpk_add_expected(&ctx->rpkConfig, spki, spkiSz);
+    return (ret == 0) ? WOLFSSL_SUCCESS : ret;
+}
+
+/* Pin an expected peer Raw Public Key on the SSL/TLS object.
+ *
+ * @param [in] ssl     SSL/TLS object.
+ * @param [in] spki    DER-encoded SubjectPublicKeyInfo the peer will present.
+ * @param [in] spkiSz  Length of spki in bytes.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl or spki is NULL, or spkiSz is 0.
+ * @return  BUFFER_E when the pin table is full (WOLFSSL_MAX_RPK_PINS reached).
+ * @return  Other negative error code on hashing failure.
+ */
+int wolfSSL_set_expected_rpk(WOLFSSL* ssl, const unsigned char* spki,
+    unsigned int spkiSz)
+{
+    int ret;
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ret = rpk_add_expected(&ssl->options.rpkConfig, spki, spkiSz);
+    return (ret == 0) ? WOLFSSL_SUCCESS : ret;
+}
+
+/* Remove all pinned expected peer Raw Public Keys from the SSL/TLS CTX object,
+ * so the table can be repopulated (e.g. across a peer key rotation).
+ *
+ * @param [in] ctx  SSL/TLS CTX object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_clear_expected_rpk(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ctx->rpkConfig.expectedRpkCnt = 0;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Remove all pinned expected peer Raw Public Keys from the SSL/TLS object, so
+ * the table can be repopulated (e.g. across a peer key rotation).
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_clear_expected_rpk(WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ssl->options.rpkConfig.expectedRpkCnt = 0;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !NO_SHA256 */
 #endif /* HAVE_RPK */
 
 /* Certificate verification options. */

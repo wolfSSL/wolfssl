@@ -2780,6 +2780,10 @@ enum {
     WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH               = 64,
     WOLFSSL_X509_V_ERR_INVALID_CA                        = 79,
     WC_OSSL_V509_V_ERR_MAX = 80,
+    /* 95 matches OpenSSL's X509_V_ERR_RPK_UNTRUSTED (OpenSSL 3.2+). It is
+     * deliberately at or above WC_OSSL_V509_V_ERR_MAX, i.e. outside the
+     * contiguous block of verify-result codes below it. */
+    WOLFSSL_X509_V_ERR_RPK_UNTRUSTED                     = 95,
 
 #ifdef HAVE_OCSP
     /* OCSP Flags */
@@ -6192,6 +6196,41 @@ enum {
 #define MAX_CLIENT_CERT_TYPE_CNT 2
 #define MAX_SERVER_CERT_TYPE_CNT 2
 
+/* Maximum number of expected Raw Public Keys that can be pinned out of band
+ * with wolfSSL_set_expected_rpk()/wolfSSL_CTX_set_expected_rpk(). Defined here
+ * (the public header) so applications can both see and override the limit;
+ * each pin costs WC_SHA256_DIGEST_SIZE bytes inline in WOLFSSL_CTX and WOLFSSL
+ * whether or not pinning is used, so lower it to 1 to minimise footprint when
+ * only a single pin is needed. */
+#ifndef WOLFSSL_MAX_RPK_PINS
+#define WOLFSSL_MAX_RPK_PINS 4
+#endif
+/* The internal pin counter is a byte, so the table cannot exceed 255 entries;
+ * a value of 0 would also declare a zero-length array (invalid C). */
+#if (WOLFSSL_MAX_RPK_PINS < 1) || (WOLFSSL_MAX_RPK_PINS > 255)
+    #error "WOLFSSL_MAX_RPK_PINS must be between 1 and 255"
+#endif
+
+/* RPK fail-closed BEHAVIOUR CHANGE - applies to ALL HAVE_RPK builds, including
+ * NO_SHA256 and builds without OPENSSL_EXTRA (this note is deliberately outside
+ * those guards so it is always visible): an unauthenticated Raw Public Key
+ * (RFC 7250) peer is no longer silently accepted. Previously an RPK handshake
+ * always completed and the application validated the key afterwards (e.g. via
+ * wolfSSL_get_verify_result()); it now fails closed whenever the peer is being
+ * authenticated (any verify mode other than WOLFSSL_VERIFY_NONE). Builds
+ * without OPENSSL_EXTRA, which previously had no untrusted-RPK handling at all,
+ * now also fail closed; and under
+ * NO_SHA256 there is no in-library pinning (wolfSSL_set_expected_rpk() below is
+ * unavailable), so every RPK peer fails closed unless a verify callback accepts
+ * it. To handle an RPK peer, choose one of:
+ *   - pin the key with wolfSSL_set_expected_rpk()/wolfSSL_CTX_set_expected_rpk()
+ *     (recommended; requires SHA-256);
+ *   - install a verify callback (wolfSSL_set_verify) - it is still invoked for
+ *     the RPK and may accept the key, so it can keep the old "complete then
+ *     validate out of band" model while leaving X.509 verification strict on
+ *     the same object (unlike WOLFSSL_VERIFY_NONE, which disables both); or
+ *   - set WOLFSSL_VERIFY_NONE to accept without authentication. */
+
 WOLFSSL_API int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx,
                                           const char* buf, int len);
 WOLFSSL_API int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx,
@@ -6202,6 +6241,34 @@ WOLFSSL_API int wolfSSL_set_server_cert_type(WOLFSSL* ssl,
                                           const char* buf, int len);
 WOLFSSL_API int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
 WOLFSSL_API int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp);
+#ifndef NO_SHA256
+/* Pin a DER-encoded SubjectPublicKeyInfo that the peer is expected to present
+ * as a Raw Public Key (RFC 7250). Establishes out-of-band trust so that, when
+ * the peer is being authenticated (any verify mode other than
+ * WOLFSSL_VERIFY_NONE), the handshake completes for the pinned key instead of
+ * failing closed (see the RPK fail-closed behaviour note above). May be called
+ * more than once to pin several keys (up to WOLFSSL_MAX_RPK_PINS). The key is
+ * stored as its SHA-256 digest, so these APIs require SHA-256; without it,
+ * express RPK trust through a verify callback. Returns WOLFSSL_SUCCESS, or a
+ * negative error code (BAD_FUNC_ARG for a NULL argument or zero length, BUFFER_E
+ * when the pin table is full). Pins are append-only: there is no per-entry
+ * remove, but wolfSSL_clear_expected_rpk()/wolfSSL_CTX_clear_expected_rpk()
+ * empties the WOLFSSL_MAX_RPK_PINS-entry table so it can be repopulated (e.g.
+ * across a peer key rotation). */
+WOLFSSL_API int wolfSSL_CTX_set_expected_rpk(WOLFSSL_CTX* ctx,
+                                          const unsigned char* spki,
+                                          unsigned int spkiSz);
+WOLFSSL_API int wolfSSL_set_expected_rpk(WOLFSSL* ssl,
+                                          const unsigned char* spki,
+                                          unsigned int spkiSz);
+/* Remove all pinned expected peer Raw Public Keys, emptying the table so it can
+ * be repopulated. Returns WOLFSSL_SUCCESS, or BAD_FUNC_ARG when the handle is
+ * NULL. Like the set calls and other CTX setters these are unlocked, so
+ * reconfigure pins on a shared CTX while no handshakes are in flight (each
+ * WOLFSSL copies the pin table by value at wolfSSL_new()). */
+WOLFSSL_API int wolfSSL_CTX_clear_expected_rpk(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_clear_expected_rpk(WOLFSSL* ssl);
+#endif /* !NO_SHA256 */
 #endif /* HAVE_RPK */
 
 
