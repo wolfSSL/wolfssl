@@ -396,6 +396,27 @@ impl ECC {
     pub const FLAG_COFACTOR: i32 = sys::WC_ECC_FLAG_COFACTOR as i32;
     pub const FLAG_DEC_SIGN: i32 = sys::WC_ECC_FLAG_DEC_SIGN as i32;
 
+    /// Allocate and initialize an ECC key without populating key material.
+    pub(crate) fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Allocate and initialize an ECC key without populating key material,
+    /// using an optional heap hint and device ID.
+    pub(crate) fn new_ex(
+        heap: Option<*mut core::ffi::c_void>,
+        dev_id: Option<i32>,
+    ) -> Result<Self, i32> {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        Ok(Self {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
+        })
+    }
+
     /// Allocate and initialize a new `sys::ecc_key` on the C heap.
     fn new_ecc_key(heap: *mut core::ffi::c_void, dev_id: i32) -> Result<*mut sys::ecc_key, i32> {
         let key = unsafe { sys::wc_ecc_key_new(heap) };

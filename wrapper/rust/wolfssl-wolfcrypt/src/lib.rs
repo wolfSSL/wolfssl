@@ -79,6 +79,7 @@ pub mod rsa_oaep;
 #[cfg(feature = "signature")]
 pub mod rsa_pkcs1v15;
 pub mod sha;
+pub mod sm2;
 #[cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
 pub mod pbkdf2_password_hash;
 #[cfg(all(feature = "password-hash", kdf_scrypt))]
