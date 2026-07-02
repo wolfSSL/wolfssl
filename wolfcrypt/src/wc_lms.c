@@ -28,6 +28,14 @@
 #if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
+
+    /* Windows orders the FIPS in-core integrity boundary by named linker
+     * sections.  Keep LMS (SP 800-208) code/const inside the boundary,
+     * sorted between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nc")
+        #pragma const_seg(".fipsB$nc")
+    #endif
 #endif
 #include <wolfssl/wolfcrypt/wc_lms.h>
 #include <wolfssl/wolfcrypt/hash.h>

@@ -57,8 +57,12 @@
     #define DRBG_SEED_LEN (440/8)
 #endif
 
+/* Size of the DRBG seed (SHA-512) */
 #ifdef WOLFSSL_DRBG_SHA512
-    #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A Table 2 */
+    #ifndef DRBG_SHA512_SEED_LEN
+        #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A
+                                               * Table 2 */
+    #endif
 #endif
 
 
@@ -212,12 +216,16 @@ struct OS_Seed {
          */
         #define ENTROPY_SCALE_FACTOR  (512)
     #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
-        /* The value of 2 applies to Intel's RDSEED which provides about
-         * 0.5 bits minimum of entropy per bit. The value of 4 gives a
-         * conservative margin for FIPS. */
+        /* Intel RDSEED nominally provides ~0.5 bits min entropy per bit
+         * (NIST CMVP cert3389 PUD).  As of v7, FIPS mode uses scale=512 on
+         * Intel too (was 8), matching the AMD worst case: AMD "Tyzen
+         * V1xxxx" PUD Table 3 documents 0.656040 bits per 128-bit block as
+         * the floor across the CMVP-validated AMD family.  One worst-case
+         * seeding budget then covers any x86 OE.  Non-FIPS Intel keeps the
+         * lighter scale=2 (Intel-PUD-derived) for performance. */
         #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION >= 2)
-            #define ENTROPY_SCALE_FACTOR (2*4)
+            #define ENTROPY_SCALE_FACTOR (512)
         #else
             /* Not FIPS, but Intel RDSEED, only double. */
             #define ENTROPY_SCALE_FACTOR (2)

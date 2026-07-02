@@ -26,6 +26,14 @@
 #if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
+
+    /* Windows orders the FIPS in-core integrity boundary by named linker
+     * sections.  Keep SLH-DSA (FIPS 205) code/const inside the boundary,
+     * sorted between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nh")
+        #pragma const_seg(".fipsB$nh")
+    #endif
 #endif
 
 #include <wolfssl/wolfcrypt/wc_slhdsa.h>
@@ -3286,6 +3294,9 @@ static int slhdsakey_wots_pkgen_chain_c(SlhDsaKey* key, const byte* sk_seed,
     if (ret == 0)
         XMEMSET(sk, 0, (SLHDSA_MAX_MSG_SZ + 3) * SLHDSA_MAX_N);
     if (ret == 0) {
+        /* Zero the WOTS+ leaf buffer up front: defensive clearing of secret
+         * key material that also avoids a -Wmaybe-uninitialized read of sk. */
+        XMEMSET(sk, 0, (SLHDSA_MAX_MSG_SZ + 3) * SLHDSA_MAX_N);
         /* Step 4. len consecutive addresses. */
         for (i = 0; i < len; i++) {
             /* Step 5. Set chain address for WOTS PRF. */
@@ -7006,6 +7017,46 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
             key->sk + 2 * n, n);
     }
 
+#ifdef HAVE_FIPS
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A (TE10.35.02):
+     * sign with the new sk, verify with the matching pk.  SLH-DSA (FIPS 205)
+     * is stateless, so the relaxed PCT rule for stateful HBS (LMS/XMSS) does
+     * not apply -- PCT runs on every KeyGen.  SignDeterministic avoids
+     * consuming RNG state; sigLen is heap-allocated for this exact variant
+     * (~8 KB to 50 KB across SLH-DSA variants). */
+    if (ret == 0) {
+        static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
+        word32 pct_sigLen = key->params->sigLen;
+        byte* pct_sig = (byte*)XMALLOC(pct_sigLen, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        word32 pct_sigSz = pct_sigLen;
+
+        if (pct_sig == NULL) {
+            ret = MEMORY_E;
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_SignDeterministic(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, &pct_sigSz);
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_Verify(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, pct_sigSz);
+            if (ret != 0) {
+                ret = SLH_DSA_PCT_E;
+            }
+        }
+        if (pct_sig != NULL) {
+            ForceZero(pct_sig, pct_sigLen);
+            XFREE(pct_sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        /* IG 10.3.A (TE10.35.02): a key pair that fails the PCT must be
+         * rendered unusable. */
+        if (ret != 0) {
+            wc_SlhDsaKey_Free(key);
+        }
+    }
+#endif /* HAVE_FIPS */
+
     return ret;
 }
 
@@ -7952,6 +8003,97 @@ static const byte slhdsakey_oid_sha3_512[] = {
 #endif
 #endif
 
+/* HashSLH-DSA PH-vs-paramSet enforcement.
+ *
+ * FIPS 205 sec. 10.2.2 (Table 9): the pre-hash PH must have collision-
+ * resistance >= the paramSet security level (key->params->n in bytes):
+ *   n = 16 (128-bit):  SHA2-256, SHA2-384, SHA2-512, SHA2-512/256,
+ *                      SHA3-256, SHA3-384, SHA3-512,
+ *                      SHAKE-128, SHAKE-256
+ *   n = 24 (192-bit):  SHA2-384, SHA2-512, SHA3-384, SHA3-512, SHAKE-256
+ *   n = 32 (256-bit):  SHA2-512, SHA3-512, SHAKE-256
+ *
+ * Returns 0 if approved, else BAD_FUNC_ARG (including any hash off the list,
+ * e.g. SHA-224, SHA-512/224, SHA3-224).
+ */
+static int slhdsa_check_hash_for_n(enum wc_HashType hashType, byte n)
+{
+    int strengthBits;
+    int requiredBits;
+
+    switch ((int)hashType) {
+    #ifndef NO_SHA256
+        case WC_HASH_TYPE_SHA256:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case WC_HASH_TYPE_SHA384:
+            strengthBits = 192;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case WC_HASH_TYPE_SHA512:
+            strengthBits = 256;
+            break;
+        #ifndef WOLFSSL_NOSHA512_256
+        case WC_HASH_TYPE_SHA512_256:
+            /* SHA-512/256 has 128-bit collision resistance (truncated). */
+            strengthBits = 128;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_256
+        case WC_HASH_TYPE_SHA3_256:
+            strengthBits = 128;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        case WC_HASH_TYPE_SHA3_384:
+            strengthBits = 192;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        case WC_HASH_TYPE_SHA3_512:
+            strengthBits = 256;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHAKE128
+        case WC_HASH_TYPE_SHAKE128:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHAKE256
+        case WC_HASH_TYPE_SHAKE256:
+            strengthBits = 256;
+            break;
+    #endif
+        default:
+            /* Hash not on the FIPS 205 Table 9 approved list. */
+            return BAD_FUNC_ARG;
+    }
+
+    if (n == WC_SLHDSA_N_128) {
+        requiredBits = 128;
+    }
+    else if (n == WC_SLHDSA_N_192) {
+        requiredBits = 192;
+    }
+    else if (n == WC_SLHDSA_N_256) {
+        requiredBits = 256;
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+
+    if (strengthBits < requiredBits) {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+
 /* Validate the caller-supplied pre-hashed digest length and look up the
  * corresponding OID for the chosen hash algorithm.
  *
@@ -8169,6 +8311,14 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
             (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* HashSLH-DSA requires an explicit, approved pre-hash algorithm.
+     * WC_HASH_TYPE_NONE (the "pure SLH-DSA" sentinel) is never valid here;
+     * reject it explicitly (FIPS 205 Section 10.2.2 / Table 9) rather than
+     * via the slhdsa_check_hash_for_n() switch default, so it survives any
+     * future reorder of the validators or a NONE case added to that switch. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = BAD_FUNC_ARG;
+    }
     /* Check sig buffer is large enough to hold generated signature. */
     else if (*sigSz < key->params->sigLen) {
         ret = BAD_LENGTH_E;
@@ -8177,6 +8327,12 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
     else if (addRnd == NULL) {
         /* Alg 23, Step 6: Return error. */
         ret = BAD_FUNC_ARG;
+    }
+    /* FIPS 205 sec. 10.2.2 Table 9: enforce PH <-> paramSet matching before
+     * pre-hashing the message.  Rejects PHs whose collision-resistance
+     * strength is below the paramSet's security level (n). */
+    if (ret == 0) {
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
     }
     if (ret == 0) {
         /* Alg 23, Steps 8-23: Validate caller-supplied pre-hashed digest length
@@ -8412,8 +8568,11 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         ret = MISSING_KEY;
     }
     /* First sanity check on hashType; the downstream prehash validator does
-     * the detailed check for the actual type. */
-    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
+     * the detailed check.  Reject WC_HASH_TYPE_NONE here too -- never a valid
+     * pre-hash (FIPS 205 Section 10.2.2 / Table 9) -- so a known-invalid call
+     * fails before consuming DRBG output below. */
+    else if ((hashType == WC_HASH_TYPE_NONE) ||
+             ((word32)hashType > (word32)WC_HASH_TYPE_MAX)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -8542,6 +8701,12 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 
 #ifdef WOLF_CRYPTO_CB
+    /* FIPS 205 sec. 10.2.2 Table 9: enforce PH <-> paramSet matching.
+     * Rejects PHs whose collision-resistance strength is below the
+     * paramSet's security level (n). */
+    if (ret == 0) {
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
+    }
     if (ret == 0) {
     #ifndef WOLF_CRYPTO_CB_FIND
         if (key->devId != INVALID_DEVID)

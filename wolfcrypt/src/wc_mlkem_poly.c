@@ -71,6 +71,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep this ML-KEM (FIPS 203) implementation's code/const inside the FIPS
+     * in-core integrity boundary (Windows orders it by named sections). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nb")
+        #pragma const_seg(".fipsB$nb")
+    #endif
+#endif
+
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM

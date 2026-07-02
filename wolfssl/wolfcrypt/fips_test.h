@@ -31,8 +31,22 @@
     extern "C" {
 #endif
 
-/* Added for FIPS v5.3 or later */
-#if defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)
+/* Added for FIPS v5.3 or later.
+ *
+ * v7.0.0+ upgrades the in-core integrity HMAC to SHA-512 (512-bit key) for
+ * NSA 2.0 compliance, leaving no SHA-256 integrity material in the module.
+ * v5.3 and v6.x retain HMAC-SHA-256.
+ */
+#if defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(7,0)
+    #ifdef WOLFSSL_SHA512
+        #define FIPS_IN_CORE_DIGEST_SIZE 64
+        #define FIPS_IN_CORE_HASH_TYPE   WC_SHA512
+        #define FIPS_IN_CORE_KEY_SZ      64
+        #define FIPS_IN_CORE_VERIFY_SZ   FIPS_IN_CORE_KEY_SZ
+    #else
+        #error FIPS v7+ integrity test requires WOLFSSL_SHA512
+    #endif
+#elif defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)
     /* Determine FIPS in core hash type and size */
     #ifndef NO_SHA256
         #define FIPS_IN_CORE_DIGEST_SIZE 32
@@ -62,7 +76,10 @@ enum FipsCastId {
     FIPS_CAST_RSA_SIGN_PKCS1v15 =  7,
     FIPS_CAST_ECC_CDH           =  8,
     FIPS_CAST_ECC_PRIMITIVE_Z   =  9,
-    FIPS_CAST_DH_PRIMITIVE_Z    = 10,
+    FIPS_CAST_DH_PRIMITIVE_Z    = 10,  /* RETIRED (v7+): classic DH dropped
+                                        * from the FIPS 140-3 v7 PQ module
+                                        * boundary.  Kept for ABI; do not
+                                        * reuse this id. */
     FIPS_CAST_ECDSA             = 11,
     FIPS_CAST_KDF_TLS12         = 12,
     FIPS_CAST_KDF_TLS13         = 13,
@@ -80,7 +97,10 @@ enum FipsCastId {
     FIPS_CAST_XMSS              = 23,
     FIPS_CAST_DRBG_SHA512       = 24,
     FIPS_CAST_SLH_DSA           = 25,
-    FIPS_CAST_COUNT             = 26
+    FIPS_CAST_AES_CMAC          = 26,
+    FIPS_CAST_SHAKE             = 27,
+    FIPS_CAST_AES_KW            = 28,
+    FIPS_CAST_COUNT             = 29
 };
 
 enum FipsCastStateId {

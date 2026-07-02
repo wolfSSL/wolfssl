@@ -75,6 +75,20 @@
         #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
     #endif /* _MSC_VER */
 
+    /* On the 32-bit x86 Linux kernel (WOLFSSL_LINUXKM + WOLFSSL_X86_BUILD),
+     * <asm/ptrace-abi.h> (pulled in via processor.h -> math_emu.h ->
+     * ptrace.h on i386 only) #defines EAX/EBX/ECX/EDX as ptrace register
+     * indices (EAX=6, EBX=0, ECX=1, EDX=2).  We reuse these names as
+     * cpuid()-result array indices (0..3), so the clash is a real bug, not a
+     * cosmetic redefinition: leaving the kernel's values in place would
+     * otherwise index reg[6] (past "unsigned int reg[5]") and mis-compare the
+     * vendor string.  #undef so our indices win.  No-op where the names are
+     * not predefined (x86_64
+     * kernel, all user-space), so i386-kernel codegen is byte-identical. */
+    #undef EAX
+    #undef EBX
+    #undef ECX
+    #undef EDX
     #define EAX 0
     #define EBX 1
     #define ECX 2

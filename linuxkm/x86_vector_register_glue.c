@@ -23,8 +23,28 @@
 /* included by linuxkm/module_hooks.c */
 #ifndef WC_SKIP_INCLUDED_C_FILES
 
-#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
-    #error x86_vector_register_glue.c included in non-vectorized/non-x86 project.
+#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || \
+    !(defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+    #error vector register glue included in non-vectorized or unsupported-arch project.
+#endif
+
+/* The per-CPU tracker below is arch-neutral except for the call that
+ * claims/releases the SIMD/FP unit:
+ *   x86       -> kernel_fpu_begin()/kernel_fpu_end()   (<asm/fpu/api.h> via
+ *                <asm/simd.h> in linuxkm_wc_port.h)
+ *   ARM/ARM64 -> kernel_neon_begin()/kernel_neon_end() (<asm/neon.h>)
+ * Both obey the same context rules the tracker enforces (may_use_simd(),
+ * hard-IRQ/NMI rejection, preempt/bh/migration disable).  The wc_*_x86 names
+ * are kept: this glue lives OUTSIDE the FIPS module boundary (reached only via
+ * the PIE redirect table), so the validated x86 symbol set stays byte-for-byte
+ * unchanged. */
+#if defined(CONFIG_X86)
+    #define WC_LINUXKM_FPU_BEGIN() kernel_fpu_begin()
+    #define WC_LINUXKM_FPU_END()   kernel_fpu_end()
+#elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+    #include <asm/neon.h>
+    #define WC_LINUXKM_FPU_BEGIN() kernel_neon_begin()
+    #define WC_LINUXKM_FPU_END()   kernel_neon_end()
 #endif
 
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
@@ -70,9 +90,11 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
             wc_linuxkm_fpu_states_n_tracked * sizeof(wc_linuxkm_fpu_states[0]));
 
     if (! wc_linuxkm_fpu_states) {
+        /* cast to unsigned long to match %lu: size_t is 32-bit on arm32 but
+         * 64-bit on x86_64/arm64, so the product type is arch-dependent. */
         pr_err("ERROR: allocation of %lu bytes for "
                "wc_linuxkm_fpu_states failed.\n",
-               nr_cpu_ids * sizeof(wc_linuxkm_fpu_states[0]));
+               (unsigned long)(nr_cpu_ids * sizeof(wc_linuxkm_fpu_states[0])));
         return MEMORY_E;
     }
 
@@ -454,10 +476,10 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         #if IS_ENABLED(CONFIG_PREEMPT_RT)
         preempt_disable();
         #endif
-        kernel_fpu_begin();
+        WC_LINUXKM_FPU_BEGIN();
         pstate = wc_linuxkm_fpu_state_assoc(1, 1);
         if (pstate == NULL) {
-            kernel_fpu_end();
+            WC_LINUXKM_FPU_END();
             #if IS_ENABLED(CONFIG_PREEMPT_RT)
             preempt_enable();
             #endif
@@ -521,7 +543,7 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 
     if (pstate->fpu_state == 0U) {
         wc_linuxkm_fpu_state_release(pstate);
-        kernel_fpu_end();
+        WC_LINUXKM_FPU_END();
         #if IS_ENABLED(CONFIG_PREEMPT_RT)
         preempt_enable();
         #endif

@@ -314,6 +314,16 @@
     <ClCompile Include="..\..\src\dtls13.c" />
     <ClCompile Include="..\..\src\dtls.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
+    <!-- FIPS v7.0.0 post-quantum module sources (FIPS 203/204/205, SP 800-208).
+         In-boundary placement is by .fipsA$/.fipsB$ section, not project order. -->
+    <ClCompile Include="..\..\wolfcrypt\src\wc_mlkem.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_mlkem_poly.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_mldsa.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_lms.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_lms_impl.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_xmss.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_xmss_impl.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_slhdsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfcrypt_last.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />

@@ -693,7 +693,12 @@ static int test_wc_AesCbcEncryptDecrypt_WithKey(Aes* aes, byte* key,
     ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len),
         0);
     ExpectBufEQ(cipher, vector_enc, vector_len);
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+    /* BAD_LENGTH_E enforcement lives behind WOLFSSL_AES_CBC_LENGTH_CHECKS in
+     * non-FIPS aes.c.  FIPSv2 (cert3389) uses wc_AesCbcEncrypt_fips, which
+     * predates the check and returns 0 on unaligned input; only v5.x+ carry
+     * the wrapper-level check.  Skip the assertion for FIPSv2. */
+#if defined(WOLFSSL_AES_CBC_LENGTH_CHECKS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
     ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len - 1),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #endif
@@ -703,7 +708,9 @@ static int test_wc_AesCbcEncryptDecrypt_WithKey(Aes* aes, byte* key,
     ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher,
         WC_AES_BLOCK_SIZE * 2), 0);
     ExpectBufEQ(decrypted, vector, vector_len);
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+#if defined(WOLFSSL_AES_CBC_LENGTH_CHECKS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
+    /* Same FIPSv2 vs v5+ rationale as the encrypt assertion above. */
     ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher,
         WC_AES_BLOCK_SIZE * 2 - 1), WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #else
