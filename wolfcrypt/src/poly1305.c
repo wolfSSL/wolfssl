@@ -700,7 +700,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
     g2 = h2 + c - ((word64)1 << 42);
 
     /* select h if h < p, or h + -p if h >= p */
-    c = (g2 >> ((sizeof(word64) * 8) - 1)) - 1;
+    c = (g2 >> ((sizeof(word64) * CHAR_BIT) - 1)) - 1;
     g0 &= c;
     g1 &= c;
     g2 &= c;
@@ -771,7 +771,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
     g4 = h4 + c - ((word32)1 << 26);
 
     /* select h if h < p, or h + -p if h >= p */
-    mask = ((word32)g4 >> ((sizeof(word32) * 8) - 1)) - 1;
+    mask = ((word32)g4 >> ((sizeof(word32) * CHAR_BIT) - 1)) - 1;
     g0 &= mask;
     g1 &= mask;
     g2 &= mask;

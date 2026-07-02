@@ -1860,8 +1860,13 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
              !defined(WOLFSSL_ARMASM)
+            #ifdef WOLFSSL_WIDE_BYTE
+                WordsFromBytesBE64(sha512->buffer,
+                    (const byte*)sha512->buffer, WC_SHA512_BLOCK_SIZE / 8);
+            #else
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
+            #endif
         #endif
             }
     #endif
@@ -1962,8 +1967,13 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     #if !defined(WOLFSSL_ESP32_CRYPT) || \
          defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
          defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
+        #ifdef WOLFSSL_WIDE_BYTE
+            WordsFromBytesBE64(sha512->buffer, (const byte*)sha512->buffer,
+                WC_SHA512_BLOCK_SIZE / 8);
+        #else
             ByteReverseWords64(sha512->buffer, sha512->buffer,
                                                        WC_SHA512_BLOCK_SIZE);
+        #endif
     #endif
     #if !defined(WOLFSSL_ESP32_CRYPT) || \
          defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
@@ -2097,8 +2107,13 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
              !defined(WOLFSSL_ARMASM)
+            #ifdef WOLFSSL_WIDE_BYTE
+            WordsFromBytesBE64(sha512->buffer, (const byte*)sha512->buffer,
+                WC_SHA512_BLOCK_SIZE / 8);
+            #else
             ByteReverseWords64(sha512->buffer,sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
+            #endif
         #endif
         }
 
@@ -2133,11 +2148,37 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     XMEMSET(&local[sha512->buffLen], 0, WC_SHA512_PAD_SIZE - sha512->buffLen);
 
     /* put lengths in bits */
-    sha512->hiLen = (sha512->loLen >> (8 * sizeof(sha512->loLen) - 3)) +
+    sha512->hiLen = (sha512->loLen >>
+                        (CHAR_BIT * sizeof(sha512->loLen) - 3)) +
                                                          (sha512->hiLen << 3);
     sha512->loLen = sha512->loLen << 3;
 
     /* store lengths */
+#ifdef WOLFSSL_WIDE_BYTE
+    /* CHAR_BIT != 8: 'local' indexes octet cells, not the word64 layout (the
+     * buffer[BLOCK/sizeof(word64) - 2/-1] indices assume 16 words per block,
+     * which is wrong when sizeof(word64) != 8).  Place the 128-bit bit-length
+     * as 16 big-endian octets at the pad offset, then load all 16 big-endian
+     * schedule words octet-wise. */
+    local[WC_SHA512_PAD_SIZE +  0] = (byte)((sha512->hiLen >> 56) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  1] = (byte)((sha512->hiLen >> 48) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  2] = (byte)((sha512->hiLen >> 40) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  3] = (byte)((sha512->hiLen >> 32) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  4] = (byte)((sha512->hiLen >> 24) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  5] = (byte)((sha512->hiLen >> 16) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  6] = (byte)((sha512->hiLen >>  8) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  7] = (byte)((sha512->hiLen      ) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  8] = (byte)((sha512->loLen >> 56) & 0xFF);
+    local[WC_SHA512_PAD_SIZE +  9] = (byte)((sha512->loLen >> 48) & 0xFF);
+    local[WC_SHA512_PAD_SIZE + 10] = (byte)((sha512->loLen >> 40) & 0xFF);
+    local[WC_SHA512_PAD_SIZE + 11] = (byte)((sha512->loLen >> 32) & 0xFF);
+    local[WC_SHA512_PAD_SIZE + 12] = (byte)((sha512->loLen >> 24) & 0xFF);
+    local[WC_SHA512_PAD_SIZE + 13] = (byte)((sha512->loLen >> 16) & 0xFF);
+    local[WC_SHA512_PAD_SIZE + 14] = (byte)((sha512->loLen >>  8) & 0xFF);
+    local[WC_SHA512_PAD_SIZE + 15] = (byte)((sha512->loLen      ) & 0xFF);
+    WordsFromBytesBE64(sha512->buffer, (const byte*)sha512->buffer,
+        WC_SHA512_BLOCK_SIZE / 8);
+#else
 #if defined(LITTLE_ENDIAN_ORDER)
     #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
@@ -2162,6 +2203,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 2] = sha512->hiLen;
     sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 1] = sha512->loLen;
 #endif
+#endif /* WOLFSSL_WIDE_BYTE */
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
@@ -2213,7 +2255,9 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         return ret;
 #endif
 
-    #ifdef LITTLE_ENDIAN_ORDER
+    /* CHAR_BIT != 8: leave digest in host word order; the *Final functions
+     * emit big-endian octets via BytesFromWordsBE64 (no in-place reverse). */
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_WIDE_BYTE)
         ByteReverseWords64(sha512->digest, sha512->digest,
             WC_SHA512_DIGEST_SIZE);
     #endif
@@ -2247,7 +2291,9 @@ static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, word32 digestSz)
         return BAD_FUNC_ARG;
     }
 
-#ifdef LITTLE_ENDIAN_ORDER
+#if defined(WOLFSSL_WIDE_BYTE)
+    BytesFromWordsBE64(hash, sha512->digest, digestSz);
+#elif defined(LITTLE_ENDIAN_ORDER)
     if ((digestSz & 0x7) == 0)
         ByteReverseWords64((word64 *)hash, sha512->digest, digestSz);
     else {
@@ -2300,7 +2346,11 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_WIDE_BYTE
+    BytesFromWordsBE64(hash, sha512->digest, (word32)digestSz);
+#else
     XMEMCPY(hash, sha512->digest, digestSz);
+#endif
 
     /* initialize Sha512 structure for the next use */
     return initfp(sha512);
@@ -2703,7 +2753,9 @@ int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
         return BAD_FUNC_ARG;
     }
 
-#ifdef LITTLE_ENDIAN_ORDER
+#if defined(WOLFSSL_WIDE_BYTE)
+    BytesFromWordsBE64(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+#elif defined(LITTLE_ENDIAN_ORDER)
     ByteReverseWords64((word64 *)hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
 #else
     XMEMCPY(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
@@ -2744,7 +2796,11 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_WIDE_BYTE
+    BytesFromWordsBE64(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+#else
     XMEMCPY(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+#endif
 
     return InitSha384(sha384);  /* reset state */
 }

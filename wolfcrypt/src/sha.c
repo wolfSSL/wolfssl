@@ -696,7 +696,14 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
                 if (esp_sha_need_byte_reversal(&sha->ctx))
             #endif
             {
+            #ifdef WOLFSSL_WIDE_BYTE
+                /* CHAR_BIT != 8: pack the 16 big-endian schedule words
+                 * octet-wise rather than reversing whole cells. */
+                WordsFromBytesBE32(sha->buffer, (const byte*)sha->buffer,
+                    WC_SHA_BLOCK_SIZE / 4);
+            #else
                 ByteReverseWords(sha->buffer, sha->buffer, WC_SHA_BLOCK_SIZE);
+            #endif
             }
         #endif
 
@@ -780,7 +787,12 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
             if (esp_sha_need_byte_reversal(&sha->ctx))
         #endif
         {
+        #ifdef WOLFSSL_WIDE_BYTE
+            WordsFromBytesBE32(local32, (const byte*)local32,
+                WC_SHA_BLOCK_SIZE / 4);
+        #else
             ByteReverseWords(local32, local32, WC_SHA_BLOCK_SIZE);
+        #endif
         }
     #endif
 
@@ -817,7 +829,11 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
         return BAD_FUNC_ARG;
     }
 
-#ifdef LITTLE_ENDIAN_ORDER
+#if defined(WOLFSSL_WIDE_BYTE)
+    /* CHAR_BIT != 8: write the digest words as big-endian octets. */
+    BytesFromWordsBE32(hash, sha->digest, WC_SHA_DIGEST_SIZE);
+    (void)digest;
+#elif defined(LITTLE_ENDIAN_ORDER)
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
@@ -908,7 +924,12 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
             if (esp_sha_need_byte_reversal(&sha->ctx))
         #endif
         {
+        #ifdef WOLFSSL_WIDE_BYTE
+            WordsFromBytesBE32(sha->buffer, (const byte*)sha->buffer,
+                WC_SHA_BLOCK_SIZE / 4);
+        #else
             ByteReverseWords(sha->buffer, sha->buffer, WC_SHA_BLOCK_SIZE);
+        #endif
         }
     #endif
 
@@ -942,7 +963,10 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     }
 #endif
 
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+    /* WOLFSSL_WIDE_BYTE packs the whole final block (including the length
+     * words) octet-wise below, so skip the in-place word reversal here. */
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA) && \
+    !defined(WOLFSSL_WIDE_BYTE)
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
@@ -961,12 +985,28 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 
     /* store lengths */
     /* put lengths in bits */
-    sha->hiLen = (sha->loLen >> (8*sizeof(sha->loLen) - 3)) + (sha->hiLen << 3);
+    sha->hiLen = (sha->loLen >> (CHAR_BIT*sizeof(sha->loLen) - 3)) +
+                                                            (sha->hiLen << 3);
     sha->loLen = sha->loLen << 3;
 
     /* ! length ordering dependent on digest endian type ! */
+#ifdef WOLFSSL_WIDE_BYTE
+    /* CHAR_BIT != 8: place the 64-bit length as 8 big-endian octets, then pack
+     * all 16 big-endian schedule words octet-wise (covers the length words). */
+    local[WC_SHA_PAD_SIZE + 0] = (byte)((sha->hiLen >> 24) & 0xFF);
+    local[WC_SHA_PAD_SIZE + 1] = (byte)((sha->hiLen >> 16) & 0xFF);
+    local[WC_SHA_PAD_SIZE + 2] = (byte)((sha->hiLen >>  8) & 0xFF);
+    local[WC_SHA_PAD_SIZE + 3] = (byte)((sha->hiLen      ) & 0xFF);
+    local[WC_SHA_PAD_SIZE + 4] = (byte)((sha->loLen >> 24) & 0xFF);
+    local[WC_SHA_PAD_SIZE + 5] = (byte)((sha->loLen >> 16) & 0xFF);
+    local[WC_SHA_PAD_SIZE + 6] = (byte)((sha->loLen >>  8) & 0xFF);
+    local[WC_SHA_PAD_SIZE + 7] = (byte)((sha->loLen      ) & 0xFF);
+    WordsFromBytesBE32(sha->buffer, (const byte*)sha->buffer,
+        WC_SHA_BLOCK_SIZE / 4);
+#else
     XMEMCPY(&local[WC_SHA_PAD_SIZE], &sha->hiLen, sizeof(word32));
     XMEMCPY(&local[WC_SHA_PAD_SIZE + sizeof(word32)], &sha->loLen, sizeof(word32));
+#endif
 
 #if defined(FREESCALE_MMCAU_SHA)
     /* Kinetis requires only these bytes reversed */
@@ -1015,6 +1055,10 @@ if (sha->ctx.mode == ESP32_SHA_HW) {
     ret = XTRANSFORM(sha, (const byte*)local);
 #endif
 
+#if defined(WOLFSSL_WIDE_BYTE)
+    /* CHAR_BIT != 8: write the digest words as big-endian octets. */
+    BytesFromWordsBE32(hash, sha->digest, WC_SHA_DIGEST_SIZE);
+#else
 #ifdef LITTLE_ENDIAN_ORDER
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
@@ -1032,6 +1076,7 @@ if (sha->ctx.mode == ESP32_SHA_HW) {
 #endif
 
     XMEMCPY(hash, (byte *)&sha->digest[0], WC_SHA_DIGEST_SIZE);
+#endif
 
     /* we'll always reset state upon exit and return the error code from above,
      * which may cause fall back to SW if HW is busy. we do not return result

@@ -58,8 +58,17 @@ extern "C" {
 
     typedef unsigned char sp_uint7;
     typedef          char  sp_int7;
+#elif UCHAR_MAX == 65535
+    /* CHAR_BIT == 16 (e.g. TI C28x): the smallest addressable type is 16-bit,
+     * so there is no native 8-bit type.  An "8-bit" SP value is a 16-bit char
+     * cell holding an octet (0..255); byte I/O masks to an octet (the same
+     * CHAR_BIT!=8 handling used elsewhere - see WOLFSSL_WIDE_BYTE). */
+    #define SP_UCHAR_BITS    16
+
+    typedef unsigned char sp_uint8;
+    typedef          char  sp_int8;
 #else
-    #error "Size of unsigned short not detected"
+    #error "Size of unsigned char not detected"
 #endif
 
 #if USHRT_MAX == 65535

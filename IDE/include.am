@@ -67,6 +67,7 @@ include IDE/XCODE/include.am
 include IDE/XilinxSDK/include.am
 include IDE/zephyr/include.am
 
+EXTRA_DIST+= IDE/C2000
 EXTRA_DIST+= IDE/Espressif
 EXTRA_DIST+= IDE/HEXIWEAR
 EXTRA_DIST+= IDE/IAR-EWARM

@@ -1,0 +1,107 @@
+name: TI C2000 (C28x) compile-only
+
+# Compile-guard for the TI C2000 C28x port (CHAR_BIT == 16).  It builds the
+# wolfCrypt subset that carries the CHAR_BIT != 8 gated fixes with the TI cl2000
+# code generation tools - no linking, no C2000Ware, no hardware.  Purpose: catch
+# compile regressions in the octet/SP/ML-DSA gated paths.  On-target run-tests
+# live on a hardware-in-the-loop runner (there is no public C28x simulator).
+
+# START OF COMMON SECTION
+on:
+  # Only build when something that can affect the C28x compile changes, so the
+  # job (and the CGT it pulls) does not burn runner minutes on unrelated PRs.
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+    paths:
+      - 'wolfcrypt/src/**'
+      - 'wolfssl/wolfcrypt/**'
+      - 'IDE/C2000/**'
+      - '.github/workflows/ti-c2000-compile.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+    paths:
+      - 'wolfcrypt/src/**'
+      - 'wolfssl/wolfcrypt/**'
+      - 'IDE/C2000/**'
+      - '.github/workflows/ti-c2000-compile.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  ti_c2000_compile:
+    name: cl2000 compile-only
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      # TI C2000 code generation tools (cl2000).  TI now gates the CGT download
+      # behind a login (login.ti.com), so there is no stable public direct URL.
+      # Mirror the installer - ti_cgt_c2000_<ver>_linux-x64_installer.bin - to a
+      # location CI can fetch (a wolfSSL release asset or internal server) and
+      # set the repo/org variable TI_C2000_CGT_URL to it (optionally
+      # TI_C2000_CGT_SHA256 to pin its hash).  When TI_C2000_CGT_URL is unset the
+      # compile-only guard is skipped and the job succeeds with a notice, so the
+      # gate never blocks a PR on this external dependency.
+      CGT_VER: "22.6.2.LTS"
+      CGT_URL: "${{ vars.TI_C2000_CGT_URL }}"
+      CGT_SHA256: "${{ vars.TI_C2000_CGT_SHA256 }}"
+      CGT_DIR: "${{ github.workspace }}/ti-cgt-c2000"
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Check CGT source is configured
+        id: gate
+        run: |
+          if [ -z "$CGT_URL" ]; then
+            echo "::notice::TI_C2000_CGT_URL repo variable is not set - skipping the C2000 cl2000 compile-only guard.  TI gates the CGT download behind a login; mirror the installer and set TI_C2000_CGT_URL (and optionally TI_C2000_CGT_SHA256) to enable this job."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache TI C2000 CGT
+        if: steps.gate.outputs.skip != 'true'
+        id: cgt-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CGT_DIR }}
+          key: ti-cgt-c2000-${{ env.CGT_VER }}
+
+      - name: Download + install TI C2000 CGT
+        if: steps.gate.outputs.skip != 'true' && steps.cgt-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          curl -fSL "$CGT_URL" -o /tmp/cgt.bin
+          # A gated/expired link answers with an HTML login or 404 page (often
+          # HTTP 200), which would be saved as a bogus "installer"; reject it.
+          if head -c 512 /tmp/cgt.bin | grep -qiE '<!doctype html|<html'; then
+            echo "::error::TI_C2000_CGT_URL returned an HTML page, not the CGT installer (the link likely needs a login or has moved).  Point it at a direct mirror of ti_cgt_c2000_${CGT_VER}_linux-x64_installer.bin."
+            exit 1
+          fi
+          if [ -n "$CGT_SHA256" ]; then
+            echo "$CGT_SHA256  /tmp/cgt.bin" | sha256sum -c -
+          else
+            echo "::warning::TI_C2000_CGT_SHA256 is unset - the installer is not integrity-checked.  Pin it with the hash below."
+            sha256sum /tmp/cgt.bin
+          fi
+          chmod +x /tmp/cgt.bin
+          /tmp/cgt.bin --mode unattended --prefix "$CGT_DIR"
+
+      - name: Locate cl2000
+        if: steps.gate.outputs.skip != 'true'
+        id: find-cl
+        run: |
+          CL=$(find "$CGT_DIR" -type f -name cl2000 | head -1)
+          test -n "$CL" || { echo "cl2000 not found under $CGT_DIR"; exit 1; }
+          echo "cgt_root=$(dirname "$(dirname "$CL")")" >> "$GITHUB_OUTPUT"
+
+      - name: Compile-only guard
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          CGT_ROOT="${{ steps.find-cl.outputs.cgt_root }}" \
+            IDE/C2000/compile.sh

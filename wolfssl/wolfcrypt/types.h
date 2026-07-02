@@ -264,6 +264,39 @@ typedef const char wcchar[];
         #endif
 #endif
 
+    /* Targets where a C 'byte' is wider than 8 bits - e.g. the TI C2000 C28x
+     * (CHAR_BIT == 16).  There a word cannot be aliased as an octet stream, so
+     * byte<->word conversions must be done octet-wise with shifts.  Stays
+     * undefined (all fast paths unchanged) on 8-bit-byte targets.  Detected
+     * first by known 16-bit-char toolchains (works without <limits.h>), then
+     * generically from CHAR_BIT.  cl2000 predefines __TMS320C28XX__ /
+     * __TMS320C2000__; cl2800 predefines __TMS320C2800__. */
+#if !defined(WOLFSSL_WIDE_BYTE) && \
+    (defined(__TMS320C28XX__) || defined(__TMS320C2000__) || \
+     defined(__TMS320C2800__) || defined(__TMS320C5500__) || \
+     defined(__TMS320C55X__) || defined(__TMS320C54X__))
+    #define WOLFSSL_WIDE_BYTE
+    /* 16-bit-char DSP toolchains: ensure CHAR_BIT (used by some WIDE_BYTE
+     * paths) is defined even without <limits.h>; these are all CHAR_BIT==16. */
+    #ifndef CHAR_BIT
+        #define CHAR_BIT 16
+    #endif
+#endif
+#if !defined(WOLFSSL_WIDE_BYTE) && defined(CHAR_BIT) && (CHAR_BIT != 8)
+    #define WOLFSSL_WIDE_BYTE
+#endif
+/* Guarantee CHAR_BIT is defined for unconditional use as a value-bit width
+ * (rotate complements, SHA length carries); 8 on the usual targets. */
+#ifndef CHAR_BIT
+    #define CHAR_BIT 8
+#endif
+
+/* Reduce a value to its low-8-bit octet stored in a byte.  On 8-bit-byte
+ * targets a (byte) cast already truncates, so this is the historical cast; on
+ * WOLFSSL_WIDE_BYTE targets the mask stops a carry or high bits leaking into
+ * the stored octet.  Used by the SHA-2/3, Hash-DRBG, base64 and ML-DSA packers. */
+#define WC_OCTET(x)  ((byte)((x) & 0xFF))
+
 #if defined(HAVE___UINT128_T) && !defined(NO_INT128)
     #ifndef WOLFSSL_UINT128_T_DEFINED
         #ifdef __SIZEOF_INT128__
@@ -377,11 +410,29 @@ typedef const char wcchar[];
     #endif
 
 #elif defined(WC_16BIT_CPU)
-    #ifndef MICROCHIP_PIC24
+    /* WC_16BIT_CPU selects 16-bit int (word16=unsigned int, word32=unsigned
+     * long).  It historically also assumes no native 64-bit type, but targets
+     * like the TI C2000 C28x are 16-bit-int yet have a 64-bit long long, so
+     * keep WORD64_AVAILABLE when one genuinely exists.  Porting note: any other
+     * 16-bit-int target with a 64-bit long/long long now keeps the 64-bit paths
+     * (SHA-512, word64 rotates) that were previously force-disabled here. */
+    #if !defined(MICROCHIP_PIC24) && \
+        !(defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)) && \
+        !(defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)) && \
+        !(defined(__SIZEOF_LONG_LONG__) && (__SIZEOF_LONG_LONG__ == 8))
         #undef WORD64_AVAILABLE
     #endif
     typedef word16 wolfssl_word;
+#ifdef WOLFSSL_WIDE_BYTE
+    /* CHAR_BIT != 8 (e.g. C28x): sizeof(word16) is one addressable cell, so
+     * WOLFSSL_WORD_SIZE (= sizeof) is 1 and the word stride is one byte.
+     * WOLFSSL_WORD_SIZE_LOG2 must be log2(sizeof) = 0 or xorbuf()'s word loop
+     * (count >> LOG2) and remainder mask (count & (WORD_SIZE-1)) only cover
+     * half the buffer. */
+    #define WOLFSSL_WORD_SIZE_LOG2 0
+#else
     #define WOLFSSL_WORD_SIZE_LOG2 1
+#endif
     #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
                         * mp_digit, no 64 bit type so make mp_digit 16 bit */
 
