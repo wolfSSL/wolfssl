@@ -437,6 +437,32 @@ if __name__ == '__main__':
             'name': 'resp_server1_cert'
         },
         {
+            # A single, validly-signed BasicOCSPResponse that bundles two
+            # SingleResponses: the first (wire order) is a benign CERT_GOOD entry
+            # for an unrelated serial, the second is the server1 leaf cert marked
+            # CERT_REVOKED.
+            # Signed by intermediate1, the legitimate issuer and
+            # authorized responder for server1.
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'responder_by_name': True,
+            'responder_cert': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem',
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem',
+                    'serial': 0x01,
+                    'status': CERT_GOOD
+                },
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem',
+                    'serial': 0x05,
+                    'status': CERT_REVOKED
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-key.pem',
+            'name': 'resp_server1_revoked_good_first'
+        },
+        {
             # Ancestor-issued responder; rejected by RFC 6960 4.2.2.2 enforcement
             'response_status': 0,
             'signature_algorithm': signature_algorithm(),
