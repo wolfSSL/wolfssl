@@ -3970,6 +3970,30 @@
     #error "Attribute Certificate support requires the ASN.1 template feature."
 #endif
 
+#if defined(WOLFSSL_TSP) && !defined(WOLFSSL_ASN_TEMPLATE)
+    #error "Time-Stamp Protocol support requires the ASN.1 template feature."
+#endif
+
+#ifdef WOLFSSL_TSP
+    /* Time-Stamp Protocol roles: requester (create requests, verify
+     * responses), verifier (verify tokens/responses only) and responder
+     * (read requests, create responses). When none is chosen, requester and
+     * responder are enabled. */
+    #if !defined(WOLFSSL_TSP_REQUESTER) && !defined(WOLFSSL_TSP_RESPONDER) && \
+        !defined(WOLFSSL_TSP_VERIFIER)
+        #define WOLFSSL_TSP_REQUESTER
+        #define WOLFSSL_TSP_RESPONDER
+    #endif
+    /* A requester also verifies the responses it receives. */
+    #if defined(WOLFSSL_TSP_REQUESTER) && !defined(WOLFSSL_TSP_VERIFIER)
+        #define WOLFSSL_TSP_VERIFIER
+    #endif
+
+    /* Encoding the accuracy seconds of a TSTInfo needs 32-bit numbers. */
+    #undef  WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+    #define WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+#endif
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     #undef  WOLFSSL_ASN_ALL
     #define WOLFSSL_ASN_ALL

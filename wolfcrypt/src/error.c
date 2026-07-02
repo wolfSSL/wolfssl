@@ -692,6 +692,9 @@ const char* wc_GetErrorString(int error)
     case SLH_DSA_KAT_FIPS_E:
         return "SLH-DSA Known Answer Test check FIPS error";
 
+    case TSP_VERIFY_E:
+        return "TSP token invalid or response doesn't match request error";
+
     case SEQ_OVERFLOW_E:
         return "Sequence counter would overflow";
 

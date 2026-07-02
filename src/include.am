@@ -25,6 +25,7 @@ EXTRA_DIST += src/ssl_api_dtls.c
 EXTRA_DIST += src/ssl_api_ext.c
 EXTRA_DIST += src/ssl_api_pk.c
 EXTRA_DIST += src/ssl_asn1.c
+EXTRA_DIST += src/ssl_tsp.c
 EXTRA_DIST += src/ssl_bn.c
 EXTRA_DIST += src/ssl_certman.c
 EXTRA_DIST += src/ssl_crypto.c
@@ -2239,6 +2240,10 @@ endif
 
 if BUILD_PKCS7
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/pkcs7.c
+endif
+
+if BUILD_TSP
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/tsp.c
 endif
 
 if BUILD_SRP

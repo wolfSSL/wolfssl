@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+
+# tsp.test
+# Time-Stamp Protocol (RFC 3161) tests using the ts example tools, with
+# OpenSSL interoperability when an openssl binary is available.
+
+TSP_QUERY=./examples/tsp/tsp_query
+TSP_REPLY=./examples/tsp/tsp_reply
+TSP_VERIFY=./examples/tsp/tsp_verify
+RESULT=0
+
+# Check the examples were built and are usable - can't test without them.
+# A feature-disabled stub prints a build hint rather than a usage line.
+if [ ! -x "$TSP_QUERY" ] || [ ! -x "$TSP_REPLY" ] || [ ! -x "$TSP_VERIFY" ]; then
+    echo "ts examples not found -- skipping tsp.test."
+    exit 77
+fi
+# The round trip exercises every role, so all three tools must be usable. A
+# single-role build (e.g. --enable-tsp with only the responder) leaves the
+# others as feature-disabled stubs - skip rather than fail in that case.
+for tool in "$TSP_QUERY" "$TSP_REPLY" "$TSP_VERIFY"; do
+    if ! "$tool" 2>&1 | grep -q "usage:"; then
+        echo "ts examples not usable (need requester, responder and verifier"\
+             "roles) -- skipping tsp.test."
+        exit 77
+    fi
+done
+
+SRC_DIR="$(dirname "$0")/.."
+CERTS_DIR="${SRC_DIR}/certs"
+if [ ! -f "${CERTS_DIR}/tsa-cert.der" ]; then
+    echo "TSA certificate not found at ${CERTS_DIR} -- skipping tsp.test."
+    exit 77
+fi
+
+WORK_DIR=./tsp_test.$$
+mkdir "$WORK_DIR" || exit 1
+
+cleanup() {
+    rm -rf "$WORK_DIR"
+}
+trap cleanup EXIT
+
+fail() {
+    echo "FAIL: $1"
+    RESULT=1
+}
+
+pass() {
+    echo "PASS: $1"
+}
+
+DATA="$WORK_DIR/data.txt"
+REQ="$WORK_DIR/request.tsq"
+RESP="$WORK_DIR/response.tsr"
+echo "data to be time-stamped" > "$DATA"
+
+# Choose a TSA credential this build supports: RSA when available,
+# otherwise the ECC credential (e.g. a --disable-rsa build).
+CERT="${CERTS_DIR}/tsa-cert.der"
+KEY="${CERTS_DIR}/tsa-key.der"
+CAFILE="${CERTS_DIR}/tsa-cert.pem"
+KEYTYPE=
+"$TSP_QUERY" "$DATA" "$REQ" >/dev/null 2>&1
+if ! "$TSP_REPLY" "$REQ" "$CERT" "$KEY" "$RESP" >/dev/null 2>&1; then
+    CERT="${CERTS_DIR}/tsa-ecc-cert.der"
+    KEY="${CERTS_DIR}/tsa-ecc-key.der"
+    CAFILE="${CERTS_DIR}/tsa-ecc-cert.pem"
+    KEYTYPE=ecc
+fi
+
+# wolfSSL round trip: query -> reply -> verify.
+"$TSP_QUERY" "$DATA" "$REQ" >/dev/null &&
+"$TSP_REPLY" "$REQ" "$CERT" "$KEY" "$RESP" $KEYTYPE >/dev/null &&
+"$TSP_VERIFY" "$DATA" "$REQ" "$RESP" "$CERT" \
+    >/dev/null
+if [ $? -eq 0 ]; then
+    pass "wolfSSL round trip"
+else
+    fail "wolfSSL round trip"
+fi
+
+# Tampered data must not verify.
+echo "tampered" >> "$DATA"
+if "$TSP_VERIFY" "$DATA" "$REQ" "$RESP" "$CERT" \
+        >/dev/null 2>&1; then
+    fail "tampered data detected"
+else
+    pass "tampered data detected"
+fi
+echo "data to be time-stamped" > "$DATA"
+
+# A request that does not parse gets a rejection response.
+head -c 20 "$REQ" > "$WORK_DIR/bad.tsq"
+"$TSP_REPLY" "$WORK_DIR/bad.tsq" "$CERT" \
+    "$KEY" "$WORK_DIR/reject.tsr" $KEYTYPE >/dev/null
+if [ $? -eq 0 ] && [ -f "$WORK_DIR/reject.tsr" ]; then
+    pass "rejection response written"
+else
+    fail "rejection response written"
+fi
+
+# OpenSSL interoperability - skipped without an openssl supporting ts.
+if openssl ts -query -data "$DATA" -sha256 -cert \
+        -out "$WORK_DIR/ossl.tsq" >/dev/null 2>&1; then
+    # OpenSSL verifies a wolfSSL response.
+    if openssl ts -verify -queryfile "$REQ" -in "$RESP" \
+            -CAfile "$CAFILE" >/dev/null 2>&1; then
+        pass "OpenSSL verifies wolfSSL response"
+    else
+        fail "OpenSSL verifies wolfSSL response"
+    fi
+
+    # wolfSSL answers an OpenSSL request and OpenSSL verifies it.
+    "$TSP_REPLY" "$WORK_DIR/ossl.tsq" "$CERT" \
+        "$KEY" "$WORK_DIR/ossl.tsr" $KEYTYPE >/dev/null &&
+    "$TSP_VERIFY" "$DATA" "$WORK_DIR/ossl.tsq" "$WORK_DIR/ossl.tsr" \
+        "$CERT" >/dev/null &&
+    openssl ts -verify -data "$DATA" -in "$WORK_DIR/ossl.tsr" \
+        -CAfile "$CAFILE" >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        pass "wolfSSL answers OpenSSL request"
+    else
+        fail "wolfSSL answers OpenSSL request"
+    fi
+else
+    echo "openssl ts not usable -- skipping interoperability tests."
+fi
+
+exit $RESULT

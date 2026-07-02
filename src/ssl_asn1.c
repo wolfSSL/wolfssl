@@ -758,6 +758,44 @@ void wolfSSL_ASN1_BIT_STRING_free(WOLFSSL_ASN1_BIT_STRING* bitStr)
     XFREE(bitStr, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
+/* Copy data into an ASN.1 BIT_STRING object.
+ *
+ * Any existing data is disposed of and a copy of the supplied data is made.
+ *
+ * @param [in, out] bitStr  ASN.1 BIT_STRING object.
+ * @param [in]      data    Data to copy in. May be NULL when len is 0.
+ * @param [in]      len     Length of data in bytes.
+ * @return  1 on success.
+ * @return  0 when bitStr is NULL, len is negative, data is NULL with a
+ *          positive length, or dynamic memory allocation fails.
+ */
+int wolfSSL_ASN1_BIT_STRING_set1(WOLFSSL_ASN1_BIT_STRING* bitStr,
+    const unsigned char* data, int len)
+{
+    byte* tmp = NULL;
+
+    /* Validate parameters. */
+    if ((bitStr == NULL) || (len < 0) || ((data == NULL) && (len > 0))) {
+        return 0;
+    }
+
+    /* Make a copy of the data when there is any. */
+    if (len > 0) {
+        tmp = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (tmp == NULL) {
+            return 0;
+        }
+        XMEMCPY(tmp, data, (size_t)len);
+    }
+
+    /* Dispose of any old data and store the copy. */
+    XFREE(bitStr->data, NULL, DYNAMIC_TYPE_OPENSSL);
+    bitStr->data = tmp;
+    bitStr->length = len;
+
+    return 1;
+}
+
 /* Get the value of the bit from the ASN.1 BIT_STRING at specified index.
  *
  * A NULL object a value of 0 for the bit at all indices.
@@ -1133,6 +1171,50 @@ static int wolfssl_asn1_integer_require_len(WOLFSSL_ASN1_INTEGER* a, int len,
 
     return ret;
 }
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && \
+    defined(WOLFSSL_TSP_VERIFIER)
+/* Create an ASN.1 INTEGER object holding a big-endian number in DER form.
+ *
+ * The data is the ASN.1 type and length followed by the number as supplied.
+ *
+ * @param [in] val  Big-endian encoding of number.
+ * @param [in] len  Length of number in bytes.
+ * @return  ASN.1 INTEGER object on success.
+ * @return  NULL on failure.
+ */
+static WOLFSSL_ASN1_INTEGER* wolfssl_asn1_integer_new_buf(
+    const unsigned char* val, word32 len)
+{
+    WOLFSSL_ASN1_INTEGER* a;
+    /* Pad with a leading 0x00 when the top bit is set so the DER INTEGER stays
+     * positive - the wc layer supplies the magnitude without this pad. */
+    word32 pad = ((len > 0) && (val[0] & 0x80)) ? 1 : 0;
+    word32 hdrSz = 1 + SetLength(len + pad, NULL);
+    word32 i = 0;
+
+    a = wolfSSL_ASN1_INTEGER_new();
+    if (a == NULL)
+        return NULL;
+
+    /* Make sure there is space for the data, pad, ASN.1 type and length. */
+    if (wolfssl_asn1_integer_require_len(a, (int)(len + pad + hdrSz), 0) != 1) {
+        wolfSSL_ASN1_INTEGER_free(a);
+        return NULL;
+    }
+
+    a->data[i++] = ASN_INTEGER;
+    i += SetLength(len + pad, a->data + i);
+    if (pad == 1) {
+        a->data[i++] = 0x00;
+    }
+    XMEMCPY(a->data + i, val, len);
+    a->length = (int)(len + i);
+    a->type = WOLFSSL_V_ASN1_INTEGER;
+
+    return a;
+}
+#endif /* OPENSSL_EXTRA && WOLFSSL_TSP && HAVE_PKCS7 && WOLFSSL_TSP_VERIFIER */
 
 /* Duplicate the ASN.1 INTEGER object into a newly allocated one.
  *
