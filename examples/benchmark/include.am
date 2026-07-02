@@ -11,5 +11,16 @@ examples_benchmark_tls_bench_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_S
 examples_benchmark_tls_bench_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 endif
 
+if BUILD_DTLS
+if BUILD_EXAMPLE_SERVERS
+noinst_PROGRAMS += examples/benchmark/dtls_bench
+examples_benchmark_dtls_bench_SOURCES      = examples/benchmark/dtls_bench.c
+examples_benchmark_dtls_bench_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+examples_benchmark_dtls_bench_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+endif
+endif
+
 dist_example_DATA+= examples/benchmark/tls_bench.c
+dist_example_DATA+= examples/benchmark/dtls_bench.c
 DISTCLEANFILES+= examples/benchmark/.libs/tls_bench
+DISTCLEANFILES+= examples/benchmark/.libs/dtls_bench
