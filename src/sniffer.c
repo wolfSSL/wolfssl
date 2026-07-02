@@ -2138,7 +2138,13 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
     if (iphdr->next_header != TCP_PROTOCOL) {
         Ip6ExtHdr* exthdr = (Ip6ExtHdr*)((byte*)iphdr + IP6_HDR_SZ);
         do {
-            int hdrsz = (exthdr->length + 1) * 8;
+            int hdrsz;
+            /* make sure the extension header is fully present before reading */
+            if (length - exthdrsz < (int)sizeof(Ip6ExtHdr)) {
+                SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            hdrsz = (exthdr->length + 1) * 8;
             if (hdrsz > length - exthdrsz) {
                 SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
                 return WOLFSSL_FATAL_ERROR;
@@ -3733,6 +3739,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         return WOLFSSL_FATAL_ERROR;
     }
     if (b) {
+        if (ID_LEN > *sslBytes) {
+            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return WOLFSSL_FATAL_ERROR;
+        }
     #ifdef WOLFSSL_TLS13
         XMEMCPY(session->sslServer->session->sessionID, input, ID_LEN);
         session->sslServer->session->sessionIDSz = ID_LEN;
@@ -3803,6 +3813,13 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         while (len >= EXT_TYPE_SZ + LENGTH_SZ) {
             word16 extType;
             word16 extLen;
+
+            /* make sure can read extension type and length */
+            if (*sslBytes < EXT_TYPE_SZ + LENGTH_SZ) {
+                SetError(SERVER_HELLO_INPUT_STR, error, session,
+                         FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
 
             extType    = (word16)((input[0] << 8) | input[1]);
             input     += EXT_TYPE_SZ;
@@ -3894,6 +3911,13 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->flags.secRenegEn = 1;
                 break;
             } /* switch (extType) */
+
+            /* make sure the extension fits in the remaining declared length */
+            if ((word32)extLen + EXT_TYPE_SZ + LENGTH_SZ > len) {
+                SetError(SERVER_HELLO_INPUT_STR, error, session,
+                         FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
 
             input     += extLen;
             *sslBytes -= extLen;
@@ -4175,6 +4199,12 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         word16 extType;
         word16 extLen;
 
+        /* make sure can read extension type and length */
+        if (*sslBytes < EXT_TYPE_SZ + LENGTH_SZ) {
+            SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
         extType    = (word16)((input[0] << 8) | input[1]);
         input     += EXT_TYPE_SZ;
         *sslBytes -= EXT_TYPE_SZ;
@@ -4360,6 +4390,12 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                 XMEMCPY(session->ticketID, input + extLen - ID_LEN, ID_LEN);
             }
             break;
+        }
+
+        /* make sure the extension fits in the remaining declared length */
+        if ((word32)extLen + EXT_TYPE_SZ + LENGTH_SZ > len) {
+            SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return WOLFSSL_FATAL_ERROR;
         }
 
         input     += extLen;

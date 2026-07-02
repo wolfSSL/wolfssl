@@ -45,6 +45,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 2
+          persist-credentials: false
 
       - name: Download Zephyr build artifact
         id: download
@@ -77,7 +78,10 @@ jobs:
 
       - name: Run Membrowse PR Action
         if: steps.verify.outputs.have_artifacts == 'true'
-        uses: membrowse/membrowse-action@v1
+        # Pinned to a full commit SHA: this job downloads fork-controlled
+        # artifacts and holds MEMBROWSE_API_KEY, so a moved tag must not be
+        # able to swap the action out from under it. v1.2.9.
+        uses: membrowse/membrowse-action@3f23ea562abaa6614855d6be5ec83b3cd1d274dd
         with:
           target_name: ${{ matrix.target_name }}
           elf: zephyr-artifacts/${{ matrix.target_name }}/zephyr.elf
@@ -106,7 +110,8 @@ jobs:
 
       - name: Post Membrowse PR comment
         if: ${{ env.MEMBROWSE_API_KEY != '' }}
-        uses: membrowse/membrowse-action/comment-action@v1
+        # Pinned to a full commit SHA, same rationale as the analyze job. v1.2.9.
+        uses: membrowse/membrowse-action/comment-action@3f23ea562abaa6614855d6be5ec83b3cd1d274dd
         with:
           api_key: ${{ secrets.MEMBROWSE_API_KEY }}
           commit: ${{ github.event.workflow_run.head_sha }}

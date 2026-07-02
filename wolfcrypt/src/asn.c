@@ -35893,6 +35893,12 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* Nonces are not critical. The responder may not necessarily add
      * the nonce to the response. */
+#ifdef WOLFSSL_FORCE_OCSP_NONCE_CHECK
+    if (req->nonceSz && resp->nonce == NULL) {
+        WOLFSSL_MSG("\tnonce required but missing from response");
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
     if (req->nonceSz && resp->nonce != NULL
 #ifndef WOLFSSL_FORCE_OCSP_NONCE_CHECK
             && resp->nonceSz != 0

@@ -75,12 +75,12 @@ static QuicRecord *quic_record_make(WOLFSSL *ssl,
         XMEMSET(qr, 0, sizeof(*qr));
         qr->level = level;
         if (level == wolfssl_encryption_early_data) {
-            qr->capacity = qr->len = (word32)len;
-            if (qr->capacity > WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
+            if (len > (size_t)WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
                 WOLFSSL_MSG("QUIC early data length larger than expected");
                 quic_record_free(ssl, qr);
                 return NULL;
             }
+            qr->capacity = qr->len = (word32)len;
         }
         else {
             qr->capacity = qr->len = (word32) qr_length(data, len);
@@ -147,6 +147,9 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
             uint8_t *ndata = (uint8_t*)XREALLOC(qr->data, qr->len, ssl->heap,
                                                 DYNAMIC_TYPE_TMP_BUFFER);
             if (!ndata) {
+                /* keep len consistent with the unchanged buffer so a later
+                 * append does not copy into the smaller allocation */
+                qr->len = 0;
                 ret = WOLFSSL_FAILURE;
                 goto cleanup;
             }
