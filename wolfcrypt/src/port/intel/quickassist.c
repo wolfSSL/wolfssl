@@ -323,6 +323,93 @@ void IntelQaHardwareStop(void)
     printf("IntelQA: Stop\n");
 }
 
+/* Returns nonzero when the QAT crypto service is running. The memory layer
+ * uses this to decide whether a failed NUMA allocation should fall back to
+ * regular memory (service not started -> software mode) or remain NULL (real
+ * NUMA exhaustion while the device is in use). */
+int IntelQaIsStarted(void)
+{
+    return (g_cyServiceStarted == CPA_TRUE) ? 1 : 0;
+}
+
+#ifndef QAT_NO_DEV_INTERLEAVE
+/* Reorder the instance handle list so instances interleave across QAT
+ * devices (packages). cpaCyGetInstances() returns them grouped by device
+ * (all of dev0, then dev1, ...). The per-thread round-robin assignment in
+ * IntelQaInit() (devId = g_instCounter % g_numInstances) would then pile a
+ * thread count lower than the instance count onto the first device(s),
+ * leaving later devices idle. Interleaving makes consecutive devIds land on
+ * different devices, so low/mid thread counts spread over every device.
+ * Order is unchanged when only one device is present, and at thread counts
+ * >= g_numInstances every instance is used either way. Non-fatal: on any
+ * failure the original order is kept. */
+static void IntelQaInterleaveInstances(CpaInstanceHandle* instances,
+    Cpa16U count)
+{
+    CpaInstanceHandle* sorted;
+    CpaInstanceInfo2* info;
+    Cpa16U* pkg;
+    CpaStatus status;
+    int i, p, idx, seen, round, maxPkg, out;
+
+    if (instances == NULL || count <= 1) {
+        return;
+    }
+
+    sorted = (CpaInstanceHandle*)XMALLOC(sizeof(CpaInstanceHandle) * count,
+        NULL, DYNAMIC_TYPE_ASYNC);
+    pkg = (Cpa16U*)XMALLOC(sizeof(Cpa16U) * count, NULL, DYNAMIC_TYPE_ASYNC);
+    info = (CpaInstanceInfo2*)XMALLOC(sizeof(CpaInstanceInfo2), NULL,
+        DYNAMIC_TYPE_ASYNC);
+    if (sorted == NULL || pkg == NULL || info == NULL) {
+        XFREE(sorted, NULL, DYNAMIC_TYPE_ASYNC);
+        XFREE(pkg, NULL, DYNAMIC_TYPE_ASYNC);
+        XFREE(info, NULL, DYNAMIC_TYPE_ASYNC);
+        return;
+    }
+
+    /* record each instance's device (package) id */
+    maxPkg = 0;
+    for (i = 0; i < (int)count; i++) {
+        status = cpaCyInstanceGetInfo2(instances[i], info);
+        pkg[i] = (status == CPA_STATUS_SUCCESS) ?
+            info->physInstId.packageId : 0;
+        if ((int)pkg[i] > maxPkg) {
+            maxPkg = (int)pkg[i];
+        }
+    }
+
+    /* emit one instance per device per round: dev0#0, dev1#0, dev2#0,
+     * dev0#1, dev1#1, ... */
+    out = 0;
+    for (round = 0; round < (int)count && out < (int)count; round++) {
+        for (p = 0; p <= maxPkg && out < (int)count; p++) {
+            seen = 0;
+            for (idx = 0; idx < (int)count; idx++) {
+                if ((int)pkg[idx] == p) {
+                    if (seen == round) {
+                        sorted[out++] = instances[idx];
+                        break;
+                    }
+                    seen++;
+                }
+            }
+        }
+    }
+
+    /* only apply if every instance was placed exactly once */
+    if (out == (int)count) {
+        for (i = 0; i < (int)count; i++) {
+            instances[i] = sorted[i];
+        }
+    }
+
+    XFREE(sorted, NULL, DYNAMIC_TYPE_ASYNC);
+    XFREE(pkg, NULL, DYNAMIC_TYPE_ASYNC);
+    XFREE(info, NULL, DYNAMIC_TYPE_ASYNC);
+}
+#endif /* QAT_NO_DEV_INTERLEAVE */
+
 int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
 {
     int ret = 0, i;
@@ -406,6 +493,11 @@ int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
         printf("IntelQA: Failed to get IntelQA instances\n");
         ret = INVALID_DEVID; goto error;
     }
+
+#ifndef QAT_NO_DEV_INTERLEAVE
+    /* spread instances across devices for better multi-device utilization */
+    IntelQaInterleaveInstances(g_cyInstances, g_numInstances);
+#endif
 
     /* start all instances */
     g_cyServiceStarted = CPA_TRUE;
@@ -1730,7 +1822,7 @@ static void IntelQaRsaPublicFree(WC_ASYNC_DEV* dev)
     }
     if (outBuf) {
         if (outBuf->pData) {
-            XFREE(outBuf->pData, dev, DYNAMIC_TYPE_ASYNC_NUMA64);
+            XFREE(outBuf->pData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA64);
             outBuf->pData = NULL;
         }
         XMEMSET(outBuf, 0, sizeof(CpaFlatBuffer));

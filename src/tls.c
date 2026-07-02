@@ -11020,11 +11020,10 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == 0) {
-        /* Check if the provided kse already contains ECC data and the
-        * last error was WC_PENDING_E. In this case, we already tried to
-        * process ECC kse data. Hence, we have to restore it. */
-        if (keyShareEntry->key != NULL && keyShareEntry->keyLen > 0 &&
-            keyShareEntry->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        /* Restore ECC state from a prior suspended pass. Not gated on
+         * lastRet == WC_PENDING_E: the async layer clears lastRet to 0 on
+         * completion, which would skip the restore and regenerate the key. */
+        if (keyShareEntry->key != NULL && keyShareEntry->keyLen > 0) {
             ecc_kse->key = keyShareEntry->key;
             ecc_kse->keyLen = keyShareEntry->keyLen;
             ecc_kse->pubKey = keyShareEntry->pubKey;
@@ -11143,6 +11142,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         else if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             keyShareEntry->lastRet = WC_PENDING_E;
             keyShareEntry->key = ecc_kse->key;
+            keyShareEntry->keyLen = ecc_kse->keyLen;
             keyShareEntry->pubKey = ecc_kse->pubKey;
             keyShareEntry->pubKeyLen = ecc_kse->pubKeyLen;
             ecc_kse->key = NULL;
@@ -11178,6 +11178,12 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         ssl->arrays->preMasterSz += ssSzPqc;
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* Hybrid encapsulation is fully complete here. Clear the pending
+         * state so the TLS_ASYNC_VERIFY re-drive is skipped and does not
+         * re-enter this handler with the now-freed ke. */
+        keyShareEntry->lastRet = 0;
+    #endif
 
         /* Concatenate the ECDH public key and the PQC KEM ciphertext. Based on
          * the pqc_first flag, the ECDH public key goes before or after the KEM
@@ -11964,6 +11970,18 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
         if (extension != NULL && extension->resp == 1) {
             serverKSE = (KeyShareEntry*)extension->data;
             if (serverKSE != NULL) {
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
+                /* Re-drive server hybrid encapsulation on resume. GenKey
+                 * routes a hybrid group to the client generator, and the
+                 * lastRet == 0 path treats the share as done after only the
+                 * ECDH part completed, dropping the KEM ciphertext. ke holds
+                 * the client share until the handler completes and clears it. */
+                if (serverKSE->ke != NULL &&
+                        WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(serverKSE->group)) {
+                    return TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
+                            serverKSE, serverKSE->ke, serverKSE->keLen);
+                }
+#endif
                 /* in async case make sure key generation is finalized */
                 if (serverKSE->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
