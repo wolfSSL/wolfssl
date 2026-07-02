@@ -110,7 +110,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
 #endif
 
-    if (aes == NULL ||
+    if (aes == NULL || userKey == NULL ||
             !((keylen == 16) || (keylen == 24) || (keylen == 32))) {
         return BAD_FUNC_ARG;
     }

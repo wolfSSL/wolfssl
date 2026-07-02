@@ -1121,6 +1121,9 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
     if (digest == NULL || sig == NULL || key == NULL || answer == NULL)
         return BAD_FUNC_ARG;
 
+    /* assign default value so we return 0 on error */
+    *answer = 0;
+
     /* Note the min allowed digestSz here is WC_SHA_DIGEST_SIZE, not
      * WC_MIN_DIGEST_SIZE, to allow verify-only legacy DSA operations, as
      * expressly allowed under FIPS 186-5, FIPS 140-3, and SP 800-131A.

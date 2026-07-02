@@ -414,6 +414,7 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
                 XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
                 XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
+                wc_fspsm_hw_unlock();
                 return MEMORY_E;
             }
 

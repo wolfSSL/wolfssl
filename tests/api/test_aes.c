@@ -3727,7 +3727,8 @@ int test_wc_AesGcmNonStdNonce(void)
  * and cannot exercise the GHASH-based counter derivation. */
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
     !defined(HAVE_FIPS) && \
-    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES)
 
     /* ------------------------------------------------------------------
      * Section 1: 1-byte IV, AES-128

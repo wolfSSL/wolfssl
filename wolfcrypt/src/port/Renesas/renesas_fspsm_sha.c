@@ -418,7 +418,7 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
  #endif
     wc_fspsm_hw_lock();
 
-    if (Init(&handle) == FSP_SUCCESS) {
+    if ((ret = Init(&handle)) == FSP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
         if (ret == FSP_SUCCESS) {
             ret = Final(&handle, out, (uint32_t*)&sz);
