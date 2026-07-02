@@ -1630,7 +1630,6 @@ static int tsip_sha1_hash_test(int prnt)
         ret = -2;
         goto out;
     }
-    
     XMEMSET(hash1, 0, sizeof(hash1));
     ret = wc_ShaFinal(&sha, hash1);
     if (ret != 0) {
@@ -1658,7 +1657,6 @@ static int tsip_sha1_hash_test(int prnt)
         ret = -7;
         goto out;
     }
-    
     XMEMSET(hash2, 0, sizeof(hash2));
     ret = wc_ShaGetHash(&sha, hash2);
     if (ret != 0) {
