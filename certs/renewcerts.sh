@@ -1167,4 +1167,9 @@ cd ../ || exit 1
 rm -f ./certs/wolfssl.cnf
 rm -f certs/.rnd
 
+# Confirm every pinned leaf still chains to its (possibly re-issued) CA before
+# the refreshed certs are committed.
+./certs/check_cert_chains.sh
+check_result $? "check_cert_chains"
+
 exit 0
