@@ -2222,6 +2222,7 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
     WOLFSSL_ASN1_OBJECT* ret = NULL;
     int len = 0;
     word32 idx = 0;
+    word32 maxIdx;
 
     WOLFSSL_ENTER("wolfSSL_d2i_ASN1_OBJECT");
 
@@ -2231,7 +2232,17 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
         return NULL;
     }
 
-    if (GetASNHeader(*der, ASN_OBJECT_ID, &idx, &len, (word32)length) < 0) {
+    /* An ASN.1 OBJECT is an OID, whose DER encoding cannot exceed the OID
+     * ceiling: a tag byte, a single short-form length byte (content is at
+     * most MAX_OID_SZ, which is below the long-form threshold) and the OID
+     * content. Cap the parse window so an oversized length argument cannot
+     * drive the header decode to read past the end of the actual buffer. */
+    maxIdx = (word32)length;
+    if (maxIdx > (word32)(MAX_OID_SZ + 2)) {
+        maxIdx = (word32)(MAX_OID_SZ + 2);
+    }
+
+    if (GetASNHeader(*der, ASN_OBJECT_ID, &idx, &len, maxIdx) < 0) {
         WOLFSSL_MSG("error getting tag");
         return NULL;
     }
@@ -3163,42 +3174,52 @@ int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data, int sz)
          * when sz == INT_MAX. By this point sz >= 0 (negative sz is
          * handled above as OpenSSL -1/strlen compat). */
         size_t allocSz = (size_t)sz + 1;
+        char* oldData = asn1->data;
+        int oldDynamic = asn1->isDynamic;
+        char* dst;
 
-        /* Dispose of any existing dynamic data. */
-        if (asn1->isDynamic) {
-            XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
-            asn1->data = NULL;
-        }
-
-        /* Check string will fit - including NUL. */
+        /* Select the destination buffer WITHOUT disposing of the existing
+         * data yet. Deferring the free keeps the copy below safe even when
+         * the source aliases the object's own buffer (data == asn1->data),
+         * avoiding a use-after-free or clear-before-copy without needing an
+         * ephemeral allocation. */
         if (allocSz > CTC_NAME_SIZE) {
             /* Allocate new buffer. */
-            asn1->data = (char*)XMALLOC(allocSz, NULL,
-                DYNAMIC_TYPE_OPENSSL);
-            if (asn1->data == NULL) {
+            dst = (char*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (dst == NULL) {
                 ret = 0;
-            }
-            else {
-                /* Ensure buffer will be freed. */
-                asn1->isDynamic = 1;
             }
         }
         else {
-            /* Clear out fixed array and use it for data. */
-            XMEMSET(asn1->strData, 0, CTC_NAME_SIZE);
-            asn1->data = asn1->strData;
-            asn1->isDynamic = 0;
+            /* Use the fixed array for data. */
+            dst = asn1->strData;
         }
-    }
-    if (ret == 1) {
-        /* Check if there is a string to copy. */
-        if (data != NULL) {
-            /* Copy string and append NUL. */
-            XMEMCPY(asn1->data, data, (size_t)sz);
-            asn1->data[sz] = '\0';
+
+        if (ret == 1) {
+            /* Copy string and append NUL. XMEMMOVE handles the case where
+             * data aliases the fixed array (source and destination overlap). */
+            if (data != NULL) {
+                XMEMMOVE(dst, data, (size_t)sz);
+            }
+            dst[sz] = '\0';
+
+            /* Clear any remainder of the fixed array (matches prior behavior
+             * of zeroing the whole array). Done after the copy so it never
+             * disturbs an aliased source. */
+            if (dst == asn1->strData) {
+                XMEMSET(dst + sz + 1, 0, CTC_NAME_SIZE - (size_t)sz - 1);
+            }
+
+            /* Dispose of any old dynamic buffer now the copy is complete. */
+            if (oldDynamic && (oldData != dst)) {
+                XFREE(oldData, NULL, DYNAMIC_TYPE_OPENSSL);
+            }
+
+            /* Commit the new buffer and its properties. */
+            asn1->data = dst;
+            asn1->isDynamic = (allocSz > CTC_NAME_SIZE) ? 1 : 0;
+            asn1->length = sz;
         }
-        /* Set size of string. */
-        asn1->length = sz;
     }
 
     return ret;

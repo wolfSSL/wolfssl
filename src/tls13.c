@@ -13568,6 +13568,16 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 
         case key_update:
             /* Valid on both sides. */
+#ifdef WOLFSSL_QUIC
+            /* RFC 9001 Section 6: QUIC performs key updates at the QUIC
+             * packet-protection layer, so a TLS KeyUpdate message must be
+             * rejected as a fatal unexpected_message connection error. */
+            if (WOLFSSL_IS_QUIC(ssl)) {
+                WOLFSSL_MSG("KeyUpdate received over QUIC");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+            }
+#endif
             /* Check state.
              * Client and server must have received finished message from other
              * side.
@@ -14974,6 +14984,13 @@ int Tls13UpdateKeys(WOLFSSL* ssl)
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_QUIC
+    /* RFC 9001 Section 6: a QUIC connection must not send a TLS KeyUpdate;
+     * key updates are handled at the QUIC packet-protection layer. */
+    if (WOLFSSL_IS_QUIC(ssl))
+        return BAD_FUNC_ARG;
+#endif
+
 #ifdef WOLFSSL_DTLS13
     /* we are already waiting for the ack of a sent key update message. We can't
        send another one before receiving its ack. Either wolfSSL_update_keys()
@@ -14993,7 +15010,8 @@ int Tls13UpdateKeys(WOLFSSL* ssl)
  * calling wolfSSL_write() will have the message sent when ready.
  *
  * ssl  The SSL/TLS object.
- * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
+ * returns BAD_FUNC_ARG when ssl is NULL, not using TLS v1.3, or running over
+ * QUIC (RFC 9001 handles key updates at the QUIC packet-protection layer),
  * WOLFSSL_ERROR_WANT_WRITE when non-blocking I/O is not ready to write,
  * WOLFSSL_SUCCESS on success and otherwise failure.
  */

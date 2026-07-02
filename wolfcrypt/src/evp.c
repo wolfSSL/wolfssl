@@ -13266,6 +13266,11 @@ int wolfSSL_EVP_EncodeBlock(unsigned char *out, const unsigned char *in,
     if (inLen < 0)
         return WOLFSSL_FATAL_ERROR;
 
+    /* Reject lengths whose base64 output would overflow a positive int. This
+     * also guards against reads far past the caller's input allocation. */
+    if (inLen > (INT_MAX / 4) * 3)
+        return WOLFSSL_FATAL_ERROR;
+
     if (Base64_Encode_NoNl(in, (word32)inLen, out, &ret) == 0)
         return (int)ret;
     else
@@ -13323,6 +13328,15 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         return 0;
 
     *outl = 0;
+
+    if (inl < 0)
+        return 0;
+
+    /* Reject lengths whose base64 output would overflow a positive int. This
+     * also guards against reads far past the caller's input allocation. */
+    if (inl > (INT_MAX / (BASE64_ENCODE_RESULT_BLOCK_SIZE + 1)) *
+            BASE64_ENCODE_BLOCK_SIZE)
+        return 0;
 
     /* if the remaining data exists in the ctx, add input data to them
      * to create a block(48bytes) for encoding

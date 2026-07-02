@@ -254,6 +254,48 @@ int test_wc_CamelliaCbcEncryptDecrypt(void)
 } /* END test_wc_CamelliaCbcEncryptDecrypt */
 
 
+/*
+ * Cipher operations must fail safely when no key has been configured.
+ */
+int test_wc_Camellia_MissingKey(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CAMELLIA
+    wc_Camellia camellia;
+    static const byte plainT[] = {
+        0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
+        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A
+    };
+    byte    out[WC_CAMELLIA_BLOCK_SIZE];
+
+    XMEMSET(out, 0, sizeof(out));
+
+    /* Zeroed context, never keyed: every op must reject with MISSING_KEY
+     * rather than silently emitting unencrypted output. */
+    XMEMSET(&camellia, 0, sizeof(camellia));
+
+    ExpectIntEQ(wc_CamelliaEncryptDirect(&camellia, out, plainT),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_CamelliaDecryptDirect(&camellia, out, plainT),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_CamelliaCbcEncrypt(&camellia, out, plainT,
+        WC_CAMELLIA_BLOCK_SIZE), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_CamelliaCbcDecrypt(&camellia, out, plainT,
+        WC_CAMELLIA_BLOCK_SIZE), WC_NO_ERR_TRACE(MISSING_KEY));
+
+    /* Garbage key size that is not 128/192/256 must also be rejected. */
+    XMEMSET(&camellia, 0, sizeof(camellia));
+    camellia.keySz = 64;
+
+    ExpectIntEQ(wc_CamelliaEncryptDirect(&camellia, out, plainT),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_CamelliaCbcEncrypt(&camellia, out, plainT,
+        WC_CAMELLIA_BLOCK_SIZE), WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Camellia_MissingKey */
+
+
 #include <wolfssl/wolfcrypt/random.h>
 
 #define MC_CIPHER_TEST_COUNT    100

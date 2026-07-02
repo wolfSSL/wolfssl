@@ -171,6 +171,10 @@ int wc_Rc2EcbEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
         return BUFFER_E;
     }
 
+    if (rc2->keylen == 0) {
+        return MISSING_KEY;
+    }
+
     r10 = (word16)((word16)in[1] << 8) | in[0]; /* R[0] */
     r32 = (word16)((word16)in[3] << 8) | in[2]; /* R[1] */
     r54 = (word16)((word16)in[5] << 8) | in[4]; /* R[2] */
@@ -236,6 +240,10 @@ int wc_Rc2EcbDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
         return BUFFER_E;
     }
 
+    if (rc2->keylen == 0) {
+        return MISSING_KEY;
+    }
+
     r0 = (word16)((word16)in[1] << 8) | in[0];
     r1 = (word16)((word16)in[3] << 8) | in[2];
     r2 = (word16)((word16)in[5] << 8) | in[4];
@@ -285,12 +293,12 @@ int wc_Rc2CbcEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
         return BAD_FUNC_ARG;
     }
 
-    if (sz == 0) {
-        return 0;
-    }
-
     if (sz % RC2_BLOCK_SIZE != 0) {
         return BAD_LENGTH_E;
+    }
+
+    if (rc2->keylen == 0) {
+        return MISSING_KEY;
     }
 
     blocks = sz / RC2_BLOCK_SIZE;
@@ -320,12 +328,12 @@ int wc_Rc2CbcDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
         return BAD_FUNC_ARG;
     }
 
-    if (sz == 0) {
-        return 0;
-    }
-
     if (sz % RC2_BLOCK_SIZE != 0) {
         return BAD_LENGTH_E;
+    }
+
+    if (rc2->keylen == 0) {
+        return MISSING_KEY;
     }
 
     blocks = sz / RC2_BLOCK_SIZE;

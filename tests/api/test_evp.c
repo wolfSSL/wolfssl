@@ -203,6 +203,25 @@ int test_wolfSSL_EVP_EncodeUpdate(void)
                 sizeof(encBlock0)-1);
     ExpectStrEQ(encOutBuff, encBlock0);
 
+    /* oversized length must be rejected, not read past the input buffer */
+    XMEMSET( encOutBuff,0, sizeof(encOutBuff));
+    ExpectIntEQ(EVP_EncodeBlock(encOutBuff, plain0, 0x7FFFFFFF), -1);
+
+    /* oversized length must be rejected by EVP_EncodeUpdate as well, rather
+     * than reading far past the caller's input buffer */
+    EVP_EncodeInit(ctx);
+    outl = 1;
+    XMEMSET( encOutBuff,0, sizeof(encOutBuff));
+    ExpectIntEQ(
+        EVP_EncodeUpdate(
+            ctx,
+            encOutBuff,
+            &outl,
+            plain0,
+            0x7FFFFFFF),
+        0);
+    ExpectIntEQ(outl, 0);
+
     /* pass small size( < 48bytes ) input, then make sure they are not
      * encoded  and just stored in ctx
      */
