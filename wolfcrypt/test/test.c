@@ -26012,6 +26012,40 @@ static wc_test_ret_t cert_bad_asn1_test(void)
     return ret;
 }
 
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+/* Heap/file-free parse from a const DER buffer; checks in-place refs under
+ * WC_ASN_NO_HEAP. */
+static wc_test_ret_t cert_no_malloc_test(void)
+{
+    DecodedCert cert;
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("cert_no_malloc_test");
+
+    InitDecodedCert(&cert, server_cert_der_2048, sizeof_server_cert_der_2048,
+                    NULL);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    if ((ret == 0) && ((cert.publicKey == NULL) || (cert.pubKeySize == 0))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+#ifdef WC_ASN_NO_HEAP
+    if ((ret == 0) && ((cert.pubKeyStored != 0) ||
+                       ((wc_ptr_t)cert.publicKey < (wc_ptr_t)cert.source) ||
+                       ((wc_ptr_t)cert.publicKey >=
+                            (wc_ptr_t)cert.source + cert.maxIdx))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+    if ((ret == 0) && (cert.altNames != NULL) &&
+            (cert.altNames->entryStored != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+#endif
+    FreeDecodedCert(&cert);
+
+    return ret;
+}
+#endif /* USE_CERT_BUFFERS_2048 && !NO_RSA */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
 {
 #if !defined(NO_FILESYSTEM)
@@ -26087,6 +26121,10 @@ done:
         ret = cert_asn1_test();
     if (ret == 0)
         ret = cert_bad_asn1_test();
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    if (ret == 0)
+        ret = cert_no_malloc_test();
+#endif
 
     return ret;
 }

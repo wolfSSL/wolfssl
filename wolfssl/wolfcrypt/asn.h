@@ -1449,6 +1449,17 @@ enum KeyIdType {
     #define WOLFSSL_IP6_ADDR_LEN 16
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
+/* No allocator: reference key/alt-name data in the source DER, not copies. */
+#if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
+    !defined(XMALLOC_USER) && !defined(WOLFSSL_STATIC_MEMORY)
+    #define WC_ASN_NO_HEAP
+#endif
+
+#ifndef WC_ASN_MAX_ALTNAMES
+    /* Total no-heap SAN pool slots across all lists; excess is rejected. */
+    #define WC_ASN_MAX_ALTNAMES 8
+#endif
+
 typedef struct DNS_entry   DNS_entry;
 
 struct DNS_entry {
@@ -1469,6 +1480,9 @@ struct DNS_entry {
 
 #ifdef WOLFSSL_FPKI
     int        oidSum; /* provide oid sum for verification */
+#endif
+#ifdef WC_ASN_NO_HEAP
+    int        entryStored; /* 1 = heap node to free; 0 = no-heap pool node */
 #endif
 };
 
@@ -1789,6 +1803,11 @@ struct DecodedCert {
 #endif
     int     version;                 /* cert version, 1 or 3             */
     DNS_entry* altNames;             /* alt names list of dns entries    */
+#ifdef WC_ASN_NO_HEAP
+    /* No-heap SAN pool; entries chain through altNames into the source DER. */
+    DNS_entry altNamePool[WC_ASN_MAX_ALTNAMES];
+    word32    altNamePoolUsed;
+#endif
 #ifndef IGNORE_NAME_CONSTRAINTS
     DNS_entry* altEmailNames;        /* alt names list of RFC822 entries */
     DNS_entry* altDirNames;          /* alt names list of DIR entries    */
@@ -3208,6 +3227,11 @@ struct DecodedAcert {
     DNS_entry *  holderEntityName;  /* Holder entityName from ACERT */
     DNS_entry *  holderIssuerName;  /* Holder issuerName from ACERT */
     DNS_entry *  AttCertIssuerName; /* AttCertIssuer name from ACERT */
+#ifdef WC_ASN_NO_HEAP
+    /* No-heap alt-name pool, used like DecodedCert.altNamePool. */
+    DNS_entry    altNamePool[WC_ASN_MAX_ALTNAMES];
+    word32       altNamePoolUsed;
+#endif
     const byte * rawAttr; /* Not owned, points into raw acert. */
     word32       rawAttrLen;
     SignatureCtx sigCtx;
