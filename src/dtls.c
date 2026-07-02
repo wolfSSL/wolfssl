@@ -1417,6 +1417,9 @@ int DtlsCidReplaceTx(WOLFSSL* ssl, const byte* cid, byte size)
     if (ssl == NULL || cid == NULL || size == 0)
         return BAD_FUNC_ARG;
 
+    if (size > DTLS_CID_MAX_SIZE)
+        return LENGTH_ERROR;
+
     cidInfo = DtlsCidGetInfo(ssl);
     if (cidInfo == NULL)
         return BAD_STATE_E;

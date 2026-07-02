@@ -2973,7 +2973,7 @@ int DoDtls13NewConnectionId(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
     }
 
-    /* walk the cids list, remembering the first non-empty CID */
+    /* walk the cids list, remembering the first CID we can use. */
     for (i = 0; i < cidsLen;) {
         byte cidLen = input[idx + i];
 
@@ -2982,7 +2982,7 @@ int DoDtls13NewConnectionId(WOLFSSL* ssl, const byte* input,
             WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
             return BUFFER_ERROR;
         }
-        if (newCid == NULL && cidLen > 0) {
+        if (newCid == NULL && cidLen > 0 && cidLen <= DTLS_CID_MAX_SIZE) {
             newCid = input + idx + i;
             newCidLen = cidLen;
         }

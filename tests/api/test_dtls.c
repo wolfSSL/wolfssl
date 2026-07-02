@@ -686,11 +686,10 @@ int test_wolfSSL_dtls_set_pending_peer_not_newest(void)
  * post-handshake messages (session tickets, ACKs) so both buffers are empty. */
 static int test_dtls13_cid_setup(struct test_memio_ctx* test_ctx,
         WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c,
-        WOLFSSL** ssl_s, int useCid)
+        WOLFSSL** ssl_s, const byte* serverCid, word32 serverCidSz)
 {
     EXPECT_DECLS;
     unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
-    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     byte readBuf[16];
     int i;
 
@@ -699,10 +698,10 @@ static int test_dtls13_cid_setup(struct test_memio_ctx* test_ctx,
     ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
             wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
 
-    if (useCid) {
+    if (serverCid != NULL) {
         ExpectIntEQ(wolfSSL_dtls_cid_use(*ssl_c), 1);
-        ExpectIntEQ(wolfSSL_dtls_cid_set(*ssl_c, server_cid,
-                sizeof(server_cid)), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(*ssl_c, (unsigned char*)serverCid,
+                serverCidSz), 1);
         ExpectIntEQ(wolfSSL_dtls_cid_use(*ssl_s), 1);
         ExpectIntEQ(wolfSSL_dtls_cid_set(*ssl_s, client_cid,
                 sizeof(client_cid)), 1);
@@ -765,12 +764,14 @@ static int test_dtls13_post_hs_cid_msg_err(byte hsType, const byte* body,
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     WOLFSSL_ALERT_HISTORY h;
+    const byte serverCid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     byte rec[256];
     int recSz = (int)sizeof(rec);
     byte readBuf[16];
 
     ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
-            &ssl_s, useCid), TEST_SUCCESS);
+            &ssl_s, useCid ? serverCid : NULL,
+            useCid ? (word32)sizeof(serverCid) : 0), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_build_post_hs_msg(ssl_c, ssl_s, hsType, body,
             bodyLen, rec, &recSz), TEST_SUCCESS);
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)rec,
@@ -804,15 +805,15 @@ int test_dtls13_new_connection_id(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    unsigned char server_cid[] = { 0, 1, 2, 3 };
     /* one 3-byte CID, usage cid_spare */
     const byte spareBody[] = { 0x00, 0x04, 0x03, 0xaa, 0xbb, 0xcc, 0x01 };
     /* NewConnectionId(cid_immediate) carrying a CID longer than the negotiated
      * one, so a stale AEAD record-size cache would under-allocate. This ensures
      * the cache is cleared when setting the CID.
      * The cids list holds a leading empty CID (must be skipped) followed by the
-     * 20-byte CID. */
-    byte newCid[20];
+     * new CID. */
+    byte newCid[8];
     byte immBody[2 + 1 + 1 + sizeof(newCid) + 1];
     word16 immBodyLen = 0;
     unsigned char cidBuf[64];
@@ -836,7 +837,7 @@ int test_dtls13_new_connection_id(void)
 
     /* usage cid_spare: the new CID may be discarded, ours must not change */
     ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
-            &ssl_s, 1), TEST_SUCCESS);
+            &ssl_s, server_cid, sizeof(server_cid)), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_build_post_hs_msg(ssl_c, ssl_s, new_connection_id,
             spareBody, sizeof(spareBody), rec, &recSz), TEST_SUCCESS);
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)rec,
@@ -876,7 +877,7 @@ int test_dtls13_new_connection_id(void)
     /* usage cid_immediate: the first non-empty CID must be used for all
      * records sent from now on, including the ACK of this message */
     ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
-            &ssl_s, 1), TEST_SUCCESS);
+            &ssl_s, server_cid, sizeof(server_cid)), TEST_SUCCESS);
     /* Exchange application data first so the server's traffic-epoch keys are
      * fully installed. Otherwise the injected NewConnectionId would be the
      * first epoch-3 record the server decrypts, which installs keys and
@@ -946,13 +947,14 @@ int test_dtls13_request_connection_id(void)
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     const byte body[] = { 0x02 }; /* num_cids */
+    const byte serverCid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     byte rec[256];
     int recSz = (int)sizeof(rec);
     byte readBuf[16];
 
     /* the request is ACKed but ignored: we never send NewConnectionId */
     ExpectIntEQ(test_dtls13_cid_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
-            &ssl_s, 1), TEST_SUCCESS);
+            &ssl_s, serverCid, sizeof(serverCid)), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_build_post_hs_msg(ssl_c, ssl_s,
             request_connection_id, body, sizeof(body), rec, &recSz),
             TEST_SUCCESS);
@@ -1019,6 +1021,26 @@ int test_dtls13_cid_msg_malformed(void)
             immZeroLenCid, sizeof(immZeroLenCid), 1,
             WC_NO_ERR_TRACE(INVALID_PARAMETER), illegal_parameter),
             TEST_SUCCESS);
+#if DTLS_CID_MAX_SIZE < 255
+    /* cid_immediate with a single CID larger than we support: it is skipped,
+     * leaving no usable CID */
+    {
+        byte oversize[2 + 1 + (DTLS_CID_MAX_SIZE + 1) + 1];
+        word16 oversizeLen = 0;
+        word16 k;
+
+        oversize[oversizeLen++] = 0x00;                              /* len hi */
+        oversize[oversizeLen++] = (byte)(1 + DTLS_CID_MAX_SIZE + 1); /* len lo */
+        oversize[oversizeLen++] = (byte)(DTLS_CID_MAX_SIZE + 1);     /* CID len */
+        for (k = 0; k < DTLS_CID_MAX_SIZE + 1; k++)
+            oversize[oversizeLen++] = 0x55;
+        oversize[oversizeLen++] = 0x00;                            /* immediate */
+
+        ExpectIntEQ(test_dtls13_post_hs_cid_msg_err(new_connection_id,
+                oversize, oversizeLen, 1, WC_NO_ERR_TRACE(INVALID_PARAMETER),
+                illegal_parameter), TEST_SUCCESS);
+    }
+#endif /* DTLS_CID_MAX_SIZE < 255 */
 #endif
     return EXPECT_RESULT();
 }
