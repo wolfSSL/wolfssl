@@ -1934,7 +1934,9 @@ int test_tls12_corrupted_finished(void)
         }
         else {
             ExpectIntGE(finishedSz, finishedLen);
-            XMEMCPY(finishedMsg, test_ctx.s_buff + finishedOffInMsg, finishedLen);
+            if (EXPECT_SUCCESS()) {
+                XMEMCPY(finishedMsg, test_ctx.s_buff + finishedOffInMsg, finishedLen);
+            }
             finishedSz = finishedLen;
             ExpectIntEQ(test_memio_modify_message_len(&test_ctx, 0,
                 finishedMsgPos, finishedOffInMsg), 0);

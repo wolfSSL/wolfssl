@@ -63,6 +63,18 @@
 #define POLY130532
 #endif
 
+/* The aarch64 Poly1305 assembly is NEON-only. Provide a software fallback:
+ * dispatch on ASIMD at runtime when NEON is built in, or use only the C path
+ * when NEON is disabled at build time. */
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+    #ifdef WOLFSSL_ARMASM_NO_NEON
+        #define WOLFSSL_ARM_POLY1305_C_ONLY
+    #else
+        #define WOLFSSL_ARM_POLY1305_NEON_FALLBACK
+    #endif
+    #define WOLFSSL_ARM_POLY1305_NEED_C
+#endif
+
 enum {
     POLY1305 = 7,
     POLY1305_BLOCK_SIZE = 16,
@@ -100,6 +112,14 @@ typedef struct Poly1305 {
     word64 leftover;
     unsigned char buffer[POLY1305_BLOCK_SIZE];
     unsigned char finished;
+#ifdef WOLFSSL_ARM_POLY1305_NEED_C
+    /* Software fallback state (radix 2^44), used when NEON is unavailable.
+     * Appended after the assembly state so the asm field offsets are unchanged.
+     */
+    word64 c_r[3];
+    word64 c_h[3];
+    word64 c_pad[2];
+#endif
 #elif defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_THUMB2) && \
     !defined(WOLFSSL_ARMASM_NO_NEON)
     /* NEON implementation for ARM32 */
@@ -166,10 +186,6 @@ WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional,
 #if defined(__aarch64__ )
 void poly1305_arm64_block_16(Poly1305* ctx, const unsigned char* m);
 void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes);
-
-void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
-    size_t bytes);
-void poly1305_block_aarch64(Poly1305* ctx, const unsigned char *m);
 #elif defined(WOLFSSL_ARMASM_THUMB2)
 void poly1305_blocks_thumb2(Poly1305* ctx, const unsigned char *m,
     size_t bytes);
