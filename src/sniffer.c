@@ -3733,12 +3733,20 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         return WOLFSSL_FATAL_ERROR;
     }
     if (b) {
+        /* session id length is attacker controlled; reject anything that
+         * would overflow the fixed-size sessionID buffer. Reading b bytes is
+         * already bounded by the check above, so copy the advertised length
+         * instead of a fixed ID_LEN and keep short non-zero ids intact. */
+        if (b > ID_LEN) {
+            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return WOLFSSL_FATAL_ERROR;
+        }
     #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslServer->session->sessionID, input, ID_LEN);
-        session->sslServer->session->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->session->sessionID, input, b);
+        session->sslServer->session->sessionIDSz = b;
     #endif
-        XMEMCPY(session->sslServer->arrays->sessionID, input, ID_LEN);
-        session->sslServer->arrays->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->arrays->sessionID, input, b);
+        session->sslServer->arrays->sessionIDSz = b;
         session->sslServer->options.haveSessionId = 1;
     }
     input     += b;
