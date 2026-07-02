@@ -6469,6 +6469,567 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_done:
         ret
 AES_GCM_decrypt_final_aesni ENDP
 _TEXT ENDS
+IFDEF WOLFSSL_AESGCM_SIV
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcm_siv_bswap_mask QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
+ptr_L_aes_gcm_siv_bswap_mask QWORD L_aes_gcm_siv_bswap_mask
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_polyval_aesni PROC
+        push	r12
+        sub	rsp, 144
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	xmm1, OWORD PTR [rdx]
+        movdqu	xmm0, OWORD PTR [rcx]
+        pshufb	xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask
+        movdqa	xmm9, xmm1
+        pclmulqdq	xmm9, xmm1, 0
+        movdqa	xmm10, xmm1
+        pclmulqdq	xmm10, xmm1, 17
+        movdqa	xmm13, xmm1
+        pclmulqdq	xmm13, xmm1, 16
+        movdqa	xmm14, xmm1
+        pclmulqdq	xmm14, xmm1, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm9, xmm14
+        pxor	xmm10, xmm13
+        movdqa	xmm5, xmm9
+        psrld	xmm5, 31
+        movdqa	xmm6, xmm10
+        psrld	xmm6, 31
+        pslld	xmm9, 1
+        pslld	xmm10, 1
+        movdqa	xmm7, xmm5
+        psrldq	xmm7, 12
+        pslldq	xmm6, 4
+        pslldq	xmm5, 4
+        por	xmm9, xmm5
+        por	xmm10, xmm6
+        por	xmm10, xmm7
+        movdqa	xmm5, xmm9
+        pslld	xmm5, 31
+        movdqa	xmm6, xmm9
+        pslld	xmm6, 30
+        movdqa	xmm7, xmm9
+        pslld	xmm7, 25
+        pxor	xmm5, xmm6
+        pxor	xmm5, xmm7
+        movdqa	xmm6, xmm5
+        psrldq	xmm6, 4
+        pslldq	xmm5, 12
+        pxor	xmm9, xmm5
+        movdqa	xmm8, xmm9
+        psrld	xmm8, 1
+        movdqa	xmm11, xmm9
+        psrld	xmm11, 2
+        movdqa	xmm12, xmm9
+        psrld	xmm12, 7
+        pxor	xmm8, xmm11
+        pxor	xmm8, xmm12
+        pxor	xmm8, xmm6
+        pxor	xmm9, xmm8
+        pxor	xmm10, xmm9
+        movdqa	xmm2, xmm10
+        movdqa	xmm9, xmm2
+        pclmulqdq	xmm9, xmm1, 0
+        movdqa	xmm10, xmm2
+        pclmulqdq	xmm10, xmm1, 17
+        movdqa	xmm13, xmm2
+        pclmulqdq	xmm13, xmm1, 16
+        movdqa	xmm14, xmm2
+        pclmulqdq	xmm14, xmm1, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm9, xmm14
+        pxor	xmm10, xmm13
+        movdqa	xmm5, xmm9
+        psrld	xmm5, 31
+        movdqa	xmm6, xmm10
+        psrld	xmm6, 31
+        pslld	xmm9, 1
+        pslld	xmm10, 1
+        movdqa	xmm7, xmm5
+        psrldq	xmm7, 12
+        pslldq	xmm6, 4
+        pslldq	xmm5, 4
+        por	xmm9, xmm5
+        por	xmm10, xmm6
+        por	xmm10, xmm7
+        movdqa	xmm5, xmm9
+        pslld	xmm5, 31
+        movdqa	xmm6, xmm9
+        pslld	xmm6, 30
+        movdqa	xmm7, xmm9
+        pslld	xmm7, 25
+        pxor	xmm5, xmm6
+        pxor	xmm5, xmm7
+        movdqa	xmm6, xmm5
+        psrldq	xmm6, 4
+        pslldq	xmm5, 12
+        pxor	xmm9, xmm5
+        movdqa	xmm8, xmm9
+        psrld	xmm8, 1
+        movdqa	xmm11, xmm9
+        psrld	xmm11, 2
+        movdqa	xmm12, xmm9
+        psrld	xmm12, 7
+        pxor	xmm8, xmm11
+        pxor	xmm8, xmm12
+        pxor	xmm8, xmm6
+        pxor	xmm9, xmm8
+        pxor	xmm10, xmm9
+        movdqa	xmm3, xmm10
+        movdqa	xmm9, xmm2
+        pclmulqdq	xmm9, xmm2, 0
+        movdqa	xmm10, xmm2
+        pclmulqdq	xmm10, xmm2, 17
+        movdqa	xmm13, xmm2
+        pclmulqdq	xmm13, xmm2, 16
+        movdqa	xmm14, xmm2
+        pclmulqdq	xmm14, xmm2, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm9, xmm14
+        pxor	xmm10, xmm13
+        movdqa	xmm5, xmm9
+        psrld	xmm5, 31
+        movdqa	xmm6, xmm10
+        psrld	xmm6, 31
+        pslld	xmm9, 1
+        pslld	xmm10, 1
+        movdqa	xmm7, xmm5
+        psrldq	xmm7, 12
+        pslldq	xmm6, 4
+        pslldq	xmm5, 4
+        por	xmm9, xmm5
+        por	xmm10, xmm6
+        por	xmm10, xmm7
+        movdqa	xmm5, xmm9
+        pslld	xmm5, 31
+        movdqa	xmm6, xmm9
+        pslld	xmm6, 30
+        movdqa	xmm7, xmm9
+        pslld	xmm7, 25
+        pxor	xmm5, xmm6
+        pxor	xmm5, xmm7
+        movdqa	xmm6, xmm5
+        psrldq	xmm6, 4
+        pslldq	xmm5, 12
+        pxor	xmm9, xmm5
+        movdqa	xmm8, xmm9
+        psrld	xmm8, 1
+        movdqa	xmm11, xmm9
+        psrld	xmm11, 2
+        movdqa	xmm12, xmm9
+        psrld	xmm12, 7
+        pxor	xmm8, xmm11
+        pxor	xmm8, xmm12
+        pxor	xmm8, xmm6
+        pxor	xmm9, xmm8
+        pxor	xmm10, xmm9
+        movdqa	xmm4, xmm10
+        mov	r10d, r9d
+        shl	r10d, 4
+        mov	r11d, r10d
+        and	r11d, 4294967232
+        xor	eax, eax
+        cmp	eax, r11d
+        je	L_AES_GCMSIV_polyval_aesni_four_done
+L_AES_GCMSIV_polyval_aesni_four:
+        lea	r12, QWORD PTR [r8+rax]
+        movdqu	xmm5, OWORD PTR [r12]
+        movdqu	xmm6, OWORD PTR [r12+16]
+        movdqu	xmm7, OWORD PTR [r12+32]
+        movdqu	xmm8, OWORD PTR [r12+48]
+        pxor	xmm5, xmm0
+        movdqa	xmm9, xmm5
+        pclmulqdq	xmm9, xmm4, 0
+        movdqa	xmm10, xmm5
+        pclmulqdq	xmm10, xmm4, 17
+        movdqa	xmm13, xmm5
+        pclmulqdq	xmm13, xmm4, 16
+        movdqa	xmm14, xmm5
+        pclmulqdq	xmm14, xmm4, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm9, xmm14
+        pxor	xmm10, xmm13
+        movdqa	xmm11, xmm6
+        pclmulqdq	xmm11, xmm3, 0
+        movdqa	xmm12, xmm6
+        pclmulqdq	xmm12, xmm3, 17
+        movdqa	xmm13, xmm6
+        pclmulqdq	xmm13, xmm3, 16
+        movdqa	xmm14, xmm6
+        pclmulqdq	xmm14, xmm3, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm11, xmm14
+        pxor	xmm12, xmm13
+        pxor	xmm9, xmm11
+        pxor	xmm10, xmm12
+        movdqa	xmm11, xmm7
+        pclmulqdq	xmm11, xmm2, 0
+        movdqa	xmm12, xmm7
+        pclmulqdq	xmm12, xmm2, 17
+        movdqa	xmm13, xmm7
+        pclmulqdq	xmm13, xmm2, 16
+        movdqa	xmm14, xmm7
+        pclmulqdq	xmm14, xmm2, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm11, xmm14
+        pxor	xmm12, xmm13
+        pxor	xmm9, xmm11
+        pxor	xmm10, xmm12
+        movdqa	xmm11, xmm8
+        pclmulqdq	xmm11, xmm1, 0
+        movdqa	xmm12, xmm8
+        pclmulqdq	xmm12, xmm1, 17
+        movdqa	xmm13, xmm8
+        pclmulqdq	xmm13, xmm1, 16
+        movdqa	xmm14, xmm8
+        pclmulqdq	xmm14, xmm1, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm11, xmm14
+        pxor	xmm12, xmm13
+        pxor	xmm9, xmm11
+        pxor	xmm10, xmm12
+        movdqa	xmm5, xmm9
+        psrld	xmm5, 31
+        movdqa	xmm6, xmm10
+        psrld	xmm6, 31
+        pslld	xmm9, 1
+        pslld	xmm10, 1
+        movdqa	xmm7, xmm5
+        psrldq	xmm7, 12
+        pslldq	xmm6, 4
+        pslldq	xmm5, 4
+        por	xmm9, xmm5
+        por	xmm10, xmm6
+        por	xmm10, xmm7
+        movdqa	xmm5, xmm9
+        pslld	xmm5, 31
+        movdqa	xmm6, xmm9
+        pslld	xmm6, 30
+        movdqa	xmm7, xmm9
+        pslld	xmm7, 25
+        pxor	xmm5, xmm6
+        pxor	xmm5, xmm7
+        movdqa	xmm6, xmm5
+        psrldq	xmm6, 4
+        pslldq	xmm5, 12
+        pxor	xmm9, xmm5
+        movdqa	xmm8, xmm9
+        psrld	xmm8, 1
+        movdqa	xmm11, xmm9
+        psrld	xmm11, 2
+        movdqa	xmm12, xmm9
+        psrld	xmm12, 7
+        pxor	xmm8, xmm11
+        pxor	xmm8, xmm12
+        pxor	xmm8, xmm6
+        pxor	xmm9, xmm8
+        pxor	xmm10, xmm9
+        movdqa	xmm0, xmm10
+        add	eax, 64
+        cmp	eax, r11d
+        jl	L_AES_GCMSIV_polyval_aesni_four
+L_AES_GCMSIV_polyval_aesni_four_done:
+L_AES_GCMSIV_polyval_aesni_rem:
+        cmp	eax, r10d
+        jge	L_AES_GCMSIV_polyval_aesni_done
+        pxor	xmm0, [r8+rax]
+        movdqa	xmm9, xmm0
+        pclmulqdq	xmm9, xmm1, 0
+        movdqa	xmm10, xmm0
+        pclmulqdq	xmm10, xmm1, 17
+        movdqa	xmm13, xmm0
+        pclmulqdq	xmm13, xmm1, 16
+        movdqa	xmm14, xmm0
+        pclmulqdq	xmm14, xmm1, 1
+        pxor	xmm13, xmm14
+        movdqa	xmm14, xmm13
+        pslldq	xmm14, 8
+        psrldq	xmm13, 8
+        pxor	xmm9, xmm14
+        pxor	xmm10, xmm13
+        movdqa	xmm5, xmm9
+        psrld	xmm5, 31
+        movdqa	xmm6, xmm10
+        psrld	xmm6, 31
+        pslld	xmm9, 1
+        pslld	xmm10, 1
+        movdqa	xmm7, xmm5
+        psrldq	xmm7, 12
+        pslldq	xmm6, 4
+        pslldq	xmm5, 4
+        por	xmm9, xmm5
+        por	xmm10, xmm6
+        por	xmm10, xmm7
+        movdqa	xmm5, xmm9
+        pslld	xmm5, 31
+        movdqa	xmm6, xmm9
+        pslld	xmm6, 30
+        movdqa	xmm7, xmm9
+        pslld	xmm7, 25
+        pxor	xmm5, xmm6
+        pxor	xmm5, xmm7
+        movdqa	xmm6, xmm5
+        psrldq	xmm6, 4
+        pslldq	xmm5, 12
+        pxor	xmm9, xmm5
+        movdqa	xmm8, xmm9
+        psrld	xmm8, 1
+        movdqa	xmm11, xmm9
+        psrld	xmm11, 2
+        movdqa	xmm12, xmm9
+        psrld	xmm12, 7
+        pxor	xmm8, xmm11
+        pxor	xmm8, xmm12
+        pxor	xmm8, xmm6
+        pxor	xmm9, xmm8
+        pxor	xmm10, xmm9
+        movdqa	xmm0, xmm10
+        add	eax, 16
+        jmp	L_AES_GCMSIV_polyval_aesni_rem
+L_AES_GCMSIV_polyval_aesni_done:
+        pshufb	xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        add	rsp, 144
+        pop	r12
+        ret
+AES_GCMSIV_polyval_aesni ENDP
+_TEXT ENDS
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcmsiv_ctr_aesni_one QWORD \
+     0000000000000001h,  0000000000000000h
+ptr_L_aes_gcmsiv_ctr_aesni_one QWORD L_aes_gcmsiv_ctr_aesni_one
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_ctr_aesni PROC
+        push	rbx
+        mov	eax, DWORD PTR [rsp+48]
+        mov	r10, QWORD PTR [rsp+56]
+        sub	rsp, 48
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	xmm8, OWORD PTR L_aes_gcmsiv_ctr_aesni_one
+        movdqu	xmm7, OWORD PTR [r10]
+        xor	eax, eax
+        cmp	r8d, 64
+        mov	r10d, r8d
+        jl	L_AES_GCMSIV_ctr_aesni_done_64
+        and	r10d, 4294967232
+L_AES_GCMSIV_ctr_aesni_enc_64:
+        ; 64 bytes of input
+        ; siv_ctr_enc_64
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        movdqa	xmm0, xmm7
+        paddd	xmm7, xmm8
+        movdqa	xmm1, xmm7
+        paddd	xmm7, xmm8
+        movdqa	xmm2, xmm7
+        paddd	xmm7, xmm8
+        movdqa	xmm3, xmm7
+        paddd	xmm7, xmm8
+        ; aes_enc_block
+        movdqu	xmm4, OWORD PTR [r9]
+        pxor	xmm0, xmm4
+        pxor	xmm1, xmm4
+        pxor	xmm2, xmm4
+        pxor	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+16]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+32]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+48]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+64]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+80]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+96]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+112]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+128]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+144]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        cmp	eax, 11
+        movdqu	xmm4, OWORD PTR [r9+160]
+        jl	L_AES_GCMSIV_ctr_aesni_64_aes_enc_block_last
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+176]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        cmp	eax, 13
+        movdqu	xmm4, OWORD PTR [r9+192]
+        jl	L_AES_GCMSIV_ctr_aesni_64_aes_enc_block_last
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+208]
+        aesenc	xmm0, xmm4
+        aesenc	xmm1, xmm4
+        aesenc	xmm2, xmm4
+        aesenc	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r9+224]
+L_AES_GCMSIV_ctr_aesni_64_aes_enc_block_last:
+        aesenclast	xmm0, xmm4
+        aesenclast	xmm1, xmm4
+        aesenclast	xmm2, xmm4
+        aesenclast	xmm3, xmm4
+        movdqu	xmm4, OWORD PTR [r11]
+        pxor	xmm0, xmm4
+        movdqu	xmm4, OWORD PTR [r11+16]
+        pxor	xmm1, xmm4
+        movdqu	xmm4, OWORD PTR [r11+32]
+        pxor	xmm2, xmm4
+        movdqu	xmm4, OWORD PTR [r11+48]
+        pxor	xmm3, xmm4
+        movdqu	OWORD PTR [rbx], xmm0
+        movdqu	OWORD PTR [rbx+16], xmm1
+        movdqu	OWORD PTR [rbx+32], xmm2
+        movdqu	OWORD PTR [rbx+48], xmm3
+        add	eax, 64
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_aesni_enc_64
+L_AES_GCMSIV_ctr_aesni_done_64:
+        cmp	eax, r8d
+        mov	r10d, r8d
+        je	L_AES_GCMSIV_ctr_aesni_done_enc
+        and	r10d, 4294967280
+L_AES_GCMSIV_ctr_aesni_enc_16:
+        ; 16 bytes of input
+        movdqa	xmm0, xmm7
+        paddd	xmm7, xmm8
+        ; aes_enc_block
+        pxor	xmm0, [r9]
+        movdqu	xmm5, OWORD PTR [r9+16]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+32]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+48]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+64]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+80]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+96]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+112]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+128]
+        aesenc	xmm0, xmm5
+        movdqu	xmm5, OWORD PTR [r9+144]
+        aesenc	xmm0, xmm5
+        cmp	eax, 11
+        movdqu	xmm5, OWORD PTR [r9+160]
+        jl	L_AES_GCMSIV_ctr_aesni_16_aes_enc_block_last
+        aesenc	xmm0, xmm5
+        movdqu	xmm6, OWORD PTR [r9+176]
+        aesenc	xmm0, xmm6
+        cmp	eax, 13
+        movdqu	xmm5, OWORD PTR [r9+192]
+        jl	L_AES_GCMSIV_ctr_aesni_16_aes_enc_block_last
+        aesenc	xmm0, xmm5
+        movdqu	xmm6, OWORD PTR [r9+208]
+        aesenc	xmm0, xmm6
+        movdqu	xmm5, OWORD PTR [r9+224]
+L_AES_GCMSIV_ctr_aesni_16_aes_enc_block_last:
+        aesenclast	xmm0, xmm5
+        lea	r11, QWORD PTR [rcx+rax]
+        movdqu	xmm4, OWORD PTR [r11]
+        pxor	xmm0, xmm4
+        lea	r11, QWORD PTR [rdx+rax]
+        movdqu	OWORD PTR [r11], xmm0
+        add	eax, 16
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_aesni_enc_16
+L_AES_GCMSIV_ctr_aesni_done_enc:
+        movdqu	OWORD PTR [r10], xmm7
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        add	rsp, 48
+        pop	rbx
+        ret
+AES_GCMSIV_ctr_aesni ENDP
+_TEXT ENDS
+ENDIF
 IFDEF HAVE_INTEL_AVX1
 _DATA SEGMENT
 ALIGN 16
@@ -11929,6 +12490,463 @@ L_AES_GCM_decrypt_final_avx1_cmp_tag_done:
         ret
 AES_GCM_decrypt_final_avx1 ENDP
 _TEXT ENDS
+IFDEF WOLFSSL_AESGCM_SIV
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcm_siv_bswap_mask_avx1 QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
+ptr_L_aes_gcm_siv_bswap_mask_avx1 QWORD L_aes_gcm_siv_bswap_mask_avx1
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_polyval_avx1 PROC
+        push	r12
+        sub	rsp, 112
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	xmm1, OWORD PTR [rdx]
+        vmovdqu	xmm0, OWORD PTR [rcx]
+        vpshufb	xmm0, xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask_avx1
+        vpclmulqdq	xmm5, xmm1, xmm1, 0
+        vpclmulqdq	xmm6, xmm1, xmm1, 17
+        vpclmulqdq	xmm10, xmm1, xmm1, 16
+        vpclmulqdq	xmm11, xmm1, xmm1, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm5, xmm5, xmm11
+        vpxor	xmm6, xmm6, xmm10
+        vpsrld	xmm10, xmm5, 31
+        vpsrld	xmm11, xmm6, 31
+        vpslld	xmm5, xmm5, 1
+        vpslld	xmm6, xmm6, 1
+        vpsrldq	xmm12, xmm10, 12
+        vpslldq	xmm11, xmm11, 4
+        vpslldq	xmm10, xmm10, 4
+        vpor	xmm5, xmm5, xmm10
+        vpor	xmm6, xmm6, xmm11
+        vpor	xmm6, xmm6, xmm12
+        vpslld	xmm10, xmm5, 31
+        vpslld	xmm11, xmm5, 30
+        vpslld	xmm12, xmm5, 25
+        vpxor	xmm10, xmm10, xmm11
+        vpxor	xmm10, xmm10, xmm12
+        vpsrldq	xmm11, xmm10, 4
+        vpslldq	xmm10, xmm10, 12
+        vpxor	xmm5, xmm5, xmm10
+        vpsrld	xmm7, xmm5, 1
+        vpsrld	xmm8, xmm5, 2
+        vpsrld	xmm9, xmm5, 7
+        vpxor	xmm7, xmm7, xmm8
+        vpxor	xmm7, xmm7, xmm9
+        vpxor	xmm7, xmm7, xmm11
+        vpxor	xmm5, xmm5, xmm7
+        vpxor	xmm2, xmm6, xmm5
+        vpclmulqdq	xmm5, xmm2, xmm1, 0
+        vpclmulqdq	xmm6, xmm2, xmm1, 17
+        vpclmulqdq	xmm10, xmm2, xmm1, 16
+        vpclmulqdq	xmm11, xmm2, xmm1, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm5, xmm5, xmm11
+        vpxor	xmm6, xmm6, xmm10
+        vpsrld	xmm10, xmm5, 31
+        vpsrld	xmm11, xmm6, 31
+        vpslld	xmm5, xmm5, 1
+        vpslld	xmm6, xmm6, 1
+        vpsrldq	xmm12, xmm10, 12
+        vpslldq	xmm11, xmm11, 4
+        vpslldq	xmm10, xmm10, 4
+        vpor	xmm5, xmm5, xmm10
+        vpor	xmm6, xmm6, xmm11
+        vpor	xmm6, xmm6, xmm12
+        vpslld	xmm10, xmm5, 31
+        vpslld	xmm11, xmm5, 30
+        vpslld	xmm12, xmm5, 25
+        vpxor	xmm10, xmm10, xmm11
+        vpxor	xmm10, xmm10, xmm12
+        vpsrldq	xmm11, xmm10, 4
+        vpslldq	xmm10, xmm10, 12
+        vpxor	xmm5, xmm5, xmm10
+        vpsrld	xmm7, xmm5, 1
+        vpsrld	xmm8, xmm5, 2
+        vpsrld	xmm9, xmm5, 7
+        vpxor	xmm7, xmm7, xmm8
+        vpxor	xmm7, xmm7, xmm9
+        vpxor	xmm7, xmm7, xmm11
+        vpxor	xmm5, xmm5, xmm7
+        vpxor	xmm3, xmm6, xmm5
+        vpclmulqdq	xmm5, xmm2, xmm2, 0
+        vpclmulqdq	xmm6, xmm2, xmm2, 17
+        vpclmulqdq	xmm10, xmm2, xmm2, 16
+        vpclmulqdq	xmm11, xmm2, xmm2, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm5, xmm5, xmm11
+        vpxor	xmm6, xmm6, xmm10
+        vpsrld	xmm10, xmm5, 31
+        vpsrld	xmm11, xmm6, 31
+        vpslld	xmm5, xmm5, 1
+        vpslld	xmm6, xmm6, 1
+        vpsrldq	xmm12, xmm10, 12
+        vpslldq	xmm11, xmm11, 4
+        vpslldq	xmm10, xmm10, 4
+        vpor	xmm5, xmm5, xmm10
+        vpor	xmm6, xmm6, xmm11
+        vpor	xmm6, xmm6, xmm12
+        vpslld	xmm10, xmm5, 31
+        vpslld	xmm11, xmm5, 30
+        vpslld	xmm12, xmm5, 25
+        vpxor	xmm10, xmm10, xmm11
+        vpxor	xmm10, xmm10, xmm12
+        vpsrldq	xmm11, xmm10, 4
+        vpslldq	xmm10, xmm10, 12
+        vpxor	xmm5, xmm5, xmm10
+        vpsrld	xmm7, xmm5, 1
+        vpsrld	xmm8, xmm5, 2
+        vpsrld	xmm9, xmm5, 7
+        vpxor	xmm7, xmm7, xmm8
+        vpxor	xmm7, xmm7, xmm9
+        vpxor	xmm7, xmm7, xmm11
+        vpxor	xmm5, xmm5, xmm7
+        vpxor	xmm4, xmm6, xmm5
+        mov	r10d, r9d
+        shl	r10d, 4
+        mov	r11d, r10d
+        and	r11d, 4294967232
+        xor	eax, eax
+        cmp	eax, r11d
+        je	L_AES_GCMSIV_polyval_avx1_four_done
+L_AES_GCMSIV_polyval_avx1_four:
+        lea	r12, QWORD PTR [r8+rax]
+        vmovdqu	xmm7, OWORD PTR [r12]
+        vpxor	xmm7, xmm7, xmm0
+        vpclmulqdq	xmm5, xmm7, xmm4, 0
+        vpclmulqdq	xmm6, xmm7, xmm4, 17
+        vpclmulqdq	xmm10, xmm7, xmm4, 16
+        vpclmulqdq	xmm11, xmm7, xmm4, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm5, xmm5, xmm11
+        vpxor	xmm6, xmm6, xmm10
+        vmovdqu	xmm7, OWORD PTR [r12+16]
+        vpclmulqdq	xmm8, xmm7, xmm3, 0
+        vpclmulqdq	xmm9, xmm7, xmm3, 17
+        vpclmulqdq	xmm10, xmm7, xmm3, 16
+        vpclmulqdq	xmm11, xmm7, xmm3, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm8, xmm8, xmm11
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm5, xmm5, xmm8
+        vpxor	xmm6, xmm6, xmm9
+        vmovdqu	xmm7, OWORD PTR [r12+32]
+        vpclmulqdq	xmm8, xmm7, xmm2, 0
+        vpclmulqdq	xmm9, xmm7, xmm2, 17
+        vpclmulqdq	xmm10, xmm7, xmm2, 16
+        vpclmulqdq	xmm11, xmm7, xmm2, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm8, xmm8, xmm11
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm5, xmm5, xmm8
+        vpxor	xmm6, xmm6, xmm9
+        vmovdqu	xmm7, OWORD PTR [r12+48]
+        vpclmulqdq	xmm8, xmm7, xmm1, 0
+        vpclmulqdq	xmm9, xmm7, xmm1, 17
+        vpclmulqdq	xmm10, xmm7, xmm1, 16
+        vpclmulqdq	xmm11, xmm7, xmm1, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm8, xmm8, xmm11
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm5, xmm5, xmm8
+        vpxor	xmm6, xmm6, xmm9
+        vpsrld	xmm10, xmm5, 31
+        vpsrld	xmm11, xmm6, 31
+        vpslld	xmm5, xmm5, 1
+        vpslld	xmm6, xmm6, 1
+        vpsrldq	xmm12, xmm10, 12
+        vpslldq	xmm11, xmm11, 4
+        vpslldq	xmm10, xmm10, 4
+        vpor	xmm5, xmm5, xmm10
+        vpor	xmm6, xmm6, xmm11
+        vpor	xmm6, xmm6, xmm12
+        vpslld	xmm10, xmm5, 31
+        vpslld	xmm11, xmm5, 30
+        vpslld	xmm12, xmm5, 25
+        vpxor	xmm10, xmm10, xmm11
+        vpxor	xmm10, xmm10, xmm12
+        vpsrldq	xmm11, xmm10, 4
+        vpslldq	xmm10, xmm10, 12
+        vpxor	xmm5, xmm5, xmm10
+        vpsrld	xmm7, xmm5, 1
+        vpsrld	xmm8, xmm5, 2
+        vpsrld	xmm9, xmm5, 7
+        vpxor	xmm7, xmm7, xmm8
+        vpxor	xmm7, xmm7, xmm9
+        vpxor	xmm7, xmm7, xmm11
+        vpxor	xmm5, xmm5, xmm7
+        vpxor	xmm0, xmm6, xmm5
+        add	eax, 64
+        cmp	eax, r11d
+        jl	L_AES_GCMSIV_polyval_avx1_four
+L_AES_GCMSIV_polyval_avx1_four_done:
+L_AES_GCMSIV_polyval_avx1_rem:
+        cmp	eax, r10d
+        jge	L_AES_GCMSIV_polyval_avx1_done
+        vpxor	xmm0, xmm0, [r8+rax]
+        vpclmulqdq	xmm5, xmm0, xmm1, 0
+        vpclmulqdq	xmm6, xmm0, xmm1, 17
+        vpclmulqdq	xmm10, xmm0, xmm1, 16
+        vpclmulqdq	xmm11, xmm0, xmm1, 1
+        vpxor	xmm10, xmm10, xmm11
+        vpslldq	xmm11, xmm10, 8
+        vpsrldq	xmm10, xmm10, 8
+        vpxor	xmm5, xmm5, xmm11
+        vpxor	xmm6, xmm6, xmm10
+        vpsrld	xmm10, xmm5, 31
+        vpsrld	xmm11, xmm6, 31
+        vpslld	xmm5, xmm5, 1
+        vpslld	xmm6, xmm6, 1
+        vpsrldq	xmm12, xmm10, 12
+        vpslldq	xmm11, xmm11, 4
+        vpslldq	xmm10, xmm10, 4
+        vpor	xmm5, xmm5, xmm10
+        vpor	xmm6, xmm6, xmm11
+        vpor	xmm6, xmm6, xmm12
+        vpslld	xmm10, xmm5, 31
+        vpslld	xmm11, xmm5, 30
+        vpslld	xmm12, xmm5, 25
+        vpxor	xmm10, xmm10, xmm11
+        vpxor	xmm10, xmm10, xmm12
+        vpsrldq	xmm11, xmm10, 4
+        vpslldq	xmm10, xmm10, 12
+        vpxor	xmm5, xmm5, xmm10
+        vpsrld	xmm7, xmm5, 1
+        vpsrld	xmm8, xmm5, 2
+        vpsrld	xmm9, xmm5, 7
+        vpxor	xmm7, xmm7, xmm8
+        vpxor	xmm7, xmm7, xmm9
+        vpxor	xmm7, xmm7, xmm11
+        vpxor	xmm5, xmm5, xmm7
+        vpxor	xmm0, xmm6, xmm5
+        add	eax, 16
+        jmp	L_AES_GCMSIV_polyval_avx1_rem
+L_AES_GCMSIV_polyval_avx1_done:
+        vpshufb	xmm0, xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask_avx1
+        vmovdqu	OWORD PTR [rcx], xmm0
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        add	rsp, 112
+        pop	r12
+        ret
+AES_GCMSIV_polyval_avx1 ENDP
+_TEXT ENDS
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcmsiv_ctr_avx1_one QWORD \
+     0000000000000001h,  0000000000000000h
+ptr_L_aes_gcmsiv_ctr_avx1_one QWORD L_aes_gcmsiv_ctr_avx1_one
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_ctr_avx1 PROC
+        push	rbx
+        mov	eax, DWORD PTR [rsp+48]
+        mov	r10, QWORD PTR [rsp+56]
+        sub	rsp, 48
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	xmm8, OWORD PTR L_aes_gcmsiv_ctr_avx1_one
+        vmovdqu	xmm7, OWORD PTR [r10]
+        xor	eax, eax
+        cmp	r8d, 64
+        mov	r10d, r8d
+        jl	L_AES_GCMSIV_ctr_avx1_done_64
+        and	r10d, 4294967232
+L_AES_GCMSIV_ctr_avx1_enc_64:
+        ; 64 bytes of input
+        ; siv_ctr_enc_64
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        vmovdqa	xmm0, xmm7
+        vpaddd	xmm7, xmm7, xmm8
+        vmovdqa	xmm1, xmm7
+        vpaddd	xmm7, xmm7, xmm8
+        vmovdqa	xmm2, xmm7
+        vpaddd	xmm7, xmm7, xmm8
+        vmovdqa	xmm3, xmm7
+        vpaddd	xmm7, xmm7, xmm8
+        ; aes_enc_block
+        vmovdqu	xmm4, OWORD PTR [r9]
+        vpxor	xmm0, xmm0, xmm4
+        vpxor	xmm1, xmm1, xmm4
+        vpxor	xmm2, xmm2, xmm4
+        vpxor	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+16]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+32]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+48]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+64]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+80]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+96]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+112]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+128]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+144]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        cmp	eax, 11
+        vmovdqu	xmm4, OWORD PTR [r9+160]
+        jl	L_AES_GCMSIV_ctr_avx1_64_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+176]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        cmp	eax, 13
+        vmovdqu	xmm4, OWORD PTR [r9+192]
+        jl	L_AES_GCMSIV_ctr_avx1_64_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+208]
+        vaesenc	xmm0, xmm0, xmm4
+        vaesenc	xmm1, xmm1, xmm4
+        vaesenc	xmm2, xmm2, xmm4
+        vaesenc	xmm3, xmm3, xmm4
+        vmovdqu	xmm4, OWORD PTR [r9+224]
+L_AES_GCMSIV_ctr_avx1_64_aes_enc_block_last:
+        vaesenclast	xmm0, xmm0, xmm4
+        vaesenclast	xmm1, xmm1, xmm4
+        vaesenclast	xmm2, xmm2, xmm4
+        vaesenclast	xmm3, xmm3, xmm4
+        vpxor	xmm0, xmm0, [r11]
+        vpxor	xmm1, xmm1, [r11+16]
+        vpxor	xmm2, xmm2, [r11+32]
+        vpxor	xmm3, xmm3, [r11+48]
+        vmovdqu	OWORD PTR [rbx], xmm0
+        vmovdqu	OWORD PTR [rbx+16], xmm1
+        vmovdqu	OWORD PTR [rbx+32], xmm2
+        vmovdqu	OWORD PTR [rbx+48], xmm3
+        add	eax, 64
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_avx1_enc_64
+L_AES_GCMSIV_ctr_avx1_done_64:
+        cmp	eax, r8d
+        mov	r10d, r8d
+        je	L_AES_GCMSIV_ctr_avx1_done_enc
+        and	r10d, 4294967280
+L_AES_GCMSIV_ctr_avx1_enc_16:
+        ; 16 bytes of input
+        vmovdqa	xmm0, xmm7
+        vpaddd	xmm7, xmm7, xmm8
+        ; aes_enc_block
+        vpxor	xmm0, xmm0, [r9]
+        vmovdqu	xmm5, OWORD PTR [r9+16]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+32]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+48]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+64]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+80]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+96]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+112]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+128]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+144]
+        vaesenc	xmm0, xmm0, xmm5
+        cmp	eax, 11
+        vmovdqu	xmm5, OWORD PTR [r9+160]
+        jl	L_AES_GCMSIV_ctr_avx1_16_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm6, OWORD PTR [r9+176]
+        vaesenc	xmm0, xmm0, xmm6
+        cmp	eax, 13
+        vmovdqu	xmm5, OWORD PTR [r9+192]
+        jl	L_AES_GCMSIV_ctr_avx1_16_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm6, OWORD PTR [r9+208]
+        vaesenc	xmm0, xmm0, xmm6
+        vmovdqu	xmm5, OWORD PTR [r9+224]
+L_AES_GCMSIV_ctr_avx1_16_aes_enc_block_last:
+        vaesenclast	xmm0, xmm0, xmm5
+        lea	r11, QWORD PTR [rcx+rax]
+        vpxor	xmm0, xmm0, [r11]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu	OWORD PTR [r11], xmm0
+        add	eax, 16
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_avx1_enc_16
+L_AES_GCMSIV_ctr_avx1_done_enc:
+        vmovdqu	OWORD PTR [r10], xmm7
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        add	rsp, 48
+        pop	rbx
+        ret
+AES_GCMSIV_ctr_avx1 ENDP
+_TEXT ENDS
+ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX2
 _DATA SEGMENT
@@ -22368,6 +23386,814 @@ L_AES_GCM_decrypt_final_vaes_cmp_tag_done:
         ret
 AES_GCM_decrypt_final_vaes ENDP
 _TEXT ENDS
+IFDEF WOLFSSL_AESGCM_SIV
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcm_siv_bswap_mask_vaes QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
+ptr_L_aes_gcm_siv_bswap_mask_vaes QWORD L_aes_gcm_siv_bswap_mask_vaes
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_polyval_vaes PROC
+        push	r12
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        vmovdqu	xmm1, OWORD PTR [rdx]
+        vmovdqu	xmm0, OWORD PTR [rcx]
+        vpshufb	xmm0, xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask_vaes
+        vpclmulqdq	xmm14, xmm1, xmm1, 0
+        vpclmulqdq	xmm15, xmm1, xmm1, 17
+        vpclmulqdq	xmm13, xmm1, xmm1, 16
+        vpclmulqdq	xmm6, xmm1, xmm1, 1
+        vpxor	xmm13, xmm13, xmm6
+        vpslldq	xmm6, xmm13, 8
+        vpsrldq	xmm13, xmm13, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm13
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm2, xmm15, xmm14
+        vinserti128	ymm2, ymm2, xmm1, 1
+        vpclmulqdq	xmm14, xmm2, xmm2, 0
+        vpclmulqdq	xmm15, xmm2, xmm2, 17
+        vpclmulqdq	xmm13, xmm2, xmm2, 16
+        vpclmulqdq	xmm6, xmm2, xmm2, 1
+        vpxor	xmm13, xmm13, xmm6
+        vpslldq	xmm6, xmm13, 8
+        vpsrldq	xmm13, xmm13, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm13
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm3, xmm15, xmm14
+        vpclmulqdq	xmm14, xmm2, xmm1, 0
+        vpclmulqdq	xmm15, xmm2, xmm1, 17
+        vpclmulqdq	xmm13, xmm2, xmm1, 16
+        vpclmulqdq	xmm6, xmm2, xmm1, 1
+        vpxor	xmm13, xmm13, xmm6
+        vpslldq	xmm6, xmm13, 8
+        vpsrldq	xmm13, xmm13, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm13
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm12, xmm15, xmm14
+        vinserti128	ymm3, ymm3, xmm12, 1
+        vpclmulqdq	xmm14, xmm3, xmm2, 0
+        vpclmulqdq	xmm15, xmm3, xmm2, 17
+        vpclmulqdq	xmm13, xmm3, xmm2, 16
+        vpclmulqdq	xmm6, xmm3, xmm2, 1
+        vpxor	xmm13, xmm13, xmm6
+        vpslldq	xmm6, xmm13, 8
+        vpsrldq	xmm13, xmm13, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm13
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm4, xmm15, xmm14
+        vpclmulqdq	xmm14, xmm3, xmm1, 0
+        vpclmulqdq	xmm15, xmm3, xmm1, 17
+        vpclmulqdq	xmm13, xmm3, xmm1, 16
+        vpclmulqdq	xmm6, xmm3, xmm1, 1
+        vpxor	xmm13, xmm13, xmm6
+        vpslldq	xmm6, xmm13, 8
+        vpsrldq	xmm13, xmm13, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm13
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm13, xmm15, xmm14
+        vinserti128	ymm4, ymm4, xmm13, 1
+        vpclmulqdq	xmm14, xmm3, xmm3, 0
+        vpclmulqdq	xmm15, xmm3, xmm3, 17
+        vpclmulqdq	xmm13, xmm3, xmm3, 16
+        vpclmulqdq	xmm6, xmm3, xmm3, 1
+        vpxor	xmm13, xmm13, xmm6
+        vpslldq	xmm6, xmm13, 8
+        vpsrldq	xmm13, xmm13, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm13
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm5, xmm15, xmm14
+        vpclmulqdq	xmm14, xmm3, xmm12, 0
+        vpclmulqdq	xmm15, xmm3, xmm12, 17
+        vpclmulqdq	xmm13, xmm3, xmm12, 16
+        vpclmulqdq	xmm6, xmm3, xmm12, 1
+        vpxor	xmm13, xmm13, xmm6
+        vpslldq	xmm6, xmm13, 8
+        vpsrldq	xmm13, xmm13, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm13
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm13, xmm15, xmm14
+        vinserti128	ymm5, ymm5, xmm13, 1
+        mov	r10d, r9d
+        shl	r10d, 4
+        xor	eax, eax
+        mov	r11d, r10d
+        and	r11d, 4294967168
+        cmp	eax, r11d
+        je	L_AES_GCMSIV_polyval_vaes_eight_done
+L_AES_GCMSIV_polyval_vaes_eight:
+        lea	r12, QWORD PTR [r8+rax]
+        vmovdqu	ymm6, YMMWORD PTR [r12]
+        vmovdqu	ymm7, YMMWORD PTR [r12+32]
+        vmovdqu	ymm8, YMMWORD PTR [r12+64]
+        vmovdqu	ymm9, YMMWORD PTR [r12+96]
+        vpxor	ymm12, ymm12, ymm12
+        vinserti128	ymm12, ymm12, xmm0, 0
+        vpxor	ymm6, ymm6, ymm12
+        vpclmulqdq	ymm10, ymm6, ymm5, 0
+        vpclmulqdq	ymm11, ymm6, ymm5, 17
+        vpclmulqdq	ymm14, ymm6, ymm5, 16
+        vpclmulqdq	ymm15, ymm6, ymm5, 1
+        vpxor	ymm14, ymm14, ymm15
+        vpslldq	ymm15, ymm14, 8
+        vpsrldq	ymm14, ymm14, 8
+        vpxor	ymm10, ymm10, ymm15
+        vpxor	ymm11, ymm11, ymm14
+        vpclmulqdq	ymm12, ymm7, ymm4, 0
+        vpclmulqdq	ymm13, ymm7, ymm4, 17
+        vpclmulqdq	ymm14, ymm7, ymm4, 16
+        vpclmulqdq	ymm15, ymm7, ymm4, 1
+        vpxor	ymm14, ymm14, ymm15
+        vpslldq	ymm15, ymm14, 8
+        vpsrldq	ymm14, ymm14, 8
+        vpxor	ymm12, ymm12, ymm15
+        vpxor	ymm13, ymm13, ymm14
+        vpxor	ymm10, ymm10, ymm12
+        vpxor	ymm11, ymm11, ymm13
+        vpclmulqdq	ymm12, ymm8, ymm3, 0
+        vpclmulqdq	ymm13, ymm8, ymm3, 17
+        vpclmulqdq	ymm14, ymm8, ymm3, 16
+        vpclmulqdq	ymm15, ymm8, ymm3, 1
+        vpxor	ymm14, ymm14, ymm15
+        vpslldq	ymm15, ymm14, 8
+        vpsrldq	ymm14, ymm14, 8
+        vpxor	ymm12, ymm12, ymm15
+        vpxor	ymm13, ymm13, ymm14
+        vpxor	ymm10, ymm10, ymm12
+        vpxor	ymm11, ymm11, ymm13
+        vpclmulqdq	ymm12, ymm9, ymm2, 0
+        vpclmulqdq	ymm13, ymm9, ymm2, 17
+        vpclmulqdq	ymm14, ymm9, ymm2, 16
+        vpclmulqdq	ymm15, ymm9, ymm2, 1
+        vpxor	ymm14, ymm14, ymm15
+        vpslldq	ymm15, ymm14, 8
+        vpsrldq	ymm14, ymm14, 8
+        vpxor	ymm12, ymm12, ymm15
+        vpxor	ymm13, ymm13, ymm14
+        vpxor	ymm10, ymm10, ymm12
+        vpxor	ymm11, ymm11, ymm13
+        vextracti128	xmm12, ymm10, 1
+        vpxor	xmm14, xmm10, xmm12
+        vextracti128	xmm12, ymm11, 1
+        vpxor	xmm15, xmm11, xmm12
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm0, xmm15, xmm14
+        add	eax, 128
+        cmp	eax, r11d
+        jl	L_AES_GCMSIV_polyval_vaes_eight
+L_AES_GCMSIV_polyval_vaes_eight_done:
+        mov	r11d, r10d
+        and	r11d, 4294967232
+        cmp	eax, r11d
+        je	L_AES_GCMSIV_polyval_vaes_four_done
+L_AES_GCMSIV_polyval_vaes_four:
+        lea	r12, QWORD PTR [r8+rax]
+        vmovdqu	ymm6, YMMWORD PTR [r12]
+        vmovdqu	ymm7, YMMWORD PTR [r12+32]
+        vpxor	ymm12, ymm12, ymm12
+        vinserti128	ymm12, ymm12, xmm0, 0
+        vpxor	ymm6, ymm6, ymm12
+        vpclmulqdq	ymm10, ymm6, ymm3, 0
+        vpclmulqdq	ymm11, ymm6, ymm3, 17
+        vpclmulqdq	ymm14, ymm6, ymm3, 16
+        vpclmulqdq	ymm15, ymm6, ymm3, 1
+        vpxor	ymm14, ymm14, ymm15
+        vpslldq	ymm15, ymm14, 8
+        vpsrldq	ymm14, ymm14, 8
+        vpxor	ymm10, ymm10, ymm15
+        vpxor	ymm11, ymm11, ymm14
+        vpclmulqdq	ymm12, ymm7, ymm2, 0
+        vpclmulqdq	ymm13, ymm7, ymm2, 17
+        vpclmulqdq	ymm14, ymm7, ymm2, 16
+        vpclmulqdq	ymm15, ymm7, ymm2, 1
+        vpxor	ymm14, ymm14, ymm15
+        vpslldq	ymm15, ymm14, 8
+        vpsrldq	ymm14, ymm14, 8
+        vpxor	ymm12, ymm12, ymm15
+        vpxor	ymm13, ymm13, ymm14
+        vpxor	ymm10, ymm10, ymm12
+        vpxor	ymm11, ymm11, ymm13
+        vextracti128	xmm12, ymm10, 1
+        vpxor	xmm14, xmm10, xmm12
+        vextracti128	xmm12, ymm11, 1
+        vpxor	xmm15, xmm11, xmm12
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm0, xmm15, xmm14
+        add	eax, 64
+        cmp	eax, r11d
+        jl	L_AES_GCMSIV_polyval_vaes_four
+L_AES_GCMSIV_polyval_vaes_four_done:
+        mov	r11d, r10d
+        and	r11d, 4294967264
+        cmp	eax, r11d
+        je	L_AES_GCMSIV_polyval_vaes_pair_done
+L_AES_GCMSIV_polyval_vaes_pair:
+        vmovdqu	ymm6, YMMWORD PTR [r8+rax]
+        vpxor	ymm12, ymm12, ymm12
+        vinserti128	ymm12, ymm12, xmm0, 0
+        vpxor	ymm6, ymm6, ymm12
+        vpclmulqdq	ymm10, ymm6, ymm2, 0
+        vpclmulqdq	ymm11, ymm6, ymm2, 17
+        vpclmulqdq	ymm14, ymm6, ymm2, 16
+        vpclmulqdq	ymm15, ymm6, ymm2, 1
+        vpxor	ymm14, ymm14, ymm15
+        vpslldq	ymm15, ymm14, 8
+        vpsrldq	ymm14, ymm14, 8
+        vpxor	ymm10, ymm10, ymm15
+        vpxor	ymm11, ymm11, ymm14
+        vextracti128	xmm12, ymm10, 1
+        vpxor	xmm14, xmm10, xmm12
+        vextracti128	xmm12, ymm11, 1
+        vpxor	xmm15, xmm11, xmm12
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm0, xmm15, xmm14
+        add	eax, 32
+        cmp	eax, r11d
+        jl	L_AES_GCMSIV_polyval_vaes_pair
+L_AES_GCMSIV_polyval_vaes_pair_done:
+        cmp	eax, r10d
+        je	L_AES_GCMSIV_polyval_vaes_done
+        vpxor	xmm0, xmm0, [r8+rax]
+        vpclmulqdq	xmm14, xmm0, xmm1, 0
+        vpclmulqdq	xmm15, xmm0, xmm1, 17
+        vpclmulqdq	xmm12, xmm0, xmm1, 16
+        vpclmulqdq	xmm6, xmm0, xmm1, 1
+        vpxor	xmm12, xmm12, xmm6
+        vpslldq	xmm6, xmm12, 8
+        vpsrldq	xmm12, xmm12, 8
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm15, xmm15, xmm12
+        vpsrld	xmm9, xmm14, 31
+        vpsrld	xmm10, xmm15, 31
+        vpslld	xmm14, xmm14, 1
+        vpslld	xmm15, xmm15, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpor	xmm14, xmm14, xmm9
+        vpor	xmm15, xmm15, xmm10
+        vpor	xmm15, xmm15, xmm11
+        vpslld	xmm9, xmm14, 31
+        vpslld	xmm10, xmm14, 30
+        vpslld	xmm11, xmm14, 25
+        vpxor	xmm9, xmm9, xmm10
+        vpxor	xmm9, xmm9, xmm11
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxor	xmm14, xmm14, xmm9
+        vpsrld	xmm6, xmm14, 1
+        vpsrld	xmm7, xmm14, 2
+        vpsrld	xmm8, xmm14, 7
+        vpxor	xmm6, xmm6, xmm7
+        vpxor	xmm6, xmm6, xmm8
+        vpxor	xmm6, xmm6, xmm10
+        vpxor	xmm14, xmm14, xmm6
+        vpxor	xmm0, xmm15, xmm14
+L_AES_GCMSIV_polyval_vaes_done:
+        vpshufb	xmm0, xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask_vaes
+        vmovdqu	OWORD PTR [rcx], xmm0
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	r12
+        ret
+AES_GCMSIV_polyval_vaes ENDP
+_TEXT ENDS
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcmsiv_ctr_inc_vaes QWORD \
+     0000000000000000h,  0000000000000000h,
+     0000000000000001h,  0000000000000000h,
+     0000000000000002h,  0000000000000000h,
+     0000000000000003h,  0000000000000000h,
+     0000000000000004h,  0000000000000000h,
+     0000000000000005h,  0000000000000000h,
+     0000000000000006h,  0000000000000000h,
+     0000000000000007h,  0000000000000000h,
+     0000000000000008h,  0000000000000000h,
+     0000000000000009h,  0000000000000000h,
+     000000000000000ah,  0000000000000000h,
+     000000000000000bh,  0000000000000000h,
+     000000000000000ch,  0000000000000000h,
+     000000000000000dh,  0000000000000000h,
+     000000000000000eh,  0000000000000000h,
+     000000000000000fh,  0000000000000000h,
+     0000000000000010h,  0000000000000000h
+ptr_L_aes_gcmsiv_ctr_inc_vaes QWORD L_aes_gcmsiv_ctr_inc_vaes
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_ctr_vaes PROC
+        push	rbx
+        mov	eax, DWORD PTR [rsp+48]
+        mov	r10, QWORD PTR [rsp+56]
+        sub	rsp, 96
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vbroadcasti128	ymm7, [r10]
+        vbroadcasti128	ymm8, [ptr_L_aes_gcmsiv_ctr_inc_vaes+128]
+        vbroadcasti128	ymm9, [ptr_L_aes_gcmsiv_ctr_inc_vaes+32]
+        vbroadcasti128	ymm10, [ptr_L_aes_gcmsiv_ctr_inc_vaes+16]
+        xor	eax, eax
+        cmp	r8d, 128
+        mov	r10d, r8d
+        jl	L_AES_GCMSIV_ctr_vaes_done_128
+        and	r10d, 4294967168
+        vpaddd	ymm4, ymm7, [ptr_L_aes_gcmsiv_ctr_inc_vaes]
+        vpaddd	ymm5, ymm7, [ptr_L_aes_gcmsiv_ctr_inc_vaes+32]
+        vpaddd	ymm6, ymm7, [ptr_L_aes_gcmsiv_ctr_inc_vaes+64]
+        vpaddd	ymm7, ymm7, [ptr_L_aes_gcmsiv_ctr_inc_vaes+96]
+L_AES_GCMSIV_ctr_vaes_enc_128:
+        ; 128 bytes of input
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        vmovdqa	ymm0, ymm4
+        vmovdqa	ymm1, ymm5
+        vmovdqa	ymm2, ymm6
+        vmovdqa	ymm3, ymm7
+        vpaddd	ymm4, ymm4, ymm8
+        vpaddd	ymm5, ymm5, ymm8
+        vpaddd	ymm6, ymm6, ymm8
+        vpaddd	ymm7, ymm7, ymm8
+        ; aes_enc_block
+        vbroadcasti128	ymm11, [r9]
+        vpxor	ymm0, ymm0, ymm11
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm11
+        vpxor	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+16]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+32]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+48]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+64]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+80]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+96]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+112]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+128]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+144]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        cmp	eax, 11
+        vbroadcasti128	ymm11, [r9+160]
+        jl	L_AES_GCMSIV_ctr_vaes_128_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+176]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        cmp	eax, 13
+        vbroadcasti128	ymm11, [r9+192]
+        jl	L_AES_GCMSIV_ctr_vaes_128_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+208]
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm1, ymm1, ymm11
+        vaesenc	ymm2, ymm2, ymm11
+        vaesenc	ymm3, ymm3, ymm11
+        vbroadcasti128	ymm11, [r9+224]
+L_AES_GCMSIV_ctr_vaes_128_aes_enc_block_last:
+        vaesenclast	ymm0, ymm0, ymm11
+        vaesenclast	ymm1, ymm1, ymm11
+        vaesenclast	ymm2, ymm2, ymm11
+        vaesenclast	ymm3, ymm3, ymm11
+        vpxor	ymm0, ymm0, [r11]
+        vpxor	ymm1, ymm1, [r11+32]
+        vpxor	ymm2, ymm2, [r11+64]
+        vpxor	ymm3, ymm3, [r11+96]
+        vmovdqu	YMMWORD PTR [rbx], ymm0
+        vmovdqu	YMMWORD PTR [rbx+32], ymm1
+        vmovdqu	YMMWORD PTR [rbx+64], ymm2
+        vmovdqu	YMMWORD PTR [rbx+96], ymm3
+        add	eax, 128
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_vaes_enc_128
+        vperm2i128	ymm7, ymm4, ymm4, 0
+L_AES_GCMSIV_ctr_vaes_done_128:
+        mov	r10d, r8d
+        and	r10d, 4294967264
+        cmp	eax, r10d
+        je	L_AES_GCMSIV_ctr_vaes_done_32
+L_AES_GCMSIV_ctr_vaes_enc_32:
+        ; 32 bytes of input
+        ; siv_aes_ctr_enc_32
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        vpaddd	ymm0, ymm7, [ptr_L_aes_gcmsiv_ctr_inc_vaes]
+        vpaddd	ymm7, ymm7, ymm9
+        ; aes_enc_block
+        vbroadcasti128	ymm11, [r9]
+        vpxor	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+16]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+32]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+48]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+64]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+80]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+96]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+112]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+128]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+144]
+        vaesenc	ymm0, ymm0, ymm11
+        cmp	eax, 11
+        vbroadcasti128	ymm11, [r9+160]
+        jl	L_AES_GCMSIV_ctr_vaes_32_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+176]
+        vaesenc	ymm0, ymm0, ymm11
+        cmp	eax, 13
+        vbroadcasti128	ymm11, [r9+192]
+        jl	L_AES_GCMSIV_ctr_vaes_32_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+208]
+        vaesenc	ymm0, ymm0, ymm11
+        vbroadcasti128	ymm11, [r9+224]
+L_AES_GCMSIV_ctr_vaes_32_aes_enc_block_last:
+        vaesenclast	ymm0, ymm0, ymm11
+        vpxor	ymm0, ymm0, [r11]
+        vmovdqu	YMMWORD PTR [rbx], ymm0
+        add	eax, 32
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_vaes_enc_32
+L_AES_GCMSIV_ctr_vaes_done_32:
+        cmp	eax, r8d
+        mov	r10d, r8d
+        je	L_AES_GCMSIV_ctr_vaes_done_enc
+        and	r10d, 4294967280
+L_AES_GCMSIV_ctr_vaes_enc_16:
+        ; 16 bytes of input
+        vmovdqa	xmm0, xmm7
+        vpaddd	ymm7, ymm7, ymm10
+        ; aes_enc_block
+        vpxor	xmm0, xmm0, [r9]
+        vmovdqu	xmm5, OWORD PTR [r9+16]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+32]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+48]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+64]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+80]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+96]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+112]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+128]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+144]
+        vaesenc	xmm0, xmm0, xmm5
+        cmp	eax, 11
+        vmovdqu	xmm5, OWORD PTR [r9+160]
+        jl	L_AES_GCMSIV_ctr_vaes_16_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm6, OWORD PTR [r9+176]
+        vaesenc	xmm0, xmm0, xmm6
+        cmp	eax, 13
+        vmovdqu	xmm5, OWORD PTR [r9+192]
+        jl	L_AES_GCMSIV_ctr_vaes_16_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm6, OWORD PTR [r9+208]
+        vaesenc	xmm0, xmm0, xmm6
+        vmovdqu	xmm5, OWORD PTR [r9+224]
+L_AES_GCMSIV_ctr_vaes_16_aes_enc_block_last:
+        vaesenclast	xmm0, xmm0, xmm5
+        lea	r11, QWORD PTR [rcx+rax]
+        vpxor	xmm0, xmm0, [r11]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu	OWORD PTR [r11], xmm0
+        add	eax, 16
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_vaes_enc_16
+L_AES_GCMSIV_ctr_vaes_done_enc:
+        vmovdqu	OWORD PTR [r10], xmm7
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        add	rsp, 96
+        pop	rbx
+        ret
+AES_GCMSIV_ctr_vaes ENDP
+_TEXT ENDS
+ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX512
 _DATA SEGMENT
@@ -30666,5 +32492,1018 @@ L_AES_GCM_decrypt_final_avx512_cmp_tag_done:
         ret
 AES_GCM_decrypt_final_avx512 ENDP
 _TEXT ENDS
+IFDEF WOLFSSL_AESGCM_SIV
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcm_siv_bswap_mask_avx512 QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
+ptr_L_aes_gcm_siv_bswap_mask_avx512 QWORD L_aes_gcm_siv_bswap_mask_avx512
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_polyval_avx512 PROC
+        push	r12
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        vmovdqu	xmm1, OWORD PTR [rdx]
+        vmovdqu	xmm0, OWORD PTR [rcx]
+        vpshufb	xmm0, xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask_avx512
+        vmovdqa64	xmm20, xmm1
+        vinserti32x4	zmm2, zmm2, xmm20, 3
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm2, zmm2, xmm20, 2
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm2, zmm2, xmm20, 1
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm2, zmm2, xmm20, 0
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm3, zmm3, xmm20, 3
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm3, zmm3, xmm20, 2
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm3, zmm3, xmm20, 1
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm3, zmm3, xmm20, 0
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm4, zmm4, xmm20, 3
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm4, zmm4, xmm20, 2
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm4, zmm4, xmm20, 1
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm4, zmm4, xmm20, 0
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm5, zmm5, xmm20, 3
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm5, zmm5, xmm20, 2
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm5, zmm5, xmm20, 1
+        vpclmulqdq	xmm17, xmm20, xmm1, 0
+        vpclmulqdq	xmm18, xmm20, xmm1, 17
+        vpclmulqdq	xmm19, xmm20, xmm1, 16
+        vpclmulqdq	xmm6, xmm20, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm20, xmm18, xmm17
+        vinserti32x4	zmm5, zmm5, xmm20, 0
+        mov	r10d, r9d
+        shl	r10d, 4
+        xor	eax, eax
+        mov	r11d, r10d
+        and	r11d, 4294967040
+        cmp	eax, r11d
+        je	L_AES_GCMSIV_polyval_avx512_sixteen_done
+L_AES_GCMSIV_polyval_avx512_sixteen:
+        lea	r12, QWORD PTR [r8+rax]
+        vmovdqu64	zmm6, [r12]
+        vmovdqu64	zmm7, [r12+64]
+        vmovdqu64	zmm8, [r12+128]
+        vmovdqu64	zmm9, [r12+192]
+        vpxorq	zmm16, zmm16, zmm16
+        vinserti32x4	zmm16, zmm16, xmm0, 0
+        vpxorq	zmm6, zmm6, zmm16
+        vpclmulqdq	zmm10, zmm6, zmm5, 0
+        vpclmulqdq	zmm11, zmm6, zmm5, 17
+        vpclmulqdq	zmm14, zmm6, zmm5, 16
+        vpclmulqdq	zmm15, zmm6, zmm5, 1
+        vpxorq	zmm14, zmm14, zmm15
+        vpslldq	zmm15, zmm14, 8
+        vpsrldq	zmm14, zmm14, 8
+        vpxorq	zmm10, zmm10, zmm15
+        vpxorq	zmm11, zmm11, zmm14
+        vpclmulqdq	zmm12, zmm7, zmm4, 0
+        vpclmulqdq	zmm13, zmm7, zmm4, 17
+        vpclmulqdq	zmm14, zmm7, zmm4, 16
+        vpclmulqdq	zmm15, zmm7, zmm4, 1
+        vpxorq	zmm14, zmm14, zmm15
+        vpslldq	zmm15, zmm14, 8
+        vpsrldq	zmm14, zmm14, 8
+        vpxorq	zmm12, zmm12, zmm15
+        vpxorq	zmm13, zmm13, zmm14
+        vpxorq	zmm10, zmm10, zmm12
+        vpxorq	zmm11, zmm11, zmm13
+        vpclmulqdq	zmm12, zmm8, zmm3, 0
+        vpclmulqdq	zmm13, zmm8, zmm3, 17
+        vpclmulqdq	zmm14, zmm8, zmm3, 16
+        vpclmulqdq	zmm15, zmm8, zmm3, 1
+        vpxorq	zmm14, zmm14, zmm15
+        vpslldq	zmm15, zmm14, 8
+        vpsrldq	zmm14, zmm14, 8
+        vpxorq	zmm12, zmm12, zmm15
+        vpxorq	zmm13, zmm13, zmm14
+        vpxorq	zmm10, zmm10, zmm12
+        vpxorq	zmm11, zmm11, zmm13
+        vpclmulqdq	zmm12, zmm9, zmm2, 0
+        vpclmulqdq	zmm13, zmm9, zmm2, 17
+        vpclmulqdq	zmm14, zmm9, zmm2, 16
+        vpclmulqdq	zmm15, zmm9, zmm2, 1
+        vpxorq	zmm14, zmm14, zmm15
+        vpslldq	zmm15, zmm14, 8
+        vpsrldq	zmm14, zmm14, 8
+        vpxorq	zmm12, zmm12, zmm15
+        vpxorq	zmm13, zmm13, zmm14
+        vpxorq	zmm10, zmm10, zmm12
+        vpxorq	zmm11, zmm11, zmm13
+        vextracti32x4	xmm19, zmm10, 1
+        vextracti32x4	xmm21, zmm10, 2
+        vextracti32x4	xmm22, zmm10, 3
+        vpxorq	xmm17, xmm10, xmm19
+        vpternlogq	xmm17, xmm22, xmm21, 150
+        vextracti32x4	xmm19, zmm11, 1
+        vextracti32x4	xmm21, zmm11, 2
+        vextracti32x4	xmm22, zmm11, 3
+        vpxorq	xmm18, xmm11, xmm19
+        vpternlogq	xmm18, xmm22, xmm21, 150
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm0, xmm18, xmm17
+        add	eax, 256
+        cmp	eax, r11d
+        jl	L_AES_GCMSIV_polyval_avx512_sixteen
+L_AES_GCMSIV_polyval_avx512_sixteen_done:
+        mov	r11d, r10d
+        and	r11d, 4294967168
+        cmp	eax, r11d
+        jge	L_AES_GCMSIV_polyval_avx512_eight_done
+        lea	r12, QWORD PTR [r8+rax]
+        vmovdqu64	zmm6, [r12]
+        vmovdqu64	zmm7, [r12+64]
+        vpxorq	zmm16, zmm16, zmm16
+        vinserti32x4	zmm16, zmm16, xmm0, 0
+        vpxorq	zmm6, zmm6, zmm16
+        vpclmulqdq	zmm10, zmm6, zmm3, 0
+        vpclmulqdq	zmm11, zmm6, zmm3, 17
+        vpclmulqdq	zmm14, zmm6, zmm3, 16
+        vpclmulqdq	zmm15, zmm6, zmm3, 1
+        vpxorq	zmm14, zmm14, zmm15
+        vpslldq	zmm15, zmm14, 8
+        vpsrldq	zmm14, zmm14, 8
+        vpxorq	zmm10, zmm10, zmm15
+        vpxorq	zmm11, zmm11, zmm14
+        vpclmulqdq	zmm12, zmm7, zmm2, 0
+        vpclmulqdq	zmm13, zmm7, zmm2, 17
+        vpclmulqdq	zmm14, zmm7, zmm2, 16
+        vpclmulqdq	zmm15, zmm7, zmm2, 1
+        vpxorq	zmm14, zmm14, zmm15
+        vpslldq	zmm15, zmm14, 8
+        vpsrldq	zmm14, zmm14, 8
+        vpxorq	zmm12, zmm12, zmm15
+        vpxorq	zmm13, zmm13, zmm14
+        vpxorq	zmm10, zmm10, zmm12
+        vpxorq	zmm11, zmm11, zmm13
+        vextracti32x4	xmm19, zmm10, 1
+        vextracti32x4	xmm21, zmm10, 2
+        vextracti32x4	xmm22, zmm10, 3
+        vpxorq	xmm17, xmm10, xmm19
+        vpternlogq	xmm17, xmm22, xmm21, 150
+        vextracti32x4	xmm19, zmm11, 1
+        vextracti32x4	xmm21, zmm11, 2
+        vextracti32x4	xmm22, zmm11, 3
+        vpxorq	xmm18, xmm11, xmm19
+        vpternlogq	xmm18, xmm22, xmm21, 150
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm0, xmm18, xmm17
+        add	eax, 128
+L_AES_GCMSIV_polyval_avx512_eight_done:
+L_AES_GCMSIV_polyval_avx512_rem:
+        cmp	eax, r10d
+        jge	L_AES_GCMSIV_polyval_avx512_done
+        vpxorq	xmm0, xmm0, [r8+rax]
+        vpclmulqdq	xmm17, xmm0, xmm1, 0
+        vpclmulqdq	xmm18, xmm0, xmm1, 17
+        vpclmulqdq	xmm19, xmm0, xmm1, 16
+        vpclmulqdq	xmm6, xmm0, xmm1, 1
+        vpxorq	xmm19, xmm19, xmm6
+        vpslldq	xmm6, xmm19, 8
+        vpsrldq	xmm19, xmm19, 8
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm18, xmm18, xmm19
+        vpsrld	xmm9, xmm17, 31
+        vpsrld	xmm10, xmm18, 31
+        vpslld	xmm17, xmm17, 1
+        vpslld	xmm18, xmm18, 1
+        vpsrldq	xmm11, xmm9, 12
+        vpslldq	xmm10, xmm10, 4
+        vpslldq	xmm9, xmm9, 4
+        vpxorq	xmm17, xmm17, xmm9
+        vpternlogq	xmm18, xmm11, xmm10, 150
+        vpslld	xmm9, xmm17, 31
+        vpslld	xmm10, xmm17, 30
+        vpslld	xmm11, xmm17, 25
+        vpternlogq	xmm9, xmm11, xmm10, 150
+        vpsrldq	xmm10, xmm9, 4
+        vpslldq	xmm9, xmm9, 12
+        vpxorq	xmm17, xmm17, xmm9
+        vpsrld	xmm6, xmm17, 1
+        vpsrld	xmm7, xmm17, 2
+        vpsrld	xmm8, xmm17, 7
+        vpternlogq	xmm6, xmm8, xmm7, 150
+        vpxorq	xmm6, xmm6, xmm10
+        vpxorq	xmm17, xmm17, xmm6
+        vpxorq	xmm0, xmm18, xmm17
+        add	eax, 16
+        jmp	L_AES_GCMSIV_polyval_avx512_rem
+L_AES_GCMSIV_polyval_avx512_done:
+        vpshufb	xmm0, xmm0, OWORD PTR L_aes_gcm_siv_bswap_mask_avx512
+        vmovdqu	OWORD PTR [rcx], xmm0
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	r12
+        ret
+AES_GCMSIV_polyval_avx512 ENDP
+_TEXT ENDS
+_DATA SEGMENT
+ALIGN 16
+L_aes_gcmsiv_ctr_inc_avx512 QWORD \
+     0000000000000000h,  0000000000000000h,
+     0000000000000001h,  0000000000000000h,
+     0000000000000002h,  0000000000000000h,
+     0000000000000003h,  0000000000000000h,
+     0000000000000004h,  0000000000000000h,
+     0000000000000005h,  0000000000000000h,
+     0000000000000006h,  0000000000000000h,
+     0000000000000007h,  0000000000000000h,
+     0000000000000008h,  0000000000000000h,
+     0000000000000009h,  0000000000000000h,
+     000000000000000ah,  0000000000000000h,
+     000000000000000bh,  0000000000000000h,
+     000000000000000ch,  0000000000000000h,
+     000000000000000dh,  0000000000000000h,
+     000000000000000eh,  0000000000000000h,
+     000000000000000fh,  0000000000000000h,
+     0000000000000010h,  0000000000000000h
+ptr_L_aes_gcmsiv_ctr_inc_avx512 QWORD L_aes_gcmsiv_ctr_inc_avx512
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+AES_GCMSIV_ctr_avx512 PROC
+        push	rbx
+        mov	eax, DWORD PTR [rsp+48]
+        mov	r10, QWORD PTR [rsp+56]
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        vbroadcasti32x4	zmm7, [r10]
+        vbroadcasti32x4	zmm8, [ptr_L_aes_gcmsiv_ctr_inc_avx512+256]
+        vbroadcasti32x4	zmm9, [ptr_L_aes_gcmsiv_ctr_inc_avx512+64]
+        vbroadcasti32x4	zmm10, [ptr_L_aes_gcmsiv_ctr_inc_avx512+16]
+        xor	eax, eax
+        cmp	r8d, 64
+        jl	L_AES_GCMSIV_ctr_avx512_done_64
+        vbroadcasti32x4	zmm12, [r9]
+        vbroadcasti32x4	zmm13, [r9+16]
+        vbroadcasti32x4	zmm14, [r9+32]
+        vbroadcasti32x4	zmm15, [r9+48]
+        vbroadcasti32x4	zmm16, [r9+64]
+        vbroadcasti32x4	zmm17, [r9+80]
+        vbroadcasti32x4	zmm18, [r9+96]
+        vbroadcasti32x4	zmm19, [r9+112]
+        vbroadcasti32x4	zmm20, [r9+128]
+        vbroadcasti32x4	zmm21, [r9+144]
+        vbroadcasti32x4	zmm22, [r9+160]
+        cmp	eax, 11
+        jl	L_AES_GCMSIV_ctr_avx512_key_cached
+        vbroadcasti32x4	zmm23, [r9+176]
+        vbroadcasti32x4	zmm24, [r9+192]
+        cmp	eax, 13
+        jl	L_AES_GCMSIV_ctr_avx512_key_cached
+        vbroadcasti32x4	zmm25, [r9+208]
+        vbroadcasti32x4	zmm26, [r9+224]
+L_AES_GCMSIV_ctr_avx512_key_cached:
+        cmp	r8d, 256
+        mov	r10d, r8d
+        jl	L_AES_GCMSIV_ctr_avx512_done_256
+        and	r10d, 4294967040
+        vpaddd	zmm4, zmm7, [ptr_L_aes_gcmsiv_ctr_inc_avx512]
+        vpaddd	zmm5, zmm7, [ptr_L_aes_gcmsiv_ctr_inc_avx512+64]
+        vpaddd	zmm6, zmm7, [ptr_L_aes_gcmsiv_ctr_inc_avx512+128]
+        vpaddd	zmm7, zmm7, [ptr_L_aes_gcmsiv_ctr_inc_avx512+192]
+L_AES_GCMSIV_ctr_avx512_enc_256:
+        ; 256 bytes of input
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        vmovdqa64	zmm0, zmm4
+        vmovdqa64	zmm1, zmm5
+        vmovdqa64	zmm2, zmm6
+        vmovdqa64	zmm3, zmm7
+        vpaddd	zmm4, zmm4, zmm8
+        vpaddd	zmm5, zmm5, zmm8
+        vpaddd	zmm6, zmm6, zmm8
+        vpaddd	zmm7, zmm7, zmm8
+        ; aes_enc_block
+        vpxorq	zmm0, zmm0, zmm12
+        vpxorq	zmm1, zmm1, zmm12
+        vpxorq	zmm2, zmm2, zmm12
+        vpxorq	zmm3, zmm3, zmm12
+        vaesenc	zmm0, zmm0, zmm13
+        vaesenc	zmm1, zmm1, zmm13
+        vaesenc	zmm2, zmm2, zmm13
+        vaesenc	zmm3, zmm3, zmm13
+        vaesenc	zmm0, zmm0, zmm14
+        vaesenc	zmm1, zmm1, zmm14
+        vaesenc	zmm2, zmm2, zmm14
+        vaesenc	zmm3, zmm3, zmm14
+        vaesenc	zmm0, zmm0, zmm15
+        vaesenc	zmm1, zmm1, zmm15
+        vaesenc	zmm2, zmm2, zmm15
+        vaesenc	zmm3, zmm3, zmm15
+        vaesenc	zmm0, zmm0, zmm16
+        vaesenc	zmm1, zmm1, zmm16
+        vaesenc	zmm2, zmm2, zmm16
+        vaesenc	zmm3, zmm3, zmm16
+        vaesenc	zmm0, zmm0, zmm17
+        vaesenc	zmm1, zmm1, zmm17
+        vaesenc	zmm2, zmm2, zmm17
+        vaesenc	zmm3, zmm3, zmm17
+        vaesenc	zmm0, zmm0, zmm18
+        vaesenc	zmm1, zmm1, zmm18
+        vaesenc	zmm2, zmm2, zmm18
+        vaesenc	zmm3, zmm3, zmm18
+        vaesenc	zmm0, zmm0, zmm19
+        vaesenc	zmm1, zmm1, zmm19
+        vaesenc	zmm2, zmm2, zmm19
+        vaesenc	zmm3, zmm3, zmm19
+        vaesenc	zmm0, zmm0, zmm20
+        vaesenc	zmm1, zmm1, zmm20
+        vaesenc	zmm2, zmm2, zmm20
+        vaesenc	zmm3, zmm3, zmm20
+        vaesenc	zmm0, zmm0, zmm21
+        vaesenc	zmm1, zmm1, zmm21
+        vaesenc	zmm2, zmm2, zmm21
+        vaesenc	zmm3, zmm3, zmm21
+        cmp	eax, 11
+        vmovdqa64	zmm11, zmm22
+        jl	L_AES_GCMSIV_ctr_avx512_256_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm22
+        vaesenc	zmm1, zmm1, zmm22
+        vaesenc	zmm2, zmm2, zmm22
+        vaesenc	zmm3, zmm3, zmm22
+        vaesenc	zmm0, zmm0, zmm23
+        vaesenc	zmm1, zmm1, zmm23
+        vaesenc	zmm2, zmm2, zmm23
+        vaesenc	zmm3, zmm3, zmm23
+        cmp	eax, 13
+        vmovdqa64	zmm11, zmm24
+        jl	L_AES_GCMSIV_ctr_avx512_256_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm24
+        vaesenc	zmm1, zmm1, zmm24
+        vaesenc	zmm2, zmm2, zmm24
+        vaesenc	zmm3, zmm3, zmm24
+        vaesenc	zmm0, zmm0, zmm25
+        vaesenc	zmm1, zmm1, zmm25
+        vaesenc	zmm2, zmm2, zmm25
+        vaesenc	zmm3, zmm3, zmm25
+        vmovdqa64	zmm11, zmm26
+L_AES_GCMSIV_ctr_avx512_256_aes_enc_block_last:
+        vaesenclast	zmm0, zmm0, zmm11
+        vaesenclast	zmm1, zmm1, zmm11
+        vaesenclast	zmm2, zmm2, zmm11
+        vaesenclast	zmm3, zmm3, zmm11
+        vpxorq	zmm0, zmm0, [r11]
+        vpxorq	zmm1, zmm1, [r11+64]
+        vpxorq	zmm2, zmm2, [r11+128]
+        vpxorq	zmm3, zmm3, [r11+192]
+        vmovdqu64	[rbx], zmm0
+        vmovdqu64	[rbx+64], zmm1
+        vmovdqu64	[rbx+128], zmm2
+        vmovdqu64	[rbx+192], zmm3
+        add	eax, 256
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_avx512_enc_256
+        vshufi64x2	zmm7, zmm4, zmm4, 0
+L_AES_GCMSIV_ctr_avx512_done_256:
+        mov	r10d, r8d
+        and	r10d, 4294967232
+        cmp	eax, r10d
+        je	L_AES_GCMSIV_ctr_avx512_done_64
+L_AES_GCMSIV_ctr_avx512_enc_64:
+        ; 64 bytes of input
+        ; siv_ctr_enc_64
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        vpaddd	zmm0, zmm7, [ptr_L_aes_gcmsiv_ctr_inc_avx512]
+        vpaddd	zmm7, zmm7, zmm9
+        ; aes_enc_block
+        vpxorq	zmm0, zmm0, zmm12
+        vaesenc	zmm0, zmm0, zmm13
+        vaesenc	zmm0, zmm0, zmm14
+        vaesenc	zmm0, zmm0, zmm15
+        vaesenc	zmm0, zmm0, zmm16
+        vaesenc	zmm0, zmm0, zmm17
+        vaesenc	zmm0, zmm0, zmm18
+        vaesenc	zmm0, zmm0, zmm19
+        vaesenc	zmm0, zmm0, zmm20
+        vaesenc	zmm0, zmm0, zmm21
+        cmp	eax, 11
+        vmovdqa64	zmm11, zmm22
+        jl	L_AES_GCMSIV_ctr_avx512_64_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm22
+        vaesenc	zmm0, zmm0, zmm23
+        cmp	eax, 13
+        vmovdqa64	zmm11, zmm24
+        jl	L_AES_GCMSIV_ctr_avx512_64_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm24
+        vaesenc	zmm0, zmm0, zmm25
+        vmovdqa64	zmm11, zmm26
+L_AES_GCMSIV_ctr_avx512_64_aes_enc_block_last:
+        vaesenclast	zmm0, zmm0, zmm11
+        vpxorq	zmm0, zmm0, [r11]
+        vmovdqu64	[rbx], zmm0
+        add	eax, 64
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_avx512_enc_64
+L_AES_GCMSIV_ctr_avx512_done_64:
+        cmp	eax, r8d
+        mov	r10d, r8d
+        je	L_AES_GCMSIV_ctr_avx512_done_enc
+        and	r10d, 4294967280
+L_AES_GCMSIV_ctr_avx512_enc_16:
+        ; 16 bytes of input
+        vmovdqa	xmm0, xmm7
+        vpaddd	zmm7, zmm7, zmm10
+        ; aes_enc_block
+        vpxor	xmm0, xmm0, [r9]
+        vmovdqu	xmm5, OWORD PTR [r9+16]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+32]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+48]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+64]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+80]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+96]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+112]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+128]
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm5, OWORD PTR [r9+144]
+        vaesenc	xmm0, xmm0, xmm5
+        cmp	eax, 11
+        vmovdqu	xmm5, OWORD PTR [r9+160]
+        jl	L_AES_GCMSIV_ctr_avx512_16_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm6, OWORD PTR [r9+176]
+        vaesenc	xmm0, xmm0, xmm6
+        cmp	eax, 13
+        vmovdqu	xmm5, OWORD PTR [r9+192]
+        jl	L_AES_GCMSIV_ctr_avx512_16_aes_enc_block_last
+        vaesenc	xmm0, xmm0, xmm5
+        vmovdqu	xmm6, OWORD PTR [r9+208]
+        vaesenc	xmm0, xmm0, xmm6
+        vmovdqu	xmm5, OWORD PTR [r9+224]
+L_AES_GCMSIV_ctr_avx512_16_aes_enc_block_last:
+        vaesenclast	xmm0, xmm0, xmm5
+        lea	r11, QWORD PTR [rcx+rax]
+        vpxor	xmm0, xmm0, [r11]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu	OWORD PTR [r11], xmm0
+        add	eax, 16
+        cmp	eax, r10d
+        jl	L_AES_GCMSIV_ctr_avx512_enc_16
+L_AES_GCMSIV_ctr_avx512_done_enc:
+        vmovdqu	OWORD PTR [r10], xmm7
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbx
+        ret
+AES_GCMSIV_ctr_avx512 ENDP
+_TEXT ENDS
+ENDIF
 ENDIF
 END

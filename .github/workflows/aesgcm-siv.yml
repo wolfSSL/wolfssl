@@ -1,0 +1,148 @@
+name: AES-GCM-SIV (RFC 8452) tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore (cross job only); re-runs --build-only on the default branch.
+  schedule:
+    - cron: '40 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  # Native x86_64 'make check'. These are --enable-cryptonly (WOLFCRYPT_ONLY)
+  # builds, so check runs testwolfcrypt - which includes aesgcm_siv_test (the
+  # RFC 8452 KATs) - but not the TLS-only tests/unit.test (the tests/api group,
+  # test_wc_AesGcmSivEncryptDecrypt, needs a non-cryptonly build). One runner
+  # per config:
+  #  - siv-c-only : no asm, exercises the software (table) POLYVAL + C CTR.
+  #  - siv-intelasm : PCLMUL/AVX/VAES/AVX512 POLYVAL + pipelined CTR, whichever
+  #                   the runner CPU selects at runtime.
+  #  - siv-all : SIV alongside --enable-all to catch integration regressions.
+  #  - siv-smallstack : SIV's key schedules / derived keys live on the stack.
+  make_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - '--enable-cryptonly --enable-aesgcm-siv'
+          - '--enable-cryptonly --enable-intelasm --enable-sp-asm --enable-aesgcm-siv'
+          - '--enable-cryptonly --enable-all-crypto --enable-intelasm --enable-sp-asm --enable-aesgcm-siv'
+          - '--enable-cryptonly --enable-aesgcm-siv --enable-smallstack'
+    name: make check (${{ matrix.config }})
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Build and test AES-GCM-SIV
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log test-suite.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done
+
+  # Cross-compiled AES-GCM-SIV asm paths, built out-of-tree in parallel and run
+  # under qemu-user (binfmt). Covers:
+  #  - arm64-pmull        : AArch64 PMULL POLYVAL (gcm_siv_arm64_crypto).
+  #  - arm64-no-hw-crypto : AArch64 NEON 8-bit-pmul + table POLYVAL
+  #                         (gcm_siv_arm64_neon / _base) via WOLFSSL_ARMASM_NO_HW_CRYPTO.
+  #  - armhf-crypto       : ARMv8-A 32-bit vmull.p64 POLYVAL (gcm_siv_arm32_crypto);
+  #                         QEMU_CPU=max enables the crypto extensions.
+  # Thumb-2 (gcm_siv_thumb2) targets armv7-m, which qemu-user cannot run, so it
+  # is not covered here.
+  cross_check:
+    name: Cross-arch test
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential crossbuild-essential-arm64 crossbuild-essential-armhf qemu-user
+          ghcr-debs-tag: ubuntu-22.04-minimal
+
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: aesgcm-siv
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 300M
+
+      - name: Build all configs (parallel, out-of-tree)
+        run: |
+          cat > "$RUNNER_TEMP/aesgcm-siv-configs.json" <<'EOF'
+          [
+          {"name": "arm64-pmull", "minutes": 6,
+           "cc": "ccache aarch64-linux-gnu-gcc",
+           "configure": ["--host=aarch64-linux-gnu", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--enable-armasm",
+            "--enable-aesgcm-siv", "CFLAGS=-O2"],
+           "check": false,
+           "run": [["env", "QEMU_LD_PREFIX=/usr/aarch64-linux-gnu", "QEMU_CPU=max",
+                    "./wolfcrypt/test/testwolfcrypt"]]},
+          {"name": "arm64-no-hw-crypto", "minutes": 6,
+           "cc": "ccache aarch64-linux-gnu-gcc",
+           "configure": ["--host=aarch64-linux-gnu", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--enable-armasm",
+            "--enable-aesgcm-siv", "CPPFLAGS=-DWOLFSSL_ARMASM_NO_HW_CRYPTO",
+            "CFLAGS=-O2"],
+           "check": false,
+           "run": [["env", "QEMU_LD_PREFIX=/usr/aarch64-linux-gnu", "QEMU_CPU=max",
+                    "./wolfcrypt/test/testwolfcrypt"]]},
+          {"name": "armhf-crypto", "minutes": 6,
+           "cc": "ccache arm-linux-gnueabihf-gcc",
+           "comment": "--disable-aesgcm-stream: WOLFSSL_AESGCM_STREAM's software GHASH only defines its macros for __aarch64__ armasm, not 32-bit __arm__ armasm, so all-crypto + armasm otherwise fails to build aes.c (pre-existing, unrelated to SIV).",
+           "configure": ["--host=arm-linux-gnueabihf", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--enable-armasm",
+            "--enable-aesgcm-siv", "--disable-aesgcm-stream", "CFLAGS=-O2"],
+           "check": false,
+           "run": [["env", "QEMU_LD_PREFIX=/usr/arm-linux-gnueabihf", "QEMU_CPU=max",
+                    "./wolfcrypt/test/testwolfcrypt"]]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            "$RUNNER_TEMP/aesgcm-siv-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: aesgcm-siv-cross-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

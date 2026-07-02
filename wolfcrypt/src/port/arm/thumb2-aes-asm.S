@@ -7237,6 +7237,1629 @@ L_AES_GCM_encrypt_end:
 	/* Cycle Count = 1118 */
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
+#ifdef WOLFSSL_AESGCM_SIV
+#ifndef __APPLE__
+	.text
+	.type	L_AES_GCMSIV_polyval_thumb2_r, %object
+	.size	L_AES_GCMSIV_polyval_thumb2_r, 64
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 8-byte aligned, 64-bit aligned */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_polyval_thumb2_r:
+	.long	0x00000000,0x1c200000,0x38400000,0x24600000
+	.long	0x70800000,0x6ca00000,0x48c00000,0x54e00000
+	.long	0xe1000000,0xfd200000,0xd9400000,0xc5600000
+	.long	0x91800000,0x8da00000,0xa9c00000,0xb5e00000
+	.text
+	.align	4
+	.globl	AES_GCMSIV_polyval_thumb2
+	.type	AES_GCMSIV_polyval_thumb2, %function
+AES_GCMSIV_polyval_thumb2:
+	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	ADR	r8, L_AES_GCMSIV_polyval_thumb2_r
+	CMP	r3, #0x0
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_AES_GCMSIV_polyval_thumb2_done
+#else
+	BEQ.W	L_AES_GCMSIV_polyval_thumb2_done
+#endif
+L_AES_GCMSIV_polyval_thumb2_loop:
+	LDR	r12, [r2, #12]
+	REV	r12, r12
+	LDR	r10, [r0]
+	EOR	r10, r10, r12
+	STR	r10, [r0]
+	LDR	r12, [r2, #8]
+	REV	r12, r12
+	LDR	r10, [r0, #4]
+	EOR	r10, r10, r12
+	STR	r10, [r0, #4]
+	LDR	r12, [r2, #4]
+	REV	r12, r12
+	LDR	r10, [r0, #8]
+	EOR	r10, r10, r12
+	STR	r10, [r0, #8]
+	LDR	r12, [r2]
+	REV	r12, r12
+	LDR	r10, [r0, #12]
+	EOR	r10, r10, r12
+	STR	r10, [r0, #12]
+	MOV	r4, #0x0
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	LDR	r9, [r0, #12]
+	UBFX	r10, r9, #24, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #28, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #16, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #20, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #8, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #12, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #0, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #4, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	LDR	r9, [r0, #8]
+	UBFX	r10, r9, #24, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #28, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #16, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #20, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #8, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #12, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #0, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #4, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	LDR	r9, [r0, #4]
+	UBFX	r10, r9, #24, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #28, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #16, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #20, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #8, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #12, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #0, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #4, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	LDR	r9, [r0]
+	UBFX	r10, r9, #24, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #28, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #16, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #20, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #8, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #12, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #0, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	AND	r10, r6, #0xf
+	LSR	r6, r6, #4
+	ORR	r6, r6, r7, LSL #28
+	LSR	r7, r7, #4
+	ORR	r7, r7, r4, LSL #28
+	LSR	r4, r4, #4
+	ORR	r4, r4, r5, LSL #28
+	LSR	r5, r5, #4
+	LDR	r12, [r8, r10, LSL #2]
+	EOR	r5, r5, r12
+	UBFX	r10, r9, #4, #4
+	ADD	r11, r1, r10, LSL #4
+	LDR	r12, [r11]
+	EOR	r4, r4, r12
+	LDR	r12, [r11, #4]
+	EOR	r5, r5, r12
+	LDR	r12, [r11, #8]
+	EOR	r6, r6, r12
+	LDR	r12, [r11, #12]
+	EOR	r7, r7, r12
+	REV	r5, r5
+	REV	r4, r4
+	REV	r7, r7
+	REV	r6, r6
+	STR	r5, [r0]
+	STR	r4, [r0, #4]
+	STR	r7, [r0, #8]
+	STR	r6, [r0, #12]
+	SUBS	r3, r3, #0x1
+	ADD	r2, r2, #0x10
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCMSIV_polyval_thumb2_loop
+#else
+	BNE.W	L_AES_GCMSIV_polyval_thumb2_loop
+#endif
+L_AES_GCMSIV_polyval_thumb2_done:
+	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	/* Cycle Count = 877 */
+	.size	AES_GCMSIV_polyval_thumb2,.-AES_GCMSIV_polyval_thumb2
+#ifndef __APPLE__
+	.text
+	.type	L_AES_GCMSIV_ctr_thumb2_te_data, %object
+	.size	L_AES_GCMSIV_ctr_thumb2_te_data, 1024
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 8-byte aligned, 64-bit aligned */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_ctr_thumb2_te_data:
+	.long	0xa5c66363,0x84f87c7c,0x99ee7777,0x8df67b7b
+	.long	0x0dfff2f2,0xbdd66b6b,0xb1de6f6f,0x5491c5c5
+	.long	0x50603030,0x03020101,0xa9ce6767,0x7d562b2b
+	.long	0x19e7fefe,0x62b5d7d7,0xe64dabab,0x9aec7676
+	.long	0x458fcaca,0x9d1f8282,0x4089c9c9,0x87fa7d7d
+	.long	0x15effafa,0xebb25959,0xc98e4747,0x0bfbf0f0
+	.long	0xec41adad,0x67b3d4d4,0xfd5fa2a2,0xea45afaf
+	.long	0xbf239c9c,0xf753a4a4,0x96e47272,0x5b9bc0c0
+	.long	0xc275b7b7,0x1ce1fdfd,0xae3d9393,0x6a4c2626
+	.long	0x5a6c3636,0x417e3f3f,0x02f5f7f7,0x4f83cccc
+	.long	0x5c683434,0xf451a5a5,0x34d1e5e5,0x08f9f1f1
+	.long	0x93e27171,0x73abd8d8,0x53623131,0x3f2a1515
+	.long	0x0c080404,0x5295c7c7,0x65462323,0x5e9dc3c3
+	.long	0x28301818,0xa1379696,0x0f0a0505,0xb52f9a9a
+	.long	0x090e0707,0x36241212,0x9b1b8080,0x3ddfe2e2
+	.long	0x26cdebeb,0x694e2727,0xcd7fb2b2,0x9fea7575
+	.long	0x1b120909,0x9e1d8383,0x74582c2c,0x2e341a1a
+	.long	0x2d361b1b,0xb2dc6e6e,0xeeb45a5a,0xfb5ba0a0
+	.long	0xf6a45252,0x4d763b3b,0x61b7d6d6,0xce7db3b3
+	.long	0x7b522929,0x3edde3e3,0x715e2f2f,0x97138484
+	.long	0xf5a65353,0x68b9d1d1,0x00000000,0x2cc1eded
+	.long	0x60402020,0x1fe3fcfc,0xc879b1b1,0xedb65b5b
+	.long	0xbed46a6a,0x468dcbcb,0xd967bebe,0x4b723939
+	.long	0xde944a4a,0xd4984c4c,0xe8b05858,0x4a85cfcf
+	.long	0x6bbbd0d0,0x2ac5efef,0xe54faaaa,0x16edfbfb
+	.long	0xc5864343,0xd79a4d4d,0x55663333,0x94118585
+	.long	0xcf8a4545,0x10e9f9f9,0x06040202,0x81fe7f7f
+	.long	0xf0a05050,0x44783c3c,0xba259f9f,0xe34ba8a8
+	.long	0xf3a25151,0xfe5da3a3,0xc0804040,0x8a058f8f
+	.long	0xad3f9292,0xbc219d9d,0x48703838,0x04f1f5f5
+	.long	0xdf63bcbc,0xc177b6b6,0x75afdada,0x63422121
+	.long	0x30201010,0x1ae5ffff,0x0efdf3f3,0x6dbfd2d2
+	.long	0x4c81cdcd,0x14180c0c,0x35261313,0x2fc3ecec
+	.long	0xe1be5f5f,0xa2359797,0xcc884444,0x392e1717
+	.long	0x5793c4c4,0xf255a7a7,0x82fc7e7e,0x477a3d3d
+	.long	0xacc86464,0xe7ba5d5d,0x2b321919,0x95e67373
+	.long	0xa0c06060,0x98198181,0xd19e4f4f,0x7fa3dcdc
+	.long	0x66442222,0x7e542a2a,0xab3b9090,0x830b8888
+	.long	0xca8c4646,0x29c7eeee,0xd36bb8b8,0x3c281414
+	.long	0x79a7dede,0xe2bc5e5e,0x1d160b0b,0x76addbdb
+	.long	0x3bdbe0e0,0x56643232,0x4e743a3a,0x1e140a0a
+	.long	0xdb924949,0x0a0c0606,0x6c482424,0xe4b85c5c
+	.long	0x5d9fc2c2,0x6ebdd3d3,0xef43acac,0xa6c46262
+	.long	0xa8399191,0xa4319595,0x37d3e4e4,0x8bf27979
+	.long	0x32d5e7e7,0x438bc8c8,0x596e3737,0xb7da6d6d
+	.long	0x8c018d8d,0x64b1d5d5,0xd29c4e4e,0xe049a9a9
+	.long	0xb4d86c6c,0xfaac5656,0x07f3f4f4,0x25cfeaea
+	.long	0xafca6565,0x8ef47a7a,0xe947aeae,0x18100808
+	.long	0xd56fbaba,0x88f07878,0x6f4a2525,0x725c2e2e
+	.long	0x24381c1c,0xf157a6a6,0xc773b4b4,0x5197c6c6
+	.long	0x23cbe8e8,0x7ca1dddd,0x9ce87474,0x213e1f1f
+	.long	0xdd964b4b,0xdc61bdbd,0x860d8b8b,0x850f8a8a
+	.long	0x90e07070,0x427c3e3e,0xc471b5b5,0xaacc6666
+	.long	0xd8904848,0x05060303,0x01f7f6f6,0x121c0e0e
+	.long	0xa3c26161,0x5f6a3535,0xf9ae5757,0xd069b9b9
+	.long	0x91178686,0x5899c1c1,0x273a1d1d,0xb9279e9e
+	.long	0x38d9e1e1,0x13ebf8f8,0xb32b9898,0x33221111
+	.long	0xbbd26969,0x70a9d9d9,0x89078e8e,0xa7339494
+	.long	0xb62d9b9b,0x223c1e1e,0x92158787,0x20c9e9e9
+	.long	0x4987cece,0xffaa5555,0x78502828,0x7aa5dfdf
+	.long	0x8f038c8c,0xf859a1a1,0x80098989,0x171a0d0d
+	.long	0xda65bfbf,0x31d7e6e6,0xc6844242,0xb8d06868
+	.long	0xc3824141,0xb0299999,0x775a2d2d,0x111e0f0f
+	.long	0xcb7bb0b0,0xfca85454,0xd66dbbbb,0x3a2c1616
+#ifndef __APPLE__
+	.text
+	.type	L_AES_GCMSIV_ctr_thumb2_te, %object
+	.size	L_AES_GCMSIV_ctr_thumb2_te, 12
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 8-byte aligned, 64-bit aligned */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_ctr_thumb2_te:
+	.long	L_AES_GCMSIV_ctr_thumb2_te_data
+	.text
+	.align	4
+	.globl	AES_GCMSIV_ctr_thumb2
+	.type	AES_GCMSIV_ctr_thumb2, %function
+AES_GCMSIV_ctr_thumb2:
+	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	LDR	r12, [sp, #36]
+	LDR	r8, [sp, #40]
+	MOV	lr, r0
+	LDR	r0, L_AES_GCMSIV_ctr_thumb2_te
+	LDM	r8, {r4, r5, r6, r7}
+	REV	r4, r4
+	REV	r5, r5
+	REV	r6, r6
+	REV	r7, r7
+	STM	r8, {r4, r5, r6, r7}
+	PUSH	{r3, r8}
+	CMP	r12, #0xa
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_AES_GCMSIV_ctr_thumb2_start_block_128
+#else
+	BEQ.W	L_AES_GCMSIV_ctr_thumb2_start_block_128
+#endif
+	CMP	r12, #0xc
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BEQ	L_AES_GCMSIV_ctr_thumb2_start_block_192
+#else
+	BEQ.W	L_AES_GCMSIV_ctr_thumb2_start_block_192
+#endif
+L_AES_GCMSIV_ctr_thumb2_loop_block_256:
+	PUSH	{r1, r2, lr}
+	LDR	lr, [sp, #16]
+	REV	r8, r4
+	ADD	r8, r8, #0x1
+	REV	r8, r8
+	MOV	r9, r5
+	MOV	r10, r6
+	MOV	r11, r7
+	STM	lr, {r8, r9, r10, r11}
+	LDM	r3!, {r8, r9, r10, r11}
+	/* Round: 0 - XOR in key schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	MOV	r1, #0x6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
+	BL	AES_encrypt_block
+#else
+L_AES_GCMSIV_ctr_thumb2_block_nr_256:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCMSIV_ctr_thumb2_block_nr_256
+#else
+	BNE.W	L_AES_GCMSIV_ctr_thumb2_block_nr_256
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+	POP	{r1, r2, lr}
+	LDR	r3, [sp]
+	REV	r4, r4
+	REV	r5, r5
+	REV	r6, r6
+	REV	r7, r7
+	LDR	r8, [lr]
+	LDR	r9, [lr, #4]
+	LDR	r10, [lr, #8]
+	LDR	r11, [lr, #12]
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	LDR	r8, [sp, #4]
+	STR	r4, [r1]
+	STR	r5, [r1, #4]
+	STR	r6, [r1, #8]
+	STR	r7, [r1, #12]
+	LDM	r8, {r4, r5, r6, r7}
+	SUBS	r2, r2, #0x10
+	ADD	lr, lr, #0x10
+	ADD	r1, r1, #0x10
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCMSIV_ctr_thumb2_loop_block_256
+#else
+	BNE.W	L_AES_GCMSIV_ctr_thumb2_loop_block_256
+#endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	B	L_AES_GCMSIV_ctr_thumb2_end
+#else
+	B.W	L_AES_GCMSIV_ctr_thumb2_end
+#endif
+L_AES_GCMSIV_ctr_thumb2_start_block_192:
+L_AES_GCMSIV_ctr_thumb2_loop_block_192:
+	PUSH	{r1, r2, lr}
+	LDR	lr, [sp, #16]
+	REV	r8, r4
+	ADD	r8, r8, #0x1
+	REV	r8, r8
+	MOV	r9, r5
+	MOV	r10, r6
+	MOV	r11, r7
+	STM	lr, {r8, r9, r10, r11}
+	LDM	r3!, {r8, r9, r10, r11}
+	/* Round: 0 - XOR in key schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	MOV	r1, #0x5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
+	BL	AES_encrypt_block
+#else
+L_AES_GCMSIV_ctr_thumb2_block_nr_192:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCMSIV_ctr_thumb2_block_nr_192
+#else
+	BNE.W	L_AES_GCMSIV_ctr_thumb2_block_nr_192
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+	POP	{r1, r2, lr}
+	LDR	r3, [sp]
+	REV	r4, r4
+	REV	r5, r5
+	REV	r6, r6
+	REV	r7, r7
+	LDR	r8, [lr]
+	LDR	r9, [lr, #4]
+	LDR	r10, [lr, #8]
+	LDR	r11, [lr, #12]
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	LDR	r8, [sp, #4]
+	STR	r4, [r1]
+	STR	r5, [r1, #4]
+	STR	r6, [r1, #8]
+	STR	r7, [r1, #12]
+	LDM	r8, {r4, r5, r6, r7}
+	SUBS	r2, r2, #0x10
+	ADD	lr, lr, #0x10
+	ADD	r1, r1, #0x10
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCMSIV_ctr_thumb2_loop_block_192
+#else
+	BNE.W	L_AES_GCMSIV_ctr_thumb2_loop_block_192
+#endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	B	L_AES_GCMSIV_ctr_thumb2_end
+#else
+	B.W	L_AES_GCMSIV_ctr_thumb2_end
+#endif
+L_AES_GCMSIV_ctr_thumb2_start_block_128:
+L_AES_GCMSIV_ctr_thumb2_loop_block_128:
+	PUSH	{r1, r2, lr}
+	LDR	lr, [sp, #16]
+	REV	r8, r4
+	ADD	r8, r8, #0x1
+	REV	r8, r8
+	MOV	r9, r5
+	MOV	r10, r6
+	MOV	r11, r7
+	STM	lr, {r8, r9, r10, r11}
+	LDM	r3!, {r8, r9, r10, r11}
+	/* Round: 0 - XOR in key schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	MOV	r1, #0x4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
+	BL	AES_encrypt_block
+#else
+L_AES_GCMSIV_ctr_thumb2_block_nr_128:
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r9, #16, #8
+	LSR	r7, r8, #24
+	UBFX	lr, r10, #8, #8
+	UBFX	r2, r11, #0, #8
+	LDR	r4, [r0, r4, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r5, r10, #16, #8
+	EOR	r4, r4, r7, ROR #24
+	LSR	r7, r9, #24
+	EOR	r4, r4, lr, ROR #8
+	UBFX	lr, r11, #8, #8
+	EOR	r4, r4, r2, ROR #16
+	UBFX	r2, r8, #0, #8
+	LDR	r5, [r0, r5, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r11, #16, #8
+	EOR	r5, r5, r7, ROR #24
+	LSR	r7, r10, #24
+	EOR	r5, r5, lr, ROR #8
+	UBFX	lr, r8, #8, #8
+	EOR	r5, r5, r2, ROR #16
+	UBFX	r2, r9, #0, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r10, #0, #8
+	EOR	r6, r6, r7, ROR #24
+	UBFX	r7, r8, #16, #8
+	EOR	r6, r6, lr, ROR #8
+	LSR	lr, r11, #24
+	EOR	r6, r6, r2, ROR #16
+	UBFX	r2, r9, #8, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r7, [r0, r7, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r10, ROR #24
+	LDM	r3!, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, ROR #24
+	EOR	r7, r7, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	SUBS	r1, r1, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCMSIV_ctr_thumb2_block_nr_128
+#else
+	BNE.W	L_AES_GCMSIV_ctr_thumb2_block_nr_128
+#endif
+	UBFX	r8, r5, #16, #8
+	LSR	r11, r4, #24
+	UBFX	lr, r6, #8, #8
+	UBFX	r2, r7, #0, #8
+	LDR	r8, [r0, r8, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r9, r6, #16, #8
+	EOR	r8, r8, r11, ROR #24
+	LSR	r11, r5, #24
+	EOR	r8, r8, lr, ROR #8
+	UBFX	lr, r7, #8, #8
+	EOR	r8, r8, r2, ROR #16
+	UBFX	r2, r4, #0, #8
+	LDR	r9, [r0, r9, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r10, r7, #16, #8
+	EOR	r9, r9, r11, ROR #24
+	LSR	r11, r6, #24
+	EOR	r9, r9, lr, ROR #8
+	UBFX	lr, r4, #8, #8
+	EOR	r9, r9, r2, ROR #16
+	UBFX	r2, r5, #0, #8
+	LDR	r10, [r0, r10, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	UBFX	r6, r6, #0, #8
+	EOR	r10, r10, r11, ROR #24
+	UBFX	r11, r4, #16, #8
+	EOR	r10, r10, lr, ROR #8
+	LSR	lr, r7, #24
+	EOR	r10, r10, r2, ROR #16
+	UBFX	r2, r5, #8, #8
+	LDR	r6, [r0, r6, LSL #2]
+	LDR	lr, [r0, lr, LSL #2]
+	LDR	r11, [r0, r11, LSL #2]
+	LDR	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r6, ROR #24
+	LDM	r3!, {r4, r5, r6, r7}
+	EOR	r11, r11, lr, ROR #24
+	EOR	r11, r11, r2, ROR #8
+	/*   XOR in Key Schedule */
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	UBFX	r4, r11, #0, #8
+	UBFX	r7, r10, #8, #8
+	UBFX	lr, r9, #16, #8
+	LSR	r2, r8, #24
+	LDRB	r4, [r0, r4, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r5, r8, #0, #8
+	EOR	r4, r4, r7, LSL #8
+	UBFX	r7, r11, #8, #8
+	EOR	r4, r4, lr, LSL #16
+	UBFX	lr, r10, #16, #8
+	EOR	r4, r4, r2, LSL #24
+	LSR	r2, r9, #24
+	LDRB	r5, [r0, r5, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	UBFX	r6, r9, #0, #8
+	EOR	r5, r5, r7, LSL #8
+	UBFX	r7, r8, #8, #8
+	EOR	r5, r5, lr, LSL #16
+	UBFX	lr, r11, #16, #8
+	EOR	r5, r5, r2, LSL #24
+	LSR	r2, r10, #24
+	LDRB	r6, [r0, r6, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	LSR	r11, r11, #24
+	EOR	r6, r6, r7, LSL #8
+	UBFX	r7, r10, #0, #8
+	EOR	r6, r6, lr, LSL #16
+	UBFX	lr, r9, #8, #8
+	EOR	r6, r6, r2, LSL #24
+	UBFX	r2, r8, #16, #8
+	LDRB	r11, [r0, r11, LSL #2]
+	LDRB	r7, [r0, r7, LSL #2]
+	LDRB	lr, [r0, lr, LSL #2]
+	LDRB	r2, [r0, r2, LSL #2]
+	EOR	lr, lr, r11, LSL #16
+	LDM	r3, {r8, r9, r10, r11}
+	EOR	r7, r7, lr, LSL #8
+	EOR	r7, r7, r2, LSL #16
+	/*   XOR in Key Schedule */
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+	POP	{r1, r2, lr}
+	LDR	r3, [sp]
+	REV	r4, r4
+	REV	r5, r5
+	REV	r6, r6
+	REV	r7, r7
+	LDR	r8, [lr]
+	LDR	r9, [lr, #4]
+	LDR	r10, [lr, #8]
+	LDR	r11, [lr, #12]
+	EOR	r4, r4, r8
+	EOR	r5, r5, r9
+	EOR	r6, r6, r10
+	EOR	r7, r7, r11
+	LDR	r8, [sp, #4]
+	STR	r4, [r1]
+	STR	r5, [r1, #4]
+	STR	r6, [r1, #8]
+	STR	r7, [r1, #12]
+	LDM	r8, {r4, r5, r6, r7}
+	SUBS	r2, r2, #0x10
+	ADD	lr, lr, #0x10
+	ADD	r1, r1, #0x10
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+	BNE	L_AES_GCMSIV_ctr_thumb2_loop_block_128
+#else
+	BNE.W	L_AES_GCMSIV_ctr_thumb2_loop_block_128
+#endif
+L_AES_GCMSIV_ctr_thumb2_end:
+	POP	{r3, r8}
+	REV	r4, r4
+	REV	r5, r5
+	REV	r6, r6
+	REV	r7, r7
+	STM	r8, {r4, r5, r6, r7}
+	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	/* Cycle Count = 1142 */
+	.size	AES_GCMSIV_ctr_thumb2,.-AES_GCMSIV_ctr_thumb2
+#endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !NO_AES */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */

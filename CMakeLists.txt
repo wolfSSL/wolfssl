@@ -930,6 +930,18 @@ if(WOLFSSL_AESSIV)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_SIV")
 endif()
 
+# AES-GCM-SIV
+add_option("WOLFSSL_AESGCMSIV"
+    "Enable AES-GCM-SIV (RFC 8452) support (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_AESGCMSIV)
+    if(NOT WOLFSSL_AESGCM)
+        message(FATAL_ERROR "AES-GCM-SIV requires AES-GCM. Please enable WOLFSSL_AESGCM.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AESGCM_SIV")
+endif()
+
 # AES-CTR
 add_option("WOLFSSL_AESCTR"
     "Enable wolfSSL AES-CTR support (default: disabled)"

@@ -59,6 +59,7 @@ void bench_aesctr(int useDeviceID);
 void bench_aescfb(void);
 void bench_aesofb(void);
 void bench_aessiv(void);
+void bench_aesgcmsiv(void);
 void bench_poly1305(void);
 void bench_camellia(void);
 void bench_sm4_cbc(void);

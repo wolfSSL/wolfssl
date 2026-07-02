@@ -53,6 +53,10 @@
             new_cpuid_flags |= CPUID_ADX;
             new_cpuid_flags |= CPUID_MOVBE;
             new_cpuid_flags |= CPUID_BMI1;
+        #ifdef WOLFSSL_SGX_CPUID_AVX512_VAES
+            new_cpuid_flags |= CPUID_VAES;
+            new_cpuid_flags |= CPUID_AVX512;
+        #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
