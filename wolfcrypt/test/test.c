@@ -26782,10 +26782,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
                                inLen, out, &sigSz, key, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
-    ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
-                               0, out, &sigSz, key, keyLen, rng);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
+    /* data_len==0 is valid (empty message); removed negative test */
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, NULL, &sigSz, key, keyLen, rng);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -26844,10 +26841,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
                              inLen, out, (word32)modLen, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
-    ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
-                             0, out, (word32)modLen, key, keyLen);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
+    /* data_len==0 is valid (empty message); removed negative test */
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                              inLen, NULL, (word32)modLen, key, keyLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
