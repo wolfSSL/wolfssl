@@ -234,13 +234,50 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 #if ((defined(WOLFSSL_AARCH64_BUILD) || defined(__aarch64__)) && \
      defined(__APPLE__)) || \
     defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_X86_BUILD)
+    #ifndef WOLFSSL_RW_UNALIGNED_16
+        #define WOLFSSL_RW_UNALIGNED_16
+    #endif
     #ifndef WOLFSSL_RW_UNALIGNED_32
         #define WOLFSSL_RW_UNALIGNED_32
     #endif
 #endif
+#ifdef WOLFSSL_RW_UNALIGNED_16
+typedef word16 MAYBE_UNALIGNED uword16;
+#endif
 #ifdef WOLFSSL_RW_UNALIGNED_32
 typedef word32 MAYBE_UNALIGNED uword32;
 #endif
+
+WC_MISC_STATIC WC_INLINE word16 readUnalignedWord16(const byte *in)
+{
+#ifndef WOLFSSL_RW_UNALIGNED_16
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word16) - 1U)) == (wc_ptr_t)0) {
+        return *(const word16 *)in;
+    }
+    else {
+        word16 out = 0;
+        XMEMCPY(&out, in, sizeof(out));
+        return out;
+    }
+#else
+    return *(const uword16 *)in;
+#endif
+}
+
+WC_MISC_STATIC WC_INLINE word16 writeUnalignedWord16(void *out, word16 in)
+{
+#ifndef WOLFSSL_RW_UNALIGNED_16
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word16) - 1U)) == (wc_ptr_t)0) {
+        *(word16 *)out = in;
+    }
+    else {
+        XMEMCPY(out, &in, sizeof(in));
+    }
+#else
+    *(uword16 *)out = in;
+#endif
+    return in;
+}
 
 WC_MISC_STATIC WC_INLINE word32 readUnalignedWord32(const byte *in)
 {
