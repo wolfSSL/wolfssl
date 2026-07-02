@@ -1327,6 +1327,18 @@ endif BUILD_INTELASM
 endif !BUILD_X86_ASM
 endif
 
+if BUILD_FALCON
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fpr.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_poly.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sampler.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_codec.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_bigint.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_keygen.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sign.c
+endif
+
 if BUILD_WC_LMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms_impl.c
@@ -2074,6 +2086,18 @@ endif BUILD_INTELASM
 endif !BUILD_X86_ASM
 endif
 
+if BUILD_FALCON
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fpr.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_poly.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sampler.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_codec.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_bigint.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_keygen.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sign.c
+endif
+
 if BUILD_WC_LMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms_impl.c
@@ -2228,10 +2252,22 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_448.c
 endif
 endif
 
-if BUILD_LIBOQS
+if BUILD_FALCON
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/falcon.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/liboqs/liboqs.c
 endif
+
+if BUILD_FALCON_ASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fpr_x86_64_asm.S
+endif
+
+if BUILD_FALCON_AVX2
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft_avx2.c
+endif
+
+if BUILD_FALCON_NEON
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft_neon.c
+endif
+
 
 if BUILD_LIBZ
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/compress.c

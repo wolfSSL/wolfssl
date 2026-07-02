@@ -50,6 +50,7 @@ tests_unit_test_SOURCES += tests/api/test_mlkem.c
 tests_unit_test_SOURCES += tests/api/test_mldsa.c
 tests_unit_test_SOURCES += tests/api/test_mldsa_legacy.c
 tests_unit_test_SOURCES += tests/api/test_slhdsa.c
+tests_unit_test_SOURCES += tests/api/test_falcon.c
 tests_unit_test_SOURCES += tests/api/test_signature.c
 tests_unit_test_SOURCES += tests/api/test_lms_xmss.c
 # TLS Protocol
@@ -162,6 +163,7 @@ EXTRA_DIST += tests/api/test_ed448.h
 EXTRA_DIST += tests/api/test_mlkem.h
 EXTRA_DIST += tests/api/test_mldsa.h
 EXTRA_DIST += tests/api/test_slhdsa.h
+EXTRA_DIST += tests/api/test_falcon.h
 EXTRA_DIST += tests/api/test_signature.h
 EXTRA_DIST += tests/api/test_lms_xmss.h
 EXTRA_DIST += tests/api/test_dtls.h

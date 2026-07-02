@@ -353,7 +353,6 @@
     <ClCompile Include="..\..\wolfcrypt\src\wc_slhdsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\port\liboqs\liboqs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />

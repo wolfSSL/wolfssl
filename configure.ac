@@ -1799,69 +1799,103 @@ then
     fi
 fi
 
-# liboqs
-ENABLED_LIBOQS="no"
-tryliboqsdir=""
+
+# liboqs support has been removed: the only consumer (Falcon) is now provided
+# by the native wolfCrypt implementation. Keep --with-liboqs as a deprecated,
+# recognised no-op so existing scripts and CI matrices that still pass it do not
+# hard-fail on an unknown option (enable_option_checking is fatal); it links no
+# liboqs and has no effect on the build. Warn when it is given.
 AC_ARG_WITH([liboqs],
-    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) (requires --enable-experimental)])],
-    [
-        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
-        AC_MSG_CHECKING([for liboqs])
-        LIBS="$LIBS -loqs"
-        AM_CFLAGS="$AM_CFLAGS -pthread"
+    [AS_HELP_STRING([--with-liboqs],[DEPRECATED and ignored: liboqs support has been removed. Use --enable-falcon for the native implementation.])],
+    [AS_IF([test "x$withval" != "xno"],
+        [AC_MSG_WARN([--with-liboqs is deprecated and has no effect: liboqs support has been removed; Falcon is now provided natively via --enable-falcon.])])],
+    [])
 
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
-
-        if test "x$liboqs_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                tryliboqsdir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                tryliboqsdir="/usr/local"
-            fi
-
-            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include -pthread"
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
-
-            if test "x$liboqs_linked" = "xno" ; then
-                AC_MSG_ERROR([liboqs isn't found.
-                If it's already installed, specify its path using --with-liboqs=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            AM_CPPFLAGS="$CPPFLAGS"
-            AM_LDFLAGS="$AM_LDFLAGS -L$tryliboqsdir/lib"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
-        then
-            ENABLED_OPENSSLEXTRA="yes"
-            AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
-        ENABLED_LIBOQS="yes"
-    ]
-)
-
-# Falcon (provided via liboqs)
+# Falcon post-quantum signatures, provided by the native wolfCrypt
+# implementation (no liboqs); it needs SHA-3 / SHAKE256 (forced on in the CFLAG
+# section below). Because the algorithm is not yet standardized and its API name
+# is subject to change, it requires --enable-experimental (checked in the CFLAG
+# section, once all backend sub-options have been resolved).
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures via liboqs (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental) (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
-if test "$ENABLED_FALCON" = "yes" && test "$ENABLED_LIBOQS" = "no"; then
-    AC_MSG_ERROR([--enable-falcon requires --with-liboqs.])
-fi
-if test "$ENABLED_LIBOQS" = "yes" && test "$ENABLED_FALCON" != "yes"; then
-    AC_MSG_ERROR([--with-liboqs requires --enable-falcon.])
+# --enable-falcon-asm selects the per-architecture assembly fpr backend for
+# Falcon (currently x86-64 SSE2 only); the portable constant-time integer
+# emulation remains the default. It implies --enable-falcon.
+AC_ARG_ENABLE([falcon-asm],
+    [AS_HELP_STRING([--enable-falcon-asm],[Enable Falcon x86-64 assembly fpr backend (default: disabled)])],
+    [ ENABLED_FALCON_ASM=$enableval ],
+    [ ENABLED_FALCON_ASM=no ])
+if test "$ENABLED_FALCON_ASM" = "yes"; then
+    case $host_cpu in
+        *x86_64*|*amd64*) ENABLED_FALCON=yes ;;
+        *) AC_MSG_WARN([--enable-falcon-asm is only supported on x86-64; ignoring.])
+           ENABLED_FALCON_ASM=no ;;
+    esac
 fi
 
-if test "$ENABLED_FALCON" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FALCON"
+# --enable-falcon-double selects the inline native-double fpr backend: the fpr
+# ops become static-inline C double operations, so the FFT/sampler inline them
+# and keep values in FP registers (no per-op call). This is the fastest backend
+# on any platform with a constant-time hardware double FPU (signing ~2.5x faster
+# than the out-of-line asm backend, ~16x faster than the portable emulation),
+# but like --enable-falcon-asm it relies on the native FPU's rounding behavior.
+# It implies --enable-falcon and is mutually exclusive with --enable-falcon-asm.
+AC_ARG_ENABLE([falcon-double],
+    [AS_HELP_STRING([--enable-falcon-double],[Enable Falcon inline native-double fpr backend (default: disabled)])],
+    [ ENABLED_FALCON_DOUBLE=$enableval ],
+    [ ENABLED_FALCON_DOUBLE=no ])
+if test "$ENABLED_FALCON_DOUBLE" = "yes"; then
+    if test "$ENABLED_FALCON_ASM" = "yes"; then
+        AC_MSG_ERROR([--enable-falcon-double and --enable-falcon-asm are mutually exclusive.])
+    fi
+    ENABLED_FALCON=yes
+fi
+
+# --enable-falcon-avx2 adds the AVX2 (4-wide __m256d + FMA) vectorized FFT and
+# FFT-domain polynomial operations for the signing path (x86-64). It composes
+# with --enable-falcon-double (which it implies). The AVX2 functions carry
+# target("avx2,fma") attributes, so the TU builds under a baseline -march; the
+# host must support AVX2+FMA at run time. Signing is sampler-bound, so the FFT
+# vectorization yields a modest (~1.1x) end-to-end speedup.
+AC_ARG_ENABLE([falcon-avx2],
+    [AS_HELP_STRING([--enable-falcon-avx2],[Enable Falcon x86-64 AVX2 vectorized FFT (default: disabled)])],
+    [ ENABLED_FALCON_AVX2=$enableval ],
+    [ ENABLED_FALCON_AVX2=no ])
+if test "$ENABLED_FALCON_AVX2" = "yes"; then
+    case $host_cpu in
+        *x86_64*|*amd64*)
+            if test "$ENABLED_FALCON_ASM" = "yes"; then
+                AC_MSG_ERROR([--enable-falcon-avx2 and --enable-falcon-asm are mutually exclusive.])
+            fi
+            ENABLED_FALCON=yes
+            ENABLED_FALCON_DOUBLE=yes ;;
+        *) AC_MSG_WARN([--enable-falcon-avx2 is only supported on x86-64; ignoring.])
+           ENABLED_FALCON_AVX2=no ;;
+    esac
+fi
+
+# --enable-falcon-neon adds the AArch64 NEON (2-wide float64x2_t + FMA) vectorized
+# FFT for the signing path. It composes with --enable-falcon-double (which it
+# implies). AArch64 Advanced SIMD is part of the ARMv8-A baseline, so no special
+# -march is required.
+AC_ARG_ENABLE([falcon-neon],
+    [AS_HELP_STRING([--enable-falcon-neon],[Enable Falcon AArch64 NEON vectorized FFT (default: disabled)])],
+    [ ENABLED_FALCON_NEON=$enableval ],
+    [ ENABLED_FALCON_NEON=no ])
+if test "$ENABLED_FALCON_NEON" = "yes"; then
+    case $host_cpu in
+        *aarch64*|*arm64*)
+            if test "$ENABLED_FALCON_ASM" = "yes"; then
+                AC_MSG_ERROR([--enable-falcon-neon and --enable-falcon-asm are mutually exclusive.])
+            fi
+            ENABLED_FALCON=yes
+            ENABLED_FALCON_DOUBLE=yes ;;
+        *) AC_MSG_WARN([--enable-falcon-neon is only supported on AArch64; ignoring.])
+           ENABLED_FALCON_NEON=no ;;
+    esac
 fi
 
 
@@ -7592,6 +7626,12 @@ then
     ENABLED_SHAKE128=yes
     ENABLED_SHAKE256=yes
 fi
+# Falcon uses SHA-3 / SHAKE256 for hash-to-point.
+if test "$ENABLED_FALCON" != "no"
+then
+    ENABLED_SHA3=yes
+    ENABLED_SHAKE256=yes
+fi
 
 # Set SHA-3 flags
 if test "$ENABLED_SHA3" != "no"
@@ -7785,6 +7825,35 @@ then
     test "$enable_shake256" = "" && enable_shake256=yes
 
     ENABLED_CERTS=yes
+fi
+
+# Falcon CFLAG processing (after FIPS section for sandwich pattern; also after
+# all falcon-* backend sub-options, which may turn ENABLED_FALCON on). Native
+# implementation: no liboqs dependency.
+if test "$ENABLED_FALCON" != "no"
+then
+    # Not standardized (API name subject to change) -> experimental only.
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],
+          [ AC_MSG_ERROR([Falcon is not standardized and its API name is subject to change; it requires --enable-experimental.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FALCON"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_FALCON"
+fi
+if test "$ENABLED_FALCON_ASM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_FPR_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_FALCON_FPR_ASM"
+fi
+if test "$ENABLED_FALCON_DOUBLE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_FPR_DOUBLE"
+fi
+if test "$ENABLED_FALCON_AVX2" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_FFT_AVX2"
+fi
+if test "$ENABLED_FALCON_NEON" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_FFT_NEON"
 fi
 
 # XMSS CFLAG processing (after FIPS section for sandwich pattern)
@@ -12507,6 +12576,10 @@ AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_XMSS" != "xno" || test "x$ENABLE
 AM_CONDITIONAL([BUILD_WC_SLHDSA],[test "x$ENABLED_SLHDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MLDSA],[test "x$ENABLED_MLDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_FALCON],[test "x$ENABLED_FALCON" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_FALCON_ASM],[test "x$ENABLED_FALCON_ASM" = "xyes"])
+AM_CONDITIONAL([BUILD_FALCON_AVX2],[test "x$ENABLED_FALCON_AVX2" = "xyes"])
+AM_CONDITIONAL([BUILD_FALCON_NEON],[test "x$ENABLED_FALCON_NEON" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -12554,7 +12627,6 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING_MULTI],[test "x$ENABLED_CERTIFICATE_STATUS_R
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
-AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
@@ -13061,6 +13133,7 @@ echo "   * XMSS:                       $ENABLED_XMSS"
 echo "   * SLH-DSA                     $ENABLED_SLHDSA"
 echo "   * MLKEM:                      $ENABLED_MLKEM"
 echo "   * ML-DSA:                     $ENABLED_MLDSA"
+echo "   * Falcon:     $ENABLED_FALCON"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"
@@ -13118,8 +13191,7 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
-echo "   * liboqs:                     $ENABLED_LIBOQS"
-echo "   * Falcon (via liboqs):        $ENABLED_FALCON"
+echo "   * Falcon:     $ENABLED_FALCON"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"

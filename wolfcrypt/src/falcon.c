@@ -27,16 +27,83 @@
 
 #include <wolfssl/wolfcrypt/asn.h>
 
-/* HAVE_FALCON implies HAVE_LIBOQS (enforced in settings.h and falcon.h). */
-#include <oqs/oqs.h>
-
+/* The wc_falcon_* API here wraps the native implementation core
+ * (falcon_native_*, in wc_falcon.c) with cryptocb dispatch and argument
+ * checking. The core operates directly on falcon_key. No liboqs dependency. */
 #include <wolfssl/wolfcrypt/falcon.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+/* Store a second copy of the public key in key->k immediately after the private
+ * key, reproducing the historical concat(private,public) layout that
+ * wc_falcon_check_key compares against. No-op unless both halves are set.
+ * Defined unconditionally: wc_falcon_import_public (a verify-only operation)
+ * calls it. */
+static void falcon_store_pub_behind_priv(falcon_key* key)
+{
+    if (!key->pubKeySet || !key->prvKeySet) {
+        return;
+    }
+    if (key->level == 1) {
+        XMEMCPY(key->k + FALCON_LEVEL1_KEY_SIZE, key->p,
+                FALCON_LEVEL1_PUB_KEY_SIZE);
+    }
+    else if (key->level == 5) {
+        XMEMCPY(key->k + FALCON_LEVEL5_KEY_SIZE, key->p,
+                FALCON_LEVEL5_PUB_KEY_SIZE);
+    }
+}
+
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+/* Generate a new Falcon key pair into key (key->level must be set first).
+ *
+ * key  [in/out]  Falcon key to populate.
+ * rng  [in]      Random number generator.
+ * returns BAD_FUNC_ARG when a parameter is NULL or level is unset,
+ *         0 on success, other -ve value on failure.
+ */
+int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
+{
+    int ret = 0;
+
+    if ((key == NULL) || (rng == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((key->level != 1) && (key->level != 5)) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_MakePqcSignatureKey(rng, WC_PQC_SIG_TYPE_FALCON,
+                key->level, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif /* WOLF_CRYPTO_CB */
+
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* No software fallback: only a crypto callback can service the request. */
+    ret = NO_VALID_DEVID;
+#else
+    ret = falcon_native_make_key(key, rng);
+    if (ret == 0) {
+        falcon_store_pub_behind_priv(key);
+    }
+#endif
+    return ret;
+}
+#endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
 
 /* Sign the message using the falcon private key.
  *
@@ -46,8 +113,12 @@
  *  outLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      Falcon key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
- *          BUFFER_E when outLen is less than FALCON_LEVEL1_SIG_SIZE,
+ *  rng         [in]      Random number generator (required by the software
+ *                        signer).
+ *  returns BAD_FUNC_ARG when a parameter is NULL, the private key is not set,
+ *          or (software path) rng is NULL,
+ *          BUFFER_E when outLen is less than the active level's signature size
+ *          (FALCON_LEVEL1_SIG_SIZE or FALCON_LEVEL5_SIG_SIZE),
  *          0 otherwise.
  */
 int wc_falcon_sign_msg(const byte* in, word32 inLen,
@@ -55,10 +126,6 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
                               falcon_key* key, WC_RNG* rng)
 {
     int ret = 0;
-#ifdef HAVE_LIBOQS
-    OQS_SIG *oqssig = NULL;
-    size_t localOutLen = 0;
-#endif
 
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL)) {
@@ -77,58 +144,30 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
         /* fall-through when unavailable */
         ret = 0;
     }
-#endif
+#endif /* WOLF_CRYPTO_CB */
 
-#ifdef HAVE_LIBOQS
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* No software fallback: only a crypto callback can service the request. */
+    ret = NO_VALID_DEVID;
+#elif defined(WOLFSSL_FALCON_VERIFY_ONLY)
+    /* inLen/rng are only consumed by the (absent) software or cryptocb paths. */
+    (void)inLen;
+    (void)rng;
+    ret = NOT_COMPILED_IN;
+#else
+    /* Software signer needs a private key and an RNG; validate both here so the
+     * failure is reported at the API boundary rather than deep in the native
+     * signer. */
     if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
-        if (key->level == 1) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_512);
-        }
-        else if (key->level == 5) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_1024);
-        }
-
-        if (oqssig == NULL) {
-            ret = SIG_TYPE_E;
-        }
+        ret = falcon_native_sign_msg(in, inLen, out, outLen, key, rng);
     }
-
-    /* check and set up out length */
-    if (ret == 0) {
-        if ((key->level == 1) && (*outLen < FALCON_LEVEL1_SIG_SIZE)) {
-            *outLen = FALCON_LEVEL1_SIG_SIZE;
-            ret = BUFFER_E;
-        }
-        else if ((key->level == 5) && (*outLen < FALCON_LEVEL5_SIG_SIZE)) {
-            *outLen = FALCON_LEVEL5_SIG_SIZE;
-            ret = BUFFER_E;
-        }
-        localOutLen = *outLen;
-    }
-
-    if (ret == 0) {
-        ret = wolfSSL_liboqsRngMutexLock(rng);
-        if (ret == 0) {
-            if (OQS_SIG_sign(oqssig, out, &localOutLen, in, inLen, key->k)
-                == OQS_ERROR) {
-                ret = BAD_FUNC_ARG;
-            }
-        }
-        if (ret == 0) {
-            *outLen = (word32)localOutLen;
-        }
-        wolfSSL_liboqsRngMutexUnlock();
-    }
-
-    if (oqssig != NULL) {
-        OQS_SIG_free(oqssig);
-    }
-#else
-    ret = NOT_COMPILED_IN;
 #endif
     return ret;
 }
@@ -149,9 +188,6 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* res, falcon_key* key)
 {
     int ret = 0;
-#ifdef HAVE_LIBOQS
-    OQS_SIG *oqssig = NULL;
-#endif
 
     if (key == NULL || sig == NULL || msg == NULL || res == NULL) {
         return BAD_FUNC_ARG;
@@ -169,41 +205,19 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         /* fall-through when unavailable */
         ret = 0;
     }
-#endif
+#endif /* WOLF_CRYPTO_CB */
 
-#ifdef HAVE_LIBOQS
+#ifdef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* No software fallback: only a crypto callback can service the request. */
+    ret = NO_VALID_DEVID;
+#else
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
-        if (key->level == 1) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_512);
-        }
-        else if (key->level == 5) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_1024);
-        }
-
-        if (oqssig == NULL) {
-            ret = SIG_TYPE_E;
-        }
+        ret = falcon_native_verify_msg(sig, sigLen, msg, msgLen, res, key);
     }
-
-    if ((ret == 0) &&
-        (OQS_SIG_verify(oqssig, msg, msgLen, sig, sigLen, key->p)
-         == OQS_ERROR)) {
-         ret = SIG_VERIFY_E;
-    }
-
-    if (ret == 0) {
-        *res = 1;
-    }
-
-    if (oqssig != NULL) {
-        OQS_SIG_free(oqssig);
-    }
-#else
-    ret = NOT_COMPILED_IN;
 #endif
 
     return ret;
@@ -233,6 +247,8 @@ int wc_falcon_init_ex(falcon_key* key, void* heap, int devId)
     }
 
     ForceZero(key, sizeof(*key));
+
+    key->heap = heap;
 
 #ifdef WOLF_CRYPTO_CB
     key->devCtx = NULL;
@@ -432,6 +448,8 @@ int wc_falcon_import_public(const byte* in, word32 inLen,
 
     XMEMCPY(key->p, in, inLen);
     key->pubKeySet = 1;
+    /* Keep the concat(private,public) copy in sync if a private key is loaded. */
+    falcon_store_pub_behind_priv(key);
 
     return 0;
 }
@@ -486,6 +504,13 @@ int wc_falcon_import_private_only(const byte* priv, word32 privSz,
         XMEMCPY(key->p, priv + keySz, concatSz - keySz);
         key->pubKeySet = 1;
     }
+
+    /* Sync the public copy kept behind the private key whenever both halves are
+     * present. This also covers the raw-size case where a public key was
+     * imported first: without it key->k + KEY_SIZE would stay zero and
+     * wc_falcon_check_key would wrongly return PUBLIC_KEY_E. No-op when no
+     * public key is set. */
+    falcon_store_pub_behind_priv(key);
 
     return 0;
 }
