@@ -10345,8 +10345,12 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         ret = GetAlgoV2(encAlgId, &encOid, &encOidSz, &pbeId, &blockSz);
     }
     if (ret == 0) {
-        padSz = (word32)((blockSz - ((int)keySz & (blockSz - 1))) &
-            (blockSz - 1));
+        /* CBC block ciphers use PKCS#7 padding: 1..blockSz bytes, a full
+         * block when the input is already block-aligned. Stream ciphers
+         * (blockSz == 1, e.g. RC4) take no padding. */
+        if (blockSz > 1) {
+            padSz = (word32)(blockSz - ((int)keySz & (blockSz - 1)));
+        }
         ret = SetShortInt(tmpShort, &tmpIdx, (word32)itt, MAX_SHORT_SZ);
         if (ret > 0) {
             /* inner = OCT salt INT itt */
