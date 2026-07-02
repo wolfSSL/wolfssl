@@ -2171,6 +2171,71 @@ L_AES_ECB_encrypt_vaes_128_aes_enc_block_last:
         jl	L_AES_ECB_encrypt_vaes_enc_128
 L_AES_ECB_encrypt_vaes_done_128:
         mov	r9d, r8d
+        sub	r9d, eax
+        cmp	r9d, 64
+        jl	L_AES_ECB_encrypt_vaes_done_64
+        ; 64 bytes of input
+        ; aes_ecb_enc_64
+        lea	r10, QWORD PTR [rcx+rax]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu	ymm0, YMMWORD PTR [r10]
+        vmovdqu	ymm1, YMMWORD PTR [r10+32]
+        ; aes_enc_block
+        vbroadcasti128	ymm7, [r9]
+        vpxor	ymm0, ymm0, ymm7
+        vpxor	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+16]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+32]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+48]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+64]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+80]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+96]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+112]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+128]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+144]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        cmp	eax, 11
+        vbroadcasti128	ymm7, [r9+160]
+        jl	L_AES_ECB_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+176]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        cmp	eax, 13
+        vbroadcasti128	ymm7, [r9+192]
+        jl	L_AES_ECB_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+208]
+        vaesenc	ymm0, ymm0, ymm7
+        vaesenc	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+224]
+L_AES_ECB_encrypt_vaes_64_aes_enc_block_last:
+        vaesenclast	ymm0, ymm0, ymm7
+        vaesenclast	ymm1, ymm1, ymm7
+        vmovdqu	YMMWORD PTR [r11], ymm0
+        vmovdqu	YMMWORD PTR [r11+32], ymm1
+        add	eax, 64
+L_AES_ECB_encrypt_vaes_done_64:
+        mov	r9d, r8d
         and	r9d, 4294967264
         cmp	eax, r9d
         je	L_AES_ECB_encrypt_vaes_done_32
@@ -2385,6 +2450,71 @@ L_AES_ECB_decrypt_vaes_128_aes_dec_block_last:
         cmp	eax, r9d
         jl	L_AES_ECB_decrypt_vaes_dec_128
 L_AES_ECB_decrypt_vaes_done_128:
+        mov	r9d, r8d
+        sub	r9d, eax
+        cmp	r9d, 64
+        jl	L_AES_ECB_decrypt_vaes_done_64
+        ; 64 bytes of input
+        ; aes_ecb_dec_64
+        lea	r10, QWORD PTR [rcx+rax]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu	ymm0, YMMWORD PTR [r10]
+        vmovdqu	ymm1, YMMWORD PTR [r10+32]
+        ; aes_dec_block
+        vbroadcasti128	ymm7, [r9]
+        vpxor	ymm0, ymm0, ymm7
+        vpxor	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+16]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+32]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+48]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+64]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+80]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+96]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+112]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+128]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+144]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        cmp	eax, 11
+        vbroadcasti128	ymm7, [r9+160]
+        jl	L_AES_ECB_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+176]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        cmp	eax, 13
+        vbroadcasti128	ymm7, [r9+192]
+        jl	L_AES_ECB_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+208]
+        vaesdec	ymm0, ymm0, ymm7
+        vaesdec	ymm1, ymm1, ymm7
+        vbroadcasti128	ymm7, [r9+224]
+L_AES_ECB_decrypt_vaes_64_aes_dec_block_last:
+        vaesdeclast	ymm0, ymm0, ymm7
+        vaesdeclast	ymm1, ymm1, ymm7
+        vmovdqu	YMMWORD PTR [r11], ymm0
+        vmovdqu	YMMWORD PTR [r11+32], ymm1
+        add	eax, 64
+L_AES_ECB_decrypt_vaes_done_64:
         mov	r9d, r8d
         and	r9d, 4294967264
         cmp	eax, r9d
@@ -2678,6 +2808,76 @@ L_AES_CBC_decrypt_vaes_128_aes_dec_block_last:
         jl	L_AES_CBC_decrypt_vaes_dec_128
 L_AES_CBC_decrypt_vaes_done_128:
         mov	r10d, r9d
+        sub	r10d, eax
+        cmp	r10d, 64
+        jl	L_AES_CBC_decrypt_vaes_done_64
+        ; 64 bytes of input
+        ; aes_cbc_dec_64
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	r12, QWORD PTR [rdx+rax]
+        vmovdqu	ymm0, YMMWORD PTR [r11]
+        vmovdqu	ymm1, YMMWORD PTR [r11+32]
+        vinserti128	ymm10, ymm8, xmm0, 1
+        vmovdqu	ymm11, YMMWORD PTR [r11+16]
+        vextracti128	xmm8, ymm1, 1
+        ; aes_dec_block
+        vbroadcasti128	ymm9, [rax]
+        vpxor	ymm0, ymm0, ymm9
+        vpxor	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+16]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+32]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+48]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+64]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+80]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+96]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+112]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+128]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+144]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        cmp	r10d, 11
+        vbroadcasti128	ymm9, [rax+160]
+        jl	L_AES_CBC_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+176]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        cmp	r10d, 13
+        vbroadcasti128	ymm9, [rax+192]
+        jl	L_AES_CBC_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+208]
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm1, ymm1, ymm9
+        vbroadcasti128	ymm9, [rax+224]
+L_AES_CBC_decrypt_vaes_64_aes_dec_block_last:
+        vaesdeclast	ymm0, ymm0, ymm9
+        vaesdeclast	ymm1, ymm1, ymm9
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vmovdqu	YMMWORD PTR [r12], ymm0
+        vmovdqu	YMMWORD PTR [r12+32], ymm1
+        add	eax, 64
+L_AES_CBC_decrypt_vaes_done_64:
+        mov	r10d, r9d
         and	r10d, 4294967264
         cmp	eax, r10d
         je	L_AES_CBC_decrypt_vaes_done_32
@@ -2830,7 +3030,7 @@ AES_CTR_encrypt_vaes PROC
         push	rbx
         mov	eax, DWORD PTR [rsp+48]
         mov	r10, QWORD PTR [rsp+56]
-        sub	rsp, 144
+        sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
         vmovdqu	OWORD PTR [rsp+32], xmm8
@@ -2840,50 +3040,51 @@ AES_CTR_encrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+96], xmm12
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         vbroadcasti128	ymm8, ptr_L_aes_ctr_bswap_vaes
         vbroadcasti128	ymm7, [r10]
         vpshufb	ymm7, ymm7, ymm8
-        vbroadcasti128	ymm10, [ptr_L_aes_ctr_inc_vaes+128]
-        vbroadcasti128	ymm11, [ptr_L_aes_ctr_inc_vaes+32]
-        vbroadcasti128	ymm12, [ptr_L_aes_ctr_inc_vaes+16]
+        vbroadcasti128	ymm12, [ptr_L_aes_ctr_inc_vaes+32]
+        vbroadcasti128	ymm13, [ptr_L_aes_ctr_inc_vaes+16]
         xor	eax, eax
         cmp	r8d, 128
         mov	r10d, r8d
         jl	L_AES_CTR_encrypt_vaes_done_128
         and	r10d, 4294967168
+        vbroadcasti128	ymm10, [ptr_L_aes_ctr_inc_vaes+128]
         vmovdqa	ymm9, ymm7
         vpaddq	ymm4, ymm7, [ptr_L_aes_ctr_inc_vaes]
-        vpand	ymm14, ymm9, [ptr_L_aes_ctr_inc_vaes]
+        vpand	ymm15, ymm9, [ptr_L_aes_ctr_inc_vaes]
         vpor	ymm9, ymm9, [ptr_L_aes_ctr_inc_vaes]
         vpandn	ymm9, ymm4, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm4, ymm4, ymm9
         vmovdqa	ymm9, ymm7
         vpaddq	ymm5, ymm7, [ptr_L_aes_ctr_inc_vaes+32]
-        vpand	ymm14, ymm9, [ptr_L_aes_ctr_inc_vaes+32]
+        vpand	ymm15, ymm9, [ptr_L_aes_ctr_inc_vaes+32]
         vpor	ymm9, ymm9, [ptr_L_aes_ctr_inc_vaes+32]
         vpandn	ymm9, ymm5, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm5, ymm5, ymm9
         vmovdqa	ymm9, ymm7
         vpaddq	ymm6, ymm7, [ptr_L_aes_ctr_inc_vaes+64]
-        vpand	ymm14, ymm9, [ptr_L_aes_ctr_inc_vaes+64]
+        vpand	ymm15, ymm9, [ptr_L_aes_ctr_inc_vaes+64]
         vpor	ymm9, ymm9, [ptr_L_aes_ctr_inc_vaes+64]
         vpandn	ymm9, ymm6, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm6, ymm6, ymm9
         vmovdqa	ymm9, ymm7
         vpaddq	ymm7, ymm7, [ptr_L_aes_ctr_inc_vaes+96]
-        vpand	ymm14, ymm9, [ptr_L_aes_ctr_inc_vaes+96]
+        vpand	ymm15, ymm9, [ptr_L_aes_ctr_inc_vaes+96]
         vpor	ymm9, ymm9, [ptr_L_aes_ctr_inc_vaes+96]
         vpandn	ymm9, ymm7, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm7, ymm7, ymm9
@@ -2897,121 +3098,121 @@ L_AES_CTR_encrypt_vaes_enc_128:
         vpshufb	ymm3, ymm7, ymm8
         vmovdqa	ymm9, ymm4
         vpaddq	ymm4, ymm4, ymm10
-        vpand	ymm14, ymm9, ymm10
+        vpand	ymm15, ymm9, ymm10
         vpor	ymm9, ymm9, ymm10
         vpandn	ymm9, ymm4, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm4, ymm4, ymm9
         vmovdqa	ymm9, ymm5
         vpaddq	ymm5, ymm5, ymm10
-        vpand	ymm14, ymm9, ymm10
+        vpand	ymm15, ymm9, ymm10
         vpor	ymm9, ymm9, ymm10
         vpandn	ymm9, ymm5, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm5, ymm5, ymm9
         vmovdqa	ymm9, ymm6
         vpaddq	ymm6, ymm6, ymm10
-        vpand	ymm14, ymm9, ymm10
+        vpand	ymm15, ymm9, ymm10
         vpor	ymm9, ymm9, ymm10
         vpandn	ymm9, ymm6, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm6, ymm6, ymm9
         vmovdqa	ymm9, ymm7
         vpaddq	ymm7, ymm7, ymm10
-        vpand	ymm14, ymm9, ymm10
+        vpand	ymm15, ymm9, ymm10
         vpor	ymm9, ymm9, ymm10
         vpandn	ymm9, ymm7, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm7, ymm7, ymm9
         ; aes_enc_block
-        vbroadcasti128	ymm13, [r9]
-        vpxor	ymm0, ymm0, ymm13
-        vpxor	ymm1, ymm1, ymm13
-        vpxor	ymm2, ymm2, ymm13
-        vpxor	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+16]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+32]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+48]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+64]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+80]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+96]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+112]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+128]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+144]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
+        vbroadcasti128	ymm14, [r9]
+        vpxor	ymm0, ymm0, ymm14
+        vpxor	ymm1, ymm1, ymm14
+        vpxor	ymm2, ymm2, ymm14
+        vpxor	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+16]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+32]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+48]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+64]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+80]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+96]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+112]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+128]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+144]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
         cmp	eax, 11
-        vbroadcasti128	ymm13, [r9+160]
+        vbroadcasti128	ymm14, [r9+160]
         jl	L_AES_CTR_encrypt_vaes_128_aes_enc_block_last
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+176]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+176]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
         cmp	eax, 13
-        vbroadcasti128	ymm13, [r9+192]
+        vbroadcasti128	ymm14, [r9+192]
         jl	L_AES_CTR_encrypt_vaes_128_aes_enc_block_last
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+208]
-        vaesenc	ymm0, ymm0, ymm13
-        vaesenc	ymm1, ymm1, ymm13
-        vaesenc	ymm2, ymm2, ymm13
-        vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+224]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+208]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vaesenc	ymm2, ymm2, ymm14
+        vaesenc	ymm3, ymm3, ymm14
+        vbroadcasti128	ymm14, [r9+224]
 L_AES_CTR_encrypt_vaes_128_aes_enc_block_last:
-        vaesenclast	ymm0, ymm0, ymm13
-        vaesenclast	ymm1, ymm1, ymm13
-        vaesenclast	ymm2, ymm2, ymm13
-        vaesenclast	ymm3, ymm3, ymm13
+        vaesenclast	ymm0, ymm0, ymm14
+        vaesenclast	ymm1, ymm1, ymm14
+        vaesenclast	ymm2, ymm2, ymm14
+        vaesenclast	ymm3, ymm3, ymm14
         vpxor	ymm0, ymm0, [r11]
         vpxor	ymm1, ymm1, [r11+32]
         vpxor	ymm2, ymm2, [r11+64]
@@ -3026,6 +3227,101 @@ L_AES_CTR_encrypt_vaes_128_aes_enc_block_last:
         vperm2i128	ymm7, ymm4, ymm4, 0
 L_AES_CTR_encrypt_vaes_done_128:
         mov	r10d, r8d
+        sub	r10d, eax
+        cmp	r10d, 64
+        jl	L_AES_CTR_encrypt_vaes_done_64
+        ; 64 bytes of input
+        vbroadcasti128	ymm11, [ptr_L_aes_ctr_inc_vaes+64]
+        ; aes_ctr_enc_64
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        vpaddq	ymm0, ymm7, [ptr_L_aes_ctr_inc_vaes]
+        vmovdqa	ymm9, ymm7
+        vpand	ymm15, ymm9, [ptr_L_aes_ctr_inc_vaes]
+        vpor	ymm9, ymm9, [ptr_L_aes_ctr_inc_vaes]
+        vpandn	ymm9, ymm0, ymm9
+        vpor	ymm9, ymm9, ymm15
+        vpsrlq	ymm9, ymm9, 63
+        vpslldq	ymm9, ymm9, 8
+        vpaddq	ymm0, ymm0, ymm9
+        vpshufb	ymm0, ymm0, ymm8
+        vpaddq	ymm1, ymm7, [ptr_L_aes_ctr_inc_vaes+32]
+        vmovdqa	ymm9, ymm7
+        vpand	ymm15, ymm9, [ptr_L_aes_ctr_inc_vaes+32]
+        vpor	ymm9, ymm9, [ptr_L_aes_ctr_inc_vaes+32]
+        vpandn	ymm9, ymm1, ymm9
+        vpor	ymm9, ymm9, ymm15
+        vpsrlq	ymm9, ymm9, 63
+        vpslldq	ymm9, ymm9, 8
+        vpaddq	ymm1, ymm1, ymm9
+        vpshufb	ymm1, ymm1, ymm8
+        vmovdqa	ymm9, ymm7
+        vpaddq	ymm7, ymm7, ymm11
+        vpand	ymm15, ymm9, ymm11
+        vpor	ymm9, ymm9, ymm11
+        vpandn	ymm9, ymm7, ymm9
+        vpor	ymm9, ymm9, ymm15
+        vpsrlq	ymm9, ymm9, 63
+        vpslldq	ymm9, ymm9, 8
+        vpaddq	ymm7, ymm7, ymm9
+        ; aes_enc_block
+        vbroadcasti128	ymm14, [r9]
+        vpxor	ymm0, ymm0, ymm14
+        vpxor	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+16]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+32]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+48]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+64]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+80]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+96]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+112]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+128]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+144]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        cmp	eax, 11
+        vbroadcasti128	ymm14, [r9+160]
+        jl	L_AES_CTR_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+176]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        cmp	eax, 13
+        vbroadcasti128	ymm14, [r9+192]
+        jl	L_AES_CTR_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+208]
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm1, ymm1, ymm14
+        vbroadcasti128	ymm14, [r9+224]
+L_AES_CTR_encrypt_vaes_64_aes_enc_block_last:
+        vaesenclast	ymm0, ymm0, ymm14
+        vaesenclast	ymm1, ymm1, ymm14
+        vpxor	ymm0, ymm0, [r11]
+        vpxor	ymm1, ymm1, [r11+32]
+        vmovdqu	YMMWORD PTR [rbx], ymm0
+        vmovdqu	YMMWORD PTR [rbx+32], ymm1
+        add	eax, 64
+L_AES_CTR_encrypt_vaes_done_64:
+        mov	r10d, r8d
         and	r10d, 4294967264
         cmp	eax, r10d
         je	L_AES_CTR_encrypt_vaes_done_32
@@ -3036,59 +3332,59 @@ L_AES_CTR_encrypt_vaes_enc_32:
         lea	rbx, QWORD PTR [rdx+rax]
         vpaddq	ymm0, ymm7, [ptr_L_aes_ctr_inc_vaes]
         vmovdqa	ymm9, ymm7
-        vpand	ymm14, ymm9, [ptr_L_aes_ctr_inc_vaes]
+        vpand	ymm15, ymm9, [ptr_L_aes_ctr_inc_vaes]
         vpor	ymm9, ymm9, [ptr_L_aes_ctr_inc_vaes]
         vpandn	ymm9, ymm0, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm0, ymm0, ymm9
         vpshufb	ymm0, ymm0, ymm8
         vmovdqa	ymm9, ymm7
-        vpaddq	ymm7, ymm7, ymm11
-        vpand	ymm14, ymm9, ymm11
-        vpor	ymm9, ymm9, ymm11
+        vpaddq	ymm7, ymm7, ymm12
+        vpand	ymm15, ymm9, ymm12
+        vpor	ymm9, ymm9, ymm12
         vpandn	ymm9, ymm7, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm7, ymm7, ymm9
         ; aes_enc_block
-        vbroadcasti128	ymm13, [r9]
-        vpxor	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+16]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+32]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+48]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+64]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+80]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+96]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+112]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+128]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+144]
-        vaesenc	ymm0, ymm0, ymm13
+        vbroadcasti128	ymm14, [r9]
+        vpxor	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+16]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+32]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+48]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+64]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+80]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+96]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+112]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+128]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+144]
+        vaesenc	ymm0, ymm0, ymm14
         cmp	eax, 11
-        vbroadcasti128	ymm13, [r9+160]
+        vbroadcasti128	ymm14, [r9+160]
         jl	L_AES_CTR_encrypt_vaes_32_aes_enc_block_last
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+176]
-        vaesenc	ymm0, ymm0, ymm13
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+176]
+        vaesenc	ymm0, ymm0, ymm14
         cmp	eax, 13
-        vbroadcasti128	ymm13, [r9+192]
+        vbroadcasti128	ymm14, [r9+192]
         jl	L_AES_CTR_encrypt_vaes_32_aes_enc_block_last
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+208]
-        vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+224]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+208]
+        vaesenc	ymm0, ymm0, ymm14
+        vbroadcasti128	ymm14, [r9+224]
 L_AES_CTR_encrypt_vaes_32_aes_enc_block_last:
-        vaesenclast	ymm0, ymm0, ymm13
+        vaesenclast	ymm0, ymm0, ymm14
         vpxor	ymm0, ymm0, [r11]
         vmovdqu	YMMWORD PTR [rbx], ymm0
         add	eax, 32
@@ -3103,11 +3399,11 @@ L_AES_CTR_encrypt_vaes_enc_16:
         ; 16 bytes of input
         vpshufb	xmm0, xmm7, xmm8
         vmovdqa	ymm9, ymm7
-        vpaddq	ymm7, ymm7, ymm12
-        vpand	ymm14, ymm9, ymm12
-        vpor	ymm9, ymm9, ymm12
+        vpaddq	ymm7, ymm7, ymm13
+        vpand	ymm15, ymm9, ymm13
+        vpor	ymm9, ymm9, ymm13
         vpandn	ymm9, ymm7, ymm9
-        vpor	ymm9, ymm9, ymm14
+        vpor	ymm9, ymm9, ymm15
         vpsrlq	ymm9, ymm9, 63
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm7, ymm7, ymm9
@@ -3165,7 +3461,8 @@ L_AES_CTR_encrypt_vaes_done_enc:
         vmovdqu	xmm12, OWORD PTR [rsp+96]
         vmovdqu	xmm13, OWORD PTR [rsp+112]
         vmovdqu	xmm14, OWORD PTR [rsp+128]
-        add	rsp, 144
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         pop	rbx
         ret
 AES_CTR_encrypt_vaes ENDP
@@ -3187,8 +3484,8 @@ AES_ECB_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
         xor	eax, eax
-        cmp	r8d, 64
-        jl	L_AES_ECB_encrypt_avx512_done_64
+        cmp	r8d, 32
+        jl	L_AES_ECB_encrypt_avx512_done_32
         vbroadcasti32x4	zmm8, [r9]
         vbroadcasti32x4	zmm9, [r9+16]
         vbroadcasti32x4	zmm10, [r9+32]
@@ -3300,6 +3597,59 @@ L_AES_ECB_encrypt_avx512_256_aes_enc_block_last:
         jl	L_AES_ECB_encrypt_avx512_enc_256
 L_AES_ECB_encrypt_avx512_done_256:
         mov	r9d, r8d
+        sub	r9d, eax
+        cmp	r9d, 128
+        jl	L_AES_ECB_encrypt_avx512_done_128
+        ; 128 bytes of input
+        ; aes_ecb_enc_128
+        lea	r10, QWORD PTR [rcx+rax]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu64	zmm0, [r10]
+        vmovdqu64	zmm1, [r10+64]
+        ; aes_enc_block
+        vpxorq	zmm0, zmm0, zmm8
+        vpxorq	zmm1, zmm1, zmm8
+        vaesenc	zmm0, zmm0, zmm9
+        vaesenc	zmm1, zmm1, zmm9
+        vaesenc	zmm0, zmm0, zmm10
+        vaesenc	zmm1, zmm1, zmm10
+        vaesenc	zmm0, zmm0, zmm11
+        vaesenc	zmm1, zmm1, zmm11
+        vaesenc	zmm0, zmm0, zmm12
+        vaesenc	zmm1, zmm1, zmm12
+        vaesenc	zmm0, zmm0, zmm13
+        vaesenc	zmm1, zmm1, zmm13
+        vaesenc	zmm0, zmm0, zmm14
+        vaesenc	zmm1, zmm1, zmm14
+        vaesenc	zmm0, zmm0, zmm15
+        vaesenc	zmm1, zmm1, zmm15
+        vaesenc	zmm0, zmm0, zmm16
+        vaesenc	zmm1, zmm1, zmm16
+        vaesenc	zmm0, zmm0, zmm17
+        vaesenc	zmm1, zmm1, zmm17
+        cmp	eax, 11
+        vmovdqa64	zmm7, zmm18
+        jl	L_AES_ECB_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm18
+        vaesenc	zmm1, zmm1, zmm18
+        vaesenc	zmm0, zmm0, zmm19
+        vaesenc	zmm1, zmm1, zmm19
+        cmp	eax, 13
+        vmovdqa64	zmm7, zmm20
+        jl	L_AES_ECB_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm20
+        vaesenc	zmm1, zmm1, zmm20
+        vaesenc	zmm0, zmm0, zmm21
+        vaesenc	zmm1, zmm1, zmm21
+        vmovdqa64	zmm7, zmm22
+L_AES_ECB_encrypt_avx512_128_aes_enc_block_last:
+        vaesenclast	zmm0, zmm0, zmm7
+        vaesenclast	zmm1, zmm1, zmm7
+        vmovdqu64	[r11], zmm0
+        vmovdqu64	[r11+64], zmm1
+        add	eax, 128
+L_AES_ECB_encrypt_avx512_done_128:
+        mov	r9d, r8d
         and	r9d, 4294967232
         cmp	eax, r9d
         je	L_AES_ECB_encrypt_avx512_done_64
@@ -3338,6 +3688,41 @@ L_AES_ECB_encrypt_avx512_64_aes_enc_block_last:
         cmp	eax, r9d
         jl	L_AES_ECB_encrypt_avx512_enc_64
 L_AES_ECB_encrypt_avx512_done_64:
+        mov	r9d, r8d
+        sub	r9d, eax
+        cmp	r9d, 32
+        jl	L_AES_ECB_encrypt_avx512_done_32
+        ; 32 bytes of input
+        lea	r10, QWORD PTR [rcx+rax]
+        vmovdqu	ymm0, YMMWORD PTR [r10]
+        ; aes_enc_block
+        vpxorq	ymm0, ymm0, ymm8
+        vaesenc	ymm0, ymm0, ymm9
+        vaesenc	ymm0, ymm0, ymm10
+        vaesenc	ymm0, ymm0, ymm11
+        vaesenc	ymm0, ymm0, ymm12
+        vaesenc	ymm0, ymm0, ymm13
+        vaesenc	ymm0, ymm0, ymm14
+        vaesenc	ymm0, ymm0, ymm15
+        vaesenc	ymm0, ymm0, ymm16
+        vaesenc	ymm0, ymm0, ymm17
+        cmp	eax, 11
+        vmovdqa64	ymm7, ymm18
+        jl	L_AES_ECB_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm18
+        vaesenc	ymm0, ymm0, ymm19
+        cmp	eax, 13
+        vmovdqa64	ymm7, ymm20
+        jl	L_AES_ECB_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm20
+        vaesenc	ymm0, ymm0, ymm21
+        vmovdqa64	ymm7, ymm22
+L_AES_ECB_encrypt_avx512_32_aes_enc_block_last:
+        vaesenclast	ymm0, ymm0, ymm7
+        lea	r10, QWORD PTR [rdx+rax]
+        vmovdqu	YMMWORD PTR [r10], ymm0
+        add	eax, 32
+L_AES_ECB_encrypt_avx512_done_32:
         cmp	eax, r8d
         mov	r9d, r8d
         je	L_AES_ECB_encrypt_avx512_done_enc
@@ -3416,8 +3801,8 @@ AES_ECB_decrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
         xor	eax, eax
-        cmp	r8d, 64
-        jl	L_AES_ECB_decrypt_avx512_done_64
+        cmp	r8d, 32
+        jl	L_AES_ECB_decrypt_avx512_done_32
         vbroadcasti32x4	zmm8, [r9]
         vbroadcasti32x4	zmm9, [r9+16]
         vbroadcasti32x4	zmm10, [r9+32]
@@ -3529,6 +3914,59 @@ L_AES_ECB_decrypt_avx512_256_aes_dec_block_last:
         jl	L_AES_ECB_decrypt_avx512_dec_256
 L_AES_ECB_decrypt_avx512_done_256:
         mov	r9d, r8d
+        sub	r9d, eax
+        cmp	r9d, 128
+        jl	L_AES_ECB_decrypt_avx512_done_128
+        ; 128 bytes of input
+        ; aes_ecb_dec_128
+        lea	r10, QWORD PTR [rcx+rax]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu64	zmm0, [r10]
+        vmovdqu64	zmm1, [r10+64]
+        ; aes_dec_block
+        vpxorq	zmm0, zmm0, zmm8
+        vpxorq	zmm1, zmm1, zmm8
+        vaesdec	zmm0, zmm0, zmm9
+        vaesdec	zmm1, zmm1, zmm9
+        vaesdec	zmm0, zmm0, zmm10
+        vaesdec	zmm1, zmm1, zmm10
+        vaesdec	zmm0, zmm0, zmm11
+        vaesdec	zmm1, zmm1, zmm11
+        vaesdec	zmm0, zmm0, zmm12
+        vaesdec	zmm1, zmm1, zmm12
+        vaesdec	zmm0, zmm0, zmm13
+        vaesdec	zmm1, zmm1, zmm13
+        vaesdec	zmm0, zmm0, zmm14
+        vaesdec	zmm1, zmm1, zmm14
+        vaesdec	zmm0, zmm0, zmm15
+        vaesdec	zmm1, zmm1, zmm15
+        vaesdec	zmm0, zmm0, zmm16
+        vaesdec	zmm1, zmm1, zmm16
+        vaesdec	zmm0, zmm0, zmm17
+        vaesdec	zmm1, zmm1, zmm17
+        cmp	eax, 11
+        vmovdqa64	zmm7, zmm18
+        jl	L_AES_ECB_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	zmm0, zmm0, zmm18
+        vaesdec	zmm1, zmm1, zmm18
+        vaesdec	zmm0, zmm0, zmm19
+        vaesdec	zmm1, zmm1, zmm19
+        cmp	eax, 13
+        vmovdqa64	zmm7, zmm20
+        jl	L_AES_ECB_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	zmm0, zmm0, zmm20
+        vaesdec	zmm1, zmm1, zmm20
+        vaesdec	zmm0, zmm0, zmm21
+        vaesdec	zmm1, zmm1, zmm21
+        vmovdqa64	zmm7, zmm22
+L_AES_ECB_decrypt_avx512_128_aes_dec_block_last:
+        vaesdeclast	zmm0, zmm0, zmm7
+        vaesdeclast	zmm1, zmm1, zmm7
+        vmovdqu64	[r11], zmm0
+        vmovdqu64	[r11+64], zmm1
+        add	eax, 128
+L_AES_ECB_decrypt_avx512_done_128:
+        mov	r9d, r8d
         and	r9d, 4294967232
         cmp	eax, r9d
         je	L_AES_ECB_decrypt_avx512_done_64
@@ -3567,6 +4005,41 @@ L_AES_ECB_decrypt_avx512_64_aes_dec_block_last:
         cmp	eax, r9d
         jl	L_AES_ECB_decrypt_avx512_dec_64
 L_AES_ECB_decrypt_avx512_done_64:
+        mov	r9d, r8d
+        sub	r9d, eax
+        cmp	r9d, 32
+        jl	L_AES_ECB_decrypt_avx512_done_32
+        ; 32 bytes of input
+        lea	r10, QWORD PTR [rcx+rax]
+        vmovdqu	ymm0, YMMWORD PTR [r10]
+        ; aes_dec_block
+        vpxorq	ymm0, ymm0, ymm8
+        vaesdec	ymm0, ymm0, ymm9
+        vaesdec	ymm0, ymm0, ymm10
+        vaesdec	ymm0, ymm0, ymm11
+        vaesdec	ymm0, ymm0, ymm12
+        vaesdec	ymm0, ymm0, ymm13
+        vaesdec	ymm0, ymm0, ymm14
+        vaesdec	ymm0, ymm0, ymm15
+        vaesdec	ymm0, ymm0, ymm16
+        vaesdec	ymm0, ymm0, ymm17
+        cmp	eax, 11
+        vmovdqa64	ymm7, ymm18
+        jl	L_AES_ECB_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm18
+        vaesdec	ymm0, ymm0, ymm19
+        cmp	eax, 13
+        vmovdqa64	ymm7, ymm20
+        jl	L_AES_ECB_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm20
+        vaesdec	ymm0, ymm0, ymm21
+        vmovdqa64	ymm7, ymm22
+L_AES_ECB_decrypt_avx512_32_aes_dec_block_last:
+        vaesdeclast	ymm0, ymm0, ymm7
+        lea	r10, QWORD PTR [rdx+rax]
+        vmovdqu	YMMWORD PTR [r10], ymm0
+        add	eax, 32
+L_AES_ECB_decrypt_avx512_done_32:
         cmp	eax, r8d
         mov	r9d, r8d
         je	L_AES_ECB_decrypt_avx512_done_dec
@@ -3706,8 +4179,8 @@ AES_CBC_decrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+144], xmm15
         vmovdqu	xmm8, OWORD PTR [r8]
         xor	eax, eax
-        cmp	r9d, 64
-        jl	L_AES_CBC_decrypt_avx512_done_64
+        cmp	r9d, 32
+        jl	L_AES_CBC_decrypt_avx512_done_32
         vbroadcasti32x4	zmm14, [rax]
         vbroadcasti32x4	zmm15, [rax+16]
         vbroadcasti32x4	zmm16, [rax+32]
@@ -3829,6 +4302,65 @@ L_AES_CBC_decrypt_avx512_256_aes_dec_block_last:
         jl	L_AES_CBC_decrypt_avx512_dec_256
 L_AES_CBC_decrypt_avx512_done_256:
         mov	r10d, r9d
+        sub	r10d, eax
+        cmp	r10d, 128
+        jl	L_AES_CBC_decrypt_avx512_done_128
+        ; 128 bytes of input
+        ; aes_cbc_dec_128
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	r12, QWORD PTR [rdx+rax]
+        vmovdqu64	zmm0, [r11]
+        vmovdqu64	zmm1, [r11+64]
+        vshufi64x2	zmm10, zmm0, zmm0, 144
+        vinserti32x4	zmm10, zmm10, xmm8, 0
+        vmovdqu64	zmm11, [r11+48]
+        vextracti32x4	xmm8, zmm1, 3
+        ; aes_dec_block
+        vpxorq	zmm0, zmm0, zmm14
+        vpxorq	zmm1, zmm1, zmm14
+        vaesdec	zmm0, zmm0, zmm15
+        vaesdec	zmm1, zmm1, zmm15
+        vaesdec	zmm0, zmm0, zmm16
+        vaesdec	zmm1, zmm1, zmm16
+        vaesdec	zmm0, zmm0, zmm17
+        vaesdec	zmm1, zmm1, zmm17
+        vaesdec	zmm0, zmm0, zmm18
+        vaesdec	zmm1, zmm1, zmm18
+        vaesdec	zmm0, zmm0, zmm19
+        vaesdec	zmm1, zmm1, zmm19
+        vaesdec	zmm0, zmm0, zmm20
+        vaesdec	zmm1, zmm1, zmm20
+        vaesdec	zmm0, zmm0, zmm21
+        vaesdec	zmm1, zmm1, zmm21
+        vaesdec	zmm0, zmm0, zmm22
+        vaesdec	zmm1, zmm1, zmm22
+        vaesdec	zmm0, zmm0, zmm23
+        vaesdec	zmm1, zmm1, zmm23
+        cmp	r10d, 11
+        vmovdqa64	zmm9, zmm24
+        jl	L_AES_CBC_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	zmm0, zmm0, zmm24
+        vaesdec	zmm1, zmm1, zmm24
+        vaesdec	zmm0, zmm0, zmm25
+        vaesdec	zmm1, zmm1, zmm25
+        cmp	r10d, 13
+        vmovdqa64	zmm9, zmm26
+        jl	L_AES_CBC_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	zmm0, zmm0, zmm26
+        vaesdec	zmm1, zmm1, zmm26
+        vaesdec	zmm0, zmm0, zmm27
+        vaesdec	zmm1, zmm1, zmm27
+        vmovdqa64	zmm9, zmm28
+L_AES_CBC_decrypt_avx512_128_aes_dec_block_last:
+        vaesdeclast	zmm0, zmm0, zmm9
+        vaesdeclast	zmm1, zmm1, zmm9
+        vpxorq	zmm0, zmm0, zmm10
+        vpxorq	zmm1, zmm1, zmm11
+        vmovdqu64	[r12], zmm0
+        vmovdqu64	[r12+64], zmm1
+        add	eax, 128
+L_AES_CBC_decrypt_avx512_done_128:
+        mov	r10d, r9d
         and	r10d, 4294967232
         cmp	eax, r10d
         je	L_AES_CBC_decrypt_avx512_done_64
@@ -3871,6 +4403,44 @@ L_AES_CBC_decrypt_avx512_64_aes_dec_block_last:
         cmp	eax, r10d
         jl	L_AES_CBC_decrypt_avx512_dec_64
 L_AES_CBC_decrypt_avx512_done_64:
+        mov	r10d, r9d
+        sub	r10d, eax
+        cmp	r10d, 32
+        jl	L_AES_CBC_decrypt_avx512_done_32
+        ; 32 bytes of input
+        lea	r11, QWORD PTR [rcx+rax]
+        vmovdqu	ymm0, YMMWORD PTR [r11]
+        vinserti128	ymm10, ymm8, xmm0, 1
+        vextracti128	xmm8, ymm0, 1
+        ; aes_dec_block
+        vpxorq	ymm0, ymm0, ymm14
+        vaesdec	ymm0, ymm0, ymm15
+        vaesdec	ymm0, ymm0, ymm16
+        vaesdec	ymm0, ymm0, ymm17
+        vaesdec	ymm0, ymm0, ymm18
+        vaesdec	ymm0, ymm0, ymm19
+        vaesdec	ymm0, ymm0, ymm20
+        vaesdec	ymm0, ymm0, ymm21
+        vaesdec	ymm0, ymm0, ymm22
+        vaesdec	ymm0, ymm0, ymm23
+        cmp	r10d, 11
+        vmovdqa64	ymm9, ymm24
+        jl	L_AES_CBC_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm24
+        vaesdec	ymm0, ymm0, ymm25
+        cmp	r10d, 13
+        vmovdqa64	ymm9, ymm26
+        jl	L_AES_CBC_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	ymm0, ymm0, ymm26
+        vaesdec	ymm0, ymm0, ymm27
+        vmovdqa64	ymm9, ymm28
+L_AES_CBC_decrypt_avx512_32_aes_dec_block_last:
+        vaesdeclast	ymm0, ymm0, ymm9
+        vpxorq	ymm0, ymm0, ymm10
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu	YMMWORD PTR [r11], ymm0
+        add	eax, 32
+L_AES_CBC_decrypt_avx512_done_32:
         cmp	eax, r9d
         mov	r10d, r9d
         je	L_AES_CBC_decrypt_avx512_done_dec
@@ -3986,36 +4556,36 @@ AES_CTR_encrypt_avx512 PROC
         vbroadcasti32x4	zmm8, ptr_L_aes_ctr_bswap_avx512
         vbroadcasti32x4	zmm7, [r10]
         vpshufb	zmm7, zmm7, zmm8
-        vbroadcasti32x4	zmm10, [ptr_L_aes_ctr_inc_avx512+256]
-        vbroadcasti32x4	zmm11, [ptr_L_aes_ctr_inc_avx512+64]
-        vbroadcasti32x4	zmm12, [ptr_L_aes_ctr_inc_avx512+16]
+        vbroadcasti32x4	zmm12, [ptr_L_aes_ctr_inc_avx512+64]
+        vbroadcasti32x4	zmm13, [ptr_L_aes_ctr_inc_avx512+16]
         xor	eax, eax
-        cmp	r8d, 64
-        jl	L_AES_CTR_encrypt_avx512_done_64
-        vbroadcasti32x4	zmm14, [r9]
-        vbroadcasti32x4	zmm15, [r9+16]
-        vbroadcasti32x4	zmm16, [r9+32]
-        vbroadcasti32x4	zmm17, [r9+48]
-        vbroadcasti32x4	zmm18, [r9+64]
-        vbroadcasti32x4	zmm19, [r9+80]
-        vbroadcasti32x4	zmm20, [r9+96]
-        vbroadcasti32x4	zmm21, [r9+112]
-        vbroadcasti32x4	zmm22, [r9+128]
-        vbroadcasti32x4	zmm23, [r9+144]
-        vbroadcasti32x4	zmm24, [r9+160]
+        cmp	r8d, 32
+        jl	L_AES_CTR_encrypt_avx512_done_32
+        vbroadcasti32x4	zmm15, [r9]
+        vbroadcasti32x4	zmm16, [r9+16]
+        vbroadcasti32x4	zmm17, [r9+32]
+        vbroadcasti32x4	zmm18, [r9+48]
+        vbroadcasti32x4	zmm19, [r9+64]
+        vbroadcasti32x4	zmm20, [r9+80]
+        vbroadcasti32x4	zmm21, [r9+96]
+        vbroadcasti32x4	zmm22, [r9+112]
+        vbroadcasti32x4	zmm23, [r9+128]
+        vbroadcasti32x4	zmm24, [r9+144]
+        vbroadcasti32x4	zmm25, [r9+160]
         cmp	eax, 11
         jl	L_AES_CTR_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm25, [r9+176]
-        vbroadcasti32x4	zmm26, [r9+192]
+        vbroadcasti32x4	zmm26, [r9+176]
+        vbroadcasti32x4	zmm27, [r9+192]
         cmp	eax, 13
         jl	L_AES_CTR_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm27, [r9+208]
-        vbroadcasti32x4	zmm28, [r9+224]
+        vbroadcasti32x4	zmm28, [r9+208]
+        vbroadcasti32x4	zmm29, [r9+224]
 L_AES_CTR_encrypt_avx512_key_cached:
         cmp	r8d, 256
         mov	r10d, r8d
         jl	L_AES_CTR_encrypt_avx512_done_256
         and	r10d, 4294967040
+        vbroadcasti32x4	zmm10, [ptr_L_aes_ctr_inc_avx512+256]
         vmovdqa64	zmm9, zmm7
         vpaddq	zmm4, zmm7, [ptr_L_aes_ctr_inc_avx512]
         vpternlogq	zmm9, zmm4, [ptr_L_aes_ctr_inc_avx512], 178
@@ -4073,14 +4643,10 @@ L_AES_CTR_encrypt_avx512_enc_256:
         vpslldq	zmm9, zmm9, 8
         vpaddq	zmm7, zmm7, zmm9
         ; aes_enc_block
-        vpxorq	zmm0, zmm0, zmm14
-        vpxorq	zmm1, zmm1, zmm14
-        vpxorq	zmm2, zmm2, zmm14
-        vpxorq	zmm3, zmm3, zmm14
-        vaesenc	zmm0, zmm0, zmm15
-        vaesenc	zmm1, zmm1, zmm15
-        vaesenc	zmm2, zmm2, zmm15
-        vaesenc	zmm3, zmm3, zmm15
+        vpxorq	zmm0, zmm0, zmm15
+        vpxorq	zmm1, zmm1, zmm15
+        vpxorq	zmm2, zmm2, zmm15
+        vpxorq	zmm3, zmm3, zmm15
         vaesenc	zmm0, zmm0, zmm16
         vaesenc	zmm1, zmm1, zmm16
         vaesenc	zmm2, zmm2, zmm16
@@ -4113,34 +4679,38 @@ L_AES_CTR_encrypt_avx512_enc_256:
         vaesenc	zmm1, zmm1, zmm23
         vaesenc	zmm2, zmm2, zmm23
         vaesenc	zmm3, zmm3, zmm23
-        cmp	eax, 11
-        vmovdqa64	zmm13, zmm24
-        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	zmm0, zmm0, zmm24
         vaesenc	zmm1, zmm1, zmm24
         vaesenc	zmm2, zmm2, zmm24
         vaesenc	zmm3, zmm3, zmm24
+        cmp	eax, 11
+        vmovdqa64	zmm14, zmm25
+        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	zmm0, zmm0, zmm25
         vaesenc	zmm1, zmm1, zmm25
         vaesenc	zmm2, zmm2, zmm25
         vaesenc	zmm3, zmm3, zmm25
-        cmp	eax, 13
-        vmovdqa64	zmm13, zmm26
-        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	zmm0, zmm0, zmm26
         vaesenc	zmm1, zmm1, zmm26
         vaesenc	zmm2, zmm2, zmm26
         vaesenc	zmm3, zmm3, zmm26
+        cmp	eax, 13
+        vmovdqa64	zmm14, zmm27
+        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	zmm0, zmm0, zmm27
         vaesenc	zmm1, zmm1, zmm27
         vaesenc	zmm2, zmm2, zmm27
         vaesenc	zmm3, zmm3, zmm27
-        vmovdqa64	zmm13, zmm28
+        vaesenc	zmm0, zmm0, zmm28
+        vaesenc	zmm1, zmm1, zmm28
+        vaesenc	zmm2, zmm2, zmm28
+        vaesenc	zmm3, zmm3, zmm28
+        vmovdqa64	zmm14, zmm29
 L_AES_CTR_encrypt_avx512_256_aes_enc_block_last:
-        vaesenclast	zmm0, zmm0, zmm13
-        vaesenclast	zmm1, zmm1, zmm13
-        vaesenclast	zmm2, zmm2, zmm13
-        vaesenclast	zmm3, zmm3, zmm13
+        vaesenclast	zmm0, zmm0, zmm14
+        vaesenclast	zmm1, zmm1, zmm14
+        vaesenclast	zmm2, zmm2, zmm14
+        vaesenclast	zmm3, zmm3, zmm14
         vpxorq	zmm0, zmm0, [r11]
         vpxorq	zmm1, zmm1, [r11+64]
         vpxorq	zmm2, zmm2, [r11+128]
@@ -4154,6 +4724,80 @@ L_AES_CTR_encrypt_avx512_256_aes_enc_block_last:
         jl	L_AES_CTR_encrypt_avx512_enc_256
         vshufi64x2	zmm7, zmm4, zmm4, 0
 L_AES_CTR_encrypt_avx512_done_256:
+        mov	r10d, r8d
+        sub	r10d, eax
+        cmp	r10d, 128
+        jl	L_AES_CTR_encrypt_avx512_done_128
+        ; 128 bytes of input
+        vbroadcasti32x4	zmm11, [ptr_L_aes_ctr_inc_avx512+128]
+        ; aes_ctr_enc_128
+        lea	r11, QWORD PTR [rcx+rax]
+        lea	rbx, QWORD PTR [rdx+rax]
+        vpaddq	zmm0, zmm7, [ptr_L_aes_ctr_inc_avx512]
+        vmovdqa64	zmm9, zmm7
+        vpternlogq	zmm9, zmm0, [ptr_L_aes_ctr_inc_avx512], 178
+        vpsrlq	zmm9, zmm9, 63
+        vpslldq	zmm9, zmm9, 8
+        vpaddq	zmm0, zmm0, zmm9
+        vpshufb	zmm0, zmm0, zmm8
+        vpaddq	zmm1, zmm7, [ptr_L_aes_ctr_inc_avx512+64]
+        vmovdqa64	zmm9, zmm7
+        vpternlogq	zmm9, zmm1, [ptr_L_aes_ctr_inc_avx512+64], 178
+        vpsrlq	zmm9, zmm9, 63
+        vpslldq	zmm9, zmm9, 8
+        vpaddq	zmm1, zmm1, zmm9
+        vpshufb	zmm1, zmm1, zmm8
+        vmovdqa64	zmm9, zmm7
+        vpaddq	zmm7, zmm7, zmm11
+        vpternlogq	zmm9, zmm7, zmm11, 178
+        vpsrlq	zmm9, zmm9, 63
+        vpslldq	zmm9, zmm9, 8
+        vpaddq	zmm7, zmm7, zmm9
+        ; aes_enc_block
+        vpxorq	zmm0, zmm0, zmm15
+        vpxorq	zmm1, zmm1, zmm15
+        vaesenc	zmm0, zmm0, zmm16
+        vaesenc	zmm1, zmm1, zmm16
+        vaesenc	zmm0, zmm0, zmm17
+        vaesenc	zmm1, zmm1, zmm17
+        vaesenc	zmm0, zmm0, zmm18
+        vaesenc	zmm1, zmm1, zmm18
+        vaesenc	zmm0, zmm0, zmm19
+        vaesenc	zmm1, zmm1, zmm19
+        vaesenc	zmm0, zmm0, zmm20
+        vaesenc	zmm1, zmm1, zmm20
+        vaesenc	zmm0, zmm0, zmm21
+        vaesenc	zmm1, zmm1, zmm21
+        vaesenc	zmm0, zmm0, zmm22
+        vaesenc	zmm1, zmm1, zmm22
+        vaesenc	zmm0, zmm0, zmm23
+        vaesenc	zmm1, zmm1, zmm23
+        vaesenc	zmm0, zmm0, zmm24
+        vaesenc	zmm1, zmm1, zmm24
+        cmp	eax, 11
+        vmovdqa64	zmm14, zmm25
+        jl	L_AES_CTR_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm25
+        vaesenc	zmm1, zmm1, zmm25
+        vaesenc	zmm0, zmm0, zmm26
+        vaesenc	zmm1, zmm1, zmm26
+        cmp	eax, 13
+        vmovdqa64	zmm14, zmm27
+        jl	L_AES_CTR_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm27
+        vaesenc	zmm1, zmm1, zmm27
+        vaesenc	zmm0, zmm0, zmm28
+        vaesenc	zmm1, zmm1, zmm28
+        vmovdqa64	zmm14, zmm29
+L_AES_CTR_encrypt_avx512_128_aes_enc_block_last:
+        vaesenclast	zmm0, zmm0, zmm14
+        vaesenclast	zmm1, zmm1, zmm14
+        vpxorq	zmm0, zmm0, [r11]
+        vpxorq	zmm1, zmm1, [r11+64]
+        vmovdqu64	[rbx], zmm0
+        vmovdqu64	[rbx+64], zmm1
+        add	eax, 128
+L_AES_CTR_encrypt_avx512_done_128:
         mov	r10d, r8d
         and	r10d, 4294967232
         cmp	eax, r10d
@@ -4171,14 +4815,13 @@ L_AES_CTR_encrypt_avx512_enc_64:
         vpaddq	zmm0, zmm0, zmm9
         vpshufb	zmm0, zmm0, zmm8
         vmovdqa64	zmm9, zmm7
-        vpaddq	zmm7, zmm7, zmm11
-        vpternlogq	zmm9, zmm7, zmm11, 178
+        vpaddq	zmm7, zmm7, zmm12
+        vpternlogq	zmm9, zmm7, zmm12, 178
         vpsrlq	zmm9, zmm9, 63
         vpslldq	zmm9, zmm9, 8
         vpaddq	zmm7, zmm7, zmm9
         ; aes_enc_block
-        vpxorq	zmm0, zmm0, zmm14
-        vaesenc	zmm0, zmm0, zmm15
+        vpxorq	zmm0, zmm0, zmm15
         vaesenc	zmm0, zmm0, zmm16
         vaesenc	zmm0, zmm0, zmm17
         vaesenc	zmm0, zmm0, zmm18
@@ -4187,25 +4830,75 @@ L_AES_CTR_encrypt_avx512_enc_64:
         vaesenc	zmm0, zmm0, zmm21
         vaesenc	zmm0, zmm0, zmm22
         vaesenc	zmm0, zmm0, zmm23
-        cmp	eax, 11
-        vmovdqa64	zmm13, zmm24
-        jl	L_AES_CTR_encrypt_avx512_64_aes_enc_block_last
         vaesenc	zmm0, zmm0, zmm24
-        vaesenc	zmm0, zmm0, zmm25
-        cmp	eax, 13
-        vmovdqa64	zmm13, zmm26
+        cmp	eax, 11
+        vmovdqa64	zmm14, zmm25
         jl	L_AES_CTR_encrypt_avx512_64_aes_enc_block_last
+        vaesenc	zmm0, zmm0, zmm25
         vaesenc	zmm0, zmm0, zmm26
+        cmp	eax, 13
+        vmovdqa64	zmm14, zmm27
+        jl	L_AES_CTR_encrypt_avx512_64_aes_enc_block_last
         vaesenc	zmm0, zmm0, zmm27
-        vmovdqa64	zmm13, zmm28
+        vaesenc	zmm0, zmm0, zmm28
+        vmovdqa64	zmm14, zmm29
 L_AES_CTR_encrypt_avx512_64_aes_enc_block_last:
-        vaesenclast	zmm0, zmm0, zmm13
+        vaesenclast	zmm0, zmm0, zmm14
         vpxorq	zmm0, zmm0, [r11]
         vmovdqu64	[rbx], zmm0
         add	eax, 64
         cmp	eax, r10d
         jl	L_AES_CTR_encrypt_avx512_enc_64
 L_AES_CTR_encrypt_avx512_done_64:
+        mov	r10d, r8d
+        sub	r10d, eax
+        cmp	r10d, 32
+        jl	L_AES_CTR_encrypt_avx512_done_32
+        ; 32 bytes of input
+        vbroadcasti32x4	zmm4, [ptr_L_aes_ctr_inc_avx512+32]
+        vpaddq	ymm0, ymm7, [ptr_L_aes_ctr_inc_avx512]
+        vmovdqa64	ymm9, ymm7
+        vpternlogq	ymm9, ymm0, [ptr_L_aes_ctr_inc_avx512], 178
+        vpsrlq	ymm9, ymm9, 63
+        vpslldq	ymm9, ymm9, 8
+        vpaddq	ymm0, ymm0, ymm9
+        vpshufb	ymm0, ymm0, ymm8
+        vmovdqa64	zmm9, zmm7
+        vpaddq	zmm7, zmm7, zmm4
+        vpternlogq	zmm9, zmm7, zmm4, 178
+        vpsrlq	zmm9, zmm9, 63
+        vpslldq	zmm9, zmm9, 8
+        vpaddq	zmm7, zmm7, zmm9
+        ; aes_enc_block
+        vpxorq	ymm0, ymm0, ymm15
+        vaesenc	ymm0, ymm0, ymm16
+        vaesenc	ymm0, ymm0, ymm17
+        vaesenc	ymm0, ymm0, ymm18
+        vaesenc	ymm0, ymm0, ymm19
+        vaesenc	ymm0, ymm0, ymm20
+        vaesenc	ymm0, ymm0, ymm21
+        vaesenc	ymm0, ymm0, ymm22
+        vaesenc	ymm0, ymm0, ymm23
+        vaesenc	ymm0, ymm0, ymm24
+        cmp	eax, 11
+        vmovdqa64	ymm14, ymm25
+        jl	L_AES_CTR_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm25
+        vaesenc	ymm0, ymm0, ymm26
+        cmp	eax, 13
+        vmovdqa64	ymm14, ymm27
+        jl	L_AES_CTR_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	ymm0, ymm0, ymm27
+        vaesenc	ymm0, ymm0, ymm28
+        vmovdqa64	ymm14, ymm29
+L_AES_CTR_encrypt_avx512_32_aes_enc_block_last:
+        vaesenclast	ymm0, ymm0, ymm14
+        lea	r11, QWORD PTR [rcx+rax]
+        vpxorq	ymm0, ymm0, [r11]
+        lea	r11, QWORD PTR [rdx+rax]
+        vmovdqu	YMMWORD PTR [r11], ymm0
+        add	eax, 32
+L_AES_CTR_encrypt_avx512_done_32:
         cmp	eax, r8d
         mov	r10d, r8d
         je	L_AES_CTR_encrypt_avx512_done_enc
@@ -4214,8 +4907,8 @@ L_AES_CTR_encrypt_avx512_enc_16:
         ; 16 bytes of input
         vpshufb	xmm0, xmm7, xmm8
         vmovdqa64	zmm9, zmm7
-        vpaddq	zmm7, zmm7, zmm12
-        vpternlogq	zmm9, zmm7, zmm12, 178
+        vpaddq	zmm7, zmm7, zmm13
+        vpternlogq	zmm9, zmm7, zmm13, 178
         vpsrlq	zmm9, zmm9, 63
         vpslldq	zmm9, zmm9, 8
         vpaddq	zmm7, zmm7, zmm9
