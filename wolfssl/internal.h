@@ -5782,10 +5782,16 @@ typedef struct DtlsMsg {
 
     /* NETX I/O Callback default */
     typedef struct NetX_Ctx {
-        NX_TCP_SOCKET* nxSocket;    /* send/recv socket handle */
+        NX_TCP_SOCKET* nxTcpSocket; /* send/recv tcp socket handle */
         NX_PACKET*     nxPacket;    /* incoming packet handle for short reads */
         ULONG          nxOffset;    /* offset already read from nxPacket */
         ULONG          nxWait;      /* wait option flag */
+/* WOLFSSL_NETX_DUO: requires ThreadX NetX Duo (NXD_ADDRESS, nxd_udp_socket_send) */
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_NETX_DUO)
+        NX_UDP_SOCKET* nxUdpSocket; /* send/recv udp socket handle */
+        NXD_ADDRESS    nxdIp;       /* destination IP address for udp send */
+        USHORT         nxPort;      /* destination port for udp send */
+#endif /* WOLFSSL_DTLS && WOLFSSL_NETX_DUO */
     } NetX_Ctx;
 
 #endif

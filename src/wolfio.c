@@ -2530,7 +2530,7 @@ void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
 
 #ifdef HAVE_NETX
 
-/* The NetX receive callback
+/* The NetX receive callback for TLS
  *  return :  bytes read, or error
  */
 int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
@@ -2543,13 +2543,13 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     (void)ssl;
 
-    if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
+    if (nxCtx == NULL || nxCtx->nxTcpSocket == NULL) {
         WOLFSSL_MSG("NetX Recv NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     if (nxCtx->nxPacket == NULL) {
-        status = nx_tcp_socket_receive(nxCtx->nxSocket, &nxCtx->nxPacket,
+        status = nx_tcp_socket_receive(nxCtx->nxTcpSocket, &nxCtx->nxPacket,
                                        nxCtx->nxWait);
         if (status != NX_SUCCESS) {
             WOLFSSL_MSG("NetX Recv receive error");
@@ -2586,7 +2586,7 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 }
 
 
-/* The NetX send callback
+/* The NetX send callback for TLS
  *  return : bytes sent, or error
  */
 int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
@@ -2598,12 +2598,12 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     (void)ssl;
 
-    if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
+    if (nxCtx == NULL || nxCtx->nxTcpSocket == NULL) {
         WOLFSSL_MSG("NetX Send NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    pool = nxCtx->nxSocket->nx_tcp_socket_ip_ptr->nx_ip_default_packet_pool;
+    pool = nxCtx->nxTcpSocket->nx_tcp_socket_ip_ptr->nx_ip_default_packet_pool;
     status = nx_packet_allocate(pool, &packet, NX_TCP_PACKET,
                                 nxCtx->nxWait);
     if (status != NX_SUCCESS) {
@@ -2618,7 +2618,7 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    status = nx_tcp_socket_send(nxCtx->nxSocket, packet, nxCtx->nxWait);
+    status = nx_tcp_socket_send(nxCtx->nxTcpSocket, packet, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send socket send error");
@@ -2628,15 +2628,264 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     return sz;
 }
 
-
 /* like set_fd, but for default NetX context */
-void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
+void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket, ULONG waitoption)
 {
     if (ssl) {
-        ssl->nxCtx.nxSocket = nxSocket;
-        ssl->nxCtx.nxWait   = waitOption;
+        ssl->nxCtx.nxTcpSocket  = nxsocket;
+        ssl->nxCtx.nxWait       = waitoption;
     }
 }
+
+/* WOLFSSL_NETX_DUO: requires ThreadX NetX Duo (NXD_ADDRESS, nxd_udp_socket_send) */
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_NETX_DUO)
+static void NetX_ResetPacket(NetX_Ctx* nxCtx)
+{
+    if (nxCtx->nxPacket != NULL) {
+        nx_packet_release(nxCtx->nxPacket);
+        nxCtx->nxPacket = NULL;
+    }
+    nxCtx->nxOffset = 0;
+}
+
+static int NetX_PeerAddrEqual(const NXD_ADDRESS* left, const NXD_ADDRESS* right)
+{
+    if (left->nxd_ip_version != right->nxd_ip_version)
+        return 0;
+
+    if (left->nxd_ip_version == NX_IP_VERSION_V4)
+        return left->nxd_ip_address.v4 == right->nxd_ip_address.v4;
+
+    return left->nxd_ip_address.v6[0] == right->nxd_ip_address.v6[0] &&
+           left->nxd_ip_address.v6[1] == right->nxd_ip_address.v6[1] &&
+           left->nxd_ip_address.v6[2] == right->nxd_ip_address.v6[2] &&
+           left->nxd_ip_address.v6[3] == right->nxd_ip_address.v6[3];
+}
+
+/* The NetX receive callback for DTLS
+ *  return :  bytes read, or error
+ */
+int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    NetX_Ctx* nxCtx = (NetX_Ctx*)ctx;
+    NXD_ADDRESS srcIp;
+    ULONG left;
+    ULONG total;
+    ULONG copied = 0;
+    UINT  srcPort;
+    UINT  status;
+    ULONG waitOption;
+    int   dtls_timeout;
+    int   usingNonblock;
+    byte  doDtlsTimeout;
+    word32 invalidPeerPackets = 0;
+#if defined(DTLS_RECEIVEFROM_MAX_INVALID_PEER)
+    const word32 maxInvalidPeerPackets = DTLS_RECEIVEFROM_MAX_INVALID_PEER;
+#else
+    const word32 maxInvalidPeerPackets = 10;
+#endif
+
+    if (nxCtx == NULL || nxCtx->nxUdpSocket == NULL) {
+        WOLFSSL_MSG("NetX Recv NULL parameters");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    usingNonblock = wolfSSL_dtls_get_using_nonblock(ssl);
+
+    /* Don't use ssl->options.handShakeDone since it is true even if
+     * we are in the process of renegotiation. */
+    doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+        doDtlsTimeout =
+            doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL ||
+            (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+    do {
+        if (nxCtx->nxPacket == NULL) {
+            /* Compute wait ticks from the DTLS retransmit timeout while a
+             * handshake/RTX timer is active, otherwise honor nxWait. */
+            if (!usingNonblock) {
+                dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
+                if (!doDtlsTimeout)
+                    dtls_timeout = 0;
+#ifdef WOLFSSL_DTLS13
+                if (dtls_timeout > 0 && wolfSSL_dtls13_use_quick_timeout(ssl) &&
+                    IsAtLeastTLSv1_3(ssl->version)) {
+                    if (dtls_timeout > 4)
+                        dtls_timeout /= 4;
+                    else
+                        dtls_timeout = 1;
+                }
+#endif /* WOLFSSL_DTLS13 */
+                waitOption = (dtls_timeout > 0)
+                             ? (ULONG)dtls_timeout * NX_IP_PERIODIC_RATE
+                             : nxCtx->nxWait;
+            }
+            else {
+                waitOption = NX_NO_WAIT; /* non-blocking */
+            }
+
+            status = nx_udp_socket_receive(nxCtx->nxUdpSocket, &nxCtx->nxPacket,
+                                           waitOption);
+            if (status != NX_SUCCESS) {
+                if (status == NX_NO_PACKET) {
+                    /* Normal receive timeout - allow DTLS to retransmit */
+                    WOLFSSL_MSG("NetX Recv timeout");
+                    return usingNonblock
+                           ? WOLFSSL_CBIO_ERR_WANT_READ
+                           : WOLFSSL_CBIO_ERR_TIMEOUT;
+                }
+                WOLFSSL_MSG("NetX Recv receive error");
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            status = nxd_udp_source_extract(nxCtx->nxPacket, &srcIp, &srcPort);
+            if (status != NX_SUCCESS) {
+                NetX_ResetPacket(nxCtx);
+                WOLFSSL_MSG("NetX Recv source extract error");
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            if (nxCtx->nxPort != 0 &&
+                (nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V4 ||
+                 nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V6)) {
+                if ((USHORT)srcPort != nxCtx->nxPort ||
+                    !NetX_PeerAddrEqual(&srcIp, &nxCtx->nxdIp)) {
+                    WOLFSSL_MSG("NetX Recv ignored packet from invalid peer");
+                    NetX_ResetPacket(nxCtx);
+                    if (doDtlsTimeout) {
+                        invalidPeerPackets++;
+                        if (invalidPeerPackets > maxInvalidPeerPackets) {
+                            return usingNonblock
+                                   ? WOLFSSL_CBIO_ERR_WANT_READ
+                                   : WOLFSSL_CBIO_ERR_TIMEOUT;
+                        }
+                    }
+                    continue;
+                }
+            }
+            else {
+                /* No peer preset: accept first datagram and lock onto source. */
+                nxCtx->nxdIp = srcIp;
+                nxCtx->nxPort = (USHORT)srcPort;
+            }
+        }
+
+        status = nx_packet_length_get(nxCtx->nxPacket, &total);
+        if (status != NX_SUCCESS) {
+            NetX_ResetPacket(nxCtx);
+            WOLFSSL_MSG("NetX Recv length get error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        if (total == 0) {
+            WOLFSSL_MSG("Ignoring 0-length datagram");
+            NetX_ResetPacket(nxCtx);
+            if (doDtlsTimeout) {
+                invalidPeerPackets++;
+                if (invalidPeerPackets > maxInvalidPeerPackets) {
+                    return usingNonblock
+                           ? WOLFSSL_CBIO_ERR_WANT_READ
+                           : WOLFSSL_CBIO_ERR_TIMEOUT;
+                }
+            }
+            continue;
+        }
+
+        if (nxCtx->nxOffset > total) {
+            NetX_ResetPacket(nxCtx);
+            WOLFSSL_MSG("NetX Recv invalid packet offset");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        left = total - nxCtx->nxOffset;
+        status = nx_packet_data_extract_offset(nxCtx->nxPacket, nxCtx->nxOffset,
+                                               buf, sz, &copied);
+        if (status != NX_SUCCESS) {
+            NetX_ResetPacket(nxCtx);
+            WOLFSSL_MSG("NetX Recv data extract offset error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        nxCtx->nxOffset += copied;
+
+        if (copied == left) {
+            WOLFSSL_MSG("NetX Recv Drained packet");
+            NetX_ResetPacket(nxCtx);
+        }
+
+        return copied;
+    } while (1);
+
+    return (int)copied;
+}
+
+/* The NetX send callback for DTLS
+ *  return : bytes sent, or error
+ */
+int NetX_SendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+{
+    NetX_Ctx*       nxCtx = (NetX_Ctx*)ctx;
+    NX_PACKET*      packet;
+    NX_PACKET_POOL* pool;   /* shorthand */
+    UINT            status;
+
+    (void)ssl;
+
+    if (nxCtx == NULL || nxCtx->nxUdpSocket == NULL) {
+        WOLFSSL_MSG("NetX Send NULL parameters");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    pool = nxCtx->nxUdpSocket->nx_udp_socket_ip_ptr->nx_ip_default_packet_pool;
+    status = nx_packet_allocate(pool, &packet, NX_UDP_PACKET,
+                                nxCtx->nxWait);
+    if (status != NX_SUCCESS) {
+        WOLFSSL_MSG("NetX Send packet alloc error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    status = nx_packet_data_append(packet, buf, sz, pool, nxCtx->nxWait);
+    if (status != NX_SUCCESS) {
+        nx_packet_release(packet);
+        WOLFSSL_MSG("NetX Send data append error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    if (nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V4) {
+        status = nx_udp_socket_send(nxCtx->nxUdpSocket, packet,
+                                    nxCtx->nxdIp.nxd_ip_address.v4,
+                                    (UINT)nxCtx->nxPort);
+    }
+    else {
+        status = nxd_udp_socket_send(nxCtx->nxUdpSocket, packet,
+                                     &nxCtx->nxdIp, (UINT)nxCtx->nxPort);
+    }
+    if (status != NX_SUCCESS) {
+        nx_packet_release(packet);
+        WOLFSSL_MSG("NetX Send socket send error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    return sz;
+}
+
+/* like set_fd, but for default NetX Duo UDP context */
+void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket,
+                              NXD_ADDRESS nxdip, USHORT nxport,
+                              ULONG waitoption)
+{
+    if (ssl) {
+        ssl->nxCtx.nxUdpSocket = nxsocket;
+        ssl->nxCtx.nxdIp       = nxdip;
+        ssl->nxCtx.nxPort      = nxport;
+        ssl->nxCtx.nxWait      = waitoption;
+    }
+}
+#endif /* WOLFSSL_DTLS && WOLFSSL_NETX_DUO */
 
 #endif /* HAVE_NETX */
 
