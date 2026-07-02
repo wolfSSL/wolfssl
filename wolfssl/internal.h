@@ -3997,6 +3997,7 @@ struct WOLFSSL_CTX {
     byte        verifyNone:1;
     byte        failNoCert:1;
     byte        failNoCertxPSK:1; /* fail if no cert with the exception of PSK*/
+    byte        failNoPSK:1;      /* fail if no PSK is negotiated */
     byte        sessionCacheOff:1;
     byte        sessionCacheFlushOff:1;
 #ifdef HAVE_EXT_CACHE
@@ -5138,6 +5139,7 @@ struct Options {
     word16            verifyNone:1;
     word16            failNoCert:1;
     word16            failNoCertxPSK:1;   /* fail for no cert except with PSK */
+    word16            failNoPSK:1;        /* fail if no PSK is negotiated */
     word16            downgrade:1;        /* allow downgrade of versions */
     word16            resuming:1;
 #ifdef HAVE_SECURE_RENEGOTIATION

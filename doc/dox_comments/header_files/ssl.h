@@ -14135,6 +14135,80 @@ int  wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx);
 int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 
 /*!
+    \ingroup Setup
+
+    \brief This function is called on a TLS v1.3 / DTLS v1.3 context to require
+    that an external Pre-Shared Key is negotiated for the handshake to succeed.
+    When set, a handshake that completes without negotiating an external PSK is
+    aborted with PSK_MISSING_ERROR instead of falling back to a certificate
+    handshake, so the PSK acts as an additional security factor. The requirement
+    keys off the external-PSK callback (it has no effect unless one is
+    registered) and session-ticket resumption is exempt. To preserve forward
+    secrecy a mandatory external PSK must also use an (EC)DHE key exchange; a
+    pure psk_ke handshake is rejected with PSK_KEY_ERROR. This applies to TLS 1.3
+    and DTLS 1.3 only; in (D)TLS 1.2 the use of a PSK is determined by the
+    negotiated cipher suite, so a mandatory PSK is instead configured by
+    restricting the cipher suite list to (preferably (EC)DHE-)PSK suites.
+
+    \warning Because the requirement can only be enforced for (D)TLS 1.3, this
+    function also disables version downgrade on the context so it cannot
+    silently fall back to (D)TLS 1.2 and complete a handshake without a PSK. A
+    peer that does not support (D)TLS 1.3 will therefore fail to connect.
+
+    \note In builds compiled without external-PSK and without session-ticket
+    support (NO_PSK defined and HAVE_SESSION_TICKET undefined) the requirement
+    cannot be enforced; the function still returns 0 but has no effect.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+
+    \return BAD_FUNC_ARG if ctx is NULL or not at least TLS v1.3.
+    \return 0 if successful.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL_CTX* ctx;
+    ...
+    ret = wolfSSL_CTX_require_psk(ctx);
+    if (ret != 0) {
+        // failed to make a PSK mandatory
+    }
+    \endcode
+
+    \sa wolfSSL_require_psk
+*/
+int  wolfSSL_CTX_require_psk(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief This function is called on a TLS v1.3 / DTLS v1.3 wolfSSL object to
+    require that an external Pre-Shared Key is negotiated for the handshake to
+    succeed. See wolfSSL_CTX_require_psk() for the full behaviour.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+
+    \return BAD_FUNC_ARG if ssl is NULL or not at least TLS v1.3.
+    \return 0 if successful.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    ...
+    ret = wolfSSL_require_psk(ssl);
+    if (ret != 0) {
+        // failed to make a PSK mandatory
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_require_psk
+*/
+int  wolfSSL_require_psk(WOLFSSL* ssl);
+
+/*!
     \ingroup IO
 
     \brief This function is called on a TLS v1.3 client or server wolfSSL to

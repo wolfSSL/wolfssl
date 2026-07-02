@@ -4386,7 +4386,11 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
                 return PSK_KEY_ERROR;
             }
         }
-        else if (ssl->options.onlyPskDheKe) {
+        else if (ssl->options.onlyPskDheKe ||
+                 (ssl->options.failNoPSK && !psk->resumption)) {
+            /* A mandatory external PSK (failNoPSK) must be combined with
+             * (EC)DHE for forward secrecy, so reject a pure psk_ke
+             * negotiation. Session-ticket resumption is exempt. */
             WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
         }
@@ -5907,6 +5911,18 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         while (psk != NULL && !psk->chosen)
             psk = psk->next;
         if (psk == NULL) {
+            /* A mandatory PSK is satisfied by any PSK the server chose,
+             * including a resumption PSK - this matches the server-side
+             * failNoPSK semantics, where a negotiated PSK (external or
+             * resumption) is accepted. The error only fires when no PSK was
+             * chosen at all. havePSK is only set by an external-PSK callback,
+             * so a peer relying solely on session-ticket resumption is
+             * unaffected. */
+            if (ssl->options.havePSK && ssl->options.failNoPSK) {
+                WOLFSSL_MSG("Server did not negotiate a mandatory PSK");
+                WOLFSSL_ERROR_VERBOSE(PSK_MISSING_ERROR);
+                return PSK_MISSING_ERROR;
+            }
             ssl->options.resuming = 0;
             ssl->arrays->psk_keySz = 0;
             XMEMSET(ssl->arrays->psk_key, 0, MAX_PSK_KEY_LEN);
@@ -6670,6 +6686,16 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #endif
         if (usingPSK)
             *usingPSK = 0;
+
+        /* No PSK extension at all: if a mandatory external PSK is configured,
+         * refuse the connection rather than continue without one. havePSK is
+         * only set by an external-PSK callback, so a peer relying solely on
+         * session-ticket resumption is unaffected. */
+        if (ssl->options.havePSK && ssl->options.failNoPSK) {
+            WOLFSSL_ERROR_VERBOSE(PSK_MISSING_ERROR);
+            return PSK_MISSING_ERROR;
+        }
+
         /* Hash data up to binders for deriving binders in PSK extension. */
         ret = HashInput(ssl, input,  (int)helloSz);
         return ret;
@@ -6731,6 +6757,16 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #endif
 
     if (!*usingPSK) {
+        /* No suitable PSK was negotiated. When a mandatory external PSK is
+         * configured, fail with a dedicated error instead of falling back to a
+         * certificate handshake. This must run before the no-certificate
+         * BAD_BINDER check below so a PSK-only server (no cert) still reports
+         * PSK_MISSING_ERROR. havePSK is only set by an external-PSK callback, so
+         * a peer relying solely on session-ticket resumption is unaffected. */
+        if (ssl->options.havePSK && ssl->options.failNoPSK) {
+            WOLFSSL_ERROR_VERBOSE(PSK_MISSING_ERROR);
+            return PSK_MISSING_ERROR;
+        }
     #ifndef NO_CERTS
         if (ssl->buffers.certificate == NULL
         #ifdef WOLFSSL_CERT_SETUP_CB
@@ -6892,7 +6928,11 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 ssl->namedGroup = ssl->session->namedGroup;
             *usingPSK = 2; /* generate new ephemeral key */
         }
-        else if (ssl->options.onlyPskDheKe) {
+        else if (ssl->options.onlyPskDheKe ||
+                 (ssl->options.failNoPSK && !ssl->options.resuming)) {
+            /* A mandatory external PSK (failNoPSK) must be combined with
+             * (EC)DHE for forward secrecy, so reject a pure psk_ke
+             * negotiation. Session-ticket resumption is exempt. */
             return PSK_KEY_ERROR;
         }
         else
@@ -6911,6 +6951,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     }
     else {
 #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
+        /* If no PSK is found, we remove the extension to make sure it
+         * is not sent back to the client */
         TLSX_Remove(&ssl->extensions, TLSX_CERT_WITH_EXTERN_PSK, ssl->heap);
         ssl->options.certWithExternPsk = 0;
 #endif
@@ -11852,6 +11894,21 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#if !defined(NO_CERTS) && !defined(NO_PSK) && \
+    defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    /* Verify the server sent a certificate if requested */
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.pskNegotiated &&
+            ssl->options.failNoCert) {
+        if ((TLSX_Find(ssl->extensions, TLSX_CERT_WITH_EXTERN_PSK) != NULL) &&
+                (!ssl->options.havePeerCert || !ssl->options.havePeerVerify)) {
+            ret = NO_PEER_CERT;
+            WOLFSSL_MSG("TLS v1.3 server did not present peer cert");
+            DoCertFatalAlert(ssl, ret);
+            goto cleanup;
+        }
+    }
+#endif
+
     /* check against totalSz */
     if (*inOutIdx + size > totalSz) {
         ret = BUFFER_E;
@@ -14968,6 +15025,52 @@ int wolfSSL_only_dhe_psk(WOLFSSL* ssl)
     return 0;
 }
 #endif /* HAVE_SUPPORTED_CURVES */
+
+/* Require that an external Pre-Shared Key is negotiated for the handshake to
+ * succeed. TLS 1.3 / DTLS 1.3 only - in (D)TLS 1.2 the use of a PSK is
+ * determined by the negotiated cipher suite, so a mandatory PSK is configured
+ * there by restricting the cipher suite list to PSK suites.
+ *
+ * ctx  The SSL/TLS CTX object.
+ * returns BAD_FUNC_ARG when ctx is NULL or not at least TLS v1.3, 0 on success.
+ */
+int wolfSSL_CTX_require_psk(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version))
+        return BAD_FUNC_ARG;
+
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    ctx->failNoPSK = 1;
+    /* The requirement can only be enforced for (D)TLS 1.3, so keep it
+     * fail-closed by disabling a version downgrade. Otherwise a
+     * downgrade-capable context (e.g. from a v23 method) could silently fall
+     * back to (D)TLS 1.2 and complete without any PSK. */
+    ctx->method->downgrade = 0;
+#endif
+
+    return 0;
+}
+
+/* Require that an external Pre-Shared Key is negotiated for the handshake to
+ * succeed. See wolfSSL_CTX_require_psk().
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL or not at least TLS v1.3, 0 on success.
+ */
+int wolfSSL_require_psk(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    ssl->options.failNoPSK = 1;
+    /* See wolfSSL_CTX_require_psk() - keep the requirement fail-closed by
+     * disabling a version downgrade to (D)TLS 1.2. */
+    ssl->options.downgrade = 0;
+#endif
+
+    return 0;
+}
 
 int Tls13UpdateKeys(WOLFSSL* ssl)
 {
