@@ -836,8 +836,15 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         }
         out[0] = (byte)(FALCON_SIG_HEAD_COMPRESSED | logn);
         XMEMCPY(out + 1, nonce, FALCON_NONCE_SIZE);
+        /* Bound the compressed signature by the level's fixed maximum length
+         * (sigMax), NOT by the caller-supplied buffer size (*outLen): a caller
+         * may pass a buffer larger than sigMax, and a candidate whose encoding
+         * exceeds the level budget must be rejected and re-sampled with a fresh
+         * nonce -- otherwise an over-length (e.g. 667-byte Falcon-512)
+         * signature is emitted that no verifier will accept. *outLen >= sigMax
+         * is guaranteed above, so capping at sigMax never overruns the buffer. */
         compLen = falcon_comp_encode(out + 1 + FALCON_NONCE_SIZE,
-                (size_t)(*outLen - 1 - FALCON_NONCE_SIZE), s2, logn);
+                (size_t)(sigMax - 1 - FALCON_NONCE_SIZE), s2, logn);
         if (compLen != 0) {
             break;
         }
