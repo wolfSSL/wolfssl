@@ -80,6 +80,11 @@
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
 
+#if defined(HAVE_PKCS8) && !defined(NO_ASN)
+    /* for ASN tag and PBE/PKCS enum values used by the PKCS#8 encrypt tests */
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
+
 #ifndef NO_DSA
     #include <wolfssl/wolfcrypt/dsa.h>
 #endif
@@ -21830,6 +21835,108 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
+    !defined(NO_SHA) && !defined(NO_ASN_CRYPT) && ((defined(WOLFSSL_AES_256) && \
+    !defined(NO_AES_CBC)) || !defined(NO_DES3) || !defined(NO_RC4))
+/* Encrypt a block-aligned plaintext PKCS#8 and verify the trailing encrypted
+ * OCTET STRING length. expExtra is the padding expected: a full block for CBC
+ * ciphers, 0 for stream ciphers. Also confirms a decrypt round-trip. */
+static int enc_pkcs8_pad_check(int vPKCS, int pbeOid, int encAlgId,
+    word32 expExtra)
+{
+    EXPECT_DECLS;
+    WC_RNG rng;
+    byte* encKey = NULL;
+    word32 encKeySz = 0;
+    int decKeySz = 0;
+    word32 expEncLen = 0;
+    const char password[] = "Lorem ipsum dolor sit amet";
+    word32 passwordSz = (word32)XSTRLEN(password);
+    /* Block-aligned plaintext: a valid 48-byte DER SEQUENCE (a multiple of both
+     * the 8- and 16-byte block sizes). Content is arbitrary; only the header
+     * must parse so decrypt can strip padding by re-reading the DER length. */
+    byte plain[48];
+
+    XMEMSET(plain, 0, sizeof(plain));
+    plain[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    plain[1] = (byte)(sizeof(plain) - 2); /* content length = 46 */
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    PRIVATE_KEY_UNLOCK();
+    /* Query required output size. */
+    ExpectIntEQ(wc_EncryptPKCS8Key(plain, (word32)sizeof(plain), NULL, &encKeySz,
+        password, (int)passwordSz, vPKCS, pbeOid, encAlgId, NULL, 0,
+        WC_PKCS12_ITT_DEFAULT, &rng, NULL), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectNotNull(encKey = (byte*)XMALLOC(encKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wc_EncryptPKCS8Key(plain, (word32)sizeof(plain), encKey,
+        &encKeySz, password, (int)passwordSz, vPKCS, pbeOid, encAlgId, NULL, 0,
+        WC_PKCS12_ITT_DEFAULT, &rng, NULL), 0);
+
+    /* The encrypted content is the trailing OCTET STRING, extending to the end
+     * of the buffer. Its length is plaintext + expected pad (short-form since
+     * it is < 128): a full block for a block cipher, none for a stream cipher. */
+    expEncLen = (word32)sizeof(plain) + expExtra;
+    ExpectIntGE(encKeySz, expEncLen + 2);
+    if (EXPECT_SUCCESS() && (encKey != NULL) && (encKeySz >= expEncLen + 2)) {
+        ExpectIntEQ(encKey[encKeySz - expEncLen - 2], ASN_OCTET_STRING);
+        ExpectIntEQ(encKey[encKeySz - expEncLen - 1], (byte)expEncLen);
+    }
+
+    /* Round-trip: decrypt recovers the original plaintext. */
+    ExpectIntGT(decKeySz = wc_DecryptPKCS8Key(encKey, encKeySz, password,
+        (int)passwordSz), 0);
+    ExpectIntEQ(decKeySz, (int)sizeof(plain));
+    ExpectIntEQ(XMEMCMP(encKey, plain, sizeof(plain)), 0);
+    PRIVATE_KEY_LOCK();
+
+    XFREE(encKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* PBES2 / AES-256-CBC (blockSz 16): a block-aligned plaintext must get a full
+ * pad block. The path the fix corrects; the helper's direct length check (not
+ * its round-trip, which false-passes here) is what detects a missing block. */
+static int test_wc_EncryptPKCS8Key_blockAligned(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
+ && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_SHA) \
+ && !defined(NO_ASN_CRYPT)
+    EXPECT_TEST(enc_pkcs8_pad_check(PKCS5, PBES2, AES256CBCb, AES_BLOCK_SIZE));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* PBES1 / SHA1-DES (blockSz 8): exercises the PBES1 encoder branch and a
+ * different block size; a block-aligned plaintext gets a full 8-byte pad
+ * block. */
+static int test_wc_EncryptPKCS8Key_pbes1BlockAligned(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
+ && !defined(NO_DES3) && !defined(NO_SHA) && !defined(NO_ASN_CRYPT)
+    EXPECT_TEST(enc_pkcs8_pad_check(PKCS5, PBES1_SHA1_DES, 0, DES_BLOCK_SIZE));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* PKCS12 / RC4 (blockSz 1): a stream cipher adds no padding even for a
+ * block-aligned plaintext. Exercises the blockSz > 1 guard in
+ * wc_EncryptPKCS8Key_ex. */
+static int test_wc_EncryptPKCS8Key_rc4NoPad(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
+ && !defined(NO_RC4) && !defined(NO_SHA) && !defined(NO_ASN_CRYPT)
+    EXPECT_TEST(enc_pkcs8_pad_check(1, PBE_SHA1_RC4_128, 0, 0));
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wc_DecryptedPKCS8Key(void)
 {
     EXPECT_DECLS;
@@ -35063,6 +35170,9 @@ TEST_CASE testCases[] = {
     /* wolfCrypt ASN tests */
     TEST_DECL(test_ToTraditional),
     TEST_DECL(test_wc_CreateEncryptedPKCS8Key),
+    TEST_DECL(test_wc_EncryptPKCS8Key_blockAligned),
+    TEST_DECL(test_wc_EncryptPKCS8Key_pbes1BlockAligned),
+    TEST_DECL(test_wc_EncryptPKCS8Key_rc4NoPad),
     TEST_DECL(test_wc_DecryptedPKCS8Key),
     TEST_DECL(test_wc_GetPkcs8TraditionalOffset),
 
