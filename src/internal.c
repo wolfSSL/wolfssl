@@ -11886,6 +11886,8 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case finished:
             case certificate_status:
             case key_update:
+            case request_connection_id:
+            case new_connection_id:
                 if (!encrypted) {
                     WOLFSSL_MSG("Message always has to be encrypted");
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
@@ -11946,6 +11948,8 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case key_update:
             case encrypted_extensions:
             case end_of_early_data:
+            case request_connection_id:
+            case new_connection_id:
             case message_hash:
             case no_shake:
             default:
@@ -11994,6 +11998,8 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case certificate_status:
                 case key_update:
                 case change_cipher_hs:
+                case request_connection_id:
+                case new_connection_id:
                     break;
                 case server_hello_done:
                 case message_hash:
@@ -12031,6 +12037,8 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case hello_retry_request:
                 case encrypted_extensions:
                 case key_update:
+                case request_connection_id:
+                case new_connection_id:
                 case message_hash:
                 case no_shake:
                 default:
@@ -12067,6 +12075,8 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
             case key_update:
             case change_cipher_hs:
                 break;
+            case request_connection_id:
+            case new_connection_id:
             case message_hash:
             case no_shake:
             default:
@@ -22995,14 +23005,46 @@ static void dtlsClearPeer(WOLFSSL_SOCKADDR* peer)
     peer->bufSz = 0;
 }
 
+static int dtlsRecordIsNewest(WOLFSSL* ssl)
+{
+    WOLFSSL_DTLS_PEERSEQ* peerSeq;
+
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        Dtls13Epoch* e = ssl->dtls13DecryptEpoch;
+
+        if (!w64Equal(ssl->keys.curEpoch64, ssl->dtls13PeerEpoch))
+            return w64GT(ssl->keys.curEpoch64, ssl->dtls13PeerEpoch);
+        if (e == NULL || !w64Equal(ssl->keys.curEpoch64, e->epochNumber))
+            e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
+        if (e == NULL)
+            return 0;
+        return w64GTE(ssl->keys.curSeq, e->nextPeerSeqNumber);
+    }
+#endif
+
+    peerSeq = ssl->keys.peerSeq;
+#ifdef WOLFSSL_MULTICAST
+    if (ssl->options.haveMcast)
+        return 1;
+#endif
+
+    if (ssl->keys.curEpoch != peerSeq->nextEpoch)
+        return ssl->keys.curEpoch > peerSeq->nextEpoch;
+    if (ssl->keys.curSeq_hi != peerSeq->nextSeq_hi)
+        return ssl->keys.curSeq_hi > peerSeq->nextSeq_hi;
+    return ssl->keys.curSeq_lo >= peerSeq->nextSeq_lo;
+}
+
 
 /**
  * @brief Handle pending peer during record processing.
  * @param ssl           WOLFSSL object.
  * @param deprotected   0 when we have not decrypted the record yet
  *                      1 when we have decrypted and verified the record
+ * @param isNewest      1 when the record is newer than any previously received
  */
-static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
+static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected, int isNewest)
 {
     if (ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
         if (!deprotected) {
@@ -23020,9 +23062,11 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
         }
         else {
             /* Pending peer present and record deprotected. Update the peer. */
-            (void)wolfSSL_dtls_set_peer(ssl,
-                    ssl->buffers.dtlsCtx.pendingPeer.sa,
-                    ssl->buffers.dtlsCtx.pendingPeer.sz);
+            if (isNewest) {
+                (void)wolfSSL_dtls_set_peer(ssl,
+                        ssl->buffers.dtlsCtx.pendingPeer.sa,
+                        ssl->buffers.dtlsCtx.pendingPeer.sz);
+            }
             ssl->buffers.dtlsCtx.processingPendingRecord = 0;
             dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);
         }
@@ -23411,7 +23455,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #ifdef WOLFSSL_DTLS
 #ifdef WOLFSSL_DTLS_CID
             if (ssl->options.dtls)
-                dtlsProcessPendingPeer(ssl, 0);
+                dtlsProcessPendingPeer(ssl, 0, 0);
 #endif
             if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
                 DropAndRestartProcessReply(ssl);
@@ -23729,6 +23773,9 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         case runProcessingOneRecord:
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
+#ifdef WOLFSSL_DTLS_CID
+                int dtlsPeerNewer = 1;
+#endif
 #ifdef WOLFSSL_DTLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
                     if (!Dtls13CheckWindow(ssl)) {
@@ -23747,6 +23794,9 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 
                     /* Only update the window once we enter stateful parsing */
                     if (ssl->options.dtlsStateful) {
+#ifdef WOLFSSL_DTLS_CID
+                        dtlsPeerNewer = dtlsRecordIsNewest(ssl);
+#endif
                         ret = Dtls13UpdateWindowRecordRecvd(ssl);
                         if (ret != 0) {
                             WOLFSSL_ERROR(ret);
@@ -23757,12 +23807,15 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 else
 #endif /* WOLFSSL_DTLS13 */
                 if (IsDtlsNotSctpMode(ssl)) {
+#ifdef WOLFSSL_DTLS_CID
+                    dtlsPeerNewer = dtlsRecordIsNewest(ssl);
+#endif
                     DtlsUpdateWindow(ssl);
                 }
 #ifdef WOLFSSL_DTLS_CID
                 /* Update the peer if we were able to de-protect the message */
                 if (IsEncryptionOn(ssl, 0))
-                    dtlsProcessPendingPeer(ssl, 1);
+                    dtlsProcessPendingPeer(ssl, 1, dtlsPeerNewer);
 #endif
             }
 #endif /* WOLFSSL_DTLS */
