@@ -5372,11 +5372,8 @@ struct Options {
 };
 
 typedef struct Arrays {
-    byte*           pendingMsg;         /* defrag buffer */
     byte*           preMasterSecret;
     word32          preMasterSz;        /* differs for DH, actual size */
-    word32          pendingMsgSz;       /* defrag buffer size */
-    word32          pendingMsgOffset;   /* current offset into defrag buffer */
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     word32          psk_keySz;          /* actual size */
     char            client_identity[MAX_PSK_ID_LEN + NULL_TERM_LEN];
@@ -5408,7 +5405,6 @@ typedef struct Arrays {
     byte            cookie[MAX_COOKIE_LEN];
     byte            cookieSz;
 #endif
-    byte            pendingMsgType;    /* defrag buffer message type */
 } Arrays;
 
 #ifndef ASN_NAME_MAX
@@ -6117,6 +6113,14 @@ struct WOLFSSL {
                                                    * suites */
 #endif
     Arrays*         arrays;
+    /* Buffer used to reassemble a handshake message that is fragmented across
+     * multiple records. Kept in WOLFSSL (not Arrays) so that post-handshake
+     * messages (e.g. a TLS 1.3 NewSessionTicket) can still be defragmented
+     * after the handshake arrays have been released by FreeArrays(). */
+    byte*           pendingMsg;         /* defrag buffer */
+    word32          pendingMsgSz;       /* defrag buffer size */
+    word32          pendingMsgOffset;   /* current offset into defrag buffer */
+    byte            pendingMsgType;     /* defrag buffer message type */
 #ifdef WOLFSSL_TLS13
     byte            clientSecret[SECRET_LEN];
     byte            serverSecret[SECRET_LEN];
