@@ -105,7 +105,7 @@
 /* Macros Definitions */
 
 #ifndef WOLFSSL_MLDSA_ALIGNMENT
-    #if defined(__arch64__)
+    #if defined(__aarch64__)
         #define WOLFSSL_MLDSA_ALIGNMENT     8
     #elif defined(__arm__)
         #define WOLFSSL_MLDSA_ALIGNMENT     4
