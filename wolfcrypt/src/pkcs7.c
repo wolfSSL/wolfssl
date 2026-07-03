@@ -3864,11 +3864,17 @@ int wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         return BAD_FUNC_ARG;
     }
 
-    /* pre-calculate content hash for ECDSA and RSA-PSS (both sign digest directly) */
+    /* pre-calculate content hash for ECDSA and RSA-PSS (both sign digest
+     * directly).
+     * A detached SignedData over empty content has no eContent to drive the
+     * normal content-hashing pass, so its messageDigest signed attribute is
+     * computed here as the hash of the empty content (e.g. an SCEP CertRep
+     * PENDING/FAILURE per RFC 8894) */
     if (pkcs7->publicKeyOID == ECDSAk
 #ifdef WC_RSA_PSS
         || pkcs7->publicKeyOID == RSAPSSk
 #endif
+        || (pkcs7->detached && pkcs7->contentSz == 0)
         ) {
         int hashSz;
         enum wc_HashType hashType;
@@ -3890,7 +3896,9 @@ int wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         ret = wc_HashInit(hash, hashType);
         if (ret == 0) {
             ret = wc_HashUpdate(hash, hashType,
-                            pkcs7->content, pkcs7->contentSz);
+                            (pkcs7->content != NULL) ? pkcs7->content
+                                                     : (const byte*)"",
+                            (pkcs7->content != NULL) ? pkcs7->contentSz : 0);
             if (ret == 0) {
                 ret = wc_HashFinal(hash, hashType, hashBuf);
             }
@@ -5071,11 +5079,10 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
 
-    if ((pkcs7->content == NULL || pkcs7->contentSz == 0) &&
-        (hashBuf == NULL || hashSz == 0)) {
-        WOLFSSL_MSG("SignedData bundle has no content or hash to verify");
-        return BAD_FUNC_ARG;
-    }
+    /* An absent eContent with no caller-supplied hash is valid: the content
+     * is empty, so the messageDigest attribute is verified against the hash of
+     * zero-length content below (e.g. an SCEP CertRep PENDING/FAILURE per
+     * RFC 8894). Stripping a non-empty eContent still fails this comparison. */
 
     /* lookup messageDigest attribute */
     attrib = findAttrib(pkcs7, mdOid, sizeof(mdOid));
@@ -5112,7 +5119,14 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
         content = pkcs7->content;
         contentLen = (int)pkcs7->contentSz;
 
-        if (pkcs7->contentIsPkcs7Type == 1) {
+        /* An absent eContent is hashed as empty content. Guard against a
+         * NULL content pointer paired with a non-zero size: hash zero-length
+         * content rather than dereferencing NULL or reading past the empty
+         * literal used at the wc_Hash call below. */
+        if (content == NULL)
+            contentLen = 0;
+
+        if (content != NULL && pkcs7->contentIsPkcs7Type == 1) {
             /* Content follows PKCS#7 RFC, which defines type as ANY. CMS
              * mandates OCTET_STRING which has already been stripped off.
              * For PKCS#7 message digest calculation, digest is calculated
@@ -5130,8 +5144,10 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
             }
         }
 
-        ret = wc_Hash(hashType, content + contentIdx, (word32)contentLen, digest,
-                      MAX_PKCS7_DIGEST_SZ);
+        ret = wc_Hash(hashType,
+                      (content != NULL) ? content + contentIdx
+                                        : (const byte*)"",
+                      (word32)contentLen, digest, MAX_PKCS7_DIGEST_SZ);
         if (ret < 0) {
             WOLFSSL_MSG("Error hashing PKCS7 content for verification");
             WC_FREE_VAR_EX(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6030,6 +6046,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 certIdx, certIdx2;
     byte degenerate = 0;
     byte detached = 0;
+    byte noContent = 0;
     byte tag = 0;
     word16 contentIsPkcs7Type = 0;
 #ifdef ASN_BER_TO_DER
@@ -6359,6 +6376,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if ((encapContentInfoLen != 0) &&
                 ((word32)encapContentInfoLen - contentTypeSz == 0)) {
                 ret = ASN_PARSE_E;
+                noContent = 1;
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->noContent = 1;
             #endif
@@ -6539,6 +6557,16 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     ((pkcs7->content != NULL && pkcs7->contentSz != 0) ||
                      (hashBuf != NULL && hashSz > 0)) ) {
                     WOLFSSL_MSG("Trying to process as detached signature");
+                    detached = 1;
+                }
+
+                /* eContent genuinely absent and no external content/hash
+                 * supplied: verify as a detached signature over empty content.
+                 * The messageDigest signed attribute is checked against the
+                 * hash of zero-length content downstream, so a stripped
+                 * non-empty eContent still fails. */
+                if (!degenerate && !detached && noContent) {
+                    WOLFSSL_MSG("Processing as detached signature, no content");
                     detached = 1;
                 }
 
