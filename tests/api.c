@@ -30876,6 +30876,130 @@ static int test_wrong_cs_downgrade(void)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+
+/* A syntactically valid TLS 1.2 ServerHello with NO extensions, sent to a
+ * TLS 1.3-only client. Per RFC 8446 4.2.1 the absence of a supported_versions
+ * extension means the server negotiated TLS 1.2 or below. A TLS 1.3-only
+ * client (downgrade disabled) must reject this as a version mismatch with a
+ * protocol_version alert (RFC 8446 6.2), NOT a decode_error - the message is
+ * well-formed, it just offers an unsupported protocol version.
+ *
+ * Layout: legacy_version = 0x0303, 32-byte random, 32-byte session id,
+ * cipher_suite = TLS_AES_128_GCM_SHA256 (0x1301), null compression, and no
+ * extensions field at all. */
+static const byte test_tls13_no_ext_sh[] = {
+    0x16, 0x03, 0x03, 0x00, 0x4a,       /* record: handshake, TLS 1.2, len 74 */
+    0x02, 0x00, 0x00, 0x46,             /* server_hello, body len 70          */
+    0x03, 0x03,                         /* legacy_version = TLS 1.2           */
+    /* 32-byte random (not the HelloRetryRequest magic) */
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x20,                               /* legacy_session_id length = 32      */
+    /* 32-byte session id */
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0x13, 0x01,                         /* cipher_suite = TLS_AES_128_GCM_SHA256 */
+    0x00                                /* compression = null; no extensions  */
+};
+
+/* Same as above but with a single trailing byte after the compression method:
+ * a TRUNCATED (partial) extensions length field. This is genuinely malformed,
+ * so it must be rejected with decode_error (50), not protocol_version - the
+ * fix must not relabel a real decode error as a version mismatch. Record and
+ * handshake lengths are bumped by one and a 0x00 trailing byte is appended. */
+static const byte test_tls13_trunc_ext_sh[] = {
+    0x16, 0x03, 0x03, 0x00, 0x4b,       /* record: handshake, TLS 1.2, len 75 */
+    0x02, 0x00, 0x00, 0x47,             /* server_hello, body len 71          */
+    0x03, 0x03,                         /* legacy_version = TLS 1.2           */
+    /* 32-byte random (not the HelloRetryRequest magic) */
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x20,                               /* legacy_session_id length = 32      */
+    /* 32-byte session id */
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0x13, 0x01,                         /* cipher_suite = TLS_AES_128_GCM_SHA256 */
+    0x00,                               /* compression = null                 */
+    0x00                                /* partial (1-byte) extensions length  */
+};
+
+/* Drive a TLS 1.3-only client through a ClientHello, inject the supplied
+ * (crafted) ServerHello, and assert the handshake aborts with the expected
+ * fatal alert. */
+static int test_tls13_sh_expect_alert(const byte* sh, int shSz, int expectAlert)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfTLSv1_3_client_method, NULL), 0);
+
+    /* Produce the ClientHello. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Discard the ClientHello and inject the crafted ServerHello. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char *)sh, shSz),
+        0);
+
+    /* The handshake must fail (not WANT_READ) on the ServerHello. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, expectAlert);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 6.2: a recognized but unsupported protocol version (TLS 1.2
+ * ServerHello with no extensions) must be rejected with protocol_version (70),
+ * not decode_error (50). */
+static int test_tls13_no_ext_sh_alert(void)
+{
+    return test_tls13_sh_expect_alert(test_tls13_no_ext_sh,
+        (int)sizeof(test_tls13_no_ext_sh), wolfssl_alert_protocol_version);
+}
+
+/* A truncated extensions length field is a real syntax error and must still be
+ * reported as decode_error (50), proving the version-mismatch fix did not
+ * over-broaden to genuinely malformed messages. */
+static int test_tls13_trunc_ext_sh_alert(void)
+{
+    return test_tls13_sh_expect_alert(test_tls13_trunc_ext_sh,
+        (int)sizeof(test_tls13_trunc_ext_sh), decode_error);
+}
+#else
+static int test_tls13_no_ext_sh_alert(void)
+{
+    return TEST_SKIPPED;
+}
+static int test_tls13_trunc_ext_sh_alert(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_EXTRA_ALERTS) &&             \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_SP_MATH)
 
@@ -35695,6 +35819,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ticket_ret_create),
     TEST_DECL(test_ticket_enc_corrupted),
     TEST_DECL(test_wrong_cs_downgrade),
+    TEST_DECL(test_tls13_no_ext_sh_alert),
+    TEST_DECL(test_tls13_trunc_ext_sh_alert),
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
