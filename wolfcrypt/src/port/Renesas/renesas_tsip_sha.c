@@ -398,9 +398,8 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
         if (ret == TSIP_SUCCESS) {
             ret = Final(&handle, out, (uint32_t*)&sz);
-            if (ret != TSIP_SUCCESS || sz != outSz) {
-                tsip_hw_unlock();
-                return (ret == TSIP_SUCCESS) ? WC_HW_E : ret;
+            if (ret == TSIP_SUCCESS && sz != outSz) {
+                ret = WC_HW_E;
             }
         }
         else {
@@ -409,12 +408,17 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
     }
     tsip_hw_unlock();
 
-    if (ret != 0) {
-        return ret;
+    /* Always reset hash state, even on failure, mirroring other wc_*Final()
+     * implementations (e.g. the STM32 wc_ShaFinal()/wc_Sha256Final()) so
+     * callers can safely reuse the object and the accumulated message
+     * buffer isn't left allocated. */
+    TSIPHashFree(hash);
+    if (TSIPHashInit(hash, heap, 0, hash->sha_type) != 0 &&
+                                                       ret == TSIP_SUCCESS) {
+        ret = WC_HW_E;
     }
 
-    TSIPHashFree(hash);
-    return TSIPHashInit(hash, heap, 0, hash->sha_type);
+    return ret;
 }
 
 static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)

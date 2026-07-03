@@ -1697,10 +1697,7 @@ int tsip_crypt_test(void)
     int ret = 0;
     int devId;
 
-    if (ret != 0) {
-        printf("TSIP Key Generation failed\n");
-        return -1;
-    }
+    Clr_CallbackCtx(&userContext);
 
     devId = wc_CryptoCb_CryptInitRenesasCmn(NULL, &userContext);
     if (devId > 0){
