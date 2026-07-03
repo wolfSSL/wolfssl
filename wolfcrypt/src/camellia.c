@@ -1562,10 +1562,20 @@ int wc_CamelliaSetIV(wc_Camellia* cam, const byte* iv)
 }
 
 
+/* Returns 1 when a valid key has been configured, 0 otherwise. */
+static int CamelliaKeyIsSet(const wc_Camellia* cam)
+{
+    return (cam->keySz == 128 || cam->keySz == 192 || cam->keySz == 256);
+}
+
+
 int wc_CamelliaEncryptDirect(wc_Camellia* cam, byte* out, const byte* in)
 {
     if (cam == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
+    }
+    if (!CamelliaKeyIsSet(cam)) {
+        return MISSING_KEY;
     }
     Camellia_EncryptBlock(cam->keySz, in, cam->key, out);
 
@@ -1577,6 +1587,9 @@ int wc_CamelliaDecryptDirect(wc_Camellia* cam, byte* out, const byte* in)
 {
     if (cam == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
+    }
+    if (!CamelliaKeyIsSet(cam)) {
+        return MISSING_KEY;
     }
     Camellia_DecryptBlock(cam->keySz, in, cam->key, out);
 
@@ -1592,6 +1605,9 @@ int wc_CamelliaCbcEncrypt(wc_Camellia* cam, byte* out, const byte* in, word32 sz
     }
     if (sz % WC_CAMELLIA_BLOCK_SIZE != 0) {
         return BAD_LENGTH_E;
+    }
+    if (!CamelliaKeyIsSet(cam)) {
+        return MISSING_KEY;
     }
     blocks = sz / WC_CAMELLIA_BLOCK_SIZE;
 
@@ -1617,6 +1633,9 @@ int wc_CamelliaCbcDecrypt(wc_Camellia* cam, byte* out, const byte* in, word32 sz
     }
     if (sz % WC_CAMELLIA_BLOCK_SIZE != 0) {
         return BAD_LENGTH_E;
+    }
+    if (!CamelliaKeyIsSet(cam)) {
+        return MISSING_KEY;
     }
     blocks = sz / WC_CAMELLIA_BLOCK_SIZE;
 

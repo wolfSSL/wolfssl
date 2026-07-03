@@ -29,6 +29,7 @@ int test_wc_CamelliaSetIV(void);
 int test_wc_CamelliaFree(void);
 int test_wc_CamelliaEncryptDecryptDirect(void);
 int test_wc_CamelliaCbcEncryptDecrypt(void);
+int test_wc_Camellia_MissingKey(void);
 int test_wc_CamelliaCbc_MonteCarlo(void);
 
 #define TEST_CAMELLIA_DECLS                                             \
@@ -37,6 +38,7 @@ int test_wc_CamelliaCbc_MonteCarlo(void);
     TEST_DECL_GROUP("camellia", test_wc_CamelliaFree),                  \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaEncryptDecryptDirect),  \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaCbcEncryptDecrypt),     \
+    TEST_DECL_GROUP("camellia", test_wc_Camellia_MissingKey),           \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaCbc_MonteCarlo)
 
 #endif /* WOLFCRYPT_TEST_CAMELLIA_H */

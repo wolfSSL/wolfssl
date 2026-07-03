@@ -916,6 +916,8 @@ int test_wolfSSL_ASN1_get_object(void)
     const unsigned char objDerBadLen[] = { 0x30, 0x04 };
     const unsigned char objDerNotObj[] = { 0x02, 0x01, 0x00 };
     const unsigned char objDerNoData[] = { 0x06, 0x00 };
+    /* OBJECT_ID header claims 126 content bytes but only one is present. */
+    const unsigned char objDerOobLen[] = { 0x06, 0x7e, 0x2a };
     const unsigned char* p;
     unsigned char objDer[10];
     unsigned char* der;
@@ -1018,6 +1020,10 @@ int test_wolfSSL_ASN1_get_object(void)
     ExpectNull(d2i_ASN1_OBJECT(&a, &p, sizeof(objDerNotObj)));
     p = objDerNoData;
     ExpectNull(d2i_ASN1_OBJECT(&a, &p, sizeof(objDerNoData)));
+    /* Oversized length must not let the header's claimed content length drive
+     * a read past the end of the actual buffer. */
+    p = objDerOobLen;
+    ExpectNull(d2i_ASN1_OBJECT(&a, &p, INT_MAX));
 
     /* Create an ASN OBJECT from content */
     p = derBuf + 2;
@@ -1187,6 +1193,22 @@ int test_wolfSSL_ASN1_STRING(void)
     ExpectNotNull(ASN1_STRING_data(str));
     ExpectIntEQ(ASN1_STRING_length(NULL), 0);
     ExpectIntGT(ASN1_STRING_length(str), 0);
+
+    /* Setting from the object's own buffer must not read freed/cleared data.
+     * Fixed-buffer case: data is held in the small array. */
+    ExpectIntEQ(ASN1_STRING_set(str, (const void*)data, (int)XSTRLEN(data)), 1);
+    ExpectIntEQ(ASN1_STRING_set(str, ASN1_STRING_get0_data(str),
+        ASN1_STRING_length(str)), 1);
+    ExpectIntEQ(ASN1_STRING_length(str), (int)XSTRLEN(data));
+    ExpectIntEQ(XMEMCMP(ASN1_STRING_get0_data(str), data, XSTRLEN(data)), 0);
+    /* Dynamic-buffer case: data is held in a heap allocation. */
+    ExpectIntEQ(ASN1_STRING_set(str, (const void*)longData,
+        (int)XSTRLEN(longData)), 1);
+    ExpectIntEQ(ASN1_STRING_set(str, ASN1_STRING_get0_data(str),
+        ASN1_STRING_length(str)), 1);
+    ExpectIntEQ(ASN1_STRING_length(str), (int)XSTRLEN(longData));
+    ExpectIntEQ(XMEMCMP(ASN1_STRING_get0_data(str), longData,
+        XSTRLEN(longData)), 0);
 
     ASN1_STRING_free(c);
     ASN1_STRING_free(str);

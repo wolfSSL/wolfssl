@@ -631,6 +631,16 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
     if (len <= 0)
         return 0; /* Nothing to write */
 
+    /* Reject sizes that would overflow the buffer growth calculation, which
+     * rounds the requested size up to the next multiple of 4/3 via
+     * (size + 3) / 3 * 4. The extra rounding slack means the safe ceiling is
+     * one below (INT_MAX / 4) * 3. Without this an oversized length grows a
+     * short buffer and copies past the source. */
+    if (len > ((INT_MAX / 4) * 3) - 1 - bio->wrSz) {
+        WOLFSSL_MSG("write length too large");
+        return WOLFSSL_BIO_ERROR;
+    }
+
     if (wolfSSL_BUF_MEM_grow_ex(bio->mem_buf, ((size_t)bio->wrSz) +
                                                     ((size_t)len), 0) == 0) {
         WOLFSSL_MSG("Error growing memory area");

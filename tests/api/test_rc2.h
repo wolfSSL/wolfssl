@@ -28,6 +28,7 @@ int test_wc_Rc2SetKey(void);
 int test_wc_Rc2SetIV(void);
 int test_wc_Rc2EcbEncryptDecrypt(void);
 int test_wc_Rc2CbcEncryptDecrypt(void);
+int test_wc_Rc2_MissingKey(void);
 int test_wc_Rc2Cbc_MonteCarlo(void);
 int test_wc_Rc2Free(void);
 
@@ -36,6 +37,7 @@ int test_wc_Rc2Free(void);
     TEST_DECL_GROUP("rc2", test_wc_Rc2SetIV),               \
     TEST_DECL_GROUP("rc2", test_wc_Rc2EcbEncryptDecrypt),   \
     TEST_DECL_GROUP("rc2", test_wc_Rc2CbcEncryptDecrypt),   \
+    TEST_DECL_GROUP("rc2", test_wc_Rc2_MissingKey),         \
     TEST_DECL_GROUP("rc2", test_wc_Rc2Cbc_MonteCarlo),      \
     TEST_DECL_GROUP("rc2", test_wc_Rc2Free)
 
