@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
+
 # dtlscid.test
 # Copyright wolfSSL 2022-2024
 
@@ -54,7 +61,7 @@ test_cid () {
     echo "Running test_cid"
     SERVER_FILE=$(mktemp)
     CLIENT_FILE=$(mktemp)
-    $WOLFSSL_ROOT/examples/server/server -v4 -u --cid $SCID 1> $SERVER_FILE &
+    timeout -s KILL 2m $WOLFSSL_ROOT/examples/server/server -v4 -u --cid $SCID 1> $SERVER_FILE &
     SERVER_PID=$!
     sleep 0.2
     $WOLFSSL_ROOT/examples/client/client -v4 -u --cid $CCID 1> $CLIENT_FILE

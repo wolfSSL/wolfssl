@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
+
 # ocsp-stapling.test
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST
 
@@ -290,7 +297,7 @@ port3=$(get_first_free_port $((port2 + 1)))
 # test interop fail case
 ready_file=$PWD/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  \"$ready_file\""
-./examples/server/server -b -p "$port1" -o -R "$ready_file" &
+timeout -s KILL 2m ./examples/server/server -b -p "$port1" -o -R "$ready_file" &
 wolf_pid=$!
 wait_for_readyFile "$ready_file" "$wolf_pid" "$port1"
 if [ ! -f "$ready_file" ]; then
