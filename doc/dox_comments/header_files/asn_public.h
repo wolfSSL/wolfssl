@@ -1070,6 +1070,161 @@ int  wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz);
 /*!
     \ingroup ASN
 
+    \brief This function allocates a single subject alternative name (SAN)
+    entry, copies the supplied name into it, sets its GeneralName type and
+    length, and appends it to the linked list pointed to by entries. The name
+    is duplicated internally, so the caller's buffer need not outlive the call.
+    The resulting list can be encoded with wc_FlattenAltNames and must be freed
+    with FreeAltNames.
+
+    \return 0 Returned on success.
+    \return MEMORY_E Returned if dynamic memory allocation fails.
+    \return BAD_FUNC_ARG Returned if str or entries is NULL, strLen is
+    negative, or type is not a supported GeneralName type; also returned for an
+    ASN_IP_TYPE entry whose length is not a valid IPv4/IPv6 address, or an
+    ASN_RID_TYPE entry with malformed contents.
+    \return BUFFER_E Returned if the string representation of an ASN_IP_TYPE or
+    ASN_RID_TYPE entry does not fit its internal buffer.
+    \return Other negative error codes may propagate from generating the string
+    form of ASN_IP_TYPE and ASN_RID_TYPE entries.
+
+    \param heap pointer to the heap hint used for allocations (may be NULL)
+    \param str pointer to the name bytes (e.g. a DNS string, or raw IP octets
+    for ASN_IP_TYPE)
+    \param strLen length of str in bytes
+    \param type GeneralName type (e.g. ASN_DNS_TYPE, ASN_IP_TYPE,
+    ASN_RFC822_TYPE, ASN_URI_TYPE)
+    \param entries in/out pointer to the head of the alt-name linked list; a new
+    entry is appended
+
+    _Example_
+    \code
+    DNS_entry* list = NULL;
+    if (wc_SetDNSEntry(NULL, "example.com", 11, ASN_DNS_TYPE, &list) != 0) {
+        // error adding alt name
+    }
+    // ... encode with wc_FlattenAltNames, then:
+    FreeAltNames(list, NULL);
+    \endcode
+
+    \note This helper (along with wc_FlattenAltNames and FreeAltNames) is
+    exported from the library only when WOLFSSL_PUBLIC_ASN, OPENSSL_EXTRA,
+    OPENSSL_EXTRA_X509_SMALL, or WOLFSSL_TEST_CERT is defined; its prototype
+    lives in wolfssl/wolfcrypt/asn.h (not asn_public.h) because it uses the
+    DNS_entry type.
+
+    \note This function additionally requires WOLFSSL_ASN_TEMPLATE (its
+    internal SetDNSEntry/AddDNSEntryToList helpers are template-only), on top of
+    the WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES gating shared with its companions
+    wc_FlattenAltNames and wc_SetAltNamesFromList, which do not require
+    WOLFSSL_ASN_TEMPLATE. Because this builder is the more restrictive of the
+    set, a DNS_entry list built here can always be encoded by a public API in
+    the same build; in non-template builds the public list can only be sourced
+    from a parsed DecodedCert.altNames.
+
+    \sa wc_FlattenAltNames
+    \sa FreeAltNames
+*/
+int wc_SetDNSEntry(void* heap, const char* str, int strLen, int type,
+                   DNS_entry** entries);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a linked list of subject alternative name
+    entries into the DER GeneralNames SEQUENCE used as the value of the
+    subjectAltName certificate extension. The output is suitable for assigning
+    to Cert.altNames (with the return value stored in Cert.altNamesSz) prior to
+    signing.
+
+    \return >0 the number of bytes written to output (the full SEQUENCE,
+    including its tag and length).
+    \return 0 Returned when names is NULL (nothing to encode).
+    \return BAD_FUNC_ARG Returned if output is NULL.
+    \return BUFFER_E Returned if output is too small to hold the encoding.
+
+    \param output buffer that receives the DER GeneralNames SEQUENCE; size it to
+    hold the full extension value (e.g. CTC_MAX_ALT_SIZE)
+    \param outputSz capacity of output in bytes
+    \param names head of the alt-name linked list to encode (e.g. built with
+    wc_SetDNSEntry, or taken from a parsed DecodedCert.altNames)
+
+    _Example_
+    \code
+    Cert cert;
+    DNS_entry* list = NULL;
+    // ... populate list with wc_SetDNSEntry ...
+    int n = wc_FlattenAltNames(cert.altNames, sizeof(cert.altNames), list);
+    if (n < 0) {
+        // error encoding alt names
+    }
+    cert.altNamesSz = n;
+    FreeAltNames(list, NULL);
+    \endcode
+
+    \note This helper (along with wc_SetDNSEntry and FreeAltNames) is exported
+    from the library only when WOLFSSL_PUBLIC_ASN, OPENSSL_EXTRA,
+    OPENSSL_EXTRA_X509_SMALL, or WOLFSSL_TEST_CERT is defined; its prototype
+    lives in wolfssl/wolfcrypt/asn.h (not asn_public.h) because it uses the
+    DNS_entry type.
+
+    \sa wc_SetDNSEntry
+    \sa wc_SetAltNamesFromList
+    \sa FreeAltNames
+    \sa wc_SetAltNamesBuffer
+*/
+int wc_FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a linked list of subject alternative name
+    entries directly into a Cert structure, ready for signing. It is a
+    convenience wrapper around wc_FlattenAltNames: the list is encoded into
+    cert->altNames and the encoded length is stored in cert->altNamesSz, so the
+    caller does not have to manage the buffer or size bookkeeping. The supplied
+    list is not consumed and must still be freed by the caller with
+    FreeAltNames.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned if cert is NULL.
+    \return BUFFER_E Returned if the encoded names do not fit in cert->altNames.
+
+    \param cert pointer to the Cert whose altNames/altNamesSz fields are set
+    \param names head of the alt-name linked list to encode (e.g. built with
+    wc_SetDNSEntry, or taken from a parsed DecodedCert.altNames); may be NULL,
+    in which case cert->altNamesSz is set to 0
+
+    _Example_
+    \code
+    Cert cert;
+    DNS_entry* list = NULL;
+    wc_InitCert(&cert);
+    // ... populate list with wc_SetDNSEntry ...
+    if (wc_SetAltNamesFromList(&cert, list) != 0) {
+        // error encoding alt names
+    }
+    FreeAltNames(list, NULL);
+    // ... wc_MakeCert / wc_SignCert ...
+    \endcode
+
+    \note This helper (along with wc_SetDNSEntry, wc_FlattenAltNames, and
+    FreeAltNames) is exported from the library only when WOLFSSL_PUBLIC_ASN,
+    OPENSSL_EXTRA, OPENSSL_EXTRA_X509_SMALL, or WOLFSSL_TEST_CERT is defined;
+    its prototype lives in wolfssl/wolfcrypt/asn.h (not asn_public.h) because it
+    uses the DNS_entry type. Its DER-input sibling wc_SetAltNamesBuffer is
+    always exported.
+
+    \sa wc_SetDNSEntry
+    \sa wc_FlattenAltNames
+    \sa wc_SetAltNamesBuffer
+    \sa FreeAltNames
+*/
+int wc_SetAltNamesFromList(Cert* cert, const DNS_entry* names);
+
+/*!
+    \ingroup ASN
+
     \brief This function sets the dates for a certificate from the date range
     in the provided der buffer. This method is used to set fields prior
     to signing.

@@ -377,6 +377,12 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  certext_test(void);
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t decodedCertCache_test(void);
 #endif
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t flattenAltNames_test(void);
+#endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void);
 #if defined(WOLFSSL_PUBLIC_MP) && \
     ((defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
