@@ -2690,6 +2690,9 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+
     usingNonblock = wolfSSL_dtls_get_using_nonblock(ssl);
 
     /* Don't use ssl->options.handShakeDone since it is true even if
@@ -2819,8 +2822,6 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         return copied;
     } while (1);
-
-    return (int)copied;
 }
 
 /* The NetX send callback for DTLS
@@ -2839,6 +2840,9 @@ int NetX_SendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         WOLFSSL_MSG("NetX Send NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
+
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     pool = nxCtx->nxUdpSocket->nx_udp_socket_ip_ptr->nx_ip_default_packet_pool;
     status = nx_packet_allocate(pool, &packet, NX_UDP_PACKET,
