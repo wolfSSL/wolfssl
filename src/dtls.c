@@ -1407,6 +1407,32 @@ int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid, unsigned int size)
     return WOLFSSL_SUCCESS;
 }
 
+/* Replace the CID we use when sending records, after the peer provided a new
+ * one in a NewConnectionId message (RFC 9147 Section 9). */
+int DtlsCidReplaceTx(WOLFSSL* ssl, const byte* cid, byte size)
+{
+    CIDInfo* cidInfo;
+    ConnectionID* newCid;
+
+    if (ssl == NULL || cid == NULL || size == 0)
+        return BAD_FUNC_ARG;
+
+    if (size > DTLS_CID_MAX_SIZE)
+        return LENGTH_ERROR;
+
+    cidInfo = DtlsCidGetInfo(ssl);
+    if (cidInfo == NULL)
+        return BAD_STATE_E;
+
+    newCid = DtlsCidNew(cid, size, ssl->heap);
+    if (newCid == NULL)
+        return MEMORY_ERROR;
+    XFREE(cidInfo->tx, ssl->heap, DYNAMIC_TYPE_TLSX);
+    cidInfo->tx = newCid;
+    ssl->recordSzOverhead = 0;
+    return 0;
+}
+
 int wolfSSL_dtls_cid_get_rx_size(WOLFSSL* ssl, unsigned int* size)
 {
     return DtlsCidGetSize(ssl, size, 1);

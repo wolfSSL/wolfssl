@@ -3894,6 +3894,7 @@ WOLFSSL_LOCAL int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input,
 WOLFSSL_LOCAL void DtlsCIDOnExtensionsParsed(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input,
     word16 inputSize);
+WOLFSSL_LOCAL int DtlsCidReplaceTx(WOLFSSL* ssl, const byte* cid, byte size);
 WOLFSSL_LOCAL int Dtls13UnifiedHeaderCIDPresent(byte flags);
 #endif /* WOLFSSL_DTLS_CID */
 WOLFSSL_LOCAL byte DtlsGetCidTxSize(WOLFSSL* ssl);
@@ -6087,6 +6088,12 @@ typedef struct CIDInfo {
     ConnectionID* rx;
     byte negotiated : 1;
 } CIDInfo;
+
+/* ConnectionIdUsage of the NewConnectionId message (RFC 9147 Section 9) */
+enum ConnectionIdUsage {
+    cid_immediate = 0,
+    cid_spare     = 1
+};
 #endif /* WOLFSSL_DTLS_CID */
 
 /* The idea is to reuse the context suites object whenever possible to save
@@ -6800,6 +6807,8 @@ enum HandShakeType {
     end_of_early_data    =   5,
     hello_retry_request  =   6,
     encrypted_extensions =   8,
+    request_connection_id =  9,    /* DTLS v1.3 addition (RFC 9147) */
+    new_connection_id    =  10,    /* DTLS v1.3 addition (RFC 9147) */
     certificate          =  11,
     server_key_exchange  =  12,
     certificate_request  =  13,
@@ -7448,6 +7457,12 @@ WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
 #define EE_MASK (0x3)
 WOLFSSL_LOCAL int Dtls13FragmentsContinue(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DoDtls13KeyUpdateAck(WOLFSSL* ssl);
+#ifdef WOLFSSL_DTLS_CID
+WOLFSSL_LOCAL int DoDtls13RequestConnectionId(WOLFSSL* ssl, const byte* input,
+    word32* inOutIdx, word32 size);
+WOLFSSL_LOCAL int DoDtls13NewConnectionId(WOLFSSL* ssl, const byte* input,
+    word32* inOutIdx, word32 size);
+#endif /* WOLFSSL_DTLS_CID */
 WOLFSSL_LOCAL int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
     word32* processedSize);
 WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
