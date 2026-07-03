@@ -33,6 +33,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFSSL_DHUK
     #include <wolfssl/wolfcrypt/cryptocb.h>
+    #include <wolfssl/wolfcrypt/random.h>
     #ifdef HAVE_ECC
         #include <wolfssl/wolfcrypt/ecc.h>
     #endif
@@ -3080,6 +3081,222 @@ exit:
     return ret;
 }
 
+#ifdef HAVE_AESGCM
+/* GCM inc32: increment the rightmost 32 bits of the 128-bit counter block
+ * (big-endian), per NIST SP 800-38D. Only the low 4 bytes change; wrap is
+ * intentional. */
+static void Stm32Gcm_Inc32(byte* ctr)
+{
+    word32 i;
+    for (i = WC_AES_BLOCK_SIZE; i > (WC_AES_BLOCK_SIZE - 4u); i--) {
+        if (++ctr[i - 1u] != 0u) {
+            break;
+        }
+    }
+}
+
+/* Full-payload AES-GCM using a key derived from the staged seed via the
+ * silicon DHUK. Every AES block (H = Ek(0), Ek(J0) and the CTR keystream)
+ * runs on SAES with the device-bound key; GHASH runs in software (it needs
+ * only H, itself an ECB of the zero block). The derived key never enters
+ * software.
+ *   enc != 0: in = plaintext -> out = ciphertext; the tag is written to tagOut.
+ *   enc == 0: in = ciphertext -> out = plaintext; tagIn is verified over
+ *             AAD||ciphertext with a constant-time compare BEFORE any plaintext
+ *             is produced (no plaintext leaks on tag failure). */
+static int Stm32Dhuk_Gcm(int enc, const byte* in, word32 sz, byte* out,
+    const byte* iv, word32 ivSz, const byte* aad, word32 aadSz,
+    byte* tagOut, const byte* tagIn, word32 tagSz)
+{
+    Gcm    gcm;
+    byte   H[WC_AES_BLOCK_SIZE];
+    byte   J0[WC_AES_BLOCK_SIZE];
+    byte   Ek_J0[WC_AES_BLOCK_SIZE];
+    byte   ctr[WC_AES_BLOCK_SIZE];
+    byte   ks[WC_AES_BLOCK_SIZE];
+    byte   S[WC_AES_BLOCK_SIZE];
+    byte   ctag[WC_AES_BLOCK_SIZE];
+    word32 buf[4];
+    word32 blocks;
+    word32 rem;
+    word32 i;
+    word32 j;
+    word32 cr;
+    int    saes_locked = 0;
+    int    ret;
+
+    if (in == NULL || out == NULL || iv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0u || ivSz == 0u) {
+        return BAD_FUNC_ARG;
+    }
+    if (tagSz < 4u || tagSz > WC_AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    if (aad == NULL && aadSz > 0u) {
+        return BAD_FUNC_ARG;
+    }
+    if (enc && tagOut == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (!enc && tagIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (g_stm32DhukSeedSz != 32u) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(&gcm,  0, sizeof(gcm));
+    XMEMSET(H,     0, sizeof(H));
+    XMEMSET(J0,    0, sizeof(J0));
+    XMEMSET(Ek_J0, 0, sizeof(Ek_J0));
+    XMEMSET(ctr,   0, sizeof(ctr));
+    XMEMSET(ks,    0, sizeof(ks));
+    XMEMSET(S,     0, sizeof(S));
+    XMEMSET(ctag,  0, sizeof(ctag));
+    XMEMSET(buf,   0, sizeof(buf));
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    saes_locked = 1;
+
+    Stm32SaesEnsureRng();
+#ifdef WC_STM32_SAES_CLK_ENABLE
+    WC_STM32_SAES_CLK_ENABLE();
+#endif
+    ret = Stm32SaesWaitInit();
+    if (ret != 0) {
+        goto exit;
+    }
+
+    /* Derive the DHUK-bound working key into SAES KEYR from the staged seed. */
+    ret = Stm32SaesDeriveKeyFromSeed(g_stm32DhukSeed, g_stm32DhukSeedSz);
+    if (ret != 0) {
+        goto exit;
+    }
+
+    /* ECB-ENCRYPT with the derived key (KMOD/KEYSEL=NORMAL, byte data type). */
+    cr = AES_CR_DATATYPE_1 | AES_CR_KEYSIZE;
+    SAES->CR = cr;
+    SAES->CR |= AES_CR_EN;
+
+    /* H = AES_Ek(0^128) */
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = Stm32SaesEcbBlock(buf);
+    if (ret != 0) {
+        goto exit;
+    }
+    XMEMCPY(H, buf, WC_AES_BLOCK_SIZE);
+    XMEMCPY(gcm.H, buf, WC_AES_BLOCK_SIZE);
+#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+    /* Table-based GHASH multiplies via gcm.M0; build it from H before any
+     * GHASH call. GCM_SMALL/GCM_WORD32 use gcm.H directly (no GenerateM0). */
+    GenerateM0(&gcm);
+#endif
+
+    /* J0: 12-byte IV fast path, else GHASH-J0 per NIST SP 800-38D. */
+    if (ivSz == 12u) {
+        XMEMCPY(J0, iv, 12);
+        J0[12] = 0x00;
+        J0[13] = 0x00;
+        J0[14] = 0x00;
+        J0[15] = 0x01;
+    }
+    else {
+        GHASH(&gcm, NULL, 0, iv, ivSz, J0, WC_AES_BLOCK_SIZE);
+    }
+
+    /* Ek_J0 = AES_Ek(J0) */
+    XMEMCPY(buf, J0, WC_AES_BLOCK_SIZE);
+    ret = Stm32SaesEcbBlock(buf);
+    if (ret != 0) {
+        goto exit;
+    }
+    XMEMCPY(Ek_J0, buf, WC_AES_BLOCK_SIZE);
+
+    /* Decrypt: verify the tag over AAD||ciphertext BEFORE producing any
+     * plaintext (no plaintext leaks on a forged tag). */
+    if (!enc) {
+        GHASH(&gcm, aad, aadSz, in, sz, S, WC_AES_BLOCK_SIZE);
+        for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
+            ctag[i] = S[i] ^ Ek_J0[i];
+        }
+        if (ConstantCompare(ctag, tagIn, (int)tagSz) != 0) {
+            ret = AES_GCM_AUTH_E;
+            goto exit;
+        }
+    }
+
+    /* CTR pass: keystream blocks start at inc32(J0); XOR in -> out. */
+    XMEMCPY(ctr, J0, WC_AES_BLOCK_SIZE);
+    blocks = sz / WC_AES_BLOCK_SIZE;
+    rem    = sz % WC_AES_BLOCK_SIZE;
+    for (i = 0; i < blocks; i++) {
+        Stm32Gcm_Inc32(ctr);
+        XMEMCPY(buf, ctr, WC_AES_BLOCK_SIZE);
+        ret = Stm32SaesEcbBlock(buf);
+        if (ret != 0) {
+            goto exit;
+        }
+        XMEMCPY(ks, buf, WC_AES_BLOCK_SIZE);
+        for (j = 0; j < WC_AES_BLOCK_SIZE; j++) {
+            out[i * WC_AES_BLOCK_SIZE + j] =
+                in[i * WC_AES_BLOCK_SIZE + j] ^ ks[j];
+        }
+    }
+    if (rem != 0u) {
+        Stm32Gcm_Inc32(ctr);
+        XMEMCPY(buf, ctr, WC_AES_BLOCK_SIZE);
+        ret = Stm32SaesEcbBlock(buf);
+        if (ret != 0) {
+            goto exit;
+        }
+        XMEMCPY(ks, buf, WC_AES_BLOCK_SIZE);
+        for (j = 0; j < rem; j++) {
+            out[blocks * WC_AES_BLOCK_SIZE + j] =
+                in[blocks * WC_AES_BLOCK_SIZE + j] ^ ks[j];
+        }
+    }
+
+    SAES->CR &= ~AES_CR_EN;
+
+    /* Encrypt: tag = GHASH(AAD||ciphertext) XOR Ek_J0, truncated to tagSz. */
+    if (enc) {
+        GHASH(&gcm, aad, aadSz, out, sz, S, WC_AES_BLOCK_SIZE);
+        for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
+            ctag[i] = S[i] ^ Ek_J0[i];
+        }
+        XMEMCPY(tagOut, ctag, tagSz);
+    }
+    ret = 0;
+
+exit:
+    SAES->CR &= ~AES_CR_EN;
+#ifdef AES_CR_IPRST
+    SAES->CR |= AES_CR_IPRST;
+    __DSB();
+    SAES->CR &= ~AES_CR_IPRST;
+#endif
+    Stm32SaesClearCCF();
+    ForceZero(buf,   sizeof(buf));
+    ForceZero(H,     sizeof(H));
+    ForceZero(J0,    sizeof(J0));
+    ForceZero(Ek_J0, sizeof(Ek_J0));
+    ForceZero(ctr,   sizeof(ctr));
+    ForceZero(ks,    sizeof(ks));
+    ForceZero(S,     sizeof(S));
+    ForceZero(ctag,  sizeof(ctag));
+    ForceZero(&gcm,  sizeof(gcm));
+    if (saes_locked) {
+        wolfSSL_CryptHwMutexUnLock();
+    }
+    return ret;
+}
+#endif /* HAVE_AESGCM */
+
 /* AES ECB/CBC using a key derived from the staged seed via the silicon DHUK.
  * mode = WC_DHUK_MODE_ECB / _CBC; enc != 0 to encrypt. For CBC, iv is the
  * 16-byte chaining value. The derived key never enters software. */
@@ -3500,59 +3717,75 @@ static int Stm32Dhuk_Cipher(struct wc_CryptoInfo* info)
 #endif
 #ifdef HAVE_AESGCM
     case WC_CIPHER_AES_GCM:
-        /* GMAC = AES-GCM with empty plaintext. Full GCM payload encryption is
-         * a follow-on (needs a CTR + GHASH path). For a DHUK key we must NOT
-         * fall back to SW GCM: the SW path would key off aes->key, which holds
-         * the derivation seed (not the SAES-derived device key), producing a
-         * non-device-bound result. Fail loudly instead of returning
-         * CRYPTOCB_UNAVAILABLE (which would trigger the SW fallback). */
+        /* AES-GCM with a DHUK-derived key. sz == 0 is GMAC (tag only); sz != 0
+         * runs full-payload GCM (CTR + GHASH, all AES blocks on SAES). For a
+         * DHUK key we must NOT fall back to SW GCM: the SW path would key off
+         * aes->key, which holds the derivation seed (not the SAES-derived
+         * device key), producing a non-device-bound result -- so the request
+         * is serviced here rather than returning CRYPTOCB_UNAVAILABLE. */
         if (info->cipher.enc) {
-            if (info->cipher.aesgcm_enc.sz != 0) {
-                return NOT_COMPILED_IN;
-            }
             ret = Stm32Dhuk_StageAesSeed(info->cipher.aesgcm_enc.aes);
             if (ret != 0) {
                 return ret;
             }
-            return Stm32Dhuk_Gmac(NULL,
-                                  info->cipher.aesgcm_enc.iv,
-                                  info->cipher.aesgcm_enc.ivSz,
-                                  info->cipher.aesgcm_enc.authIn,
-                                  info->cipher.aesgcm_enc.authInSz,
-                                  info->cipher.aesgcm_enc.authTag,
-                                  info->cipher.aesgcm_enc.authTagSz);
+            if (info->cipher.aesgcm_enc.sz == 0) {
+                return Stm32Dhuk_Gmac(NULL,
+                                      info->cipher.aesgcm_enc.iv,
+                                      info->cipher.aesgcm_enc.ivSz,
+                                      info->cipher.aesgcm_enc.authIn,
+                                      info->cipher.aesgcm_enc.authInSz,
+                                      info->cipher.aesgcm_enc.authTag,
+                                      info->cipher.aesgcm_enc.authTagSz);
+            }
+            return Stm32Dhuk_Gcm(1,
+                                 info->cipher.aesgcm_enc.in,
+                                 info->cipher.aesgcm_enc.sz,
+                                 info->cipher.aesgcm_enc.out,
+                                 info->cipher.aesgcm_enc.iv,
+                                 info->cipher.aesgcm_enc.ivSz,
+                                 info->cipher.aesgcm_enc.authIn,
+                                 info->cipher.aesgcm_enc.authInSz,
+                                 info->cipher.aesgcm_enc.authTag, NULL,
+                                 info->cipher.aesgcm_enc.authTagSz);
         }
         else {
-            byte   tag[WC_AES_BLOCK_SIZE];
-            word32 tagSz = info->cipher.aesgcm_dec.authTagSz;
-            /* See enc note: do not fall back to SW GCM for a DHUK key. */
-            if (info->cipher.aesgcm_dec.sz != 0) {
-                return NOT_COMPILED_IN;
-            }
-            if (tagSz == 0 || tagSz > sizeof(tag)) {
-                return BAD_FUNC_ARG;
-            }
             ret = Stm32Dhuk_StageAesSeed(info->cipher.aesgcm_dec.aes);
             if (ret != 0) {
                 return ret;
             }
-            XMEMSET(tag, 0, sizeof(tag));
-            ret = Stm32Dhuk_Gmac(NULL,
+            if (info->cipher.aesgcm_dec.sz == 0) {
+                byte   tag[WC_AES_BLOCK_SIZE];
+                word32 tagSz = info->cipher.aesgcm_dec.authTagSz;
+                if (tagSz == 0 || tagSz > sizeof(tag)) {
+                    return BAD_FUNC_ARG;
+                }
+                XMEMSET(tag, 0, sizeof(tag));
+                ret = Stm32Dhuk_Gmac(NULL,
+                                     info->cipher.aesgcm_dec.iv,
+                                     info->cipher.aesgcm_dec.ivSz,
+                                     info->cipher.aesgcm_dec.authIn,
+                                     info->cipher.aesgcm_dec.authInSz,
+                                     tag, tagSz);
+                if (ret != 0) {
+                    ForceZero(tag, sizeof(tag));
+                    return ret;
+                }
+                /* Constant-time tag compare (0 == equal). */
+                ret = ConstantCompare(tag, info->cipher.aesgcm_dec.authTag,
+                                      (int)tagSz);
+                ForceZero(tag, sizeof(tag));
+                return (ret == 0) ? 0 : AES_GCM_AUTH_E;
+            }
+            return Stm32Dhuk_Gcm(0,
+                                 info->cipher.aesgcm_dec.in,
+                                 info->cipher.aesgcm_dec.sz,
+                                 info->cipher.aesgcm_dec.out,
                                  info->cipher.aesgcm_dec.iv,
                                  info->cipher.aesgcm_dec.ivSz,
                                  info->cipher.aesgcm_dec.authIn,
                                  info->cipher.aesgcm_dec.authInSz,
-                                 tag, tagSz);
-            if (ret != 0) {
-                ForceZero(tag, sizeof(tag));
-                return ret;
-            }
-            /* Constant-time tag compare (0 == equal); ConstantCompare avoids a
-             * local re-implementation of the secret compare. */
-            ret = ConstantCompare(tag, info->cipher.aesgcm_dec.authTag,
-                                  (int)tagSz);
-            ForceZero(tag, sizeof(tag));
-            return (ret == 0) ? 0 : AES_GCM_AUTH_E;
+                                 NULL, info->cipher.aesgcm_dec.authTag,
+                                 info->cipher.aesgcm_dec.authTagSz);
         }
 #endif
     default:
@@ -3640,6 +3873,31 @@ static int Stm32_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
 #endif
             return CRYPTOCB_UNAVAILABLE;
 #endif
+#if defined(STM32_RNG) && !defined(WC_NO_RNG)
+        case WC_ALGO_TYPE_RNG:
+            /* Route the TRNG through the callback to the STM32 hardware RNG.
+             * wc_GenerateSeed owns clock enable, the DRDY poll and SEIS/CECS
+             * recovery, and is the HW register variant here, so this does not
+             * recurse back into the callback. */
+            if (info->rng.out == NULL && info->rng.sz != 0) {
+                return BAD_FUNC_ARG;
+            }
+            return wc_GenerateSeed(NULL, info->rng.out, info->rng.sz);
+
+        case WC_ALGO_TYPE_SEED:
+            if (info->seed.seed == NULL && info->seed.sz != 0) {
+                return BAD_FUNC_ARG;
+            }
+            return wc_GenerateSeed(info->seed.os, info->seed.seed,
+                                   info->seed.sz);
+#endif /* STM32_RNG && !WC_NO_RNG */
+        /* HMAC is intentionally not handled here. For an Hmac carrying this
+         * device's devId, hmac.c calls the callback and, on
+         * CRYPTOCB_UNAVAILABLE, falls through to the STM32_HASH && STM32_HMAC
+         * hardware path (innerHashKeyed == WC_HMAC_INNER_HASH_KEYED_DEV). A
+         * functional cb HMAC case would have to duplicate that key/state setup
+         * across the separate SetKey/Update/Final callbacks, so we decline and
+         * let the existing HW HMAC path run. */
         default:
             return CRYPTOCB_UNAVAILABLE;
     }
