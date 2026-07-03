@@ -3106,6 +3106,8 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
         outLen -= len;
     }
 
+    /* state holds secret PRF output. */
+    ForceZero(state, sizeof(state));
     return 0;
 #else
     int ret;
@@ -3157,6 +3159,8 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     }
     XMEMCPY(out, state, outLen);
 
+    /* state holds secret KDF output. */
+    ForceZero(state, sizeof(state));
     return 0;
 }
 #endif
@@ -3183,6 +3187,8 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     BlockSha3(state);
     XMEMCPY(out, state, outLen);
 
+    /* state holds secret KDF output. */
+    ForceZero(state, sizeof(state));
     return 0;
 }
 #endif
@@ -4043,6 +4049,8 @@ static int mlkem_get_noise_eta1_c(MLKEM_PRF_T* prf, sword16* p,
             /* Sample for values in range -3..3 from 3 bits of random. */
             mlkem_cbd_eta3(p, rand);
          }
+        /* rand holds secret noise. */
+        ForceZero(rand, sizeof(rand));
     }
     else
 #endif
@@ -4055,6 +4063,8 @@ static int mlkem_get_noise_eta1_c(MLKEM_PRF_T* prf, sword16* p,
             /* Sample for values in range -2..2 from 2 bits of random. */
             mlkem_cbd_eta2(p, rand);
         }
+        /* rand holds secret noise. */
+        ForceZero(rand, sizeof(rand));
     }
 
     return ret;
@@ -4087,6 +4097,8 @@ static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
         mlkem_cbd_eta2(p, rand);
     }
 
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
     return ret;
 }
 
@@ -4123,6 +4135,9 @@ static void mlkem_get_noise_x4_eta2_avx2(byte* rand, byte* seed, byte o)
     mlkem_redistribute_16_rand_avx2(state, rand + 0 * ETA2_RAND_SIZE,
         rand + 1 * ETA2_RAND_SIZE, rand + 2 * ETA2_RAND_SIZE,
         rand + 3 * ETA2_RAND_SIZE);
+
+    /* state is secret-seeded; caller zeroizes rand. */
+    ForceZero(state, sizeof(state));
 }
 #endif
 
@@ -4176,6 +4191,8 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
     }
     mlkem_cbd_eta2_avx2(p, (byte*)state);
 
+    /* state holds secret noise. */
+    ForceZero(state, sizeof(state));
     return 0;
 }
 #endif
@@ -4216,6 +4233,9 @@ static void mlkem_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
     mlkem_redistribute_8_rand_avx2(state, rand + i + 0 * PRF_RAND_SZ,
         rand + i + 1 * PRF_RAND_SZ, rand + i + 2 * PRF_RAND_SZ,
         rand + i + 3 * PRF_RAND_SZ);
+
+    /* state is secret-seeded; caller zeroizes rand. */
+    ForceZero(state, sizeof(state));
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
@@ -4254,6 +4274,8 @@ static int mlkem_get_noise_k2_avx2(MLKEM_PRF_T* prf, sword16* vec1,
         ret = mlkem_get_noise_eta2_avx2(prf, poly, seed);
     }
 
+    /* rand holds secret noise. */
+    ForceZero(rand, 4 * PRF_RAND_SZ);
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -4287,6 +4309,8 @@ static int mlkem_get_noise_k3_avx2(sword16* vec1, sword16* vec2, sword16* poly,
         mlkem_cbd_eta2_avx2(poly, rand + 2 * ETA2_RAND_SIZE);
     }
 
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
     return 0;
 }
 #endif
@@ -4325,6 +4349,8 @@ static int mlkem_get_noise_k4_avx2(MLKEM_PRF_T* prf, sword16* vec1,
         ret = mlkem_get_noise_eta2_avx2(prf, poly, seed);
     }
 
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
     return ret;
 }
 #endif
@@ -4396,6 +4422,9 @@ static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
         ETA3_RAND_SIZE - SHA3_256_BYTES);
     XMEMCPY(rand + 2 * ETA3_RAND_SIZE, state + 2*25,
         ETA3_RAND_SIZE - SHA3_256_BYTES);
+
+    /* state is secret-seeded; caller zeroizes rand. */
+    ForceZero(state, sizeof(state));
 }
 
 /* Get the noise/error by calculating random bytes.
@@ -4424,6 +4453,9 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
     XMEMCPY(rand                 , state, SHA3_256_BYTES);
     BlockSha3(state);
     XMEMCPY(rand + SHA3_256_BYTES, state, ETA3_RAND_SIZE - SHA3_256_BYTES);
+
+    /* state is secret-seeded; caller zeroizes rand. */
+    ForceZero(state, sizeof(state));
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
@@ -4456,6 +4488,8 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
         mlkem_cbd_eta2(poly          , rand + 2 * 25 * 8);
     }
 
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
     return ret;
 }
 #endif
@@ -4516,6 +4550,8 @@ static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
         mlkem_cbd_eta2(poly              , rand + 0 * 25 * 8);
     }
 
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
     return 0;
 }
 #endif
@@ -4551,6 +4587,8 @@ static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
         mlkem_cbd_eta2(poly,               rand + 2 * 25 * 8);
     }
 
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
     return ret;
 }
 #endif
