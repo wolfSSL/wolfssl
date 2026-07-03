@@ -1,17 +1,11 @@
 @echo off
 setlocal
 
-REM --- Flash test.x and let it run, using Renesas Flash Programmer (RFP) instead of a raw
-REM GDB session. e2studio's GUI debug launch sends >150 "monitor set_io_access_width"
-REM commands (device-specific I/O bus-width setup, captured from the Debugger Console) before
-REM anything else; a hand-written GDB script can't feasibly replicate that, and without it the
-REM CPU runs but peripherals (SCI2/TSIP) don't come up correctly -- no UART output, even though
-REM GDB reports the thread as running. RFP's own flash-and-run path sidesteps all of that: it's
-REM closer to a real power-on boot (erase/program/verify, then release reset via -run) and does
-REM not go through a GDB debug session at all. Confirmed working: UART output appears correctly
-REM after "rfp-cli ... -auto -run".
-
-set DEBUG_DIR=%USERPROFILE%\.eclipse\com.renesas.platform_1435879475\DebugComp\RX
+REM --- Flash test.x and let it run, using Renesas Flash Programmer (RFP) CLI ---
+REM DEBUG_DIR is tied to a specific e2studio install (platform ID) and will not exist as-is
+REM on a different machine. Set DEBUG_DIR in the environment before calling debug_run.bat to
+REM override the default below for your install.
+if not defined DEBUG_DIR set DEBUG_DIR=%USERPROFILE%\.eclipse\com.renesas.platform_1435879475\DebugComp\RX
 set OBJCOPY=%DEBUG_DIR%\rx-elf-objcopy.exe
 set BASEDIR=%~dp0
 set TARGET_X=%BASEDIR%test\HardwareDebug\test.x

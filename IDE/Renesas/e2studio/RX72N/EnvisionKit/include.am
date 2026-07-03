@@ -38,3 +38,5 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/Simple/test/test.scfg
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/Simple/wolfssl/.cproject
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/Simple/wolfssl/.project
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/Simple/build.bat
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/Simple/debug_run.bat
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/Simple/set_demo_mode.ps1
