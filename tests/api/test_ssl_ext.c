@@ -166,6 +166,36 @@ int test_wolfSSL_set1_groups_list_ext(void)
     ExpectIntEQ(wolfSSL_CTX_set1_groups_list(ctx, "P-256"), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set1_groups_list(ssl, "P-256"), WOLFSSL_SUCCESS);
 
+    /* Group name matching is case-insensitive, matching OpenSSL behavior.
+     * P-256 is the same curve as secp256r1; use it for the mixed-case list so
+     * the test does not depend on additional curves being compiled in. */
+    ExpectIntEQ(wolfSSL_CTX_set1_groups_list(ctx, "p-256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_groups_list(ssl, "p-256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set1_groups_list(ctx, "p-256:SECP256R1"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_groups_list(ssl, "p-256:SECP256R1"),
+        WOLFSSL_SUCCESS);
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    /* ML-KEM groups are accepted by both the wolfSSL spelling ("ML_KEM_512")
+     * and the OpenSSL/IANA spelling without underscores ("MLKEM512"). These
+     * standalone (non-hybrid) ML-KEM groups are only usable as TLS key
+     * exchange when WOLFSSL_TLS_NO_MLKEM_STANDALONE is not defined, and each
+     * individual parameter set is only usable when it is compiled in. */
+#ifndef WOLFSSL_NO_ML_KEM_512
+    ExpectIntEQ(wolfSSL_CTX_set1_groups_list(ctx, "ML_KEM_512"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set1_groups_list(ctx, "MLKEM512"), WOLFSSL_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_768
+    ExpectIntEQ(wolfSSL_set1_groups_list(ssl, "MLKEM768"), WOLFSSL_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    ExpectIntEQ(wolfSSL_set1_groups_list(ssl, "mlkem1024"), WOLFSSL_SUCCESS);
+#endif
+#endif
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
