@@ -2759,6 +2759,10 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                     !NetX_PeerAddrEqual(&srcIp, &nxCtx->nxdIp)) {
                     WOLFSSL_MSG("NetX Recv ignored packet from invalid peer");
                     NetX_ResetPacket(nxCtx);
+                    /* Intentional: bound discard only during handshake/RTX
+                     * window (doDtlsTimeout). Post-handshake, spoofed-source
+                     * packets loop until a valid one arrives. This matches
+                     * the EmbedReceiveFrom behavior. */
                     if (doDtlsTimeout) {
                         invalidPeerPackets++;
                         if (invalidPeerPackets > maxInvalidPeerPackets) {
@@ -2787,6 +2791,10 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         if (total == 0) {
             WOLFSSL_MSG("Ignoring 0-length datagram");
             NetX_ResetPacket(nxCtx);
+            /* Intentional: same discard-bound semantics as invalid-peer
+             * handling above and EmbedReceiveFrom: only bounded during
+             * handshake, loops post-handshake until a valid datagram
+             * arrives. */
             if (doDtlsTimeout) {
                 invalidPeerPackets++;
                 if (invalidPeerPackets > maxInvalidPeerPackets) {
