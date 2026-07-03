@@ -4066,6 +4066,108 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_get_chain_{length,cert,X509} must reject out-of-range idx. */
+static int test_wolfSSL_get_chain_idx_bounds(void)
+{
+    EXPECT_DECLS;
+#if defined(SESSION_CERTS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_X509_CHAIN* chain = NULL;
+    int count = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLS_client_method, wolfTLS_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_c));
+    ExpectIntGT(count = wolfSSL_get_chain_count(chain), 0);
+
+    ExpectIntEQ(wolfSSL_get_chain_length(chain, -1), 0);
+    ExpectIntEQ(wolfSSL_get_chain_length(chain, count), 0);
+    ExpectIntEQ(wolfSSL_get_chain_length(chain, MAX_CHAIN_DEPTH), 0);
+    ExpectNull(wolfSSL_get_chain_cert(chain, -1));
+    ExpectNull(wolfSSL_get_chain_cert(chain, count));
+    ExpectNull(wolfSSL_get_chain_cert(chain, MAX_CHAIN_DEPTH));
+#ifdef OPENSSL_EXTRA
+    {
+        WOLFSSL_X509* x = NULL;
+        ExpectNull(x = wolfSSL_get_chain_X509(chain, -1));
+        if (x != NULL) { wolfSSL_X509_free(x); x = NULL; }
+        ExpectNull(x = wolfSSL_get_chain_X509(chain, count));
+        if (x != NULL) { wolfSSL_X509_free(x); x = NULL; }
+        ExpectNull(x = wolfSSL_get_chain_X509(chain, MAX_CHAIN_DEPTH));
+        if (x != NULL) { wolfSSL_X509_free(x); x = NULL; }
+    }
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Chain-depth boundary: exactly MAX_CHAIN_DEPTH chain certs (plus trailing data
+ * that forces one more parse pass) must load; one more cert must be rejected.
+ * cliCertFile is single-cert, so copy 0 is the leaf and N copies => N-1 chain. */
+static int test_wolfSSL_CTX_use_certificate_chain_buffer_max_depth(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    WOLFSSL_CTX* ctx = NULL;
+    unsigned char* one = NULL;
+    unsigned char* buf = NULL;
+    size_t oneLen = 0;
+    const char* tail = "# trailing comment\n";
+    size_t tailLen = XSTRLEN(tail);
+    /* +1 copy for the leaf yields exactly MAX_CHAIN_DEPTH chain certs. */
+    const int atMax = MAX_CHAIN_DEPTH + 1;
+    int i;
+
+    ExpectIntEQ(load_file(cliCertFile, &one, &oneLen), 0);
+
+    /* Exactly MAX_CHAIN_DEPTH chain certs + trailing data: loads. */
+    ExpectNotNull(buf = (unsigned char*)XMALLOC(
+        oneLen * (size_t)atMax + tailLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    for (i = 0; EXPECT_SUCCESS() && i < atMax; i++)
+        XMEMCPY(buf + (size_t)i * oneLen, one, oneLen);
+    if (buf != NULL)
+        XMEMCPY(buf + (size_t)atMax * oneLen, tail, tailLen);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, buf,
+        (long)(oneLen * (size_t)atMax + tailLen)), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+    if (buf != NULL)
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+
+    /* One more chain cert: rejected. */
+    ExpectNotNull(buf = (unsigned char*)XMALLOC(oneLen * (size_t)(atMax + 1),
+        NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    for (i = 0; EXPECT_SUCCESS() && i < atMax + 1; i++)
+        XMEMCPY(buf + (size_t)i * oneLen, one, oneLen);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, buf,
+        (long)(oneLen * (size_t)(atMax + 1))), WC_NO_ERR_TRACE(MAX_CHAIN_ERROR));
+    wolfSSL_CTX_free(ctx);
+    if (buf != NULL)
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (one != NULL)
+        XFREE(one, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
 {
     EXPECT_DECLS;
@@ -35603,6 +35705,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
+    TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_max_depth),
+    TEST_DECL(test_wolfSSL_get_chain_idx_bounds),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
     TEST_DECL(test_wolfSSL_use_certificate_chain_file),
     TEST_DECL(test_wolfSSL_CTX_trust_peer_cert),
