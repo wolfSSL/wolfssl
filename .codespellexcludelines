@@ -21,3 +21,4 @@ rsource "Kconfig.tls-generic"
  * extern global version from /usr/src/sys/sys/systm.h */
             return "UE";
     ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "UE");
+set TARGET_MOT=%BASEDIR%test\HardwareDebug\test.mot
