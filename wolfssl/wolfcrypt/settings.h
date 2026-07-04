@@ -380,6 +380,15 @@
     #endif
 #endif
 
+/* Microsoft's ARM64 compiler defines _M_ARM64 but not __aarch64__.  The wolfSSL
+ * ARMv8 assembly (WOLFSSL_ARMASM) and all of its C callers are gated on
+ * __aarch64__, so map _M_ARM64 across when building that assembly with MSVC and
+ * armasm64.  Scoped to WOLFSSL_ARMASM so a plain MSVC ARM64 (pure C) build is
+ * left untouched. */
+#if defined(_M_ARM64) && defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+    #define __aarch64__ 1
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still

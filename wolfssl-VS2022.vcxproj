@@ -64,6 +64,20 @@
              msbuild /p:WolfSSLIntelAsm=true -->
     <WolfSSLIntelAsm Condition="'$(WolfSSLIntelAsm)'==''">false</WolfSSLIntelAsm>
   </PropertyGroup>
+  <PropertyGroup Label="WolfSSLAarch64Asm">
+    <!-- Build the ARMv8 (AArch64) crypto assembly (AES / SHA-2 / SHA-3 /
+         Curve25519 / Ed25519 / Poly1305 / ChaCha / ML-KEM) with armasm64 and
+         enable the matching WOLFSSL_ARMASM code paths.  Off by default (pure
+         C).  Enable on an ARM64 build with:
+             msbuild /p:WolfSSLAarch64Asm=true -->
+    <WolfSSLAarch64Asm Condition="'$(WolfSSLAarch64Asm)'==''">false</WolfSSLAarch64Asm>
+    <!-- Feature macros the .asm files are guarded by.  These must mirror the
+         feature set enabled for the C compile (see IDE/WIN/user_settings.h and
+         the WOLFSSL_ARMASM* defines below); a symbol that is left undefined
+         here simply drops the matching assembly (safe - the C caller then uses
+         a C fallback), while a symbol enabled here but not in C is dead code. -->
+    <WolfSSLArmAsmDefs>--predefine "HAVE_AES_CBC SETL {TRUE}" --predefine "HAVE_AESCCM SETL {TRUE}" --predefine "HAVE_AESGCM SETL {TRUE}" --predefine "HAVE_AES_ECB SETL {TRUE}" --predefine "HAVE_AES_DECRYPT SETL {TRUE}" --predefine "WOLFSSL_AES_COUNTER SETL {TRUE}" --predefine "WOLFSSL_AES_DIRECT SETL {TRUE}" --predefine "WOLFSSL_AES_XTS SETL {TRUE}" --predefine "WOLFSSL_AESGCM_STREAM SETL {TRUE}" --predefine "WOLFSSL_SHA224 SETL {TRUE}" --predefine "WOLFSSL_SHA3 SETL {TRUE}" --predefine "WOLFSSL_ARMASM_CRYPTO_SHA3 SETL {TRUE}" --predefine "WOLFSSL_SHA384 SETL {TRUE}" --predefine "WOLFSSL_SHA512 SETL {TRUE}" --predefine "WOLFSSL_ARMASM_CRYPTO_SHA512 SETL {TRUE}" --predefine "HAVE_CHACHA SETL {TRUE}" --predefine "HAVE_CURVE25519 SETL {TRUE}" --predefine "HAVE_ED25519 SETL {TRUE}" --predefine "WOLFSSL_HAVE_MLKEM SETL {TRUE}"</WolfSSLArmAsmDefs>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <PlatformToolset>v143</PlatformToolset>
@@ -638,6 +652,54 @@
       <Command Condition="'$(WolfSSLIntelAsm)'=='true' And '$(Platform)'=='x64'">ml64.exe /c /Zi /DWOLFSSL_X86_64_BUILD /DWOLFSSL_HAVE_MLKEM /DWOLFSSL_HAVE_MLDSA /DWOLFSSL_HAVE_SLHDSA /DHAVE_ED25519 /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(WolfSSLIntelAsm)'=='true' And '$(Platform)'=='x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-aes-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-chacha-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-curve25519.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-mlkem-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-poly1305-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-sha256-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-sha3-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-sha512-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
     <ClInclude Include="IDE\WIN\user_settings.h" />
   </ItemGroup>
   <ItemGroup>
@@ -653,6 +715,11 @@
   <ItemDefinitionGroup Condition="'$(WolfSSLIntelAsm)'=='true' And '$(Platform)'=='x64'">
     <ClCompile>
       <PreprocessorDefinitions>USE_INTEL_SPEEDUP;WOLFSSL_X86_64_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">
+    <ClCompile>
+      <PreprocessorDefinitions>WOLFSSL_ARMASM;WOLFSSL_ARMASM_CRYPTO_SHA3;WOLFSSL_ARMASM_CRYPTO_SHA512;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
