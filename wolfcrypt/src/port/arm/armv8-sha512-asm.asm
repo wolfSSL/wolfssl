@@ -25,7 +25,7 @@
 ;   ruby ./sha2/sha512.rb arm64 \
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.asm
 	IF :DEF:WOLFSSL_SHA512 :LOR: :DEF:WOLFSSL_SHA384
-	AREA	|.rodata|, DATA, READONLY
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	16
 L_SHA512_transform_neon_len_k
 	DCQ	0x428a2f98d728ae22, 0x7137449123ef65cd
@@ -68,7 +68,7 @@ L_SHA512_transform_neon_len_k
 	DCQ	0x3c9ebe0a15c9bebc, 0x431d67c49c100d4c
 	DCQ	0x4cc5d4becb3e42b6, 0x597f299cfc657e2a
 	DCQ	0x5fcb6fab3ad6faec, 0x6c44198c4a475817
-	AREA	|.rodata|, DATA, READONLY
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	16
 L_SHA512_transform_neon_len_r8
 	DCQ	0x0007060504030201, 0x080f0e0d0c0b0a09
@@ -83,13 +83,13 @@ Transform_Sha512_Len_neon PROC
 	stp	x22, x23, [x29, #48]
 	stp	x24, x25, [x29, #64]
 	stp	x26, x27, [x29, #80]
-	stp	d8, d9, [x29, #96]
-	stp	d10, d11, [x29, #112]
+	stp	D8, D9, [x29, #96]
+	stp	D10, D11, [x29, #112]
 	adrp	x3, L_SHA512_transform_neon_len_k
 	add	x3, x3, L_SHA512_transform_neon_len_k
 	adrp	x27, L_SHA512_transform_neon_len_r8
 	add	x27, x27, L_SHA512_transform_neon_len_r8
-	ld1	{v11.16b}, [x27]
+	ld1	{V11.16B}, [x27]
 	; Load digest into working vars
 	ldp	x4, x5, [x0]
 	ldp	x6, x7, [x0, #16]
@@ -99,31 +99,31 @@ Transform_Sha512_Len_neon PROC
 L_sha512_len_neon_begin
 	; Load W
 	; Copy digest to add in at end
-	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	mov	x19, x4
-	ld1	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
+	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	mov	x20, x5
-	rev64	v0.16b, v0.16b
+	rev64	V0.16B, V0.16B
 	mov	x21, x6
-	rev64	v1.16b, v1.16b
+	rev64	V1.16B, V1.16B
 	mov	x22, x7
-	rev64	v2.16b, v2.16b
+	rev64	V2.16B, V2.16B
 	mov	x23, x8
-	rev64	v3.16b, v3.16b
+	rev64	V3.16B, V3.16B
 	mov	x24, x9
-	rev64	v4.16b, v4.16b
+	rev64	V4.16B, V4.16B
 	mov	x25, x10
-	rev64	v5.16b, v5.16b
+	rev64	V5.16B, V5.16B
 	mov	x26, x11
-	rev64	v6.16b, v6.16b
-	rev64	v7.16b, v7.16b
+	rev64	V6.16B, V6.16B
+	rev64	V7.16B, V7.16B
 	; Pre-calc: b ^ c
 	eor	x16, x5, x6
 	mov	x27, #4
 	; Start of 16 rounds
 L_sha512_len_neon_start
 	; Round 0
-	mov	x13, v0.d[0]
+	mov	x13, V0.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
@@ -145,47 +145,47 @@ L_sha512_len_neon_start
 	add	x7, x7, x11
 	add	x11, x11, x14
 	; Round 1
-	mov	x13, v0.d[1]
+	mov	x13, V0.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v0.16b, v1.16b, #8
+	ext8	V10.16B, V0.16B, V1.16B, #8
 	ror	x12, x7, #14
-	shl	v8.2d, v7.2d, #45
+	shl	V8.2D, V7.2D, #45
 	ror	x14, x11, #28
-	sri	v8.2d, v7.2d, #19
+	sri	V8.2D, V7.2D, #19
 	eor	x12, x12, x7, ror 18
-	shl	v9.2d, v7.2d, #3
+	shl	V9.2D, V7.2D, #3
 	eor	x14, x14, x11, ror 34
-	sri	v9.2d, v7.2d, #61
+	sri	V9.2D, V7.2D, #61
 	eor	x12, x12, x7, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x11, ror 39
-	ushr	v8.2d, v7.2d, #6
+	ushr	V8.2D, V7.2D, #6
 	add	x10, x10, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x11, x4
-	add	v0.2d, v0.2d, v9.2d
+	add	V0.2D, V0.2D, V9.2D
 	eor	x12, x8, x9
-	ext	v9.16b, v4.16b, v5.16b, #8
+	ext8	V9.16B, V4.16B, V5.16B, #8
 	and	x17, x16, x17
-	add	v0.2d, v0.2d, v9.2d
+	add	V0.2D, V0.2D, V9.2D
 	and	x12, x12, x7
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x10, x10, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x9
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x10, x10, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x4
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x10, x10, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v0.2d, v0.2d, v9.2d
+	add	V0.2D, V0.2D, V9.2D
 	add	x6, x6, x10
 	add	x10, x10, x14
 	; Round 2
-	mov	x13, v1.d[0]
+	mov	x13, V1.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
@@ -207,47 +207,47 @@ L_sha512_len_neon_start
 	add	x5, x5, x9
 	add	x9, x9, x14
 	; Round 3
-	mov	x13, v1.d[1]
+	mov	x13, V1.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v1.16b, v2.16b, #8
+	ext8	V10.16B, V1.16B, V2.16B, #8
 	ror	x12, x5, #14
-	shl	v8.2d, v0.2d, #45
+	shl	V8.2D, V0.2D, #45
 	ror	x14, x9, #28
-	sri	v8.2d, v0.2d, #19
+	sri	V8.2D, V0.2D, #19
 	eor	x12, x12, x5, ror 18
-	shl	v9.2d, v0.2d, #3
+	shl	V9.2D, V0.2D, #3
 	eor	x14, x14, x9, ror 34
-	sri	v9.2d, v0.2d, #61
+	sri	V9.2D, V0.2D, #61
 	eor	x12, x12, x5, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x9, ror 39
-	ushr	v8.2d, v0.2d, #6
+	ushr	V8.2D, V0.2D, #6
 	add	x8, x8, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x9, x10
-	add	v1.2d, v1.2d, v9.2d
+	add	V1.2D, V1.2D, V9.2D
 	eor	x12, x6, x7
-	ext	v9.16b, v5.16b, v6.16b, #8
+	ext8	V9.16B, V5.16B, V6.16B, #8
 	and	x17, x16, x17
-	add	v1.2d, v1.2d, v9.2d
+	add	V1.2D, V1.2D, V9.2D
 	and	x12, x12, x5
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x8, x8, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x7
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x8, x8, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x10
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x8, x8, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v1.2d, v1.2d, v9.2d
+	add	V1.2D, V1.2D, V9.2D
 	add	x4, x4, x8
 	add	x8, x8, x14
 	; Round 4
-	mov	x13, v2.d[0]
+	mov	x13, V2.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
@@ -269,47 +269,47 @@ L_sha512_len_neon_start
 	add	x11, x11, x7
 	add	x7, x7, x14
 	; Round 5
-	mov	x13, v2.d[1]
+	mov	x13, V2.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v2.16b, v3.16b, #8
+	ext8	V10.16B, V2.16B, V3.16B, #8
 	ror	x12, x11, #14
-	shl	v8.2d, v1.2d, #45
+	shl	V8.2D, V1.2D, #45
 	ror	x14, x7, #28
-	sri	v8.2d, v1.2d, #19
+	sri	V8.2D, V1.2D, #19
 	eor	x12, x12, x11, ror 18
-	shl	v9.2d, v1.2d, #3
+	shl	V9.2D, V1.2D, #3
 	eor	x14, x14, x7, ror 34
-	sri	v9.2d, v1.2d, #61
+	sri	V9.2D, V1.2D, #61
 	eor	x12, x12, x11, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x7, ror 39
-	ushr	v8.2d, v1.2d, #6
+	ushr	V8.2D, V1.2D, #6
 	add	x6, x6, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x7, x8
-	add	v2.2d, v2.2d, v9.2d
+	add	V2.2D, V2.2D, V9.2D
 	eor	x12, x4, x5
-	ext	v9.16b, v6.16b, v7.16b, #8
+	ext8	V9.16B, V6.16B, V7.16B, #8
 	and	x17, x16, x17
-	add	v2.2d, v2.2d, v9.2d
+	add	V2.2D, V2.2D, V9.2D
 	and	x12, x12, x11
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x6, x6, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x5
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x6, x6, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x8
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x6, x6, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v2.2d, v2.2d, v9.2d
+	add	V2.2D, V2.2D, V9.2D
 	add	x10, x10, x6
 	add	x6, x6, x14
 	; Round 6
-	mov	x13, v3.d[0]
+	mov	x13, V3.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
@@ -331,47 +331,47 @@ L_sha512_len_neon_start
 	add	x9, x9, x5
 	add	x5, x5, x14
 	; Round 7
-	mov	x13, v3.d[1]
+	mov	x13, V3.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v3.16b, v4.16b, #8
+	ext8	V10.16B, V3.16B, V4.16B, #8
 	ror	x12, x9, #14
-	shl	v8.2d, v2.2d, #45
+	shl	V8.2D, V2.2D, #45
 	ror	x14, x5, #28
-	sri	v8.2d, v2.2d, #19
+	sri	V8.2D, V2.2D, #19
 	eor	x12, x12, x9, ror 18
-	shl	v9.2d, v2.2d, #3
+	shl	V9.2D, V2.2D, #3
 	eor	x14, x14, x5, ror 34
-	sri	v9.2d, v2.2d, #61
+	sri	V9.2D, V2.2D, #61
 	eor	x12, x12, x9, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x5, ror 39
-	ushr	v8.2d, v2.2d, #6
+	ushr	V8.2D, V2.2D, #6
 	add	x4, x4, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x5, x6
-	add	v3.2d, v3.2d, v9.2d
+	add	V3.2D, V3.2D, V9.2D
 	eor	x12, x10, x11
-	ext	v9.16b, v7.16b, v0.16b, #8
+	ext8	V9.16B, V7.16B, V0.16B, #8
 	and	x17, x16, x17
-	add	v3.2d, v3.2d, v9.2d
+	add	V3.2D, V3.2D, V9.2D
 	and	x12, x12, x9
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x4, x4, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x11
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x4, x4, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x6
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x4, x4, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v3.2d, v3.2d, v9.2d
+	add	V3.2D, V3.2D, V9.2D
 	add	x8, x8, x4
 	add	x4, x4, x14
 	; Round 8
-	mov	x13, v4.d[0]
+	mov	x13, V4.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
@@ -393,47 +393,47 @@ L_sha512_len_neon_start
 	add	x7, x7, x11
 	add	x11, x11, x14
 	; Round 9
-	mov	x13, v4.d[1]
+	mov	x13, V4.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v4.16b, v5.16b, #8
+	ext8	V10.16B, V4.16B, V5.16B, #8
 	ror	x12, x7, #14
-	shl	v8.2d, v3.2d, #45
+	shl	V8.2D, V3.2D, #45
 	ror	x14, x11, #28
-	sri	v8.2d, v3.2d, #19
+	sri	V8.2D, V3.2D, #19
 	eor	x12, x12, x7, ror 18
-	shl	v9.2d, v3.2d, #3
+	shl	V9.2D, V3.2D, #3
 	eor	x14, x14, x11, ror 34
-	sri	v9.2d, v3.2d, #61
+	sri	V9.2D, V3.2D, #61
 	eor	x12, x12, x7, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x11, ror 39
-	ushr	v8.2d, v3.2d, #6
+	ushr	V8.2D, V3.2D, #6
 	add	x10, x10, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x11, x4
-	add	v4.2d, v4.2d, v9.2d
+	add	V4.2D, V4.2D, V9.2D
 	eor	x12, x8, x9
-	ext	v9.16b, v0.16b, v1.16b, #8
+	ext8	V9.16B, V0.16B, V1.16B, #8
 	and	x17, x16, x17
-	add	v4.2d, v4.2d, v9.2d
+	add	V4.2D, V4.2D, V9.2D
 	and	x12, x12, x7
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x10, x10, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x9
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x10, x10, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x4
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x10, x10, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v4.2d, v4.2d, v9.2d
+	add	V4.2D, V4.2D, V9.2D
 	add	x6, x6, x10
 	add	x10, x10, x14
 	; Round 10
-	mov	x13, v5.d[0]
+	mov	x13, V5.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
@@ -455,47 +455,47 @@ L_sha512_len_neon_start
 	add	x5, x5, x9
 	add	x9, x9, x14
 	; Round 11
-	mov	x13, v5.d[1]
+	mov	x13, V5.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v5.16b, v6.16b, #8
+	ext8	V10.16B, V5.16B, V6.16B, #8
 	ror	x12, x5, #14
-	shl	v8.2d, v4.2d, #45
+	shl	V8.2D, V4.2D, #45
 	ror	x14, x9, #28
-	sri	v8.2d, v4.2d, #19
+	sri	V8.2D, V4.2D, #19
 	eor	x12, x12, x5, ror 18
-	shl	v9.2d, v4.2d, #3
+	shl	V9.2D, V4.2D, #3
 	eor	x14, x14, x9, ror 34
-	sri	v9.2d, v4.2d, #61
+	sri	V9.2D, V4.2D, #61
 	eor	x12, x12, x5, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x9, ror 39
-	ushr	v8.2d, v4.2d, #6
+	ushr	V8.2D, V4.2D, #6
 	add	x8, x8, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x9, x10
-	add	v5.2d, v5.2d, v9.2d
+	add	V5.2D, V5.2D, V9.2D
 	eor	x12, x6, x7
-	ext	v9.16b, v1.16b, v2.16b, #8
+	ext8	V9.16B, V1.16B, V2.16B, #8
 	and	x17, x16, x17
-	add	v5.2d, v5.2d, v9.2d
+	add	V5.2D, V5.2D, V9.2D
 	and	x12, x12, x5
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x8, x8, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x7
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x8, x8, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x10
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x8, x8, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v5.2d, v5.2d, v9.2d
+	add	V5.2D, V5.2D, V9.2D
 	add	x4, x4, x8
 	add	x8, x8, x14
 	; Round 12
-	mov	x13, v6.d[0]
+	mov	x13, V6.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
@@ -517,47 +517,47 @@ L_sha512_len_neon_start
 	add	x11, x11, x7
 	add	x7, x7, x14
 	; Round 13
-	mov	x13, v6.d[1]
+	mov	x13, V6.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v6.16b, v7.16b, #8
+	ext8	V10.16B, V6.16B, V7.16B, #8
 	ror	x12, x11, #14
-	shl	v8.2d, v5.2d, #45
+	shl	V8.2D, V5.2D, #45
 	ror	x14, x7, #28
-	sri	v8.2d, v5.2d, #19
+	sri	V8.2D, V5.2D, #19
 	eor	x12, x12, x11, ror 18
-	shl	v9.2d, v5.2d, #3
+	shl	V9.2D, V5.2D, #3
 	eor	x14, x14, x7, ror 34
-	sri	v9.2d, v5.2d, #61
+	sri	V9.2D, V5.2D, #61
 	eor	x12, x12, x11, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x7, ror 39
-	ushr	v8.2d, v5.2d, #6
+	ushr	V8.2D, V5.2D, #6
 	add	x6, x6, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x7, x8
-	add	v6.2d, v6.2d, v9.2d
+	add	V6.2D, V6.2D, V9.2D
 	eor	x12, x4, x5
-	ext	v9.16b, v2.16b, v3.16b, #8
+	ext8	V9.16B, V2.16B, V3.16B, #8
 	and	x17, x16, x17
-	add	v6.2d, v6.2d, v9.2d
+	add	V6.2D, V6.2D, V9.2D
 	and	x12, x12, x11
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x6, x6, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x5
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x6, x6, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x8
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x6, x6, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v6.2d, v6.2d, v9.2d
+	add	V6.2D, V6.2D, V9.2D
 	add	x10, x10, x6
 	add	x6, x6, x14
 	; Round 14
-	mov	x13, v7.d[0]
+	mov	x13, V7.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
@@ -579,49 +579,49 @@ L_sha512_len_neon_start
 	add	x9, x9, x5
 	add	x5, x5, x14
 	; Round 15
-	mov	x13, v7.d[1]
+	mov	x13, V7.D[1]
 	ldr	x15, [x3], #8
-	ext	v10.16b, v7.16b, v0.16b, #8
+	ext8	V10.16B, V7.16B, V0.16B, #8
 	ror	x12, x9, #14
-	shl	v8.2d, v6.2d, #45
+	shl	V8.2D, V6.2D, #45
 	ror	x14, x5, #28
-	sri	v8.2d, v6.2d, #19
+	sri	V8.2D, V6.2D, #19
 	eor	x12, x12, x9, ror 18
-	shl	v9.2d, v6.2d, #3
+	shl	V9.2D, V6.2D, #3
 	eor	x14, x14, x5, ror 34
-	sri	v9.2d, v6.2d, #61
+	sri	V9.2D, V6.2D, #61
 	eor	x12, x12, x9, ror 41
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x14, x14, x5, ror 39
-	ushr	v8.2d, v6.2d, #6
+	ushr	V8.2D, V6.2D, #6
 	add	x4, x4, x12
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x16, x5, x6
-	add	v7.2d, v7.2d, v9.2d
+	add	V7.2D, V7.2D, V9.2D
 	eor	x12, x10, x11
-	ext	v9.16b, v3.16b, v4.16b, #8
+	ext8	V9.16B, V3.16B, V4.16B, #8
 	and	x17, x16, x17
-	add	v7.2d, v7.2d, v9.2d
+	add	V7.2D, V7.2D, V9.2D
 	and	x12, x12, x9
-	shl	v8.2d, v10.2d, #63
+	shl	V8.2D, V10.2D, #63
 	add	x4, x4, x13
-	sri	v8.2d, v10.2d, #1
+	sri	V8.2D, V10.2D, #1
 	eor	x12, x12, x11
-	tbl	v9.16b, {v10.16b}, v11.16b
+	tbl	V9.16B, {V10.16B}, V11.16B
 	add	x4, x4, x15
-	eor	v9.16b, v9.16b, v8.16b
+	eor	V9.16B, V9.16B, V8.16B
 	eor	x17, x17, x6
-	ushr	v10.2d, v10.2d, #7
+	ushr	V10.2D, V10.2D, #7
 	add	x4, x4, x12
-	eor	v9.16b, v9.16b, v10.16b
+	eor	V9.16B, V9.16B, V10.16B
 	add	x14, x14, x17
-	add	v7.2d, v7.2d, v9.2d
+	add	V7.2D, V7.2D, V9.2D
 	add	x8, x8, x4
 	add	x4, x4, x14
 	subs	x27, x27, #1
 	bne	L_sha512_len_neon_start
 	; Round 0
-	mov	x13, v0.d[0]
+	mov	x13, V0.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
@@ -643,7 +643,7 @@ L_sha512_len_neon_start
 	add	x7, x7, x11
 	add	x11, x11, x14
 	; Round 1
-	mov	x13, v0.d[1]
+	mov	x13, V0.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x7, #14
 	ror	x14, x11, #28
@@ -665,7 +665,7 @@ L_sha512_len_neon_start
 	add	x6, x6, x10
 	add	x10, x10, x14
 	; Round 2
-	mov	x13, v1.d[0]
+	mov	x13, V1.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
@@ -687,7 +687,7 @@ L_sha512_len_neon_start
 	add	x5, x5, x9
 	add	x9, x9, x14
 	; Round 3
-	mov	x13, v1.d[1]
+	mov	x13, V1.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x5, #14
 	ror	x14, x9, #28
@@ -709,7 +709,7 @@ L_sha512_len_neon_start
 	add	x4, x4, x8
 	add	x8, x8, x14
 	; Round 4
-	mov	x13, v2.d[0]
+	mov	x13, V2.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
@@ -731,7 +731,7 @@ L_sha512_len_neon_start
 	add	x11, x11, x7
 	add	x7, x7, x14
 	; Round 5
-	mov	x13, v2.d[1]
+	mov	x13, V2.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x11, #14
 	ror	x14, x7, #28
@@ -753,7 +753,7 @@ L_sha512_len_neon_start
 	add	x10, x10, x6
 	add	x6, x6, x14
 	; Round 6
-	mov	x13, v3.d[0]
+	mov	x13, V3.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
@@ -775,7 +775,7 @@ L_sha512_len_neon_start
 	add	x9, x9, x5
 	add	x5, x5, x14
 	; Round 7
-	mov	x13, v3.d[1]
+	mov	x13, V3.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x9, #14
 	ror	x14, x5, #28
@@ -797,7 +797,7 @@ L_sha512_len_neon_start
 	add	x8, x8, x4
 	add	x4, x4, x14
 	; Round 8
-	mov	x13, v4.d[0]
+	mov	x13, V4.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
@@ -819,7 +819,7 @@ L_sha512_len_neon_start
 	add	x7, x7, x11
 	add	x11, x11, x14
 	; Round 9
-	mov	x13, v4.d[1]
+	mov	x13, V4.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x7, #14
 	ror	x14, x11, #28
@@ -841,7 +841,7 @@ L_sha512_len_neon_start
 	add	x6, x6, x10
 	add	x10, x10, x14
 	; Round 10
-	mov	x13, v5.d[0]
+	mov	x13, V5.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
@@ -863,7 +863,7 @@ L_sha512_len_neon_start
 	add	x5, x5, x9
 	add	x9, x9, x14
 	; Round 11
-	mov	x13, v5.d[1]
+	mov	x13, V5.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x5, #14
 	ror	x14, x9, #28
@@ -885,7 +885,7 @@ L_sha512_len_neon_start
 	add	x4, x4, x8
 	add	x8, x8, x14
 	; Round 12
-	mov	x13, v6.d[0]
+	mov	x13, V6.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
@@ -907,7 +907,7 @@ L_sha512_len_neon_start
 	add	x11, x11, x7
 	add	x7, x7, x14
 	; Round 13
-	mov	x13, v6.d[1]
+	mov	x13, V6.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x11, #14
 	ror	x14, x7, #28
@@ -929,7 +929,7 @@ L_sha512_len_neon_start
 	add	x10, x10, x6
 	add	x6, x6, x14
 	; Round 14
-	mov	x13, v7.d[0]
+	mov	x13, V7.D[0]
 	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
@@ -951,7 +951,7 @@ L_sha512_len_neon_start
 	add	x9, x9, x5
 	add	x5, x5, x14
 	; Round 15
-	mov	x13, v7.d[1]
+	mov	x13, V7.D[1]
 	ldr	x15, [x3], #8
 	ror	x12, x9, #14
 	ror	x14, x5, #28
@@ -992,13 +992,13 @@ L_sha512_len_neon_start
 	ldp	x22, x23, [x29, #48]
 	ldp	x24, x25, [x29, #64]
 	ldp	x26, x27, [x29, #80]
-	ldp	d8, d9, [x29, #96]
-	ldp	d10, d11, [x29, #112]
+	ldp	D8, D9, [x29, #96]
+	ldp	D10, D11, [x29, #112]
 	ldp	x29, x30, [sp], #0x80
 	ret
 	ENDP
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA512
-	AREA	|.rodata|, DATA, READONLY
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	16
 L_SHA512_trans_crypto_len_k
 	DCQ	0x428a2f98d728ae22, 0x7137449123ef65cd
@@ -1047,522 +1047,522 @@ L_SHA512_trans_crypto_len_k
 Transform_Sha512_Len_crypto PROC
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
-	stp	d8, d9, [x29, #16]
-	stp	d10, d11, [x29, #32]
-	stp	d12, d13, [x29, #48]
-	stp	d14, d15, [x29, #64]
+	stp	D8, D9, [x29, #16]
+	stp	D10, D11, [x29, #32]
+	stp	D12, D13, [x29, #48]
+	stp	D14, D15, [x29, #64]
 	adrp	x4, L_SHA512_trans_crypto_len_k
 	add	x4, x4, L_SHA512_trans_crypto_len_k
 ; .arch_extension sha3
 	; Load K into vector registers
-	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40
-	ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [x4], #0x40
+	ld1	{V8.2D, V9.2D, V10.2D, V11.2D}, [x4], #0x40
+	ld1	{V12.2D, V13.2D, V14.2D, V15.2D}, [x4], #0x40
 	; Load digest into working vars
-	ld1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x0]
+	ld1	{V24.2D, V25.2D, V26.2D, V27.2D}, [x0]
 	; Start of loop processing a block
 L_sha512_len_crypto_begin
 	mov	x3, x4
 	; Load W
-	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
-	ld1	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
-	rev64	v0.16b, v0.16b
-	rev64	v1.16b, v1.16b
-	rev64	v2.16b, v2.16b
-	rev64	v3.16b, v3.16b
-	rev64	v4.16b, v4.16b
-	rev64	v5.16b, v5.16b
-	rev64	v6.16b, v6.16b
-	rev64	v7.16b, v7.16b
+	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
+	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
+	rev64	V0.16B, V0.16B
+	rev64	V1.16B, V1.16B
+	rev64	V2.16B, V2.16B
+	rev64	V3.16B, V3.16B
+	rev64	V4.16B, V4.16B
+	rev64	V5.16B, V5.16B
+	rev64	V6.16B, V6.16B
+	rev64	V7.16B, V7.16B
 	; Copy digest to add in at end
-	mov	v28.16b, v24.16b
-	mov	v29.16b, v25.16b
-	mov	v30.16b, v26.16b
-	mov	v31.16b, v27.16b
+	mov	V28.16B, V24.16B
+	mov	V29.16B, V25.16B
+	mov	V30.16B, V26.16B
+	mov	V31.16B, V27.16B
 	; Start of 16 rounds
 	; Round 0
-	add	v20.2d, v0.2d, v8.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	add	V20.2D, V0.2D, V8.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Round 1
-	add	v20.2d, v1.2d, v9.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	add	V20.2D, V1.2D, V9.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Round 2
-	add	v20.2d, v2.2d, v10.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	add	V20.2D, V2.2D, V10.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Round 3
-	add	v20.2d, v3.2d, v11.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	add	V20.2D, V3.2D, V11.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Round 4
-	add	v20.2d, v4.2d, v12.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
+	add	V20.2D, V4.2D, V12.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
 	; Round 5
-	add	v20.2d, v5.2d, v13.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	add	V20.2D, V5.2D, V13.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Round 6
-	add	v20.2d, v6.2d, v14.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	add	V20.2D, V6.2D, V14.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Round 7
-	add	v20.2d, v7.2d, v15.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	add	V20.2D, V7.2D, V15.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 8
-	sha512su0	v0.2d, v1.2d
-	ext	v21.16b, v4.16b, v5.16b, #8
-	sha512su1	v0.2d, v7.2d, v21.2d
-	add	v20.2d, v0.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	sha512su0	V0.2D, V1.2D
+	ext8	V21.16B, V4.16B, V5.16B, #8
+	sha512su1	V0.2D, V7.2D, V21.2D
+	add	V20.2D, V0.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Round 9
-	sha512su0	v1.2d, v2.2d
-	ext	v21.16b, v5.16b, v6.16b, #8
-	sha512su1	v1.2d, v0.2d, v21.2d
-	add	v20.2d, v1.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
+	sha512su0	V1.2D, V2.2D
+	ext8	V21.16B, V5.16B, V6.16B, #8
+	sha512su1	V1.2D, V0.2D, V21.2D
+	add	V20.2D, V1.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
 	; Round 10
-	sha512su0	v2.2d, v3.2d
-	ext	v21.16b, v6.16b, v7.16b, #8
-	sha512su1	v2.2d, v1.2d, v21.2d
-	add	v20.2d, v2.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	sha512su0	V2.2D, V3.2D
+	ext8	V21.16B, V6.16B, V7.16B, #8
+	sha512su1	V2.2D, V1.2D, V21.2D
+	add	V20.2D, V2.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Round 11
-	sha512su0	v3.2d, v4.2d
-	ext	v21.16b, v7.16b, v0.16b, #8
-	sha512su1	v3.2d, v2.2d, v21.2d
-	add	v20.2d, v3.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	sha512su0	V3.2D, V4.2D
+	ext8	V21.16B, V7.16B, V0.16B, #8
+	sha512su1	V3.2D, V2.2D, V21.2D
+	add	V20.2D, V3.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 12
-	sha512su0	v4.2d, v5.2d
-	ext	v21.16b, v0.16b, v1.16b, #8
-	sha512su1	v4.2d, v3.2d, v21.2d
-	add	v20.2d, v4.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	sha512su0	V4.2D, V5.2D
+	ext8	V21.16B, V0.16B, V1.16B, #8
+	sha512su1	V4.2D, V3.2D, V21.2D
+	add	V20.2D, V4.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Round 13
-	sha512su0	v5.2d, v6.2d
-	ext	v21.16b, v1.16b, v2.16b, #8
-	sha512su1	v5.2d, v4.2d, v21.2d
-	add	v20.2d, v5.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	sha512su0	V5.2D, V6.2D
+	ext8	V21.16B, V1.16B, V2.16B, #8
+	sha512su1	V5.2D, V4.2D, V21.2D
+	add	V20.2D, V5.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Round 14
-	sha512su0	v6.2d, v7.2d
-	ext	v21.16b, v2.16b, v3.16b, #8
-	sha512su1	v6.2d, v5.2d, v21.2d
-	add	v20.2d, v6.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
+	sha512su0	V6.2D, V7.2D
+	ext8	V21.16B, V2.16B, V3.16B, #8
+	sha512su1	V6.2D, V5.2D, V21.2D
+	add	V20.2D, V6.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
 	; Round 15
-	sha512su0	v7.2d, v0.2d
-	ext	v21.16b, v3.16b, v4.16b, #8
-	sha512su1	v7.2d, v6.2d, v21.2d
-	add	v20.2d, v7.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	sha512su0	V7.2D, V0.2D
+	ext8	V21.16B, V3.16B, V4.16B, #8
+	sha512su1	V7.2D, V6.2D, V21.2D
+	add	V20.2D, V7.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 16
-	sha512su0	v0.2d, v1.2d
-	ext	v21.16b, v4.16b, v5.16b, #8
-	sha512su1	v0.2d, v7.2d, v21.2d
-	add	v20.2d, v0.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	sha512su0	V0.2D, V1.2D
+	ext8	V21.16B, V4.16B, V5.16B, #8
+	sha512su1	V0.2D, V7.2D, V21.2D
+	add	V20.2D, V0.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Round 17
-	sha512su0	v1.2d, v2.2d
-	ext	v21.16b, v5.16b, v6.16b, #8
-	sha512su1	v1.2d, v0.2d, v21.2d
-	add	v20.2d, v1.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	sha512su0	V1.2D, V2.2D
+	ext8	V21.16B, V5.16B, V6.16B, #8
+	sha512su1	V1.2D, V0.2D, V21.2D
+	add	V20.2D, V1.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Round 18
-	sha512su0	v2.2d, v3.2d
-	ext	v21.16b, v6.16b, v7.16b, #8
-	sha512su1	v2.2d, v1.2d, v21.2d
-	add	v20.2d, v2.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	sha512su0	V2.2D, V3.2D
+	ext8	V21.16B, V6.16B, V7.16B, #8
+	sha512su1	V2.2D, V1.2D, V21.2D
+	add	V20.2D, V2.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Round 19
-	sha512su0	v3.2d, v4.2d
-	ext	v21.16b, v7.16b, v0.16b, #8
-	sha512su1	v3.2d, v2.2d, v21.2d
-	add	v20.2d, v3.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
+	sha512su0	V3.2D, V4.2D
+	ext8	V21.16B, V7.16B, V0.16B, #8
+	sha512su1	V3.2D, V2.2D, V21.2D
+	add	V20.2D, V3.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 20
-	sha512su0	v4.2d, v5.2d
-	ext	v21.16b, v0.16b, v1.16b, #8
-	sha512su1	v4.2d, v3.2d, v21.2d
-	add	v20.2d, v4.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	sha512su0	V4.2D, V5.2D
+	ext8	V21.16B, V0.16B, V1.16B, #8
+	sha512su1	V4.2D, V3.2D, V21.2D
+	add	V20.2D, V4.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Round 21
-	sha512su0	v5.2d, v6.2d
-	ext	v21.16b, v1.16b, v2.16b, #8
-	sha512su1	v5.2d, v4.2d, v21.2d
-	add	v20.2d, v5.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	sha512su0	V5.2D, V6.2D
+	ext8	V21.16B, V1.16B, V2.16B, #8
+	sha512su1	V5.2D, V4.2D, V21.2D
+	add	V20.2D, V5.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Round 22
-	sha512su0	v6.2d, v7.2d
-	ext	v21.16b, v2.16b, v3.16b, #8
-	sha512su1	v6.2d, v5.2d, v21.2d
-	add	v20.2d, v6.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	sha512su0	V6.2D, V7.2D
+	ext8	V21.16B, V2.16B, V3.16B, #8
+	sha512su1	V6.2D, V5.2D, V21.2D
+	add	V20.2D, V6.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Round 23
-	sha512su0	v7.2d, v0.2d
-	ext	v21.16b, v3.16b, v4.16b, #8
-	sha512su1	v7.2d, v6.2d, v21.2d
-	add	v20.2d, v7.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	sha512su0	V7.2D, V0.2D
+	ext8	V21.16B, V3.16B, V4.16B, #8
+	sha512su1	V7.2D, V6.2D, V21.2D
+	add	V20.2D, V7.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 24
-	sha512su0	v0.2d, v1.2d
-	ext	v21.16b, v4.16b, v5.16b, #8
-	sha512su1	v0.2d, v7.2d, v21.2d
-	add	v20.2d, v0.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
+	sha512su0	V0.2D, V1.2D
+	ext8	V21.16B, V4.16B, V5.16B, #8
+	sha512su1	V0.2D, V7.2D, V21.2D
+	add	V20.2D, V0.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
 	; Round 25
-	sha512su0	v1.2d, v2.2d
-	ext	v21.16b, v5.16b, v6.16b, #8
-	sha512su1	v1.2d, v0.2d, v21.2d
-	add	v20.2d, v1.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	sha512su0	V1.2D, V2.2D
+	ext8	V21.16B, V5.16B, V6.16B, #8
+	sha512su1	V1.2D, V0.2D, V21.2D
+	add	V20.2D, V1.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Round 26
-	sha512su0	v2.2d, v3.2d
-	ext	v21.16b, v6.16b, v7.16b, #8
-	sha512su1	v2.2d, v1.2d, v21.2d
-	add	v20.2d, v2.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	sha512su0	V2.2D, V3.2D
+	ext8	V21.16B, V6.16B, V7.16B, #8
+	sha512su1	V2.2D, V1.2D, V21.2D
+	add	V20.2D, V2.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Round 27
-	sha512su0	v3.2d, v4.2d
-	ext	v21.16b, v7.16b, v0.16b, #8
-	sha512su1	v3.2d, v2.2d, v21.2d
-	add	v20.2d, v3.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	sha512su0	V3.2D, V4.2D
+	ext8	V21.16B, V7.16B, V0.16B, #8
+	sha512su1	V3.2D, V2.2D, V21.2D
+	add	V20.2D, V3.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 28
-	sha512su0	v4.2d, v5.2d
-	ext	v21.16b, v0.16b, v1.16b, #8
-	sha512su1	v4.2d, v3.2d, v21.2d
-	add	v20.2d, v4.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	sha512su0	V4.2D, V5.2D
+	ext8	V21.16B, V0.16B, V1.16B, #8
+	sha512su1	V4.2D, V3.2D, V21.2D
+	add	V20.2D, V4.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Round 29
-	sha512su0	v5.2d, v6.2d
-	ext	v21.16b, v1.16b, v2.16b, #8
-	sha512su1	v5.2d, v4.2d, v21.2d
-	add	v20.2d, v5.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
+	sha512su0	V5.2D, V6.2D
+	ext8	V21.16B, V1.16B, V2.16B, #8
+	sha512su1	V5.2D, V4.2D, V21.2D
+	add	V20.2D, V5.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
 	; Round 30
-	sha512su0	v6.2d, v7.2d
-	ext	v21.16b, v2.16b, v3.16b, #8
-	sha512su1	v6.2d, v5.2d, v21.2d
-	add	v20.2d, v6.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	sha512su0	V6.2D, V7.2D
+	ext8	V21.16B, V2.16B, V3.16B, #8
+	sha512su1	V6.2D, V5.2D, V21.2D
+	add	V20.2D, V6.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Round 31
-	sha512su0	v7.2d, v0.2d
-	ext	v21.16b, v3.16b, v4.16b, #8
-	sha512su1	v7.2d, v6.2d, v21.2d
-	add	v20.2d, v7.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	sha512su0	V7.2D, V0.2D
+	ext8	V21.16B, V3.16B, V4.16B, #8
+	sha512su1	V7.2D, V6.2D, V21.2D
+	add	V20.2D, V7.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 32
-	sha512su0	v0.2d, v1.2d
-	ext	v21.16b, v4.16b, v5.16b, #8
-	sha512su1	v0.2d, v7.2d, v21.2d
-	add	v20.2d, v0.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	sha512su0	V0.2D, V1.2D
+	ext8	V21.16B, V4.16B, V5.16B, #8
+	sha512su1	V0.2D, V7.2D, V21.2D
+	add	V20.2D, V0.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Round 33
-	sha512su0	v1.2d, v2.2d
-	ext	v21.16b, v5.16b, v6.16b, #8
-	sha512su1	v1.2d, v0.2d, v21.2d
-	add	v20.2d, v1.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	sha512su0	V1.2D, V2.2D
+	ext8	V21.16B, V5.16B, V6.16B, #8
+	sha512su1	V1.2D, V0.2D, V21.2D
+	add	V20.2D, V1.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Round 34
-	sha512su0	v2.2d, v3.2d
-	ext	v21.16b, v6.16b, v7.16b, #8
-	sha512su1	v2.2d, v1.2d, v21.2d
-	add	v20.2d, v2.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
+	sha512su0	V2.2D, V3.2D
+	ext8	V21.16B, V6.16B, V7.16B, #8
+	sha512su1	V2.2D, V1.2D, V21.2D
+	add	V20.2D, V2.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
 	; Round 35
-	sha512su0	v3.2d, v4.2d
-	ext	v21.16b, v7.16b, v0.16b, #8
-	sha512su1	v3.2d, v2.2d, v21.2d
-	add	v20.2d, v3.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v26.16b, v27.16b, #8
-	ext	v22.16b, v25.16b, v26.16b, #8
-	add	v27.2d, v27.2d, v20.2d
-	sha512h	q27, q21, v22.2d
-	add	v23.2d, v25.2d, v27.2d
-	sha512h2	q27, q25, v24.2d
+	sha512su0	V3.2D, V4.2D
+	ext8	V21.16B, V7.16B, V0.16B, #8
+	sha512su1	V3.2D, V2.2D, V21.2D
+	add	V20.2D, V3.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V26.16B, V27.16B, #8
+	ext8	V22.16B, V25.16B, V26.16B, #8
+	add	V27.2D, V27.2D, V20.2D
+	sha512h	Q27, Q21, V22.2D
+	add	V23.2D, V25.2D, V27.2D
+	sha512h2	Q27, Q25, V24.2D
 	; Load next 8 64-bit words of K
-	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{V16.2D, V17.2D, V18.2D, V19.2D}, [x3], #0x40
 	; Round 36
-	sha512su0	v4.2d, v5.2d
-	ext	v21.16b, v0.16b, v1.16b, #8
-	sha512su1	v4.2d, v3.2d, v21.2d
-	add	v20.2d, v4.2d, v16.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v23.16b, v26.16b, #8
-	ext	v22.16b, v24.16b, v23.16b, #8
-	add	v26.2d, v26.2d, v20.2d
-	sha512h	q26, q21, v22.2d
-	add	v25.2d, v24.2d, v26.2d
-	sha512h2	q26, q24, v27.2d
+	sha512su0	V4.2D, V5.2D
+	ext8	V21.16B, V0.16B, V1.16B, #8
+	sha512su1	V4.2D, V3.2D, V21.2D
+	add	V20.2D, V4.2D, V16.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V23.16B, V26.16B, #8
+	ext8	V22.16B, V24.16B, V23.16B, #8
+	add	V26.2D, V26.2D, V20.2D
+	sha512h	Q26, Q21, V22.2D
+	add	V25.2D, V24.2D, V26.2D
+	sha512h2	Q26, Q24, V27.2D
 	; Round 37
-	sha512su0	v5.2d, v6.2d
-	ext	v21.16b, v1.16b, v2.16b, #8
-	sha512su1	v5.2d, v4.2d, v21.2d
-	add	v20.2d, v5.2d, v17.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v25.16b, v23.16b, #8
-	ext	v22.16b, v27.16b, v25.16b, #8
-	add	v23.2d, v23.2d, v20.2d
-	sha512h	q23, q21, v22.2d
-	add	v24.2d, v27.2d, v23.2d
-	sha512h2	q23, q27, v26.2d
+	sha512su0	V5.2D, V6.2D
+	ext8	V21.16B, V1.16B, V2.16B, #8
+	sha512su1	V5.2D, V4.2D, V21.2D
+	add	V20.2D, V5.2D, V17.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V25.16B, V23.16B, #8
+	ext8	V22.16B, V27.16B, V25.16B, #8
+	add	V23.2D, V23.2D, V20.2D
+	sha512h	Q23, Q21, V22.2D
+	add	V24.2D, V27.2D, V23.2D
+	sha512h2	Q23, Q27, V26.2D
 	; Round 38
-	sha512su0	v6.2d, v7.2d
-	ext	v21.16b, v2.16b, v3.16b, #8
-	sha512su1	v6.2d, v5.2d, v21.2d
-	add	v20.2d, v6.2d, v18.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v24.16b, v25.16b, #8
-	ext	v22.16b, v26.16b, v24.16b, #8
-	add	v25.2d, v25.2d, v20.2d
-	sha512h	q25, q21, v22.2d
-	add	v27.2d, v26.2d, v25.2d
-	sha512h2	q25, q26, v23.2d
+	sha512su0	V6.2D, V7.2D
+	ext8	V21.16B, V2.16B, V3.16B, #8
+	sha512su1	V6.2D, V5.2D, V21.2D
+	add	V20.2D, V6.2D, V18.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V24.16B, V25.16B, #8
+	ext8	V22.16B, V26.16B, V24.16B, #8
+	add	V25.2D, V25.2D, V20.2D
+	sha512h	Q25, Q21, V22.2D
+	add	V27.2D, V26.2D, V25.2D
+	sha512h2	Q25, Q26, V23.2D
 	; Round 39
-	sha512su0	v7.2d, v0.2d
-	ext	v21.16b, v3.16b, v4.16b, #8
-	sha512su1	v7.2d, v6.2d, v21.2d
-	add	v20.2d, v7.2d, v19.2d
-	ext	v20.16b, v20.16b, v20.16b, #8
-	ext	v21.16b, v27.16b, v24.16b, #8
-	ext	v22.16b, v23.16b, v27.16b, #8
-	add	v24.2d, v24.2d, v20.2d
-	sha512h	q24, q21, v22.2d
-	add	v26.2d, v23.2d, v24.2d
-	sha512h2	q24, q23, v25.2d
-	add	v27.2d, v27.2d, v31.2d
-	add	v26.2d, v26.2d, v30.2d
-	add	v25.2d, v25.2d, v29.2d
-	add	v24.2d, v24.2d, v28.2d
+	sha512su0	V7.2D, V0.2D
+	ext8	V21.16B, V3.16B, V4.16B, #8
+	sha512su1	V7.2D, V6.2D, V21.2D
+	add	V20.2D, V7.2D, V19.2D
+	ext8	V20.16B, V20.16B, V20.16B, #8
+	ext8	V21.16B, V27.16B, V24.16B, #8
+	ext8	V22.16B, V23.16B, V27.16B, #8
+	add	V24.2D, V24.2D, V20.2D
+	sha512h	Q24, Q21, V22.2D
+	add	V26.2D, V23.2D, V24.2D
+	sha512h2	Q24, Q23, V25.2D
+	add	V27.2D, V27.2D, V31.2D
+	add	V26.2D, V26.2D, V30.2D
+	add	V25.2D, V25.2D, V29.2D
+	add	V24.2D, V24.2D, V28.2D
 	subs	w2, w2, #0x80
 	bne	L_sha512_len_crypto_begin
 	; Store digest back
-	st1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x0]
-	ldp	d8, d9, [x29, #16]
-	ldp	d10, d11, [x29, #32]
-	ldp	d12, d13, [x29, #48]
-	ldp	d14, d15, [x29, #64]
+	st1	{V24.2D, V25.2D, V26.2D, V27.2D}, [x0]
+	ldp	D8, D9, [x29, #16]
+	ldp	D10, D11, [x29, #32]
+	ldp	D12, D13, [x29, #48]
+	ldp	D14, D15, [x29, #64]
 	ldp	x29, x30, [sp], #0x50
 	ret
 	ENDP

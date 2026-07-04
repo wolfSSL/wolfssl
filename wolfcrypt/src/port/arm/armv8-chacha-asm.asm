@@ -25,11 +25,11 @@
 ;   ruby ./chacha/chacha.rb arm64 \
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-chacha-asm.asm
 	IF :DEF:HAVE_CHACHA
-	AREA	|.rodata|, DATA, READONLY
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_chacha20_arm64_ctr
 	DCD	0x00000000, 0x00000001, 0x00000002, 0x00000003
-	AREA	|.rodata|, DATA, READONLY
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_chacha20_arm64_rol8
 	DCD	0x02010003, 0x06050407, 0x0a09080b, 0x0e0d0c0f
@@ -45,66 +45,66 @@ wc_chacha_crypt_bytes PROC
 	stp	x22, x23, [x29, #56]
 	stp	x24, x25, [x29, #72]
 	str	x26, [x29, #88]
-	stp	d8, d9, [x29, #96]
-	stp	d10, d11, [x29, #112]
-	stp	d12, d13, [x29, #128]
-	stp	d14, d15, [x29, #144]
+	stp	D8, D9, [x29, #96]
+	stp	D10, D11, [x29, #112]
+	stp	D12, D13, [x29, #128]
+	stp	D14, D15, [x29, #144]
 	adrp	x5, L_chacha20_arm64_rol8
 	add	x5, x5, L_chacha20_arm64_rol8
 	adrp	x6, L_chacha20_arm64_ctr
 	add	x6, x6, L_chacha20_arm64_ctr
-	eor	v29.16b, v29.16b, v29.16b
+	eor	V29.16B, V29.16B, V29.16B
 	mov	x26, #5
-	eor	v31.16b, v31.16b, v31.16b
+	eor	V31.16B, V31.16B, V31.16B
 	mov	w7, #1
-	ld1	{v30.16b}, [x5]
-	ld1	{v28.4s}, [x6]
+	ld1	{V30.16B}, [x5]
+	ld1	{V28.4S}, [x6]
 	add	x4, x0, #0x44
-	mov	v29.s[0], w26
-	mov	v31.s[0], w7
+	mov	V29.S[0], w26
+	mov	V31.S[0], w7
 	; Load state to encrypt
-	ld1	{v16.4s, v17.4s, v18.4s, v19.4s}, [x0]
+	ld1	{V16.4S, V17.4S, V18.4S, V19.4S}, [x0]
 	cmp	x3, #0x140
 	blt	L_chacha_crypt_bytes_arm64_lt_320
 	mov	w25, #4
 L_chacha_crypt_bytes_arm64_loop_320
 	; Move state into regular register
-	mov	x8, v16.d[0]
-	mov	x10, v16.d[1]
-	mov	x12, v17.d[0]
-	mov	x14, v17.d[1]
-	mov	x16, v18.d[0]
-	mov	x19, v18.d[1]
-	mov	x21, v19.d[0]
-	mov	x23, v19.d[1]
+	mov	x8, V16.D[0]
+	mov	x10, V16.D[1]
+	mov	x12, V17.D[0]
+	mov	x14, V17.D[1]
+	mov	x16, V18.D[0]
+	mov	x19, V18.D[1]
+	mov	x21, V19.D[0]
+	mov	x23, V19.D[1]
 	sub	x3, x3, #0x140
 	; Move state into vector registers
-	dup	v0.4s, v16.s[0]
-	dup	v1.4s, v16.s[1]
+	dup	V0.4S, V16.S[0]
+	dup	V1.4S, V16.S[1]
 	lsr	x9, x8, #32
-	dup	v2.4s, v16.s[2]
-	dup	v3.4s, v16.s[3]
+	dup	V2.4S, V16.S[2]
+	dup	V3.4S, V16.S[3]
 	lsr	x11, x10, #32
-	dup	v4.4s, v17.s[0]
-	dup	v5.4s, v17.s[1]
+	dup	V4.4S, V17.S[0]
+	dup	V5.4S, V17.S[1]
 	lsr	x13, x12, #32
-	dup	v6.4s, v17.s[2]
-	dup	v7.4s, v17.s[3]
+	dup	V6.4S, V17.S[2]
+	dup	V7.4S, V17.S[3]
 	lsr	x15, x14, #32
-	dup	v8.4s, v18.s[0]
-	dup	v9.4s, v18.s[1]
+	dup	V8.4S, V18.S[0]
+	dup	V9.4S, V18.S[1]
 	lsr	x17, x16, #32
-	dup	v10.4s, v18.s[2]
-	dup	v11.4s, v18.s[3]
+	dup	V10.4S, V18.S[2]
+	dup	V11.4S, V18.S[3]
 	lsr	x20, x19, #32
-	dup	v12.4s, v19.s[0]
-	dup	v13.4s, v19.s[1]
+	dup	V12.4S, V19.S[0]
+	dup	V13.4S, V19.S[1]
 	lsr	x22, x21, #32
-	dup	v14.4s, v19.s[2]
-	dup	v15.4s, v19.s[3]
+	dup	V14.4S, V19.S[2]
+	dup	V15.4S, V19.S[3]
 	lsr	x24, x23, #32
 	; Add to counter word
-	add	v12.4s, v12.4s, v28.4s
+	add	V12.4S, V12.4S, V28.4S
 	add	w21, w21, w25
 	; Set number of odd+even rounds to perform
 	mov	x26, #10
@@ -112,684 +112,684 @@ L_chacha_crypt_bytes_arm64_round_start_320
 	subs	x26, x26, #1
 	; Round odd
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v4.4s
+	add	V0.4S, V0.4S, V4.4S
 	add	w8, w8, w12
-	add	v1.4s, v1.4s, v5.4s
+	add	V1.4S, V1.4S, V5.4S
 	add	w9, w9, w13
-	add	v2.4s, v2.4s, v6.4s
+	add	V2.4S, V2.4S, V6.4S
 	add	w10, w10, w14
-	add	v3.4s, v3.4s, v7.4s
+	add	V3.4S, V3.4S, V7.4S
 	add	w11, w11, w15
-	eor	v12.16b, v12.16b, v0.16b
+	eor	V12.16B, V12.16B, V0.16B
 	eor	w21, w21, w8
-	eor	v13.16b, v13.16b, v1.16b
+	eor	V13.16B, V13.16B, V1.16B
 	eor	w22, w22, w9
-	eor	v14.16b, v14.16b, v2.16b
+	eor	V14.16B, V14.16B, V2.16B
 	eor	w23, w23, w10
-	eor	v15.16b, v15.16b, v3.16b
+	eor	V15.16B, V15.16B, V3.16B
 	eor	w24, w24, w11
-	rev32	v12.8h, v12.8h
+	rev32	V12.8H, V12.8H
 	ror	w21, w21, #16
-	rev32	v13.8h, v13.8h
+	rev32	V13.8H, V13.8H
 	ror	w22, w22, #16
-	rev32	v14.8h, v14.8h
+	rev32	V14.8H, V14.8H
 	ror	w23, w23, #16
-	rev32	v15.8h, v15.8h
+	rev32	V15.8H, V15.8H
 	ror	w24, w24, #16
 	; c += d; b ^= c; b <<<= 12;
-	add	v8.4s, v8.4s, v12.4s
+	add	V8.4S, V8.4S, V12.4S
 	add	w16, w16, w21
-	add	v9.4s, v9.4s, v13.4s
+	add	V9.4S, V9.4S, V13.4S
 	add	w17, w17, w22
-	add	v10.4s, v10.4s, v14.4s
+	add	V10.4S, V10.4S, V14.4S
 	add	w19, w19, w23
-	add	v11.4s, v11.4s, v15.4s
+	add	V11.4S, V11.4S, V15.4S
 	add	w20, w20, w24
-	eor	v20.16b, v4.16b, v8.16b
+	eor	V20.16B, V4.16B, V8.16B
 	eor	w12, w12, w16
-	eor	v21.16b, v5.16b, v9.16b
+	eor	V21.16B, V5.16B, V9.16B
 	eor	w13, w13, w17
-	eor	v22.16b, v6.16b, v10.16b
+	eor	V22.16B, V6.16B, V10.16B
 	eor	w14, w14, w19
-	eor	v23.16b, v7.16b, v11.16b
+	eor	V23.16B, V7.16B, V11.16B
 	eor	w15, w15, w20
-	shl	v4.4s, v20.4s, #12
+	shl	V4.4S, V20.4S, #12
 	ror	w12, w12, #20
-	shl	v5.4s, v21.4s, #12
+	shl	V5.4S, V21.4S, #12
 	ror	w13, w13, #20
-	shl	v6.4s, v22.4s, #12
+	shl	V6.4S, V22.4S, #12
 	ror	w14, w14, #20
-	shl	v7.4s, v23.4s, #12
+	shl	V7.4S, V23.4S, #12
 	ror	w15, w15, #20
-	sri	v4.4s, v20.4s, #20
-	sri	v5.4s, v21.4s, #20
-	sri	v6.4s, v22.4s, #20
-	sri	v7.4s, v23.4s, #20
+	sri	V4.4S, V20.4S, #20
+	sri	V5.4S, V21.4S, #20
+	sri	V6.4S, V22.4S, #20
+	sri	V7.4S, V23.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v4.4s
+	add	V0.4S, V0.4S, V4.4S
 	add	w8, w8, w12
-	add	v1.4s, v1.4s, v5.4s
+	add	V1.4S, V1.4S, V5.4S
 	add	w9, w9, w13
-	add	v2.4s, v2.4s, v6.4s
+	add	V2.4S, V2.4S, V6.4S
 	add	w10, w10, w14
-	add	v3.4s, v3.4s, v7.4s
+	add	V3.4S, V3.4S, V7.4S
 	add	w11, w11, w15
-	eor	v12.16b, v12.16b, v0.16b
+	eor	V12.16B, V12.16B, V0.16B
 	eor	w21, w21, w8
-	eor	v13.16b, v13.16b, v1.16b
+	eor	V13.16B, V13.16B, V1.16B
 	eor	w22, w22, w9
-	eor	v14.16b, v14.16b, v2.16b
+	eor	V14.16B, V14.16B, V2.16B
 	eor	w23, w23, w10
-	eor	v15.16b, v15.16b, v3.16b
+	eor	V15.16B, V15.16B, V3.16B
 	eor	w24, w24, w11
-	tbl	v12.16b, {v12.16b}, v30.16b
+	tbl	V12.16B, {V12.16B}, V30.16B
 	ror	w21, w21, #24
-	tbl	v13.16b, {v13.16b}, v30.16b
+	tbl	V13.16B, {V13.16B}, V30.16B
 	ror	w22, w22, #24
-	tbl	v14.16b, {v14.16b}, v30.16b
+	tbl	V14.16B, {V14.16B}, V30.16B
 	ror	w23, w23, #24
-	tbl	v15.16b, {v15.16b}, v30.16b
+	tbl	V15.16B, {V15.16B}, V30.16B
 	ror	w24, w24, #24
 	; c += d; b ^= c; b <<<= 7;
-	add	v8.4s, v8.4s, v12.4s
+	add	V8.4S, V8.4S, V12.4S
 	add	w16, w16, w21
-	add	v9.4s, v9.4s, v13.4s
+	add	V9.4S, V9.4S, V13.4S
 	add	w17, w17, w22
-	add	v10.4s, v10.4s, v14.4s
+	add	V10.4S, V10.4S, V14.4S
 	add	w19, w19, w23
-	add	v11.4s, v11.4s, v15.4s
+	add	V11.4S, V11.4S, V15.4S
 	add	w20, w20, w24
-	eor	v20.16b, v4.16b, v8.16b
+	eor	V20.16B, V4.16B, V8.16B
 	eor	w12, w12, w16
-	eor	v21.16b, v5.16b, v9.16b
+	eor	V21.16B, V5.16B, V9.16B
 	eor	w13, w13, w17
-	eor	v22.16b, v6.16b, v10.16b
+	eor	V22.16B, V6.16B, V10.16B
 	eor	w14, w14, w19
-	eor	v23.16b, v7.16b, v11.16b
+	eor	V23.16B, V7.16B, V11.16B
 	eor	w15, w15, w20
-	shl	v4.4s, v20.4s, #7
+	shl	V4.4S, V20.4S, #7
 	ror	w12, w12, #25
-	shl	v5.4s, v21.4s, #7
+	shl	V5.4S, V21.4S, #7
 	ror	w13, w13, #25
-	shl	v6.4s, v22.4s, #7
+	shl	V6.4S, V22.4S, #7
 	ror	w14, w14, #25
-	shl	v7.4s, v23.4s, #7
+	shl	V7.4S, V23.4S, #7
 	ror	w15, w15, #25
-	sri	v4.4s, v20.4s, #25
-	sri	v5.4s, v21.4s, #25
-	sri	v6.4s, v22.4s, #25
-	sri	v7.4s, v23.4s, #25
+	sri	V4.4S, V20.4S, #25
+	sri	V5.4S, V21.4S, #25
+	sri	V6.4S, V22.4S, #25
+	sri	V7.4S, V23.4S, #25
 	; Round even
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v5.4s
+	add	V0.4S, V0.4S, V5.4S
 	add	w8, w8, w13
-	add	v1.4s, v1.4s, v6.4s
+	add	V1.4S, V1.4S, V6.4S
 	add	w9, w9, w14
-	add	v2.4s, v2.4s, v7.4s
+	add	V2.4S, V2.4S, V7.4S
 	add	w10, w10, w15
-	add	v3.4s, v3.4s, v4.4s
+	add	V3.4S, V3.4S, V4.4S
 	add	w11, w11, w12
-	eor	v15.16b, v15.16b, v0.16b
+	eor	V15.16B, V15.16B, V0.16B
 	eor	w24, w24, w8
-	eor	v12.16b, v12.16b, v1.16b
+	eor	V12.16B, V12.16B, V1.16B
 	eor	w21, w21, w9
-	eor	v13.16b, v13.16b, v2.16b
+	eor	V13.16B, V13.16B, V2.16B
 	eor	w22, w22, w10
-	eor	v14.16b, v14.16b, v3.16b
+	eor	V14.16B, V14.16B, V3.16B
 	eor	w23, w23, w11
-	rev32	v15.8h, v15.8h
+	rev32	V15.8H, V15.8H
 	ror	w24, w24, #16
-	rev32	v12.8h, v12.8h
+	rev32	V12.8H, V12.8H
 	ror	w21, w21, #16
-	rev32	v13.8h, v13.8h
+	rev32	V13.8H, V13.8H
 	ror	w22, w22, #16
-	rev32	v14.8h, v14.8h
+	rev32	V14.8H, V14.8H
 	ror	w23, w23, #16
 	; c += d; b ^= c; b <<<= 12;
-	add	v10.4s, v10.4s, v15.4s
+	add	V10.4S, V10.4S, V15.4S
 	add	w19, w19, w24
-	add	v11.4s, v11.4s, v12.4s
+	add	V11.4S, V11.4S, V12.4S
 	add	w20, w20, w21
-	add	v8.4s, v8.4s, v13.4s
+	add	V8.4S, V8.4S, V13.4S
 	add	w16, w16, w22
-	add	v9.4s, v9.4s, v14.4s
+	add	V9.4S, V9.4S, V14.4S
 	add	w17, w17, w23
-	eor	v20.16b, v5.16b, v10.16b
+	eor	V20.16B, V5.16B, V10.16B
 	eor	w13, w13, w19
-	eor	v21.16b, v6.16b, v11.16b
+	eor	V21.16B, V6.16B, V11.16B
 	eor	w14, w14, w20
-	eor	v22.16b, v7.16b, v8.16b
+	eor	V22.16B, V7.16B, V8.16B
 	eor	w15, w15, w16
-	eor	v23.16b, v4.16b, v9.16b
+	eor	V23.16B, V4.16B, V9.16B
 	eor	w12, w12, w17
-	shl	v5.4s, v20.4s, #12
+	shl	V5.4S, V20.4S, #12
 	ror	w13, w13, #20
-	shl	v6.4s, v21.4s, #12
+	shl	V6.4S, V21.4S, #12
 	ror	w14, w14, #20
-	shl	v7.4s, v22.4s, #12
+	shl	V7.4S, V22.4S, #12
 	ror	w15, w15, #20
-	shl	v4.4s, v23.4s, #12
+	shl	V4.4S, V23.4S, #12
 	ror	w12, w12, #20
-	sri	v5.4s, v20.4s, #20
-	sri	v6.4s, v21.4s, #20
-	sri	v7.4s, v22.4s, #20
-	sri	v4.4s, v23.4s, #20
+	sri	V5.4S, V20.4S, #20
+	sri	V6.4S, V21.4S, #20
+	sri	V7.4S, V22.4S, #20
+	sri	V4.4S, V23.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v5.4s
+	add	V0.4S, V0.4S, V5.4S
 	add	w8, w8, w13
-	add	v1.4s, v1.4s, v6.4s
+	add	V1.4S, V1.4S, V6.4S
 	add	w9, w9, w14
-	add	v2.4s, v2.4s, v7.4s
+	add	V2.4S, V2.4S, V7.4S
 	add	w10, w10, w15
-	add	v3.4s, v3.4s, v4.4s
+	add	V3.4S, V3.4S, V4.4S
 	add	w11, w11, w12
-	eor	v15.16b, v15.16b, v0.16b
+	eor	V15.16B, V15.16B, V0.16B
 	eor	w24, w24, w8
-	eor	v12.16b, v12.16b, v1.16b
+	eor	V12.16B, V12.16B, V1.16B
 	eor	w21, w21, w9
-	eor	v13.16b, v13.16b, v2.16b
+	eor	V13.16B, V13.16B, V2.16B
 	eor	w22, w22, w10
-	eor	v14.16b, v14.16b, v3.16b
+	eor	V14.16B, V14.16B, V3.16B
 	eor	w23, w23, w11
-	tbl	v15.16b, {v15.16b}, v30.16b
+	tbl	V15.16B, {V15.16B}, V30.16B
 	ror	w24, w24, #24
-	tbl	v12.16b, {v12.16b}, v30.16b
+	tbl	V12.16B, {V12.16B}, V30.16B
 	ror	w21, w21, #24
-	tbl	v13.16b, {v13.16b}, v30.16b
+	tbl	V13.16B, {V13.16B}, V30.16B
 	ror	w22, w22, #24
-	tbl	v14.16b, {v14.16b}, v30.16b
+	tbl	V14.16B, {V14.16B}, V30.16B
 	ror	w23, w23, #24
 	; c += d; b ^= c; b <<<= 7;
-	add	v10.4s, v10.4s, v15.4s
+	add	V10.4S, V10.4S, V15.4S
 	add	w19, w19, w24
-	add	v11.4s, v11.4s, v12.4s
+	add	V11.4S, V11.4S, V12.4S
 	add	w20, w20, w21
-	add	v8.4s, v8.4s, v13.4s
+	add	V8.4S, V8.4S, V13.4S
 	add	w16, w16, w22
-	add	v9.4s, v9.4s, v14.4s
+	add	V9.4S, V9.4S, V14.4S
 	add	w17, w17, w23
-	eor	v20.16b, v5.16b, v10.16b
+	eor	V20.16B, V5.16B, V10.16B
 	eor	w13, w13, w19
-	eor	v21.16b, v6.16b, v11.16b
+	eor	V21.16B, V6.16B, V11.16B
 	eor	w14, w14, w20
-	eor	v22.16b, v7.16b, v8.16b
+	eor	V22.16B, V7.16B, V8.16B
 	eor	w15, w15, w16
-	eor	v23.16b, v4.16b, v9.16b
+	eor	V23.16B, V4.16B, V9.16B
 	eor	w12, w12, w17
-	shl	v5.4s, v20.4s, #7
+	shl	V5.4S, V20.4S, #7
 	ror	w13, w13, #25
-	shl	v6.4s, v21.4s, #7
+	shl	V6.4S, V21.4S, #7
 	ror	w14, w14, #25
-	shl	v7.4s, v22.4s, #7
+	shl	V7.4S, V22.4S, #7
 	ror	w15, w15, #25
-	shl	v4.4s, v23.4s, #7
+	shl	V4.4S, V23.4S, #7
 	ror	w12, w12, #25
-	sri	v5.4s, v20.4s, #25
-	sri	v6.4s, v21.4s, #25
-	sri	v7.4s, v22.4s, #25
-	sri	v4.4s, v23.4s, #25
+	sri	V5.4S, V20.4S, #25
+	sri	V6.4S, V21.4S, #25
+	sri	V7.4S, V22.4S, #25
+	sri	V4.4S, V23.4S, #25
 	bne	L_chacha_crypt_bytes_arm64_round_start_320
 	; Add counter now rather than after transposed
-	add	v12.4s, v12.4s, v28.4s
+	add	V12.4S, V12.4S, V28.4S
 	add	w21, w21, w25
 	; Load message
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
 	; Transpose vectors
-	trn1	v20.4s, v0.4s, v1.4s
-	trn1	v22.4s, v2.4s, v3.4s
+	trn1	V20.4S, V0.4S, V1.4S
+	trn1	V22.4S, V2.4S, V3.4S
 	orr	x8, x8, x9, lsl 32
-	trn2	v21.4s, v0.4s, v1.4s
-	trn2	v23.4s, v2.4s, v3.4s
-	trn1	v0.2d, v20.2d, v22.2d
-	trn1	v1.2d, v21.2d, v23.2d
+	trn2	V21.4S, V0.4S, V1.4S
+	trn2	V23.4S, V2.4S, V3.4S
+	trn1	V0.2D, V20.2D, V22.2D
+	trn1	V1.2D, V21.2D, V23.2D
 	orr	x10, x10, x11, lsl 32
-	trn2	v2.2d, v20.2d, v22.2d
-	trn2	v3.2d, v21.2d, v23.2d
-	trn1	v20.4s, v4.4s, v5.4s
-	trn1	v22.4s, v6.4s, v7.4s
+	trn2	V2.2D, V20.2D, V22.2D
+	trn2	V3.2D, V21.2D, V23.2D
+	trn1	V20.4S, V4.4S, V5.4S
+	trn1	V22.4S, V6.4S, V7.4S
 	orr	x12, x12, x13, lsl 32
-	trn2	v21.4s, v4.4s, v5.4s
-	trn2	v23.4s, v6.4s, v7.4s
-	trn1	v4.2d, v20.2d, v22.2d
-	trn1	v5.2d, v21.2d, v23.2d
+	trn2	V21.4S, V4.4S, V5.4S
+	trn2	V23.4S, V6.4S, V7.4S
+	trn1	V4.2D, V20.2D, V22.2D
+	trn1	V5.2D, V21.2D, V23.2D
 	orr	x14, x14, x15, lsl 32
-	trn2	v6.2d, v20.2d, v22.2d
-	trn2	v7.2d, v21.2d, v23.2d
-	trn1	v20.4s, v8.4s, v9.4s
-	trn1	v22.4s, v10.4s, v11.4s
+	trn2	V6.2D, V20.2D, V22.2D
+	trn2	V7.2D, V21.2D, V23.2D
+	trn1	V20.4S, V8.4S, V9.4S
+	trn1	V22.4S, V10.4S, V11.4S
 	orr	x16, x16, x17, lsl 32
-	trn2	v21.4s, v8.4s, v9.4s
-	trn2	v23.4s, v10.4s, v11.4s
-	trn1	v8.2d, v20.2d, v22.2d
-	trn1	v9.2d, v21.2d, v23.2d
+	trn2	V21.4S, V8.4S, V9.4S
+	trn2	V23.4S, V10.4S, V11.4S
+	trn1	V8.2D, V20.2D, V22.2D
+	trn1	V9.2D, V21.2D, V23.2D
 	orr	x19, x19, x20, lsl 32
-	trn2	v10.2d, v20.2d, v22.2d
-	trn2	v11.2d, v21.2d, v23.2d
-	trn1	v20.4s, v12.4s, v13.4s
-	trn1	v22.4s, v14.4s, v15.4s
+	trn2	V10.2D, V20.2D, V22.2D
+	trn2	V11.2D, V21.2D, V23.2D
+	trn1	V20.4S, V12.4S, V13.4S
+	trn1	V22.4S, V14.4S, V15.4S
 	orr	x21, x21, x22, lsl 32
-	trn2	v21.4s, v12.4s, v13.4s
-	trn2	v23.4s, v14.4s, v15.4s
-	trn1	v12.2d, v20.2d, v22.2d
-	trn1	v13.2d, v21.2d, v23.2d
+	trn2	V21.4S, V12.4S, V13.4S
+	trn2	V23.4S, V14.4S, V15.4S
+	trn1	V12.2D, V20.2D, V22.2D
+	trn1	V13.2D, V21.2D, V23.2D
 	orr	x23, x23, x24, lsl 32
-	trn2	v14.2d, v20.2d, v22.2d
-	trn2	v15.2d, v21.2d, v23.2d
+	trn2	V14.2D, V20.2D, V22.2D
+	trn2	V15.2D, V21.2D, V23.2D
 	; Add back state, XOR in message and store (load next block)
-	add	v20.4s, v0.4s, v16.4s
-	add	v21.4s, v4.4s, v17.4s
-	add	v22.4s, v8.4s, v18.4s
-	add	v23.4s, v12.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	add	v20.4s, v1.4s, v16.4s
-	add	v21.4s, v5.4s, v17.4s
-	add	v22.4s, v9.4s, v18.4s
-	add	v23.4s, v13.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	add	v20.4s, v2.4s, v16.4s
-	add	v21.4s, v6.4s, v17.4s
-	add	v22.4s, v10.4s, v18.4s
-	add	v23.4s, v14.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	add	v20.4s, v3.4s, v16.4s
-	add	v21.4s, v7.4s, v17.4s
-	add	v22.4s, v11.4s, v18.4s
-	add	v23.4s, v15.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
+	add	V20.4S, V0.4S, V16.4S
+	add	V21.4S, V4.4S, V17.4S
+	add	V22.4S, V8.4S, V18.4S
+	add	V23.4S, V12.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	add	V20.4S, V1.4S, V16.4S
+	add	V21.4S, V5.4S, V17.4S
+	add	V22.4S, V9.4S, V18.4S
+	add	V23.4S, V13.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	add	V20.4S, V2.4S, V16.4S
+	add	V21.4S, V6.4S, V17.4S
+	add	V22.4S, V10.4S, V18.4S
+	add	V23.4S, V14.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	add	V20.4S, V3.4S, V16.4S
+	add	V21.4S, V7.4S, V17.4S
+	add	V22.4S, V11.4S, V18.4S
+	add	V23.4S, V15.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
 	; Move regular registers into vector registers for adding and xor
-	mov	v0.d[0], x8
-	mov	v0.d[1], x10
-	mov	v1.d[0], x12
-	mov	v1.d[1], x14
-	mov	v2.d[0], x16
-	mov	v2.d[1], x19
-	mov	v3.d[0], x21
-	mov	v3.d[1], x23
+	mov	V0.D[0], x8
+	mov	V0.D[1], x10
+	mov	V1.D[0], x12
+	mov	V1.D[1], x14
+	mov	V2.D[0], x16
+	mov	V2.D[1], x19
+	mov	V3.D[0], x21
+	mov	V3.D[1], x23
 	; Add back state, XOR in message and store
-	add	v0.4s, v0.4s, v16.4s
-	add	v1.4s, v1.4s, v17.4s
-	add	v2.4s, v2.4s, v18.4s
-	add	v3.4s, v3.4s, v19.4s
-	eor	v0.16b, v0.16b, v24.16b
-	eor	v1.16b, v1.16b, v25.16b
-	eor	v2.16b, v2.16b, v26.16b
-	eor	v3.16b, v3.16b, v27.16b
-	st1	{v0.4s, v1.4s, v2.4s, v3.4s}, [x1], #0x40
+	add	V0.4S, V0.4S, V16.4S
+	add	V1.4S, V1.4S, V17.4S
+	add	V2.4S, V2.4S, V18.4S
+	add	V3.4S, V3.4S, V19.4S
+	eor	V0.16B, V0.16B, V24.16B
+	eor	V1.16B, V1.16B, V25.16B
+	eor	V2.16B, V2.16B, V26.16B
+	eor	V3.16B, V3.16B, V27.16B
+	st1	{V0.4S, V1.4S, V2.4S, V3.4S}, [x1], #0x40
 	cmp	x3, #0x140
-	add	v19.4s, v19.4s, v29.4s
+	add	V19.4S, V19.4S, V29.4S
 	bge	L_chacha_crypt_bytes_arm64_loop_320
 	; Done doing 320 bytes at a time
 L_chacha_crypt_bytes_arm64_lt_320
 	cmp	x3, #0x100
 	blt	L_chacha_crypt_bytes_arm64_lt_256
 	; Move state into vector registers
-	dup	v0.4s, v16.s[0]
-	dup	v1.4s, v16.s[1]
-	dup	v2.4s, v16.s[2]
-	dup	v3.4s, v16.s[3]
-	dup	v4.4s, v17.s[0]
-	dup	v5.4s, v17.s[1]
-	dup	v6.4s, v17.s[2]
-	dup	v7.4s, v17.s[3]
-	dup	v8.4s, v18.s[0]
-	dup	v9.4s, v18.s[1]
-	dup	v10.4s, v18.s[2]
-	dup	v11.4s, v18.s[3]
-	dup	v12.4s, v19.s[0]
-	dup	v13.4s, v19.s[1]
-	dup	v14.4s, v19.s[2]
-	dup	v15.4s, v19.s[3]
+	dup	V0.4S, V16.S[0]
+	dup	V1.4S, V16.S[1]
+	dup	V2.4S, V16.S[2]
+	dup	V3.4S, V16.S[3]
+	dup	V4.4S, V17.S[0]
+	dup	V5.4S, V17.S[1]
+	dup	V6.4S, V17.S[2]
+	dup	V7.4S, V17.S[3]
+	dup	V8.4S, V18.S[0]
+	dup	V9.4S, V18.S[1]
+	dup	V10.4S, V18.S[2]
+	dup	V11.4S, V18.S[3]
+	dup	V12.4S, V19.S[0]
+	dup	V13.4S, V19.S[1]
+	dup	V14.4S, V19.S[2]
+	dup	V15.4S, V19.S[3]
 	; Add to counter word
-	add	v12.4s, v12.4s, v28.4s
+	add	V12.4S, V12.4S, V28.4S
 	; Set number of odd+even rounds to perform
 	mov	x26, #10
 L_chacha_crypt_bytes_arm64_round_start_256
 	subs	x26, x26, #1
 	; Round odd
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v4.4s
-	add	v1.4s, v1.4s, v5.4s
-	add	v2.4s, v2.4s, v6.4s
-	add	v3.4s, v3.4s, v7.4s
-	eor	v12.16b, v12.16b, v0.16b
-	eor	v13.16b, v13.16b, v1.16b
-	eor	v14.16b, v14.16b, v2.16b
-	eor	v15.16b, v15.16b, v3.16b
-	rev32	v12.8h, v12.8h
-	rev32	v13.8h, v13.8h
-	rev32	v14.8h, v14.8h
-	rev32	v15.8h, v15.8h
+	add	V0.4S, V0.4S, V4.4S
+	add	V1.4S, V1.4S, V5.4S
+	add	V2.4S, V2.4S, V6.4S
+	add	V3.4S, V3.4S, V7.4S
+	eor	V12.16B, V12.16B, V0.16B
+	eor	V13.16B, V13.16B, V1.16B
+	eor	V14.16B, V14.16B, V2.16B
+	eor	V15.16B, V15.16B, V3.16B
+	rev32	V12.8H, V12.8H
+	rev32	V13.8H, V13.8H
+	rev32	V14.8H, V14.8H
+	rev32	V15.8H, V15.8H
 	; c += d; b ^= c; b <<<= 12;
-	add	v8.4s, v8.4s, v12.4s
-	add	v9.4s, v9.4s, v13.4s
-	add	v10.4s, v10.4s, v14.4s
-	add	v11.4s, v11.4s, v15.4s
-	eor	v20.16b, v4.16b, v8.16b
-	eor	v21.16b, v5.16b, v9.16b
-	eor	v22.16b, v6.16b, v10.16b
-	eor	v23.16b, v7.16b, v11.16b
-	shl	v4.4s, v20.4s, #12
-	shl	v5.4s, v21.4s, #12
-	shl	v6.4s, v22.4s, #12
-	shl	v7.4s, v23.4s, #12
-	sri	v4.4s, v20.4s, #20
-	sri	v5.4s, v21.4s, #20
-	sri	v6.4s, v22.4s, #20
-	sri	v7.4s, v23.4s, #20
+	add	V8.4S, V8.4S, V12.4S
+	add	V9.4S, V9.4S, V13.4S
+	add	V10.4S, V10.4S, V14.4S
+	add	V11.4S, V11.4S, V15.4S
+	eor	V20.16B, V4.16B, V8.16B
+	eor	V21.16B, V5.16B, V9.16B
+	eor	V22.16B, V6.16B, V10.16B
+	eor	V23.16B, V7.16B, V11.16B
+	shl	V4.4S, V20.4S, #12
+	shl	V5.4S, V21.4S, #12
+	shl	V6.4S, V22.4S, #12
+	shl	V7.4S, V23.4S, #12
+	sri	V4.4S, V20.4S, #20
+	sri	V5.4S, V21.4S, #20
+	sri	V6.4S, V22.4S, #20
+	sri	V7.4S, V23.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v4.4s
-	add	v1.4s, v1.4s, v5.4s
-	add	v2.4s, v2.4s, v6.4s
-	add	v3.4s, v3.4s, v7.4s
-	eor	v12.16b, v12.16b, v0.16b
-	eor	v13.16b, v13.16b, v1.16b
-	eor	v14.16b, v14.16b, v2.16b
-	eor	v15.16b, v15.16b, v3.16b
-	tbl	v12.16b, {v12.16b}, v30.16b
-	tbl	v13.16b, {v13.16b}, v30.16b
-	tbl	v14.16b, {v14.16b}, v30.16b
-	tbl	v15.16b, {v15.16b}, v30.16b
+	add	V0.4S, V0.4S, V4.4S
+	add	V1.4S, V1.4S, V5.4S
+	add	V2.4S, V2.4S, V6.4S
+	add	V3.4S, V3.4S, V7.4S
+	eor	V12.16B, V12.16B, V0.16B
+	eor	V13.16B, V13.16B, V1.16B
+	eor	V14.16B, V14.16B, V2.16B
+	eor	V15.16B, V15.16B, V3.16B
+	tbl	V12.16B, {V12.16B}, V30.16B
+	tbl	V13.16B, {V13.16B}, V30.16B
+	tbl	V14.16B, {V14.16B}, V30.16B
+	tbl	V15.16B, {V15.16B}, V30.16B
 	; c += d; b ^= c; b <<<= 7;
-	add	v8.4s, v8.4s, v12.4s
-	add	v9.4s, v9.4s, v13.4s
-	add	v10.4s, v10.4s, v14.4s
-	add	v11.4s, v11.4s, v15.4s
-	eor	v20.16b, v4.16b, v8.16b
-	eor	v21.16b, v5.16b, v9.16b
-	eor	v22.16b, v6.16b, v10.16b
-	eor	v23.16b, v7.16b, v11.16b
-	shl	v4.4s, v20.4s, #7
-	shl	v5.4s, v21.4s, #7
-	shl	v6.4s, v22.4s, #7
-	shl	v7.4s, v23.4s, #7
-	sri	v4.4s, v20.4s, #25
-	sri	v5.4s, v21.4s, #25
-	sri	v6.4s, v22.4s, #25
-	sri	v7.4s, v23.4s, #25
+	add	V8.4S, V8.4S, V12.4S
+	add	V9.4S, V9.4S, V13.4S
+	add	V10.4S, V10.4S, V14.4S
+	add	V11.4S, V11.4S, V15.4S
+	eor	V20.16B, V4.16B, V8.16B
+	eor	V21.16B, V5.16B, V9.16B
+	eor	V22.16B, V6.16B, V10.16B
+	eor	V23.16B, V7.16B, V11.16B
+	shl	V4.4S, V20.4S, #7
+	shl	V5.4S, V21.4S, #7
+	shl	V6.4S, V22.4S, #7
+	shl	V7.4S, V23.4S, #7
+	sri	V4.4S, V20.4S, #25
+	sri	V5.4S, V21.4S, #25
+	sri	V6.4S, V22.4S, #25
+	sri	V7.4S, V23.4S, #25
 	; Round even
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v5.4s
-	add	v1.4s, v1.4s, v6.4s
-	add	v2.4s, v2.4s, v7.4s
-	add	v3.4s, v3.4s, v4.4s
-	eor	v15.16b, v15.16b, v0.16b
-	eor	v12.16b, v12.16b, v1.16b
-	eor	v13.16b, v13.16b, v2.16b
-	eor	v14.16b, v14.16b, v3.16b
-	rev32	v15.8h, v15.8h
-	rev32	v12.8h, v12.8h
-	rev32	v13.8h, v13.8h
-	rev32	v14.8h, v14.8h
+	add	V0.4S, V0.4S, V5.4S
+	add	V1.4S, V1.4S, V6.4S
+	add	V2.4S, V2.4S, V7.4S
+	add	V3.4S, V3.4S, V4.4S
+	eor	V15.16B, V15.16B, V0.16B
+	eor	V12.16B, V12.16B, V1.16B
+	eor	V13.16B, V13.16B, V2.16B
+	eor	V14.16B, V14.16B, V3.16B
+	rev32	V15.8H, V15.8H
+	rev32	V12.8H, V12.8H
+	rev32	V13.8H, V13.8H
+	rev32	V14.8H, V14.8H
 	; c += d; b ^= c; b <<<= 12;
-	add	v10.4s, v10.4s, v15.4s
-	add	v11.4s, v11.4s, v12.4s
-	add	v8.4s, v8.4s, v13.4s
-	add	v9.4s, v9.4s, v14.4s
-	eor	v20.16b, v5.16b, v10.16b
-	eor	v21.16b, v6.16b, v11.16b
-	eor	v22.16b, v7.16b, v8.16b
-	eor	v23.16b, v4.16b, v9.16b
-	shl	v5.4s, v20.4s, #12
-	shl	v6.4s, v21.4s, #12
-	shl	v7.4s, v22.4s, #12
-	shl	v4.4s, v23.4s, #12
-	sri	v5.4s, v20.4s, #20
-	sri	v6.4s, v21.4s, #20
-	sri	v7.4s, v22.4s, #20
-	sri	v4.4s, v23.4s, #20
+	add	V10.4S, V10.4S, V15.4S
+	add	V11.4S, V11.4S, V12.4S
+	add	V8.4S, V8.4S, V13.4S
+	add	V9.4S, V9.4S, V14.4S
+	eor	V20.16B, V5.16B, V10.16B
+	eor	V21.16B, V6.16B, V11.16B
+	eor	V22.16B, V7.16B, V8.16B
+	eor	V23.16B, V4.16B, V9.16B
+	shl	V5.4S, V20.4S, #12
+	shl	V6.4S, V21.4S, #12
+	shl	V7.4S, V22.4S, #12
+	shl	V4.4S, V23.4S, #12
+	sri	V5.4S, V20.4S, #20
+	sri	V6.4S, V21.4S, #20
+	sri	V7.4S, V22.4S, #20
+	sri	V4.4S, V23.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v5.4s
-	add	v1.4s, v1.4s, v6.4s
-	add	v2.4s, v2.4s, v7.4s
-	add	v3.4s, v3.4s, v4.4s
-	eor	v15.16b, v15.16b, v0.16b
-	eor	v12.16b, v12.16b, v1.16b
-	eor	v13.16b, v13.16b, v2.16b
-	eor	v14.16b, v14.16b, v3.16b
-	tbl	v15.16b, {v15.16b}, v30.16b
-	tbl	v12.16b, {v12.16b}, v30.16b
-	tbl	v13.16b, {v13.16b}, v30.16b
-	tbl	v14.16b, {v14.16b}, v30.16b
+	add	V0.4S, V0.4S, V5.4S
+	add	V1.4S, V1.4S, V6.4S
+	add	V2.4S, V2.4S, V7.4S
+	add	V3.4S, V3.4S, V4.4S
+	eor	V15.16B, V15.16B, V0.16B
+	eor	V12.16B, V12.16B, V1.16B
+	eor	V13.16B, V13.16B, V2.16B
+	eor	V14.16B, V14.16B, V3.16B
+	tbl	V15.16B, {V15.16B}, V30.16B
+	tbl	V12.16B, {V12.16B}, V30.16B
+	tbl	V13.16B, {V13.16B}, V30.16B
+	tbl	V14.16B, {V14.16B}, V30.16B
 	; c += d; b ^= c; b <<<= 7;
-	add	v10.4s, v10.4s, v15.4s
-	add	v11.4s, v11.4s, v12.4s
-	add	v8.4s, v8.4s, v13.4s
-	add	v9.4s, v9.4s, v14.4s
-	eor	v20.16b, v5.16b, v10.16b
-	eor	v21.16b, v6.16b, v11.16b
-	eor	v22.16b, v7.16b, v8.16b
-	eor	v23.16b, v4.16b, v9.16b
-	shl	v5.4s, v20.4s, #7
-	shl	v6.4s, v21.4s, #7
-	shl	v7.4s, v22.4s, #7
-	shl	v4.4s, v23.4s, #7
-	sri	v5.4s, v20.4s, #25
-	sri	v6.4s, v21.4s, #25
-	sri	v7.4s, v22.4s, #25
-	sri	v4.4s, v23.4s, #25
+	add	V10.4S, V10.4S, V15.4S
+	add	V11.4S, V11.4S, V12.4S
+	add	V8.4S, V8.4S, V13.4S
+	add	V9.4S, V9.4S, V14.4S
+	eor	V20.16B, V5.16B, V10.16B
+	eor	V21.16B, V6.16B, V11.16B
+	eor	V22.16B, V7.16B, V8.16B
+	eor	V23.16B, V4.16B, V9.16B
+	shl	V5.4S, V20.4S, #7
+	shl	V6.4S, V21.4S, #7
+	shl	V7.4S, V22.4S, #7
+	shl	V4.4S, V23.4S, #7
+	sri	V5.4S, V20.4S, #25
+	sri	V6.4S, V21.4S, #25
+	sri	V7.4S, V22.4S, #25
+	sri	V4.4S, V23.4S, #25
 	bne	L_chacha_crypt_bytes_arm64_round_start_256
 	mov	x26, #4
 	; Add counter now rather than after transposed
-	add	v12.4s, v12.4s, v28.4s
+	add	V12.4S, V12.4S, V28.4S
 	; Load message
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
 	; Transpose vectors
-	trn1	v20.4s, v0.4s, v1.4s
-	trn1	v22.4s, v2.4s, v3.4s
-	trn2	v21.4s, v0.4s, v1.4s
-	trn2	v23.4s, v2.4s, v3.4s
-	trn1	v0.2d, v20.2d, v22.2d
-	trn1	v1.2d, v21.2d, v23.2d
-	trn2	v2.2d, v20.2d, v22.2d
-	trn2	v3.2d, v21.2d, v23.2d
-	trn1	v20.4s, v4.4s, v5.4s
-	trn1	v22.4s, v6.4s, v7.4s
-	trn2	v21.4s, v4.4s, v5.4s
-	trn2	v23.4s, v6.4s, v7.4s
-	trn1	v4.2d, v20.2d, v22.2d
-	trn1	v5.2d, v21.2d, v23.2d
-	trn2	v6.2d, v20.2d, v22.2d
-	trn2	v7.2d, v21.2d, v23.2d
-	trn1	v20.4s, v8.4s, v9.4s
-	trn1	v22.4s, v10.4s, v11.4s
-	trn2	v21.4s, v8.4s, v9.4s
-	trn2	v23.4s, v10.4s, v11.4s
-	trn1	v8.2d, v20.2d, v22.2d
-	trn1	v9.2d, v21.2d, v23.2d
-	trn2	v10.2d, v20.2d, v22.2d
-	trn2	v11.2d, v21.2d, v23.2d
-	trn1	v20.4s, v12.4s, v13.4s
-	trn1	v22.4s, v14.4s, v15.4s
-	trn2	v21.4s, v12.4s, v13.4s
-	trn2	v23.4s, v14.4s, v15.4s
-	trn1	v12.2d, v20.2d, v22.2d
-	trn1	v13.2d, v21.2d, v23.2d
-	trn2	v14.2d, v20.2d, v22.2d
-	trn2	v15.2d, v21.2d, v23.2d
+	trn1	V20.4S, V0.4S, V1.4S
+	trn1	V22.4S, V2.4S, V3.4S
+	trn2	V21.4S, V0.4S, V1.4S
+	trn2	V23.4S, V2.4S, V3.4S
+	trn1	V0.2D, V20.2D, V22.2D
+	trn1	V1.2D, V21.2D, V23.2D
+	trn2	V2.2D, V20.2D, V22.2D
+	trn2	V3.2D, V21.2D, V23.2D
+	trn1	V20.4S, V4.4S, V5.4S
+	trn1	V22.4S, V6.4S, V7.4S
+	trn2	V21.4S, V4.4S, V5.4S
+	trn2	V23.4S, V6.4S, V7.4S
+	trn1	V4.2D, V20.2D, V22.2D
+	trn1	V5.2D, V21.2D, V23.2D
+	trn2	V6.2D, V20.2D, V22.2D
+	trn2	V7.2D, V21.2D, V23.2D
+	trn1	V20.4S, V8.4S, V9.4S
+	trn1	V22.4S, V10.4S, V11.4S
+	trn2	V21.4S, V8.4S, V9.4S
+	trn2	V23.4S, V10.4S, V11.4S
+	trn1	V8.2D, V20.2D, V22.2D
+	trn1	V9.2D, V21.2D, V23.2D
+	trn2	V10.2D, V20.2D, V22.2D
+	trn2	V11.2D, V21.2D, V23.2D
+	trn1	V20.4S, V12.4S, V13.4S
+	trn1	V22.4S, V14.4S, V15.4S
+	trn2	V21.4S, V12.4S, V13.4S
+	trn2	V23.4S, V14.4S, V15.4S
+	trn1	V12.2D, V20.2D, V22.2D
+	trn1	V13.2D, V21.2D, V23.2D
+	trn2	V14.2D, V20.2D, V22.2D
+	trn2	V15.2D, V21.2D, V23.2D
 	; Add back state, XOR in message and store (load next block)
-	add	v20.4s, v0.4s, v16.4s
-	add	v21.4s, v4.4s, v17.4s
-	add	v22.4s, v8.4s, v18.4s
-	add	v23.4s, v12.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	add	v20.4s, v1.4s, v16.4s
-	add	v21.4s, v5.4s, v17.4s
-	add	v22.4s, v9.4s, v18.4s
-	add	v23.4s, v13.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	add	v20.4s, v2.4s, v16.4s
-	add	v21.4s, v6.4s, v17.4s
-	add	v22.4s, v10.4s, v18.4s
-	add	v23.4s, v14.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	add	v20.4s, v3.4s, v16.4s
-	add	v21.4s, v7.4s, v17.4s
-	add	v22.4s, v11.4s, v18.4s
-	add	v23.4s, v15.4s, v19.4s
-	eor	v20.16b, v20.16b, v24.16b
-	eor	v21.16b, v21.16b, v25.16b
-	eor	v22.16b, v22.16b, v26.16b
-	eor	v23.16b, v23.16b, v27.16b
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	mov	v29.s[0], w26
+	add	V20.4S, V0.4S, V16.4S
+	add	V21.4S, V4.4S, V17.4S
+	add	V22.4S, V8.4S, V18.4S
+	add	V23.4S, V12.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	add	V20.4S, V1.4S, V16.4S
+	add	V21.4S, V5.4S, V17.4S
+	add	V22.4S, V9.4S, V18.4S
+	add	V23.4S, V13.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	add	V20.4S, V2.4S, V16.4S
+	add	V21.4S, V6.4S, V17.4S
+	add	V22.4S, V10.4S, V18.4S
+	add	V23.4S, V14.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	add	V20.4S, V3.4S, V16.4S
+	add	V21.4S, V7.4S, V17.4S
+	add	V22.4S, V11.4S, V18.4S
+	add	V23.4S, V15.4S, V19.4S
+	eor	V20.16B, V20.16B, V24.16B
+	eor	V21.16B, V21.16B, V25.16B
+	eor	V22.16B, V22.16B, V26.16B
+	eor	V23.16B, V23.16B, V27.16B
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	mov	V29.S[0], w26
 	sub	x3, x3, #0x100
-	add	v19.4s, v19.4s, v29.4s
+	add	V19.4S, V19.4S, V29.4S
 	; Done 256-byte block
 L_chacha_crypt_bytes_arm64_lt_256
 	cmp	x3, #0x80
 	blt	L_chacha_crypt_bytes_arm64_lt_128
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
 	; Move state into vector registers
-	mov	v4.16b, v16.16b
-	mov	v5.16b, v17.16b
-	mov	v6.16b, v18.16b
-	mov	v7.16b, v19.16b
-	mov	v0.16b, v16.16b
-	mov	v1.16b, v17.16b
-	mov	v2.16b, v18.16b
-	mov	v3.16b, v19.16b
+	mov	V4.16B, V16.16B
+	mov	V5.16B, V17.16B
+	mov	V6.16B, V18.16B
+	mov	V7.16B, V19.16B
+	mov	V0.16B, V16.16B
+	mov	V1.16B, V17.16B
+	mov	V2.16B, V18.16B
+	mov	V3.16B, V19.16B
 	; Add counter word
-	add	v7.4s, v7.4s, v31.4s
+	add	V7.4S, V7.4S, V31.4S
 	; Set number of odd+even rounds to perform
 	mov	x26, #10
 L_chacha_crypt_bytes_arm64_round_start_128
 	subs	x26, x26, #1
 	; Round odd
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v1.4s
-	add	v4.4s, v4.4s, v5.4s
-	eor	v3.16b, v3.16b, v0.16b
-	eor	v7.16b, v7.16b, v4.16b
-	rev32	v3.8h, v3.8h
-	rev32	v7.8h, v7.8h
+	add	V0.4S, V0.4S, V1.4S
+	add	V4.4S, V4.4S, V5.4S
+	eor	V3.16B, V3.16B, V0.16B
+	eor	V7.16B, V7.16B, V4.16B
+	rev32	V3.8H, V3.8H
+	rev32	V7.8H, V7.8H
 	; c += d; b ^= c; b <<<= 12;
-	add	v2.4s, v2.4s, v3.4s
-	add	v6.4s, v6.4s, v7.4s
-	eor	v20.16b, v1.16b, v2.16b
-	eor	v21.16b, v5.16b, v6.16b
-	shl	v1.4s, v20.4s, #12
-	shl	v5.4s, v21.4s, #12
-	sri	v1.4s, v20.4s, #20
-	sri	v5.4s, v21.4s, #20
+	add	V2.4S, V2.4S, V3.4S
+	add	V6.4S, V6.4S, V7.4S
+	eor	V20.16B, V1.16B, V2.16B
+	eor	V21.16B, V5.16B, V6.16B
+	shl	V1.4S, V20.4S, #12
+	shl	V5.4S, V21.4S, #12
+	sri	V1.4S, V20.4S, #20
+	sri	V5.4S, V21.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v1.4s
-	add	v4.4s, v4.4s, v5.4s
-	eor	v3.16b, v3.16b, v0.16b
-	eor	v7.16b, v7.16b, v4.16b
-	tbl	v3.16b, {v3.16b}, v30.16b
-	tbl	v7.16b, {v7.16b}, v30.16b
+	add	V0.4S, V0.4S, V1.4S
+	add	V4.4S, V4.4S, V5.4S
+	eor	V3.16B, V3.16B, V0.16B
+	eor	V7.16B, V7.16B, V4.16B
+	tbl	V3.16B, {V3.16B}, V30.16B
+	tbl	V7.16B, {V7.16B}, V30.16B
 	; c += d; b ^= c; b <<<= 7;
-	add	v2.4s, v2.4s, v3.4s
-	add	v6.4s, v6.4s, v7.4s
-	eor	v20.16b, v1.16b, v2.16b
-	eor	v21.16b, v5.16b, v6.16b
-	shl	v1.4s, v20.4s, #7
-	shl	v5.4s, v21.4s, #7
-	sri	v1.4s, v20.4s, #25
-	sri	v5.4s, v21.4s, #25
-	ext	v3.16b, v3.16b, v3.16b, #12
-	ext	v7.16b, v7.16b, v7.16b, #12
-	ext	v1.16b, v1.16b, v1.16b, #4
-	ext	v5.16b, v5.16b, v5.16b, #4
-	ext	v2.16b, v2.16b, v2.16b, #8
-	ext	v6.16b, v6.16b, v6.16b, #8
+	add	V2.4S, V2.4S, V3.4S
+	add	V6.4S, V6.4S, V7.4S
+	eor	V20.16B, V1.16B, V2.16B
+	eor	V21.16B, V5.16B, V6.16B
+	shl	V1.4S, V20.4S, #7
+	shl	V5.4S, V21.4S, #7
+	sri	V1.4S, V20.4S, #25
+	sri	V5.4S, V21.4S, #25
+	ext8	V3.16B, V3.16B, V3.16B, #12
+	ext8	V7.16B, V7.16B, V7.16B, #12
+	ext8	V1.16B, V1.16B, V1.16B, #4
+	ext8	V5.16B, V5.16B, V5.16B, #4
+	ext8	V2.16B, V2.16B, V2.16B, #8
+	ext8	V6.16B, V6.16B, V6.16B, #8
 	; Round even
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v1.4s
-	add	v4.4s, v4.4s, v5.4s
-	eor	v3.16b, v3.16b, v0.16b
-	eor	v7.16b, v7.16b, v4.16b
-	rev32	v3.8h, v3.8h
-	rev32	v7.8h, v7.8h
+	add	V0.4S, V0.4S, V1.4S
+	add	V4.4S, V4.4S, V5.4S
+	eor	V3.16B, V3.16B, V0.16B
+	eor	V7.16B, V7.16B, V4.16B
+	rev32	V3.8H, V3.8H
+	rev32	V7.8H, V7.8H
 	; c += d; b ^= c; b <<<= 12;
-	add	v2.4s, v2.4s, v3.4s
-	add	v6.4s, v6.4s, v7.4s
-	eor	v20.16b, v1.16b, v2.16b
-	eor	v21.16b, v5.16b, v6.16b
-	shl	v1.4s, v20.4s, #12
-	shl	v5.4s, v21.4s, #12
-	sri	v1.4s, v20.4s, #20
-	sri	v5.4s, v21.4s, #20
+	add	V2.4S, V2.4S, V3.4S
+	add	V6.4S, V6.4S, V7.4S
+	eor	V20.16B, V1.16B, V2.16B
+	eor	V21.16B, V5.16B, V6.16B
+	shl	V1.4S, V20.4S, #12
+	shl	V5.4S, V21.4S, #12
+	sri	V1.4S, V20.4S, #20
+	sri	V5.4S, V21.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v1.4s
-	add	v4.4s, v4.4s, v5.4s
-	eor	v3.16b, v3.16b, v0.16b
-	eor	v7.16b, v7.16b, v4.16b
-	tbl	v3.16b, {v3.16b}, v30.16b
-	tbl	v7.16b, {v7.16b}, v30.16b
+	add	V0.4S, V0.4S, V1.4S
+	add	V4.4S, V4.4S, V5.4S
+	eor	V3.16B, V3.16B, V0.16B
+	eor	V7.16B, V7.16B, V4.16B
+	tbl	V3.16B, {V3.16B}, V30.16B
+	tbl	V7.16B, {V7.16B}, V30.16B
 	; c += d; b ^= c; b <<<= 7;
-	add	v2.4s, v2.4s, v3.4s
-	add	v6.4s, v6.4s, v7.4s
-	eor	v20.16b, v1.16b, v2.16b
-	eor	v21.16b, v5.16b, v6.16b
-	shl	v1.4s, v20.4s, #7
-	shl	v5.4s, v21.4s, #7
-	sri	v1.4s, v20.4s, #25
-	sri	v5.4s, v21.4s, #25
-	ext	v3.16b, v3.16b, v3.16b, #4
-	ext	v7.16b, v7.16b, v7.16b, #4
-	ext	v1.16b, v1.16b, v1.16b, #12
-	ext	v5.16b, v5.16b, v5.16b, #12
-	ext	v2.16b, v2.16b, v2.16b, #8
-	ext	v6.16b, v6.16b, v6.16b, #8
+	add	V2.4S, V2.4S, V3.4S
+	add	V6.4S, V6.4S, V7.4S
+	eor	V20.16B, V1.16B, V2.16B
+	eor	V21.16B, V5.16B, V6.16B
+	shl	V1.4S, V20.4S, #7
+	shl	V5.4S, V21.4S, #7
+	sri	V1.4S, V20.4S, #25
+	sri	V5.4S, V21.4S, #25
+	ext8	V3.16B, V3.16B, V3.16B, #4
+	ext8	V7.16B, V7.16B, V7.16B, #4
+	ext8	V1.16B, V1.16B, V1.16B, #12
+	ext8	V5.16B, V5.16B, V5.16B, #12
+	ext8	V2.16B, V2.16B, V2.16B, #8
+	ext8	V6.16B, V6.16B, V6.16B, #8
 	bne	L_chacha_crypt_bytes_arm64_round_start_128
 	; Add back state, XOR in message and store (load next block)
-	add	v0.4s, v0.4s, v16.4s
-	add	v1.4s, v1.4s, v17.4s
-	add	v2.4s, v2.4s, v18.4s
-	add	v3.4s, v3.4s, v19.4s
-	eor	v24.16b, v24.16b, v0.16b
-	eor	v25.16b, v25.16b, v1.16b
-	eor	v26.16b, v26.16b, v2.16b
-	eor	v27.16b, v27.16b, v3.16b
-	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x2], #0x40
-	st1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x1], #0x40
-	add	v19.4s, v19.4s, v31.4s
-	add	v4.4s, v4.4s, v16.4s
-	add	v5.4s, v5.4s, v17.4s
-	add	v6.4s, v6.4s, v18.4s
-	add	v7.4s, v7.4s, v19.4s
-	eor	v20.16b, v20.16b, v4.16b
-	eor	v21.16b, v21.16b, v5.16b
-	eor	v22.16b, v22.16b, v6.16b
-	eor	v23.16b, v23.16b, v7.16b
-	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
-	add	v19.4s, v19.4s, v31.4s
+	add	V0.4S, V0.4S, V16.4S
+	add	V1.4S, V1.4S, V17.4S
+	add	V2.4S, V2.4S, V18.4S
+	add	V3.4S, V3.4S, V19.4S
+	eor	V24.16B, V24.16B, V0.16B
+	eor	V25.16B, V25.16B, V1.16B
+	eor	V26.16B, V26.16B, V2.16B
+	eor	V27.16B, V27.16B, V3.16B
+	ld1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x2], #0x40
+	st1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x1], #0x40
+	add	V19.4S, V19.4S, V31.4S
+	add	V4.4S, V4.4S, V16.4S
+	add	V5.4S, V5.4S, V17.4S
+	add	V6.4S, V6.4S, V18.4S
+	add	V7.4S, V7.4S, V19.4S
+	eor	V20.16B, V20.16B, V4.16B
+	eor	V21.16B, V21.16B, V5.16B
+	eor	V22.16B, V22.16B, V6.16B
+	eor	V23.16B, V23.16B, V7.16B
+	st1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x1], #0x40
+	add	V19.4S, V19.4S, V31.4S
 	sub	x3, x3, #0x80
 	; Done 128-byte block
 L_chacha_crypt_bytes_arm64_lt_128
@@ -798,75 +798,75 @@ L_chacha_crypt_bytes_arm64_lt_128
 	mov	w5, #0x40
 L_chacha_crypt_bytes_arm64_loop_64
 	; Move state into vector registers
-	mov	v0.16b, v16.16b
-	mov	v1.16b, v17.16b
-	mov	v2.16b, v18.16b
-	mov	v3.16b, v19.16b
+	mov	V0.16B, V16.16B
+	mov	V1.16B, V17.16B
+	mov	V2.16B, V18.16B
+	mov	V3.16B, V19.16B
 	; Set number of odd+even rounds to perform
 	mov	x26, #10
 L_chacha_crypt_bytes_arm64_round_64
 	subs	x26, x26, #1
 	; Round odd
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v1.4s
-	eor	v3.16b, v3.16b, v0.16b
-	rev32	v3.8h, v3.8h
+	add	V0.4S, V0.4S, V1.4S
+	eor	V3.16B, V3.16B, V0.16B
+	rev32	V3.8H, V3.8H
 	; c += d; b ^= c; b <<<= 12;
-	add	v2.4s, v2.4s, v3.4s
-	eor	v20.16b, v1.16b, v2.16b
-	shl	v1.4s, v20.4s, #12
-	sri	v1.4s, v20.4s, #20
+	add	V2.4S, V2.4S, V3.4S
+	eor	V20.16B, V1.16B, V2.16B
+	shl	V1.4S, V20.4S, #12
+	sri	V1.4S, V20.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v1.4s
-	eor	v3.16b, v3.16b, v0.16b
-	tbl	v3.16b, {v3.16b}, v30.16b
+	add	V0.4S, V0.4S, V1.4S
+	eor	V3.16B, V3.16B, V0.16B
+	tbl	V3.16B, {V3.16B}, V30.16B
 	; c += d; b ^= c; b <<<= 7;
-	add	v2.4s, v2.4s, v3.4s
-	eor	v20.16b, v1.16b, v2.16b
-	shl	v1.4s, v20.4s, #7
-	sri	v1.4s, v20.4s, #25
-	ext	v3.16b, v3.16b, v3.16b, #12
-	ext	v1.16b, v1.16b, v1.16b, #4
-	ext	v2.16b, v2.16b, v2.16b, #8
+	add	V2.4S, V2.4S, V3.4S
+	eor	V20.16B, V1.16B, V2.16B
+	shl	V1.4S, V20.4S, #7
+	sri	V1.4S, V20.4S, #25
+	ext8	V3.16B, V3.16B, V3.16B, #12
+	ext8	V1.16B, V1.16B, V1.16B, #4
+	ext8	V2.16B, V2.16B, V2.16B, #8
 	; Round even
 	; a += b; d ^= a; d <<<= 16;
-	add	v0.4s, v0.4s, v1.4s
-	eor	v3.16b, v3.16b, v0.16b
-	rev32	v3.8h, v3.8h
+	add	V0.4S, V0.4S, V1.4S
+	eor	V3.16B, V3.16B, V0.16B
+	rev32	V3.8H, V3.8H
 	; c += d; b ^= c; b <<<= 12;
-	add	v2.4s, v2.4s, v3.4s
-	eor	v20.16b, v1.16b, v2.16b
-	shl	v1.4s, v20.4s, #12
-	sri	v1.4s, v20.4s, #20
+	add	V2.4S, V2.4S, V3.4S
+	eor	V20.16B, V1.16B, V2.16B
+	shl	V1.4S, V20.4S, #12
+	sri	V1.4S, V20.4S, #20
 	; a += b; d ^= a; d <<<= 8;
-	add	v0.4s, v0.4s, v1.4s
-	eor	v3.16b, v3.16b, v0.16b
-	tbl	v3.16b, {v3.16b}, v30.16b
+	add	V0.4S, V0.4S, V1.4S
+	eor	V3.16B, V3.16B, V0.16B
+	tbl	V3.16B, {V3.16B}, V30.16B
 	; c += d; b ^= c; b <<<= 7;
-	add	v2.4s, v2.4s, v3.4s
-	eor	v20.16b, v1.16b, v2.16b
-	shl	v1.4s, v20.4s, #7
-	sri	v1.4s, v20.4s, #25
-	ext	v3.16b, v3.16b, v3.16b, #4
-	ext	v1.16b, v1.16b, v1.16b, #12
-	ext	v2.16b, v2.16b, v2.16b, #8
+	add	V2.4S, V2.4S, V3.4S
+	eor	V20.16B, V1.16B, V2.16B
+	shl	V1.4S, V20.4S, #7
+	sri	V1.4S, V20.4S, #25
+	ext8	V3.16B, V3.16B, V3.16B, #4
+	ext8	V1.16B, V1.16B, V1.16B, #12
+	ext8	V2.16B, V2.16B, V2.16B, #8
 	bne	L_chacha_crypt_bytes_arm64_round_64
 	; Add back state
-	add	v0.4s, v0.4s, v16.4s
-	add	v1.4s, v1.4s, v17.4s
-	add	v2.4s, v2.4s, v18.4s
-	add	v3.4s, v3.4s, v19.4s
+	add	V0.4S, V0.4S, V16.4S
+	add	V1.4S, V1.4S, V17.4S
+	add	V2.4S, V2.4S, V18.4S
+	add	V3.4S, V3.4S, V19.4S
 	; Check if data is less than 64 bytes - store in over
 	cmp	x3, #0x40
-	add	v19.4s, v19.4s, v31.4s
+	add	V19.4S, V19.4S, V31.4S
 	blt	L_chacha_crypt_bytes_arm64_lt_64
 	; Encipher 64 bytes
-	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x2], #0x40
-	eor	v24.16b, v24.16b, v0.16b
-	eor	v25.16b, v25.16b, v1.16b
-	eor	v26.16b, v26.16b, v2.16b
-	eor	v27.16b, v27.16b, v3.16b
-	st1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x1], #0x40
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x2], #0x40
+	eor	V24.16B, V24.16B, V0.16B
+	eor	V25.16B, V25.16B, V1.16B
+	eor	V26.16B, V26.16B, V2.16B
+	eor	V27.16B, V27.16B, V3.16B
+	st1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x1], #0x40
 	; Check for more bytes to be enciphered
 	subs	x3, x3, #0x40
 	bne	L_chacha_crypt_bytes_arm64_loop_64
@@ -875,41 +875,41 @@ L_chacha_crypt_bytes_arm64_lt_64
 	; Calculate bytes left in block not used
 	sub	w5, w5, w3
 	; Store encipher block in over for further operations and left
-	st1	{v0.4s, v1.4s, v2.4s, v3.4s}, [x4]
+	st1	{V0.4S, V1.4S, V2.4S, V3.4S}, [x4]
 	str	w5, [x0, #64]
 	; Encipher 32 bytes
 	cmp	x3, #32
 	blt	L_chacha_crypt_bytes_arm64_lt_32
-	ld1	{v24.16b, v25.16b}, [x2], #32
-	eor	v24.16b, v24.16b, v0.16b
-	eor	v25.16b, v25.16b, v1.16b
-	st1	{v24.16b, v25.16b}, [x1], #32
+	ld1	{V24.16B, V25.16B}, [x2], #32
+	eor	V24.16B, V24.16B, V0.16B
+	eor	V25.16B, V25.16B, V1.16B
+	st1	{V24.16B, V25.16B}, [x1], #32
 	subs	x3, x3, #32
-	mov	v0.16b, v2.16b
-	mov	v1.16b, v3.16b
+	mov	V0.16B, V2.16B
+	mov	V1.16B, V3.16B
 	beq	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_32
 	cmp	x3, #16
 	blt	L_chacha_crypt_bytes_arm64_lt_16
 	; Encipher 16 bytes
-	ld1	{v24.16b}, [x2], #16
-	eor	v24.16b, v24.16b, v0.16b
-	st1	{v24.16b}, [x1], #16
+	ld1	{V24.16B}, [x2], #16
+	eor	V24.16B, V24.16B, V0.16B
+	st1	{V24.16B}, [x1], #16
 	subs	x3, x3, #16
-	mov	v0.16b, v1.16b
+	mov	V0.16B, V1.16B
 	beq	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_16
 	cmp	x3, #8
 	blt	L_chacha_crypt_bytes_arm64_lt_8
 	; Encipher 8 bytes
-	ld1	{v24.8b}, [x2], #8
-	eor	v24.8b, v24.8b, v0.8b
-	st1	{v24.8b}, [x1], #8
+	ld1	{V24.8B}, [x2], #8
+	eor	V24.8B, V24.8B, V0.8B
+	st1	{V24.8B}, [x1], #8
 	subs	x3, x3, #8
-	mov	v0.d[0], v0.d[1]
+	mov	V0.D[0], V0.D[1]
 	beq	L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_lt_8
-	mov	x5, v0.d[0]
+	mov	x5, V0.D[0]
 L_chacha_crypt_bytes_arm64_loop_lt_8
 	; Encipher 1 byte at a time
 	ldrb	w6, [x2], #1
@@ -920,16 +920,16 @@ L_chacha_crypt_bytes_arm64_loop_lt_8
 	bgt	L_chacha_crypt_bytes_arm64_loop_lt_8
 L_chacha_crypt_bytes_arm64_done
 L_chacha_crypt_bytes_arm64_done_all
-	st1	{v16.4s, v17.4s, v18.4s, v19.4s}, [x0]
+	st1	{V16.4S, V17.4S, V18.4S, V19.4S}, [x0]
 	ldp	x17, x19, [x29, #24]
 	ldp	x20, x21, [x29, #40]
 	ldp	x22, x23, [x29, #56]
 	ldp	x24, x25, [x29, #72]
 	ldr	x26, [x29, #88]
-	ldp	d8, d9, [x29, #96]
-	ldp	d10, d11, [x29, #112]
-	ldp	d12, d13, [x29, #128]
-	ldp	d14, d15, [x29, #144]
+	ldp	D8, D9, [x29, #96]
+	ldp	D10, D11, [x29, #112]
+	ldp	D12, D13, [x29, #128]
+	ldp	D14, D15, [x29, #144]
 	ldp	x29, x30, [sp], #0xa0
 	ret
 	ENDP
@@ -944,7 +944,7 @@ wc_chacha_setiv PROC
 	str	w4, [x0, #60]
 	ret
 	ENDP
-	AREA	|.rodata|, DATA, READONLY
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_chacha_setkey_arm64_constant
 	DCD	0x61707865, 0x3120646e, 0x79622d36, 0x6b206574
@@ -958,20 +958,20 @@ wc_chacha_setkey PROC
 	subs	x2, x2, #16
 	add	x3, x3, x2
 	; Start with constants
-	ld1	{v0.4s}, [x3]
-	ld1	{v1.16b}, [x1], #16
+	ld1	{V0.4S}, [x3]
+	ld1	{V1.16B}, [x1], #16
 	IF :DEF:BIG_ENDIAN_ORDER
-	rev32	v1.8h, v1.8h
+	rev32	V1.8H, V1.8H
 	ENDIF
-	st1	{v0.4s}, [x0], #16
-	st1	{v1.4s}, [x0], #16
+	st1	{V0.4S}, [x0], #16
+	st1	{V1.4S}, [x0], #16
 	beq	L_chacha_setkey_arm64_done
-	ld1	{v1.16b}, [x1]
+	ld1	{V1.16B}, [x1]
 	IF :DEF:BIG_ENDIAN_ORDER
-	rev32	v1.8h, v1.8h
+	rev32	V1.8H, V1.8H
 	ENDIF
 L_chacha_setkey_arm64_done
-	st1	{v1.4s}, [x0]
+	st1	{V1.4S}, [x0]
 	ret
 	ENDP
 	AREA	|.text|, CODE, READONLY
@@ -982,11 +982,11 @@ L_chacha_use_over_arm64_16byte_loop
 	cmp	x3, #16
 	blt	L_chacha_use_over_arm64_word_loop
 	; 16 bytes of state XORed into message.
-	ld1	{v0.16b}, [x0], #16
-	ld1	{v1.16b}, [x2], #16
-	eor	v1.16b, v1.16b, v0.16b
+	ld1	{V0.16B}, [x0], #16
+	ld1	{V1.16B}, [x2], #16
+	eor	V1.16B, V1.16B, V0.16B
 	subs	x3, x3, #16
-	st1	{v1.16b}, [x1], #16
+	st1	{V1.16B}, [x1], #16
 	beq	L_chacha_use_over_arm64_done
 	b	L_chacha_use_over_arm64_16byte_loop
 L_chacha_use_over_arm64_word_loop

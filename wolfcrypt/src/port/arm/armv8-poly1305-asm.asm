@@ -106,221 +106,221 @@ poly1305_arm64_blocks PROC
 	stp	x29, x30, [sp, #-96]!
 	add	x29, sp, #0
 	str	x17, [x29, #24]
-	stp	d8, d9, [x29, #32]
-	stp	d10, d11, [x29, #48]
-	stp	d12, d13, [x29, #64]
-	stp	d14, d15, [x29, #80]
+	stp	D8, D9, [x29, #32]
+	stp	D10, D11, [x29, #48]
+	stp	D12, D13, [x29, #64]
+	stp	D14, D15, [x29, #80]
 	cmp	x2, #0x40
 	blt	L_poly1305_arm64_blocks_done
 	; Set mask (0x3ffffff), hi bit and 5 into vector registers
-	movi	v25.16b, #0xff
-	movi	v27.4s, #1, lsl 24
-	ushr	v25.4s, v25.4s, #6
-	movi	v24.4s, #5
-	uxtl	v26.2d, v25.2s
+	movi	V25.16B, #0xff
+	movi	V27.4S, #1, lsl 24
+	ushr	V25.4S, V25.4S, #6
+	movi	V24.4S, #5
+	ushll	V26.2D, V25.2S, #0
 	add	x14, x0, #16
-	ld4	{v15.4s, v16.4s, v17.4s, v18.4s}, [x14], #0x40
-	ld1	{v19.4s}, [x14]
+	ld4	{V15.4S, V16.4S, V17.4S, V18.4S}, [x14], #0x40
+	ld1	{V19.4S}, [x14]
 	add	x14, x0, #0x60
-	movi	v0.4s, #0
-	movi	v1.4s, #0
-	movi	v2.4s, #0
-	movi	v3.4s, #0
-	movi	v4.4s, #0
-	ld4	{v0.s, v1.s, v2.s, v3.s}[0], [x14], #16
-	ld1	{v4.s}[0], [x14]
-	mul	v20.4s, v16.4s, v24.4s
-	mul	v21.4s, v17.4s, v24.4s
-	mul	v22.4s, v18.4s, v24.4s
-	mul	v23.4s, v19.4s, v24.4s
+	movi	V0.4S, #0
+	movi	V1.4S, #0
+	movi	V2.4S, #0
+	movi	V3.4S, #0
+	movi	V4.4S, #0
+	ld4	{V0.S, V1.S, V2.S, V3.S}[0], [x14], #16
+	ld1	{V4.S}[0], [x14]
+	mul	V20.4S, V16.4S, V24.4S
+	mul	V21.4S, V17.4S, V24.4S
+	mul	V22.4S, V18.4S, V24.4S
+	mul	V23.4S, V19.4S, V24.4S
 L_poly1305_arm64_blocks_loop_64
 	; Load message of 64 bytes - setting hi bit for not finished
-	ld4	{v5.4s, v6.4s, v7.4s, v8.4s}, [x1], #0x40
+	ld4	{V5.4S, V6.4S, V7.4S, V8.4S}, [x1], #0x40
 	sub	x2, x2, #0x40
-	ushr	v9.4s, v8.4s, #8
-	shl	v8.4s, v8.4s, #18
-	orr	v9.16b, v9.16b, v27.16b
-	sri	v8.4s, v7.4s, #14
-	shl	v7.4s, v7.4s, #12
-	and	v8.16b, v8.16b, v25.16b
-	sri	v7.4s, v6.4s, #20
-	shl	v6.4s, v6.4s, #6
-	and	v7.16b, v7.16b, v25.16b
-	sri	v6.4s, v5.4s, #26
-	and	v5.16b, v5.16b, v25.16b
-	and	v6.16b, v6.16b, v25.16b
-	umull2	v10.2d, v5.4s, v15.4s
-	umull2	v11.2d, v5.4s, v16.4s
-	umull2	v12.2d, v5.4s, v17.4s
-	umull2	v13.2d, v5.4s, v18.4s
-	umull2	v14.2d, v5.4s, v19.4s
-	umlal2	v10.2d, v6.4s, v23.4s
-	umlal2	v11.2d, v6.4s, v15.4s
-	umlal2	v12.2d, v6.4s, v16.4s
-	umlal2	v13.2d, v6.4s, v17.4s
-	umlal2	v14.2d, v6.4s, v18.4s
-	umlal2	v10.2d, v7.4s, v22.4s
-	umlal2	v11.2d, v7.4s, v23.4s
-	umlal2	v12.2d, v7.4s, v15.4s
-	umlal2	v13.2d, v7.4s, v16.4s
-	umlal2	v14.2d, v7.4s, v17.4s
-	umlal2	v10.2d, v8.4s, v21.4s
-	umlal2	v11.2d, v8.4s, v22.4s
-	umlal2	v12.2d, v8.4s, v23.4s
-	umlal2	v13.2d, v8.4s, v15.4s
-	umlal2	v14.2d, v8.4s, v16.4s
-	umlal2	v10.2d, v9.4s, v20.4s
-	umlal2	v11.2d, v9.4s, v21.4s
-	umlal2	v12.2d, v9.4s, v22.4s
-	umlal2	v13.2d, v9.4s, v23.4s
-	umlal2	v14.2d, v9.4s, v15.4s
-	add	v5.4s, v5.4s, v0.4s
-	add	v6.4s, v6.4s, v1.4s
-	add	v7.4s, v7.4s, v2.4s
-	add	v8.4s, v8.4s, v3.4s
-	add	v9.4s, v9.4s, v4.4s
-	umlal	v10.2d, v5.2s, v15.2s
-	umlal	v11.2d, v5.2s, v16.2s
-	umlal	v12.2d, v5.2s, v17.2s
-	umlal	v13.2d, v5.2s, v18.2s
-	umlal	v14.2d, v5.2s, v19.2s
-	umlal	v10.2d, v6.2s, v23.2s
-	umlal	v11.2d, v6.2s, v15.2s
-	umlal	v12.2d, v6.2s, v16.2s
-	umlal	v13.2d, v6.2s, v17.2s
-	umlal	v14.2d, v6.2s, v18.2s
-	umlal	v10.2d, v7.2s, v22.2s
-	umlal	v11.2d, v7.2s, v23.2s
-	umlal	v12.2d, v7.2s, v15.2s
-	umlal	v13.2d, v7.2s, v16.2s
-	umlal	v14.2d, v7.2s, v17.2s
-	umlal	v10.2d, v8.2s, v21.2s
-	umlal	v11.2d, v8.2s, v22.2s
-	umlal	v12.2d, v8.2s, v23.2s
-	umlal	v13.2d, v8.2s, v15.2s
-	umlal	v14.2d, v8.2s, v16.2s
-	umlal	v10.2d, v9.2s, v20.2s
-	umlal	v11.2d, v9.2s, v21.2s
-	umlal	v12.2d, v9.2s, v22.2s
-	umlal	v13.2d, v9.2s, v23.2s
-	umlal	v14.2d, v9.2s, v15.2s
-	addp	d10, v10.2d
-	addp	d11, v11.2d
-	addp	d12, v12.2d
-	addp	d13, v13.2d
-	addp	d14, v14.2d
+	ushr	V9.4S, V8.4S, #8
+	shl	V8.4S, V8.4S, #18
+	orr	V9.16B, V9.16B, V27.16B
+	sri	V8.4S, V7.4S, #14
+	shl	V7.4S, V7.4S, #12
+	and	V8.16B, V8.16B, V25.16B
+	sri	V7.4S, V6.4S, #20
+	shl	V6.4S, V6.4S, #6
+	and	V7.16B, V7.16B, V25.16B
+	sri	V6.4S, V5.4S, #26
+	and	V5.16B, V5.16B, V25.16B
+	and	V6.16B, V6.16B, V25.16B
+	umull2	V10.2D, V5.4S, V15.4S
+	umull2	V11.2D, V5.4S, V16.4S
+	umull2	V12.2D, V5.4S, V17.4S
+	umull2	V13.2D, V5.4S, V18.4S
+	umull2	V14.2D, V5.4S, V19.4S
+	umlal2	V10.2D, V6.4S, V23.4S
+	umlal2	V11.2D, V6.4S, V15.4S
+	umlal2	V12.2D, V6.4S, V16.4S
+	umlal2	V13.2D, V6.4S, V17.4S
+	umlal2	V14.2D, V6.4S, V18.4S
+	umlal2	V10.2D, V7.4S, V22.4S
+	umlal2	V11.2D, V7.4S, V23.4S
+	umlal2	V12.2D, V7.4S, V15.4S
+	umlal2	V13.2D, V7.4S, V16.4S
+	umlal2	V14.2D, V7.4S, V17.4S
+	umlal2	V10.2D, V8.4S, V21.4S
+	umlal2	V11.2D, V8.4S, V22.4S
+	umlal2	V12.2D, V8.4S, V23.4S
+	umlal2	V13.2D, V8.4S, V15.4S
+	umlal2	V14.2D, V8.4S, V16.4S
+	umlal2	V10.2D, V9.4S, V20.4S
+	umlal2	V11.2D, V9.4S, V21.4S
+	umlal2	V12.2D, V9.4S, V22.4S
+	umlal2	V13.2D, V9.4S, V23.4S
+	umlal2	V14.2D, V9.4S, V15.4S
+	add	V5.4S, V5.4S, V0.4S
+	add	V6.4S, V6.4S, V1.4S
+	add	V7.4S, V7.4S, V2.4S
+	add	V8.4S, V8.4S, V3.4S
+	add	V9.4S, V9.4S, V4.4S
+	umlal	V10.2D, V5.2S, V15.2S
+	umlal	V11.2D, V5.2S, V16.2S
+	umlal	V12.2D, V5.2S, V17.2S
+	umlal	V13.2D, V5.2S, V18.2S
+	umlal	V14.2D, V5.2S, V19.2S
+	umlal	V10.2D, V6.2S, V23.2S
+	umlal	V11.2D, V6.2S, V15.2S
+	umlal	V12.2D, V6.2S, V16.2S
+	umlal	V13.2D, V6.2S, V17.2S
+	umlal	V14.2D, V6.2S, V18.2S
+	umlal	V10.2D, V7.2S, V22.2S
+	umlal	V11.2D, V7.2S, V23.2S
+	umlal	V12.2D, V7.2S, V15.2S
+	umlal	V13.2D, V7.2S, V16.2S
+	umlal	V14.2D, V7.2S, V17.2S
+	umlal	V10.2D, V8.2S, V21.2S
+	umlal	V11.2D, V8.2S, V22.2S
+	umlal	V12.2D, V8.2S, V23.2S
+	umlal	V13.2D, V8.2S, V15.2S
+	umlal	V14.2D, V8.2S, V16.2S
+	umlal	V10.2D, V9.2S, V20.2S
+	umlal	V11.2D, V9.2S, V21.2S
+	umlal	V12.2D, V9.2S, V22.2S
+	umlal	V13.2D, V9.2S, V23.2S
+	umlal	V14.2D, V9.2S, V15.2S
+	addp	D10, V10.2D
+	addp	D11, V11.2D
+	addp	D12, V12.2D
+	addp	D13, V13.2D
+	addp	D14, V14.2D
 	; Redistribute and handle overflow
-	usra	v11.2d, v10.2d, #26
-	and	v10.16b, v10.16b, v26.16b
-	usra	v14.2d, v13.2d, #26
-	and	v3.16b, v13.16b, v26.16b
-	ushr	v2.2d, v14.2d, #26
-	usra	v12.2d, v11.2d, #26
-	shl	v0.2d, v2.2d, #2
-	and	v1.16b, v11.16b, v26.16b
-	add	v0.2d, v0.2d, v2.2d
-	and	v4.16b, v14.16b, v26.16b
-	add	v10.2d, v10.2d, v0.2d
-	usra	v3.2d, v12.2d, #26
-	and	v2.16b, v12.16b, v26.16b
-	usra	v1.2d, v10.2d, #26
-	and	v0.16b, v10.16b, v26.16b
-	usra	v4.2d, v3.2d, #26
-	and	v3.16b, v3.16b, v26.16b
+	usra	V11.2D, V10.2D, #26
+	and	V10.16B, V10.16B, V26.16B
+	usra	V14.2D, V13.2D, #26
+	and	V3.16B, V13.16B, V26.16B
+	ushr	V2.2D, V14.2D, #26
+	usra	V12.2D, V11.2D, #26
+	shl	V0.2D, V2.2D, #2
+	and	V1.16B, V11.16B, V26.16B
+	add	V0.2D, V0.2D, V2.2D
+	and	V4.16B, V14.16B, V26.16B
+	add	V10.2D, V10.2D, V0.2D
+	usra	V3.2D, V12.2D, #26
+	and	V2.16B, V12.16B, V26.16B
+	usra	V1.2D, V10.2D, #26
+	and	V0.16B, V10.16B, V26.16B
+	usra	V4.2D, V3.2D, #26
+	and	V3.16B, V3.16B, V26.16B
 	cmp	x2, #0x40
 	bge	L_poly1305_arm64_blocks_loop_64
 	cmp	x2, #16
 	ble	L_poly1305_arm64_blocks_done_32
 	; Start 32
-	ld4	{v5.2s, v6.2s, v7.2s, v8.2s}, [x1], #32
+	ld4	{V5.2S, V6.2S, V7.2S, V8.2S}, [x1], #32
 	sub	x2, x2, #32
-	mov	v15.d[0], v15.d[1]
-	mov	v16.d[0], v16.d[1]
-	mov	v17.d[0], v17.d[1]
-	mov	v18.d[0], v18.d[1]
-	mov	v19.d[0], v19.d[1]
-	mov	v20.d[0], v20.d[1]
-	mov	v21.d[0], v21.d[1]
-	mov	v22.d[0], v22.d[1]
-	mov	v23.d[0], v23.d[1]
-	ushr	v9.2s, v8.2s, #8
-	shl	v8.2s, v8.2s, #18
-	orr	v9.8b, v9.8b, v27.8b
-	sri	v8.2s, v7.2s, #14
-	shl	v7.2s, v7.2s, #12
-	and	v8.8b, v8.8b, v25.8b
-	sri	v7.2s, v6.2s, #20
-	shl	v6.2s, v6.2s, #6
-	and	v7.8b, v7.8b, v25.8b
-	sri	v6.2s, v5.2s, #26
-	and	v5.8b, v5.8b, v25.8b
-	and	v6.8b, v6.8b, v25.8b
-	add	v5.2s, v5.2s, v0.2s
-	add	v6.2s, v6.2s, v1.2s
-	add	v7.2s, v7.2s, v2.2s
-	add	v8.2s, v8.2s, v3.2s
-	add	v9.2s, v9.2s, v4.2s
-	umull	v10.2d, v5.2s, v15.2s
-	umull	v11.2d, v5.2s, v16.2s
-	umull	v12.2d, v5.2s, v17.2s
-	umull	v13.2d, v5.2s, v18.2s
-	umull	v14.2d, v5.2s, v19.2s
-	umlal	v10.2d, v6.2s, v23.2s
-	umlal	v11.2d, v6.2s, v15.2s
-	umlal	v12.2d, v6.2s, v16.2s
-	umlal	v13.2d, v6.2s, v17.2s
-	umlal	v14.2d, v6.2s, v18.2s
-	umlal	v10.2d, v7.2s, v22.2s
-	umlal	v11.2d, v7.2s, v23.2s
-	umlal	v12.2d, v7.2s, v15.2s
-	umlal	v13.2d, v7.2s, v16.2s
-	umlal	v14.2d, v7.2s, v17.2s
-	umlal	v10.2d, v8.2s, v21.2s
-	umlal	v11.2d, v8.2s, v22.2s
-	umlal	v12.2d, v8.2s, v23.2s
-	umlal	v13.2d, v8.2s, v15.2s
-	umlal	v14.2d, v8.2s, v16.2s
-	umlal	v10.2d, v9.2s, v20.2s
-	umlal	v11.2d, v9.2s, v21.2s
-	umlal	v12.2d, v9.2s, v22.2s
-	umlal	v13.2d, v9.2s, v23.2s
-	umlal	v14.2d, v9.2s, v15.2s
-	addp	d10, v10.2d
-	addp	d11, v11.2d
-	addp	d12, v12.2d
-	addp	d13, v13.2d
-	addp	d14, v14.2d
+	mov	V15.D[0], V15.D[1]
+	mov	V16.D[0], V16.D[1]
+	mov	V17.D[0], V17.D[1]
+	mov	V18.D[0], V18.D[1]
+	mov	V19.D[0], V19.D[1]
+	mov	V20.D[0], V20.D[1]
+	mov	V21.D[0], V21.D[1]
+	mov	V22.D[0], V22.D[1]
+	mov	V23.D[0], V23.D[1]
+	ushr	V9.2S, V8.2S, #8
+	shl	V8.2S, V8.2S, #18
+	orr	V9.8B, V9.8B, V27.8B
+	sri	V8.2S, V7.2S, #14
+	shl	V7.2S, V7.2S, #12
+	and	V8.8B, V8.8B, V25.8B
+	sri	V7.2S, V6.2S, #20
+	shl	V6.2S, V6.2S, #6
+	and	V7.8B, V7.8B, V25.8B
+	sri	V6.2S, V5.2S, #26
+	and	V5.8B, V5.8B, V25.8B
+	and	V6.8B, V6.8B, V25.8B
+	add	V5.2S, V5.2S, V0.2S
+	add	V6.2S, V6.2S, V1.2S
+	add	V7.2S, V7.2S, V2.2S
+	add	V8.2S, V8.2S, V3.2S
+	add	V9.2S, V9.2S, V4.2S
+	umull	V10.2D, V5.2S, V15.2S
+	umull	V11.2D, V5.2S, V16.2S
+	umull	V12.2D, V5.2S, V17.2S
+	umull	V13.2D, V5.2S, V18.2S
+	umull	V14.2D, V5.2S, V19.2S
+	umlal	V10.2D, V6.2S, V23.2S
+	umlal	V11.2D, V6.2S, V15.2S
+	umlal	V12.2D, V6.2S, V16.2S
+	umlal	V13.2D, V6.2S, V17.2S
+	umlal	V14.2D, V6.2S, V18.2S
+	umlal	V10.2D, V7.2S, V22.2S
+	umlal	V11.2D, V7.2S, V23.2S
+	umlal	V12.2D, V7.2S, V15.2S
+	umlal	V13.2D, V7.2S, V16.2S
+	umlal	V14.2D, V7.2S, V17.2S
+	umlal	V10.2D, V8.2S, V21.2S
+	umlal	V11.2D, V8.2S, V22.2S
+	umlal	V12.2D, V8.2S, V23.2S
+	umlal	V13.2D, V8.2S, V15.2S
+	umlal	V14.2D, V8.2S, V16.2S
+	umlal	V10.2D, V9.2S, V20.2S
+	umlal	V11.2D, V9.2S, V21.2S
+	umlal	V12.2D, V9.2S, V22.2S
+	umlal	V13.2D, V9.2S, V23.2S
+	umlal	V14.2D, V9.2S, V15.2S
+	addp	D10, V10.2D
+	addp	D11, V11.2D
+	addp	D12, V12.2D
+	addp	D13, V13.2D
+	addp	D14, V14.2D
 	; Redistribute and handle overflow
-	usra	v11.2d, v10.2d, #26
-	and	v10.16b, v10.16b, v26.16b
-	usra	v14.2d, v13.2d, #26
-	and	v3.16b, v13.16b, v26.16b
-	ushr	v2.2d, v14.2d, #26
-	usra	v12.2d, v11.2d, #26
-	shl	v0.2d, v2.2d, #2
-	and	v1.16b, v11.16b, v26.16b
-	add	v0.2d, v0.2d, v2.2d
-	and	v4.16b, v14.16b, v26.16b
-	add	v10.2d, v10.2d, v0.2d
-	usra	v3.2d, v12.2d, #26
-	and	v2.16b, v12.16b, v26.16b
-	usra	v1.2d, v10.2d, #26
-	and	v0.16b, v10.16b, v26.16b
-	usra	v4.2d, v3.2d, #26
-	and	v3.16b, v3.16b, v26.16b
+	usra	V11.2D, V10.2D, #26
+	and	V10.16B, V10.16B, V26.16B
+	usra	V14.2D, V13.2D, #26
+	and	V3.16B, V13.16B, V26.16B
+	ushr	V2.2D, V14.2D, #26
+	usra	V12.2D, V11.2D, #26
+	shl	V0.2D, V2.2D, #2
+	and	V1.16B, V11.16B, V26.16B
+	add	V0.2D, V0.2D, V2.2D
+	and	V4.16B, V14.16B, V26.16B
+	add	V10.2D, V10.2D, V0.2D
+	usra	V3.2D, V12.2D, #26
+	and	V2.16B, V12.16B, V26.16B
+	usra	V1.2D, V10.2D, #26
+	and	V0.16B, V10.16B, V26.16B
+	usra	V4.2D, V3.2D, #26
+	and	V3.16B, V3.16B, V26.16B
 L_poly1305_arm64_blocks_done_32
 	cmp	x2, #16
 	beq	L_poly1305_arm64_blocks_transfer
 	add	x14, x0, #0x60
-	st4	{v0.s, v1.s, v2.s, v3.s}[0], [x14], #16
-	st1	{v4.s}[0], [x14]
+	st4	{V0.S, V1.S, V2.S, V3.S}[0], [x14], #16
+	st1	{V4.S}[0], [x14]
 	b	L_poly1305_arm64_blocks_done_all
 L_poly1305_arm64_blocks_transfer
-	mov	w3, v0.s[0]
-	mov	w4, v1.s[0]
-	mov	w5, v2.s[0]
-	mov	w6, v3.s[0]
-	mov	w7, v4.s[0]
+	mov	w3, V0.S[0]
+	mov	w4, V1.S[0]
+	mov	w5, V2.S[0]
+	mov	w6, V3.S[0]
+	mov	w7, V4.S[0]
 	b	L_poly1305_arm64_blocks_start
 L_poly1305_arm64_blocks_done
 	cmp	x2, #16
@@ -404,14 +404,14 @@ L_poly1305_arm64_blocks_loop
 	str	w7, [x0, #112]
 L_poly1305_arm64_blocks_done_all
 	ldr	x17, [x29, #24]
-	ldp	d8, d9, [x29, #32]
-	ldp	d10, d11, [x29, #48]
-	ldp	d12, d13, [x29, #64]
-	ldp	d14, d15, [x29, #80]
+	ldp	D8, D9, [x29, #32]
+	ldp	D10, D11, [x29, #48]
+	ldp	D12, D13, [x29, #64]
+	ldp	D14, D15, [x29, #80]
 	ldp	x29, x30, [sp], #0x60
 	ret
 	ENDP
-	AREA	|.rodata|, DATA, READONLY
+	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_poly1305_set_key_arm64_clamp
 	DCD	0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc

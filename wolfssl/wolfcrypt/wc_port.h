@@ -1897,6 +1897,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XFENCE() XASM_VOLATILE("lfence")
     #elif defined (__arm__) && (__ARM_ARCH > 6)
         #define XFENCE() XASM_VOLATILE("isb")
+    #elif defined(_MSC_VER) && defined(_M_ARM64)
+        /* MSVC on ARM64 has no __asm__; use the ISB intrinsic barrier. */
+        #include <intrin.h>
+        #define XFENCE() __isb(_ARM64_BARRIER_SY)
     #elif defined(__aarch64__)
         /* Change ".inst 0xd50330ff" to "sb" when compilers support it. */
         #ifdef WOLFSSL_ARMASM_BARRIER_SB

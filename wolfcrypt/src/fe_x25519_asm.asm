@@ -4631,6 +4631,15 @@ L_curve25519_x64_bits:
         adc	r11, r14
         adc	r12, r15
         adc	r13, rdi
+        mov	rbp, 9223372036854775807
+        mov	rax, r13
+        sar	rax, 63
+        and	rax, 19
+        and	r13, rbp
+        add	rcx, rax
+        adc	r11, 0
+        adc	r12, 0
+        adc	r13, 0
         ; Store
         mov	QWORD PTR [rsp+64], rcx
         mov	QWORD PTR [rsp+72], r11
@@ -14299,6 +14308,15 @@ L_curve25519_avx2_bits:
         adcx	r13, rbx
         adox	r14, rsi
         adcx	r14, rcx
+        mov	rcx, 9223372036854775807
+        mov	rdx, r14
+        sar	rdx, 63
+        and	rdx, 19
+        and	r14, rcx
+        add	r11, rdx
+        adc	r12, 0
+        adc	r13, 0
+        adc	r14, 0
         ; Store
         mov	QWORD PTR [rsp+64], r11
         mov	QWORD PTR [rsp+72], r12
