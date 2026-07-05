@@ -22,7 +22,7 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include "platform.h"
 
-/* 
+/*
  * printf() is routed here via the r_bsp charput() hook
  * (BSP_CFG_USER_CHARPUT_ENABLED / BSP_CFG_USER_CHARPUT_FUNCTION in
  * r_bsp_config.h, sourced from test.scfg). Set BSP_CFG_USER_CHARPUT_ENABLED

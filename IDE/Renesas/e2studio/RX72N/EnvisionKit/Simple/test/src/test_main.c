@@ -181,7 +181,7 @@ void main(void)
     int doClientCheck = 0;
     uint32_t channel;
 
-    sci2_uart_init();  /* route printf → SCI2 UART (P13/TXD2, 19200 baud) */
+    sci2_uart_init();  /* route printf -> SCI2 UART (P13/TXD2, 19200 baud) */
 
 #if defined(SIMPLE_TCP_CLIENT)
     int cipherlist_sz = 1;
