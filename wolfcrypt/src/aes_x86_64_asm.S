@@ -2285,6 +2285,71 @@ L_AES_ECB_encrypt_vaes_128_aes_enc_block_last:
         jl	L_AES_ECB_encrypt_vaes_enc_128
 L_AES_ECB_encrypt_vaes_done_128:
         movl	%edx, %r9d
+        subl	%eax, %r9d
+        cmpl	$0x40, %r9d
+        jl	L_AES_ECB_encrypt_vaes_done_64
+        # 64 bytes of input
+        # aes_ecb_enc_64
+        leaq	(%rdi,%rax,1), %r10
+        leaq	(%rsi,%rax,1), %r11
+        vmovdqu	(%r10), %ymm0
+        vmovdqu	32(%r10), %ymm1
+        # aes_enc_block
+        vbroadcasti128	(%rcx), %ymm7
+        vpxor	%ymm7, %ymm0, %ymm0
+        vpxor	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	16(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	32(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	48(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	64(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	80(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	96(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	112(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	128(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	144(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        cmpl	$11, %r8d
+        vbroadcasti128	160(%rcx), %ymm7
+        jl	L_AES_ECB_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	176(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        cmpl	$13, %r8d
+        vbroadcasti128	192(%rcx), %ymm7
+        jl	L_AES_ECB_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	208(%rcx), %ymm7
+        vaesenc	%ymm7, %ymm0, %ymm0
+        vaesenc	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	224(%rcx), %ymm7
+L_AES_ECB_encrypt_vaes_64_aes_enc_block_last:
+        vaesenclast	%ymm7, %ymm0, %ymm0
+        vaesenclast	%ymm7, %ymm1, %ymm1
+        vmovdqu	%ymm0, (%r11)
+        vmovdqu	%ymm1, 32(%r11)
+        addl	$0x40, %eax
+L_AES_ECB_encrypt_vaes_done_64:
+        movl	%edx, %r9d
         andl	$0xffffffe0, %r9d
         cmpl	%r9d, %eax
         je	L_AES_ECB_encrypt_vaes_done_32
@@ -2503,6 +2568,71 @@ L_AES_ECB_decrypt_vaes_128_aes_dec_block_last:
         cmpl	%r9d, %eax
         jl	L_AES_ECB_decrypt_vaes_dec_128
 L_AES_ECB_decrypt_vaes_done_128:
+        movl	%edx, %r9d
+        subl	%eax, %r9d
+        cmpl	$0x40, %r9d
+        jl	L_AES_ECB_decrypt_vaes_done_64
+        # 64 bytes of input
+        # aes_ecb_dec_64
+        leaq	(%rdi,%rax,1), %r10
+        leaq	(%rsi,%rax,1), %r11
+        vmovdqu	(%r10), %ymm0
+        vmovdqu	32(%r10), %ymm1
+        # aes_dec_block
+        vbroadcasti128	(%rcx), %ymm7
+        vpxor	%ymm7, %ymm0, %ymm0
+        vpxor	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	16(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	32(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	48(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	64(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	80(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	96(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	112(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	128(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	144(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        cmpl	$11, %r8d
+        vbroadcasti128	160(%rcx), %ymm7
+        jl	L_AES_ECB_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	176(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        cmpl	$13, %r8d
+        vbroadcasti128	192(%rcx), %ymm7
+        jl	L_AES_ECB_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	208(%rcx), %ymm7
+        vaesdec	%ymm7, %ymm0, %ymm0
+        vaesdec	%ymm7, %ymm1, %ymm1
+        vbroadcasti128	224(%rcx), %ymm7
+L_AES_ECB_decrypt_vaes_64_aes_dec_block_last:
+        vaesdeclast	%ymm7, %ymm0, %ymm0
+        vaesdeclast	%ymm7, %ymm1, %ymm1
+        vmovdqu	%ymm0, (%r11)
+        vmovdqu	%ymm1, 32(%r11)
+        addl	$0x40, %eax
+L_AES_ECB_decrypt_vaes_done_64:
         movl	%edx, %r9d
         andl	$0xffffffe0, %r9d
         cmpl	%r9d, %eax
@@ -2802,6 +2932,76 @@ L_AES_CBC_decrypt_vaes_128_aes_dec_block_last:
         jl	L_AES_CBC_decrypt_vaes_dec_128
 L_AES_CBC_decrypt_vaes_done_128:
         movl	%ecx, %r10d
+        subl	%eax, %r10d
+        cmpl	$0x40, %r10d
+        jl	L_AES_CBC_decrypt_vaes_done_64
+        # 64 bytes of input
+        # aes_cbc_dec_64
+        leaq	(%rdi,%rax,1), %r11
+        leaq	(%rsi,%rax,1), %r12
+        vmovdqu	(%r11), %ymm0
+        vmovdqu	32(%r11), %ymm1
+        vinserti128	$0x01, %xmm0, %ymm8, %ymm10
+        vmovdqu	16(%r11), %ymm11
+        vextracti128	$0x01, %ymm1, %xmm8
+        # aes_dec_block
+        vbroadcasti128	(%r8), %ymm9
+        vpxor	%ymm9, %ymm0, %ymm0
+        vpxor	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	16(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	32(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	48(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	64(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	80(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	96(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	112(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	128(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	144(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        cmpl	$11, %r9d
+        vbroadcasti128	160(%r8), %ymm9
+        jl	L_AES_CBC_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	176(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        cmpl	$13, %r9d
+        vbroadcasti128	192(%r8), %ymm9
+        jl	L_AES_CBC_decrypt_vaes_64_aes_dec_block_last
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	208(%r8), %ymm9
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm1, %ymm1
+        vbroadcasti128	224(%r8), %ymm9
+L_AES_CBC_decrypt_vaes_64_aes_dec_block_last:
+        vaesdeclast	%ymm9, %ymm0, %ymm0
+        vaesdeclast	%ymm9, %ymm1, %ymm1
+        vpxor	%ymm10, %ymm0, %ymm0
+        vpxor	%ymm11, %ymm1, %ymm1
+        vmovdqu	%ymm0, (%r12)
+        vmovdqu	%ymm1, 32(%r12)
+        addl	$0x40, %eax
+L_AES_CBC_decrypt_vaes_done_64:
+        movl	%ecx, %r10d
         andl	$0xffffffe0, %r10d
         cmpl	%r10d, %eax
         je	L_AES_CBC_decrypt_vaes_done_32
@@ -2969,47 +3169,47 @@ _AES_CTR_encrypt_vaes:
         vbroadcasti128	L_aes_ctr_bswap_vaes(%rip), %ymm8
         vbroadcasti128	(%r9), %ymm7
         vpshufb	%ymm8, %ymm7, %ymm7
-        vbroadcasti128	128+L_aes_ctr_inc_vaes(%rip), %ymm10
-        vbroadcasti128	32+L_aes_ctr_inc_vaes(%rip), %ymm11
-        vbroadcasti128	16+L_aes_ctr_inc_vaes(%rip), %ymm12
+        vbroadcasti128	32+L_aes_ctr_inc_vaes(%rip), %ymm12
+        vbroadcasti128	16+L_aes_ctr_inc_vaes(%rip), %ymm13
         xorl	%eax, %eax
         cmpl	$0x80, %edx
         movl	%edx, %r10d
         jl	L_AES_CTR_encrypt_vaes_done_128
         andl	$0xffffff80, %r10d
+        vbroadcasti128	128+L_aes_ctr_inc_vaes(%rip), %ymm10
         vmovdqa	%ymm7, %ymm9
         vpaddq	0+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm4
-        vpand	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm14
+        vpand	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm15
         vpor	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm9
         vpandn	%ymm9, %ymm4, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm4, %ymm4
         vmovdqa	%ymm7, %ymm9
         vpaddq	32+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm5
-        vpand	32+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm14
+        vpand	32+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm15
         vpor	32+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm9
         vpandn	%ymm9, %ymm5, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm5, %ymm5
         vmovdqa	%ymm7, %ymm9
         vpaddq	64+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm6
-        vpand	64+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm14
+        vpand	64+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm15
         vpor	64+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm9
         vpandn	%ymm9, %ymm6, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm6, %ymm6
         vmovdqa	%ymm7, %ymm9
         vpaddq	96+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm7
-        vpand	96+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm14
+        vpand	96+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm15
         vpor	96+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm9
         vpandn	%ymm9, %ymm7, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm7, %ymm7
@@ -3023,121 +3223,121 @@ L_AES_CTR_encrypt_vaes_enc_128:
         vpshufb	%ymm8, %ymm7, %ymm3
         vmovdqa	%ymm4, %ymm9
         vpaddq	%ymm10, %ymm4, %ymm4
-        vpand	%ymm10, %ymm9, %ymm14
+        vpand	%ymm10, %ymm9, %ymm15
         vpor	%ymm10, %ymm9, %ymm9
         vpandn	%ymm9, %ymm4, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm4, %ymm4
         vmovdqa	%ymm5, %ymm9
         vpaddq	%ymm10, %ymm5, %ymm5
-        vpand	%ymm10, %ymm9, %ymm14
+        vpand	%ymm10, %ymm9, %ymm15
         vpor	%ymm10, %ymm9, %ymm9
         vpandn	%ymm9, %ymm5, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm5, %ymm5
         vmovdqa	%ymm6, %ymm9
         vpaddq	%ymm10, %ymm6, %ymm6
-        vpand	%ymm10, %ymm9, %ymm14
+        vpand	%ymm10, %ymm9, %ymm15
         vpor	%ymm10, %ymm9, %ymm9
         vpandn	%ymm9, %ymm6, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm6, %ymm6
         vmovdqa	%ymm7, %ymm9
         vpaddq	%ymm10, %ymm7, %ymm7
-        vpand	%ymm10, %ymm9, %ymm14
+        vpand	%ymm10, %ymm9, %ymm15
         vpor	%ymm10, %ymm9, %ymm9
         vpandn	%ymm9, %ymm7, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm7, %ymm7
         # aes_enc_block
-        vbroadcasti128	(%rcx), %ymm13
-        vpxor	%ymm13, %ymm0, %ymm0
-        vpxor	%ymm13, %ymm1, %ymm1
-        vpxor	%ymm13, %ymm2, %ymm2
-        vpxor	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	16(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	32(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	48(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	64(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	80(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	96(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	112(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	128(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	144(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
+        vbroadcasti128	(%rcx), %ymm14
+        vpxor	%ymm14, %ymm0, %ymm0
+        vpxor	%ymm14, %ymm1, %ymm1
+        vpxor	%ymm14, %ymm2, %ymm2
+        vpxor	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	16(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	32(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	48(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	64(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	80(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	96(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	112(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	128(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	144(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
         cmpl	$11, %r8d
-        vbroadcasti128	160(%rcx), %ymm13
+        vbroadcasti128	160(%rcx), %ymm14
         jl	L_AES_CTR_encrypt_vaes_128_aes_enc_block_last
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	176(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	176(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
         cmpl	$13, %r8d
-        vbroadcasti128	192(%rcx), %ymm13
+        vbroadcasti128	192(%rcx), %ymm14
         jl	L_AES_CTR_encrypt_vaes_128_aes_enc_block_last
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	208(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vaesenc	%ymm13, %ymm1, %ymm1
-        vaesenc	%ymm13, %ymm2, %ymm2
-        vaesenc	%ymm13, %ymm3, %ymm3
-        vbroadcasti128	224(%rcx), %ymm13
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	208(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vaesenc	%ymm14, %ymm2, %ymm2
+        vaesenc	%ymm14, %ymm3, %ymm3
+        vbroadcasti128	224(%rcx), %ymm14
 L_AES_CTR_encrypt_vaes_128_aes_enc_block_last:
-        vaesenclast	%ymm13, %ymm0, %ymm0
-        vaesenclast	%ymm13, %ymm1, %ymm1
-        vaesenclast	%ymm13, %ymm2, %ymm2
-        vaesenclast	%ymm13, %ymm3, %ymm3
+        vaesenclast	%ymm14, %ymm0, %ymm0
+        vaesenclast	%ymm14, %ymm1, %ymm1
+        vaesenclast	%ymm14, %ymm2, %ymm2
+        vaesenclast	%ymm14, %ymm3, %ymm3
         vpxor	(%r11), %ymm0, %ymm0
         vpxor	32(%r11), %ymm1, %ymm1
         vpxor	64(%r11), %ymm2, %ymm2
@@ -3152,6 +3352,101 @@ L_AES_CTR_encrypt_vaes_128_aes_enc_block_last:
         vperm2i128	$0x00, %ymm4, %ymm4, %ymm7
 L_AES_CTR_encrypt_vaes_done_128:
         movl	%edx, %r10d
+        subl	%eax, %r10d
+        cmpl	$0x40, %r10d
+        jl	L_AES_CTR_encrypt_vaes_done_64
+        # 64 bytes of input
+        vbroadcasti128	64+L_aes_ctr_inc_vaes(%rip), %ymm11
+        # aes_ctr_enc_64
+        leaq	(%rdi,%rax,1), %r11
+        leaq	(%rsi,%rax,1), %rbx
+        vpaddq	0+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm0
+        vmovdqa	%ymm7, %ymm9
+        vpand	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm15
+        vpor	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm9
+        vpandn	%ymm9, %ymm0, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
+        vpsrlq	$63, %ymm9, %ymm9
+        vpslldq	$8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpshufb	%ymm8, %ymm0, %ymm0
+        vpaddq	32+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm1
+        vmovdqa	%ymm7, %ymm9
+        vpand	32+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm15
+        vpor	32+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm9
+        vpandn	%ymm9, %ymm1, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
+        vpsrlq	$63, %ymm9, %ymm9
+        vpslldq	$8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm1, %ymm1
+        vpshufb	%ymm8, %ymm1, %ymm1
+        vmovdqa	%ymm7, %ymm9
+        vpaddq	%ymm11, %ymm7, %ymm7
+        vpand	%ymm11, %ymm9, %ymm15
+        vpor	%ymm11, %ymm9, %ymm9
+        vpandn	%ymm9, %ymm7, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
+        vpsrlq	$63, %ymm9, %ymm9
+        vpslldq	$8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm7, %ymm7
+        # aes_enc_block
+        vbroadcasti128	(%rcx), %ymm14
+        vpxor	%ymm14, %ymm0, %ymm0
+        vpxor	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	16(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	32(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	48(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	64(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	80(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	96(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	112(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	128(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	144(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        cmpl	$11, %r8d
+        vbroadcasti128	160(%rcx), %ymm14
+        jl	L_AES_CTR_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	176(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        cmpl	$13, %r8d
+        vbroadcasti128	192(%rcx), %ymm14
+        jl	L_AES_CTR_encrypt_vaes_64_aes_enc_block_last
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	208(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm1, %ymm1
+        vbroadcasti128	224(%rcx), %ymm14
+L_AES_CTR_encrypt_vaes_64_aes_enc_block_last:
+        vaesenclast	%ymm14, %ymm0, %ymm0
+        vaesenclast	%ymm14, %ymm1, %ymm1
+        vpxor	(%r11), %ymm0, %ymm0
+        vpxor	32(%r11), %ymm1, %ymm1
+        vmovdqu	%ymm0, (%rbx)
+        vmovdqu	%ymm1, 32(%rbx)
+        addl	$0x40, %eax
+L_AES_CTR_encrypt_vaes_done_64:
+        movl	%edx, %r10d
         andl	$0xffffffe0, %r10d
         cmpl	%r10d, %eax
         je	L_AES_CTR_encrypt_vaes_done_32
@@ -3162,59 +3457,59 @@ L_AES_CTR_encrypt_vaes_enc_32:
         leaq	(%rsi,%rax,1), %rbx
         vpaddq	0+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm0
         vmovdqa	%ymm7, %ymm9
-        vpand	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm14
+        vpand	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm15
         vpor	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm9
         vpandn	%ymm9, %ymm0, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm0, %ymm0
         vpshufb	%ymm8, %ymm0, %ymm0
         vmovdqa	%ymm7, %ymm9
-        vpaddq	%ymm11, %ymm7, %ymm7
-        vpand	%ymm11, %ymm9, %ymm14
-        vpor	%ymm11, %ymm9, %ymm9
+        vpaddq	%ymm12, %ymm7, %ymm7
+        vpand	%ymm12, %ymm9, %ymm15
+        vpor	%ymm12, %ymm9, %ymm9
         vpandn	%ymm9, %ymm7, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm7, %ymm7
         # aes_enc_block
-        vbroadcasti128	(%rcx), %ymm13
-        vpxor	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	16(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	32(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	48(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	64(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	80(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	96(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	112(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	128(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	144(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
+        vbroadcasti128	(%rcx), %ymm14
+        vpxor	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	16(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	32(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	48(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	64(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	80(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	96(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	112(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	128(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	144(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
         cmpl	$11, %r8d
-        vbroadcasti128	160(%rcx), %ymm13
+        vbroadcasti128	160(%rcx), %ymm14
         jl	L_AES_CTR_encrypt_vaes_32_aes_enc_block_last
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	176(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	176(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
         cmpl	$13, %r8d
-        vbroadcasti128	192(%rcx), %ymm13
+        vbroadcasti128	192(%rcx), %ymm14
         jl	L_AES_CTR_encrypt_vaes_32_aes_enc_block_last
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	208(%rcx), %ymm13
-        vaesenc	%ymm13, %ymm0, %ymm0
-        vbroadcasti128	224(%rcx), %ymm13
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	208(%rcx), %ymm14
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vbroadcasti128	224(%rcx), %ymm14
 L_AES_CTR_encrypt_vaes_32_aes_enc_block_last:
-        vaesenclast	%ymm13, %ymm0, %ymm0
+        vaesenclast	%ymm14, %ymm0, %ymm0
         vpxor	(%r11), %ymm0, %ymm0
         vmovdqu	%ymm0, (%rbx)
         addl	$32, %eax
@@ -3229,11 +3524,11 @@ L_AES_CTR_encrypt_vaes_enc_16:
         # 16 bytes of input
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqa	%ymm7, %ymm9
-        vpaddq	%ymm12, %ymm7, %ymm7
-        vpand	%ymm12, %ymm9, %ymm14
-        vpor	%ymm12, %ymm9, %ymm9
+        vpaddq	%ymm13, %ymm7, %ymm7
+        vpand	%ymm13, %ymm9, %ymm15
+        vpor	%ymm13, %ymm9, %ymm9
         vpandn	%ymm9, %ymm7, %ymm9
-        vpor	%ymm14, %ymm9, %ymm9
+        vpor	%ymm15, %ymm9, %ymm9
         vpsrlq	$63, %ymm9, %ymm9
         vpslldq	$8, %ymm9, %ymm9
         vpaddq	%ymm9, %ymm7, %ymm7
@@ -3302,8 +3597,8 @@ AES_ECB_encrypt_avx512:
 _AES_ECB_encrypt_avx512:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
-        cmpl	$0x40, %edx
-        jl	L_AES_ECB_encrypt_avx512_done_64
+        cmpl	$32, %edx
+        jl	L_AES_ECB_encrypt_avx512_done_32
         vbroadcasti32x4	(%rcx), %zmm8
         vbroadcasti32x4	16(%rcx), %zmm9
         vbroadcasti32x4	32(%rcx), %zmm10
@@ -3415,6 +3710,59 @@ L_AES_ECB_encrypt_avx512_256_aes_enc_block_last:
         jl	L_AES_ECB_encrypt_avx512_enc_256
 L_AES_ECB_encrypt_avx512_done_256:
         movl	%edx, %r9d
+        subl	%eax, %r9d
+        cmpl	$0x80, %r9d
+        jl	L_AES_ECB_encrypt_avx512_done_128
+        # 128 bytes of input
+        # aes_ecb_enc_128
+        leaq	(%rdi,%rax,1), %r10
+        leaq	(%rsi,%rax,1), %r11
+        vmovdqu64	(%r10), %zmm0
+        vmovdqu64	64(%r10), %zmm1
+        # aes_enc_block
+        vpxorq	%zmm8, %zmm0, %zmm0
+        vpxorq	%zmm8, %zmm1, %zmm1
+        vaesenc	%zmm9, %zmm0, %zmm0
+        vaesenc	%zmm9, %zmm1, %zmm1
+        vaesenc	%zmm10, %zmm0, %zmm0
+        vaesenc	%zmm10, %zmm1, %zmm1
+        vaesenc	%zmm11, %zmm0, %zmm0
+        vaesenc	%zmm11, %zmm1, %zmm1
+        vaesenc	%zmm12, %zmm0, %zmm0
+        vaesenc	%zmm12, %zmm1, %zmm1
+        vaesenc	%zmm13, %zmm0, %zmm0
+        vaesenc	%zmm13, %zmm1, %zmm1
+        vaesenc	%zmm14, %zmm0, %zmm0
+        vaesenc	%zmm14, %zmm1, %zmm1
+        vaesenc	%zmm15, %zmm0, %zmm0
+        vaesenc	%zmm15, %zmm1, %zmm1
+        vaesenc	%zmm16, %zmm0, %zmm0
+        vaesenc	%zmm16, %zmm1, %zmm1
+        vaesenc	%zmm17, %zmm0, %zmm0
+        vaesenc	%zmm17, %zmm1, %zmm1
+        cmpl	$11, %r8d
+        vmovdqa64	%zmm18, %zmm7
+        jl	L_AES_ECB_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	%zmm18, %zmm0, %zmm0
+        vaesenc	%zmm18, %zmm1, %zmm1
+        vaesenc	%zmm19, %zmm0, %zmm0
+        vaesenc	%zmm19, %zmm1, %zmm1
+        cmpl	$13, %r8d
+        vmovdqa64	%zmm20, %zmm7
+        jl	L_AES_ECB_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	%zmm20, %zmm0, %zmm0
+        vaesenc	%zmm20, %zmm1, %zmm1
+        vaesenc	%zmm21, %zmm0, %zmm0
+        vaesenc	%zmm21, %zmm1, %zmm1
+        vmovdqa64	%zmm22, %zmm7
+L_AES_ECB_encrypt_avx512_128_aes_enc_block_last:
+        vaesenclast	%zmm7, %zmm0, %zmm0
+        vaesenclast	%zmm7, %zmm1, %zmm1
+        vmovdqu64	%zmm0, (%r11)
+        vmovdqu64	%zmm1, 64(%r11)
+        addl	$0x80, %eax
+L_AES_ECB_encrypt_avx512_done_128:
+        movl	%edx, %r9d
         andl	$0xffffffc0, %r9d
         cmpl	%r9d, %eax
         je	L_AES_ECB_encrypt_avx512_done_64
@@ -3453,6 +3801,41 @@ L_AES_ECB_encrypt_avx512_64_aes_enc_block_last:
         cmpl	%r9d, %eax
         jl	L_AES_ECB_encrypt_avx512_enc_64
 L_AES_ECB_encrypt_avx512_done_64:
+        movl	%edx, %r9d
+        subl	%eax, %r9d
+        cmpl	$32, %r9d
+        jl	L_AES_ECB_encrypt_avx512_done_32
+        # 32 bytes of input
+        leaq	(%rdi,%rax,1), %r10
+        vmovdqu	(%r10), %ymm0
+        # aes_enc_block
+        vpxorq	%ymm8, %ymm0, %ymm0
+        vaesenc	%ymm9, %ymm0, %ymm0
+        vaesenc	%ymm10, %ymm0, %ymm0
+        vaesenc	%ymm11, %ymm0, %ymm0
+        vaesenc	%ymm12, %ymm0, %ymm0
+        vaesenc	%ymm13, %ymm0, %ymm0
+        vaesenc	%ymm14, %ymm0, %ymm0
+        vaesenc	%ymm15, %ymm0, %ymm0
+        vaesenc	%ymm16, %ymm0, %ymm0
+        vaesenc	%ymm17, %ymm0, %ymm0
+        cmpl	$11, %r8d
+        vmovdqa64	%ymm18, %ymm7
+        jl	L_AES_ECB_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	%ymm18, %ymm0, %ymm0
+        vaesenc	%ymm19, %ymm0, %ymm0
+        cmpl	$13, %r8d
+        vmovdqa64	%ymm20, %ymm7
+        jl	L_AES_ECB_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	%ymm20, %ymm0, %ymm0
+        vaesenc	%ymm21, %ymm0, %ymm0
+        vmovdqa64	%ymm22, %ymm7
+L_AES_ECB_encrypt_avx512_32_aes_enc_block_last:
+        vaesenclast	%ymm7, %ymm0, %ymm0
+        leaq	(%rsi,%rax,1), %r10
+        vmovdqu	%ymm0, (%r10)
+        addl	$32, %eax
+L_AES_ECB_encrypt_avx512_done_32:
         cmpl	%edx, %eax
         movl	%edx, %r9d
         je	L_AES_ECB_encrypt_avx512_done_enc
@@ -3519,8 +3902,8 @@ AES_ECB_decrypt_avx512:
 _AES_ECB_decrypt_avx512:
 #endif /* __APPLE__ */
         xorl	%eax, %eax
-        cmpl	$0x40, %edx
-        jl	L_AES_ECB_decrypt_avx512_done_64
+        cmpl	$32, %edx
+        jl	L_AES_ECB_decrypt_avx512_done_32
         vbroadcasti32x4	(%rcx), %zmm8
         vbroadcasti32x4	16(%rcx), %zmm9
         vbroadcasti32x4	32(%rcx), %zmm10
@@ -3632,6 +4015,59 @@ L_AES_ECB_decrypt_avx512_256_aes_dec_block_last:
         jl	L_AES_ECB_decrypt_avx512_dec_256
 L_AES_ECB_decrypt_avx512_done_256:
         movl	%edx, %r9d
+        subl	%eax, %r9d
+        cmpl	$0x80, %r9d
+        jl	L_AES_ECB_decrypt_avx512_done_128
+        # 128 bytes of input
+        # aes_ecb_dec_128
+        leaq	(%rdi,%rax,1), %r10
+        leaq	(%rsi,%rax,1), %r11
+        vmovdqu64	(%r10), %zmm0
+        vmovdqu64	64(%r10), %zmm1
+        # aes_dec_block
+        vpxorq	%zmm8, %zmm0, %zmm0
+        vpxorq	%zmm8, %zmm1, %zmm1
+        vaesdec	%zmm9, %zmm0, %zmm0
+        vaesdec	%zmm9, %zmm1, %zmm1
+        vaesdec	%zmm10, %zmm0, %zmm0
+        vaesdec	%zmm10, %zmm1, %zmm1
+        vaesdec	%zmm11, %zmm0, %zmm0
+        vaesdec	%zmm11, %zmm1, %zmm1
+        vaesdec	%zmm12, %zmm0, %zmm0
+        vaesdec	%zmm12, %zmm1, %zmm1
+        vaesdec	%zmm13, %zmm0, %zmm0
+        vaesdec	%zmm13, %zmm1, %zmm1
+        vaesdec	%zmm14, %zmm0, %zmm0
+        vaesdec	%zmm14, %zmm1, %zmm1
+        vaesdec	%zmm15, %zmm0, %zmm0
+        vaesdec	%zmm15, %zmm1, %zmm1
+        vaesdec	%zmm16, %zmm0, %zmm0
+        vaesdec	%zmm16, %zmm1, %zmm1
+        vaesdec	%zmm17, %zmm0, %zmm0
+        vaesdec	%zmm17, %zmm1, %zmm1
+        cmpl	$11, %r8d
+        vmovdqa64	%zmm18, %zmm7
+        jl	L_AES_ECB_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	%zmm18, %zmm0, %zmm0
+        vaesdec	%zmm18, %zmm1, %zmm1
+        vaesdec	%zmm19, %zmm0, %zmm0
+        vaesdec	%zmm19, %zmm1, %zmm1
+        cmpl	$13, %r8d
+        vmovdqa64	%zmm20, %zmm7
+        jl	L_AES_ECB_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	%zmm20, %zmm0, %zmm0
+        vaesdec	%zmm20, %zmm1, %zmm1
+        vaesdec	%zmm21, %zmm0, %zmm0
+        vaesdec	%zmm21, %zmm1, %zmm1
+        vmovdqa64	%zmm22, %zmm7
+L_AES_ECB_decrypt_avx512_128_aes_dec_block_last:
+        vaesdeclast	%zmm7, %zmm0, %zmm0
+        vaesdeclast	%zmm7, %zmm1, %zmm1
+        vmovdqu64	%zmm0, (%r11)
+        vmovdqu64	%zmm1, 64(%r11)
+        addl	$0x80, %eax
+L_AES_ECB_decrypt_avx512_done_128:
+        movl	%edx, %r9d
         andl	$0xffffffc0, %r9d
         cmpl	%r9d, %eax
         je	L_AES_ECB_decrypt_avx512_done_64
@@ -3670,6 +4106,41 @@ L_AES_ECB_decrypt_avx512_64_aes_dec_block_last:
         cmpl	%r9d, %eax
         jl	L_AES_ECB_decrypt_avx512_dec_64
 L_AES_ECB_decrypt_avx512_done_64:
+        movl	%edx, %r9d
+        subl	%eax, %r9d
+        cmpl	$32, %r9d
+        jl	L_AES_ECB_decrypt_avx512_done_32
+        # 32 bytes of input
+        leaq	(%rdi,%rax,1), %r10
+        vmovdqu	(%r10), %ymm0
+        # aes_dec_block
+        vpxorq	%ymm8, %ymm0, %ymm0
+        vaesdec	%ymm9, %ymm0, %ymm0
+        vaesdec	%ymm10, %ymm0, %ymm0
+        vaesdec	%ymm11, %ymm0, %ymm0
+        vaesdec	%ymm12, %ymm0, %ymm0
+        vaesdec	%ymm13, %ymm0, %ymm0
+        vaesdec	%ymm14, %ymm0, %ymm0
+        vaesdec	%ymm15, %ymm0, %ymm0
+        vaesdec	%ymm16, %ymm0, %ymm0
+        vaesdec	%ymm17, %ymm0, %ymm0
+        cmpl	$11, %r8d
+        vmovdqa64	%ymm18, %ymm7
+        jl	L_AES_ECB_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	%ymm18, %ymm0, %ymm0
+        vaesdec	%ymm19, %ymm0, %ymm0
+        cmpl	$13, %r8d
+        vmovdqa64	%ymm20, %ymm7
+        jl	L_AES_ECB_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	%ymm20, %ymm0, %ymm0
+        vaesdec	%ymm21, %ymm0, %ymm0
+        vmovdqa64	%ymm22, %ymm7
+L_AES_ECB_decrypt_avx512_32_aes_dec_block_last:
+        vaesdeclast	%ymm7, %ymm0, %ymm0
+        leaq	(%rsi,%rax,1), %r10
+        vmovdqu	%ymm0, (%r10)
+        addl	$32, %eax
+L_AES_ECB_decrypt_avx512_done_32:
         cmpl	%edx, %eax
         movl	%edx, %r9d
         je	L_AES_ECB_decrypt_avx512_done_dec
@@ -3805,8 +4276,8 @@ _AES_CBC_decrypt_avx512:
         pushq	%r12
         vmovdqu	(%rdx), %xmm8
         xorl	%eax, %eax
-        cmpl	$0x40, %ecx
-        jl	L_AES_CBC_decrypt_avx512_done_64
+        cmpl	$32, %ecx
+        jl	L_AES_CBC_decrypt_avx512_done_32
         vbroadcasti32x4	(%r8), %zmm14
         vbroadcasti32x4	16(%r8), %zmm15
         vbroadcasti32x4	32(%r8), %zmm16
@@ -3928,6 +4399,65 @@ L_AES_CBC_decrypt_avx512_256_aes_dec_block_last:
         jl	L_AES_CBC_decrypt_avx512_dec_256
 L_AES_CBC_decrypt_avx512_done_256:
         movl	%ecx, %r10d
+        subl	%eax, %r10d
+        cmpl	$0x80, %r10d
+        jl	L_AES_CBC_decrypt_avx512_done_128
+        # 128 bytes of input
+        # aes_cbc_dec_128
+        leaq	(%rdi,%rax,1), %r11
+        leaq	(%rsi,%rax,1), %r12
+        vmovdqu64	(%r11), %zmm0
+        vmovdqu64	64(%r11), %zmm1
+        vshufi64x2	$0x90, %zmm0, %zmm0, %zmm10
+        vinserti32x4	$0x00, %xmm8, %zmm10, %zmm10
+        vmovdqu64	48(%r11), %zmm11
+        vextracti32x4	$3, %zmm1, %xmm8
+        # aes_dec_block
+        vpxorq	%zmm14, %zmm0, %zmm0
+        vpxorq	%zmm14, %zmm1, %zmm1
+        vaesdec	%zmm15, %zmm0, %zmm0
+        vaesdec	%zmm15, %zmm1, %zmm1
+        vaesdec	%zmm16, %zmm0, %zmm0
+        vaesdec	%zmm16, %zmm1, %zmm1
+        vaesdec	%zmm17, %zmm0, %zmm0
+        vaesdec	%zmm17, %zmm1, %zmm1
+        vaesdec	%zmm18, %zmm0, %zmm0
+        vaesdec	%zmm18, %zmm1, %zmm1
+        vaesdec	%zmm19, %zmm0, %zmm0
+        vaesdec	%zmm19, %zmm1, %zmm1
+        vaesdec	%zmm20, %zmm0, %zmm0
+        vaesdec	%zmm20, %zmm1, %zmm1
+        vaesdec	%zmm21, %zmm0, %zmm0
+        vaesdec	%zmm21, %zmm1, %zmm1
+        vaesdec	%zmm22, %zmm0, %zmm0
+        vaesdec	%zmm22, %zmm1, %zmm1
+        vaesdec	%zmm23, %zmm0, %zmm0
+        vaesdec	%zmm23, %zmm1, %zmm1
+        cmpl	$11, %r9d
+        vmovdqa64	%zmm24, %zmm9
+        jl	L_AES_CBC_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	%zmm24, %zmm0, %zmm0
+        vaesdec	%zmm24, %zmm1, %zmm1
+        vaesdec	%zmm25, %zmm0, %zmm0
+        vaesdec	%zmm25, %zmm1, %zmm1
+        cmpl	$13, %r9d
+        vmovdqa64	%zmm26, %zmm9
+        jl	L_AES_CBC_decrypt_avx512_128_aes_dec_block_last
+        vaesdec	%zmm26, %zmm0, %zmm0
+        vaesdec	%zmm26, %zmm1, %zmm1
+        vaesdec	%zmm27, %zmm0, %zmm0
+        vaesdec	%zmm27, %zmm1, %zmm1
+        vmovdqa64	%zmm28, %zmm9
+L_AES_CBC_decrypt_avx512_128_aes_dec_block_last:
+        vaesdeclast	%zmm9, %zmm0, %zmm0
+        vaesdeclast	%zmm9, %zmm1, %zmm1
+        vpxorq	%zmm10, %zmm0, %zmm0
+        vpxorq	%zmm11, %zmm1, %zmm1
+        vmovdqu64	%zmm0, (%r12)
+        vmovdqu64	%zmm1, 64(%r12)
+        addl	$0x80, %eax
+L_AES_CBC_decrypt_avx512_done_128:
+        movl	%ecx, %r10d
         andl	$0xffffffc0, %r10d
         cmpl	%r10d, %eax
         je	L_AES_CBC_decrypt_avx512_done_64
@@ -3970,6 +4500,44 @@ L_AES_CBC_decrypt_avx512_64_aes_dec_block_last:
         cmpl	%r10d, %eax
         jl	L_AES_CBC_decrypt_avx512_dec_64
 L_AES_CBC_decrypt_avx512_done_64:
+        movl	%ecx, %r10d
+        subl	%eax, %r10d
+        cmpl	$32, %r10d
+        jl	L_AES_CBC_decrypt_avx512_done_32
+        # 32 bytes of input
+        leaq	(%rdi,%rax,1), %r11
+        vmovdqu	(%r11), %ymm0
+        vinserti128	$0x01, %xmm0, %ymm8, %ymm10
+        vextracti128	$0x01, %ymm0, %xmm8
+        # aes_dec_block
+        vpxorq	%ymm14, %ymm0, %ymm0
+        vaesdec	%ymm15, %ymm0, %ymm0
+        vaesdec	%ymm16, %ymm0, %ymm0
+        vaesdec	%ymm17, %ymm0, %ymm0
+        vaesdec	%ymm18, %ymm0, %ymm0
+        vaesdec	%ymm19, %ymm0, %ymm0
+        vaesdec	%ymm20, %ymm0, %ymm0
+        vaesdec	%ymm21, %ymm0, %ymm0
+        vaesdec	%ymm22, %ymm0, %ymm0
+        vaesdec	%ymm23, %ymm0, %ymm0
+        cmpl	$11, %r9d
+        vmovdqa64	%ymm24, %ymm9
+        jl	L_AES_CBC_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	%ymm24, %ymm0, %ymm0
+        vaesdec	%ymm25, %ymm0, %ymm0
+        cmpl	$13, %r9d
+        vmovdqa64	%ymm26, %ymm9
+        jl	L_AES_CBC_decrypt_avx512_32_aes_dec_block_last
+        vaesdec	%ymm26, %ymm0, %ymm0
+        vaesdec	%ymm27, %ymm0, %ymm0
+        vmovdqa64	%ymm28, %ymm9
+L_AES_CBC_decrypt_avx512_32_aes_dec_block_last:
+        vaesdeclast	%ymm9, %ymm0, %ymm0
+        vpxorq	%ymm10, %ymm0, %ymm0
+        leaq	(%rsi,%rax,1), %r11
+        vmovdqu	%ymm0, (%r11)
+        addl	$32, %eax
+L_AES_CBC_decrypt_avx512_done_32:
         cmpl	%ecx, %eax
         movl	%ecx, %r10d
         je	L_AES_CBC_decrypt_avx512_done_dec
@@ -4084,36 +4652,36 @@ _AES_CTR_encrypt_avx512:
         vbroadcasti32x4	L_aes_ctr_bswap_avx512(%rip), %zmm8
         vbroadcasti32x4	(%r9), %zmm7
         vpshufb	%zmm8, %zmm7, %zmm7
-        vbroadcasti32x4	256+L_aes_ctr_inc_avx512(%rip), %zmm10
-        vbroadcasti32x4	64+L_aes_ctr_inc_avx512(%rip), %zmm11
-        vbroadcasti32x4	16+L_aes_ctr_inc_avx512(%rip), %zmm12
+        vbroadcasti32x4	64+L_aes_ctr_inc_avx512(%rip), %zmm12
+        vbroadcasti32x4	16+L_aes_ctr_inc_avx512(%rip), %zmm13
         xorl	%eax, %eax
-        cmpl	$0x40, %edx
-        jl	L_AES_CTR_encrypt_avx512_done_64
-        vbroadcasti32x4	(%rcx), %zmm14
-        vbroadcasti32x4	16(%rcx), %zmm15
-        vbroadcasti32x4	32(%rcx), %zmm16
-        vbroadcasti32x4	48(%rcx), %zmm17
-        vbroadcasti32x4	64(%rcx), %zmm18
-        vbroadcasti32x4	80(%rcx), %zmm19
-        vbroadcasti32x4	96(%rcx), %zmm20
-        vbroadcasti32x4	112(%rcx), %zmm21
-        vbroadcasti32x4	128(%rcx), %zmm22
-        vbroadcasti32x4	144(%rcx), %zmm23
-        vbroadcasti32x4	160(%rcx), %zmm24
+        cmpl	$32, %edx
+        jl	L_AES_CTR_encrypt_avx512_done_32
+        vbroadcasti32x4	(%rcx), %zmm15
+        vbroadcasti32x4	16(%rcx), %zmm16
+        vbroadcasti32x4	32(%rcx), %zmm17
+        vbroadcasti32x4	48(%rcx), %zmm18
+        vbroadcasti32x4	64(%rcx), %zmm19
+        vbroadcasti32x4	80(%rcx), %zmm20
+        vbroadcasti32x4	96(%rcx), %zmm21
+        vbroadcasti32x4	112(%rcx), %zmm22
+        vbroadcasti32x4	128(%rcx), %zmm23
+        vbroadcasti32x4	144(%rcx), %zmm24
+        vbroadcasti32x4	160(%rcx), %zmm25
         cmpl	$11, %r8d
         jl	L_AES_CTR_encrypt_avx512_key_cached
-        vbroadcasti32x4	176(%rcx), %zmm25
-        vbroadcasti32x4	192(%rcx), %zmm26
+        vbroadcasti32x4	176(%rcx), %zmm26
+        vbroadcasti32x4	192(%rcx), %zmm27
         cmpl	$13, %r8d
         jl	L_AES_CTR_encrypt_avx512_key_cached
-        vbroadcasti32x4	208(%rcx), %zmm27
-        vbroadcasti32x4	224(%rcx), %zmm28
+        vbroadcasti32x4	208(%rcx), %zmm28
+        vbroadcasti32x4	224(%rcx), %zmm29
 L_AES_CTR_encrypt_avx512_key_cached:
         cmpl	$0x100, %edx
         movl	%edx, %r10d
         jl	L_AES_CTR_encrypt_avx512_done_256
         andl	$0xffffff00, %r10d
+        vbroadcasti32x4	256+L_aes_ctr_inc_avx512(%rip), %zmm10
         vmovdqa64	%zmm7, %zmm9
         vpaddq	0+L_aes_ctr_inc_avx512(%rip), %zmm7, %zmm4
         vpternlogq	$0xb2, 0+L_aes_ctr_inc_avx512(%rip), %zmm4, %zmm9
@@ -4171,14 +4739,10 @@ L_AES_CTR_encrypt_avx512_enc_256:
         vpslldq	$8, %zmm9, %zmm9
         vpaddq	%zmm9, %zmm7, %zmm7
         # aes_enc_block
-        vpxorq	%zmm14, %zmm0, %zmm0
-        vpxorq	%zmm14, %zmm1, %zmm1
-        vpxorq	%zmm14, %zmm2, %zmm2
-        vpxorq	%zmm14, %zmm3, %zmm3
-        vaesenc	%zmm15, %zmm0, %zmm0
-        vaesenc	%zmm15, %zmm1, %zmm1
-        vaesenc	%zmm15, %zmm2, %zmm2
-        vaesenc	%zmm15, %zmm3, %zmm3
+        vpxorq	%zmm15, %zmm0, %zmm0
+        vpxorq	%zmm15, %zmm1, %zmm1
+        vpxorq	%zmm15, %zmm2, %zmm2
+        vpxorq	%zmm15, %zmm3, %zmm3
         vaesenc	%zmm16, %zmm0, %zmm0
         vaesenc	%zmm16, %zmm1, %zmm1
         vaesenc	%zmm16, %zmm2, %zmm2
@@ -4211,34 +4775,38 @@ L_AES_CTR_encrypt_avx512_enc_256:
         vaesenc	%zmm23, %zmm1, %zmm1
         vaesenc	%zmm23, %zmm2, %zmm2
         vaesenc	%zmm23, %zmm3, %zmm3
-        cmpl	$11, %r8d
-        vmovdqa64	%zmm24, %zmm13
-        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	%zmm24, %zmm0, %zmm0
         vaesenc	%zmm24, %zmm1, %zmm1
         vaesenc	%zmm24, %zmm2, %zmm2
         vaesenc	%zmm24, %zmm3, %zmm3
+        cmpl	$11, %r8d
+        vmovdqa64	%zmm25, %zmm14
+        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	%zmm25, %zmm0, %zmm0
         vaesenc	%zmm25, %zmm1, %zmm1
         vaesenc	%zmm25, %zmm2, %zmm2
         vaesenc	%zmm25, %zmm3, %zmm3
-        cmpl	$13, %r8d
-        vmovdqa64	%zmm26, %zmm13
-        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	%zmm26, %zmm0, %zmm0
         vaesenc	%zmm26, %zmm1, %zmm1
         vaesenc	%zmm26, %zmm2, %zmm2
         vaesenc	%zmm26, %zmm3, %zmm3
+        cmpl	$13, %r8d
+        vmovdqa64	%zmm27, %zmm14
+        jl	L_AES_CTR_encrypt_avx512_256_aes_enc_block_last
         vaesenc	%zmm27, %zmm0, %zmm0
         vaesenc	%zmm27, %zmm1, %zmm1
         vaesenc	%zmm27, %zmm2, %zmm2
         vaesenc	%zmm27, %zmm3, %zmm3
-        vmovdqa64	%zmm28, %zmm13
+        vaesenc	%zmm28, %zmm0, %zmm0
+        vaesenc	%zmm28, %zmm1, %zmm1
+        vaesenc	%zmm28, %zmm2, %zmm2
+        vaesenc	%zmm28, %zmm3, %zmm3
+        vmovdqa64	%zmm29, %zmm14
 L_AES_CTR_encrypt_avx512_256_aes_enc_block_last:
-        vaesenclast	%zmm13, %zmm0, %zmm0
-        vaesenclast	%zmm13, %zmm1, %zmm1
-        vaesenclast	%zmm13, %zmm2, %zmm2
-        vaesenclast	%zmm13, %zmm3, %zmm3
+        vaesenclast	%zmm14, %zmm0, %zmm0
+        vaesenclast	%zmm14, %zmm1, %zmm1
+        vaesenclast	%zmm14, %zmm2, %zmm2
+        vaesenclast	%zmm14, %zmm3, %zmm3
         vpxorq	(%r11), %zmm0, %zmm0
         vpxorq	64(%r11), %zmm1, %zmm1
         vpxorq	128(%r11), %zmm2, %zmm2
@@ -4252,6 +4820,80 @@ L_AES_CTR_encrypt_avx512_256_aes_enc_block_last:
         jl	L_AES_CTR_encrypt_avx512_enc_256
         vshufi64x2	$0x00, %zmm4, %zmm4, %zmm7
 L_AES_CTR_encrypt_avx512_done_256:
+        movl	%edx, %r10d
+        subl	%eax, %r10d
+        cmpl	$0x80, %r10d
+        jl	L_AES_CTR_encrypt_avx512_done_128
+        # 128 bytes of input
+        vbroadcasti32x4	128+L_aes_ctr_inc_avx512(%rip), %zmm11
+        # aes_ctr_enc_128
+        leaq	(%rdi,%rax,1), %r11
+        leaq	(%rsi,%rax,1), %rbx
+        vpaddq	0+L_aes_ctr_inc_avx512(%rip), %zmm7, %zmm0
+        vmovdqa64	%zmm7, %zmm9
+        vpternlogq	$0xb2, 0+L_aes_ctr_inc_avx512(%rip), %zmm0, %zmm9
+        vpsrlq	$63, %zmm9, %zmm9
+        vpslldq	$8, %zmm9, %zmm9
+        vpaddq	%zmm9, %zmm0, %zmm0
+        vpshufb	%zmm8, %zmm0, %zmm0
+        vpaddq	64+L_aes_ctr_inc_avx512(%rip), %zmm7, %zmm1
+        vmovdqa64	%zmm7, %zmm9
+        vpternlogq	$0xb2, 64+L_aes_ctr_inc_avx512(%rip), %zmm1, %zmm9
+        vpsrlq	$63, %zmm9, %zmm9
+        vpslldq	$8, %zmm9, %zmm9
+        vpaddq	%zmm9, %zmm1, %zmm1
+        vpshufb	%zmm8, %zmm1, %zmm1
+        vmovdqa64	%zmm7, %zmm9
+        vpaddq	%zmm11, %zmm7, %zmm7
+        vpternlogq	$0xb2, %zmm11, %zmm7, %zmm9
+        vpsrlq	$63, %zmm9, %zmm9
+        vpslldq	$8, %zmm9, %zmm9
+        vpaddq	%zmm9, %zmm7, %zmm7
+        # aes_enc_block
+        vpxorq	%zmm15, %zmm0, %zmm0
+        vpxorq	%zmm15, %zmm1, %zmm1
+        vaesenc	%zmm16, %zmm0, %zmm0
+        vaesenc	%zmm16, %zmm1, %zmm1
+        vaesenc	%zmm17, %zmm0, %zmm0
+        vaesenc	%zmm17, %zmm1, %zmm1
+        vaesenc	%zmm18, %zmm0, %zmm0
+        vaesenc	%zmm18, %zmm1, %zmm1
+        vaesenc	%zmm19, %zmm0, %zmm0
+        vaesenc	%zmm19, %zmm1, %zmm1
+        vaesenc	%zmm20, %zmm0, %zmm0
+        vaesenc	%zmm20, %zmm1, %zmm1
+        vaesenc	%zmm21, %zmm0, %zmm0
+        vaesenc	%zmm21, %zmm1, %zmm1
+        vaesenc	%zmm22, %zmm0, %zmm0
+        vaesenc	%zmm22, %zmm1, %zmm1
+        vaesenc	%zmm23, %zmm0, %zmm0
+        vaesenc	%zmm23, %zmm1, %zmm1
+        vaesenc	%zmm24, %zmm0, %zmm0
+        vaesenc	%zmm24, %zmm1, %zmm1
+        cmpl	$11, %r8d
+        vmovdqa64	%zmm25, %zmm14
+        jl	L_AES_CTR_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	%zmm25, %zmm0, %zmm0
+        vaesenc	%zmm25, %zmm1, %zmm1
+        vaesenc	%zmm26, %zmm0, %zmm0
+        vaesenc	%zmm26, %zmm1, %zmm1
+        cmpl	$13, %r8d
+        vmovdqa64	%zmm27, %zmm14
+        jl	L_AES_CTR_encrypt_avx512_128_aes_enc_block_last
+        vaesenc	%zmm27, %zmm0, %zmm0
+        vaesenc	%zmm27, %zmm1, %zmm1
+        vaesenc	%zmm28, %zmm0, %zmm0
+        vaesenc	%zmm28, %zmm1, %zmm1
+        vmovdqa64	%zmm29, %zmm14
+L_AES_CTR_encrypt_avx512_128_aes_enc_block_last:
+        vaesenclast	%zmm14, %zmm0, %zmm0
+        vaesenclast	%zmm14, %zmm1, %zmm1
+        vpxorq	(%r11), %zmm0, %zmm0
+        vpxorq	64(%r11), %zmm1, %zmm1
+        vmovdqu64	%zmm0, (%rbx)
+        vmovdqu64	%zmm1, 64(%rbx)
+        addl	$0x80, %eax
+L_AES_CTR_encrypt_avx512_done_128:
         movl	%edx, %r10d
         andl	$0xffffffc0, %r10d
         cmpl	%r10d, %eax
@@ -4269,14 +4911,13 @@ L_AES_CTR_encrypt_avx512_enc_64:
         vpaddq	%zmm9, %zmm0, %zmm0
         vpshufb	%zmm8, %zmm0, %zmm0
         vmovdqa64	%zmm7, %zmm9
-        vpaddq	%zmm11, %zmm7, %zmm7
-        vpternlogq	$0xb2, %zmm11, %zmm7, %zmm9
+        vpaddq	%zmm12, %zmm7, %zmm7
+        vpternlogq	$0xb2, %zmm12, %zmm7, %zmm9
         vpsrlq	$63, %zmm9, %zmm9
         vpslldq	$8, %zmm9, %zmm9
         vpaddq	%zmm9, %zmm7, %zmm7
         # aes_enc_block
-        vpxorq	%zmm14, %zmm0, %zmm0
-        vaesenc	%zmm15, %zmm0, %zmm0
+        vpxorq	%zmm15, %zmm0, %zmm0
         vaesenc	%zmm16, %zmm0, %zmm0
         vaesenc	%zmm17, %zmm0, %zmm0
         vaesenc	%zmm18, %zmm0, %zmm0
@@ -4285,25 +4926,75 @@ L_AES_CTR_encrypt_avx512_enc_64:
         vaesenc	%zmm21, %zmm0, %zmm0
         vaesenc	%zmm22, %zmm0, %zmm0
         vaesenc	%zmm23, %zmm0, %zmm0
-        cmpl	$11, %r8d
-        vmovdqa64	%zmm24, %zmm13
-        jl	L_AES_CTR_encrypt_avx512_64_aes_enc_block_last
         vaesenc	%zmm24, %zmm0, %zmm0
-        vaesenc	%zmm25, %zmm0, %zmm0
-        cmpl	$13, %r8d
-        vmovdqa64	%zmm26, %zmm13
+        cmpl	$11, %r8d
+        vmovdqa64	%zmm25, %zmm14
         jl	L_AES_CTR_encrypt_avx512_64_aes_enc_block_last
+        vaesenc	%zmm25, %zmm0, %zmm0
         vaesenc	%zmm26, %zmm0, %zmm0
+        cmpl	$13, %r8d
+        vmovdqa64	%zmm27, %zmm14
+        jl	L_AES_CTR_encrypt_avx512_64_aes_enc_block_last
         vaesenc	%zmm27, %zmm0, %zmm0
-        vmovdqa64	%zmm28, %zmm13
+        vaesenc	%zmm28, %zmm0, %zmm0
+        vmovdqa64	%zmm29, %zmm14
 L_AES_CTR_encrypt_avx512_64_aes_enc_block_last:
-        vaesenclast	%zmm13, %zmm0, %zmm0
+        vaesenclast	%zmm14, %zmm0, %zmm0
         vpxorq	(%r11), %zmm0, %zmm0
         vmovdqu64	%zmm0, (%rbx)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
         jl	L_AES_CTR_encrypt_avx512_enc_64
 L_AES_CTR_encrypt_avx512_done_64:
+        movl	%edx, %r10d
+        subl	%eax, %r10d
+        cmpl	$32, %r10d
+        jl	L_AES_CTR_encrypt_avx512_done_32
+        # 32 bytes of input
+        vbroadcasti32x4	32+L_aes_ctr_inc_avx512(%rip), %zmm4
+        vpaddq	0+L_aes_ctr_inc_avx512(%rip), %ymm7, %ymm0
+        vmovdqa64	%ymm7, %ymm9
+        vpternlogq	$0xb2, 0+L_aes_ctr_inc_avx512(%rip), %ymm0, %ymm9
+        vpsrlq	$63, %ymm9, %ymm9
+        vpslldq	$8, %ymm9, %ymm9
+        vpaddq	%ymm9, %ymm0, %ymm0
+        vpshufb	%ymm8, %ymm0, %ymm0
+        vmovdqa64	%zmm7, %zmm9
+        vpaddq	%zmm4, %zmm7, %zmm7
+        vpternlogq	$0xb2, %zmm4, %zmm7, %zmm9
+        vpsrlq	$63, %zmm9, %zmm9
+        vpslldq	$8, %zmm9, %zmm9
+        vpaddq	%zmm9, %zmm7, %zmm7
+        # aes_enc_block
+        vpxorq	%ymm15, %ymm0, %ymm0
+        vaesenc	%ymm16, %ymm0, %ymm0
+        vaesenc	%ymm17, %ymm0, %ymm0
+        vaesenc	%ymm18, %ymm0, %ymm0
+        vaesenc	%ymm19, %ymm0, %ymm0
+        vaesenc	%ymm20, %ymm0, %ymm0
+        vaesenc	%ymm21, %ymm0, %ymm0
+        vaesenc	%ymm22, %ymm0, %ymm0
+        vaesenc	%ymm23, %ymm0, %ymm0
+        vaesenc	%ymm24, %ymm0, %ymm0
+        cmpl	$11, %r8d
+        vmovdqa64	%ymm25, %ymm14
+        jl	L_AES_CTR_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	%ymm25, %ymm0, %ymm0
+        vaesenc	%ymm26, %ymm0, %ymm0
+        cmpl	$13, %r8d
+        vmovdqa64	%ymm27, %ymm14
+        jl	L_AES_CTR_encrypt_avx512_32_aes_enc_block_last
+        vaesenc	%ymm27, %ymm0, %ymm0
+        vaesenc	%ymm28, %ymm0, %ymm0
+        vmovdqa64	%ymm29, %ymm14
+L_AES_CTR_encrypt_avx512_32_aes_enc_block_last:
+        vaesenclast	%ymm14, %ymm0, %ymm0
+        leaq	(%rdi,%rax,1), %r11
+        vpxorq	(%r11), %ymm0, %ymm0
+        leaq	(%rsi,%rax,1), %r11
+        vmovdqu	%ymm0, (%r11)
+        addl	$32, %eax
+L_AES_CTR_encrypt_avx512_done_32:
         cmpl	%edx, %eax
         movl	%edx, %r10d
         je	L_AES_CTR_encrypt_avx512_done_enc
@@ -4312,8 +5003,8 @@ L_AES_CTR_encrypt_avx512_enc_16:
         # 16 bytes of input
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqa64	%zmm7, %zmm9
-        vpaddq	%zmm12, %zmm7, %zmm7
-        vpternlogq	$0xb2, %zmm12, %zmm7, %zmm9
+        vpaddq	%zmm13, %zmm7, %zmm7
+        vpternlogq	$0xb2, %zmm13, %zmm7, %zmm9
         vpsrlq	$63, %zmm9, %zmm9
         vpslldq	$8, %zmm9, %zmm9
         vpaddq	%zmm9, %zmm7, %zmm7
