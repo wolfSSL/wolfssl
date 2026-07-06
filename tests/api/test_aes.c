@@ -48,6 +48,16 @@
 #include <tests/api/test_aes.h>
 #include <tests/utils.h>
 
+/* Several tests corrupt aes.rounds (or cmac.aes.rounds) to force the in-process
+ * software AES to fail with KEYUSAGE_E. That is only observable when the
+ * software AES actually runs and validates rounds. It does NOT when the op is
+ * offloaded to a crypto callback: WOLF_CRYPTO_CB_FIND routes even INVALID_DEVID
+ * to the callback, and WOLF_CRYPTO_CB_ONLY_AES strips the software AES entirely
+ * (both make the corrupted struct irrelevant, so the op returns success). */
+#if defined(WOLF_CRYPTO_CB_FIND) || defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #define WC_TEST_AES_ROUNDS_OFFLOADED
+#endif
+
 #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS_VERSION) && \
     (HAVE_FIPS_VERSION <= 2))
     #define GCM_NONCE_MAX_SZ    16
@@ -8370,7 +8380,8 @@ int test_wc_AesFeatureCoverage(void)
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
     /* ---- AES-GCM streaming API: multi-chunk AAD and data ---- */
-#ifdef WOLFSSL_AESGCM_STREAM
+    /* Uses a hardcoded 256-bit key, so requires AES-256. */
+#if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_AES_256)
     {
         static const byte key[32] = {
             0xfe,0xff,0xe9,0x92,0x86,0x65,0x73,0x1c,
@@ -8543,7 +8554,8 @@ int test_wc_AesFeatureCoverage(void)
     }
 #endif /* !NO_AES && HAVE_AESCCM */
 
-#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && \
+/* kwKey below is a 192-bit key, so this block requires AES-192. */
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_192) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     /* ---- AES-KeyWrap with explicit non-default IV ---- */
     {
@@ -8621,6 +8633,8 @@ int test_wc_AesSetKeyArgMcdc(void)
     /* Baseline: valid rounds (AES-128 -> 10 rounds, r = rounds>>1 = 5). */
     ExpectIntEQ(wc_AesEncryptDirect(&aes, out, in), 0);
 
+    /* rounds-check only observable when the software AES runs (see note). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
     /* r > 7 independently drives KEYUSAGE_E. */
     aes.rounds = 17; /* r = 8 */
     ExpectIntEQ(wc_AesEncryptDirect(&aes, out, in),
@@ -8630,12 +8644,14 @@ int test_wc_AesSetKeyArgMcdc(void)
     aes.rounds = 0; /* r = 0 */
     ExpectIntEQ(wc_AesEncryptDirect(&aes, out, in),
         WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
 
 #if defined(HAVE_AES_DECRYPT)
     ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_DECRYPTION),
         0);
     ExpectIntEQ(wc_AesDecryptDirect(&aes, out, in), 0);
 
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
     aes.rounds = 17; /* r = 8, r > 7 */
     ExpectIntEQ(wc_AesDecryptDirect(&aes, out, in),
         WC_NO_ERR_TRACE(KEYUSAGE_E));
@@ -8643,6 +8659,7 @@ int test_wc_AesSetKeyArgMcdc(void)
     aes.rounds = 0; /* r = 0 */
     ExpectIntEQ(wc_AesDecryptDirect(&aes, out, in),
         WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
 #endif /* HAVE_AES_DECRYPT */
 
     wc_AesFree(&aes);
@@ -8705,10 +8722,10 @@ int test_wc_AesModesArgMcdc(void)
          * "(ret == 0) && sz" leftover-handling call, which goes through
          * wc_AesEncrypt() and fails on the corrupted rounds in every backend. */
         /* Corrupting aes.rounds only fails the in-process software op. Under
-         * WOLF_CRYPTO_CB_FIND the op is offloaded to the registered crypto
+         * a crypto callback the op is offloaded to (see note at top of file),
          * callback (even for INVALID_DEVID), which ignores the corrupted struct
          * and succeeds, so skip this internal-failure check there. */
-#ifndef WOLF_CRYPTO_CB_FIND
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, WC_AES_BLOCK_SIZE + 4),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
@@ -8738,13 +8755,13 @@ int test_wc_AesModesArgMcdc(void)
 #ifdef WOLFSSL_AESNI
         aes.use_aesni = 0;
 #endif
-        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
-#ifndef WOLF_CRYPTO_CB_FIND
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCtrEncrypt(&aes, buf, buf, sizeof(buf)),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
 #endif
-        (void)buf; /* only referenced by the WOLF_CRYPTO_CB_FIND-guarded check */
+        (void)buf; /* only referenced by the offload-guarded check */
 
         wc_AesFree(&aes);
     }
@@ -8759,8 +8776,8 @@ int test_wc_AesModesArgMcdc(void)
             AES_ENCRYPTION), 0);
 
         ExpectIntEQ(wc_AesCfbEncrypt(&aes, out, in, 5), 0);
-        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
-#ifndef WOLF_CRYPTO_CB_FIND
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCfbEncrypt(&aes, out, in, 32),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
@@ -8777,8 +8794,8 @@ int test_wc_AesModesArgMcdc(void)
             AES_ENCRYPTION), 0);
 
         ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 5), 0);
-        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
-#ifndef WOLF_CRYPTO_CB_FIND
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 32),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
@@ -8849,8 +8866,8 @@ int test_wc_AesModesArgMcdc(void)
             AES_ENCRYPTION), 0);
 
         ExpectIntEQ(wc_AesOfbEncrypt(&aes, out, in, 5), 0);
-        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
-#ifndef WOLF_CRYPTO_CB_FIND
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         aes.rounds = 0;
         ExpectIntEQ(wc_AesOfbEncrypt(&aes, out, in, 32),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
@@ -9507,8 +9524,8 @@ int test_wc_AesCcmArgMcdc(void)
         XMEMSET(&aes, 0, sizeof(aes));
         ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
-        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
-#ifndef WOLF_CRYPTO_CB_FIND
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCcmEncrypt(&aes, bigOut, bigIn, sizeof(bigIn),
             nonce13, sizeof(nonce13), bigTag, sizeof(bigTag), aad,
@@ -9579,8 +9596,8 @@ int test_wc_AesCcmArgMcdc(void)
 #ifdef WOLFSSL_AESNI
         aes.use_aesni = 0;
 #endif
-        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
-#ifndef WOLF_CRYPTO_CB_FIND
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCcmDecrypt(&aes, bigOut, bigIn, sizeof(bigIn),
             nonce13, sizeof(nonce13), bigTag, sizeof(bigTag), aad,
@@ -9775,9 +9792,9 @@ int test_wc_AesCmacArgMcdc(void)
         ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL),
             0);
         ExpectIntEQ(wc_CmacUpdate(&cmac, block1, sizeof(block1)), 0);
-        /* wc_CmacUpdate is offloaded under WOLF_CRYPTO_CB_FIND (see note
+        /* wc_CmacUpdate is offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note
          * above), bypassing the corrupted cmac.aes.rounds. */
-#ifndef WOLF_CRYPTO_CB_FIND
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
         cmac.aes.rounds = 0;
         ExpectIntEQ(wc_CmacUpdate(&cmac, block2, sizeof(block2)),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
