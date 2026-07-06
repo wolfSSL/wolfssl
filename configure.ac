@@ -1837,86 +1837,88 @@ AC_ARG_WITH([liboqs],
 # section below). Because the algorithm is not yet standardized and its API name
 # is subject to change, it requires --enable-experimental (checked in the CFLAG
 # section, once all backend sub-options have been resolved).
+#
+# fpr/FFT backend selection follows the common wolfSSL comma-list idiom as
+# sub-options of --enable-falcon (e.g. --enable-falcon=asm, --enable-falcon=avx2)
+# rather than standalone --enable-falcon-* switches. Recognised sub-options:
+#   asm    - per-architecture assembly fpr backend (x86-64 SSE2 only); the
+#            portable constant-time integer emulation remains the default.
+#   double - inline native-double fpr backend: the fpr ops become static-inline
+#            C double operations, so the FFT/sampler inline them and keep values
+#            in FP registers (no per-op call). Fastest backend on any platform
+#            with a constant-time hardware double FPU (signing ~2.5x faster than
+#            the out-of-line asm backend, ~16x faster than the portable
+#            emulation), but like asm it relies on the native FPU's rounding
+#            behavior. Mutually exclusive with asm.
+#   avx2   - AVX2 (4-wide __m256d + FMA) vectorized FFT for the signing path
+#            (x86-64); implies double. The AVX2 functions carry target("avx2,fma")
+#            attributes, so the TU builds under a baseline -march, but the host
+#            must support AVX2+FMA at run time. Signing is sampler-bound, so this
+#            is a modest (~1.1x) end-to-end speedup.
+#   neon   - AArch64 NEON (2-wide float64x2_t + FMA) vectorized FFT; implies
+#            double. Advanced SIMD is part of the ARMv8-A baseline, so no special
+#            -march is required.
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental) (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list of fpr/FFT backends: asm, double, avx2, neon (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
-# --enable-falcon-asm selects the per-architecture assembly fpr backend for
-# Falcon (currently x86-64 SSE2 only); the portable constant-time integer
-# emulation remains the default. It implies --enable-falcon.
-AC_ARG_ENABLE([falcon-asm],
-    [AS_HELP_STRING([--enable-falcon-asm],[Enable Falcon x86-64 assembly fpr backend (default: disabled)])],
-    [ ENABLED_FALCON_ASM=$enableval ],
-    [ ENABLED_FALCON_ASM=no ])
-if test "$ENABLED_FALCON_ASM" = "yes"; then
-    case $host_cpu in
-        *x86_64*|*amd64*) ENABLED_FALCON=yes ;;
-        *) AC_MSG_WARN([--enable-falcon-asm is only supported on x86-64; ignoring.])
-           ENABLED_FALCON_ASM=no ;;
-    esac
-fi
+ENABLED_FALCON_ASM=no
+ENABLED_FALCON_DOUBLE=no
+ENABLED_FALCON_AVX2=no
+ENABLED_FALCON_NEON=no
 
-# --enable-falcon-double selects the inline native-double fpr backend: the fpr
-# ops become static-inline C double operations, so the FFT/sampler inline them
-# and keep values in FP registers (no per-op call). This is the fastest backend
-# on any platform with a constant-time hardware double FPU (signing ~2.5x faster
-# than the out-of-line asm backend, ~16x faster than the portable emulation),
-# but like --enable-falcon-asm it relies on the native FPU's rounding behavior.
-# It implies --enable-falcon and is mutually exclusive with --enable-falcon-asm.
-AC_ARG_ENABLE([falcon-double],
-    [AS_HELP_STRING([--enable-falcon-double],[Enable Falcon inline native-double fpr backend (default: disabled)])],
-    [ ENABLED_FALCON_DOUBLE=$enableval ],
-    [ ENABLED_FALCON_DOUBLE=no ])
-if test "$ENABLED_FALCON_DOUBLE" = "yes"; then
-    if test "$ENABLED_FALCON_ASM" = "yes"; then
-        AC_MSG_ERROR([--enable-falcon-double and --enable-falcon-asm are mutually exclusive.])
-    fi
+# Parse the comma-separated backend sub-options. AC_ARG_ENABLE yields the plain
+# "yes"/"no" for a bare --enable-falcon/--disable-falcon; anything else is a
+# backend list. The double implication of avx2/neon is applied after arch-gating
+# so ignoring an unsupported vector backend does not clobber an explicit 'double'.
+if test "$ENABLED_FALCON" != "no" && test "$ENABLED_FALCON" != "yes"; then
+    OIFS="$IFS"
+    IFS=','
+    for opt in $ENABLED_FALCON; do
+        case "$opt" in
+            yes) ;;
+            asm)    ENABLED_FALCON_ASM=yes ;;
+            double) ENABLED_FALCON_DOUBLE=yes ;;
+            avx2)   ENABLED_FALCON_AVX2=yes ;;
+            neon)   ENABLED_FALCON_NEON=yes ;;
+            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon]) ;;
+        esac
+    done
+    IFS="$OIFS"
     ENABLED_FALCON=yes
 fi
 
-# --enable-falcon-avx2 adds the AVX2 (4-wide __m256d + FMA) vectorized FFT and
-# FFT-domain polynomial operations for the signing path (x86-64). It composes
-# with --enable-falcon-double (which it implies). The AVX2 functions carry
-# target("avx2,fma") attributes, so the TU builds under a baseline -march; the
-# host must support AVX2+FMA at run time. Signing is sampler-bound, so the FFT
-# vectorization yields a modest (~1.1x) end-to-end speedup.
-AC_ARG_ENABLE([falcon-avx2],
-    [AS_HELP_STRING([--enable-falcon-avx2],[Enable Falcon x86-64 AVX2 vectorized FFT (default: disabled)])],
-    [ ENABLED_FALCON_AVX2=$enableval ],
-    [ ENABLED_FALCON_AVX2=no ])
+# Resolve backend arch-gating: asm and avx2 are x86-64 only; neon is AArch64
+# only. An unsupported backend is warned and ignored.
+if test "$ENABLED_FALCON_ASM" = "yes"; then
+    case $host_cpu in
+        *x86_64*|*amd64*) ;;
+        *) AC_MSG_WARN([falcon 'asm' backend is only supported on x86-64; ignoring.])
+           ENABLED_FALCON_ASM=no ;;
+    esac
+fi
 if test "$ENABLED_FALCON_AVX2" = "yes"; then
     case $host_cpu in
-        *x86_64*|*amd64*)
-            if test "$ENABLED_FALCON_ASM" = "yes"; then
-                AC_MSG_ERROR([--enable-falcon-avx2 and --enable-falcon-asm are mutually exclusive.])
-            fi
-            ENABLED_FALCON=yes
-            ENABLED_FALCON_DOUBLE=yes ;;
-        *) AC_MSG_WARN([--enable-falcon-avx2 is only supported on x86-64; ignoring.])
+        *x86_64*|*amd64*) ;;
+        *) AC_MSG_WARN([falcon 'avx2' backend is only supported on x86-64; ignoring.])
            ENABLED_FALCON_AVX2=no ;;
     esac
 fi
-
-# --enable-falcon-neon adds the AArch64 NEON (2-wide float64x2_t + FMA) vectorized
-# FFT for the signing path. It composes with --enable-falcon-double (which it
-# implies). AArch64 Advanced SIMD is part of the ARMv8-A baseline, so no special
-# -march is required.
-AC_ARG_ENABLE([falcon-neon],
-    [AS_HELP_STRING([--enable-falcon-neon],[Enable Falcon AArch64 NEON vectorized FFT (default: disabled)])],
-    [ ENABLED_FALCON_NEON=$enableval ],
-    [ ENABLED_FALCON_NEON=no ])
 if test "$ENABLED_FALCON_NEON" = "yes"; then
     case $host_cpu in
-        *aarch64*|*arm64*)
-            if test "$ENABLED_FALCON_ASM" = "yes"; then
-                AC_MSG_ERROR([--enable-falcon-neon and --enable-falcon-asm are mutually exclusive.])
-            fi
-            ENABLED_FALCON=yes
-            ENABLED_FALCON_DOUBLE=yes ;;
-        *) AC_MSG_WARN([--enable-falcon-neon is only supported on AArch64; ignoring.])
+        *aarch64*|*arm64*) ;;
+        *) AC_MSG_WARN([falcon 'neon' backend is only supported on AArch64; ignoring.])
            ENABLED_FALCON_NEON=no ;;
     esac
+fi
+# avx2/neon vectorized FFT requires the inline native-double fpr backend.
+if test "$ENABLED_FALCON_AVX2" = "yes" || test "$ENABLED_FALCON_NEON" = "yes"; then
+    ENABLED_FALCON_DOUBLE=yes
+fi
+# asm and the double-based backends select different fpr representations.
+if test "$ENABLED_FALCON_DOUBLE" = "yes" && test "$ENABLED_FALCON_ASM" = "yes"; then
+    AC_MSG_ERROR([falcon 'double' (also implied by 'avx2'/'neon') and 'asm' backends are mutually exclusive.])
 fi
 
 
@@ -13529,7 +13531,7 @@ echo "   * XMSS:                       $ENABLED_XMSS"
 echo "   * SLH-DSA                     $ENABLED_SLHDSA"
 echo "   * MLKEM:                      $ENABLED_MLKEM"
 echo "   * ML-DSA:                     $ENABLED_MLDSA"
-echo "   * Falcon:     $ENABLED_FALCON"
+echo "   * Falcon:                     $ENABLED_FALCON"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"
@@ -13587,7 +13589,7 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
-echo "   * Falcon:     $ENABLED_FALCON"
+echo "   * Falcon:                     $ENABLED_FALCON"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"

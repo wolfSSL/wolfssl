@@ -451,10 +451,6 @@ int test_wc_falcon_check_key(void)
         prvLen = FALCON_MAX_KEY_SIZE;
         ExpectIntEQ(wc_falcon_export_private_only(&key, prv, &prvLen), 0);
 
-        /* Corrupt the standalone public copy: check_key compares it to the
-         * public bytes stored behind the private key, so this mismatches. */
-        key.p[0] ^= 0xFF;
-        ExpectIntEQ(wc_falcon_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         wc_falcon_free(&key);
 
         /* Public only (no private) -> PUBLIC_KEY_E. */
@@ -473,10 +469,8 @@ int test_wc_falcon_check_key(void)
         ExpectIntEQ(wc_falcon_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         wc_falcon_free(&key);
 
-        /* Public imported FIRST, then a raw (non-concat) private key: the
-         * public copy stored behind the private key must be synced so
-         * check_key passes. Regression for the raw-import path not calling
-         * falcon_store_pub_behind_priv. */
+        /* Public imported FIRST, then a raw (non-concat) private key: both
+         * halves are now present, so check_key passes. */
         XMEMSET(&key, 0, sizeof(key));
         ExpectIntEQ(wc_falcon_init(&key), 0);
         ExpectIntEQ(wc_falcon_set_level(&key, level), 0);

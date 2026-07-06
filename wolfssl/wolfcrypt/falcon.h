@@ -125,7 +125,10 @@ struct falcon_key {
 #endif
 
     byte p[FALCON_MAX_PUB_KEY_SIZE];
-    byte k[FALCON_MAX_PRV_KEY_SIZE];
+    /* Private key only: the secret polynomials (header | f | g | F). The public
+     * key is held separately in p[]; the concat(priv,pub) layout is rebuilt on
+     * demand by wc_falcon_export_private, so no duplicate copy is kept here. */
+    byte k[FALCON_MAX_KEY_SIZE];
 };
 
 #ifndef WC_FALCONKEY_TYPE_DEFINED

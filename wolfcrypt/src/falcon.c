@@ -39,26 +39,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-/* Store a second copy of the public key in key->k immediately after the private
- * key, reproducing the historical concat(private,public) layout that
- * wc_falcon_check_key compares against. No-op unless both halves are set.
- * Defined unconditionally: wc_falcon_import_public (a verify-only operation)
- * calls it. */
-static void falcon_store_pub_behind_priv(falcon_key* key)
-{
-    if (!key->pubKeySet || !key->prvKeySet) {
-        return;
-    }
-    if (key->level == 1) {
-        XMEMCPY(key->k + FALCON_LEVEL1_KEY_SIZE, key->p,
-                FALCON_LEVEL1_PUB_KEY_SIZE);
-    }
-    else if (key->level == 5) {
-        XMEMCPY(key->k + FALCON_LEVEL5_KEY_SIZE, key->p,
-                FALCON_LEVEL5_PUB_KEY_SIZE);
-    }
-}
-
 #ifndef WOLFSSL_FALCON_VERIFY_ONLY
 /* Generate a new Falcon key pair into key (key->level must be set first).
  *
@@ -97,9 +77,6 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
     ret = NO_VALID_DEVID;
 #else
     ret = falcon_native_make_key(key, rng);
-    if (ret == 0) {
-        falcon_store_pub_behind_priv(key);
-    }
 #endif
     return ret;
 }
@@ -448,8 +425,6 @@ int wc_falcon_import_public(const byte* in, word32 inLen,
 
     XMEMCPY(key->p, in, inLen);
     key->pubKeySet = 1;
-    /* Keep the concat(private,public) copy in sync if a private key is loaded. */
-    falcon_store_pub_behind_priv(key);
 
     return 0;
 }
@@ -504,13 +479,6 @@ int wc_falcon_import_private_only(const byte* priv, word32 privSz,
         XMEMCPY(key->p, priv + keySz, concatSz - keySz);
         key->pubKeySet = 1;
     }
-
-    /* Sync the public copy kept behind the private key whenever both halves are
-     * present. This also covers the raw-size case where a public key was
-     * imported first: without it key->k + KEY_SIZE would stay zero and
-     * wc_falcon_check_key would wrongly return PUBLIC_KEY_E. No-op when no
-     * public key is set. */
-    falcon_store_pub_behind_priv(key);
 
     return 0;
 }
@@ -671,18 +639,23 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
     return ret;
 }
 
-/* Check the public key of the falcon key matches the private key.
+/* Check that the falcon key has a matching private/public key pair present.
  *
  * key     [in]      Falcon private/public key.
- * returns BAD_FUNC_ARG when key is NULL,
- *         PUBLIC_KEY_E when the public key is not set or doesn't match,
- *         other -ve value on hash failure,
+ * returns BAD_FUNC_ARG when key is NULL or the level is unset,
+ *         PUBLIC_KEY_E when either the public or private half is not set,
  *         0 otherwise.
+ *
+ * Note: this verifies both halves of the pair are loaded. It does not yet
+ * perform a full cryptographic cross-check (recomputing the public key h from
+ * the private (f, g) and comparing it against the stored public key); that is a
+ * TODO once a standalone public-key-from-private helper is exposed by the native
+ * core. The previous implementation compared the stored public key against a
+ * duplicate copy kept behind the private key, which was always a copy of the
+ * same bytes and so could never detect a mismatch.
  */
 int wc_falcon_check_key(falcon_key* key)
 {
-    int ret = 0;
-
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -695,22 +668,7 @@ int wc_falcon_check_key(falcon_key* key)
         return PUBLIC_KEY_E;
     }
 
-    /* The public key is also decoded and stored within the private key buffer
-     * behind the private key. Hence, we can compare both stored public keys. */
-    if (key->level == 1) {
-        ret = XMEMCMP(key->p, key->k + FALCON_LEVEL1_KEY_SIZE,
-                      FALCON_LEVEL1_PUB_KEY_SIZE);
-    }
-    else if (key->level == 5) {
-        ret = XMEMCMP(key->p, key->k + FALCON_LEVEL5_KEY_SIZE,
-                      FALCON_LEVEL5_PUB_KEY_SIZE);
-    }
-
-    if (ret != 0) {
-        ret = PUBLIC_KEY_E;
-    }
-
-    return ret;
+    return 0;
 }
 
 /* Returns the size of a falcon private key.

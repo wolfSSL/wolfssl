@@ -33,4 +33,4 @@ grep -E 'fmla\s+v[0-9]+\.2d' IDE/qemu-falcon-neon/app-falcon-neon.dis
 ```
 
 In a wolfSSL library build, the NEON FFT is enabled with
-`--enable-falcon-neon` (AArch64; implies `--enable-falcon-double`).
+`--enable-falcon=neon` (AArch64; implies the `double` fpr backend).
