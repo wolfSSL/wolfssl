@@ -1480,9 +1480,11 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_basic_constraints);
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
     critical = -1;
-    ExpectNotNull(ext2 = X509_get_ext_d2i(x509, NID_basic_constraints,
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_basic_constraints,
         &critical, NULL));
     ExpectIntNE(critical, -1);
+    /* X509_get_ext_d2i() returns a newly-allocated object; free before reuse. */
+    wolfSSL_BASIC_CONSTRAINTS_free((WOLFSSL_BASIC_CONSTRAINTS*)ext2);
     ext2 = NULL;
     ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_basic_constraints, 1, bc));
     X509_EXTENSION_free(ext2);
@@ -1501,9 +1503,13 @@ int test_wolfSSL_X509V3_EXT(void)
 
     ExpectNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
     critical = -1;
-    ExpectNotNull(ext2 = X509_get_ext_d2i(x509, NID_subject_key_identifier,
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_subject_key_identifier,
         &critical, NULL));
     ExpectIntNE(critical, -1);
+    /* get_ext_d2i(subject_key_identifier) wraps the value in a
+     * STACK_OF(ASN1_OBJECT) (see wolfSSL_X509_get_ext_d2i). */
+    wolfSSL_sk_ASN1_OBJECT_pop_free((WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*)ext2,
+        NULL);
     ext2 = NULL;
     ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_subject_key_identifier, 0,
         asn1str));
@@ -1531,9 +1537,10 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectNotNull(aKeyId = (WOLFSSL_AUTHORITY_KEYID*)wolfSSL_X509V3_EXT_d2i(
         ext));
     critical = -1;
-    ExpectNotNull(ext2 = X509_get_ext_d2i(x509, NID_authority_key_identifier,
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_authority_key_identifier,
         &critical, NULL));
     ExpectIntNE(critical, -1);
+    wolfSSL_AUTHORITY_KEYID_free((WOLFSSL_AUTHORITY_KEYID*)ext2);
     ext2 = NULL;
     ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_authority_key_identifier,
         0, aKeyId));
@@ -1562,9 +1569,10 @@ int test_wolfSSL_X509V3_EXT(void)
 
     ExpectNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
     critical = -1;
-    ExpectNotNull(ext2 = X509_get_ext_d2i(x509, NID_key_usage, &critical,
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_key_usage, &critical,
         NULL));
     ExpectIntNE(critical, -1);
+    wolfSSL_ASN1_STRING_free((WOLFSSL_ASN1_STRING*)ext2);
     ext2 = NULL;
     ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_key_usage, 0, asn1str));
     X509_EXTENSION_free(ext2);
@@ -1596,9 +1604,11 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS*)wolfSSL_X509V3_EXT_d2i(
         ext));
     critical = -1;
-    ExpectNotNull(ext2 = X509_get_ext_d2i(x509, NID_info_access, &critical,
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_info_access, &critical,
         NULL));
     ExpectIntNE(critical, -1);
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(
+        (WOLFSSL_AUTHORITY_INFO_ACCESS*)ext2, NULL);
     ext2 = NULL;
 #if defined(WOLFSSL_QT)
     ExpectIntEQ(OPENSSL_sk_num(aia), 1); /* Only one URI entry for this cert */

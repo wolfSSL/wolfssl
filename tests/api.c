@@ -4789,7 +4789,8 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
 #endif
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+/* wolfSSL[_CTX]_UseOCSPStapling (CSR) is a client-side API. */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_CLIENT)
     ExpectIntEQ(wolfSSL_UseOCSPStapling(NULL, WOLFSSL_CSR_OCSP, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_WOLFSSL_SERVER
@@ -4808,7 +4809,8 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
 #endif
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+/* wolfSSL[_CTX]_UseOCSPStaplingV2 (CSR2) is a client-side API. */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_WOLFSSL_CLIENT)
     ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(NULL, WOLFSSL_CSR2_OCSP, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_WOLFSSL_SERVER
