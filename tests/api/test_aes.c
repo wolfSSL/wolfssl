@@ -8690,13 +8690,16 @@ int test_wc_AesModesArgMcdc(void)
          * decision true, leftover is processed. */
         ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 5), 0);
 
-        /* Corrupted rounds + sz >= block size: on this platform the full
-         * blocks are consumed by the AES-NI batch path (which does not
-         * consult wc_AesEncrypt()'s rounds check), so this still lands on
-         * the "ret == 0 && sz != 0" (true) leftover-handling call, which
-         * itself then fails via the corrupted rounds. */
+        /* Corrupted rounds + a NON-block-multiple size: the full blocks may be
+         * consumed by a batch path that does not surface wc_AesEncrypt()'s
+         * rounds check - the AES-NI batch, or the HAVE_AES_ECB fast path taken
+         * when in != out, which ignores wc_AesEcbEncrypt()'s return. With an
+         * exact block multiple that path leaves no leftover and can return 0.
+         * Leaving a partial trailing block (WC_AES_BLOCK_SIZE + 4) forces the
+         * "(ret == 0) && sz" leftover-handling call, which goes through
+         * wc_AesEncrypt() and fails on the corrupted rounds in every backend. */
         aes.rounds = 0;
-        ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 32),
+        ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, WC_AES_BLOCK_SIZE + 4),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
 
         wc_AesFree(&aes);
