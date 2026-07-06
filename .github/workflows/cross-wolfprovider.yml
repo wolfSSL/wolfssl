@@ -1,0 +1,29 @@
+name: wolfProvider cross-library
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  cross-library:
+    uses: ./.github/workflows/cross-library.yml
+    with:
+      product: wolfprovider
+      repo: wolfSSL/wolfProvider
+      # wolfProvider's documented wolfSSL build (see its scripts/utils-wolfssl.sh).
+      wolfssl_configure: >-
+        --enable-all-crypto --with-eccminsz=192 --with-max-ecc-bits=1024
+        --enable-opensslcoexist --enable-sha
+        CFLAGS="-DWC_RSA_NO_PADDING -DWOLFSSL_PUBLIC_MP -DHAVE_PUBLIC_FFDHE -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192 -DWOLFSSL_PSS_LONG_SALT -DWOLFSSL_PSS_SALT_LEN_DISCOVER -DRSA_MIN_SIZE=1024 -DWOLFSSL_OLD_OID_SUM"
+      product_configure: ''
+      script: wolfprovider.sh
+      apt_packages: libssl-dev

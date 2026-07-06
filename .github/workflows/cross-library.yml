@@ -1,0 +1,279 @@
+name: cross-library (reusable)
+
+# Reusable engine for compile-testing a downstream wolfSSL product against the
+# wolfSSL in this checkout. It builds wolfSSL once from this checkout (the PR
+# merge commit) with the flags a product needs, then compiles the product
+# against that install at both the product's default-branch HEAD and its highest
+# release tag (compile-only, no `make check`).
+#
+# The wolfSSL build runs once and is shared: the build-wolfssl job installs
+# wolfSSL and uploads it as an artifact, and the compile matrix (head, latest)
+# downloads that artifact instead of rebuilding. This halves the wolfSSL builds
+# per product from two to one.
+
+on:
+  workflow_call:
+    inputs:
+      product:
+        description: 'Short product label (used for the job name)'
+        required: true
+        type: string
+      repo:
+        description: 'Product source: "owner/repo" shorthand or a full git URL'
+        required: true
+        type: string
+      wolfssl_configure:
+        description: 'Configure flags for the local wolfSSL build'
+        required: true
+        type: string
+      product_configure:
+        description: "The product's own ./configure flags"
+        required: false
+        default: ''
+        type: string
+      script:
+        description: 'Build script name under .github/workflows/cross-library/scripts/'
+        required: true
+        type: string
+      apt_packages:
+        description: 'Extra apt packages needed to build the product'
+        required: false
+        default: ''
+        type: string
+      container:
+        description: 'Container image to build in (e.g. ubuntu:24.04, debian:13)'
+        required: false
+        default: 'ubuntu:24.04'
+        type: string
+
+jobs:
+  # Build wolfSSL once and publish the install dir. Both compile legs (head,
+  # latest) consume it, so this runs a single time per product instead of once
+  # per leg.
+  build-wolfssl:
+    name: Build wolfSSL (${{ inputs.product }})
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ inputs.container }}
+    timeout-minutes: 20
+    steps:
+      # Minimal-image containers ship without git/toolchain; install them
+      # before checkout. Product-specific extras come from apt_packages.
+      - name: Install build tools
+        run: |
+          set -eux
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            git ca-certificates ${{ inputs.apt_packages }}
+
+      # Building only needs the commit under test, not history. The break check
+      # that needs history runs in the compile job, not here.
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          fetch-tags: false
+
+      # Container job: the bind-mounted workspace is owned by a different uid,
+      # so mark it safe or git refuses to operate on it ("dubious ownership").
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # Build wolfSSL and install to a local dir. The configure flags go through
+      # an env var (not inline ${{ }}) so a quoted CFLAGS/C_EXTRA_FLAGS group
+      # survives GitHub's expansion intact; the string is trusted caller input
+      # that build-wolfssl.sh eval's.
+      - name: Build and install wolfSSL
+        env:
+          WOLFSSL_CONFIGURE: ${{ inputs.wolfssl_configure }}
+        run: |
+          .github/workflows/cross-library/scripts/build-wolfssl.sh \
+            "$GITHUB_WORKSPACE" \
+            "$GITHUB_WORKSPACE/wolfssl-install" \
+            "$WOLFSSL_CONFIGURE"
+
+      # Pack as a tar so libtool symlinks, exec bits, and the absolute-path
+      # .la/.pc files survive the artifact round-trip. The compile job unpacks to
+      # the same $GITHUB_WORKSPACE path, so those baked-in paths stay valid.
+      - name: Pack the wolfSSL install
+        run: tar -C "$GITHUB_WORKSPACE" -czf wolfssl-install.tar.gz wolfssl-install
+
+      - name: Upload the wolfSSL install
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolfssl-install-${{ inputs.product }}
+          path: wolfssl-install.tar.gz
+          retention-days: 1
+
+  # Compile the product against the shared wolfSSL, once per ref_mode:
+  #   head    -> HEAD of the product's default branch (master/main, auto-detected)
+  #   latest  -> the product's highest version tag (polled at run time)
+  compile:
+    name: Compile ${{ inputs.product }} (${{ matrix.ref_mode }})
+    needs: build-wolfssl
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ inputs.container }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        ref_mode: [ head, latest ]
+    steps:
+      # Minimal-image containers ship without git/toolchain; install them
+      # before checkout. Product-specific extras come from apt_packages.
+      - name: Install build tools
+        run: |
+          set -eux
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            git ca-certificates ${{ inputs.apt_packages }}
+
+      # This job does not build wolfSSL, but the latest leg still checks out
+      # wolfSSL history because check-break.sh scans commit messages here. The
+      # head leg never waives a break, so a depth-1 checkout is enough for it.
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          fetch-tags: false
+
+      # This is a container job: the workspace is a host bind-mount owned by a
+      # different uid than the (root) container user, so git refuses to operate
+      # on it ("detected dubious ownership") unless it is marked safe. actions/
+      # checkout marks it safe only under its own *temporary* HOME, which our
+      # run: steps (HOME=/github/home) do not inherit, so check-break.sh's
+      # `git tag`/`git log` would fail and, with stderr hidden, look like "no
+      # break declared". Mark it safe under this HOME for all following steps.
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The `latest` leg is the only one that reads wolfSSL history: it needs the
+      # commit messages check-break.sh scans (the last two release cycles) plus
+      # the two newest release tags, and no file contents, so --filter=tree:0
+      # fetches commits+tags only and turns a 912 MiB full clone into ~1 MiB on
+      # top of the source. The exclude boundary is the THIRD-newest release, not
+      # the scan base, because --shallow-exclude severs the ref it names and
+      # severing the scan base would drop it from `git tag --merged HEAD` and
+      # silently halve the window. Tags come in by explicit refspec (never
+      # --tags, which re-pulls every tag's history), and note a server without
+      # uploadpack.allowFilter silently ignores the filter and clones in full.
+      - name: Deepen wolfSSL history for the break check
+        if: ${{ matrix.ref_mode == 'latest' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Release-tag selection MUST agree with check-break.sh's
+          # `--list 'v*-stable' --sort=-v:refname`. `sort -Vr` matches git's
+          # -v:refname on this tag set (verified incl. double-digit minors,
+          # e.g. v5.9.10 > v5.9.2). The assertion below catches any drift.
+          mapfile -t T < <(git ls-remote --tags --refs origin 'v*-stable' \
+              | sed 's#.*refs/tags/##' | sort -Vr)
+          echo "Newest release tags: ${T[*]:0:3}"
+
+          if [ "${#T[@]}" -lt 3 ]; then
+            echo "Fewer than three release tags; falling back to full history."
+            git fetch --unshallow --filter=tree:0 --tags origin
+          else
+            # Fetch by ref (not raw SHA) so this does not depend on the server
+            # allowing reachable-SHA1-in-want.
+            git fetch --no-tags --filter=tree:0 --shallow-exclude="${T[2]}" origin \
+                "$GITHUB_REF" \
+                "refs/tags/${T[0]}:refs/tags/${T[0]}" \
+                "refs/tags/${T[1]}:refs/tags/${T[1]}"
+          fi
+
+          # Fail LOUD if this step and check-break.sh disagree on the scan base.
+          # check-break.sh:61 falls back to the NEWEST tag when the second line
+          # is missing, which would quietly halve the window rather than error.
+          rel="$(git tag --merged HEAD --sort=-v:refname --list 'v*-stable')"
+          base="$(printf '%s\n' "$rel" | sed -n '2p')"
+          echo "Deepened to $(git rev-list --count HEAD) commits; scan base='${base}'"
+          if [ -z "$base" ]; then
+            echo "::error::Deepen produced no usable scan base; check-break.sh would scan the wrong window."
+            printf 'Release tags merged into HEAD: %s\n' "${rel:-<none>}"
+            exit 1
+          fi
+
+      - name: Download the wolfSSL install
+        uses: actions/download-artifact@v4
+        with:
+          name: wolfssl-install-${{ inputs.product }}
+
+      # Unpack to the same path wolfSSL was built at, keeping the .la/.pc
+      # absolute paths valid.
+      - name: Unpack the wolfSSL install
+        run: tar -C "$GITHUB_WORKSPACE" -xzf wolfssl-install.tar.gz
+
+      # Resolve the concrete ref to compile: the highest tag (latest) or the
+      # default branch (head). Used both for the build and the break check.
+      - name: Resolve product ref
+        id: ref
+        env:
+          REPO: ${{ inputs.repo }}
+        run: |
+          ref="$(.github/workflows/cross-library/scripts/resolve-ref.sh "$REPO" "${{ matrix.ref_mode }}")"
+          echo "Resolved ${{ matrix.ref_mode }} ref for $REPO: $ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      # Compile-only (never `make check`). A compile failure is allowed ONLY if
+      # a wolfSSL commit since the last release tag declared it with a
+      # `breaks-<product>=<ref>` token (see check-break.sh); otherwise the job
+      # fails, forcing intentional breaks to be recorded in a commit.
+      # PRODUCT_CONFIGURE is intentionally unquoted so multiple flags split.
+      - name: Compile ${{ inputs.product }} against wolfSSL
+        env:
+          REPO: ${{ inputs.repo }}
+          PRODUCT_CONFIGURE: ${{ inputs.product_configure }}
+          PRODUCT: ${{ inputs.product }}
+          REF: ${{ steps.ref.outputs.ref }}
+          MODE: ${{ matrix.ref_mode }}
+        run: |
+          S=.github/workflows/cross-library/scripts
+          set +e
+          # shellcheck disable=SC2086  # $PRODUCT_CONFIGURE must word-split into flags
+          "$S/${{ inputs.script }}" -t "$REF" \
+            "$GITHUB_WORKSPACE/wolfssl-install" "$REPO" $PRODUCT_CONFIGURE
+          rc=$?
+          set -e
+
+          # The breaks-<product>= mechanism applies ONLY to the latest release
+          # tag. A head/master break is never waivable, never consults the
+          # ledger, and must be fixed.
+          if [ "$rc" -eq 0 ]; then
+            if [ "$MODE" = "latest" ] && "$S/check-break.sh" "$PRODUCT" "$REF" >/tmp/brk 2>/dev/null; then
+              echo "::warning::$PRODUCT ($REF) compiled OK but a break is still declared, remove the stale breaks-$PRODUCT=$REF token:"
+              cat /tmp/brk
+            fi
+            exit 0
+          fi
+
+          echo "===== $PRODUCT ($REF) failed to compile against this wolfSSL ====="
+
+          if [ "$MODE" = "latest" ]; then
+            # Released, immutable tag: allowed only if the exact tag is declared.
+            if "$S/check-break.sh" "$PRODUCT" "$REF"; then
+              echo "::warning::$PRODUCT $REF failed to compile, but this break is DECLARED (see above). Treating as a known/tracked break."
+              exit 0
+            fi
+            echo "::error::$PRODUCT $REF (latest release) no longer compiles against this wolfSSL and no break is declared."
+            echo "That tag is a released version and cannot be changed. If wolfSSL is intentionally dropping"
+            echo "compatibility with it, record the break so CI tracks it and this job passes. Add this exact"
+            echo "token to a commit message in this PR (the release must be named explicitly):"
+            echo "    breaks-$PRODUCT=$REF"
+            echo "Otherwise, rework the change so $PRODUCT $REF still builds."
+          else
+            # Product master/HEAD: NEVER waivable, no breaks- declaration exists.
+            echo "::error::$PRODUCT $REF (default branch) no longer compiles against this wolfSSL."
+            echo "A master/HEAD break cannot be waived; there is no breaks- declaration for it."
+            echo "$PRODUCT $REF must stay compatible with wolfSSL master. Fix it by either:"
+            echo "  * reworking this PR so $PRODUCT $REF builds against wolfSSL master again, or"
+            echo "  * putting up a matching fix on $PRODUCT's $REF branch, then re-running this job."
+          fi
+          exit 1
