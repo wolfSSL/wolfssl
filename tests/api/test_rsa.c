@@ -1407,7 +1407,7 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
 } /* END test_wc_RsaKeyToDer_SizeOverflow */
 
 /*
- * MC/DC wave 2 — decision-targeted negative paths for the high-level RSA
+ * MC/DC wave 2 - decision-targeted negative paths for the high-level RSA
  * encrypt/decrypt/sign surfaces. The existing tests above deliberately leave
  * bad-arg coverage "tested in another testing function" for
  * wc_RsaPublicEncrypt{,_ex}, wc_RsaPrivateDecrypt{,Inline}{,_ex}, and
@@ -1559,7 +1559,7 @@ int test_wc_RsaDecisionCoverage(void)
 } /* END test_wc_RsaDecisionCoverage */
 
 /*
- * MC/DC wave 2 — feature-oriented positive paths to lift rsa.c MC/DC by
+ * MC/DC wave 2 - feature-oriented positive paths to lift rsa.c MC/DC by
  * exercising OAEP, PSS, and PKCS#1 v1.5 sign/verify across multiple hash
  * algorithms and label/salt configurations using the static client key DER
  * (no runtime key generation).

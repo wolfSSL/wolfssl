@@ -8226,7 +8226,7 @@ int test_wc_AesKeyWrapVectors(void)
 }
 
 /*
- * MC/DC wave 2 — decision-targeted negative paths for AES KeyWrap.
+ * MC/DC wave 2 - decision-targeted negative paths for AES KeyWrap.
  * Existing vector coverage above does not exercise the argument-check,
  * short-output-buffer, or misaligned-length decision branches in the
  * RFC 3394 wrap/unwrap implementation inside wolfcrypt/src/aes.c.
@@ -8315,7 +8315,7 @@ int test_wc_AesKeyWrapDecisionCoverage(void)
 }
 
 /*
- * MC/DC wave 2 — decision-targeted negative paths for AES-GCM SetExtIV
+ * MC/DC wave 2 - decision-targeted negative paths for AES-GCM SetExtIV
  * and the short-buffer / bad-length branches left uncovered by the existing
  * GCM tests.
  */
@@ -8361,7 +8361,7 @@ int test_wc_AesGcmDecisionCoverage(void)
 }
 
 /*
- * MC/DC wave 2 — feature-oriented positive paths to lift aes.c MC/DC by
+ * MC/DC wave 2 - feature-oriented positive paths to lift aes.c MC/DC by
  * exercising real GCM stream / CCM / GMAC / key-wrap-ex code paths that the
  * existing tests skip.
  */

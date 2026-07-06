@@ -1,4 +1,4 @@
-# tests/unit-mcdc — white-box MC/DC supplements
+# tests/unit-mcdc - white-box MC/DC supplements
 
 This directory holds small, standalone white-box programs that raise **MC/DC**
 (Modified Condition/Decision Coverage) on wolfcrypt/wolfssl source files by
@@ -27,7 +27,7 @@ MC/DC independence pair** in the same binary.
 llvm-cov computes MC/DC independence **per binary**. The campaign's
 `aggregate.sh` unions the "independence shown" bit **across binaries by source
 `line:col`**. So each pair must be completed *within the white-box binary
-itself* — it does not lean on the API tests to supply the other half. The
+itself* - it does not lean on the API tests to supply the other half. The
 white-box result is unioned in as an extra `"<variant>_wb"` ledger row, one per
 build variant, exactly like any other variant.
 
@@ -35,8 +35,8 @@ build variant, exactly like any other variant.
 
 The campaign's `run-mcdc.sh` builds each file via `#include` with the **exact**
 compile flags the instrumented library used for that translation unit (captured
-from the real `libtool` command — struct layout and backend selection depend on
-`-DHAVE___UINT128_T`, `user_settings.h`, `-DWOLFSSL_TEST_STATIC_BUILD`, …), then
+from the real `libtool` command - struct layout and backend selection depend on
+`-DHAVE___UINT128_T`, `user_settings.h`, `-DWOLFSSL_TEST_STATIC_BUILD`, ...), then
 links against that variant's `libwolfssl.a` **with the file's own object
 removed** (the white-box TU supplies the single, instrumented definition). The
 binary is run, exported with `llvm-cov export`, and its `aes.c` MC/DC is unioned
@@ -49,17 +49,17 @@ affects the API variant's own coverage row.
 |---|---|---|
 | `test_aes_whitebox.c` | `wolfcrypt/src/aes.c` | `GHASH` / `GHASH_UPDATE` internal `ptr != NULL` guards (Class 1, 13 conds) and `_AesNew_common` cross-argument `BAD_FUNC_ARG` checks (Class 2, 6 conds) |
 
-### `test_aes_whitebox.c` — what it deliberately does **not** cover
+### `test_aes_whitebox.c` - what it deliberately does **not** cover
 
 Four aes.c union residuals remain structurally uncoverable even here and stay
 justified in `iso26262/mcdc-per-module/reports/aes/RESIDUALS.md`:
 
-- **13386:5**, **13836:5** — the two operands are exact logical **complements**
+- **13386:5**, **13836:5** - the two operands are exact logical **complements**
   of one parameter (`ivSz==0`/`ivSz>0`, `ivFixed==NULL`/`!=NULL`); unique-cause
   MC/DC is unsatisfiable by construction.
-- **14268:0** — `roll_auth`'s `ret==0` needs an internal AES op to fail
+- **14268:0** - `roll_auth`'s `ret==0` needs an internal AES op to fail
   mid-operation, not selectable without corrupting library state.
-- **15833:0** — a dead defensive branch on a loop index provably bounded to
+- **15833:0** - a dead defensive branch on a loop index provably bounded to
   `[0,7)`.
 
 ## Adding a new white-box module

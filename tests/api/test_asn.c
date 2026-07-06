@@ -2219,7 +2219,7 @@ int test_ToTraditional_ex_mldsa_bad_params(void)
 }
 
 /*
- * MC/DC wave 2 — decision-targeted negative paths for PKCS#8 wrap/parse
+ * MC/DC wave 2 - decision-targeted negative paths for PKCS#8 wrap/parse
  * and RSA key decode. Targets argument-check, short-buffer, and
  * truncated-DER decision branches in wolfcrypt/src/asn.c without touching
  * the library source.
@@ -2287,7 +2287,7 @@ int test_wc_AsnDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_GetPkcs8TraditionalOffset(buf, NULL, sizeof(buf)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        /* idx >= sz decision branch — any negative return exercises the
+        /* idx >= sz decision branch - any negative return exercises the
          * short-input guard (BUFFER_E in current code, but we do not pin
          * the exact code here). */
         idx = sizeof(buf);
@@ -2334,9 +2334,9 @@ int test_wc_AsnDecisionCoverage(void)
 }
 
 /*
- * MC/DC wave 2 — feature-oriented positive paths to lift asn.c MC/DC by
+ * MC/DC wave 2 - feature-oriented positive paths to lift asn.c MC/DC by
  * exercising real cert parsing, PKCS#8 round trips, ECC key decoding, and
- * PEM↔DER conversions on the static cert buffers (no new fixtures).
+ * PEM<->DER conversions on the static cert buffers (no new fixtures).
  */
 int test_wc_AsnFeatureCoverage(void)
 {
@@ -2425,7 +2425,7 @@ int test_wc_AsnFeatureCoverage(void)
         wc_FreeDecodedCert(&cert2);
     }
 
-    /* ---- PEM↔DER conversion round trip on the client cert ---- */
+    /* ---- PEM<->DER conversion round trip on the client cert ---- */
     #ifdef WOLFSSL_DER_TO_PEM
     {
         byte pem[4096];
