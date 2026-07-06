@@ -88,8 +88,8 @@ int main(int argc, char** argv)
     FILE* f;
 
     /* declare wolfSSL objects */
-    WOLFSSL_CTX* ctx;
-    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
 
     /* Check for proper calling convention */
     if (argc != 6) {
@@ -119,14 +119,14 @@ int main(int argc, char** argv)
     if (inet_pton(AF_INET, argv[2], &servAddr.sin_addr) != 1) {
         fprintf(stderr, "ERROR: invalid address\n");
         ret = -1;
-        goto end;
+        goto socket_cleanup;
     }
 
     /* Connect to the server */
     if ((ret = connect(sockfd, (struct sockaddr*) &servAddr, sizeof(servAddr)))
          == -1) {
         fprintf(stderr, "ERROR: failed to connect\n");
-        goto end;
+        goto socket_cleanup;
     }
 
     /*---------------------------------*/
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
     if ((ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())) == NULL) {
         fprintf(stderr, "ERROR: failed to create WOLFSSL_CTX\n");
         ret = -1;
-        goto socket_cleanup;
+        goto ctx_cleanup;
     }
 
     /* load cert and convert DER to PEM using dynamic length */
@@ -150,7 +150,7 @@ int main(int argc, char** argv)
     if (pemSz <= 0) {
         fprintf(stderr, "ERROR: converting DER cert to PEM\n");
         ret = -1;
-        goto socket_cleanup;
+        goto ctx_cleanup;
     }
 
     if (wolfSSL_CTX_use_certificate_buffer(ctx, pem, pemSz,
@@ -158,7 +158,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "issue loading in pem cert\n");
         ret = -1;
         free(pem);
-        goto socket_cleanup;
+        goto ctx_cleanup;
     }
     free(pem);
 
@@ -167,7 +167,7 @@ int main(int argc, char** argv)
     if (pemSz <= 0) {
         fprintf(stderr, "ERROR: converting DER key to PEM\n");
         ret = -1;
-        goto socket_cleanup;
+        goto ctx_cleanup;
     }
 
     if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, pem, pemSz,
@@ -175,7 +175,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "issue loading in pem key\n");
         ret = -1;
         free(pem);
-        goto socket_cleanup;
+        goto ctx_cleanup;
     }
     free(pem);
 
@@ -184,7 +184,7 @@ int main(int argc, char** argv)
     if (f == NULL) {
         fprintf(stderr, "unable to open %s\n", argv[3]);
         ret = -1;
-        goto socket_cleanup;
+        goto ctx_cleanup;
     }
     fseek(f, 0, SEEK_END);
     pemSz = ftell(f);
@@ -193,7 +193,7 @@ int main(int argc, char** argv)
     if (pem == NULL) {
         fclose(f);
         ret = -1;
-        goto socket_cleanup;
+        goto ctx_cleanup;
     }
     pemSz = fread(pem, 1, pemSz, f);
     fclose(f);
