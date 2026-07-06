@@ -8704,9 +8704,15 @@ int test_wc_AesModesArgMcdc(void)
          * Leaving a partial trailing block (WC_AES_BLOCK_SIZE + 4) forces the
          * "(ret == 0) && sz" leftover-handling call, which goes through
          * wc_AesEncrypt() and fails on the corrupted rounds in every backend. */
+        /* Corrupting aes.rounds only fails the in-process software op. Under
+         * WOLF_CRYPTO_CB_FIND the op is offloaded to the registered crypto
+         * callback (even for INVALID_DEVID), which ignores the corrupted struct
+         * and succeeds, so skip this internal-failure check there. */
+#ifndef WOLF_CRYPTO_CB_FIND
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, WC_AES_BLOCK_SIZE + 4),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
 
         wc_AesFree(&aes);
     }
@@ -8732,9 +8738,13 @@ int test_wc_AesModesArgMcdc(void)
 #ifdef WOLFSSL_AESNI
         aes.use_aesni = 0;
 #endif
+        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
+#ifndef WOLF_CRYPTO_CB_FIND
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCtrEncrypt(&aes, buf, buf, sizeof(buf)),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)buf; /* only referenced by the WOLF_CRYPTO_CB_FIND-guarded check */
 
         wc_AesFree(&aes);
     }
@@ -8749,9 +8759,12 @@ int test_wc_AesModesArgMcdc(void)
             AES_ENCRYPTION), 0);
 
         ExpectIntEQ(wc_AesCfbEncrypt(&aes, out, in, 5), 0);
+        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
+#ifndef WOLF_CRYPTO_CB_FIND
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCfbEncrypt(&aes, out, in, 32),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
 
         wc_AesFree(&aes);
     }
@@ -8764,9 +8777,12 @@ int test_wc_AesModesArgMcdc(void)
             AES_ENCRYPTION), 0);
 
         ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 5), 0);
+        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
+#ifndef WOLF_CRYPTO_CB_FIND
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 32),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
 
         wc_AesFree(&aes);
     }
@@ -8833,9 +8849,12 @@ int test_wc_AesModesArgMcdc(void)
             AES_ENCRYPTION), 0);
 
         ExpectIntEQ(wc_AesOfbEncrypt(&aes, out, in, 5), 0);
+        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
+#ifndef WOLF_CRYPTO_CB_FIND
         aes.rounds = 0;
         ExpectIntEQ(wc_AesOfbEncrypt(&aes, out, in, 32),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
 
         wc_AesFree(&aes);
     }
@@ -9488,10 +9507,14 @@ int test_wc_AesCcmArgMcdc(void)
         XMEMSET(&aes, 0, sizeof(aes));
         ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
+#ifndef WOLF_CRYPTO_CB_FIND
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCcmEncrypt(&aes, bigOut, bigIn, sizeof(bigIn),
             nonce13, sizeof(nonce13), bigTag, sizeof(bigTag), aad,
             sizeof(aad)), WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)bigIn; (void)bigOut; (void)bigTag; /* CB_FIND-guarded above */
         wc_AesFree(&aes);
     }
 
@@ -9556,10 +9579,14 @@ int test_wc_AesCcmArgMcdc(void)
 #ifdef WOLFSSL_AESNI
         aes.use_aesni = 0;
 #endif
+        /* Offloaded under WOLF_CRYPTO_CB_FIND (see note above). */
+#ifndef WOLF_CRYPTO_CB_FIND
         aes.rounds = 0;
         ExpectIntEQ(wc_AesCcmDecrypt(&aes, bigOut, bigIn, sizeof(bigIn),
             nonce13, sizeof(nonce13), bigTag, sizeof(bigTag), aad,
             sizeof(aad)), WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)bigIn; (void)bigOut; (void)bigTag; /* CB_FIND-guarded above */
         wc_AesFree(&aes);
     }
 #endif /* HAVE_AES_DECRYPT */
@@ -9748,9 +9775,14 @@ int test_wc_AesCmacArgMcdc(void)
         ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL),
             0);
         ExpectIntEQ(wc_CmacUpdate(&cmac, block1, sizeof(block1)), 0);
+        /* wc_CmacUpdate is offloaded under WOLF_CRYPTO_CB_FIND (see note
+         * above), bypassing the corrupted cmac.aes.rounds. */
+#ifndef WOLF_CRYPTO_CB_FIND
         cmac.aes.rounds = 0;
         ExpectIntEQ(wc_CmacUpdate(&cmac, block2, sizeof(block2)),
             WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)block2; /* only referenced by the CB_FIND-guarded check */
         wc_CmacFree(&cmac);
     }
 
