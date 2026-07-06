@@ -1,5 +1,13 @@
 # wolfssl-wolfcrypt Change Log
 
+## v2.1.0
+
+Fixes:
+
+- Fix Ed25519/Ed448 signature verify failed return values
+- Validate WOLFSSL_PREFIX in build.rs
+- Rename dilithium to mldsa
+
 ## v2.0.0
 
 New features:
