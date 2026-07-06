@@ -8514,7 +8514,7 @@ int test_wc_AesFeatureCoverage(void)
         };
         Aes aes;
         byte ccmCipher[sizeof(ccmPlain)];
-        byte ccmTag[16];
+        byte ccmTag[16] = { 0 };
         byte ccmRecovered[sizeof(ccmPlain)];
         int initDone = 0;
 
