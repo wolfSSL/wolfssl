@@ -4,7 +4,8 @@
 
 dist_doc_DATA+= doc/README.txt \
 	doc/QUIC.md \
-	doc/dilithium-to-mldsa-migration.md
+	doc/dilithium-to-mldsa-migration.md \
+	doc/SBOM.md
 
 
 dox-pdf:
