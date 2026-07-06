@@ -8616,7 +8616,12 @@ int test_wc_AesFeatureCoverage(void)
 int test_wc_AesSetKeyArgMcdc(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128)
+/* wc_AesEncryptDirect/wc_AesDecryptDirect return int (checkable) only in the
+ * modern API; the older FIPS module declares them void. Match the guard used by
+ * test_wc_AesEncryptDecryptDirect_WithKey above. */
+#if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
     Aes aes;
     byte key[AES_128_KEY_SIZE] = { 0 };
     byte in[WC_AES_BLOCK_SIZE] = { 0 };
@@ -9777,7 +9782,11 @@ int test_wc_AesXtsArgMcdc(void)
 int test_wc_AesCmacArgMcdc(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_128)
+/* Uses wc_CmacFree(), absent from the older FIPS module's CMAC API; gate on the
+ * modern API (same idiom as the AES-DIRECT tests above). */
+#if !defined(NO_AES) && defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
     byte key[AES_128_KEY_SIZE] = { 0 };
     byte block1[WC_AES_BLOCK_SIZE] = { 0 };
     byte block2[WC_AES_BLOCK_SIZE] = { 1 };
