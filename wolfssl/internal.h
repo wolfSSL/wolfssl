@@ -5302,6 +5302,14 @@ struct Options {
 #endif
     word16            returnOnGoodCh:1;
     word16            disableRead:1;
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CERT_YIELD)
+    /* Opt-in (WOLFSSL_ASYNC_CERT_YIELD): set when we deliberately returned
+     * WC_PENDING_E between peer certificate verifies so a cooperative scheduler
+     * can run. Lives in (zero-initialized, persistent) ssl->options so the
+     * fresh-entry vs. resume decision in ProcessPeerCerts is reliable; the
+     * transient ProcPeerCertArgs scratch buffer is not zeroed on alloc. */
+    word16            certYieldPending:1;
+#endif
 
 #ifdef WOLFSSL_EARLY_DATA
     word16            clientInEarlyData:1; /* Client is in wolfSSL_read_early_data */

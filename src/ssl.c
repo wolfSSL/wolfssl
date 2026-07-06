@@ -7901,6 +7901,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.acceptState  = ACCEPT_BEGIN;
         ssl->options.handShakeState  = NULL_STATE;
         ssl->options.handShakeDone = 0;
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CERT_YIELD)
+        /* A per-certificate yield (WOLFSSL_ASYNC_CERT_YIELD) sets this and it is
+         * normally cleared on the next ProcessPeerCerts re-entry. Clear it here
+         * so reusing this object after abandoning a yielded handshake cannot
+         * skip the ProcessPeerCerts state reset on the next fresh entry. */
+        ssl->options.certYieldPending = 0;
+#endif
         ssl->recordSzOverhead = 0;
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;

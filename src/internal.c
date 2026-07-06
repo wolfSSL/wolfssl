@@ -8766,6 +8766,13 @@ void FreeAsyncCtx(WOLFSSL* ssl, byte freeAsync)
             ssl->async->freeArgs(ssl, ssl->async->args);
             ssl->async->freeArgs = NULL;
         }
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CERT_YIELD)
+        /* The per-certificate yield flag is tied to an in-progress
+         * ProcessPeerCerts context (which only persists across a yield, never
+         * across this teardown). Clear it here so a later, freshly-allocated
+         * ssl->async can never resume on a stale flag. */
+        ssl->options.certYieldPending = 0;
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_NO_TLS12)
         if (ssl->options.buildArgsSet) {
             FreeBuildMsgArgs(ssl, &ssl->async->buildArgs);
@@ -16052,6 +16059,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (ret < 0)
             goto exit_ppc;
     }
+#ifdef WOLFSSL_ASYNC_CERT_YIELD
+    /* Re-entry after a deliberate per-certificate yield. No async crypto event
+     * was queued, so AsyncPop returns WC_NO_PENDING_E; keep the saved state and
+     * resume cert processing instead of resetting. The flag lives in
+     * ssl->options (zero-initialized) so this never fires on a fresh entry with
+     * a stale args scratch buffer. */
+    else if (ssl->options.certYieldPending) {
+        ssl->options.certYieldPending = 0;
+        ret = 0;
+    }
+#endif
     else
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_NONBLOCK_OCSP
@@ -16775,6 +16793,23 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     FreeDecodedCert(args->dCert);
                     args->dCertInit = 0;
                     args->count--;
+
+                #if defined(WOLFSSL_ASYNC_CRYPT) && \
+                    defined(WOLFSSL_ASYNC_CERT_YIELD)
+                    /* return WC_PENDING_E after each chain certificate is
+                     * verified so a cooperative scheduler regains control
+                     * between certificates. The verify above has fully
+                     * completed for this certificate; no async crypto event is
+                     * queued, so the certYieldPending flag tells the re-entry
+                     * path to resume the loop at the next certificate. */
+                    if (ret == 0) {
+                        WOLFSSL_MSG("Yielding WC_PENDING_E between chain "
+                                    "certificate verifies");
+                        ssl->options.certYieldPending = 1;
+                        ret = WC_PENDING_E;
+                        goto exit_ppc;
+                    }
+                #endif
                 } /* while (count > 1 && !args->haveTrustPeer) */
             } /* if (count > 0) */
 
@@ -16990,6 +17025,21 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
+
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CERT_YIELD)
+            /* Opt-in (WOLFSSL_ASYNC_CERT_YIELD): yield once more after the peer
+             * (leaf) certificate is verified, before OCSP/CRL and finalization.
+             * The state has already advanced to TLS_ASYNC_VERIFY, so the
+             * certYieldPending re-entry path resumes there rather than
+             * re-processing the leaf. */
+            if (ret == 0 && args->count > 0) {
+                WOLFSSL_MSG("Yielding WC_PENDING_E after peer certificate "
+                            "verify");
+                ssl->options.certYieldPending = 1;
+                ret = WC_PENDING_E;
+                goto exit_ppc;
+            }
+        #endif
         } /* case TLS_ASYNC_DO */
         FALL_THROUGH;
 

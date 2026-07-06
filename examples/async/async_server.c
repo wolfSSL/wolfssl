@@ -117,7 +117,8 @@ static int posix_set_nonblocking(int fd)
 /* ------------------------------------------------------------------ */
 static void usage(const char* prog)
 {
-    printf("usage: %s [--ecc|--x25519] [--mutual] [--tls12] [port]\n", prog);
+    printf("usage: %s [--ecc|--x25519] [--mutual] [--cert-chain] [--tls12] "
+        "[port]\n", prog);
 }
 
 static const char* group_name(word16 group)
@@ -133,7 +134,7 @@ static const char* group_name(word16 group)
 }
 
 static int parse_server_args(int argc, char** argv, int* port, word16* group,
-    int* mutual, int* tls12)
+    int* mutual, int* tls12, int* certChain)
 {
     int i;
     int port_set = 0;
@@ -142,6 +143,7 @@ static int parse_server_args(int argc, char** argv, int* port, word16* group,
     *group = WOLFSSL_ECC_SECP256R1;
     *mutual = 0;
     *tls12 = 0;
+    *certChain = 0;
 
     for (i = 1; i < argc; i++) {
         if (XSTRCMP(argv[i], "--ecc") == 0) {
@@ -152,6 +154,12 @@ static int parse_server_args(int argc, char** argv, int* port, word16* group,
         }
         else if (XSTRCMP(argv[i], "--mutual") == 0) {
             *mutual = 1;
+        }
+        else if (XSTRCMP(argv[i], "--cert-chain") == 0) {
+            /* Present a multi-certificate ECC chain (leaf + root) so the peer
+             * exercises per-certificate processing (and, with
+             * WOLFSSL_ASYNC_CERT_YIELD, the per-cert non-blocking yield). */
+            *certChain = 1;
         }
         else if (XSTRCMP(argv[i], "--tls12") == 0) {
             *tls12 = 1;
@@ -166,6 +174,11 @@ static int parse_server_args(int argc, char** argv, int* port, word16* group,
         else {
             return -1;
         }
+    }
+
+    /* --cert-chain assembles an ECC certificate chain; it is ECC-only. */
+    if (*certChain && *group == WOLFSSL_ECC_X25519) {
+        return -1;
     }
 
     return 0;
@@ -187,6 +200,7 @@ int server_async_test(int argc, char** argv)
     const char*        mode = NULL;
     int                mutual = 0;
     int                tls12 = 0;
+    int                certChain = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
     int devId = INVALID_DEVID;
 #endif
@@ -216,7 +230,8 @@ int server_async_test(int argc, char** argv)
     }
 #endif
 
-    if (parse_server_args(argc, argv, &port, &group, &mutual, &tls12) != 0) {
+    if (parse_server_args(argc, argv, &port, &group, &mutual, &tls12,
+            &certChain) != 0) {
         usage(argv[0]);
         return 0;
     }
@@ -377,6 +392,42 @@ int server_async_test(int argc, char** argv)
         fprintf(stderr, "ERROR: --x25519 requires HAVE_ED25519 for certs\n");
         goto exit;
     #endif
+    }
+    else if (certChain) {
+        /* Present a 2-cert ECC chain (leaf + root) assembled from the bundled
+         * buffers so the peer verifies a multi-certificate chain. With
+         * WOLFSSL_ASYNC_CERT_YIELD this exercises the per-certificate
+         * non-blocking yield in ProcessPeerCerts(). Kept static to avoid a
+         * >1KB stack buffer on the small-stack targets this example targets. */
+        static byte eccChain[sizeof_serv_ecc_der_256 +
+                             sizeof_ca_ecc_cert_der_256];
+        XMEMCPY(eccChain, serv_ecc_der_256, sizeof_serv_ecc_der_256);
+        XMEMCPY(eccChain + sizeof_serv_ecc_der_256, ca_ecc_cert_der_256,
+            sizeof_ca_ecc_cert_der_256);
+        ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, eccChain,
+            (long)sizeof(eccChain), WOLFSSL_FILETYPE_ASN1);
+        if (ret != WOLFSSL_SUCCESS) {
+            fprintf(stderr, "ERROR: failed to load ECC server cert chain.\n");
+            goto exit;
+        }
+
+        ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, ecc_key_der_256,
+            sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
+        if (ret != WOLFSSL_SUCCESS) {
+            fprintf(stderr, "ERROR: failed to load ECC server key buffer.\n");
+            goto exit;
+        }
+
+        if (mutual) {
+            /* client-ecc-cert is self-signed, so load it as its own CA */
+            ret = wolfSSL_CTX_load_verify_buffer(ctx, cliecc_cert_der_256,
+                sizeof_cliecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+            if (ret != WOLFSSL_SUCCESS) {
+                fprintf(stderr,
+                    "ERROR: failed to load ECC client CA cert.\n");
+                goto exit;
+            }
+        }
     }
     else {
         ret = wolfSSL_CTX_use_certificate_buffer(ctx, serv_ecc_der_256,
