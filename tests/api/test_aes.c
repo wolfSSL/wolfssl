@@ -48,13 +48,18 @@
 #include <tests/api/test_aes.h>
 #include <tests/utils.h>
 
-/* Several tests corrupt aes.rounds (or cmac.aes.rounds) to force the in-process
- * software AES to fail with KEYUSAGE_E. That is only observable when the
- * software AES actually runs and validates rounds. It does NOT when the op is
- * offloaded to a crypto callback: WOLF_CRYPTO_CB_FIND routes even INVALID_DEVID
- * to the callback, and WOLF_CRYPTO_CB_ONLY_AES strips the software AES entirely
- * (both make the corrupted struct irrelevant, so the op returns success). */
-#if defined(WOLF_CRYPTO_CB_FIND) || defined(WOLF_CRYPTO_CB_ONLY_AES)
+/* Several tests corrupt aes.rounds (or cmac.aes.rounds) to force KEYUSAGE_E from
+ * the AES rounds-validity check. That check lives only in the pure-C block
+ * encrypt (AesEncryptBlocks_C), so the corruption is only observable when that
+ * path runs. It is NOT observable when:
+ *  - the op is offloaded to a crypto callback: WOLF_CRYPTO_CB_FIND routes even
+ *    INVALID_DEVID to the callback, and WOLF_CRYPTO_CB_ONLY_AES strips the
+ *    software AES entirely; or
+ *  - an asm/HW backend provides its own wc_AesEncrypt that skips the check
+ *    (e.g. WOLFSSL_ARMASM on ARMv8 with crypto extensions).
+ * In all these cases the corrupted struct is ignored and the op returns 0. */
+#if defined(WOLF_CRYPTO_CB_FIND) || defined(WOLF_CRYPTO_CB_ONLY_AES) || \
+    defined(WOLFSSL_ARMASM)
     #define WC_TEST_AES_ROUNDS_OFFLOADED
 #endif
 
