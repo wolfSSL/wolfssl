@@ -51,8 +51,8 @@
 int main(void)
 {
     bool isNetworkingReady = false;
-    int                sockfd;
-    int                connd;
+    int                sockfd = -1;
+    int                connd = -1;
     struct sockaddr_in servAddr;
     struct sockaddr_in clientAddr;
     socklen_t          size = sizeof(clientAddr);
@@ -148,6 +148,7 @@ int main(void)
         /* Create a WOLFSSL object */
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
             fprintf(stderr, "ERROR: failed to create WOLFSSL object\n");
+            close(connd);
             util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
@@ -160,6 +161,7 @@ int main(void)
         if (ret != SSL_SUCCESS) {
             fprintf(stderr, "wolfSSL_accept error = %d\n",
                 wolfSSL_get_error(ssl, ret));
+            close(connd);
             util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
@@ -170,6 +172,7 @@ int main(void)
         memset(buff, 0, sizeof(buff));
         if (wolfSSL_read(ssl, buff, sizeof(buff)-1) == -1) {
             fprintf(stderr, "ERROR: failed to read\n");
+            close(connd);
             util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
@@ -191,13 +194,16 @@ int main(void)
         /* Reply back to the client */
         if (wolfSSL_write(ssl, buff, (int)len) != len) {
             fprintf(stderr, "ERROR: failed to write\n");
+            close(connd);
             util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
 
         /* Cleanup after this connection */
         wolfSSL_free(ssl);      /* Free the wolfSSL object              */
+        ssl = NULL;
         close(connd);           /* Close the connection to the client   */
+        connd = -1;
     }
 
     printf("Shutdown complete\n");
