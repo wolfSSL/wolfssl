@@ -8678,6 +8678,12 @@ int test_wc_AesModesArgMcdc(void)
     byte in[64] = { 0 };
     byte out[64];
 
+    /* Each mode below is independently guarded; without any of CTR/CFB/OFB
+     * enabled these remain unused, so mark them to satisfy -Werror. */
+    (void)key;
+    (void)in;
+    (void)out;
+
 #ifdef WOLFSSL_AES_COUNTER
     {
         Aes aes;
@@ -9947,10 +9953,10 @@ int test_wc_AesKeyExportArgMcdc(void)
  *    which fails and breaks out of S2V()'s AD loop before the nonce-AD
  *    check is reached, independently driving its "ret == 0" to false).
  */
+#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
 int test_wc_AesSivArgMcdc(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
     byte key32[AES_128_KEY_SIZE * 2] = {
         0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
         0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
@@ -10100,9 +10106,9 @@ int test_wc_AesSivArgMcdc(void)
             nonce, sizeof(nonce), plain, sizeof(plain), sivBad, cipher),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
-#endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
     return EXPECT_RESULT();
 }
+#endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
 
 /*----------------------------------------------------------------------------*
  | AES-SIV Test

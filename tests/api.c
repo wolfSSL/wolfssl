@@ -4587,7 +4587,11 @@ static int test_wolfSSL_session_cache_api_direct(void)
     WOLFSSL* ssl = NULL;
     byte shortId[] = "server-id";
     byte longId[SERVER_ID_LEN + 8];
+#ifdef OPENSSL_EXTRA
+    /* Only read back via wolfSSL_CTX_get_session_cache_mode(), itself
+     * OPENSSL_EXTRA-only; declare in the same scope to avoid -Wunused. */
     long mode = 0;
+#endif
 
     XMEMSET(longId, 0xA5, sizeof(longId));
 
@@ -4733,13 +4737,19 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_DisableOCSPStapling(NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     ExpectIntEQ(wolfSSL_EnableOCSP(NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_DisableOCSP(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     ExpectIntEQ(wolfSSL_EnableOCSPStapling(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_DisableOCSPStapling(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     ExpectIntEQ(wolfSSL_SetOCSP_OverrideURL(NULL, "http://dummy.test"),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_SetOCSP_Cb(NULL, NULL, NULL, NULL),
@@ -4748,8 +4758,11 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
     ExpectIntEQ(wolfSSL_CTX_EnableOCSP(clientCtx, WOLFSSL_OCSP_NO_NONCE),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_DisableOCSP(clientCtx), WOLFSSL_SUCCESS);
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(clientCtx), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_DisableOCSPStapling(clientCtx), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(clientCtx, "http://dummy.test"),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(clientCtx, ""),
@@ -4761,8 +4774,11 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
     ExpectIntEQ(wolfSSL_EnableOCSP(clientSsl, WOLFSSL_OCSP_NO_NONCE),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_DisableOCSP(clientSsl), WOLFSSL_SUCCESS);
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     ExpectIntEQ(wolfSSL_EnableOCSPStapling(clientSsl), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_DisableOCSPStapling(clientSsl), WOLFSSL_SUCCESS);
+#endif
     ExpectIntEQ(wolfSSL_SetOCSP_OverrideURL(clientSsl, "http://dummy.test"),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_SetOCSP_OverrideURL(clientSsl, ""), WOLFSSL_SUCCESS);
@@ -30359,7 +30375,11 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
-/* tlsVer: WOLFSSL_TLSV1_2 or WOLFSSL_TLSV1_3 */
+/* These callback helpers are only referenced by test_wc_CryptoCb_registry,
+ * whose body is compiled only under WOLF_CRYPTO_CB + WOLFSSL_TEST_STATIC_BUILD
+ * (it calls WOLFSSL_LOCAL cryptocb helpers). Match that guard so they are not
+ * flagged as unused in cryptocb-enabled non-static builds. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_TEST_STATIC_BUILD)
 static int test_CryptoCb_NoOp_Func(int devId, wc_CryptoInfo* info, void* ctx)
 {
     (void)devId;
@@ -30397,7 +30417,8 @@ static int test_CryptoCb_RegisterFail_Func(int devId, wc_CryptoInfo* info,
 
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
-#endif
+#endif /* WOLF_CRYPTO_CB_CMD */
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_TEST_STATIC_BUILD */
 
 static int test_wc_CryptoCb_registry(void)
 {
@@ -36936,12 +36957,21 @@ TEST_CASE testCases[] = {
     /* Can't memory test as client/server Asserts in thread. */
     TEST_DECL(test_prioritize_psk),
 
-#ifdef WOLF_CRYPTO_CB
+    /* test_wc_CryptoCb_registry is defined only inside the
+     * WOLF_CRYPTO_CB + HAVE_IO_TESTS_DEPENDENCIES block below; register it under
+     * the same condition so it is neither undeclared (when absent) nor
+     * defined-but-unused. */
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_SHA512))
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb_registry),
+#endif
+    /* test_wc_CryptoCb has an unconditional shell (body self-guards); register
+     * unconditionally, as on master. */
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb),
-#endif
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wolfSSL_CTX_StaticMemory),
 #if !defined(NO_FILESYSTEM) &&                                                 \
