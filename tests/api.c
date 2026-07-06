@@ -30402,7 +30402,11 @@ static int test_CryptoCb_RegisterFail_Func(int devId, wc_CryptoInfo* info,
 static int test_wc_CryptoCb_registry(void)
 {
     EXPECT_DECLS;
-#ifdef WOLF_CRYPTO_CB
+/* This test asserts on wc_CryptoCb_GetDevIdAtIndex()/Init()/Cleanup(), which
+ * are WOLFSSL_LOCAL (hidden visibility) and only link into the test binary when
+ * the library is built with test-static visibility. Guard on
+ * WOLFSSL_TEST_STATIC_BUILD so normal (shared) builds don't fail at link. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_TEST_STATIC_BUILD)
     int rc = 0;
     int devId = 41;
     int added = 0;

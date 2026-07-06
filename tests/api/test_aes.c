@@ -9383,7 +9383,11 @@ int test_wc_AesCcmArgMcdc(void)
     byte cipher[8];
     byte tag[16];
 
-    /* ---- wc_AesCcmCheckTagSize(): 7-way AND-of-inequalities chain ---- */
+    /* ---- wc_AesCcmCheckTagSize(): 7-way AND-of-inequalities chain ----
+     * wc_AesCcmCheckTagSize is WOLFSSL_LOCAL (hidden visibility); it only links
+     * into the test binary when the library is built with test-static
+     * visibility. Guard so normal (shared) builds don't fail at link time. */
+#ifdef WOLFSSL_TEST_STATIC_BUILD
     ExpectIntEQ(wc_AesCcmCheckTagSize(5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesCcmCheckTagSize(4), 0);
     ExpectIntEQ(wc_AesCcmCheckTagSize(6), 0);
@@ -9392,6 +9396,7 @@ int test_wc_AesCcmArgMcdc(void)
     ExpectIntEQ(wc_AesCcmCheckTagSize(12), 0);
     ExpectIntEQ(wc_AesCcmCheckTagSize(14), 0);
     ExpectIntEQ(wc_AesCcmCheckTagSize(16), 0);
+#endif /* WOLFSSL_TEST_STATIC_BUILD */
 
     {
         Aes aes;
