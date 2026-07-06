@@ -674,6 +674,17 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
 #endif /* STM32_HASH */
 
+/* Direct-register RNG builds (WOLFSSL_STM32_RNG_NOLIB / F427 / NuttX) expose a
+ * mutex-free RNG bring-up helper -- clock enable, new-gen (C5) NIST
+ * conditioning and RNGEN -- shared by wc_GenerateSeed and the SAES self-init
+ * path so a cold DHUK/SAES op needs no prior wc_InitRng. CubeMX HAL RNG builds
+ * condition the RNG via HAL_RNG_Init instead and do not define it. */
+#if defined(STM32_RNG) && (defined(WOLFSSL_STM32_RNG_NOLIB) || \
+    defined(WOLFSSL_STM32F427_RNG) || defined(STM32_NUTTX_RNG))
+    #define WC_STM32_HAS_RNG_READY
+    WOLFSSL_LOCAL int wc_stm32_rng_ensure_ready(void);
+#endif
+
 
 #ifdef STM32_CRYPTO
 

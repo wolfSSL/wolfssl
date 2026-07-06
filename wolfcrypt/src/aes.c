@@ -6010,11 +6010,21 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (sz == 0) {
             return 0;
         }
-        /* DHUK is routed via the crypto-callback framework, not here.
-         * wc_Stm32_Aes_Cbc processes whole blocks and ignores any sub-block
-         * remainder, matching the SW / CUBEMX CBC backends; define
-         * WOLFSSL_AES_CBC_LENGTH_CHECKS (above) to reject a non-block-multiple
-         * length with BAD_LENGTH_E instead. */
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            int crypto_cb_ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return crypto_cb_ret;
+            /* fall-through when unavailable (normal-keyed Aes) */
+        }
+    #endif
+        /* DHUK / any crypto-callback device is routed above. wc_Stm32_Aes_Cbc
+         * processes whole blocks and ignores any sub-block remainder, matching
+         * the SW / CUBEMX CBC backends; define WOLFSSL_AES_CBC_LENGTH_CHECKS
+         * (above) to reject a non-block-multiple length with BAD_LENGTH_E. */
         return wc_Stm32_Aes_Cbc(aes, out, in, sz, 1);
     }
     #ifdef HAVE_AES_DECRYPT
@@ -6028,7 +6038,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (sz == 0) {
             return 0;
         }
-        /* DHUK is routed via the crypto-callback framework, not here. */
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            int crypto_cb_ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return crypto_cb_ret;
+            /* fall-through when unavailable (normal-keyed Aes) */
+        }
+    #endif
+        /* DHUK / any crypto-callback device is routed above. */
         return wc_Stm32_Aes_Cbc(aes, out, in, sz, 0);
     }
     #endif /* HAVE_AES_DECRYPT */
@@ -6046,6 +6067,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif
         if (blocks == 0)
             return 0;
+
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            int crypto_cb_ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return crypto_cb_ret;
+            /* fall-through when unavailable (normal-keyed Aes) */
+        }
+    #endif
 
         ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
         if (ret != 0)
@@ -6108,6 +6141,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif
         if (blocks == 0)
             return 0;
+
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            int crypto_cb_ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return crypto_cb_ret;
+            /* fall-through when unavailable (normal-keyed Aes) */
+        }
+    #endif
 
         ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
         if (ret != 0)
@@ -7752,7 +7797,9 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 /* do as many block size ops as possible */
                 while (sz >= WC_AES_BLOCK_SIZE) {
                 #ifdef XTRANSFORM_AESCTRBLOCK
-                    XTRANSFORM_AESCTRBLOCK(aes, out, in);
+                    ret = XTRANSFORM_AESCTRBLOCK(aes, out, in);
+                    if (ret != 0)
+                        break;
                 #else
                     ret = AesEncrypt_preFetchOpt(aes, (byte*)aes->reg,
                                                     scratch,

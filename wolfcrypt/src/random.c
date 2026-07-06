@@ -4346,23 +4346,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #define STM32_BARE_RNG_MAX_RETRIES 8
     #endif
 
-    /* Generate a RNG seed using the hardware RNG on the STM32F427
-     * directly, following steps outlined in STM32F4 Reference
-     * Manual (Chapter 24) for STM32F4xx family. */
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    /* Bring the direct-register RNG to a producing state: clock enable, the
+     * new-gen (C5) NIST conditioning under CONDRST on the first call, and
+     * RNGEN. Mutex-free -- the caller must already hold the crypto HW mutex.
+     * Shared by wc_GenerateSeed (below) and the SAES self-init path
+     * (Stm32SaesEnsureRng), so a cold DHUK/SAES operation no longer requires a
+     * prior wc_InitRng. Returns 0, or RNG_FAILURE_E if the conditioning
+     * soft-reset never clears. */
+    WOLFSSL_LOCAL int wc_stm32_rng_ensure_ready(void)
     {
-        int ret;
-        word32 i;
-        word32 t;
-        word32 guard;
-        word32 retries;
-        word32 sr;
-        (void)os;
-
-        ret = wolfSSL_CryptHwMutexLock();
-        if (ret != 0) {
-            return ret;
-        }
+        word32 t = 0;
+        (void)t;
 
     #ifndef STM32_NUTTX_RNG
         /* enable RNG peripheral clock */
@@ -4419,7 +4413,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                            (unsigned long)WC_RNG_CR,
                            (unsigned long)WC_RNG_SR);
 #endif
-                    wolfSSL_CryptHwMutexUnLock();
                     return RNG_FAILURE_E;
                 }
             }
@@ -4446,6 +4439,35 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #else
         WC_RNG_CR |= RNG_CR_RNGEN;
 #endif
+
+        return 0;
+    }
+
+    /* Generate a RNG seed using the hardware RNG on the STM32F427
+     * directly, following steps outlined in STM32F4 Reference
+     * Manual (Chapter 24) for STM32F4xx family. */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret;
+        word32 i;
+        word32 t;
+        word32 guard;
+        word32 retries;
+        word32 sr;
+        (void)os;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
+
+        /* Clock enable + (C5) NIST conditioning + RNGEN, shared with the SAES
+         * self-init path. Mutex-free helper; we hold the mutex. */
+        ret = wc_stm32_rng_ensure_ready();
+        if (ret != 0) {
+            wolfSSL_CryptHwMutexUnLock();
+            return ret;
+        }
 
         /* (No early SECS/CECS bail here.) The HAL doesn't check error
          * status immediately after RNGEN -- the IP needs a few cycles

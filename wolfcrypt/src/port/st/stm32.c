@@ -2219,7 +2219,8 @@ static int Stm32AesSetupCR(struct Aes* aes, int isEnc, word32 chmod,
 
     WC_STM32_AES_CLK_ENABLE_INST();
 #ifdef WOLFSSL_STM32_USE_SAES
-    Stm32SaesEnsureRng();
+    ret = Stm32SaesEnsureRng();
+    if (ret != 0) return ret;
     ret = Stm32SaesWaitInit();
     if (ret != 0) return ret;
 #endif
@@ -2395,12 +2396,23 @@ static int Stm32SaesWaitInit(void)
     return 0;
 }
 
-/* Ensure the RNG IP is producing data. SAES init pulls from the
- * RNG, so RNGEN must be set before the SAES clock-enable triggers
- * SAES self-init. wc_GenerateSeed sets RNGEN on its first call,
- * but DHUK / the SAES TinyAES route may run before any RNG consumer. */
-static void Stm32SaesEnsureRng(void)
+/* Ensure the RNG IP is actually producing data. SAES self-init pulls entropy
+ * from the RNG on its first clock-enable, so the RNG must be conditioned (the
+ * C5 NIST CONDRST sequence) and RNGEN set first -- otherwise SAES SR.BUSY never
+ * clears and DHUK wrap/derive time out. Runs under the caller's crypto-mutex
+ * hold, so it uses the mutex-free wc_stm32_rng_ensure_ready() shared with
+ * wc_GenerateSeed (a cold DHUK/SAES op no longer needs a prior wc_InitRng);
+ * HAL-RNG (CubeMX) builds condition via HAL_RNG_Init and fall back to a plain
+ * enable here. Returns 0 or an RNG error. */
+static int Stm32SaesEnsureRng(void)
 {
+    int ret = 0;
+#ifdef WC_STM32_HAS_RNG_READY
+    ret = wc_stm32_rng_ensure_ready();
+    if (ret != 0) {
+        return ret;
+    }
+#else
 #ifdef WC_STM32_RNG_CLK_ENABLE
     WC_STM32_RNG_CLK_ENABLE();
 #endif
@@ -2408,6 +2420,7 @@ static void Stm32SaesEnsureRng(void)
         RNG->CR |= RNG_CR_RNGEN;
         __DMB();
     }
+#endif /* WC_STM32_HAS_RNG_READY */
 #ifdef RCC_CR_SHSION
     /* On STM32U5/U3 the SAES kernel clock is the SHSI (secure HSI). It must
      * be running or the SAES IP never computes -- CCF never asserts and DHUK
@@ -2425,6 +2438,7 @@ static void Stm32SaesEnsureRng(void)
         __DMB();
     }
 #endif
+    return ret;
 }
 
 #endif /* WOLFSSL_DHUK || WOLFSSL_STM32_USE_SAES */
@@ -2517,7 +2531,11 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz,
 
     /* RNG must be running before SAES clock-enable -- SAES self-init
      * pulls entropy from the RNG. */
-    Stm32SaesEnsureRng();
+    ret = Stm32SaesEnsureRng();
+    if (ret != 0) {
+        wolfSSL_CryptHwMutexUnLock();
+        return ret;
+    }
 #ifdef WC_STM32_SAES_CLK_ENABLE
     WC_STM32_SAES_CLK_ENABLE();
 #endif
@@ -2650,7 +2668,11 @@ int wc_Stm32_Aes_DhukOp_ex(struct Aes* aes, byte* out, const byte* in,
         return ret;
     }
 
-    Stm32SaesEnsureRng();
+    ret = Stm32SaesEnsureRng();
+    if (ret != 0) {
+        wolfSSL_CryptHwMutexUnLock();
+        return ret;
+    }
 #ifdef WC_STM32_SAES_CLK_ENABLE
     WC_STM32_SAES_CLK_ENABLE();
 #endif
@@ -2993,7 +3015,10 @@ static int Stm32Dhuk_Gmac(void* beCtx, const byte* iv, word32 ivSz,
     }
     saes_locked = 1;
 
-    Stm32SaesEnsureRng();
+    ret = Stm32SaesEnsureRng();
+    if (ret != 0) {
+        goto exit;
+    }
 #ifdef WC_STM32_SAES_CLK_ENABLE
     WC_STM32_SAES_CLK_ENABLE();
 #endif
@@ -3163,7 +3188,10 @@ static int Stm32Dhuk_Gcm(int enc, const byte* in, word32 sz, byte* out,
     }
     saes_locked = 1;
 
-    Stm32SaesEnsureRng();
+    ret = Stm32SaesEnsureRng();
+    if (ret != 0) {
+        goto exit;
+    }
 #ifdef WC_STM32_SAES_CLK_ENABLE
     WC_STM32_SAES_CLK_ENABLE();
 #endif
@@ -3339,7 +3367,10 @@ static int Stm32Dhuk_Aes(void* beCtx, int mode, int enc, const byte* in,
     }
     saes_locked = 1;
 
-    Stm32SaesEnsureRng();
+    ret = Stm32SaesEnsureRng();
+    if (ret != 0) {
+        goto exit;
+    }
 #ifdef WC_STM32_SAES_CLK_ENABLE
     WC_STM32_SAES_CLK_ENABLE();
 #endif
@@ -3527,7 +3558,10 @@ static int Stm32Dhuk_Sign(void* beCtx, const struct ecc_key* keyIn,
     }
     saes_locked = 1;
 
-    Stm32SaesEnsureRng();
+    status = Stm32SaesEnsureRng();
+    if (status != 0) {
+        goto saes_exit;
+    }
 #ifdef WC_STM32_SAES_CLK_ENABLE
     WC_STM32_SAES_CLK_ENABLE();
 #endif
@@ -3789,7 +3823,15 @@ static int Stm32Dhuk_Cipher(struct wc_CryptoInfo* info)
         }
 #endif
     default:
-        return CRYPTOCB_UNAVAILABLE;
+        /* This device is registered only for the DHUK devId, so every request
+         * here carries a DHUK seed key. A cipher mode the SAES backend cannot
+         * service (AES-CTR, AES-CCM, AES-XTS, ...) must fail loudly: returning
+         * CRYPTOCB_UNAVAILABLE would let wolfCrypt fall back to a software/HW
+         * path keyed on the raw seed instead of the HW-derived device key.
+         * NOT_COMPILED_IN is unsuitable too -- wc_CryptoCb_TranslateErrorCode()
+         * remaps it back to CRYPTOCB_UNAVAILABLE. ALGO_ID_E propagates
+         * unchanged, so the caller sees a hard error, not silent seed use. */
+        return ALGO_ID_E;
     }
 }
 #endif /* !NO_AES */
