@@ -6191,10 +6191,9 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
             InitDecodedCert(cert, der->buffer, der->length, NULL);
             /* For TRUSTED_CERT_TYPE the DER buffer holds the certificate
              * followed by auxiliary trust info. ParseCertRelative() recognizes
-             * the type: it parses only the certificate and treats it as
-             * CERT_TYPE for verification (and, under WOLFSSL_CERT_REJECT_TRAILING,
-             * permits the trailing aux data). The DER is trimmed to the
-             * certificate below. */
+             * the type: it parses only the certificate, permits the trailing
+             * aux data, and treats it as CERT_TYPE for verification. The DER is
+             * trimmed to the certificate below. */
             ret = ParseCertRelative(cert, type, 0, NULL, NULL);
             if (ret == 0) {
                 /* For TRUSTED_CERT_TYPE, truncate the DER buffer to exclude
