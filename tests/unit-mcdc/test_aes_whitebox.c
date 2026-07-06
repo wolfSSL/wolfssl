@@ -249,6 +249,82 @@ static void wb_aesnew_common(void)
     WB_NOTE("_AesNew_common default cross-arg pairs exercised");
 }
 
+/* ------------------------------------------------------------------------- *
+ * Class 3: AES-NI internal pointer guards (WOLFSSL_AESNI).
+ *
+ * When aes.c is compiled with AES-NI (the campaign's "aesni" variant), the
+ * AES-NI code paths add file-static helpers whose NULL/size guards every public
+ * caller pre-rejects, exactly like the classic GHASH guards:
+ *
+ *   AES_set_encrypt_key_AESNI / AES_set_decrypt_key_AESNI
+ *       line 1068 / 1099:  if (!userKey || !aes)  -> idx0 !userKey, idx1 !aes
+ *   AesGcmAadUpdate_aesni
+ *       line 12136:        if (aSz != 0 && a != NULL)   -> idx1 (a != NULL)
+ *   AesGcmEncryptUpdate_aesni
+ *       line 12305:        AesGcmAadUpdate_aesni(..., (cSz > 0) && (c != NULL))
+ *                                                       -> idx1 (c != NULL)
+ *       line 12310:        if (cSz != 0 && c != NULL)   -> idx1 (c != NULL)
+ *   AesGcmDecryptUpdate_aesni
+ *       line 12635:        if (cSz != 0 && p != NULL)   -> idx1 (p != NULL)
+ *
+ * The key setters return BAD_FUNC_ARG before any AES-NI work. For the GCM
+ * updaters, a data pointer == NULL with size != 0 short-circuits its guarded
+ * block before dereferencing, so the NULL calls are memory-safe. A valid GCM
+ * streaming state (wc_AesGcmInit) supplies gcm->H; on an AES-NI host use_aesni
+ * is set, so calling the *_aesni updaters directly is state-consistent.
+ * ASSERT_SAVED_VECTOR_REGISTERS is a no-op unless WOLFSSL_CHECK_VECTOR_REGISTERS.
+ * ------------------------------------------------------------------------- */
+#ifdef WOLFSSL_AESNI
+static void wb_aesni(void)
+{
+    {   /* key-expansion !userKey / !aes halves */
+        Aes  aes;
+        byte key[16];
+        XMEMSET(key, 0, sizeof(key));
+        XMEMSET(&aes, 0, sizeof(aes));
+        (void)AES_set_encrypt_key_AESNI(NULL, 128, &aes); /* !userKey -> true  */
+        (void)AES_set_encrypt_key_AESNI(key,  128, NULL); /* !userKey F, !aes T */
+        (void)AES_set_decrypt_key_AESNI(NULL, 128, &aes); /* !userKey -> true  */
+        (void)AES_set_decrypt_key_AESNI(key,  128, NULL); /* !userKey F, !aes T */
+    }
+
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+    {   /* AES-NI GCM streaming ptr guards; both halves within this binary */
+        Aes  aes;
+        byte key[16], iv[12], in[16], out[16];
+        XMEMSET(key, 0, sizeof(key)); XMEMSET(iv, 0, sizeof(iv));
+        XMEMSET(in,  0, sizeof(in));  XMEMSET(out, 0, sizeof(out));
+
+        if (wc_AesInit(&aes, NULL, INVALID_DEVID) == 0 &&
+            wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)) == 0) {
+            /* 12136: if (aSz != 0 && a != NULL) -- hold aSz!=0, flip a!=NULL */
+            aes.aOver = 0;
+            (void)AesGcmAadUpdate_aesni(&aes, in,   16, 0);       /* a!=NULL T */
+            aes.aOver = 0;
+            (void)AesGcmAadUpdate_aesni(&aes, NULL, 16, 0);       /* a!=NULL F */
+            /* 12305 + 12310: c!=NULL -- hold cSz!=0, flip c (out) */
+            aes.aOver = 0; aes.cOver = 0;
+            (void)AesGcmEncryptUpdate_aesni(&aes, out,  in, 16, in, 16); /* c T */
+            aes.aOver = 0; aes.cOver = 0;
+            (void)AesGcmEncryptUpdate_aesni(&aes, NULL, in, 16, in, 16); /* c F */
+            /* 12635: p!=NULL -- hold cSz!=0, flip p (out) */
+            aes.aOver = 0; aes.cOver = 0;
+            (void)AesGcmDecryptUpdate_aesni(&aes, out,  in, 16, in, 16); /* p T */
+            aes.aOver = 0; aes.cOver = 0;
+            (void)AesGcmDecryptUpdate_aesni(&aes, NULL, in, 16, in, 16); /* p F */
+            wc_AesFree(&aes);
+        }
+        else {
+            WB_NOTE("AES-NI GCM streaming init failed; GCM guards skipped");
+        }
+    }
+#endif /* HAVE_AESGCM && WOLFSSL_AESGCM_STREAM */
+    WB_NOTE("AES-NI internal ptr-guard pairs exercised");
+}
+#else
+static void wb_aesni(void) { WB_NOTE("WOLFSSL_AESNI off; AES-NI internals skipped"); }
+#endif
+
 int main(void)
 {
     printf("aes.c white-box MC/DC supplement\n");
@@ -259,6 +335,7 @@ int main(void)
     wb_ghash_classic();
     wb_ghash_update();
     wb_aesnew_common();
+    wb_aesni();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */
