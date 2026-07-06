@@ -61,6 +61,17 @@ typedef word64 fpr;
 
 /* -- Constructors / conversions / arithmetic / predicates --------------- */
 
+/* Guard against selecting the native-double backend on a 32-bit ARM target that
+ * has no double-precision FPU (Cortex-M0/M3/M4/M23/M33 are single-precision or
+ * FPU-less). There, C double maps onto slow libgcc soft-double, so FPR_DOUBLE is
+ * a pessimization -- the default emulated integer backend is faster. __ARM_FP
+ * bit 3 (0x08) marks a hardware double FPU; AArch64 (which always has one) does
+ * not define __arm__, so it is unaffected. */
+#if defined(WOLFSSL_FALCON_FPR_DOUBLE) && defined(__arm__) && \
+    (!defined(__ARM_FP) || (((__ARM_FP) & 0x08) == 0))
+    #warning "WOLFSSL_FALCON_FPR_DOUBLE on a target without a double-precision FPU falls back to slow soft-double; the default integer fpr backend is faster on Cortex-M."
+#endif
+
 #if defined(WOLFSSL_FALCON_FPR_DOUBLE)
 /* Inline native-double backend (opt-in). Maps the fpr seam onto the C double
  * type so the FFT/poly/sampler INLINE these scalar ops and keep values in FP
