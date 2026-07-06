@@ -9927,6 +9927,7 @@ int test_wc_AesKeyExportArgMcdc(void)
             WC_NO_ERR_TRACE(BUFFER_E));
         ExpectIntEQ(wc_AesInit_Id(&aes, id, AES_MAX_ID_LEN + 1, NULL,
             INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        wc_AesFree(&aes); /* first init succeeded; free its lifecycle tag */
     }
 
     /* wc_AesInit_Label(): aes/label == NULL OR-chain, plus labelLen == 0 /
@@ -9949,6 +9950,7 @@ int test_wc_AesKeyExportArgMcdc(void)
             WC_NO_ERR_TRACE(BUFFER_E));
         ExpectIntEQ(wc_AesInit_Label(&aes, longLabel, NULL, INVALID_DEVID),
             WC_NO_ERR_TRACE(BUFFER_E));
+        wc_AesFree(&aes); /* first init succeeded; free its lifecycle tag */
     }
 #endif /* WOLF_PRIVATE_KEY_ID */
 

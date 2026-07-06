@@ -4608,6 +4608,20 @@ static int test_wolfSSL_session_cache_api_direct(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #elif !defined(NO_WOLFSSL_SERVER)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    /* A client CTX yields a usable WOLFSSL* cert-free, but a server needs a
+     * cert+key or wolfSSL_new() has no usable cipher suite and returns NULL
+     * (e.g. minimal server-only builds). Load the test server cert/key. */
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+#elif !defined(NO_CERTS) && !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
+        sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+#endif
 #endif
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
