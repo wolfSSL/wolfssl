@@ -111,6 +111,7 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_CMAC:   return "CMAC";
         case WC_ALGO_TYPE_CERT:   return "Cert";
         case WC_ALGO_TYPE_KDF:    return "KDF";
+        case WC_ALGO_TYPE_HWPUF:  return "HWPUF";
 #ifdef WOLF_CRYPTO_CB_COPY
         case WC_ALGO_TYPE_COPY:   return "Copy";
 #endif /* WOLF_CRYPTO_CB_COPY */
@@ -235,7 +236,6 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
-
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || defined(HAVE_CMAC_KDF)
 static const char* GetKdfTypeStr(int type)
 {
@@ -248,6 +248,29 @@ static const char* GetKdfTypeStr(int type)
             return "HKDF Expand";
         case WC_KDF_TYPE_TWOSTEP_CMAC:
             return "TWOSTEP_CMAC";
+    }
+    return NULL;
+}
+#endif
+
+#ifdef WOLFSSL_HWPUF
+static const char* GetHwpufTypeStr(int type)
+{
+    switch (type) {
+        case WC_HWPUF_TYPE_INIT:
+            return "INIT";
+        case WC_HWPUF_TYPE_DEINIT:
+            return "DEINIT";
+        case WC_HWPUF_TYPE_ENROLL:
+            return "ENROLL";
+        case WC_HWPUF_TYPE_START:
+            return "START";
+        case WC_HWPUF_TYPE_GENERATE_KEY:
+            return "GENERATE_KEY";
+        case WC_HWPUF_TYPE_GET_KEY:
+            return "GET_KEY";
+        case WC_HWPUF_TYPE_ZEROIZE:
+            return "ZEROIZE";
     }
     return NULL;
 }
@@ -351,6 +374,12 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
         printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
                GetKdfTypeStr(info->kdf.type), info->kdf.type);
+    }
+#endif
+#ifdef WOLFSSL_HWPUF
+    else if (info->algo_type == WC_ALGO_TYPE_HWPUF) {
+        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
+               GetHwpufTypeStr(info->hwpuf.type), info->hwpuf.type);
     }
 #endif
     else {
@@ -2711,6 +2740,177 @@ int wc_CryptoCb_SheExportKey(wc_SHE* she,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* WOLFSSL_SHE */
+
+#ifdef WOLFSSL_HWPUF
+int wc_CryptoCb_HwpufInit(wc_HWPUF* hwpuf)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (hwpuf == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.hwpuf = hwpuf;
+        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_INIT;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_HwpufDeinit(wc_HWPUF* hwpuf)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (hwpuf == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.hwpuf = hwpuf;
+        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_DEINIT;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (hwpuf == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.hwpuf = hwpuf;
+        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_ENROLL;
+        cryptoInfo.hwpuf.op.enroll.actCode   = actCode;
+        cryptoInfo.hwpuf.op.enroll.actCodeSz = actCodeSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (hwpuf == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.hwpuf = hwpuf;
+        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_START;
+        cryptoInfo.hwpuf.op.start.actCode   = actCode;
+        cryptoInfo.hwpuf.op.start.actCodeSz = actCodeSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
+                                 byte* keyCode, word32 keyCodeSz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (hwpuf == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.hwpuf = hwpuf;
+        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_GENERATE_KEY;
+        cryptoInfo.hwpuf.op.generateKey.keyIdx    = keyIdx;
+        cryptoInfo.hwpuf.op.generateKey.keySz     = keySz;
+        cryptoInfo.hwpuf.op.generateKey.keyCode   = keyCode;
+        cryptoInfo.hwpuf.op.generateKey.keyCodeSz = keyCodeSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
+                            byte* keyCode, word32 keyCodeSz,
+                            byte* key, word32 keySz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (hwpuf == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.hwpuf = hwpuf;
+        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_GET_KEY;
+        cryptoInfo.hwpuf.op.getKey.keyCode   = keyCode;
+        cryptoInfo.hwpuf.op.getKey.keyCodeSz = keyCodeSz;
+        cryptoInfo.hwpuf.op.getKey.key       = key;
+        cryptoInfo.hwpuf.op.getKey.keySz     = keySz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_HwpufZeroize(wc_HWPUF* hwpuf)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (hwpuf == NULL)
+        return BAD_FUNC_ARG;
+
+    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
+        cryptoInfo.hwpuf.hwpuf = hwpuf;
+        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_ZEROIZE;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_HWPUF */
 
 /* returns the default dev id for the current build */
 int wc_CryptoCb_DefaultDevID(void)

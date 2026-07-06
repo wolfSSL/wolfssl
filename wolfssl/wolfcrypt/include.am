@@ -85,6 +85,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wc_xmss.h \
                          wolfssl/wolfcrypt/wc_slhdsa.h \
                          wolfssl/wolfcrypt/puf.h \
+                         wolfssl/wolfcrypt/hwpuf.h \
                          wolfssl/wolfcrypt/oid_sum.h
 
 noinst_HEADERS+= \
@@ -98,6 +99,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/nxp/dcp_port.h \
                          wolfssl/wolfcrypt/port/nxp/casper_port.h \
                          wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h \
+                         wolfssl/wolfcrypt/port/nxp/hwpuf_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h \

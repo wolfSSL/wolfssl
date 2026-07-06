@@ -2441,6 +2441,12 @@
     #define NO_WOLFSSL_SHA256_INTERLEAVE
 #endif
 
+#if defined(WOLFSSL_HWPUF) && defined(WOLFSSL_NXP_HWPUF)
+#ifndef WOLF_CRYPTO_CB
+    #define WOLF_CRYPTO_CB
+#endif
+#endif
+
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE
     #undef  USE_CERT_BUFFERS_4096
     #define USE_CERT_BUFFERS_4096
