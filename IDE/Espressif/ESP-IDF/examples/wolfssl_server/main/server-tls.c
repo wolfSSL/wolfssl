@@ -406,6 +406,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         ESP_LOGI(TAG, "Done! Cleanup...");
         /* Cleanup after this connection */
         wolfSSL_free(ssl);      /* Free the wolfSSL object              */
+        ssl = NULL;
         close(connd);           /* Close the connection to the client   */
 #ifdef WOLFSSL_EXAMPLE_VERBOSITY
         ESP_LOGI(TAG, "Stack used: %d\n",

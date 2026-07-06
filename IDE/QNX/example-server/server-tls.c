@@ -246,7 +246,7 @@ static int TLS_ECDH_callback(WOLFSSL* ssl, struct ecc_key* otherKey,
 int main()
 {
     int                sockfd;
-    int                connd = 0;
+    int                connd = -1;
     struct sockaddr_in servAddr;
     struct sockaddr_in clientAddr;
     socklen_t          size = sizeof(clientAddr);
@@ -379,7 +379,8 @@ int main()
 end:
     /* Cleanup after this connection */
     wolfSSL_free(ssl);      /* Free the wolfSSL object              */
-    close(connd);           /* Close the connection to the client   */
+    if (connd != -1)
+        close(connd);       /* Close the connection to the client   */
     wc_ecc_free(&blackKey);
 
     printf("Shutdown complete\n");
