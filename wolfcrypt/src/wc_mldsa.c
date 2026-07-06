@@ -5441,8 +5441,9 @@ static void mldsa_use_hint_88(sword32* w1, const byte* h, unsigned int i,
         r = w1[j] + ((0 - (((word32)w1[j]) >> 31)) & MLDSA_Q);
         /* Decompose value into low and high parts. */
         mldsa_decompose_q88(r, &r0, &r1);
-        /* Make hint positive or negative based on sign of r0. */
-        hint = (1 - (2 * (((word32)r0) >> 31))) & (0 - hint);
+        /* Make hint positive or negative: r0 > 0 adds, r0 <= 0 subtracts
+         * (FIPS 204). (r0 - 1) >> 31 is 1 when r0 <= 0. */
+        hint = (1 - (2 * (((word32)(r0 - 1)) >> 31))) & (0 - hint);
         /* Make w1 only the top part plus the hint. */
         w1[j] = r1 + hint;
 
@@ -5457,8 +5458,9 @@ static void mldsa_use_hint_88(sword32* w1, const byte* h, unsigned int i,
         mldsa_decompose_q88(r, &r0, &r1);
         /* Check for hint. */
         if ((o < h[PARAMS_ML_DSA_44_OMEGA + i]) && (h[o] == (byte)j)) {
-            /* Add or subtract hint based on sign of r0. */
-            r1 += (sword32)(1U - (2U * (((word32)r0) >> 31)));
+            /* Add or subtract hint: r0 > 0 adds, r0 <= 0 subtracts
+             * (FIPS 204). (r0 - 1) >> 31 is 1 when r0 <= 0. */
+            r1 += (sword32)(1U - (2U * (((word32)(r0 - 1)) >> 31)));
             /* Go to next hint offset. */
             o++;
         }
@@ -5511,8 +5513,9 @@ static void mldsa_use_hint_32(sword32* w1, const byte* h, byte omega,
         r = w1[j] + (sword32)((0 - (((word32)w1[j]) >> 31)) & MLDSA_Q);
         /* Decompose value into low and high parts. */
         mldsa_decompose_q32(r, &r0, &r1);
-        /* Make hint positive or negative based on sign of r0. */
-        hint = (sword32)((1 - (2 * (((word32)r0) >> 31))) & (0 - hint));
+        /* Make hint positive or negative: r0 > 0 adds, r0 <= 0 subtracts
+         * (FIPS 204). (r0 - 1) >> 31 is 1 when r0 <= 0. */
+        hint = (sword32)((1 - (2 * (((word32)(r0 - 1)) >> 31))) & (0 - hint));
         /* Make w1 only the top part plus the hint. */
         w1[j] = r1 + hint;
 
@@ -5525,8 +5528,9 @@ static void mldsa_use_hint_32(sword32* w1, const byte* h, byte omega,
         mldsa_decompose_q32(r, &r0, &r1);
         /* Check for hint. */
         if ((o < h[omega + i]) && (h[o] == (byte)j)) {
-            /* Add or subtract hint based on sign of r0. */
-            r1 += (sword32)(1 - (2 * (((word32)r0) >> 31)));
+            /* Add or subtract hint: r0 > 0 adds, r0 <= 0 subtracts
+             * (FIPS 204). (r0 - 1) >> 31 is 1 when r0 <= 0. */
+            r1 += (sword32)(1 - (2 * (((word32)(r0 - 1)) >> 31)));
             /* Go to next hint offset. */
             o++;
         }

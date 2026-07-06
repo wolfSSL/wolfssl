@@ -34293,6 +34293,8 @@ static int sp_384_div_7(const sp_digit* a, const sp_digit* d,
             sp_384_norm_7(&t1[i + 1]);
         }
         sp_384_norm_7(t1);
+        sp_384_cond_add_7(t1, t1, sd, t1[6] >> 63);
+        sp_384_norm_7(t1);
         sp_384_rshift_7(r, t1, 1);
     }
 
@@ -41579,6 +41581,8 @@ static int sp_521_div_9(const sp_digit* a, const sp_digit* d,
             sp_521_cond_sub_9(t1 + i, t1 + i, sd, mask);
             sp_521_norm_9(&t1[i + 1]);
         }
+        sp_521_norm_9(t1);
+        sp_521_cond_add_9(t1, t1, sd, t1[8] >> 63);
         sp_521_norm_9(t1);
         sp_521_rshift_9(r, t1, 1);
     }

@@ -2302,6 +2302,7 @@ int curve448(byte* r, const byte* n, const byte* a)
         fe448_reduce(x3);
         fe448_sqr(x3, x3);
         fe448_sub(z3, z3, t1);
+        fe448_reduce(z3);
         fe448_sqr(z3, z3);
         fe448_mul(z3, z3, x1);
         fe448_sub(t1, t0, x2);

@@ -9345,9 +9345,11 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
             if (err == MP_OKAY)
                 err = mp_montgomery_setup(curve->prime, &mp);
 
-            /* add them */
+            /* add them - pass mG as A (first) not B (second): the safe-add
+             * recovery for a missed-double doubles B into R, which requires
+             * B and R to be different points. */
             if (err == MP_OKAY)
-                err = ecc_projective_add_point_safe(mQ, mG, mG, curve->Af,
+                err = ecc_projective_add_point_safe(mG, mQ, mG, curve->Af,
                                                         curve->prime, mp, NULL);
         #ifdef WOLFSSL_CHECK_VER_FAULTS
             if (err == MP_OKAY && wc_ecc_cmp_point(mG, &mG1) == MP_EQ) {
