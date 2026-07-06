@@ -60,6 +60,17 @@ int test_wc_AesKeyWrapVectors(void);
 int test_wc_AesKeyWrapDecisionCoverage(void);
 int test_wc_AesGcmDecisionCoverage(void);
 int test_wc_AesFeatureCoverage(void);
+int test_wc_AesSetKeyArgMcdc(void);
+int test_wc_AesModesArgMcdc(void);
+int test_wc_AesGcmArgMcdc(void);
+int test_wc_AesGmacArgMcdc(void);
+int test_wc_AesCcmArgMcdc(void);
+int test_wc_AesXtsArgMcdc(void);
+int test_wc_AesCmacArgMcdc(void);
+int test_wc_AesKeyExportArgMcdc(void);
+#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
+int test_wc_AesSivArgMcdc(void);
+#endif
 int test_wc_AesCcmSetKey(void);
 int test_wc_AesCcmEncryptDecrypt(void);
 int test_wc_AesCcmEncryptDecrypt_InPlace(void);
@@ -80,6 +91,7 @@ int test_wc_AesEaxVectors(void);
 int test_wc_AesEaxEncryptAuth(void);
 int test_wc_AesEaxDecryptAuth(void);
 int test_wc_AesEaxStream(void);
+int test_wc_AesEaxArgMcdc(void);
 #endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256*/
 #if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
 int test_wc_AesSivEncryptDecrypt(void);
@@ -187,6 +199,14 @@ int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void);
     TEST_DECL_GROUP("aes", test_wc_AesKeyWrapDecisionCoverage), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmDecisionCoverage),     \
     TEST_DECL_GROUP("aes", test_wc_AesFeatureCoverage),         \
+    TEST_DECL_GROUP("aes", test_wc_AesSetKeyArgMcdc),           \
+    TEST_DECL_GROUP("aes", test_wc_AesModesArgMcdc),            \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmArgMcdc),              \
+    TEST_DECL_GROUP("aes", test_wc_AesGmacArgMcdc),             \
+    TEST_DECL_GROUP("aes", test_wc_AesCcmArgMcdc),              \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsArgMcdc),              \
+    TEST_DECL_GROUP("aes", test_wc_AesCmacArgMcdc),             \
+    TEST_DECL_GROUP("aes", test_wc_AesKeyExportArgMcdc),        \
     TEST_DECL_GROUP("aes", test_wc_AesCcmSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt),        \
     TEST_DECL_GROUP("aes", test_wc_AesCcmEncryptDecrypt_InPlace),            \
@@ -218,12 +238,14 @@ int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void);
     TEST_DECL_GROUP("aes-eax", test_wc_AesEaxVectors),      \
     TEST_DECL_GROUP("aes-eax", test_wc_AesEaxEncryptAuth),  \
     TEST_DECL_GROUP("aes-eax", test_wc_AesEaxDecryptAuth),  \
-    TEST_DECL_GROUP("aes-eax", test_wc_AesEaxStream)
+    TEST_DECL_GROUP("aes-eax", test_wc_AesEaxStream),       \
+    TEST_DECL_GROUP("aes-eax", test_wc_AesEaxArgMcdc)
 #endif /* WOLFSSL_AES_EAX */
 
 #if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
 #define TEST_AES_SIV_DECLS \
-    TEST_DECL_GROUP("aes-siv", test_wc_AesSivEncryptDecrypt)
+    TEST_DECL_GROUP("aes-siv", test_wc_AesSivEncryptDecrypt), \
+    TEST_DECL_GROUP("aes-siv", test_wc_AesSivArgMcdc)
 #endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
 
 #define TEST_GMAC_DECLS                             \
