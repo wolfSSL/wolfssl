@@ -1645,7 +1645,11 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(NULL, 0));
     ExpectNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(aia, 1));
     ExpectNotNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(aia, 0));
-    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
+    /* Pass the element free explicitly: the stack's default (type-based) element
+     * free for ACCESS_DESCRIPTION is only wired up under OPENSSL_ALL, so with a
+     * NULL callback an OPENSSL_EXTRA-only build (this block now compiles there)
+     * frees the stack nodes but leaks each ACCESS_DESCRIPTION. */
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, wolfSSL_ACCESS_DESCRIPTION_free);
     aia = NULL;
 
 #ifndef NO_WOLFSSL_STUB
