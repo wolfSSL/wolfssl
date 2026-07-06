@@ -8700,7 +8700,11 @@ int test_wc_AesSetKeyArgMcdc(void)
 int test_wc_AesModesArgMcdc(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(WOLFSSL_AES_128)
+/* Uses AES_IV_FIXED_SZ and checkable wc_AesEncryptDirect/wc_AesGcmSetExtIV_ex,
+ * absent/void in the older FIPS module; gate on the modern API. */
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
     byte key[AES_128_KEY_SIZE] = { 0 };
     byte in[64] = { 0 };
     byte out[64];
@@ -8941,7 +8945,11 @@ int test_wc_AesModesArgMcdc(void)
 int test_wc_AesGcmArgMcdc(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
+/* Uses AES_IV_FIXED_SZ, GCM_NONCE_MIN/MID/MAX_SZ (undeclared in the older FIPS
+ * module); gate on the modern API. */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
     byte key[AES_128_KEY_SIZE] = { 0 };
     byte iv[GCM_NONCE_MID_SZ] = { 1 };
     byte authTag[WC_AES_BLOCK_SIZE];
