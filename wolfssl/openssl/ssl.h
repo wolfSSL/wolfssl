@@ -1570,6 +1570,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_state                   wolfSSL_get_state
 #define SSL_state_string_long           wolfSSL_state_string_long
 
+/* Must equal HANDSHAKE_DONE in the internal 'enum states'
+ * (wolfssl/internal.h), returned by wolfSSL_get_state(); 16 today. */
 #define WOLFSSL_TLS_ST_OK               16
 #define WOLFSSL_SSL_ST_OK               WOLFSSL_TLS_ST_OK
 #define TLS_ST_OK                       WOLFSSL_TLS_ST_OK
