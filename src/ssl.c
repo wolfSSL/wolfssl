@@ -15422,7 +15422,7 @@ int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
     /* verify provided arguments. The return value is an int holding the
      * resulting length, so reject any len that cannot be represented as a
      * non-negative int. This also prevents truncating size_t to int. */
-    if (buf == NULL || len > (size_t)INT_MAX) {
+    if (buf == NULL || len > (size_t)WC_MAX_SINT_OF(int)) {
         return 0; /* BAD_FUNC_ARG; */
     }
 
