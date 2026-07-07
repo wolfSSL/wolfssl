@@ -1535,11 +1535,18 @@ int test_wc_RsaDecisionCoverage(void)
     ExpectIntEQ(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
         cipherLen, NULL, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* Cipher text is OAEP-SHA256: decoding it as PKCS#1 v1.5 must fail and
-     * exercise the padding-mismatch decision branch in rsa.c. */
-    ExpectIntLT(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
-        cipherLen, &key, WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0),
-        0);
+    /* Cipher text is OAEP-SHA256 with no label. Decrypting it as OAEP with a
+     * non-empty label makes the recovered lHash mismatch, so OAEP's integrity
+     * check fails *deterministically* and exercises the padding-mismatch
+     * decision branch in rsa.c. (Decoding it as PKCS#1 v1.5 was flaky: v1.5
+     * unpadding of the random OAEP plaintext spuriously "succeeds" a few
+     * percent of the time when byte[1] lands on 0x02 with a valid separator.) */
+    {
+        byte wrongLabel[5] = { 'w', 'r', 'o', 'n', 'g' };
+        ExpectIntLT(wc_RsaPrivateDecrypt_ex(cipher, (word32)cipherOutLen, plain,
+            cipherLen, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+            WC_MGF1SHA256, wrongLabel, sizeof(wrongLabel)), 0);
+    }
 
     /* ---- wc_RsaPrivateDecryptInline_ex argument-check branches ---- */
     {
