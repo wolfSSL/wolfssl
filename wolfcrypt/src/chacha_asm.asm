@@ -462,26 +462,22 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX1
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_rotl8 QWORD \
-     0605040702010003h,  0e0d0c0f0a09080bh
+L_chacha20_avx1_rotl8 QWORD 0605040702010003h, 0e0d0c0f0a09080bh
 ptr_L_chacha20_avx1_rotl8 QWORD L_chacha20_avx1_rotl8
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_rotl16 QWORD \
-     0504070601000302h,  0d0c0f0e09080b0ah
+L_chacha20_avx1_rotl16 QWORD 0504070601000302h, 0d0c0f0e09080b0ah
 ptr_L_chacha20_avx1_rotl16 QWORD L_chacha20_avx1_rotl16
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_add QWORD \
-     0000000100000000h,  0000000300000002h
+L_chacha20_avx1_add QWORD 0000000100000000h, 0000000300000002h
 ptr_L_chacha20_avx1_add QWORD L_chacha20_avx1_add
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_four QWORD \
-     0000000400000004h,  0000000400000004h
+L_chacha20_avx1_four QWORD 0000000400000004h, 0000000400000004h
 ptr_L_chacha20_avx1_four QWORD L_chacha20_avx1_four
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -1019,30 +1015,26 @@ ENDIF
 IFDEF HAVE_INTEL_AVX2
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_rotl8 QWORD \
-     0605040702010003h,  0e0d0c0f0a09080bh,
-     0605040702010003h,  0e0d0c0f0a09080bh
+L_chacha20_avx2_rotl8 QWORD 0605040702010003h, 0e0d0c0f0a09080bh
+        QWORD 0605040702010003h, 0e0d0c0f0a09080bh
 ptr_L_chacha20_avx2_rotl8 QWORD L_chacha20_avx2_rotl8
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_rotl16 QWORD \
-     0504070601000302h,  0d0c0f0e09080b0ah,
-     0504070601000302h,  0d0c0f0e09080b0ah
+L_chacha20_avx2_rotl16 QWORD 0504070601000302h, 0d0c0f0e09080b0ah
+        QWORD 0504070601000302h, 0d0c0f0e09080b0ah
 ptr_L_chacha20_avx2_rotl16 QWORD L_chacha20_avx2_rotl16
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_add QWORD \
-     0000000100000000h,  0000000300000002h,
-     0000000500000004h,  0000000700000006h
+L_chacha20_avx2_add QWORD 0000000100000000h, 0000000300000002h
+        QWORD 0000000500000004h, 0000000700000006h
 ptr_L_chacha20_avx2_add QWORD L_chacha20_avx2_add
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_eight QWORD \
-     0000000800000008h,  0000000800000008h,
-     0000000800000008h,  0000000800000008h
+L_chacha20_avx2_eight QWORD 0000000800000008h, 0000000800000008h
+        QWORD 0000000800000008h, 0000000800000008h
 ptr_L_chacha20_avx2_eight QWORD L_chacha20_avx2_eight
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -1093,29 +1085,29 @@ chacha_encrypt_avx2 PROC
         vpbroadcastd	ymm14, DWORD PTR [rcx+56]
         vpbroadcastd	ymm15, DWORD PTR [rcx+60]
         vpaddd	ymm12, ymm12, YMMWORD PTR [r15]
-        vmovdqa	YMMWORD PTR [r11], ymm0
-        vmovdqa	YMMWORD PTR [r11+32], ymm1
-        vmovdqa	YMMWORD PTR [r11+64], ymm2
-        vmovdqa	YMMWORD PTR [r11+96], ymm3
-        vmovdqa	YMMWORD PTR [r11+128], ymm4
-        vmovdqa	YMMWORD PTR [r11+160], ymm5
-        vmovdqa	YMMWORD PTR [r11+192], ymm6
-        vmovdqa	YMMWORD PTR [r11+224], ymm7
-        vmovdqa	YMMWORD PTR [r11+256], ymm8
-        vmovdqa	YMMWORD PTR [r11+288], ymm9
-        vmovdqa	YMMWORD PTR [r11+320], ymm10
-        vmovdqa	YMMWORD PTR [r11+352], ymm11
-        vmovdqa	YMMWORD PTR [r11+384], ymm12
-        vmovdqa	YMMWORD PTR [r11+416], ymm13
-        vmovdqa	YMMWORD PTR [r11+448], ymm14
-        vmovdqa	YMMWORD PTR [r11+480], ymm15
+        vmovdqu	YMMWORD PTR [r11], ymm0
+        vmovdqu	YMMWORD PTR [r11+32], ymm1
+        vmovdqu	YMMWORD PTR [r11+64], ymm2
+        vmovdqu	YMMWORD PTR [r11+96], ymm3
+        vmovdqu	YMMWORD PTR [r11+128], ymm4
+        vmovdqu	YMMWORD PTR [r11+160], ymm5
+        vmovdqu	YMMWORD PTR [r11+192], ymm6
+        vmovdqu	YMMWORD PTR [r11+224], ymm7
+        vmovdqu	YMMWORD PTR [r11+256], ymm8
+        vmovdqu	YMMWORD PTR [r11+288], ymm9
+        vmovdqu	YMMWORD PTR [r11+320], ymm10
+        vmovdqu	YMMWORD PTR [r11+352], ymm11
+        vmovdqu	YMMWORD PTR [r11+384], ymm12
+        vmovdqu	YMMWORD PTR [r11+416], ymm13
+        vmovdqu	YMMWORD PTR [r11+448], ymm14
+        vmovdqu	YMMWORD PTR [r11+480], ymm15
 L_chacha20_avx2_start256:
         mov	r10b, 10
-        vmovdqa	YMMWORD PTR [r12+96], ymm11
+        vmovdqu	YMMWORD PTR [r12+96], ymm11
 L_chacha20_avx2_loop256:
         vpaddd	ymm0, ymm0, ymm4
         vpxor	ymm12, ymm12, ymm0
-        vmovdqa	ymm11, YMMWORD PTR [r12+96]
+        vmovdqu	ymm11, YMMWORD PTR [r12+96]
         vpshufb	ymm12, ymm12, YMMWORD PTR [r14]
         vpaddd	ymm8, ymm8, ymm12
         vpxor	ymm4, ymm4, ymm8
@@ -1134,7 +1126,7 @@ L_chacha20_avx2_loop256:
         vpshufb	ymm15, ymm15, YMMWORD PTR [r14]
         vpaddd	ymm11, ymm11, ymm15
         vpxor	ymm7, ymm7, ymm11
-        vmovdqa	YMMWORD PTR [r12+96], ymm11
+        vmovdqu	YMMWORD PTR [r12+96], ymm11
         vpsrld	ymm11, ymm4, 20
         vpslld	ymm4, ymm4, 12
         vpxor	ymm4, ymm4, ymm11
@@ -1149,7 +1141,7 @@ L_chacha20_avx2_loop256:
         vpxor	ymm7, ymm7, ymm11
         vpaddd	ymm0, ymm0, ymm4
         vpxor	ymm12, ymm12, ymm0
-        vmovdqa	ymm11, YMMWORD PTR [r12+96]
+        vmovdqu	ymm11, YMMWORD PTR [r12+96]
         vpshufb	ymm12, ymm12, YMMWORD PTR [r13]
         vpaddd	ymm8, ymm8, ymm12
         vpxor	ymm4, ymm4, ymm8
@@ -1168,7 +1160,7 @@ L_chacha20_avx2_loop256:
         vpshufb	ymm15, ymm15, YMMWORD PTR [r13]
         vpaddd	ymm11, ymm11, ymm15
         vpxor	ymm7, ymm7, ymm11
-        vmovdqa	YMMWORD PTR [r12+96], ymm11
+        vmovdqu	YMMWORD PTR [r12+96], ymm11
         vpsrld	ymm11, ymm4, 25
         vpslld	ymm4, ymm4, 7
         vpxor	ymm4, ymm4, ymm11
@@ -1183,7 +1175,7 @@ L_chacha20_avx2_loop256:
         vpxor	ymm7, ymm7, ymm11
         vpaddd	ymm0, ymm0, ymm5
         vpxor	ymm15, ymm15, ymm0
-        vmovdqa	ymm11, YMMWORD PTR [r12+96]
+        vmovdqu	ymm11, YMMWORD PTR [r12+96]
         vpshufb	ymm15, ymm15, YMMWORD PTR [r14]
         vpaddd	ymm10, ymm10, ymm15
         vpxor	ymm5, ymm5, ymm10
@@ -1202,7 +1194,7 @@ L_chacha20_avx2_loop256:
         vpshufb	ymm14, ymm14, YMMWORD PTR [r14]
         vpaddd	ymm9, ymm9, ymm14
         vpxor	ymm4, ymm4, ymm9
-        vmovdqa	YMMWORD PTR [r12+96], ymm11
+        vmovdqu	YMMWORD PTR [r12+96], ymm11
         vpsrld	ymm11, ymm5, 20
         vpslld	ymm5, ymm5, 12
         vpxor	ymm5, ymm5, ymm11
@@ -1217,7 +1209,7 @@ L_chacha20_avx2_loop256:
         vpxor	ymm4, ymm4, ymm11
         vpaddd	ymm0, ymm0, ymm5
         vpxor	ymm15, ymm15, ymm0
-        vmovdqa	ymm11, YMMWORD PTR [r12+96]
+        vmovdqu	ymm11, YMMWORD PTR [r12+96]
         vpshufb	ymm15, ymm15, YMMWORD PTR [r13]
         vpaddd	ymm10, ymm10, ymm15
         vpxor	ymm5, ymm5, ymm10
@@ -1236,7 +1228,7 @@ L_chacha20_avx2_loop256:
         vpshufb	ymm14, ymm14, YMMWORD PTR [r13]
         vpaddd	ymm9, ymm9, ymm14
         vpxor	ymm4, ymm4, ymm9
-        vmovdqa	YMMWORD PTR [r12+96], ymm11
+        vmovdqu	YMMWORD PTR [r12+96], ymm11
         vpsrld	ymm11, ymm5, 25
         vpslld	ymm5, ymm5, 7
         vpxor	ymm5, ymm5, ymm11
@@ -1251,7 +1243,7 @@ L_chacha20_avx2_loop256:
         vpxor	ymm4, ymm4, ymm11
         dec	r10b
         jnz	L_chacha20_avx2_loop256
-        vmovdqa	ymm11, YMMWORD PTR [r12+96]
+        vmovdqu	ymm11, YMMWORD PTR [r12+96]
         vpaddd	ymm0, ymm0, YMMWORD PTR [r11]
         vpaddd	ymm1, ymm1, YMMWORD PTR [r11+32]
         vpaddd	ymm2, ymm2, YMMWORD PTR [r11+64]
@@ -1268,14 +1260,14 @@ L_chacha20_avx2_loop256:
         vpaddd	ymm13, ymm13, YMMWORD PTR [r11+416]
         vpaddd	ymm14, ymm14, YMMWORD PTR [r11+448]
         vpaddd	ymm15, ymm15, YMMWORD PTR [r11+480]
-        vmovdqa	YMMWORD PTR [r12], ymm8
-        vmovdqa	YMMWORD PTR [r12+32], ymm9
-        vmovdqa	YMMWORD PTR [r12+64], ymm10
-        vmovdqa	YMMWORD PTR [r12+96], ymm11
-        vmovdqa	YMMWORD PTR [r12+128], ymm12
-        vmovdqa	YMMWORD PTR [r12+160], ymm13
-        vmovdqa	YMMWORD PTR [r12+192], ymm14
-        vmovdqa	YMMWORD PTR [r12+224], ymm15
+        vmovdqu	YMMWORD PTR [r12], ymm8
+        vmovdqu	YMMWORD PTR [r12+32], ymm9
+        vmovdqu	YMMWORD PTR [r12+64], ymm10
+        vmovdqu	YMMWORD PTR [r12+96], ymm11
+        vmovdqu	YMMWORD PTR [r12+128], ymm12
+        vmovdqu	YMMWORD PTR [r12+160], ymm13
+        vmovdqu	YMMWORD PTR [r12+192], ymm14
+        vmovdqu	YMMWORD PTR [r12+224], ymm15
         vpunpckldq	ymm8, ymm0, ymm1
         vpunpckldq	ymm9, ymm2, ymm3
         vpunpckhdq	ymm12, ymm0, ymm1
@@ -1324,14 +1316,14 @@ L_chacha20_avx2_loop256:
         vmovdqu	YMMWORD PTR [r8+320], ymm13
         vmovdqu	YMMWORD PTR [r8+384], ymm14
         vmovdqu	YMMWORD PTR [r8+448], ymm15
-        vmovdqa	ymm0, YMMWORD PTR [r12]
-        vmovdqa	ymm1, YMMWORD PTR [r12+32]
-        vmovdqa	ymm2, YMMWORD PTR [r12+64]
-        vmovdqa	ymm3, YMMWORD PTR [r12+96]
-        vmovdqa	ymm4, YMMWORD PTR [r12+128]
-        vmovdqa	ymm5, YMMWORD PTR [r12+160]
-        vmovdqa	ymm6, YMMWORD PTR [r12+192]
-        vmovdqa	ymm7, YMMWORD PTR [r12+224]
+        vmovdqu	ymm0, YMMWORD PTR [r12]
+        vmovdqu	ymm1, YMMWORD PTR [r12+32]
+        vmovdqu	ymm2, YMMWORD PTR [r12+64]
+        vmovdqu	ymm3, YMMWORD PTR [r12+96]
+        vmovdqu	ymm4, YMMWORD PTR [r12+128]
+        vmovdqu	ymm5, YMMWORD PTR [r12+160]
+        vmovdqu	ymm6, YMMWORD PTR [r12+192]
+        vmovdqu	ymm7, YMMWORD PTR [r12+224]
         vpunpckldq	ymm8, ymm0, ymm1
         vpunpckldq	ymm9, ymm2, ymm3
         vpunpckhdq	ymm12, ymm0, ymm1
@@ -1380,30 +1372,30 @@ L_chacha20_avx2_loop256:
         vmovdqu	YMMWORD PTR [r8+352], ymm13
         vmovdqu	YMMWORD PTR [r8+416], ymm14
         vmovdqu	YMMWORD PTR [r8+480], ymm15
-        vmovdqa	ymm12, YMMWORD PTR [r11+384]
+        vmovdqu	ymm12, YMMWORD PTR [r11+384]
         add	rdx, 512
         add	r8, 512
         vpaddd	ymm12, ymm12, YMMWORD PTR [rdi]
         sub	r9d, 512
-        vmovdqa	YMMWORD PTR [r11+384], ymm12
+        vmovdqu	YMMWORD PTR [r11+384], ymm12
         cmp	r9d, 512
         jl	L_chacha20_avx2_done256
-        vmovdqa	ymm0, YMMWORD PTR [r11]
-        vmovdqa	ymm1, YMMWORD PTR [r11+32]
-        vmovdqa	ymm2, YMMWORD PTR [r11+64]
-        vmovdqa	ymm3, YMMWORD PTR [r11+96]
-        vmovdqa	ymm4, YMMWORD PTR [r11+128]
-        vmovdqa	ymm5, YMMWORD PTR [r11+160]
-        vmovdqa	ymm6, YMMWORD PTR [r11+192]
-        vmovdqa	ymm7, YMMWORD PTR [r11+224]
-        vmovdqa	ymm8, YMMWORD PTR [r11+256]
-        vmovdqa	ymm9, YMMWORD PTR [r11+288]
-        vmovdqa	ymm10, YMMWORD PTR [r11+320]
-        vmovdqa	ymm11, YMMWORD PTR [r11+352]
-        vmovdqa	ymm12, YMMWORD PTR [r11+384]
-        vmovdqa	ymm13, YMMWORD PTR [r11+416]
-        vmovdqa	ymm14, YMMWORD PTR [r11+448]
-        vmovdqa	ymm15, YMMWORD PTR [r11+480]
+        vmovdqu	ymm0, YMMWORD PTR [r11]
+        vmovdqu	ymm1, YMMWORD PTR [r11+32]
+        vmovdqu	ymm2, YMMWORD PTR [r11+64]
+        vmovdqu	ymm3, YMMWORD PTR [r11+96]
+        vmovdqu	ymm4, YMMWORD PTR [r11+128]
+        vmovdqu	ymm5, YMMWORD PTR [r11+160]
+        vmovdqu	ymm6, YMMWORD PTR [r11+192]
+        vmovdqu	ymm7, YMMWORD PTR [r11+224]
+        vmovdqu	ymm8, YMMWORD PTR [r11+256]
+        vmovdqu	ymm9, YMMWORD PTR [r11+288]
+        vmovdqu	ymm10, YMMWORD PTR [r11+320]
+        vmovdqu	ymm11, YMMWORD PTR [r11+352]
+        vmovdqu	ymm12, YMMWORD PTR [r11+384]
+        vmovdqu	ymm13, YMMWORD PTR [r11+416]
+        vmovdqu	ymm14, YMMWORD PTR [r11+448]
+        vmovdqu	ymm15, YMMWORD PTR [r11+480]
         jmp	L_chacha20_avx2_start256
 L_chacha20_avx2_done256:
         shl	eax, 3

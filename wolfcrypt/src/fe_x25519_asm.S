@@ -2341,6 +2341,9 @@ _fe_invert_x64:
         movq	128(%rsp), %rdi
         addq	$0x90, %rsp
         repz retq
+#ifndef __APPLE__
+.size	fe_invert_x64,.-fe_invert_x64
+#endif /* __APPLE__ */
 #if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
 .data
@@ -7347,6 +7350,9 @@ _fe_pow22523_x64:
         movq	96(%rsp), %rdi
         addq	$0x70, %rsp
         repz retq
+#ifndef __APPLE__
+.size	fe_pow22523_x64,.-fe_pow22523_x64
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p2_x64
@@ -13210,6 +13216,9 @@ _fe_invert_avx2:
         movq	128(%rsp), %rdi
         addq	$0x90, %rsp
         repz retq
+#ifndef __APPLE__
+.size	fe_invert_avx2,.-fe_invert_avx2
+#endif /* __APPLE__ */
 #if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
 .data
@@ -17420,6 +17429,9 @@ _fe_pow22523_avx2:
         movq	96(%rsp), %rdi
         addq	$0x70, %rsp
         repz retq
+#ifndef __APPLE__
+.size	fe_pow22523_avx2,.-fe_pow22523_avx2
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
 .globl	ge_p1p1_to_p2_avx2

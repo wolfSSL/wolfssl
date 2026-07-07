@@ -85,8 +85,7 @@ AES_XTS_init_aesni ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_xts_gc_xts DWORD \
-     00000087h,  00000001h,  00000001h,  00000001h
+L_aes_xts_gc_xts DWORD 00000087h, 00000001h, 00000001h, 00000001h
 ptr_L_aes_xts_gc_xts QWORD L_aes_xts_gc_xts
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -1500,8 +1499,7 @@ AES_XTS_init_avx1 ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_xts_gc_xts DWORD \
-     00000087h,  00000001h,  00000001h,  00000001h
+L_avx1_aes_xts_gc_xts DWORD 00000087h, 00000001h, 00000001h, 00000001h
 ptr_L_avx1_aes_xts_gc_xts QWORD L_avx1_aes_xts_gc_xts
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -2876,28 +2874,24 @@ AES_XTS_init_vaes ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_vaes_aes_xts_gc_xts DWORD \
-     00000087h,  00000000h,  00000001h,  00000000h
+L_vaes_aes_xts_gc_xts DWORD 00000087h, 00000000h, 00000001h, 00000000h
 ptr_L_vaes_aes_xts_gc_xts QWORD L_vaes_aes_xts_gc_xts
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_vaes_aes_xts_poly DWORD \
-     00000087h,  00000000h,  00000000h,  00000000h
+L_vaes_aes_xts_poly DWORD 00000087h, 00000000h, 00000000h, 00000000h
 ptr_L_vaes_aes_xts_poly QWORD L_vaes_aes_xts_poly
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_vaes_aes_xts_shl DWORD \
-     00000000h,  00000000h,  00000000h,  00000000h,
-     00000001h,  00000000h,  00000001h,  00000000h
+L_vaes_aes_xts_shl DWORD 00000000h, 00000000h, 00000000h, 00000000h
+        DWORD 00000001h, 00000000h, 00000001h, 00000000h
 ptr_L_vaes_aes_xts_shl QWORD L_vaes_aes_xts_shl
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_vaes_aes_xts_shr DWORD \
-     00000040h,  00000000h,  00000040h,  00000000h,
-     0000003fh,  00000000h,  0000003fh,  00000000h
+L_vaes_aes_xts_shr DWORD 00000040h, 00000000h, 00000040h, 00000000h
+        DWORD 0000003fh, 00000000h, 0000003fh, 00000000h
 ptr_L_vaes_aes_xts_shr QWORD L_vaes_aes_xts_shr
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -3006,7 +3000,7 @@ L_AES_XTS_encrypt_vaes_enc_128:
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
         vmovdqu	ymm3, YMMWORD PTR [rcx+96]
         ; aes_enc_block
-        vbroadcasti128	ymm9, [r8]
+        vbroadcasti128	ymm9, OWORD PTR [r8]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
@@ -3015,76 +3009,76 @@ L_AES_XTS_encrypt_vaes_enc_128:
         vpxor	ymm2, ymm2, ymm9
         vpxor	ymm3, ymm3, ymm7
         vpxor	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+16]
+        vbroadcasti128	ymm9, OWORD PTR [r8+16]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+32]
+        vbroadcasti128	ymm9, OWORD PTR [r8+32]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+48]
+        vbroadcasti128	ymm9, OWORD PTR [r8+48]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+64]
+        vbroadcasti128	ymm9, OWORD PTR [r8+64]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+80]
+        vbroadcasti128	ymm9, OWORD PTR [r8+80]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+96]
+        vbroadcasti128	ymm9, OWORD PTR [r8+96]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+112]
+        vbroadcasti128	ymm9, OWORD PTR [r8+112]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+128]
+        vbroadcasti128	ymm9, OWORD PTR [r8+128]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+144]
+        vbroadcasti128	ymm9, OWORD PTR [r8+144]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [r8+160]
+        vbroadcasti128	ymm9, OWORD PTR [r8+160]
         jl	L_AES_XTS_encrypt_vaes_aes_enc_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+176]
+        vbroadcasti128	ymm9, OWORD PTR [r8+176]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [r8+192]
+        vbroadcasti128	ymm9, OWORD PTR [r8+192]
         jl	L_AES_XTS_encrypt_vaes_aes_enc_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+208]
+        vbroadcasti128	ymm9, OWORD PTR [r8+208]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+224]
+        vbroadcasti128	ymm9, OWORD PTR [r8+224]
 L_AES_XTS_encrypt_vaes_aes_enc_128_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vaesenclast	ymm1, ymm1, ymm9
@@ -3151,55 +3145,55 @@ L_AES_XTS_encrypt_vaes_done_128:
         vpxor	ymm5, ymm5, ymm10
         vpxor	ymm5, ymm5, ymm9
         ; aes_enc_block
-        vbroadcasti128	ymm9, [r8]
+        vbroadcasti128	ymm9, OWORD PTR [r8]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
         vpxor	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+16]
+        vbroadcasti128	ymm9, OWORD PTR [r8+16]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+32]
+        vbroadcasti128	ymm9, OWORD PTR [r8+32]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+48]
+        vbroadcasti128	ymm9, OWORD PTR [r8+48]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+64]
+        vbroadcasti128	ymm9, OWORD PTR [r8+64]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+80]
+        vbroadcasti128	ymm9, OWORD PTR [r8+80]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+96]
+        vbroadcasti128	ymm9, OWORD PTR [r8+96]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+112]
+        vbroadcasti128	ymm9, OWORD PTR [r8+112]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+128]
+        vbroadcasti128	ymm9, OWORD PTR [r8+128]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+144]
+        vbroadcasti128	ymm9, OWORD PTR [r8+144]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [r8+160]
+        vbroadcasti128	ymm9, OWORD PTR [r8+160]
         jl	L_AES_XTS_encrypt_vaes_aes_enc_64_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+176]
+        vbroadcasti128	ymm9, OWORD PTR [r8+176]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [r8+192]
+        vbroadcasti128	ymm9, OWORD PTR [r8+192]
         jl	L_AES_XTS_encrypt_vaes_aes_enc_64_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+208]
+        vbroadcasti128	ymm9, OWORD PTR [r8+208]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+224]
+        vbroadcasti128	ymm9, OWORD PTR [r8+224]
 L_AES_XTS_encrypt_vaes_aes_enc_64_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vaesenclast	ymm1, ymm1, ymm9
@@ -3232,40 +3226,40 @@ L_AES_XTS_encrypt_vaes_done_64:
         vpxor	ymm4, ymm4, ymm7
         vpxor	ymm4, ymm4, ymm6
         ; aes_enc_block
-        vbroadcasti128	ymm9, [r8]
+        vbroadcasti128	ymm9, OWORD PTR [r8]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+16]
+        vbroadcasti128	ymm9, OWORD PTR [r8+16]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+32]
+        vbroadcasti128	ymm9, OWORD PTR [r8+32]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+48]
+        vbroadcasti128	ymm9, OWORD PTR [r8+48]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+64]
+        vbroadcasti128	ymm9, OWORD PTR [r8+64]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+80]
+        vbroadcasti128	ymm9, OWORD PTR [r8+80]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+96]
+        vbroadcasti128	ymm9, OWORD PTR [r8+96]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+112]
+        vbroadcasti128	ymm9, OWORD PTR [r8+112]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+128]
+        vbroadcasti128	ymm9, OWORD PTR [r8+128]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+144]
+        vbroadcasti128	ymm9, OWORD PTR [r8+144]
         vaesenc	ymm0, ymm0, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [r8+160]
+        vbroadcasti128	ymm9, OWORD PTR [r8+160]
         jl	L_AES_XTS_encrypt_vaes_aes_enc_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+176]
+        vbroadcasti128	ymm9, OWORD PTR [r8+176]
         vaesenc	ymm0, ymm0, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [r8+192]
+        vbroadcasti128	ymm9, OWORD PTR [r8+192]
         jl	L_AES_XTS_encrypt_vaes_aes_enc_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+208]
+        vbroadcasti128	ymm9, OWORD PTR [r8+208]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+224]
+        vbroadcasti128	ymm9, OWORD PTR [r8+224]
 L_AES_XTS_encrypt_vaes_aes_enc_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vpxor	ymm0, ymm0, ymm4
@@ -3485,7 +3479,7 @@ L_AES_XTS_encrypt_update_vaes_enc_128:
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
         vmovdqu	ymm3, YMMWORD PTR [rcx+96]
         ; aes_enc_block
-        vbroadcasti128	ymm9, [r10]
+        vbroadcasti128	ymm9, OWORD PTR [r10]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
@@ -3494,76 +3488,76 @@ L_AES_XTS_encrypt_update_vaes_enc_128:
         vpxor	ymm2, ymm2, ymm9
         vpxor	ymm3, ymm3, ymm7
         vpxor	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+16]
+        vbroadcasti128	ymm9, OWORD PTR [r10+16]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+32]
+        vbroadcasti128	ymm9, OWORD PTR [r10+32]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+48]
+        vbroadcasti128	ymm9, OWORD PTR [r10+48]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+64]
+        vbroadcasti128	ymm9, OWORD PTR [r10+64]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+80]
+        vbroadcasti128	ymm9, OWORD PTR [r10+80]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+96]
+        vbroadcasti128	ymm9, OWORD PTR [r10+96]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+112]
+        vbroadcasti128	ymm9, OWORD PTR [r10+112]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+128]
+        vbroadcasti128	ymm9, OWORD PTR [r10+128]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+144]
+        vbroadcasti128	ymm9, OWORD PTR [r10+144]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
         cmp	r9d, 11
-        vbroadcasti128	ymm9, [r10+160]
+        vbroadcasti128	ymm9, OWORD PTR [r10+160]
         jl	L_AES_XTS_encrypt_update_vaes_aes_enc_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+176]
+        vbroadcasti128	ymm9, OWORD PTR [r10+176]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
         cmp	r9d, 13
-        vbroadcasti128	ymm9, [r10+192]
+        vbroadcasti128	ymm9, OWORD PTR [r10+192]
         jl	L_AES_XTS_encrypt_update_vaes_aes_enc_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+208]
+        vbroadcasti128	ymm9, OWORD PTR [r10+208]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         vaesenc	ymm2, ymm2, ymm9
         vaesenc	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+224]
+        vbroadcasti128	ymm9, OWORD PTR [r10+224]
 L_AES_XTS_encrypt_update_vaes_aes_enc_128_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vaesenclast	ymm1, ymm1, ymm9
@@ -3630,55 +3624,55 @@ L_AES_XTS_encrypt_update_vaes_done_128:
         vpxor	ymm5, ymm5, ymm10
         vpxor	ymm5, ymm5, ymm9
         ; aes_enc_block
-        vbroadcasti128	ymm9, [r10]
+        vbroadcasti128	ymm9, OWORD PTR [r10]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
         vpxor	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+16]
+        vbroadcasti128	ymm9, OWORD PTR [r10+16]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+32]
+        vbroadcasti128	ymm9, OWORD PTR [r10+32]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+48]
+        vbroadcasti128	ymm9, OWORD PTR [r10+48]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+64]
+        vbroadcasti128	ymm9, OWORD PTR [r10+64]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+80]
+        vbroadcasti128	ymm9, OWORD PTR [r10+80]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+96]
+        vbroadcasti128	ymm9, OWORD PTR [r10+96]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+112]
+        vbroadcasti128	ymm9, OWORD PTR [r10+112]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+128]
+        vbroadcasti128	ymm9, OWORD PTR [r10+128]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+144]
+        vbroadcasti128	ymm9, OWORD PTR [r10+144]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         cmp	r9d, 11
-        vbroadcasti128	ymm9, [r10+160]
+        vbroadcasti128	ymm9, OWORD PTR [r10+160]
         jl	L_AES_XTS_encrypt_update_vaes_aes_enc_64_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+176]
+        vbroadcasti128	ymm9, OWORD PTR [r10+176]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
         cmp	r9d, 13
-        vbroadcasti128	ymm9, [r10+192]
+        vbroadcasti128	ymm9, OWORD PTR [r10+192]
         jl	L_AES_XTS_encrypt_update_vaes_aes_enc_64_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+208]
+        vbroadcasti128	ymm9, OWORD PTR [r10+208]
         vaesenc	ymm0, ymm0, ymm9
         vaesenc	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+224]
+        vbroadcasti128	ymm9, OWORD PTR [r10+224]
 L_AES_XTS_encrypt_update_vaes_aes_enc_64_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vaesenclast	ymm1, ymm1, ymm9
@@ -3711,40 +3705,40 @@ L_AES_XTS_encrypt_update_vaes_done_64:
         vpxor	ymm4, ymm4, ymm7
         vpxor	ymm4, ymm4, ymm6
         ; aes_enc_block
-        vbroadcasti128	ymm9, [r10]
+        vbroadcasti128	ymm9, OWORD PTR [r10]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+16]
+        vbroadcasti128	ymm9, OWORD PTR [r10+16]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+32]
+        vbroadcasti128	ymm9, OWORD PTR [r10+32]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+48]
+        vbroadcasti128	ymm9, OWORD PTR [r10+48]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+64]
+        vbroadcasti128	ymm9, OWORD PTR [r10+64]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+80]
+        vbroadcasti128	ymm9, OWORD PTR [r10+80]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+96]
+        vbroadcasti128	ymm9, OWORD PTR [r10+96]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+112]
+        vbroadcasti128	ymm9, OWORD PTR [r10+112]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+128]
+        vbroadcasti128	ymm9, OWORD PTR [r10+128]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+144]
+        vbroadcasti128	ymm9, OWORD PTR [r10+144]
         vaesenc	ymm0, ymm0, ymm9
         cmp	r9d, 11
-        vbroadcasti128	ymm9, [r10+160]
+        vbroadcasti128	ymm9, OWORD PTR [r10+160]
         jl	L_AES_XTS_encrypt_update_vaes_aes_enc_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+176]
+        vbroadcasti128	ymm9, OWORD PTR [r10+176]
         vaesenc	ymm0, ymm0, ymm9
         cmp	r9d, 13
-        vbroadcasti128	ymm9, [r10+192]
+        vbroadcasti128	ymm9, OWORD PTR [r10+192]
         jl	L_AES_XTS_encrypt_update_vaes_aes_enc_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+208]
+        vbroadcasti128	ymm9, OWORD PTR [r10+208]
         vaesenc	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+224]
+        vbroadcasti128	ymm9, OWORD PTR [r10+224]
 L_AES_XTS_encrypt_update_vaes_aes_enc_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vpxor	ymm0, ymm0, ymm4
@@ -4008,7 +4002,7 @@ L_AES_XTS_decrypt_vaes_dec_128:
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
         vmovdqu	ymm3, YMMWORD PTR [rcx+96]
         ; aes_dec_block
-        vbroadcasti128	ymm9, [r8]
+        vbroadcasti128	ymm9, OWORD PTR [r8]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
@@ -4017,76 +4011,76 @@ L_AES_XTS_decrypt_vaes_dec_128:
         vpxor	ymm2, ymm2, ymm9
         vpxor	ymm3, ymm3, ymm7
         vpxor	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+16]
+        vbroadcasti128	ymm9, OWORD PTR [r8+16]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+32]
+        vbroadcasti128	ymm9, OWORD PTR [r8+32]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+48]
+        vbroadcasti128	ymm9, OWORD PTR [r8+48]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+64]
+        vbroadcasti128	ymm9, OWORD PTR [r8+64]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+80]
+        vbroadcasti128	ymm9, OWORD PTR [r8+80]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+96]
+        vbroadcasti128	ymm9, OWORD PTR [r8+96]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+112]
+        vbroadcasti128	ymm9, OWORD PTR [r8+112]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+128]
+        vbroadcasti128	ymm9, OWORD PTR [r8+128]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+144]
+        vbroadcasti128	ymm9, OWORD PTR [r8+144]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [r8+160]
+        vbroadcasti128	ymm9, OWORD PTR [r8+160]
         jl	L_AES_XTS_decrypt_vaes_aes_dec_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+176]
+        vbroadcasti128	ymm9, OWORD PTR [r8+176]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [r8+192]
+        vbroadcasti128	ymm9, OWORD PTR [r8+192]
         jl	L_AES_XTS_decrypt_vaes_aes_dec_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+208]
+        vbroadcasti128	ymm9, OWORD PTR [r8+208]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r8+224]
+        vbroadcasti128	ymm9, OWORD PTR [r8+224]
 L_AES_XTS_decrypt_vaes_aes_dec_128_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vaesdeclast	ymm1, ymm1, ymm9
@@ -4164,55 +4158,55 @@ L_AES_XTS_decrypt_vaes_mul16_64:
         vpxor	ymm5, ymm5, ymm10
         vpxor	ymm5, ymm5, ymm9
         ; aes_dec_block
-        vbroadcasti128	ymm9, [r8]
+        vbroadcasti128	ymm9, OWORD PTR [r8]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
         vpxor	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+16]
+        vbroadcasti128	ymm9, OWORD PTR [r8+16]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+32]
+        vbroadcasti128	ymm9, OWORD PTR [r8+32]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+48]
+        vbroadcasti128	ymm9, OWORD PTR [r8+48]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+64]
+        vbroadcasti128	ymm9, OWORD PTR [r8+64]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+80]
+        vbroadcasti128	ymm9, OWORD PTR [r8+80]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+96]
+        vbroadcasti128	ymm9, OWORD PTR [r8+96]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+112]
+        vbroadcasti128	ymm9, OWORD PTR [r8+112]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+128]
+        vbroadcasti128	ymm9, OWORD PTR [r8+128]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+144]
+        vbroadcasti128	ymm9, OWORD PTR [r8+144]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [r8+160]
+        vbroadcasti128	ymm9, OWORD PTR [r8+160]
         jl	L_AES_XTS_decrypt_vaes_aes_dec_64_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+176]
+        vbroadcasti128	ymm9, OWORD PTR [r8+176]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [r8+192]
+        vbroadcasti128	ymm9, OWORD PTR [r8+192]
         jl	L_AES_XTS_decrypt_vaes_aes_dec_64_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+208]
+        vbroadcasti128	ymm9, OWORD PTR [r8+208]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r8+224]
+        vbroadcasti128	ymm9, OWORD PTR [r8+224]
 L_AES_XTS_decrypt_vaes_aes_dec_64_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vaesdeclast	ymm1, ymm1, ymm9
@@ -4256,40 +4250,40 @@ L_AES_XTS_decrypt_vaes_mul16_32:
         vpxor	ymm4, ymm4, ymm7
         vpxor	ymm4, ymm4, ymm6
         ; aes_dec_block
-        vbroadcasti128	ymm9, [r8]
+        vbroadcasti128	ymm9, OWORD PTR [r8]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+16]
+        vbroadcasti128	ymm9, OWORD PTR [r8+16]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+32]
+        vbroadcasti128	ymm9, OWORD PTR [r8+32]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+48]
+        vbroadcasti128	ymm9, OWORD PTR [r8+48]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+64]
+        vbroadcasti128	ymm9, OWORD PTR [r8+64]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+80]
+        vbroadcasti128	ymm9, OWORD PTR [r8+80]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+96]
+        vbroadcasti128	ymm9, OWORD PTR [r8+96]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+112]
+        vbroadcasti128	ymm9, OWORD PTR [r8+112]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+128]
+        vbroadcasti128	ymm9, OWORD PTR [r8+128]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+144]
+        vbroadcasti128	ymm9, OWORD PTR [r8+144]
         vaesdec	ymm0, ymm0, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [r8+160]
+        vbroadcasti128	ymm9, OWORD PTR [r8+160]
         jl	L_AES_XTS_decrypt_vaes_aes_dec_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+176]
+        vbroadcasti128	ymm9, OWORD PTR [r8+176]
         vaesdec	ymm0, ymm0, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [r8+192]
+        vbroadcasti128	ymm9, OWORD PTR [r8+192]
         jl	L_AES_XTS_decrypt_vaes_aes_dec_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+208]
+        vbroadcasti128	ymm9, OWORD PTR [r8+208]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r8+224]
+        vbroadcasti128	ymm9, OWORD PTR [r8+224]
 L_AES_XTS_decrypt_vaes_aes_dec_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vpxor	ymm0, ymm0, ymm4
@@ -4561,7 +4555,7 @@ L_AES_XTS_decrypt_update_vaes_dec_128:
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
         vmovdqu	ymm3, YMMWORD PTR [rcx+96]
         ; aes_dec_block
-        vbroadcasti128	ymm9, [r10]
+        vbroadcasti128	ymm9, OWORD PTR [r10]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
@@ -4570,76 +4564,76 @@ L_AES_XTS_decrypt_update_vaes_dec_128:
         vpxor	ymm2, ymm2, ymm9
         vpxor	ymm3, ymm3, ymm7
         vpxor	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+16]
+        vbroadcasti128	ymm9, OWORD PTR [r10+16]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+32]
+        vbroadcasti128	ymm9, OWORD PTR [r10+32]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+48]
+        vbroadcasti128	ymm9, OWORD PTR [r10+48]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+64]
+        vbroadcasti128	ymm9, OWORD PTR [r10+64]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+80]
+        vbroadcasti128	ymm9, OWORD PTR [r10+80]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+96]
+        vbroadcasti128	ymm9, OWORD PTR [r10+96]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+112]
+        vbroadcasti128	ymm9, OWORD PTR [r10+112]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+128]
+        vbroadcasti128	ymm9, OWORD PTR [r10+128]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+144]
+        vbroadcasti128	ymm9, OWORD PTR [r10+144]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
         cmp	r9d, 11
-        vbroadcasti128	ymm9, [r10+160]
+        vbroadcasti128	ymm9, OWORD PTR [r10+160]
         jl	L_AES_XTS_decrypt_update_vaes_aes_dec_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+176]
+        vbroadcasti128	ymm9, OWORD PTR [r10+176]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
         cmp	r9d, 13
-        vbroadcasti128	ymm9, [r10+192]
+        vbroadcasti128	ymm9, OWORD PTR [r10+192]
         jl	L_AES_XTS_decrypt_update_vaes_aes_dec_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+208]
+        vbroadcasti128	ymm9, OWORD PTR [r10+208]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [r10+224]
+        vbroadcasti128	ymm9, OWORD PTR [r10+224]
 L_AES_XTS_decrypt_update_vaes_aes_dec_128_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vaesdeclast	ymm1, ymm1, ymm9
@@ -4717,55 +4711,55 @@ L_AES_XTS_decrypt_update_vaes_mul16_64:
         vpxor	ymm5, ymm5, ymm10
         vpxor	ymm5, ymm5, ymm9
         ; aes_dec_block
-        vbroadcasti128	ymm9, [r10]
+        vbroadcasti128	ymm9, OWORD PTR [r10]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm5
         vpxor	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+16]
+        vbroadcasti128	ymm9, OWORD PTR [r10+16]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+32]
+        vbroadcasti128	ymm9, OWORD PTR [r10+32]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+48]
+        vbroadcasti128	ymm9, OWORD PTR [r10+48]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+64]
+        vbroadcasti128	ymm9, OWORD PTR [r10+64]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+80]
+        vbroadcasti128	ymm9, OWORD PTR [r10+80]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+96]
+        vbroadcasti128	ymm9, OWORD PTR [r10+96]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+112]
+        vbroadcasti128	ymm9, OWORD PTR [r10+112]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+128]
+        vbroadcasti128	ymm9, OWORD PTR [r10+128]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+144]
+        vbroadcasti128	ymm9, OWORD PTR [r10+144]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         cmp	r9d, 11
-        vbroadcasti128	ymm9, [r10+160]
+        vbroadcasti128	ymm9, OWORD PTR [r10+160]
         jl	L_AES_XTS_decrypt_update_vaes_aes_dec_64_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+176]
+        vbroadcasti128	ymm9, OWORD PTR [r10+176]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         cmp	r9d, 13
-        vbroadcasti128	ymm9, [r10+192]
+        vbroadcasti128	ymm9, OWORD PTR [r10+192]
         jl	L_AES_XTS_decrypt_update_vaes_aes_dec_64_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+208]
+        vbroadcasti128	ymm9, OWORD PTR [r10+208]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
-        vbroadcasti128	ymm9, [r10+224]
+        vbroadcasti128	ymm9, OWORD PTR [r10+224]
 L_AES_XTS_decrypt_update_vaes_aes_dec_64_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vaesdeclast	ymm1, ymm1, ymm9
@@ -4809,40 +4803,40 @@ L_AES_XTS_decrypt_update_vaes_mul16_32:
         vpxor	ymm4, ymm4, ymm7
         vpxor	ymm4, ymm4, ymm6
         ; aes_dec_block
-        vbroadcasti128	ymm9, [r10]
+        vbroadcasti128	ymm9, OWORD PTR [r10]
         vpxor	ymm0, ymm0, ymm4
         vpxor	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+16]
+        vbroadcasti128	ymm9, OWORD PTR [r10+16]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+32]
+        vbroadcasti128	ymm9, OWORD PTR [r10+32]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+48]
+        vbroadcasti128	ymm9, OWORD PTR [r10+48]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+64]
+        vbroadcasti128	ymm9, OWORD PTR [r10+64]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+80]
+        vbroadcasti128	ymm9, OWORD PTR [r10+80]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+96]
+        vbroadcasti128	ymm9, OWORD PTR [r10+96]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+112]
+        vbroadcasti128	ymm9, OWORD PTR [r10+112]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+128]
+        vbroadcasti128	ymm9, OWORD PTR [r10+128]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+144]
+        vbroadcasti128	ymm9, OWORD PTR [r10+144]
         vaesdec	ymm0, ymm0, ymm9
         cmp	r9d, 11
-        vbroadcasti128	ymm9, [r10+160]
+        vbroadcasti128	ymm9, OWORD PTR [r10+160]
         jl	L_AES_XTS_decrypt_update_vaes_aes_dec_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+176]
+        vbroadcasti128	ymm9, OWORD PTR [r10+176]
         vaesdec	ymm0, ymm0, ymm9
         cmp	r9d, 13
-        vbroadcasti128	ymm9, [r10+192]
+        vbroadcasti128	ymm9, OWORD PTR [r10+192]
         jl	L_AES_XTS_decrypt_update_vaes_aes_dec_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+208]
+        vbroadcasti128	ymm9, OWORD PTR [r10+208]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [r10+224]
+        vbroadcasti128	ymm9, OWORD PTR [r10+224]
 L_AES_XTS_decrypt_update_vaes_aes_dec_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vpxor	ymm0, ymm0, ymm4
@@ -5084,32 +5078,28 @@ AES_XTS_init_avx512 ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx512_aes_xts_gc_xts DWORD \
-     00000087h,  00000000h,  00000001h,  00000000h
+L_avx512_aes_xts_gc_xts DWORD 00000087h, 00000000h, 00000001h, 00000000h
 ptr_L_avx512_aes_xts_gc_xts QWORD L_avx512_aes_xts_gc_xts
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx512_aes_xts_poly DWORD \
-     00000087h,  00000000h,  00000000h,  00000000h
+L_avx512_aes_xts_poly DWORD 00000087h, 00000000h, 00000000h, 00000000h
 ptr_L_avx512_aes_xts_poly QWORD L_avx512_aes_xts_poly
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx512_aes_xts_shl DWORD \
-     00000000h,  00000000h,  00000000h,  00000000h,
-     00000001h,  00000000h,  00000001h,  00000000h,
-     00000002h,  00000000h,  00000002h,  00000000h,
-     00000003h,  00000000h,  00000003h,  00000000h
+L_avx512_aes_xts_shl DWORD 00000000h, 00000000h, 00000000h, 00000000h
+        DWORD 00000001h, 00000000h, 00000001h, 00000000h
+        DWORD 00000002h, 00000000h, 00000002h, 00000000h
+        DWORD 00000003h, 00000000h, 00000003h, 00000000h
 ptr_L_avx512_aes_xts_shl QWORD L_avx512_aes_xts_shl
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx512_aes_xts_shr DWORD \
-     00000040h,  00000000h,  00000040h,  00000000h,
-     0000003fh,  00000000h,  0000003fh,  00000000h,
-     0000003eh,  00000000h,  0000003eh,  00000000h,
-     0000003dh,  00000000h,  0000003dh,  00000000h
+L_avx512_aes_xts_shr DWORD 00000040h, 00000000h, 00000040h, 00000000h
+        DWORD 0000003fh, 00000000h, 0000003fh, 00000000h
+        DWORD 0000003eh, 00000000h, 0000003eh, 00000000h
+        DWORD 0000003dh, 00000000h, 0000003dh, 00000000h
 ptr_L_avx512_aes_xts_shr QWORD L_avx512_aes_xts_shr
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -5179,25 +5169,25 @@ L_AES_XTS_encrypt_avx512_tweak_aes_enc_block_last:
         xor	r13d, r13d
         cmp	eax, 32
         jl	L_AES_XTS_encrypt_avx512_done_128
-        vbroadcasti32x4	zmm16, [r8]
-        vbroadcasti32x4	zmm17, [r8+16]
-        vbroadcasti32x4	zmm18, [r8+32]
-        vbroadcasti32x4	zmm19, [r8+48]
-        vbroadcasti32x4	zmm20, [r8+64]
-        vbroadcasti32x4	zmm21, [r8+80]
-        vbroadcasti32x4	zmm22, [r8+96]
-        vbroadcasti32x4	zmm23, [r8+112]
-        vbroadcasti32x4	zmm24, [r8+128]
-        vbroadcasti32x4	zmm25, [r8+144]
-        vbroadcasti32x4	zmm26, [r8+160]
+        vbroadcasti32x4	zmm16, OWORD PTR [r8]
+        vbroadcasti32x4	zmm17, OWORD PTR [r8+16]
+        vbroadcasti32x4	zmm18, OWORD PTR [r8+32]
+        vbroadcasti32x4	zmm19, OWORD PTR [r8+48]
+        vbroadcasti32x4	zmm20, OWORD PTR [r8+64]
+        vbroadcasti32x4	zmm21, OWORD PTR [r8+80]
+        vbroadcasti32x4	zmm22, OWORD PTR [r8+96]
+        vbroadcasti32x4	zmm23, OWORD PTR [r8+112]
+        vbroadcasti32x4	zmm24, OWORD PTR [r8+128]
+        vbroadcasti32x4	zmm25, OWORD PTR [r8+144]
+        vbroadcasti32x4	zmm26, OWORD PTR [r8+160]
         cmp	r10d, 11
         jl	L_AES_XTS_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm27, [r8+176]
-        vbroadcasti32x4	zmm28, [r8+192]
+        vbroadcasti32x4	zmm27, OWORD PTR [r8+176]
+        vbroadcasti32x4	zmm28, OWORD PTR [r8+192]
         cmp	r10d, 13
         jl	L_AES_XTS_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm29, [r8+208]
-        vbroadcasti32x4	zmm30, [r8+224]
+        vbroadcasti32x4	zmm29, OWORD PTR [r8+208]
+        vbroadcasti32x4	zmm30, OWORD PTR [r8+224]
 L_AES_XTS_encrypt_avx512_key_cached:
         cmp	eax, 256
         mov	r11d, eax
@@ -5665,25 +5655,25 @@ AES_XTS_encrypt_update_avx512 PROC
         xor	r12d, r12d
         cmp	eax, 32
         jl	L_AES_XTS_encrypt_update_avx512_done_128
-        vbroadcasti32x4	zmm16, [r10]
-        vbroadcasti32x4	zmm17, [r10+16]
-        vbroadcasti32x4	zmm18, [r10+32]
-        vbroadcasti32x4	zmm19, [r10+48]
-        vbroadcasti32x4	zmm20, [r10+64]
-        vbroadcasti32x4	zmm21, [r10+80]
-        vbroadcasti32x4	zmm22, [r10+96]
-        vbroadcasti32x4	zmm23, [r10+112]
-        vbroadcasti32x4	zmm24, [r10+128]
-        vbroadcasti32x4	zmm25, [r10+144]
-        vbroadcasti32x4	zmm26, [r10+160]
+        vbroadcasti32x4	zmm16, OWORD PTR [r10]
+        vbroadcasti32x4	zmm17, OWORD PTR [r10+16]
+        vbroadcasti32x4	zmm18, OWORD PTR [r10+32]
+        vbroadcasti32x4	zmm19, OWORD PTR [r10+48]
+        vbroadcasti32x4	zmm20, OWORD PTR [r10+64]
+        vbroadcasti32x4	zmm21, OWORD PTR [r10+80]
+        vbroadcasti32x4	zmm22, OWORD PTR [r10+96]
+        vbroadcasti32x4	zmm23, OWORD PTR [r10+112]
+        vbroadcasti32x4	zmm24, OWORD PTR [r10+128]
+        vbroadcasti32x4	zmm25, OWORD PTR [r10+144]
+        vbroadcasti32x4	zmm26, OWORD PTR [r10+160]
         cmp	r9d, 11
         jl	L_AES_XTS_encrypt_update_avx512_key_cached
-        vbroadcasti32x4	zmm27, [r10+176]
-        vbroadcasti32x4	zmm28, [r10+192]
+        vbroadcasti32x4	zmm27, OWORD PTR [r10+176]
+        vbroadcasti32x4	zmm28, OWORD PTR [r10+192]
         cmp	r9d, 13
         jl	L_AES_XTS_encrypt_update_avx512_key_cached
-        vbroadcasti32x4	zmm29, [r10+208]
-        vbroadcasti32x4	zmm30, [r10+224]
+        vbroadcasti32x4	zmm29, OWORD PTR [r10+208]
+        vbroadcasti32x4	zmm30, OWORD PTR [r10+224]
 L_AES_XTS_encrypt_update_avx512_key_cached:
         cmp	eax, 256
         mov	r11d, eax
@@ -6196,25 +6186,25 @@ L_AES_XTS_decrypt_avx512_tweak_aes_enc_block_last:
 L_AES_XTS_decrypt_avx512_mul16_256:
         cmp	r11d, 32
         jl	L_AES_XTS_decrypt_avx512_done_128
-        vbroadcasti32x4	zmm16, [r8]
-        vbroadcasti32x4	zmm17, [r8+16]
-        vbroadcasti32x4	zmm18, [r8+32]
-        vbroadcasti32x4	zmm19, [r8+48]
-        vbroadcasti32x4	zmm20, [r8+64]
-        vbroadcasti32x4	zmm21, [r8+80]
-        vbroadcasti32x4	zmm22, [r8+96]
-        vbroadcasti32x4	zmm23, [r8+112]
-        vbroadcasti32x4	zmm24, [r8+128]
-        vbroadcasti32x4	zmm25, [r8+144]
-        vbroadcasti32x4	zmm26, [r8+160]
+        vbroadcasti32x4	zmm16, OWORD PTR [r8]
+        vbroadcasti32x4	zmm17, OWORD PTR [r8+16]
+        vbroadcasti32x4	zmm18, OWORD PTR [r8+32]
+        vbroadcasti32x4	zmm19, OWORD PTR [r8+48]
+        vbroadcasti32x4	zmm20, OWORD PTR [r8+64]
+        vbroadcasti32x4	zmm21, OWORD PTR [r8+80]
+        vbroadcasti32x4	zmm22, OWORD PTR [r8+96]
+        vbroadcasti32x4	zmm23, OWORD PTR [r8+112]
+        vbroadcasti32x4	zmm24, OWORD PTR [r8+128]
+        vbroadcasti32x4	zmm25, OWORD PTR [r8+144]
+        vbroadcasti32x4	zmm26, OWORD PTR [r8+160]
         cmp	r10d, 11
         jl	L_AES_XTS_decrypt_avx512_key_cached
-        vbroadcasti32x4	zmm27, [r8+176]
-        vbroadcasti32x4	zmm28, [r8+192]
+        vbroadcasti32x4	zmm27, OWORD PTR [r8+176]
+        vbroadcasti32x4	zmm28, OWORD PTR [r8+192]
         cmp	r10d, 13
         jl	L_AES_XTS_decrypt_avx512_key_cached
-        vbroadcasti32x4	zmm29, [r8+208]
-        vbroadcasti32x4	zmm30, [r8+224]
+        vbroadcasti32x4	zmm29, OWORD PTR [r8+208]
+        vbroadcasti32x4	zmm30, OWORD PTR [r8+224]
 L_AES_XTS_decrypt_avx512_key_cached:
         cmp	r11d, 256
         jl	L_AES_XTS_decrypt_avx512_done_256
@@ -6766,25 +6756,25 @@ AES_XTS_decrypt_update_avx512 PROC
 L_AES_XTS_decrypt_update_avx512_mul16_256:
         cmp	r11d, 32
         jl	L_AES_XTS_decrypt_update_avx512_done_128
-        vbroadcasti32x4	zmm16, [r10]
-        vbroadcasti32x4	zmm17, [r10+16]
-        vbroadcasti32x4	zmm18, [r10+32]
-        vbroadcasti32x4	zmm19, [r10+48]
-        vbroadcasti32x4	zmm20, [r10+64]
-        vbroadcasti32x4	zmm21, [r10+80]
-        vbroadcasti32x4	zmm22, [r10+96]
-        vbroadcasti32x4	zmm23, [r10+112]
-        vbroadcasti32x4	zmm24, [r10+128]
-        vbroadcasti32x4	zmm25, [r10+144]
-        vbroadcasti32x4	zmm26, [r10+160]
+        vbroadcasti32x4	zmm16, OWORD PTR [r10]
+        vbroadcasti32x4	zmm17, OWORD PTR [r10+16]
+        vbroadcasti32x4	zmm18, OWORD PTR [r10+32]
+        vbroadcasti32x4	zmm19, OWORD PTR [r10+48]
+        vbroadcasti32x4	zmm20, OWORD PTR [r10+64]
+        vbroadcasti32x4	zmm21, OWORD PTR [r10+80]
+        vbroadcasti32x4	zmm22, OWORD PTR [r10+96]
+        vbroadcasti32x4	zmm23, OWORD PTR [r10+112]
+        vbroadcasti32x4	zmm24, OWORD PTR [r10+128]
+        vbroadcasti32x4	zmm25, OWORD PTR [r10+144]
+        vbroadcasti32x4	zmm26, OWORD PTR [r10+160]
         cmp	r9d, 11
         jl	L_AES_XTS_decrypt_update_avx512_key_cached
-        vbroadcasti32x4	zmm27, [r10+176]
-        vbroadcasti32x4	zmm28, [r10+192]
+        vbroadcasti32x4	zmm27, OWORD PTR [r10+176]
+        vbroadcasti32x4	zmm28, OWORD PTR [r10+192]
         cmp	r9d, 13
         jl	L_AES_XTS_decrypt_update_avx512_key_cached
-        vbroadcasti32x4	zmm29, [r10+208]
-        vbroadcasti32x4	zmm30, [r10+224]
+        vbroadcasti32x4	zmm29, OWORD PTR [r10+208]
+        vbroadcasti32x4	zmm30, OWORD PTR [r10+224]
 L_AES_XTS_decrypt_update_avx512_key_cached:
         cmp	r11d, 256
         jl	L_AES_XTS_decrypt_update_avx512_done_256
