@@ -34,6 +34,9 @@
     #ifndef WOLFSSL_IGNORE_FILE_WARN
         #warning asn_orig.c does not need to be compiled separately from asn.c
     #endif
+    /* An empty translation unit is a constraint violation in C89, so emit a
+     * harmless typedef to keep it well-formed. */
+    typedef int wolfssl_asn_orig_dummy_decl;
 #else
 
 /* Forward declarations for static functions defined later in this file. */

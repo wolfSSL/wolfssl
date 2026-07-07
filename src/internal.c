@@ -658,7 +658,7 @@ int IsAtLeastTLSv1_2(const WOLFSSL* ssl)
     return 0;
 }
 
-int IsAtLeastTLSv1_3(const ProtocolVersion pv)
+int IsAtLeastTLSv1_3(ProtocolVersion pv)
 {
     int ret;
     ret = (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_3_MINOR);
@@ -29107,7 +29107,7 @@ int GetCipherNamesSize(void)
 }
 
 
-const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite)
+const char* GetCipherNameInternal(byte cipherSuite0, byte cipherSuite)
 {
     int i;
     const char* nameInternal = "None";
@@ -29434,7 +29434,7 @@ int SetCipherBits(const char* enc) {
 }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
-const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite)
+const char* GetCipherNameIana(byte cipherSuite0, byte cipherSuite)
 {
 #ifndef NO_ERROR_STRINGS
     int i;

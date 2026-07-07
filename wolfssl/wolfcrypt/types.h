@@ -221,6 +221,15 @@ typedef const char wcchar[];
     #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) /* null expansion */
 #endif
 
+#if defined(WOLF_C89)
+    /* C99 flexible array member, or the C89 "struct hack" fallback.
+     * See http://c-faq.com/struct/structhack.html */
+    #define WC_FLEXIBLE_ARRAY_MEMBER 1
+#else
+    /* empty: C99 flexible array member */
+    #define WC_FLEXIBLE_ARRAY_MEMBER
+#endif
+
 /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
 #if defined(_WIN32) || defined(HAVE_LIMITS_H)
     #include <limits.h>
