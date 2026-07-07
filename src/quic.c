@@ -848,15 +848,15 @@ static int wolfSSL_quic_send_internal(WOLFSSL* ssl)
             ssl->quic.output_rec_remain -= (word32)len;
         }
         else {
-            /* at start of a TLS Record */
-            rl = (RecordLayerHeader*)output;
-            ato16(rl->length, &rlen);
-            output += RECORD_HEADER_SZ;
+            /* at start of a TLS Record */            
             if (length < RECORD_HEADER_SZ) {
                 WOLFSSL_MSG("WOLFSSL_QUIC_SEND application failed");
                 ret = FWRITE_ERROR;
                 goto cleanup;
             }
+            rl = (RecordLayerHeader*)output;
+            ato16(rl->length, &rlen);
+            output += RECORD_HEADER_SZ;
             length -= RECORD_HEADER_SZ;
             ssl->quic.output_rec_remain = rlen;
             ssl->quic.output_rec_level = ssl->quic.enc_level_write;
