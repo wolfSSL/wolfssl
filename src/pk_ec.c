@@ -5306,7 +5306,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
     /* Check hash length */
     if ((ret == 1) &&
         ((dLen > WC_MAX_DIGEST_SIZE) ||
-         (dLen < WC_MIN_DIGEST_SIZE))) {
+         (dLen < WC_MIN_DIGEST_SIZE_FOR_VERIFY))) {
         WOLFSSL_MSG("wolfSSL_ECDSA_do_verify Bad digest size");
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -5438,7 +5438,7 @@ int wolfSSL_ECDSA_verify(int type, const unsigned char *digest, int digestSz,
     /* Check hash length */
     if ((ret == 1) &&
         ((digestSz > WC_MAX_DIGEST_SIZE) ||
-         (digestSz < WC_MIN_DIGEST_SIZE))) {
+         (digestSz < WC_MIN_DIGEST_SIZE_FOR_VERIFY))) {
         WOLFSSL_MSG("wolfSSL_ECDSA_verify Bad digest size");
         ret = 0;
     }

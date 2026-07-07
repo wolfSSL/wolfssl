@@ -6907,7 +6907,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         return ECC_BAD_ARG_E;
     }
     if ((inlen > WC_MAX_DIGEST_SIZE) ||
-        (inlen < WC_MIN_DIGEST_SIZE))
+        (inlen < WC_MIN_DIGEST_SIZE_FOR_SIGN))
     {
         return BAD_LENGTH_E;
     }
@@ -7441,7 +7441,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        return ECC_BAD_ARG_E;
    }
    if ((inlen > WC_MAX_DIGEST_SIZE) ||
-       (inlen < WC_MIN_DIGEST_SIZE))
+       (inlen < WC_MIN_DIGEST_SIZE_FOR_SIGN))
    {
        return BAD_LENGTH_E;
    }
@@ -8755,7 +8755,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
     /* Check hash length */
     if ((hashlen > WC_MAX_DIGEST_SIZE) ||
-        (hashlen < WC_MIN_DIGEST_SIZE)) {
+        (hashlen < WC_MIN_DIGEST_SIZE_FOR_VERIFY)) {
         return BAD_LENGTH_E;
     }
 
@@ -9474,7 +9474,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
     /* Check hash length */
     if ((hashlen > WC_MAX_DIGEST_SIZE) ||
-        (hashlen < WC_MIN_DIGEST_SIZE)) {
+        (hashlen < WC_MIN_DIGEST_SIZE_FOR_VERIFY)) {
         return BAD_LENGTH_E;
     }
 

@@ -4786,7 +4786,7 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 
     /* Check hash length */
     if ((hashSz > WC_MAX_DIGEST_SIZE) ||
-        (hashSz < WC_MIN_DIGEST_SIZE)) {
+        (hashSz < WC_MIN_DIGEST_SIZE_FOR_VERIFY)) {
         return BAD_LENGTH_E;
     }
 

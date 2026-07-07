@@ -4282,8 +4282,16 @@ static int test_wolfSSL_CTX_SetTmpDH_file(void)
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile,
                 CERT_FILETYPE));
 #if defined(WOLFSSL_WPAS) && !defined(NO_DSA)
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
-                CERT_FILETYPE));
+    if (EXPECT_SUCCESS()) {
+        if (ctx->minDhKeySz <= 128 /* bytes */) {
+            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
+                        CERT_FILETYPE));
+        }
+        else {
+            ExpectIntEQ(DH_KEY_SIZE_E, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
+                       CERT_FILETYPE));
+        }
+    }
 #endif
 
     wolfSSL_CTX_free(ctx);
@@ -4791,8 +4799,16 @@ static int test_wolfSSL_SetTmpDH_file(void)
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl, dhX942ParamFile,
                 CERT_FILETYPE));
 #if defined(WOLFSSL_WPAS) && !defined(NO_DSA)
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
-                CERT_FILETYPE));
+    if (EXPECT_SUCCESS()) {
+        if (ctx->minDhKeySz <= 128 /* bytes */) {
+            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
+                        CERT_FILETYPE));
+        }
+        else {
+            ExpectIntEQ(DH_KEY_SIZE_E, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
+                       CERT_FILETYPE));
+        }
+    }
 #endif
 
     wolfSSL_free(ssl);

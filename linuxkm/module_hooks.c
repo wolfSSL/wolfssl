@@ -1316,10 +1316,6 @@ void *wc_linuxkm_realloc(void *ptr, size_t newsize)
     return kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC));
 }
 
-#ifdef CONFIG_HAVE_KPROBES
-#include <linux/vmalloc.h>
-#endif
-
 size_t wc_linuxkm_malloc_usable_size(void *ptr)
 {
     if ((ptr == NULL) || is_vmalloc_addr(ptr)) {

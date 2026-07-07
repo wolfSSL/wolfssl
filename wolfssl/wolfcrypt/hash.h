@@ -176,25 +176,31 @@ typedef struct {
     #define WC_MAX_BLOCK_SIZE WC_HASH_CUSTOM_MAX_BLOCK_SIZE
 #endif
 
+/* Set up WC_MIN_DIGEST_SIZE.  This is the shortest digest supported by any
+ * fixed-output-size hash algorithm enabled in the library.  It is not
+ * necessarily the shortest digest permitted for signature generation -- that is
+ * designated by WC_MIN_DIGEST_SIZE_FOR_SIGN, defined below, with additional
+ * restrictions under FIPS 186-5.
+ */
 #if defined(WC_HASH_CUSTOM_MIN_DIGEST_SIZE)
-    #if defined(WC_FIPS_186_5_PLUS) && \
-            (WC_HASH_CUSTOM_MIN_DIGEST_SIZE < 224 / 8)
-        #error FIPS 186-5 requires a minimum hash size >= SHA-224.
-    #elif defined(WC_FIPS_186_4) && \
+    /* Note, FIPS 186-5 allows (and we need) SHA-1 in verify-only mode, but
+     * restricts signing to SHA-224 and larger, enforced below.
+     */
+    #if defined(WC_FIPS_186_4_PLUS) && \
             (WC_HASH_CUSTOM_MIN_DIGEST_SIZE < 160 / 8)
-        #error FIPS 186-4 requires a minimum hash size >= SHA-1.
+        #error FIPS 186 requires a minimum hash size >= SHA-1.
     #elif (WC_HASH_CUSTOM_MIN_DIGEST_SIZE < 128 / 8)
         #error WC_HASH_CUSTOM_MIN_DIGEST_SIZE is too small.
     #endif
     /* Let the user override the minimum digest size */
     #define WC_MIN_DIGEST_SIZE WC_HASH_CUSTOM_MIN_DIGEST_SIZE
-#elif defined(WOLFSSL_MD2) && !defined(WC_FIPS_186_4_PLUS)
+#elif defined(WOLFSSL_MD2)
     #define WC_MIN_DIGEST_SIZE WC_MD2_DIGEST_SIZE /* 16 */
-#elif !defined(NO_MD4) && !defined(WC_FIPS_186_4_PLUS)
+#elif !defined(NO_MD4)
     #define WC_MIN_DIGEST_SIZE WC_MD4_DIGEST_SIZE /* 16 */
-#elif !defined(NO_MD5) && !defined(WC_FIPS_186_4_PLUS)
+#elif !defined(NO_MD5)
     #define WC_MIN_DIGEST_SIZE WC_MD5_DIGEST_SIZE /* 16 */
-#elif !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
+#elif !defined(NO_SHA)
     #define WC_MIN_DIGEST_SIZE WC_SHA_DIGEST_SIZE /* 20 */
 #elif defined(WOLFSSL_SHA224)
     #define WC_MIN_DIGEST_SIZE WC_SHA224_DIGEST_SIZE
@@ -230,6 +236,55 @@ typedef struct {
 #else
     #error No builtin hashes enabled and no WC_HASH_CUSTOM_MIN_DIGEST_SIZE.
     #define WC_MIN_DIGEST_SIZE 64
+#endif
+
+/* We can't use preprocessor comparisons for asserts and conditional definitions
+ * here, because old FIPS uses enums for most of the digest sizes.  Moreover we
+ * can't use WC_SHA_DIGEST_SIZE at all here, because we support SHA-1-sized
+ * digests even in NO_SHA builds.
+ */
+#ifdef WC_MIN_DIGEST_SIZE_FOR_SIGN
+    wc_static_assert2((WC_MIN_DIGEST_SIZE_FOR_SIGN <= WC_MAX_DIGEST_SIZE) &&
+                      (WC_MIN_DIGEST_SIZE_FOR_SIGN >= WC_MIN_DIGEST_SIZE),
+                      "Supplied WC_MIN_DIGEST_SIZE_FOR_SIGN is out of range.");
+    #if defined(WC_FIPS_186_5_PLUS)
+        wc_static_assert2(WC_MIN_DIGEST_SIZE_FOR_SIGN >= 224 / 8,
+            "FIPS 186-5 requires a minimum sign-mode hash size >= SHA-224.");
+    #elif defined(WC_FIPS_186_4)
+        wc_static_assert2(WC_MIN_DIGEST_SIZE_FOR_SIGN >= 160 / 8,
+            "FIPS 186-4 requires a minimum sign-mode hash size >= SHA-1.");
+    #endif
+#else
+    #if defined(WC_FIPS_186_5_PLUS)
+        #define WC_MIN_DIGEST_SIZE_FOR_SIGN \
+            ((WC_MIN_DIGEST_SIZE < 224 / 8) ? (224 / 8) : WC_MIN_DIGEST_SIZE)
+    #elif defined(WC_FIPS_186_4)
+        #define WC_MIN_DIGEST_SIZE_FOR_SIGN \
+            ((WC_MIN_DIGEST_SIZE < 224 / 8) ? (160 / 8) : WC_MIN_DIGEST_SIZE)
+    #else
+        #define WC_MIN_DIGEST_SIZE_FOR_SIGN WC_MIN_DIGEST_SIZE
+    #endif
+#endif
+
+/* The minimum digest _FOR_VERIFY_under FIPS 186-5, FIPS 140-3, and SP 800-131A,
+ * is permitted to be shorter, to allow verify-only legacy DSA and ECDSA
+ * operations.
+ */
+#ifdef WC_MIN_DIGEST_SIZE_FOR_VERIFY
+    wc_static_assert2((WC_MIN_DIGEST_SIZE_FOR_VERIFY <= WC_MAX_DIGEST_SIZE) &&
+                      (WC_MIN_DIGEST_SIZE_FOR_VERIFY >= 128 / 8),
+                      "Supplied WC_MIN_DIGEST_SIZE_FOR_VERIFY is out of range.");
+    #if defined(WC_FIPS_186_4_PLUS)
+        wc_static_assert2(WC_MIN_DIGEST_SIZE_FOR_VERIFY >= 160 / 8,
+            "FIPS 186 requires a minimum verify-mode hash size >= SHA-1.");
+    #endif
+#else
+    #if defined(WC_FIPS_186_4_PLUS)
+        #define WC_MIN_DIGEST_SIZE_FOR_VERIFY \
+            ((WC_MIN_DIGEST_SIZE < 160 / 8) ? (160 / 8) : WC_MIN_DIGEST_SIZE)
+    #else
+        #define WC_MIN_DIGEST_SIZE_FOR_VERIFY WC_MIN_DIGEST_SIZE
+    #endif
 #endif
 
 #if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)

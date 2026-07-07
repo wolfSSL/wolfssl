@@ -32,7 +32,6 @@
 #endif
 #ifndef NO_CRYPT_TEST
 #include <wolfcrypt/test/test.h>
-#include <linux/delay.h>
 #endif
 
 #ifndef EXPORT_SYMBOL_NS

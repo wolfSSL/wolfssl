@@ -517,15 +517,14 @@
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
-#if defined(HAVE_FIPS) && !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
-    #if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
-        #ifndef WC_FIPS_186_5
-            #define WC_FIPS_186_5
-        #endif
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
+     !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
+    #if defined(HAVE_SELFTEST)
+        #define WC_FIPS_186_4
+    #elif FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
+        #define WC_FIPS_186_5
     #else
-        #ifndef WC_FIPS_186_4
-            #define WC_FIPS_186_4
-        #endif
+        #define WC_FIPS_186_4
     #endif
 #endif
 #if defined(WC_FIPS_186_4) && defined(WC_FIPS_186_5)
@@ -4282,6 +4281,23 @@
         /* siphash asm produces wrong results in kernel mode. */
         #define WC_SIPHASH_NO_ASM
     #endif
+
+    /* The first vector set in /usr/src/linux/crypto/testmgr.h
+     * ecdsa_nist_p192_tv_template[], ecdsa_nist_p256_tv_template[], and
+     * ecdsa_nist_p384_tv_template[] use SHA-1 (even if CONFIG_CRYPTO_SHA1 is
+     * disabled), and kernel module signatures frequently use SHA-1 until quite
+     * recently.  Force the minimum downward in NO_SHA builds to assure the
+     * required support is present.
+     */
+    #if defined(NO_SHA) && !defined(WC_MIN_DIGEST_SIZE_FOR_VERIFY) && \
+        defined(HAVE_ECC) &&                                          \
+        (defined(LINUXKM_LKCAPI_REGISTER_ALL) ||                      \
+         defined(LINUXKM_LKCAPI_REGISTER_ECDSA) ||                    \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) &&             \
+          defined(CONFIG_CRYPTO_ECDSA)))
+        #define WC_MIN_DIGEST_SIZE_FOR_VERIFY 20
+    #endif
+
 #endif /* WOLFSSL_LINUXKM */
 
 /* FreeBSD Kernel Module */

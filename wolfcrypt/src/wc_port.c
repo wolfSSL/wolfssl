@@ -2153,6 +2153,28 @@ void wolfSSL_RefWithMutexInc2(wolfSSL_RefWithMutex* ref, int *new_count,
     *err = ret;
 }
 
+void wolfSSL_RefWithMutexInc_IfAtLeast(wolfSSL_RefWithMutex* ref,
+                                       int cur_at_least, int *new_count,
+                                       int* err)
+{
+    *err = wc_LockMutex(&ref->mutex);
+    if (*err != 0) {
+        WOLFSSL_MSG("Failed to lock mutex for reference increment!");
+        *new_count = -1;
+    }
+    else {
+        if (ref->count < cur_at_least) {
+            *new_count = ref->count;
+            *err = BAD_STATE_E;
+        }
+        else {
+            *new_count = ++ref->count;
+            *err = 0;
+        }
+        wc_UnLockMutex(&ref->mutex);
+    }
+}
+
 int wolfSSL_RefWithMutexLock(wolfSSL_RefWithMutex* ref)
 {
     return wc_LockMutex(&ref->mutex);
@@ -2198,6 +2220,29 @@ void wolfSSL_RefWithMutexDec2(wolfSSL_RefWithMutex* ref, int* new_count,
     }
     *err = ret;
 }
+
+void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
+                                      int current_count, int* new_count,
+                                      int* err)
+{
+    *err = wc_LockMutex(&ref->mutex);
+    if (*err != 0) {
+        WOLFSSL_MSG("Failed to lock mutex for reference decrement!");
+        *new_count = -1;
+    }
+    else {
+        if (ref->count != current_count) {
+            *new_count = ref->count;
+            *err = BAD_STATE_E;
+        }
+        else {
+            *new_count = --ref->count;
+            *err = 0;
+        }
+        wc_UnLockMutex(&ref->mutex);
+    }
+}
+
 #endif /* ! SINGLE_THREADED */
 
 #if WOLFSSL_CRYPT_HW_MUTEX

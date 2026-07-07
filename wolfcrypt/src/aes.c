@@ -82,6 +82,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_AESNI_BY4:       AES-NI 4-block parallel processing    default: off
  * WOLFSSL_AESNI_BY6:       AES-NI 6-block parallel processing    default: off
  * USE_INTEL_SPEEDUP:       Intel AVX/AVX2 for AES acceleration   default: off
+ * USE_INTEL_SPEEDUP_FOR_AES:
+                            Same as USE_INTEL_SPEEDUP, but scoped
+                              to AES.                             default: off
  * WOLFSSL_AES_SMALL_TABLES: Use smaller AES S-box tables         default: off
  * WOLFSSL_AES_NO_UNROLL:   Disable AES round loop unrolling      default: off
  * WOLFSSL_AES_TOUCH_LINES: Touch all cache lines for             default: off
@@ -812,6 +815,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                                XASM_LINK("AES_256_Key_Expansion_AESNI");
 
 #ifdef WOLFSSL_X86_64_BUILD
+    #if defined(USE_INTEL_SPEEDUP_FOR_AES) && !defined(USE_INTEL_SPEEDUP)
+        #define USE_INTEL_SPEEDUP
+    #endif
+
     /* Wide ECB / CBC / CTR variants for x86_64.  They share the AES-NI key
      * schedule declared above and are selected at runtime from intel_flags.
      * AES_CBC_decrypt_AESNI is the single max-width path (the by4/by6/by8

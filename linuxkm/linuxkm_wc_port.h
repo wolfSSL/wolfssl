@@ -35,28 +35,43 @@
         #error Unsupported kernel.
     #endif
 
-    #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
+        #if defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+            #define WC_LINUXKM_HAVE_SELFTEST
+        #endif
+        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
+            #define WC_LINUXKM_HAVE_SELFTEST_FULL
+        #endif
+    #else
+        /* see Linux 698de822780f */
+        #if defined(CONFIG_CRYPTO_MANAGER) && defined(CONFIG_CRYPTO_SELFTESTS)
+            #define WC_LINUXKM_HAVE_SELFTEST
+        #endif
+        /* see Linux ac90aad0e9 */
+        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_SELFTESTS_FULL)
+            #define WC_LINUXKM_HAVE_SELFTEST_FULL
+        #endif
+    #endif
+
+    #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(WC_LINUXKM_HAVE_SELFTEST_FULL)
         /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS expects AES-XTS-384 to work, even when CONFIG_CRYPTO_FIPS, but FIPS 140-3 only allows AES-XTS-256 and AES-XTS-512. */
-        #error CONFIG_CRYPTO_MANAGER_EXTRA_TESTS is incompatible with FIPS wolfCrypt AES-XTS -- please reconfigure the target kernel to disable CONFIG_CRYPTO_MANAGER_EXTRA_TESTS.
+        #error CONFIG_CRYPTO_MANAGER_EXTRA_TESTS is incompatible with FIPS wolfCrypt AES-XTS -- please reconfigure the target kernel to disable CONFIG_CRYPTO_MANAGER_EXTRA_TESTS/CONFIG_CRYPTO_SELFTESTS_FULL.
     #endif
 
     /* The first vector set in /usr/src/linux/crypto/testmgr.h
      * ecdsa_nist_p192_tv_template[], ecdsa_nist_p256_tv_template[], and
      * ecdsa_nist_p384_tv_template[] use SHA-1 (even if CONFIG_CRYPTO_SHA1 is
      * disabled), and kernel module signatures frequently use SHA-1 until quite
-     * recently (dependent on CONFIG_CRYPTO_SHA1).  If either is enabled, force
-     * downgrade to 186-4.
+     * recently.
      */
-    #if defined(WC_FIPS_186_5_PLUS) && \
-        (defined(CONFIG_CRYPTO_SHA1) || (defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))) && \
-        (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) || defined(CONFIG_CRYPTO_ECDSA))
-        #undef WC_FIPS_186_5_PLUS
-        #ifdef WC_FIPS_186_5
-            #undef WC_FIPS_186_5
-        #else
-            #error Unknown and incompatible FIPS 186 is enabled.
-        #endif
-        #define WC_FIPS_186_4
+    #if (defined(WC_LINUXKM_HAVE_SELFTEST) || defined(CONFIG_MODULE_SIG_SHA1)) && \
+        (((defined(WC_MIN_DIGEST_SIZE_FOR_VERIFY) && (WC_MIN_DIGEST_SIZE_FOR_VERIFY > 20)) || \
+         (defined(NO_SHA) && !defined(WC_MIN_DIGEST_SIZE_FOR_VERIFY)))) && \
+        defined(HAVE_ECC) && \
+        (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_ECDSA) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDSA)))
+        #error Target kernel requires SHA-1 signature verification support.
     #endif
 
     #ifdef HAVE_CONFIG_H
@@ -427,24 +442,7 @@
 
     #include <linux/kernel.h>
     #include <linux/ctype.h>
-
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
-        #if defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-            #define WC_LINUXKM_HAVE_SELFTEST
-        #endif
-        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
-            #define WC_LINUXKM_HAVE_SELFTEST_FULL
-        #endif
-    #else
-        /* see Linux 698de822780f */
-        #if defined(CONFIG_CRYPTO_MANAGER) && defined(CONFIG_CRYPTO_SELFTESTS)
-            #define WC_LINUXKM_HAVE_SELFTEST
-        #endif
-        /* see Linux ac90aad0e9 */
-        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_SELFTESTS_FULL)
-            #define WC_LINUXKM_HAVE_SELFTEST_FULL
-        #endif
-    #endif
+    #include <linux/fips.h>
 
     /* Kernel non-FIPS self-test ("testmgr") has a KAT with all-zeros keys. */
     #if defined(WC_LINUXKM_HAVE_SELFTEST) && !defined(HAVE_FIPS)
@@ -655,6 +653,12 @@
         #include <linux/uaccess.h>
     #endif
     #include <linux/slab.h>
+    #ifndef WC_CONTAINERIZE_THIS
+        /* for struct vm_struct and related -- used by
+         * wc_linuxkm_malloc_usable_size().
+         */
+        #include <linux/vmalloc.h>
+    #endif
     #include <linux/sched.h>
     #if __has_include(<linux/sched/task_stack.h>)
         /* for task_stack_page() */
@@ -823,6 +827,9 @@
         #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
     #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
+    /* This pop must appear here, no later, so that conditional suppressions
+     * below continue after inclusion.
+     */
     _Pragma("GCC diagnostic pop");
 
     #define PTR_ERR(x) ((int)PTR_ERR(x))

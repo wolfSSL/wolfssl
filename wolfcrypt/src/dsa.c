@@ -755,7 +755,10 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
 
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 {
-    /* use sha1 by default for backwards compatibility */
+    /* Use sha1 by default for backwards compatibility.  This API will always
+     * fail in FIPS 186-5 builds, due to the forbidden SHA-1 sign operation, as
+     * required.
+     */
     return wc_DsaSign_ex(digest, WC_SHA_DIGEST_SIZE, out, key, rng);
 }
 
@@ -787,7 +790,7 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
         return BAD_FUNC_ARG;
 
     if ((digestSz > WC_MAX_DIGEST_SIZE) ||
-        (digestSz < WC_MIN_DIGEST_SIZE))
+        (digestSz < WC_MIN_DIGEST_SIZE_FOR_SIGN))
     {
         return BAD_LENGTH_E;
     }
@@ -1121,12 +1124,8 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
     if (digest == NULL || sig == NULL || key == NULL || answer == NULL)
         return BAD_FUNC_ARG;
 
-    /* Note the min allowed digestSz here is WC_SHA_DIGEST_SIZE, not
-     * WC_MIN_DIGEST_SIZE, to allow verify-only legacy DSA operations, as
-     * expressly allowed under FIPS 186-5, FIPS 140-3, and SP 800-131A.
-     */
     if ((digestSz > WC_MAX_DIGEST_SIZE) ||
-        (digestSz < WC_SHA_DIGEST_SIZE))
+        (digestSz < WC_MIN_DIGEST_SIZE_FOR_VERIFY))
     {
         return BAD_LENGTH_E;
     }

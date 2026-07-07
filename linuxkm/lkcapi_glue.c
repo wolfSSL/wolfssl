@@ -40,7 +40,6 @@
     #if defined(CONFIG_CRYPTO_FIPS) != defined(HAVE_FIPS)
         #error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS.
     #endif
-    #include <linux/fips.h>
 #endif
 
 /* need misc.c for ForceZero(). */
@@ -553,7 +552,24 @@ static int linuxkm_lkcapi_register(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
+    #if defined(LINUXKM_ECDSA_SIG_ALG)
+        /* linux 6.13+: the ecdsa-nist-pN algs are struct sig_alg. */
+        #if defined(LINUXKM_ECC192)
+        REGISTER_ALG(ecdsa_nist_p192, sig,
+                     linuxkm_test_ecdsa_nist_p192);
+        #endif /* LINUXKM_ECC192 */
+
+        REGISTER_ALG(ecdsa_nist_p256, sig,
+                     linuxkm_test_ecdsa_nist_p256);
+
+        REGISTER_ALG(ecdsa_nist_p384, sig,
+                     linuxkm_test_ecdsa_nist_p384);
+
+        #if defined(HAVE_ECC521)
+        REGISTER_ALG(ecdsa_nist_p521, sig,
+                     linuxkm_test_ecdsa_nist_p521);
+        #endif /* HAVE_ECC521 */
+    #elif (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&  \
         defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(WC_LINUXKM_HAVE_SELFTEST)
         /*
@@ -575,7 +591,7 @@ static int linuxkm_lkcapi_register(void)
         REGISTER_ALG_OPTIONAL(ecdsa_nist_p521, akcipher,
                               linuxkm_test_ecdsa_nist_p521);
         #endif /* HAVE_ECC521 */
-    #else
+    #else /* kernel 6.3-6.12 */
         #if defined(LINUXKM_ECC192)
         REGISTER_ALG(ecdsa_nist_p192, akcipher,
                      linuxkm_test_ecdsa_nist_p192);
@@ -591,7 +607,7 @@ static int linuxkm_lkcapi_register(void)
         REGISTER_ALG(ecdsa_nist_p521, akcipher,
                      linuxkm_test_ecdsa_nist_p521);
         #endif /* HAVE_ECC521 */
-    #endif /* if linux < 6.3 && HAVE_FIPS && etc.. */
+    #endif /* kernel 6.3-6.12 */
 
     #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
         defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
@@ -917,14 +933,26 @@ static int linuxkm_lkcapi_unregister(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #if defined(LINUXKM_ECC192)
-        UNREGISTER_ALG(ecdsa_nist_p192, akcipher);
-    #endif /* LINUXKM_ECC192 */
-    UNREGISTER_ALG(ecdsa_nist_p256, akcipher);
-    UNREGISTER_ALG(ecdsa_nist_p384, akcipher);
-    #if defined(HAVE_ECC521)
-        UNREGISTER_ALG(ecdsa_nist_p521, akcipher);
-    #endif /* HAVE_ECC521 */
+    #if defined(LINUXKM_ECDSA_SIG_ALG)
+        /* linux 6.13+: the ecdsa-nist-pN algs are struct sig_alg. */
+        #if defined(LINUXKM_ECC192)
+            UNREGISTER_ALG(ecdsa_nist_p192, sig);
+        #endif /* LINUXKM_ECC192 */
+        UNREGISTER_ALG(ecdsa_nist_p256, sig);
+        UNREGISTER_ALG(ecdsa_nist_p384, sig);
+        #if defined(HAVE_ECC521)
+            UNREGISTER_ALG(ecdsa_nist_p521, sig);
+        #endif /* HAVE_ECC521 */
+    #else /* !LINUXKM_ECDSA_SIG_ALG */
+        #if defined(LINUXKM_ECC192)
+            UNREGISTER_ALG(ecdsa_nist_p192, akcipher);
+        #endif /* LINUXKM_ECC192 */
+        UNREGISTER_ALG(ecdsa_nist_p256, akcipher);
+        UNREGISTER_ALG(ecdsa_nist_p384, akcipher);
+        #if defined(HAVE_ECC521)
+            UNREGISTER_ALG(ecdsa_nist_p521, akcipher);
+        #endif /* HAVE_ECC521 */
+    #endif /* !LINUXKM_ECDSA_SIG_ALG */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH

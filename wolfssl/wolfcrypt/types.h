@@ -2332,14 +2332,14 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 /* DISABLE_VECTOR_REGISTERS() and REENABLE_VECTOR_REGISTERS() are currently only
  * used by Linux kernel code.  If WC_HAVE_VECTOR_SPEEDUPS, we default
- * DISABLE_VECTOR_REGISTERS() to -1, to assure calling code is forced to handle
- * the failure.  But if the build disables vec regs globally, we can return 0
- * harmlessly.  The kernel build defines real calls for these in vectorized
- * builds, otherwise it uses these fallbacks.
+ * DISABLE_VECTOR_REGISTERS() to NOT_COMPILED_IN, to assure calling code is
+ * forced to handle the failure.  But if the build disables vec regs globally,
+ * we can return 0 harmlessly.  The kernel build defines real calls for these in
+ * vectorized builds, otherwise it uses these fallbacks.
  */
 #ifndef DISABLE_VECTOR_REGISTERS
     #ifdef WC_HAVE_VECTOR_SPEEDUPS
-        #define DISABLE_VECTOR_REGISTERS() (-1)
+        #define DISABLE_VECTOR_REGISTERS() NOT_COMPILED_IN
     #else
         #define DISABLE_VECTOR_REGISTERS() 0
     #endif
