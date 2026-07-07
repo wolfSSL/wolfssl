@@ -517,15 +517,14 @@
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
-#if defined(HAVE_FIPS) && !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
-    #if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
-        #ifndef WC_FIPS_186_5
-            #define WC_FIPS_186_5
-        #endif
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
+     !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
+    #if defined(HAVE_SELFTEST)
+        #define WC_FIPS_186_4
+    #elif FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
+        #define WC_FIPS_186_5
     #else
-        #ifndef WC_FIPS_186_4
-            #define WC_FIPS_186_4
-        #endif
+        #define WC_FIPS_186_4
     #endif
 #endif
 #if defined(WC_FIPS_186_4) && defined(WC_FIPS_186_5)

@@ -47,8 +47,8 @@
     defined(HAVE_FIPS) && FIPS_VERSION3_LT(7, 0, 0)
     #define TEST_STRING "WC_FIPS_186_5_PLUS test test"
     #define TEST_STRING_SZ 28
-#elif defined(WC_FIPS_186_4_PLUS) && (defined(HAVE_SELFTEST) || \
-    (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7, 0, 0)))
+#elif defined(HAVE_SELFTEST) || (defined(WC_FIPS_186_4_PLUS) && \
+    defined(HAVE_FIPS) && FIPS_VERSION3_LT(7, 0, 0))
     #define TEST_STRING "WC_FIPS_186_4_PLUS test.."
     #define TEST_STRING_SZ 25
 #elif WC_MIN_DIGEST_SIZE_FOR_SIGN <= 25
