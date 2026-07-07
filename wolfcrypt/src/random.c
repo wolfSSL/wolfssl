@@ -3734,7 +3734,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
         word64 rndTmpLocal;
         ret = IntelRDseed64_r(&rndTmpLocal);
         if (ret != 0) {
-            ForceZero(&rndTmp, sizeof(rndTmp));
+            ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
             return ret;
         }
         writeUnalignedWord64(output, rndTmpLocal);

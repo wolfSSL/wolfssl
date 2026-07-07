@@ -50,6 +50,7 @@ int wc_DevCrypto_HmacSetKey(Hmac* hmac, int t, const byte* key, word32 keySz)
 {
     int hType;
 
+    hmac->ctx.inited = 0;
     hmac->ctx.cfd = -1;
     hType = InternalTypeToDevcrypto(t);
     if (hType < 0) {

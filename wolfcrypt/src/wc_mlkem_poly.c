@@ -4385,6 +4385,7 @@ static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
     XMEMCPY(rand + 0 * 25 * 8, state + 0*25, ETA2_RAND_SIZE);
     XMEMCPY(rand + 1 * 25 * 8, state + 1*25, ETA2_RAND_SIZE);
     XMEMCPY(rand + 2 * 25 * 8, state + 2*25, ETA2_RAND_SIZE);
+    ForceZero(state, sizeof(state));
 }
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
@@ -4519,6 +4520,7 @@ static void mlkem_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
     state[16] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     XMEMCPY(rand, state, ETA2_RAND_SIZE);
+    ForceZero(state, sizeof(state));
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial

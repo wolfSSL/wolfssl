@@ -120,7 +120,6 @@ int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId)
 
     (void)devId; /* no async for now */
     XMEMSET(sha, 0, sizeof(wc_Sha256));
-    sha->ctx.cfd = -1; /* Sentinel value matching aes */
     sha->heap = heap;
 
     return HashInit((void*)sha, CRYPTO_SHA2_256, NULL, 0);
@@ -196,10 +195,6 @@ int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
         int ret;
         wc_Sha256 cpy;
         XMEMSET(&cpy, 0, sizeof(cpy)); /* ZII */
-        /* mark as having no /dev/crypto session yet so the wc_Sha256Free()
-         * in wc_Sha256Copy() does not close fd 0 (cfd == -1 is the
-         * "no session" sentinel, matching wc_AesInit()) */
-        cpy.ctx.cfd = -1;
         ret = wc_Sha256Copy(sha, &cpy);
 
         if (ret == 0 &&
@@ -229,9 +224,12 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     }
 
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
-    /* Sha256Free checks that ctx.cfd is >= 0*/
     wc_Sha256Free(dst);
     if ((ret = wc_InitSha256_ex(dst, src->heap, 0)) != 0) {
+        /* make sure that any attempts to free dst
+         * dont accidentally close an unopened fd */
+        dst->ctx.inited = 0;
+        dst->ctx.cfd = -1;
         return ret;
     }
     dst->len  = src->len;
