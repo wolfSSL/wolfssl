@@ -161,6 +161,7 @@ int client_loop(const char *peer_ip, const char *peer_name,
     /* Declare certificate temporary buffer */
     uint8_t      cert_buffer[2048] = {0};
     uint32_t     cert_buffer_size  = 0;
+    int          cert_sz           = 0;
     uint8_t     *cert_iter         = NULL;
 
     /* Declare wolfSSL objects */
@@ -306,16 +307,17 @@ int client_loop(const char *peer_ip, const char *peer_name,
 
     /* Extract client certificate from IoTSAFE*/
     printf("----     Extracting client certificate from IoTSAFE\n");
-    if ((cert_buffer_size = wolfIoTSafe_GetCert(
+    cert_sz = wolfIoTSafe_GetCert(
                                 CRT_CLIENT_FILE_ID,
                                 cert_buffer,
-                                sizeof(cert_buffer)))
-         < 1)
+                                sizeof(cert_buffer));
+    if (cert_sz < 1)
     {
         fprintf(stderr, "ERROR: Bad client certificate\n");
         ret = -1;
         goto exit;
     }
+    cert_buffer_size = (uint32_t)cert_sz;
 
     /* Print extracted client certificate */
     printf("----     Printing extracted client certificate\n");
@@ -332,21 +334,22 @@ int client_loop(const char *peer_ip, const char *peer_name,
          != WOLFSSL_SUCCESS)
     {
         fprintf(stderr, "ERROR: Failed to load client certificate\n");
-        return -1;
+        goto exit;
     }
 
     /* Extract server certificate from IoTSAFE*/
     printf("----     Extracting server certificate from IoTSAFE\n");
-    if ((cert_buffer_size = wolfIoTSafe_GetCert(
+    cert_sz = wolfIoTSafe_GetCert(
                                 CRT_SERVER_FILE_ID,
                                 cert_buffer,
-                                sizeof(cert_buffer)))
-         < 1)
+                                sizeof(cert_buffer));
+    if (cert_sz < 1)
     {
         fprintf(stderr, "ERROR: Bad server certificate\n");
         ret = -1;
         goto exit;
     }
+    cert_buffer_size = (uint32_t)cert_sz;
 
     /* Print extracted server certificate */
     printf("----     Printing extracted server certificate\n");
@@ -363,7 +366,7 @@ int client_loop(const char *peer_ip, const char *peer_name,
          != WOLFSSL_SUCCESS)
     {
         fprintf(stderr, "ERROR: Failed to load server certificate\n");
-        return -1;
+        goto exit;
     }
 
     /* Set client to authenticate server */
