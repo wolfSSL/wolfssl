@@ -3627,6 +3627,66 @@ int test_tls13_pha(void)
 }
 
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && !defined(WOLFSSL_COPY_CERT) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+/* React to the client SNI by reloading the certificate on the existing CTX.
+ * Because the SSL was created without WOLFSSL_COPY_CERT, the cert pointer is
+ * identical between the CTX and SSL objects. This test validates the
+ * cert file replacement.
+ * Note the updated cert will not be used for this connection. */
+static int test_cert_alias_sni_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
+    (void)ad;
+    (void)arg;
+    (void)wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM);
+    /* 0 means ack the servername and continue the handshake. */
+    return 0;
+}
+#endif
+
+int test_tls13_cert_alias_uaf_sni(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && !defined(WOLFSSL_COPY_CERT) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* host = "example.com";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* Server cert/key are loaded on ctx_s, so ssl_s->buffers.certificate
+     * aliases ctx_s->certificate. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Server swaps its CTX certificate when the SNI arrives. */
+    wolfSSL_CTX_set_servername_callback(ctx_s, test_cert_alias_sni_cb);
+
+    /* Client offers SNI so the server callback fires while parsing the
+     * ClientHello. */
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+        (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+
+    /* The callback loads a new certificate on the server CTX, which is
+     * aliased by the SSL. The handshake must complete without a UAF. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \

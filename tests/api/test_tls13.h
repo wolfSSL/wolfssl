@@ -30,6 +30,7 @@ int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_rpk_handshake_no_negotiation(void);
 int test_tls13_pha(void);
+int test_tls13_cert_alias_uaf_sni(void);
 int test_tls13_pq_groups(void);
 int test_tls13_multi_pqc_key_share(void);
 int test_tls13_early_data(void);
@@ -108,6 +109,7 @@ int test_tls13_pqc_hybrid_async_server(void);
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake_no_negotiation), \
     TEST_DECL_GROUP("tls13", test_tls13_pha),                   \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_alias_uaf_sni),    \
     TEST_DECL_GROUP("tls13", test_tls13_pq_groups),             \
     TEST_DECL_GROUP("tls13", test_tls13_multi_pqc_key_share),   \
     TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
