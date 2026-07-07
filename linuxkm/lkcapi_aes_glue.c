@@ -96,8 +96,16 @@
 #define WOLFKM_AESOFB_NAME   "ofb(aes)"
 #define WOLFKM_AESECB_NAME   "ecb(aes)"
 
-#if defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES)
-    #define WOLFKM_AES_DRIVER_ISA_EXT "-aesni-avx"
+#if defined(WOLFSSL_X86_64_BUILD) && (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES))
+    #if !defined(NO_AVX512_SUPPORT)
+        #define WOLFKM_AES_DRIVER_ISA_EXT "-vaes-avx512"
+    #elif !defined(NO_VAES_SUPPORT)
+        #define WOLFKM_AES_DRIVER_ISA_EXT "-vaes-avx2"
+    #elif !defined(NO_AVX2_SUPPORT)
+        #define WOLFKM_AES_DRIVER_ISA_EXT "-aesni-avx2"
+    #else
+        #define WOLFKM_AES_DRIVER_ISA_EXT "-aesni-avx"
+    #endif
 #elif defined(WOLFSSL_AESNI)
     #define WOLFKM_AES_DRIVER_ISA_EXT "-aesni"
 #else
