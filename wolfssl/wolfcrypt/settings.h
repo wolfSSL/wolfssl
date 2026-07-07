@@ -4282,6 +4282,23 @@
         /* siphash asm produces wrong results in kernel mode. */
         #define WC_SIPHASH_NO_ASM
     #endif
+
+    /* The first vector set in /usr/src/linux/crypto/testmgr.h
+     * ecdsa_nist_p192_tv_template[], ecdsa_nist_p256_tv_template[], and
+     * ecdsa_nist_p384_tv_template[] use SHA-1 (even if CONFIG_CRYPTO_SHA1 is
+     * disabled), and kernel module signatures frequently use SHA-1 until quite
+     * recently.  Force the minimum downward in NO_SHA builds to assure the
+     * required support is present.
+     */
+    #if defined(NO_SHA) && !defined(WC_MIN_DIGEST_SIZE_FOR_VERIFY) && \
+        defined(HAVE_ECC) &&                                          \
+        (defined(LINUXKM_LKCAPI_REGISTER_ALL) ||                      \
+         defined(LINUXKM_LKCAPI_REGISTER_ECDSA) ||                    \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) &&             \
+          defined(CONFIG_CRYPTO_ECDSA)))
+        #define WC_MIN_DIGEST_SIZE_FOR_VERIFY 20
+    #endif
+
 #endif /* WOLFSSL_LINUXKM */
 
 /* FreeBSD Kernel Module */

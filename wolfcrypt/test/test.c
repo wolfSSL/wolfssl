@@ -38112,7 +38112,7 @@ static wc_test_ret_t ecc_test_vector_item(const eccVector* vector)
 #endif /* !NO_ASN */
 
 #ifdef HAVE_ECC_VERIFY
-    if (vector->msgLen >= WC_MIN_DIGEST_SIZE) {
+    if (vector->msgLen >= WC_MIN_DIGEST_SIZE_FOR_VERIFY) {
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -43936,10 +43936,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
     wc_test_ret_t ret;
     word32 idx = 0;
 #ifndef WC_NO_RNG
-    /* 32 bytes: evenly divisible by AES_BLOCK_SZ and meets WC_MIN_DIGEST_SIZE */
+    /* 32 bytes: evenly divisible by AES_BLOCK_SZ and meets WC_MIN_DIGEST_SIZE_FOR_SIGN */
     byte         in[]  = "Everyone gets Friday off. ecc p";
-    const word32 inLen = sizeof(in); /* includes null terminator */
+    wc_static_assert(sizeof(in) >= WC_MIN_DIGEST_SIZE_FOR_SIGN);
     wc_static_assert2(sizeof(in) == 32, "in[] must be exactly 32 bytes");
+    const word32 inLen = sizeof(in); /* includes null terminator */
     byte   out[256];
     byte   plain[256];
     WOLFSSL_ENTER("ecc_test_buffers");
@@ -75449,16 +75450,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
      * ecc_test calls to it are not skipped (WC_TEST_SKIP_ECC_CHECK_KEY); the
      * counter legitimately stays 0 otherwise. CAAM is excluded because the
      * check-pubkey dispatch in _ecc_validate_public_key is compiled out there
-     * (CAAM uses software validation failure to detect black keys). */
+     * (CAAM uses software validation failure to detect black keys).
+     *
+     * The FIPS wrappers force the devId to FIPS_INVALID_DEVID, so we skip
+     * the check for FIPS.
+     */
 #if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && defined(HAVE_ECC_CHECK_KEY) && \
-    !defined(WC_TEST_SKIP_ECC_CHECK_KEY) && !defined(WOLFSSL_CAAM)
+    !defined(WC_TEST_SKIP_ECC_CHECK_KEY) && !defined(WOLFSSL_CAAM) && \
+    !defined(HAVE_FIPS)
     if (ret == 0 && myCtx.eccCheckPubCount == 0)
         ret = WC_TEST_RET_ENC_NC;
 #endif
     /* Regression: an explicit public point with zero coordinates must cross
-     * the callback boundary as X9.63 0x04||0||0, not as pubKey = NULL. */
+     * the callback boundary as X9.63 0x04||0||0, not as pubKey = NULL.
+     *
+     * The FIPS wrappers force the devId to FIPS_INVALID_DEVID, so we skip
+     * the check for FIPS.
+     */
 #if !defined(WOLFSSL_SWDEV) && defined(HAVE_ECC_CHECK_KEY) && \
-    !defined(WOLFSSL_CAAM) && !defined(NO_ECC256)
+    !defined(WOLFSSL_CAAM) && !defined(NO_ECC256) && \
+    !defined(HAVE_FIPS)
     if (ret == 0) {
         WC_DECLARE_VAR(zeroKey, ecc_key, 1, HEAP_HINT);
         int haveZeroKey = 0;
@@ -75502,7 +75513,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(NO_ECC_SECP) && !defined(WOLFSSL_NO_MALLOC) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(NO_ECC256) && \
-    defined(HAVE_ECC_KEY_EXPORT)
+    defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(HAVE_FIPS)
     if (ret == 0 && myCtx.eccMakePubCount == 0)
         ret = WC_TEST_RET_ENC_NC;
 #endif
@@ -75519,7 +75531,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     !defined(WOLFSSL_SWDEV) && !defined(NO_ECC_SECP) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_CRYPTOCELL) && \
     !defined(WOLFSSL_SE050) && \
-    !defined(NO_ECC256) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+    !defined(NO_ECC256) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
     if (ret == 0) {
         /* generated keypair: private scalar for the negative tests, public
          * point for the resident-key test */

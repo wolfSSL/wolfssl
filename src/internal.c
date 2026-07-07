@@ -5792,7 +5792,7 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 
     /* Check hash length */
     if ((outSz > WC_MAX_DIGEST_SIZE) ||
-        (outSz < WC_MIN_DIGEST_SIZE)) {
+        (outSz < WC_MIN_DIGEST_SIZE_FOR_VERIFY)) {
         return BAD_LENGTH_E;
     }
 
