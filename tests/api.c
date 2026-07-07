@@ -17141,9 +17141,32 @@ static int test_wolfSSL_BUF(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
     BUF_MEM* buf = NULL;
+    unsigned char pattern[16];
+
     ExpectNotNull(buf = BUF_MEM_new());
     ExpectIntEQ(BUF_MEM_grow(buf, 10), 10);
     ExpectIntEQ(BUF_MEM_grow(buf, -1), 0);
+    BUF_MEM_free(buf);
+    buf = NULL;
+
+    /* Regression test for a heap over-read in wolfSSL_BUF_MEM_grow_ex(): the
+     * WOLFSSL_NO_REALLOC path copied the new (larger) size from the old buffer,
+     * reading (len - buf->max) bytes past it. Those stray bytes are then zeroed
+     * by the grow, so the over-read is observable only under a memory sanitizer
+     * (ASAN/valgrind) built with WOLFSSL_NO_REALLOC. The content check below is
+     * a sanity check that passes on both the buggy and fixed paths. */
+    XMEMSET(pattern, 0x55, sizeof(pattern));
+    ExpectNotNull(buf = BUF_MEM_new());
+    /* establish a small allocation, then seed it with a known pattern */
+    ExpectIntEQ(BUF_MEM_grow(buf, sizeof(pattern)), (int)sizeof(pattern));
+    if (buf != NULL && buf->data != NULL)
+        XMEMCPY(buf->data, pattern, sizeof(pattern));
+    /* grow well past buf->max to exercise the malloc+copy+free path */
+    ExpectIntEQ(BUF_MEM_grow(buf, 256), 256);
+    ExpectNotNull(buf == NULL ? NULL : buf->data);
+    /* sanity check; the over-read itself is flagged by ASAN, not this assert */
+    if (buf != NULL && buf->data != NULL)
+        ExpectIntEQ(XMEMCMP(buf->data, pattern, sizeof(pattern)), 0);
     BUF_MEM_free(buf);
 #endif
     return EXPECT_RESULT();
