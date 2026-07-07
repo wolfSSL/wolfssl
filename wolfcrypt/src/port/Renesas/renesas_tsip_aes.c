@@ -171,7 +171,7 @@ WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
                                     sz);
 
         if (err != TSIP_SUCCESS) {
-            WOLFSSL_MSG("R_TSIP_Tls13DecryptUpdate error");
+            WOLFSSL_MSG("R_TSIP_Tls13EncryptInit error");
             ret = WC_HW_E;
         }
 
@@ -201,7 +201,7 @@ WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
                 remain -= dataSz;
             }
             else {
-                WOLFSSL_MSG("R_TSIP_Tls13DecryptUpdate error");
+                WOLFSSL_MSG("R_TSIP_Tls13EncryptUpdate error");
                 ret = WC_HW_E;
             }
         }
@@ -1123,7 +1123,7 @@ int wc_tsip_AesGcmDecrypt(
 
             if (err == TSIP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */
-                err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)authIn,
+                err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)aadBuf,
                                                                     authInSz);
             }
             if (err == TSIP_SUCCESS) {
