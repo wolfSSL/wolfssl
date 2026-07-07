@@ -771,12 +771,13 @@ int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
       b++;
   }
 
-  /* reject sizes where the bit count would overflow an int */
-  if (c > (WOLFSSL_MAX_32BIT - (DIGIT_BIT - 1)) / CHAR_BIT) {
+  /* reject sizes where the bit count would overflow, doing the math in
+   * word32 so c * CHAR_BIT can't overflow */
+  if ((word32)c > (WOLFSSL_MAX_32BIT - (DIGIT_BIT - 1)) / CHAR_BIT) {
       return MP_VAL;
   }
 
-  digits_needed = ((c * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT;
+  digits_needed = (int)(((word32)c * CHAR_BIT + DIGIT_BIT - 1) / DIGIT_BIT);
 
   /* make sure there are enough digits available */
   if (a->alloc < digits_needed) {
