@@ -298,6 +298,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
 {
     int err = 0;
     WOLFSSL_X509_EXTENSION *ret = ex;
+    WOLFSSL_ASN1_OBJECT *newObj = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_create_by_OBJ");
 
@@ -311,7 +312,18 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
             err = 1;
         }
     }
-    else {
+
+    /* Duplicate the source object before freeing the existing one so that a
+     * caller passing the extension's own object (e.g. obtained via
+     * wolfSSL_X509_EXTENSION_get_object(ex)) does not read freed memory. */
+    if (err == 0) {
+        newObj = wolfSSL_ASN1_OBJECT_dup(obj);
+        if (newObj == NULL) {
+            err = 1;
+        }
+    }
+
+    if ((err == 0) && (ret == ex)) {
         /* Prevent potential memory leaks and dangling pointers. */
         wolfSSL_ASN1_OBJECT_free(ret->obj);
         ret->obj = NULL;
@@ -320,10 +332,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
 
     if (err == 0) {
         ret->crit = crit;
-        ret->obj = wolfSSL_ASN1_OBJECT_dup(obj);
-        if (ret->obj == NULL) {
-            err = 1;
-        }
+        ret->obj = newObj;
+        newObj = NULL;
     }
 
     if (err == 0) {
@@ -333,6 +343,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
     }
 
     if (err == 1) {
+        /* Free the duplicate if it was created but not assigned to ret. */
+        wolfSSL_ASN1_OBJECT_free(newObj);
         if (ret != ex) {
             wolfSSL_X509_EXTENSION_free(ret);
         }
