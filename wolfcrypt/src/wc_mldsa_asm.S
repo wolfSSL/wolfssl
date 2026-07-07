@@ -27987,6 +27987,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_0:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28071,6 +28073,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_1:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28155,6 +28159,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_2:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28239,6 +28245,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_3:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28323,6 +28331,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_4:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28407,6 +28417,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_5:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28491,6 +28503,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_6:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28575,6 +28589,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_7:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28659,6 +28675,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_8:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28743,6 +28761,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_9:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28827,6 +28847,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_10:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28911,6 +28933,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_11:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -28995,6 +29019,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_12:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29079,6 +29105,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_13:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29163,6 +29191,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_14:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29247,6 +29277,8 @@ L_mldsa_use_hint_88_avx2_hints_done_0_15:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29332,6 +29364,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_0:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29416,6 +29450,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_1:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29500,6 +29536,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_2:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29584,6 +29622,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_3:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29668,6 +29708,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_4:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29752,6 +29794,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_5:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29836,6 +29880,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_6:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -29920,6 +29966,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_7:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30004,6 +30052,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_8:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30088,6 +30138,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_9:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30172,6 +30224,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_10:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30256,6 +30310,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_11:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30340,6 +30396,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_12:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30424,6 +30482,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_13:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30508,6 +30568,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_14:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30592,6 +30654,8 @@ L_mldsa_use_hint_88_avx2_hints_done_1_15:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30677,6 +30741,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_0:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30761,6 +30827,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_1:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30845,6 +30913,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_2:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -30929,6 +30999,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_3:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31013,6 +31085,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_4:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31097,6 +31171,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_5:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31181,6 +31257,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_6:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31265,6 +31343,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_7:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31349,6 +31429,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_8:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31433,6 +31515,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_9:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31517,6 +31601,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_10:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31601,6 +31687,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_11:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31685,6 +31773,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_12:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31769,6 +31859,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_13:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31853,6 +31945,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_14:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -31937,6 +32031,8 @@ L_mldsa_use_hint_88_avx2_hints_done_2_15:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32022,6 +32118,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_0:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32106,6 +32204,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_1:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32190,6 +32290,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_2:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32274,6 +32376,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_3:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32358,6 +32462,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_4:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32442,6 +32548,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_5:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32526,6 +32634,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_6:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32610,6 +32720,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_7:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32694,6 +32806,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_8:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32778,6 +32892,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_9:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32862,6 +32978,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_10:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -32946,6 +33064,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_11:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33030,6 +33150,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_12:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33114,6 +33236,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_13:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33198,6 +33322,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_14:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33282,6 +33408,8 @@ L_mldsa_use_hint_88_avx2_hints_done_3_15:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33486,6 +33614,8 @@ L_mldsa_use_hint_32_avx2_hints_done__0:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33558,6 +33688,8 @@ L_mldsa_use_hint_32_avx2_hints_done__1:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33630,6 +33762,8 @@ L_mldsa_use_hint_32_avx2_hints_done__2:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33702,6 +33836,8 @@ L_mldsa_use_hint_32_avx2_hints_done__3:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33774,6 +33910,8 @@ L_mldsa_use_hint_32_avx2_hints_done__4:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33846,6 +33984,8 @@ L_mldsa_use_hint_32_avx2_hints_done__5:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33918,6 +34058,8 @@ L_mldsa_use_hint_32_avx2_hints_done__6:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -33990,6 +34132,8 @@ L_mldsa_use_hint_32_avx2_hints_done__7:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34062,6 +34206,8 @@ L_mldsa_use_hint_32_avx2_hints_done__8:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34134,6 +34280,8 @@ L_mldsa_use_hint_32_avx2_hints_done__9:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34206,6 +34354,8 @@ L_mldsa_use_hint_32_avx2_hints_done__10:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34278,6 +34428,8 @@ L_mldsa_use_hint_32_avx2_hints_done__11:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34350,6 +34502,8 @@ L_mldsa_use_hint_32_avx2_hints_done__12:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34422,6 +34576,8 @@ L_mldsa_use_hint_32_avx2_hints_done__13:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34494,6 +34650,8 @@ L_mldsa_use_hint_32_avx2_hints_done__14:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2
@@ -34566,6 +34724,8 @@ L_mldsa_use_hint_32_avx2_hints_done__15:
         vpsllvd	%ymm13, %ymm7, %ymm7
         vpsrad	$31, %ymm6, %ymm6
         vpsrad	$31, %ymm7, %ymm7
+        vpsubd	%ymm14, %ymm2, %ymm2
+        vpsubd	%ymm14, %ymm3, %ymm3
         vpsrld	$31, %ymm2, %ymm2
         vpsrld	$31, %ymm3, %ymm3
         vpslld	$0x01, %ymm2, %ymm2

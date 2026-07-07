@@ -5738,6 +5738,15 @@ L_curve25519_x64_bits:
         adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
+        movq	$0x7fffffffffffffff, %rbp
+        movq	%r11, %rax
+        sarq	$63, %rax
+        andq	$19, %rax
+        andq	%rbp, %r11
+        addq	%rax, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         # Store
         movq	%rcx, 64(%rsp)
         movq	%r9, 72(%rsp)
@@ -16022,6 +16031,15 @@ L_curve25519_avx2_bits:
         adcxq	%rbx, %r11
         adoxq	%r15, %r12
         adcxq	%rcx, %r12
+        movq	$0x7fffffffffffffff, %rcx
+        movq	%r12, %rdx
+        sarq	$63, %rdx
+        andq	$19, %rdx
+        andq	%rcx, %r12
+        addq	%rdx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         # Store
         movq	%r9, 64(%rsp)
         movq	%r10, 72(%rsp)

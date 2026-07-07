@@ -5401,6 +5401,14 @@ L_curve25519_bits:
 	adcs	x7, x7, x25
 	adcs	x8, x8, x26
 	adc	x9, x9, x27
+	# Reduce if top bit set
+	mov	x3, #19
+	and	x4, x3, x9, asr 63
+	adds	x6, x6, x4
+	adcs	x7, x7, xzr
+	and	x9, x9, #0x7fffffffffffffff
+	adcs	x8, x8, xzr
+	adc	x9, x9, xzr
 	# Square
 	#  A[0] * A[1]
 	umulh	x16, x19, x20

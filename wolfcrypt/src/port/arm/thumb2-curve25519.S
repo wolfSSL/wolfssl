@@ -1887,6 +1887,403 @@ fe_mul_op:
 	POP	{pc}
 	/* Cycle Count = 406 */
 	.size	fe_mul_op,.-fe_mul_op
+	.text
+	.align	4
+	.globl	fe_mul_op_full_red
+	.type	fe_mul_op_full_red, %function
+fe_mul_op_full_red:
+	PUSH	{lr}
+	SUB	sp, sp, #40
+	STR	r0, [sp, #36]
+	MOV	r0, #0
+	LDR	r12, [r1]
+	/* A[0] * B[0] */
+	LDR	lr, [r2]
+	UMULL	r3, r4, r12, lr
+	/* A[0] * B[2] */
+	LDR	lr, [r2, #8]
+	UMULL	r5, r6, r12, lr
+	/* A[0] * B[4] */
+	LDR	lr, [r2, #16]
+	UMULL	r7, r8, r12, lr
+	/* A[0] * B[6] */
+	LDR	lr, [r2, #24]
+	UMULL	r9, r10, r12, lr
+	STR	r3, [sp]
+	/* A[0] * B[1] */
+	LDR	lr, [r2, #4]
+	MOV	r11, r0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[0] * B[3] */
+	LDR	lr, [r2, #12]
+	ADCS	r6, r6, #0
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r12, lr
+	ADDS	r7, r7, r11
+	/* A[0] * B[5] */
+	LDR	lr, [r2, #20]
+	ADCS	r8, r8, #0
+	ADC	r11, r0, #0
+	UMLAL	r8, r11, r12, lr
+	ADDS	r9, r9, r11
+	/* A[0] * B[7] */
+	LDR	lr, [r2, #28]
+	ADCS	r10, r10, #0
+	ADC	r3, r0, #0
+	UMLAL	r10, r3, r12, lr
+	/* A[1] * B[0] */
+	LDR	r12, [r1, #4]
+	LDR	lr, [r2]
+	MOV	r11, #0
+	UMLAL	r4, r11, r12, lr
+	STR	r4, [sp, #4]
+	ADDS	r5, r5, r11
+	/* A[1] * B[1] */
+	LDR	lr, [r2, #4]
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, lr
+	ADDS	r6, r6, r11
+	/* A[1] * B[2] */
+	LDR	lr, [r2, #8]
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r12, lr
+	ADDS	r7, r7, r11
+	/* A[1] * B[3] */
+	LDR	lr, [r2, #12]
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, lr
+	ADDS	r8, r8, r11
+	/* A[1] * B[4] */
+	LDR	lr, [r2, #16]
+	ADC	r11, r0, #0
+	UMLAL	r8, r11, r12, lr
+	ADDS	r9, r9, r11
+	/* A[1] * B[5] */
+	LDR	lr, [r2, #20]
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	ADDS	r10, r10, r11
+	/* A[1] * B[6] */
+	LDR	lr, [r2, #24]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[1] * B[7] */
+	LDR	lr, [r2, #28]
+	ADC	r4, r0, #0
+	UMLAL	r3, r4, r12, lr
+	/* A[2] * B[0] */
+	LDR	r12, [r1, #8]
+	LDR	lr, [r2]
+	MOV	r11, #0
+	UMLAL	r5, r11, r12, lr
+	STR	r5, [sp, #8]
+	ADDS	r6, r6, r11
+	/* A[2] * B[1] */
+	LDR	lr, [r2, #4]
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r12, lr
+	ADDS	r7, r7, r11
+	/* A[2] * B[2] */
+	LDR	lr, [r2, #8]
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, lr
+	ADDS	r8, r8, r11
+	/* A[2] * B[3] */
+	LDR	lr, [r2, #12]
+	ADC	r11, r0, #0
+	UMLAL	r8, r11, r12, lr
+	ADDS	r9, r9, r11
+	/* A[2] * B[4] */
+	LDR	lr, [r2, #16]
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	ADDS	r10, r10, r11
+	/* A[2] * B[5] */
+	LDR	lr, [r2, #20]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[2] * B[6] */
+	LDR	lr, [r2, #24]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[2] * B[7] */
+	LDR	lr, [r2, #28]
+	ADC	r5, r0, #0
+	UMLAL	r4, r5, r12, lr
+	/* A[3] * B[0] */
+	LDR	r12, [r1, #12]
+	LDR	lr, [r2]
+	MOV	r11, #0
+	UMLAL	r6, r11, r12, lr
+	STR	r6, [sp, #12]
+	ADDS	r7, r7, r11
+	/* A[3] * B[1] */
+	LDR	lr, [r2, #4]
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, lr
+	ADDS	r8, r8, r11
+	/* A[3] * B[2] */
+	LDR	lr, [r2, #8]
+	ADC	r11, r0, #0
+	UMLAL	r8, r11, r12, lr
+	ADDS	r9, r9, r11
+	/* A[3] * B[3] */
+	LDR	lr, [r2, #12]
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	ADDS	r10, r10, r11
+	/* A[3] * B[4] */
+	LDR	lr, [r2, #16]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[3] * B[5] */
+	LDR	lr, [r2, #20]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[3] * B[6] */
+	LDR	lr, [r2, #24]
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[3] * B[7] */
+	LDR	lr, [r2, #28]
+	ADC	r6, r0, #0
+	UMLAL	r5, r6, r12, lr
+	/* A[4] * B[0] */
+	LDR	r12, [r1, #16]
+	LDR	lr, [r2]
+	MOV	r11, #0
+	UMLAL	r7, r11, r12, lr
+	STR	r7, [sp, #16]
+	ADDS	r8, r8, r11
+	/* A[4] * B[1] */
+	LDR	lr, [r2, #4]
+	ADC	r11, r0, #0
+	UMLAL	r8, r11, r12, lr
+	ADDS	r9, r9, r11
+	/* A[4] * B[2] */
+	LDR	lr, [r2, #8]
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	ADDS	r10, r10, r11
+	/* A[4] * B[3] */
+	LDR	lr, [r2, #12]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[4] * B[4] */
+	LDR	lr, [r2, #16]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[4] * B[5] */
+	LDR	lr, [r2, #20]
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[4] * B[6] */
+	LDR	lr, [r2, #24]
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, lr
+	ADDS	r6, r6, r11
+	/* A[4] * B[7] */
+	LDR	lr, [r2, #28]
+	ADC	r7, r0, #0
+	UMLAL	r6, r7, r12, lr
+	/* A[5] * B[0] */
+	LDR	r12, [r1, #20]
+	LDR	lr, [r2]
+	MOV	r11, #0
+	UMLAL	r8, r11, r12, lr
+	STR	r8, [sp, #20]
+	ADDS	r9, r9, r11
+	/* A[5] * B[1] */
+	LDR	lr, [r2, #4]
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	ADDS	r10, r10, r11
+	/* A[5] * B[2] */
+	LDR	lr, [r2, #8]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[5] * B[3] */
+	LDR	lr, [r2, #12]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[5] * B[4] */
+	LDR	lr, [r2, #16]
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[5] * B[5] */
+	LDR	lr, [r2, #20]
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, lr
+	ADDS	r6, r6, r11
+	/* A[5] * B[6] */
+	LDR	lr, [r2, #24]
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r12, lr
+	ADDS	r7, r7, r11
+	/* A[5] * B[7] */
+	LDR	lr, [r2, #28]
+	ADC	r8, r0, #0
+	UMLAL	r7, r8, r12, lr
+	/* A[6] * B[0] */
+	LDR	r12, [r1, #24]
+	LDR	lr, [r2]
+	MOV	r11, #0
+	UMLAL	r9, r11, r12, lr
+	STR	r9, [sp, #24]
+	ADDS	r10, r10, r11
+	/* A[6] * B[1] */
+	LDR	lr, [r2, #4]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[6] * B[2] */
+	LDR	lr, [r2, #8]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[6] * B[3] */
+	LDR	lr, [r2, #12]
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[6] * B[4] */
+	LDR	lr, [r2, #16]
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, lr
+	ADDS	r6, r6, r11
+	/* A[6] * B[5] */
+	LDR	lr, [r2, #20]
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r12, lr
+	ADDS	r7, r7, r11
+	/* A[6] * B[6] */
+	LDR	lr, [r2, #24]
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, lr
+	ADDS	r8, r8, r11
+	/* A[6] * B[7] */
+	LDR	lr, [r2, #28]
+	ADC	r9, r0, #0
+	UMLAL	r8, r9, r12, lr
+	/* A[7] * B[0] */
+	LDR	r12, [r1, #28]
+	LDR	lr, [r2]
+	MOV	r11, #0
+	UMLAL	r10, r11, r12, lr
+	STR	r10, [sp, #28]
+	ADDS	r3, r3, r11
+	/* A[7] * B[1] */
+	LDR	lr, [r2, #4]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[7] * B[2] */
+	LDR	lr, [r2, #8]
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[7] * B[3] */
+	LDR	lr, [r2, #12]
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, lr
+	ADDS	r6, r6, r11
+	/* A[7] * B[4] */
+	LDR	lr, [r2, #16]
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r12, lr
+	ADDS	r7, r7, r11
+	/* A[7] * B[5] */
+	LDR	lr, [r2, #20]
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, lr
+	ADDS	r8, r8, r11
+	/* A[7] * B[6] */
+	LDR	lr, [r2, #24]
+	ADC	r11, r0, #0
+	UMLAL	r8, r11, r12, lr
+	ADDS	r9, r9, r11
+	/* A[7] * B[7] */
+	LDR	lr, [r2, #28]
+	ADC	r10, r0, #0
+	UMLAL	r9, r10, r12, lr
+	/* Reduce */
+	LDR	r2, [sp, #28]
+	MOV	lr, sp
+	MOV	r12, #38
+	UMULL	r10, r11, r10, r12
+	ADDS	r10, r10, r2
+	ADC	r11, r11, #0
+	MOV	r12, #19
+	LSL	r11, r11, #1
+	ORR	r11, r11, r10, LSR #31
+	MUL	r11, r11, r12
+	LDM	lr!, {r1, r2}
+	MOV	r12, #38
+	ADDS	r1, r1, r11
+	ADC	r11, r0, #0
+	UMLAL	r1, r11, r3, r12
+	ADDS	r2, r2, r11
+	ADC	r11, r0, #0
+	UMLAL	r2, r11, r4, r12
+	LDM	lr!, {r3, r4}
+	ADDS	r3, r3, r11
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r5, r12
+	ADDS	r4, r4, r11
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r6, r12
+	LDM	lr!, {r5, r6}
+	ADDS	r5, r5, r11
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r7, r12
+	ADDS	r6, r6, r11
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r8, r12
+	LDM	lr!, {r7, r8}
+	ADDS	r7, r7, r11
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r9, r12
+	BFC	r10, #31, #1
+	ADDS	r8, r10, r11
+	ADDS	r11, r1, #19
+	ADCS	r11, r2, #0
+	ADCS	r11, r3, #0
+	ADCS	r11, r4, #0
+	ADCS	r11, r5, #0
+	ADCS	r11, r6, #0
+	ADCS	r11, r7, #0
+	ADC	r11, r8, #0
+	ASR	r11, r11, #31
+	AND	r11, r11, #19
+	ADDS	r1, r1, r11
+	ADCS	r2, r2, #0
+	ADCS	r3, r3, #0
+	ADCS	r4, r4, #0
+	ADCS	r5, r5, #0
+	ADCS	r6, r6, #0
+	ADCS	r7, r7, #0
+	ADC	r8, r8, #0
+	BFC	r8, #31, #1
+	/* Store */
+	LDR	r0, [sp, #36]
+	STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}
+	ADD	sp, sp, #40
+	POP	{pc}
+	/* Cycle Count = 425 */
+	.size	fe_mul_op_full_red,.-fe_mul_op_full_red
 #else
 	.text
 	.align	4
@@ -2020,6 +2417,157 @@ fe_mul_op:
 	POP	{pc}
 	/* Cycle Count = 239 */
 	.size	fe_mul_op,.-fe_mul_op
+	.text
+	.align	4
+	.globl	fe_mul_op_full_red
+	.type	fe_mul_op_full_red, %function
+fe_mul_op_full_red:
+	PUSH	{lr}
+	SUB	sp, sp, #44
+	STRD	r0, r1, [sp, #36]
+	MOV	lr, r2
+	LDM	r1, {r0, r1, r2, r3}
+	LDM	lr!, {r4, r5, r6}
+	UMULL	r10, r11, r0, r4
+	UMULL	r12, r7, r1, r4
+	UMAAL	r11, r12, r0, r5
+	UMULL	r8, r9, r2, r4
+	UMAAL	r12, r8, r1, r5
+	UMAAL	r12, r7, r0, r6
+	UMAAL	r8, r9, r3, r4
+	STM	sp, {r10, r11, r12}
+	UMAAL	r7, r8, r2, r5
+	LDM	lr!, {r4}
+	UMULL	r10, r11, r1, r6
+	UMAAL	r8, r9, r2, r6
+	UMAAL	r7, r10, r0, r4
+	UMAAL	r8, r11, r3, r5
+	STR	r7, [sp, #12]
+	UMAAL	r8, r10, r1, r4
+	UMAAL	r9, r11, r3, r6
+	UMAAL	r9, r10, r2, r4
+	UMAAL	r10, r11, r3, r4
+	LDM	lr, {r4, r5, r6, r7}
+	MOV	r12, #0
+	UMLAL	r8, r12, r0, r4
+	UMAAL	r9, r12, r1, r4
+	UMAAL	r10, r12, r2, r4
+	UMAAL	r11, r12, r3, r4
+	MOV	r4, #0
+	UMLAL	r9, r4, r0, r5
+	UMAAL	r10, r4, r1, r5
+	UMAAL	r11, r4, r2, r5
+	UMAAL	r12, r4, r3, r5
+	MOV	r5, #0
+	UMLAL	r10, r5, r0, r6
+	UMAAL	r11, r5, r1, r6
+	UMAAL	r12, r5, r2, r6
+	UMAAL	r4, r5, r3, r6
+	MOV	r6, #0
+	UMLAL	r11, r6, r0, r7
+	LDR	r0, [sp, #40]
+	UMAAL	r12, r6, r1, r7
+	ADD	r0, r0, #16
+	UMAAL	r4, r6, r2, r7
+	SUB	lr, lr, #16
+	UMAAL	r5, r6, r3, r7
+	LDM	r0, {r0, r1, r2, r3}
+	STR	r6, [sp, #32]
+	LDM	lr!, {r6}
+	MOV	r7, #0
+	UMLAL	r8, r7, r0, r6
+	UMAAL	r9, r7, r1, r6
+	STR	r8, [sp, #16]
+	UMAAL	r10, r7, r2, r6
+	UMAAL	r11, r7, r3, r6
+	LDM	lr!, {r6}
+	MOV	r8, #0
+	UMLAL	r9, r8, r0, r6
+	UMAAL	r10, r8, r1, r6
+	STR	r9, [sp, #20]
+	UMAAL	r11, r8, r2, r6
+	UMAAL	r12, r8, r3, r6
+	LDM	lr!, {r6}
+	MOV	r9, #0
+	UMLAL	r10, r9, r0, r6
+	UMAAL	r11, r9, r1, r6
+	STR	r10, [sp, #24]
+	UMAAL	r12, r9, r2, r6
+	UMAAL	r4, r9, r3, r6
+	LDM	lr!, {r6}
+	MOV	r10, #0
+	UMLAL	r11, r10, r0, r6
+	UMAAL	r12, r10, r1, r6
+	STR	r11, [sp, #28]
+	UMAAL	r4, r10, r2, r6
+	UMAAL	r5, r10, r3, r6
+	LDM	lr!, {r11}
+	UMAAL	r12, r7, r0, r11
+	UMAAL	r4, r7, r1, r11
+	LDR	r6, [sp, #32]
+	UMAAL	r5, r7, r2, r11
+	UMAAL	r6, r7, r3, r11
+	LDM	lr!, {r11}
+	UMAAL	r4, r8, r0, r11
+	UMAAL	r5, r8, r1, r11
+	UMAAL	r6, r8, r2, r11
+	UMAAL	r7, r8, r3, r11
+	LDM	lr, {r11, lr}
+	UMAAL	r5, r9, r0, r11
+	UMAAL	r6, r10, r0, lr
+	UMAAL	r6, r9, r1, r11
+	UMAAL	r7, r10, r1, lr
+	UMAAL	r7, r9, r2, r11
+	UMAAL	r8, r10, r2, lr
+	UMAAL	r8, r9, r3, r11
+	UMAAL	r9, r10, r3, lr
+	/* Reduce */
+	LDR	r0, [sp, #28]
+	MOV	lr, #37
+	UMAAL	r10, r0, r10, lr
+	MOV	lr, #19
+	LSL	r0, r0, #1
+	ORR	r0, r0, r10, LSR #31
+	MUL	r11, r0, lr
+	POP	{r0, r1, r2}
+	MOV	lr, #38
+	UMAAL	r0, r11, r12, lr
+	UMAAL	r1, r11, r4, lr
+	UMAAL	r2, r11, r5, lr
+	POP	{r3, r4, r5}
+	UMAAL	r3, r11, r6, lr
+	UMAAL	r4, r11, r7, lr
+	UMAAL	r5, r11, r8, lr
+	POP	{r6}
+	BFC	r10, #31, #1
+	UMAAL	r6, r11, r9, lr
+	ADD	r7, r10, r11
+	ADDS	r11, r0, #19
+	ADCS	r11, r1, #0
+	ADCS	r11, r2, #0
+	ADCS	r11, r3, #0
+	ADCS	r11, r4, #0
+	ADCS	r11, r5, #0
+	ADCS	r11, r6, #0
+	ADC	r11, r7, #0
+	ASR	r11, r11, #31
+	AND	r11, r11, #19
+	ADDS	r0, r0, r11
+	ADCS	r1, r1, #0
+	ADCS	r2, r2, #0
+	ADCS	r3, r3, #0
+	ADCS	r4, r4, #0
+	ADCS	r5, r5, #0
+	ADCS	r6, r6, #0
+	ADC	r7, r7, #0
+	BFC	r7, #31, #1
+	LDR	lr, [sp, #8]
+	/* Store */
+	STM	lr, {r0, r1, r2, r3, r4, r5, r6, r7}
+	ADD	sp, sp, #16
+	POP	{pc}
+	/* Cycle Count = 258 */
+	.size	fe_mul_op_full_red,.-fe_mul_op_full_red
 #endif /* WOLFSSL_ARM_ARCH_7M */
 	.text
 	.align	4
@@ -2303,6 +2851,296 @@ fe_sq_op:
 	POP	{pc}
 	/* Cycle Count = 355 */
 	.size	fe_sq_op,.-fe_sq_op
+	.text
+	.align	4
+	.globl	fe_sq_op_full_red
+	.type	fe_sq_op_full_red, %function
+fe_sq_op_full_red:
+	PUSH	{lr}
+	SUB	sp, sp, #0x44
+	STR	r0, [sp, #64]
+	/* Square */
+	MOV	r0, #0
+	LDR	r12, [r1]
+	/* A[0] * A[1] */
+	LDR	lr, [r1, #4]
+	UMULL	r4, r5, r12, lr
+	/* A[0] * A[3] */
+	LDR	lr, [r1, #12]
+	UMULL	r6, r7, r12, lr
+	/* A[0] * A[5] */
+	LDR	lr, [r1, #20]
+	UMULL	r8, r9, r12, lr
+	/* A[0] * A[7] */
+	LDR	lr, [r1, #28]
+	UMULL	r10, r3, r12, lr
+	/* A[0] * A[2] */
+	LDR	lr, [r1, #8]
+	MOV	r11, #0
+	UMLAL	r5, r11, r12, lr
+	ADDS	r6, r6, r11
+	/* A[0] * A[4] */
+	LDR	lr, [r1, #16]
+	ADCS	r7, r7, #0
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, lr
+	ADDS	r8, r8, r11
+	/* A[0] * A[6] */
+	LDR	lr, [r1, #24]
+	ADCS	r9, r9, #0
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	ADDS	r10, r10, r11
+	ADCS	r3, r3, #0
+	STR	r4, [sp, #4]
+	STR	r5, [sp, #8]
+	/* A[1] * A[2] */
+	LDR	r12, [r1, #4]
+	LDR	lr, [r1, #8]
+	MOV	r11, #0
+	UMLAL	r6, r11, r12, lr
+	STR	r6, [sp, #12]
+	ADDS	r7, r7, r11
+	/* A[1] * A[3] */
+	LDR	lr, [r1, #12]
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, lr
+	STR	r7, [sp, #16]
+	ADDS	r8, r8, r11
+	/* A[1] * A[4] */
+	LDR	lr, [r1, #16]
+	ADC	r11, r0, #0
+	UMLAL	r8, r11, r12, lr
+	ADDS	r9, r9, r11
+	/* A[1] * A[5] */
+	LDR	lr, [r1, #20]
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	ADDS	r10, r10, r11
+	/* A[1] * A[6] */
+	LDR	lr, [r1, #24]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[1] * A[7] */
+	LDR	lr, [r1, #28]
+	ADC	r4, r0, #0
+	UMLAL	r3, r4, r12, lr
+	/* A[2] * A[3] */
+	LDR	r12, [r1, #8]
+	LDR	lr, [r1, #12]
+	MOV	r11, #0
+	UMLAL	r8, r11, r12, lr
+	STR	r8, [sp, #20]
+	ADDS	r9, r9, r11
+	/* A[2] * A[4] */
+	LDR	lr, [r1, #16]
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, lr
+	STR	r9, [sp, #24]
+	ADDS	r10, r10, r11
+	/* A[2] * A[5] */
+	LDR	lr, [r1, #20]
+	ADC	r11, r0, #0
+	UMLAL	r10, r11, r12, lr
+	ADDS	r3, r3, r11
+	/* A[2] * A[6] */
+	LDR	lr, [r1, #24]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[2] * A[7] */
+	LDR	lr, [r1, #28]
+	ADC	r5, r0, #0
+	UMLAL	r4, r5, r12, lr
+	/* A[3] * A[4] */
+	LDR	r12, [r1, #12]
+	LDR	lr, [r1, #16]
+	MOV	r11, #0
+	UMLAL	r10, r11, r12, lr
+	STR	r10, [sp, #28]
+	ADDS	r3, r3, r11
+	/* A[3] * A[5] */
+	LDR	lr, [r1, #20]
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, lr
+	ADDS	r4, r4, r11
+	/* A[3] * A[6] */
+	LDR	lr, [r1, #24]
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[3] * A[7] */
+	LDR	lr, [r1, #28]
+	ADC	r6, r0, #0
+	UMLAL	r5, r6, r12, lr
+	/* A[4] * A[5] */
+	LDR	r12, [r1, #16]
+	LDR	lr, [r1, #20]
+	MOV	r11, #0
+	UMLAL	r4, r11, r12, lr
+	ADDS	r5, r5, r11
+	/* A[4] * A[6] */
+	LDR	lr, [r1, #24]
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, lr
+	ADDS	r6, r6, r11
+	/* A[4] * A[7] */
+	LDR	lr, [r1, #28]
+	ADC	r7, r0, #0
+	UMLAL	r6, r7, r12, lr
+	/* A[5] * A[6] */
+	LDR	r12, [r1, #20]
+	LDR	lr, [r1, #24]
+	MOV	r11, #0
+	UMLAL	r6, r11, r12, lr
+	ADDS	r7, r7, r11
+	/* A[5] * A[7] */
+	LDR	lr, [r1, #28]
+	ADC	r8, r0, #0
+	UMLAL	r7, r8, r12, lr
+	/* A[6] * A[7] */
+	LDR	r12, [r1, #24]
+	LDR	lr, [r1, #28]
+	MOV	r9, #0
+	UMLAL	r8, r9, r12, lr
+	ADD	lr, sp, #32
+	STM	lr, {r3, r4, r5, r6, r7, r8, r9}
+	ADD	lr, sp, #4
+	LDM	lr, {r4, r5, r6, r7, r8, r9, r10}
+	ADDS	r4, r4, r4
+	ADCS	r5, r5, r5
+	ADCS	r6, r6, r6
+	ADCS	r7, r7, r7
+	ADCS	r8, r8, r8
+	ADCS	r9, r9, r9
+	ADCS	r10, r10, r10
+	STM	lr!, {r4, r5, r6, r7, r8, r9, r10}
+	LDM	lr, {r3, r4, r5, r6, r7, r8, r9}
+	ADCS	r3, r3, r3
+	ADCS	r4, r4, r4
+	ADCS	r5, r5, r5
+	ADCS	r6, r6, r6
+	ADCS	r7, r7, r7
+	ADCS	r8, r8, r8
+	ADCS	r9, r9, r9
+	ADC	r10, r0, #0
+	STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}
+	ADD	lr, sp, #4
+	LDM	lr, {r4, r5, r6, r7, r8, r9, r10}
+	MOV	lr, sp
+	/* A[0] * A[0] */
+	LDR	r12, [r1]
+	UMULL	r3, r11, r12, r12
+	ADDS	r4, r4, r11
+	/* A[1] * A[1] */
+	LDR	r12, [r1, #4]
+	ADCS	r5, r5, #0
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, r12
+	ADDS	r6, r6, r11
+	/* A[2] * A[2] */
+	LDR	r12, [r1, #8]
+	ADCS	r7, r7, #0
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, r12
+	ADDS	r8, r8, r11
+	/* A[3] * A[3] */
+	LDR	r12, [r1, #12]
+	ADCS	r9, r9, #0
+	ADC	r11, r0, #0
+	UMLAL	r9, r11, r12, r12
+	ADDS	r10, r10, r11
+	STM	lr!, {r3, r4, r5, r6, r7, r8, r9, r10}
+	LDM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}
+	/* A[4] * A[4] */
+	LDR	r12, [r1, #16]
+	ADCS	r3, r3, #0
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r12, r12
+	ADDS	r4, r4, r11
+	/* A[5] * A[5] */
+	LDR	r12, [r1, #20]
+	ADCS	r5, r5, #0
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r12, r12
+	ADDS	r6, r6, r11
+	/* A[6] * A[6] */
+	LDR	r12, [r1, #24]
+	ADCS	r7, r7, #0
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r12, r12
+	ADDS	r8, r8, r11
+	/* A[7] * A[7] */
+	LDR	r12, [r1, #28]
+	ADCS	r9, r9, #0
+	ADC	r10, r10, #0
+	UMLAL	r9, r10, r12, r12
+	/* Reduce */
+	LDR	r2, [sp, #28]
+	MOV	lr, sp
+	MOV	r12, #38
+	UMULL	r10, r11, r10, r12
+	ADDS	r10, r10, r2
+	ADC	r11, r11, #0
+	MOV	r12, #19
+	LSL	r11, r11, #1
+	ORR	r11, r11, r10, LSR #31
+	MUL	r11, r11, r12
+	LDM	lr!, {r1, r2}
+	MOV	r12, #38
+	ADDS	r1, r1, r11
+	ADC	r11, r0, #0
+	UMLAL	r1, r11, r3, r12
+	ADDS	r2, r2, r11
+	ADC	r11, r0, #0
+	UMLAL	r2, r11, r4, r12
+	LDM	lr!, {r3, r4}
+	ADDS	r3, r3, r11
+	ADC	r11, r0, #0
+	UMLAL	r3, r11, r5, r12
+	ADDS	r4, r4, r11
+	ADC	r11, r0, #0
+	UMLAL	r4, r11, r6, r12
+	LDM	lr!, {r5, r6}
+	ADDS	r5, r5, r11
+	ADC	r11, r0, #0
+	UMLAL	r5, r11, r7, r12
+	ADDS	r6, r6, r11
+	ADC	r11, r0, #0
+	UMLAL	r6, r11, r8, r12
+	LDM	lr!, {r7, r8}
+	ADDS	r7, r7, r11
+	ADC	r11, r0, #0
+	UMLAL	r7, r11, r9, r12
+	BFC	r10, #31, #1
+	ADDS	r8, r10, r11
+	ADDS	r11, r1, #19
+	ADCS	r11, r2, #0
+	ADCS	r11, r3, #0
+	ADCS	r11, r4, #0
+	ADCS	r11, r5, #0
+	ADCS	r11, r6, #0
+	ADCS	r11, r7, #0
+	ADC	r11, r8, #0
+	ASR	r11, r11, #31
+	AND	r11, r11, #19
+	ADDS	r1, r1, r11
+	ADCS	r2, r2, #0
+	ADCS	r3, r3, #0
+	ADCS	r4, r4, #0
+	ADCS	r5, r5, #0
+	ADCS	r6, r6, #0
+	ADCS	r7, r7, #0
+	ADC	r8, r8, #0
+	BFC	r8, #31, #1
+	/* Store */
+	LDR	r0, [sp, #64]
+	STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}
+	ADD	sp, sp, #0x44
+	POP	{pc}
+	/* Cycle Count = 374 */
+	.size	fe_sq_op_full_red,.-fe_sq_op_full_red
 #else
 	.text
 	.align	4
@@ -2422,6 +3260,143 @@ fe_sq_op:
 	POP	{pc}
 	/* Cycle Count = 179 */
 	.size	fe_sq_op,.-fe_sq_op
+	.text
+	.align	4
+	.globl	fe_sq_op_full_red
+	.type	fe_sq_op_full_red, %function
+fe_sq_op_full_red:
+	PUSH	{lr}
+	SUB	sp, sp, #32
+	STR	r0, [sp, #28]
+	LDM	r1, {r0, r1, r2, r3, r4, r5, r6, r7}
+	/* Square */
+	UMULL	r9, r10, r0, r0
+	UMULL	r11, r12, r0, r1
+	ADDS	r11, r11, r11
+	MOV	lr, #0
+	UMAAL	r10, r11, lr, lr
+	STM	sp, {r9, r10}
+	MOV	r8, lr
+	UMAAL	r8, r12, r0, r2
+	ADCS	r8, r8, r8
+	UMAAL	r8, r11, r1, r1
+	UMULL	r9, r10, r0, r3
+	UMAAL	r9, r12, r1, r2
+	ADCS	r9, r9, r9
+	UMAAL	r9, r11, lr, lr
+	STRD	r8, r9, [sp, #8]
+	MOV	r9, lr
+	UMAAL	r9, r10, r0, r4
+	UMAAL	r9, r12, r1, r3
+	ADCS	r9, r9, r9
+	UMAAL	r9, r11, r2, r2
+	STR	r9, [sp, #16]
+	UMULL	r9, r8, r0, r5
+	UMAAL	r9, r12, r1, r4
+	UMAAL	r9, r10, r2, r3
+	ADCS	r9, r9, r9
+	UMAAL	r9, r11, lr, lr
+	STR	r9, [sp, #20]
+	MOV	r9, lr
+	UMAAL	r9, r8, r0, r6
+	UMAAL	r9, r12, r1, r5
+	UMAAL	r9, r10, r2, r4
+	ADCS	r9, r9, r9
+	UMAAL	r9, r11, r3, r3
+	STR	r9, [sp, #24]
+	UMULL	r0, r9, r0, r7
+	UMAAL	r0, r8, r1, r6
+	UMAAL	r0, r12, r2, r5
+	UMAAL	r0, r10, r3, r4
+	ADCS	r0, r0, r0
+	UMAAL	r0, r11, lr, lr
+	/* R[7] = r0 */
+	UMAAL	r9, r8, r1, r7
+	UMAAL	r9, r10, r2, r6
+	UMAAL	r12, r9, r3, r5
+	ADCS	r12, r12, r12
+	UMAAL	r12, r11, r4, r4
+	/* R[8] = r12 */
+	UMAAL	r9, r8, r2, r7
+	UMAAL	r10, r9, r3, r6
+	MOV	r2, lr
+	UMAAL	r10, r2, r4, r5
+	ADCS	r10, r10, r10
+	UMAAL	r11, r10, lr, lr
+	/* R[9] = r11 */
+	UMAAL	r2, r8, r3, r7
+	UMAAL	r2, r9, r4, r6
+	ADCS	r3, r2, r2
+	UMAAL	r10, r3, r5, r5
+	/* R[10] = r10 */
+	MOV	r1, lr
+	UMAAL	r1, r8, r4, r7
+	UMAAL	r1, r9, r5, r6
+	ADCS	r4, r1, r1
+	UMAAL	r3, r4, lr, lr
+	/* R[11] = r3 */
+	UMAAL	r8, r9, r5, r7
+	ADCS	r8, r8, r8
+	UMAAL	r4, r8, r6, r6
+	/* R[12] = r4 */
+	MOV	r5, lr
+	UMAAL	r5, r9, r6, r7
+	ADCS	r5, r5, r5
+	UMAAL	r8, r5, lr, lr
+	/* R[13] = r8 */
+	ADCS	r9, r9, r9
+	UMAAL	r9, r5, r7, r7
+	ADCS	r7, r5, lr
+	/* R[14] = r9 */
+	/* R[15] = r7 */
+	/* Reduce */
+	MOV	r6, #37
+	UMAAL	r7, r0, r7, r6
+	MOV	r6, #19
+	LSL	r0, r0, #1
+	ORR	r0, r0, r7, LSR #31
+	MUL	lr, r0, r6
+	POP	{r0, r1}
+	MOV	r6, #38
+	UMAAL	r0, lr, r12, r6
+	UMAAL	r1, lr, r11, r6
+	MOV	r12, r3
+	MOV	r11, r4
+	POP	{r2, r3, r4}
+	UMAAL	r2, lr, r10, r6
+	UMAAL	r3, lr, r12, r6
+	UMAAL	r4, lr, r11, r6
+	MOV	r12, r6
+	POP	{r5, r6}
+	UMAAL	r5, lr, r8, r12
+	BFC	r7, #31, #1
+	UMAAL	r6, lr, r9, r12
+	ADD	r7, r7, lr
+	ADDS	lr, r0, #19
+	ADCS	lr, r1, #0
+	ADCS	lr, r2, #0
+	ADCS	lr, r3, #0
+	ADCS	lr, r4, #0
+	ADCS	lr, r5, #0
+	ADCS	lr, r6, #0
+	ADC	lr, r7, #0
+	ASR	lr, lr, #31
+	AND	lr, lr, #19
+	ADDS	r0, r0, lr
+	ADCS	r1, r1, #0
+	ADCS	r2, r2, #0
+	ADCS	r3, r3, #0
+	ADCS	r4, r4, #0
+	ADCS	r5, r5, #0
+	ADCS	r6, r6, #0
+	ADC	r7, r7, #0
+	BFC	r7, #31, #1
+	POP	{lr}
+	/* Store */
+	STM	lr, {r0, r1, r2, r3, r4, r5, r6, r7}
+	POP	{pc}
+	/* Cycle Count = 198 */
+	.size	fe_sq_op_full_red,.-fe_sq_op_full_red
 #endif /* WOLFSSL_ARM_ARCH_7M */
 	.text
 	.align	4
@@ -2689,17 +3664,17 @@ L_curve25519_bits:
 	LDR	r2, [sp, #160]
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #32
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r2, sp, #0x80
 	MOV	r1, sp
 	MOV	r0, sp
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x80
-	BL	fe_sq_op
+	BL	fe_sq_op_full_red
 	LDR	r1, [sp, #160]
 	ADD	r0, sp, #0x60
-	BL	fe_sq_op
+	BL	fe_sq_op_full_red
 	MOV	r3, sp
 	ADD	r2, sp, #32
 	MOV	r1, sp
@@ -2708,7 +3683,7 @@ L_curve25519_bits:
 	ADD	r2, sp, #0x80
 	ADD	r1, sp, #0x60
 	LDR	r0, [sp, #160]
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r2, sp, #0x80
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x60
@@ -2721,7 +3696,7 @@ L_curve25519_bits:
 	BL	fe_mul121666
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x40
-	BL	fe_sq_op
+	BL	fe_sq_op_full_red
 	ADD	r2, sp, #32
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x80
@@ -2729,11 +3704,11 @@ L_curve25519_bits:
 	MOV	r2, sp
 	LDR	r1, [sp, #168]
 	ADD	r0, sp, #32
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r2, sp, #0x80
 	ADD	r1, sp, #0x60
 	MOV	r0, sp
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	LDR	r2, [sp, #176]
 	LDR	r1, [sp, #180]
 	SUBS	r1, r1, #1
@@ -3035,17 +4010,17 @@ L_curve25519_bits:
 	LDR	r2, [sp, #176]
 	ADD	r1, sp, #0x60
 	LDR	r0, [sp, #188]
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r2, sp, #0x80
 	LDR	r1, [sp, #184]
 	LDR	r0, [sp, #184]
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x60
-	BL	fe_sq_op
+	BL	fe_sq_op_full_red
 	LDR	r1, [sp, #176]
 	ADD	r0, sp, #0x80
-	BL	fe_sq_op
+	BL	fe_sq_op_full_red
 	LDR	r3, [sp, #184]
 	LDR	r2, [sp, #188]
 	LDR	r1, [sp, #184]
@@ -3054,7 +4029,7 @@ L_curve25519_bits:
 	ADD	r2, sp, #0x60
 	ADD	r1, sp, #0x80
 	LDR	r0, [sp, #176]
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r2, sp, #0x60
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x80
@@ -3067,7 +4042,7 @@ L_curve25519_bits:
 	BL	fe_mul121666
 	LDR	r1, [sp, #180]
 	LDR	r0, [sp, #180]
-	BL	fe_sq_op
+	BL	fe_sq_op_full_red
 	LDR	r2, [sp, #188]
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x60
@@ -3075,11 +4050,11 @@ L_curve25519_bits:
 	LDR	r2, [sp, #184]
 	LDR	r1, [sp, #172]
 	LDR	r0, [sp, #188]
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	ADD	r2, sp, #0x60
 	ADD	r1, sp, #0x80
 	LDR	r0, [sp, #184]
-	BL	fe_mul_op
+	BL	fe_mul_op_full_red
 	LDR	r2, [sp, #168]
 	SUBS	r2, r2, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
@@ -3792,12 +4767,31 @@ fe_sq2:
 	BFC	r8, #31, #1
 	ADCS	r7, r7, #0
 	ADC	r8, r8, #0
+	ADDS	r11, r1, #19
+	ADCS	r11, r2, #0
+	ADCS	r11, r3, #0
+	ADCS	r11, r4, #0
+	ADCS	r11, r5, #0
+	ADCS	r11, r6, #0
+	ADCS	r11, r7, #0
+	ADC	r11, r8, #0
+	ASR	r11, r11, #31
+	AND	r11, r11, #19
+	ADDS	r1, r1, r11
+	ADCS	r2, r2, #0
+	ADCS	r3, r3, #0
+	ADCS	r4, r4, #0
+	ADCS	r5, r5, #0
+	ADCS	r6, r6, #0
+	ADCS	r7, r7, #0
+	ADC	r8, r8, #0
+	BFC	r8, #31, #1
 	/* Store */
 	LDR	r0, [sp, #64]
 	STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}
 	ADD	sp, sp, #0x44
 	POP	{pc}
-	/* Cycle Count = 385 */
+	/* Cycle Count = 404 */
 	.size	fe_sq2,.-fe_sq2
 #else
 	.text
@@ -3945,13 +4939,32 @@ fe_sq2:
 	BFC	r7, #31, #1
 	ADCS	r6, r6, #0
 	ADC	r7, r7, #0
+	ADDS	r12, r0, #19
+	ADCS	r12, r1, #0
+	ADCS	r12, r2, #0
+	ADCS	r12, r3, #0
+	ADCS	r12, r4, #0
+	ADCS	r12, r5, #0
+	ADCS	r12, r6, #0
+	ADC	r12, r7, #0
+	ASR	r12, r12, #31
+	AND	r12, r12, #19
+	ADDS	r0, r0, r12
+	ADCS	r1, r1, #0
+	ADCS	r2, r2, #0
+	ADCS	r3, r3, #0
+	ADCS	r4, r4, #0
+	ADCS	r5, r5, #0
+	ADCS	r6, r6, #0
+	ADC	r7, r7, #0
+	BFC	r7, #31, #1
 	POP	{r12, lr}
 	/* Store */
 	STM	r12, {r0, r1, r2, r3, r4, r5, r6, r7}
 	MOV	r0, r12
 	MOV	r1, lr
 	POP	{pc}
-	/* Cycle Count = 213 */
+	/* Cycle Count = 232 */
 	.size	fe_sq2,.-fe_sq2
 #endif /* WOLFSSL_ARM_ARCH_7M */
 	.text

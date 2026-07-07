@@ -5929,6 +5929,35 @@ int sp_cmp_ct(const sp_int* a, const sp_int* b, unsigned int n)
 }
 #endif /* HAVE_ECC && !WC_NO_RNG && WOLFSSL_ECC_GEN_REJECT_SAMPLING */
 
+/* Constant time clamping.
+ *
+ * @param [in, out] a  SP integer to clamp.
+ */
+static void sp_clamp_ct(sp_int* a)
+{
+    int i;
+    sp_size_t used = a->used;
+    volatile sp_size_t mask = (sp_size_t)-1;
+
+    for (i = (int)a->used - 1; i >= 0; i--) {
+#if ((SP_WORD_SIZE == 64) && \
+     (defined(_WIN64) || !defined(WOLFSSL_UINT128_T_DEFINED))) || \
+    ((SP_WORD_SIZE == 32) && defined(NO_64BIT))
+        sp_int_digit negVal = ~a->dp[i];
+        sp_int_digit minusOne = a->dp[i] - 1;
+        sp_int_digit zeroMask =
+            (sp_int_digit)((sp_int_sdigit)(negVal & minusOne) >>
+                           (SP_WORD_SIZE - 1));
+#else
+        sp_size_t zeroMask =
+            (sp_size_t)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
+#endif
+        mask &= (sp_size_t)zeroMask;
+        used = (sp_size_t)(used + mask);
+    }
+    a->used = used;
+}
+
 /*************************
  * Bit check/set functions
  *************************/
@@ -7550,6 +7579,9 @@ int sp_div_2_mod_ct(const sp_int* a, const sp_int* m, sp_int* r)
         /* Divide conditional sum by 2. */
         _sp_div_2(r, r);
 
+        /* Remove leading zeros. */
+        sp_clamp_ct(r);
+
     #if 0
         sp_print(r, "rd2");
     #endif
@@ -8132,35 +8164,6 @@ int sp_submod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
     return err;
 }
 #endif /* WOLFSSL_SP_MATH_ALL */
-
-/* Constant time clamping.
- *
- * @param [in, out] a  SP integer to clamp.
- */
-static void sp_clamp_ct(sp_int* a)
-{
-    int i;
-    sp_size_t used = a->used;
-    volatile sp_size_t mask = (sp_size_t)-1;
-
-    for (i = (int)a->used - 1; i >= 0; i--) {
-#if ((SP_WORD_SIZE == 64) && \
-     (defined(_WIN64) || !defined(WOLFSSL_UINT128_T_DEFINED))) || \
-    ((SP_WORD_SIZE == 32) && defined(NO_64BIT))
-        sp_int_digit negVal = ~a->dp[i];
-        sp_int_digit minusOne = a->dp[i] - 1;
-        sp_int_digit zeroMask =
-            (sp_int_digit)((sp_int_sdigit)(negVal & minusOne) >>
-                           (SP_WORD_SIZE - 1));
-#else
-        sp_size_t zeroMask =
-            (sp_size_t)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
-#endif
-        mask &= (sp_size_t)zeroMask;
-        used = (sp_size_t)(used + mask);
-    }
-    a->used = used;
-}
 
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 /* Add two values and reduce: r = (a + b) % m
