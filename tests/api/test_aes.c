@@ -9446,7 +9446,14 @@ int test_wc_AesGmacArgMcdc(void)
 int test_wc_AesCcmArgMcdc(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
+/* This probes pure-C aes.c CCM internals: the inSz overflow check (via a 1-byte
+ * buffer with a 65536 length, safe only because the pure-C path rejects before
+ * writing) and the rounds=0 corruption. Under the FIPS/self-test module those
+ * guards are absent, so the oversized encrypt writes past the buffer and
+ * segfaults. The decisions being covered are not compiled in FIPS builds
+ * anyway, so skip the whole test there. */
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     byte key[AES_128_KEY_SIZE] = { 0 };
     byte nonce13[13] = {
         0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0xa0,
