@@ -74,17 +74,50 @@
 #define NID_ad_OCSP WC_NID_ad_OCSP
 #define NID_ad_ca_issuers WC_NID_ad_ca_issuers
 
-/* OBJ_find_sigid_algs(): report SHA-256 / RSA for libpq's
- * RSA-with-SHA-256 channel binding. Literal NIDs (672, 6) is for
- * ASN is disabled. */
+/* OBJ_find_sigid_algs(): map a certificate signature-algorithm NID to its
+ * digest and public-key NIDs; returns 0 for unsupported algorithms. */
 #ifndef BUILDING_WOLFSSL
 static WC_INLINE int
 wolfSSL_OBJ_find_sigid_algs(int sigid, int *pdig, int *ppkey)
 {
-    (void)sigid;
-    if (pdig  != NULL) *pdig  = 672; /* NID_sha256 */
-    if (ppkey != NULL) *ppkey = 6;   /* NID_rsaEncryption */
-    return 1;
+    int dig  = 0;
+    int pkey = 0;
+    int ret  = 1;
+
+    switch (sigid) {
+#ifndef NO_RSA
+        case WC_NID_sha1WithRSAEncryption:
+            dig = WC_NID_sha1;   pkey = WC_NID_rsaEncryption; break;
+        case WC_NID_sha224WithRSAEncryption:
+            dig = WC_NID_sha224; pkey = WC_NID_rsaEncryption; break;
+        case WC_NID_sha256WithRSAEncryption:
+            dig = WC_NID_sha256; pkey = WC_NID_rsaEncryption; break;
+        case WC_NID_sha384WithRSAEncryption:
+            dig = WC_NID_sha384; pkey = WC_NID_rsaEncryption; break;
+        case WC_NID_sha512WithRSAEncryption:
+            dig = WC_NID_sha512; pkey = WC_NID_rsaEncryption; break;
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+        case WC_NID_ecdsa_with_SHA1:
+            dig = WC_NID_sha1;   pkey = WC_NID_X9_62_id_ecPublicKey; break;
+        case WC_NID_ecdsa_with_SHA224:
+            dig = WC_NID_sha224; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+        case WC_NID_ecdsa_with_SHA256:
+            dig = WC_NID_sha256; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+        case WC_NID_ecdsa_with_SHA384:
+            dig = WC_NID_sha384; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+        case WC_NID_ecdsa_with_SHA512:
+            dig = WC_NID_sha512; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+#endif /* HAVE_ECC */
+        default:
+            ret = 0; break;
+    }
+
+    if (ret == 1) {
+        if (pdig  != NULL) *pdig  = dig;
+        if (ppkey != NULL) *ppkey = pkey;
+    }
+    return ret;
 }
 #endif
 

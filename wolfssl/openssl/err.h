@@ -43,7 +43,8 @@
 /* reasons */
 #define WOLFSSL_ERR_R_SYS_LIB                           1
 #define WOLFSSL_PKCS12_R_MAC_VERIFY_FAILURE             2
-#define WOLFSSL_ERR_R_BUF_LIB                           0
+/* Matches OpenSSL's ERR_R_BUF_LIB (= ERR_LIB_BUF, 7). */
+#define WOLFSSL_ERR_R_BUF_LIB                           7
 #define WOLFSSL_SSL_R_UNKNOWN_PROTOCOL                  252
 #define WOLFSSL_SSL_R_WRONG_VERSION_NUMBER              267
 #define WOLFSSL_SSL_R_UNSUPPORTED_PROTOCOL              258
