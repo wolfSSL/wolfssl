@@ -848,7 +848,7 @@ static int wolfSSL_quic_send_internal(WOLFSSL* ssl)
             ssl->quic.output_rec_remain -= (word32)len;
         }
         else {
-            /* at start of a TLS Record */            
+            /* at start of a TLS Record */
             if (length < RECORD_HEADER_SZ) {
                 WOLFSSL_MSG("WOLFSSL_QUIC_SEND application failed");
                 ret = FWRITE_ERROR;
