@@ -1662,8 +1662,18 @@ enum wc_CipherType {
     WC_CIPHER_DES3 = 7,
     WC_CIPHER_DES = 8,
     WC_CIPHER_CHACHA = 9,
+    #define _WC_CIPHER_MAX WC_CIPHER_AES_CCM
+#ifdef WOLFSSL_SM4
+    WC_CIPHER_SM4_ECB = 16,
+    WC_CIPHER_SM4_CBC = 17,
+    WC_CIPHER_SM4_CTR = 18,
+    WC_CIPHER_SM4_GCM = 19,
+    WC_CIPHER_SM4_CCM = 20,
+    #undef _WC_CIPHER_MAX
+    #define _WC_CIPHER_MAX WC_CIPHER_SM4_CCM
+#endif
 
-    WC_CIPHER_MAX = WC_CIPHER_AES_CCM
+    WC_CIPHER_MAX = _WC_CIPHER_MAX
 };
 
 /* PK=public key (asymmetric) based algorithms */
@@ -1752,6 +1762,13 @@ enum wc_PkType {
     WC_PK_TYPE_PQC_SIG_KEYGEN_SEED = 49,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_KEYGEN_SEED
+#endif
+#ifdef WOLFSSL_SM2
+    WC_PK_TYPE_SM2_SIGN          = 50,
+    WC_PK_TYPE_SM2_VERIFY        = 51,
+    WC_PK_TYPE_SM2_SHARED_SECRET = 52,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_SM2_SHARED_SECRET
 #endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
