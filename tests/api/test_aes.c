@@ -59,7 +59,12 @@
  *    (e.g. WOLFSSL_ARMASM on ARMv8 with crypto extensions).
  * In all these cases the corrupted struct is ignored and the op returns 0. */
 #if defined(WOLF_CRYPTO_CB_FIND) || defined(WOLF_CRYPTO_CB_ONLY_AES) || \
-    defined(WOLFSSL_ARMASM)
+    defined(WOLFSSL_ARMASM) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    /* The aes->rounds=0 corruption trick relies on the pure-C AesEncryptBlocks_C
+     * guard (if r==0 return KEYUSAGE_E). When AES is offloaded (crypto-cb / asm)
+     * or provided by the FIPS/self-test module, that guard is absent: rounds=0
+     * runs AES with a zero-round key schedule and segfaults instead of erroring.
+     * Treat those builds as offloaded so the corruption blocks are skipped. */
     #define WC_TEST_AES_ROUNDS_OFFLOADED
 #endif
 
