@@ -4915,10 +4915,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_LINUXKM)
 
-    #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-        #include <linux/random.h>
-    #endif
-
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
