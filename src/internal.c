@@ -8537,6 +8537,11 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         return MEMORY_E;
     }
 
+    /* Zero the key so the failure path below can run the type's free
+     * function even when its init function failed before initializing
+     * anything: freeing an uninitialized key walks garbage lengths. */
+    XMEMSET(*pKey, 0, sz);
+
     /* Initialize key */
     switch (type) {
     #ifndef NO_RSA
