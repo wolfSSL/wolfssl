@@ -1608,6 +1608,10 @@ static int wc_get_random_bytes_callbacks_installed = 0;
 
 #elif defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES)
 
+#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
+    #error WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES requires WOLFSSL_EXPERIMENTAL_SETTINGS.
+#endif
+
 #ifndef CONFIG_KPROBES
     #error WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES without CONFIG_KPROBES.
 #endif
