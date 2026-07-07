@@ -5971,7 +5971,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
-        aes->ctx.cfd = -1;
+        aes->ctx.inited = 0;
     #endif
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
     #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -15786,7 +15786,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
-    aes->ctx.cfd = -1;
+    aes->ctx.inited = 0;
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
     DCPAesInit(aes);

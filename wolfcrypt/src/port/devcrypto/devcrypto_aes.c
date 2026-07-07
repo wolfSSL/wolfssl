@@ -49,7 +49,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0) {
         return 0;
     }
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
             ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CBC,
                     (byte*)aes->devKey, aes->keylen);
             if (ret != 0)
@@ -82,7 +82,7 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CBC,
                     (byte*)aes->devKey, aes->keylen);
         if (ret != 0)
@@ -129,6 +129,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     aes->left = 0;
 #endif
     aes->ctx.cfd = -1;
+    aes->ctx.inited = 0;
     XMEMCPY(aes->devKey, userKey, keylen);
 
     (void)dir;
@@ -151,7 +152,7 @@ static int wc_DevCrypto_AesDirect(Aes* aes, byte* out, const byte* in,
         return BAD_FUNC_ARG;
     }
 
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_ECB, (byte*)aes->devKey,
                 aes->keylen);
         if (ret != 0)
@@ -221,7 +222,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         sz--;
     }
 
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CTR, (byte*)aes->devKey,
                 aes->keylen);
         if (ret != 0)
@@ -295,39 +296,49 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
 {
     struct crypt_auth_op crt = {0};
     int ret;
-    byte scratch[WC_AES_BLOCK_SIZE];
+    byte* buf;
+    word32 bufSz;
 
     /* argument checks */
     if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 
-    /* Account for NULL in/out buffers. Up to tag size is still written into
-     * in/out buffers */
-    if (out == NULL)
-        out = scratch;
-    if (in == NULL)
-        in = scratch;
-
-    XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_GCM, (byte*)aes->devKey,
                 aes->keylen);
         if (ret != 0)
             return ret;
     }
 
-    /* if decrypting then the tag is expected to be at the end of "in" buffer */
+    /* cryptodev requires the ciphertext and tag to be contiguous: on encrypt
+     * the tag is appended after the ciphertext, and on decrypt the tag is read
+     * from the end of the input. The caller's in/out buffers only hold "sz"
+     * bytes, so use a temporary buffer with room for the tag to avoid writing
+     * past their bounds. */
+    bufSz = sz + WC_AES_BLOCK_SIZE;
+    buf = (byte*)XMALLOC(bufSz, aes->heap, DYNAMIC_TYPE_AES_BUFFER);
+    if (buf == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(buf, 0, bufSz);
+
     if (dir == COP_DECRYPT) {
-        XMEMCPY(in + sz, authTag, authTagSz);
-        sz += authTagSz;
+        /* build "ciphertext || tag" for the device to verify */
+        if (in != NULL && sz > 0)
+            XMEMCPY(buf, in, sz);
+        XMEMCPY(buf + sz, authTag, authTagSz);
+        wc_SetupCryptAead(&crt, &aes->ctx, buf, sz + authTagSz, buf, (byte*)iv,
+                    ivSz, dir, (byte*)authIn, authInSz, authTag, authTagSz);
     }
-    else{
-        /* get full tag from hardware */
-        authTagSz = WC_AES_BLOCK_SIZE;
+    else {
+        if (in != NULL && sz > 0)
+            XMEMCPY(buf, in, sz);
+        /* device writes the full block-sized tag after the ciphertext */
+        wc_SetupCryptAead(&crt, &aes->ctx, buf, sz, buf, (byte*)iv, ivSz, dir,
+                          (byte*)authIn, authInSz, authTag, WC_AES_BLOCK_SIZE);
     }
-    wc_SetupCryptAead(&crt, &aes->ctx, (byte*)in, sz, out, (byte*)iv, ivSz,
-                      dir, (byte*)authIn, authInSz, authTag, authTagSz);
+
     ret = ioctl(aes->ctx.cfd, CIOCAUTHCRYPT, &crt);
     if (ret != 0) {
         #ifdef DEBUG_WOLFSSL
@@ -335,6 +346,7 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
             WOLFSSL_MSG("authIn Buffer greater than System Page Size");
         }
         #endif
+        XFREE(buf, aes->heap, DYNAMIC_TYPE_AES_BUFFER);
         if (dir == COP_DECRYPT) {
             return AES_GCM_AUTH_E;
         }
@@ -343,10 +355,17 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
         }
     }
 
-    /* after encryption the tag has been placed at the end of "out" buffer */
-    if (dir == COP_ENCRYPT) {
-        XMEMCPY(authTag, out + sz, authTagSz);
+    /* copy the resulting plaintext/ciphertext back into the caller's buffer */
+    if (out != NULL && sz > 0) {
+        XMEMCPY(out, buf, sz);
     }
+
+    /* after encryption the tag has been placed at the end of the buffer */
+    if (dir == COP_ENCRYPT) {
+        XMEMCPY(authTag, buf + sz, authTagSz);
+    }
+
+    XFREE(buf, aes->heap, DYNAMIC_TYPE_AES_BUFFER);
     return 0;
 }
 

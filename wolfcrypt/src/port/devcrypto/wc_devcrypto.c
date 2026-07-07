@@ -178,6 +178,8 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
             sesInfo.cipher_info.cra_driver_name);
     }
 #endif
+    /* successful init */
+    ctx->inited = 1;
     (void)key;
     (void)keySz;
 
@@ -188,12 +190,13 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
 /* free up descriptor and session used with ctx */
 void wc_DevCryptoFree(WC_CRYPTODEV* ctx)
 {
-    if (ctx != NULL && ctx->cfd >= 0) {
+    if (ctx != NULL && ctx->inited == 1) {
         if (ioctl(ctx->cfd, CIOCFSESSION, &ctx->sess.ses)) {
             WOLFSSL_MSG("Error stopping cryptodev session");
         }
         (void)close(ctx->cfd);
         ctx->cfd = -1;
+        ctx->inited = 0;
     }
 }
 
