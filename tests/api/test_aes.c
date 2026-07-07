@@ -8347,10 +8347,13 @@ int test_wc_AesGcmDecisionCoverage(void)
         0xFE,0xFF,0xE9,0x92,0x86,0x65,0x73,0x1C,
         0x6D,0x6A,0x8F,0x94,0x67,0x30,0x83,0x08
     };
+    /* wc_AesGcmSetExtIV needs an RNG and is absent from the self-test module. */
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
     static const byte iv[GCM_NONCE_MID_SZ] = {
         0xCA,0xFE,0xBA,0xBE,0xFA,0xCE,0xDB,0xAD,
         0xDE,0xCA,0xF8,0x88
     };
+#endif
     Aes aes;
     int initDone = 0;
 
@@ -8359,6 +8362,7 @@ int test_wc_AesGcmDecisionCoverage(void)
     if (EXPECT_SUCCESS()) initDone = 1;
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
 
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
     /* wc_AesGcmSetExtIV null-argument decision branches. */
     ExpectIntEQ(wc_AesGcmSetExtIV(NULL, iv, sizeof(iv)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -8367,6 +8371,7 @@ int test_wc_AesGcmDecisionCoverage(void)
     /* Zero-length IV branch: should reject. */
     ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     /* wc_AesGcmSetKey invalid key-length decision branch. */
     {
@@ -9312,7 +9317,9 @@ int test_wc_AesGmacArgMcdc(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
-#ifndef WC_NO_RNG
+/* wc_Gmac()/wc_GmacVerify() need an RNG and are absent from the self-test
+ * module (present under FIPS); wc_GmacSetKey() below stays available. */
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
     {
         WC_RNG rng;
         byte key[AES_128_KEY_SIZE] = { 0 };
