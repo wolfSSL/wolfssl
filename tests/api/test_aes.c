@@ -8394,14 +8394,12 @@ int test_wc_AesFeatureCoverage(void)
 {
     EXPECT_DECLS;
 /* This function's value is MC/DC of the *open* wolfcrypt/src/aes.c feature
- * paths. Under the frozen self-test module that aes.c is not the code being
- * exercised, and some of these modern behaviours are not part of its contract:
- * e.g. the AAD-only wc_AesCcmEncrypt(NULL,NULL,0,...) case below returns 0 in
- * current wolfCrypt but BAD_FUNC_ARG in the frozen v4.1.0 aes.c (which rejects
- * in/out==NULL unconditionally). The key-wrap block already excludes
- * HAVE_SELFTEST for the same reason; exclude the GCM/GMAC and CCM blocks too.
- * HAVE_FIPS is intentionally left running (that newer module honours these
- * paths); the open MC/DC campaign builds are unaffected. */
+ * paths. Frozen crypto modules (self-test v4.1.0, old FIPS v2/v5 = WCv4) do not
+ * exercise that aes.c and predate some modern behaviours asserted here. The
+ * GCM/GMAC block works on all of them, so it only excludes HAVE_SELFTEST; the
+ * CCM block additionally excludes old FIPS (its AAD-only case diverges there,
+ * see the per-block note); the key-wrap block excludes all FIPS + self-test.
+ * The open MC/DC campaign builds are unaffected. */
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST)
     /* ---- AES-GCM streaming API: multi-chunk AAD and data ---- */
     /* Uses a hardcoded 256-bit key, so requires AES-256. */
@@ -8509,7 +8507,12 @@ int test_wc_AesFeatureCoverage(void)
     }
 #endif /* !NO_AES && HAVE_AESGCM && !HAVE_SELFTEST */
 
-#if !defined(NO_AES) && defined(HAVE_AESCCM) && !defined(HAVE_SELFTEST)
+/* The AAD-only wc_AesCcmEncrypt(NULL,NULL,0,...) case below returns 0 in
+ * current wolfCrypt / FIPS v6 but BAD_FUNC_ARG in the frozen self-test (v4.1.0)
+ * AND old FIPS modules (v2/v5 = WCv4), which reject in/out==NULL
+ * unconditionally. Exclude both, matching the modern-API guard idiom. */
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION > 6))
     /* ---- AES-CCM round trips with varied AAD / nonce / tag sizes ---- */
     {
         static const byte ccmKey[16] = {
@@ -8576,7 +8579,7 @@ int test_wc_AesFeatureCoverage(void)
 
         if (initDone) wc_AesFree(&aes);
     }
-#endif /* !NO_AES && HAVE_AESCCM && !HAVE_SELFTEST */
+#endif /* !NO_AES && HAVE_AESCCM && !HAVE_SELFTEST && (!FIPS || FIPS>6) */
 
 /* kwKey below is a 192-bit key, so this block requires AES-192. */
 #if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_192) && \
