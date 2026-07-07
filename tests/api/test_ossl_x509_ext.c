@@ -1415,8 +1415,14 @@ int test_wolfSSL_X509V3_EXT_aia(void)
 int test_wolfSSL_X509V3_EXT(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
+/* This test walks the OCSP root CA's extensions by hardcoded index (i=0 basic
+ * constraints, i=1 subject key id, i=2 authority key id, ...) and asserts fixed
+ * values. That ordering/index assumption only holds for OPENSSL_ALL builds; in
+ * OPENSSL_EXTRA-only configs the stored-extension order can differ, so the SKID
+ * i2s check reads the AKID instead and fails. Keep this test OPENSSL_ALL-only
+ * (its state on master); the by-NID AIA test above is the one that needed
+ * widening to OPENSSL_EXTRA. */
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     XFILE f = XBADFILE;
     int numOfExt = 0, nid = 0, i = 0, expected, actual = 0;
     char* str = NULL;
