@@ -8393,7 +8393,6 @@ int wolfSSL_CRYPTO_set_mem_functions(
 #endif
 }
 
-
 int wolfSSL_FIPS_mode(void)
 {
 #ifdef HAVE_FIPS
@@ -8651,6 +8650,64 @@ void wolfSSL_THREADID_set_numeric(void* id, unsigned long val)
 #endif
 
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* Map a certificate signature-algorithm NID to its digest and public-key
+     * NIDs, like OpenSSL's OBJ_find_sigid_algs() (used by X509_get_signature_nid
+     * consumers such as libpq's tls-server-end-point channel binding).
+     *
+     * sigid  signature-algorithm NID to look up
+     * pdig   optional out: digest NID
+     * ppkey  optional out: public-key NID
+     *
+     * Returns 1 on a supported algorithm, 0 otherwise (outputs untouched).
+     */
+    int wolfSSL_OBJ_find_sigid_algs(int sigid, int *pdig, int *ppkey)
+    {
+        int dig  = 0;
+        int pkey = 0;
+        int ret  = 1;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_find_sigid_algs");
+
+        switch (sigid) {
+    #ifndef NO_RSA
+            case WC_NID_sha1WithRSAEncryption:
+                dig = WC_NID_sha1;   pkey = WC_NID_rsaEncryption; break;
+            case WC_NID_sha224WithRSAEncryption:
+                dig = WC_NID_sha224; pkey = WC_NID_rsaEncryption; break;
+            case WC_NID_sha256WithRSAEncryption:
+                dig = WC_NID_sha256; pkey = WC_NID_rsaEncryption; break;
+            case WC_NID_sha384WithRSAEncryption:
+                dig = WC_NID_sha384; pkey = WC_NID_rsaEncryption; break;
+            case WC_NID_sha512WithRSAEncryption:
+                dig = WC_NID_sha512; pkey = WC_NID_rsaEncryption; break;
+    #endif /* !NO_RSA */
+    #ifdef HAVE_ECC
+            case WC_NID_ecdsa_with_SHA1:
+                dig = WC_NID_sha1;   pkey = WC_NID_X9_62_id_ecPublicKey; break;
+            case WC_NID_ecdsa_with_SHA224:
+                dig = WC_NID_sha224; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+            case WC_NID_ecdsa_with_SHA256:
+                dig = WC_NID_sha256; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+            case WC_NID_ecdsa_with_SHA384:
+                dig = WC_NID_sha384; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+            case WC_NID_ecdsa_with_SHA512:
+                dig = WC_NID_sha512; pkey = WC_NID_X9_62_id_ecPublicKey; break;
+    #endif /* HAVE_ECC */
+            default:
+                ret = 0; break;
+        }
+
+        if (ret == 1) {
+            if (pdig  != NULL) *pdig  = dig;
+            if (ppkey != NULL) *ppkey = pkey;
+        }
+
+        WOLFSSL_LEAVE("wolfSSL_OBJ_find_sigid_algs", ret);
+        return ret;
+    }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 
 #if defined(OPENSSL_EXTRA)
