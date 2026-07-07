@@ -1418,8 +1418,18 @@ int test_wc_RsaKeyToDer_SizeOverflow(void)
 int test_wc_RsaDecisionCoverage(void)
 {
     EXPECT_DECLS;
+/* This function asserts wolfcrypt/src/rsa.c *internal* decision outcomes
+ * (short-buffer RSA_BUFFER_E, invalid pad-type, OAEP-vs-PKCSv15 padding
+ * mismatch) whose whole value is MC/DC of the open wolfCrypt rsa.c. Under the
+ * frozen self-test module that rsa.c is not the code being exercised, so these
+ * error-code decisions are not part of its contract and can legitimately
+ * differ. The sibling key-gen/decision tests in this file (e.g.
+ * test_wc_CheckProbablePrime, the RsaKeyGeneration group) exclude HAVE_SELFTEST
+ * for the same reason; do so here too. HAVE_FIPS is intentionally left running:
+ * that (newer) module honours these decisions and the campaign gains coverage
+ * from it. */
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_SELFTEST)
     RsaKey key;
     WC_RNG rng;
     const char inStr[] = TEST_STRING;
