@@ -362,7 +362,7 @@ enum {
 #define MLKEM_PRF_T     wc_Shake
 
 /* ML-KEM key. */
-typedef struct MlKemKey {
+struct MlKemKey {
     /* Type of key: WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024 */
     int type;
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
@@ -418,8 +418,12 @@ typedef struct MlKemKey {
     sword16* a;
 #endif
 #endif
-} MlKemKey;
+};
 
+#ifndef WC_MLKEMKEY_TYPE_DEFINED
+    typedef struct MlKemKey MlKemKey;
+    #define WC_MLKEMKEY_TYPE_DEFINED
+#endif
 
 WOLFSSL_API MlKemKey* wc_MlKemKey_New(int type, void* heap, int devId);
 WOLFSSL_API int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);

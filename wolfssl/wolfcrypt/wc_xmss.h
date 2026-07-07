@@ -307,7 +307,10 @@ typedef enum wc_XmssRc (*wc_xmss_read_private_key_cb)(byte* priv, word32 privSz,
 
 
 /* Type for hash address. */
+#ifndef WC_HASHADDRESS_TYPE_DEFINED
 typedef word32 HashAddress[8];
+    #define WC_HASHADDRESS_TYPE_DEFINED
+#endif
 
 /* XMSS/XMSS^MT fixed parameters. */
 typedef struct XmssParams {
