@@ -429,6 +429,8 @@ int wc_DrbgState_MutexInit(void)
             /* Mutex is fully initialized. */
             return 0;
         }
+
+        continue;
     }
 #endif
 #endif
@@ -468,7 +470,10 @@ int wc_DrbgState_MutexFree(void)
         }
         /* expected == InitProgress or FreeProgress: another thread is busy;
          * spin until it settles. */
+        continue;
     }
+
+    return 0;
 #endif
 #endif
     return 0;
