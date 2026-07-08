@@ -1043,6 +1043,73 @@ int test_tls12_ec_point_formats_no_uncompressed(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 7507: a server that supports a version higher than the one offered by the
+ * client MUST abort with a fatal inappropriate_fallback alert when the client
+ * includes TLS_FALLBACK_SCSV (0x5600) in its cipher list.  This enforcement is
+ * always compiled in, so it must hold in the default build.
+ *
+ * The ClientHello below offers TLS 1.2 with TLS_FALLBACK_SCSV present, against a
+ * downgrade-capable server whose maximum is TLS 1.3 - i.e. a genuine downgrade.
+ * The server must reject it with VERSION_ERROR and send inappropriate_fallback.
+ */
+int test_tls_fallback_scsv(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13)
+    const byte clientHello[] = {
+        /* record header: handshake, TLS 1.2, length 47 */
+        0x16, 0x03, 0x03, 0x00, 0x2f,
+        /* handshake header: ClientHello, length 43 */
+        0x01, 0x00, 0x00, 0x2b,
+        /* client version: TLS 1.2 (lower than the server's TLS 1.3 max) */
+        0x03, 0x03,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cipher suites length: 4 */
+        0x00, 0x04,
+        /* TLS_FALLBACK_SCSV, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x56, 0x00, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    /* Expected fatal inappropriate_fallback (86) alert on the wire. */
+    const byte fallbackAlert[] = {
+        0x15,             /* alert content type */
+        0x03, 0x03,       /* version: TLS 1.2 */
+        0x00, 0x02,       /* length: 2 */
+        0x02,             /* level: fatal */
+        0x56,             /* description: inappropriate_fallback (86) */
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    /* The first record on the wire must be the inappropriate_fallback alert.
+     * The accept state machine then also queues a generic protocol_version
+     * alert for the VERSION_ERROR, which RFC 7507 permits. */
+    ExpectIntGE(test_ctx.c_len, (int)sizeof(fallbackAlert));
+    ExpectBufEQ(test_ctx.c_buff, fallbackAlert, sizeof(fallbackAlert));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 8422 Section 5.1.2 ties the missing-uncompressed-format abort to the
  * server actually negotiating an ECC cipher suite. A client that omits the
  * uncompressed point format but negotiates a NON-ECC suite (here DHE_RSA) must
@@ -1088,6 +1155,273 @@ int test_tls12_ec_point_formats_no_uncompressed_non_ecc(void)
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* DTLS counterpart of test_tls_fallback_scsv, exercising the DTLS branch of the
+ * fallback-SCSV check.  DTLS version minors decrease as the version increases
+ * (DTLS 1.0=0xff, 1.2=0xfd, 1.3=0xfc), so the downgrade comparison is inverted.
+ *
+ * The ClientHello offers DTLS 1.2 with TLS_FALLBACK_SCSV present, against a
+ * downgrade-capable server whose maximum is DTLS 1.3 - i.e. a genuine
+ * downgrade.  dtlsStateful is forced on so DoClientHello skips the stateless
+ * cookie exchange (HelloVerifyRequest) and reaches the cipher-suite parsing.
+ */
+int test_dtls_fallback_scsv(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+    const byte clientHello[] = {
+        /* DTLS record header: handshake, DTLS 1.2, epoch 0, seq 0, length 56 */
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x38,
+        /* DTLS handshake header: ClientHello, length 44, msg_seq 0,
+         * fragment_offset 0, fragment_length 44 */
+        0x01, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x2c,
+        /* client version: DTLS 1.2 (lower than the server's DTLS 1.3 max) */
+        0xfe, 0xfd,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cookie length: 0 */
+        0x00,
+        /* cipher suites length: 4 */
+        0x00, 0x04,
+        /* TLS_FALLBACK_SCSV, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x56, 0x00, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfDTLS_server_method), 0);
+    /* Skip the stateless cookie exchange so the suites are parsed directly. */
+    if (ssl_s != NULL)
+        ssl_s->options.dtlsStateful = 1;
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    /* The first record on the wire must be a fatal inappropriate_fallback alert.
+     * Check by offset to stay robust against the DTLS epoch/sequence bytes. */
+    ExpectIntGE(test_ctx.c_len, 15);
+    ExpectIntEQ((byte)test_ctx.c_buff[0], 0x15);   /* alert content type */
+    ExpectIntEQ((byte)test_ctx.c_buff[1], 0xfe);   /* DTLS 1.2 */
+    ExpectIntEQ((byte)test_ctx.c_buff[2], 0xfd);
+    ExpectIntEQ((byte)test_ctx.c_buff[11], 0x00);  /* record length: 2 */
+    ExpectIntEQ((byte)test_ctx.c_buff[12], 0x02);
+    ExpectIntEQ((byte)test_ctx.c_buff[13], 0x02);  /* level: fatal */
+    ExpectIntEQ((byte)test_ctx.c_buff[14], 0x56);  /* inappropriate_fallback */
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* DTLS negative control mirroring test_tls_fallback_scsv_no_downgrade, guarding
+ * the inverted DTLS comparison (maxMinor < pv.minor).  A DTLS 1.2 ClientHello
+ * carrying TLS_FALLBACK_SCSV against a DTLS 1.2-max server offers the server's
+ * highest supported version - not a downgrade - so RFC 7507 requires the
+ * handshake to proceed (no inappropriate_fallback).  An inverted-operator or
+ * off-by-one regression on the DTLS branch would wrongly reject this.
+ */
+int test_dtls_fallback_scsv_no_downgrade(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    /* DTLS 1.2 ClientHello with TLS_FALLBACK_SCSV against a DTLS 1.2 server,
+     * i.e. the client offers the server's maximum version - not a downgrade. */
+    const byte clientHello[] = {
+        /* DTLS record header: handshake, DTLS 1.2, epoch 0, seq 0, length 56 */
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x38,
+        /* DTLS handshake header: ClientHello, length 44, msg_seq 0,
+         * fragment_offset 0, fragment_length 44 */
+        0x01, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x2c,
+        /* client version: DTLS 1.2 (== server max) */
+        0xfe, 0xfd,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cookie length: 0 */
+        0x00,
+        /* cipher suites length: 4 */
+        0x00, 0x04,
+        /* TLS_FALLBACK_SCSV, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x56, 0x00, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfDTLSv1_2_server_method), 0);
+    /* Skip the stateless cookie exchange so the suites are parsed directly. */
+    if (ssl_s != NULL)
+        ssl_s->options.dtlsStateful = 1;
+    /* The handshake must not be rejected for the fallback reason: no
+     * VERSION_ERROR and no inappropriate_fallback alert on the wire.  Whatever
+     * happens afterwards (suite match or not) is not under test here. */
+    (void)wolfSSL_accept(ssl_s);
+    ExpectIntNE(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    ExpectFalse(test_ctx.c_len >= 15 && (byte)test_ctx.c_buff[0] == 0x15 &&
+            (byte)test_ctx.c_buff[14] == 0x56 /* inappropriate_fallback */);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Negative control for the fallback-SCSV check: a ClientHello that carries
+ * TLS_FALLBACK_SCSV but offers the server's highest supported version is NOT a
+ * downgrade, so RFC 7507 requires the handshake to proceed (no
+ * inappropriate_fallback).  Guards against over-aggressive enforcement now that
+ * the check is always compiled in.
+ */
+int test_tls_fallback_scsv_no_downgrade(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    /* TLS 1.2 ClientHello with TLS_FALLBACK_SCSV against a TLS 1.2 server, i.e.
+     * the client offers the server's maximum version - not a downgrade. */
+    const byte clientHello[] = {
+        /* record header: handshake, TLS 1.2, length 47 */
+        0x16, 0x03, 0x03, 0x00, 0x2f,
+        /* handshake header: ClientHello, length 43 */
+        0x01, 0x00, 0x00, 0x2b,
+        /* client version: TLS 1.2 (== server max) */
+        0x03, 0x03,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cipher suites length: 4 */
+        0x00, 0x04,
+        /* TLS_FALLBACK_SCSV, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x56, 0x00, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfTLSv1_2_server_method), 0);
+    /* The handshake must not be rejected for the fallback reason: no
+     * VERSION_ERROR and no inappropriate_fallback alert on the wire.  Whatever
+     * happens afterwards (suite match or not) is not under test here. */
+    (void)wolfSSL_accept(ssl_s);
+    ExpectIntNE(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    ExpectFalse(test_ctx.c_len >= 7 && (byte)test_ctx.c_buff[0] == 0x15 &&
+            (byte)test_ctx.c_buff[6] == 0x56 /* inappropriate_fallback */);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Negative control for runtime max version handling: the fallback-SCSV ceiling
+ * must honor a runtime-disabled version, not the compiled method version.  A
+ * TLS 1.3 capable method (wolfSSLv23_server_method) has SSL_OP_NO_TLSv1_3
+ * applied at runtime, so its effective maximum is TLS 1.2.  A client that
+ * legitimately offers TLS 1.2 with TLS_FALLBACK_SCSV is therefore NOT
+ * downgrading and must not be rejected with inappropriate_fallback (RFC 7507).
+ * Before the fix the check compared against ssl->ctx->method->version.minor
+ * (still TLS 1.3), wrongly aborting.
+ */
+int test_tls_fallback_scsv_no_downgrade_runtime_max(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12)
+    /* TLS 1.2 ClientHello with TLS_FALLBACK_SCSV.  The server's compiled max is
+     * TLS 1.3 but TLS 1.3 is disabled at runtime, so TLS 1.2 == effective max -
+     * not a downgrade. */
+    const byte clientHello[] = {
+        /* record header: handshake, TLS 1.2, length 47 */
+        0x16, 0x03, 0x03, 0x00, 0x2f,
+        /* handshake header: ClientHello, length 43 */
+        0x01, 0x00, 0x00, 0x2b,
+        /* client version: TLS 1.2 (== server effective max) */
+        0x03, 0x03,
+        /* random: 32 bytes */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        /* session id length: 0 */
+        0x00,
+        /* cipher suites length: 4 */
+        0x00, 0x04,
+        /* TLS_FALLBACK_SCSV, TLS_RSA_WITH_AES_128_CBC_SHA */
+        0x56, 0x00, 0x00, 0x2f,
+        /* compression methods: 1 entry, null */
+        0x01, 0x00,
+    };
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)clientHello, sizeof(clientHello)), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+                    NULL, wolfSSLv23_server_method), 0);
+    /* Lower the effective max to TLS 1.2 at runtime; this updates
+     * ssl->version.minor but leaves ssl->ctx->method->version.minor at TLS 1.3,
+     * which is exactly the condition that triggered the false positive.
+     * Confirm the NO_TLSv1_3 bit actually took effect rather than just that the
+     * returned mask is nonzero. */
+    if (ssl_s != NULL) {
+        wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_3);
+        ExpectIntNE(wolfSSL_get_options(ssl_s) & WOLFSSL_OP_NO_TLSv1_3, 0);
+    }
+    /* The handshake must not be rejected for the fallback reason: no
+     * VERSION_ERROR and no inappropriate_fallback alert on the wire.  Whatever
+     * happens afterwards (suite match or not) is not under test here. */
+    (void)wolfSSL_accept(ssl_s);
+    ExpectIntNE(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
+    ExpectFalse(test_ctx.c_len >= 7 && (byte)test_ctx.c_buff[0] == 0x15 &&
+            (byte)test_ctx.c_buff[6] == 0x56 /* inappropriate_fallback */);
+
+    wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();

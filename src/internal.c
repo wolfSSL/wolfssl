@@ -60,7 +60,6 @@
  * WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION:
  *                  Testing mode for Apple cert validation             default: off
  * HAVE_DANE:                  DNS-based cert validation (DNSSEC)      default: off
- * HAVE_FALLBACK_SCSV:         TLS Fallback SCSV anti-downgrade        default: off
  * WOLFSSL_ACERT:              Attribute certificate support           default: off
  * WOLFSSL_DEBUG_CERTS:        Debug logging for cert processing       default: off
  * WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY:
@@ -39327,6 +39326,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         word32          begin = i;
         int             ret = 0;
         byte            lesserVersion;
+        byte            maxMinor;
 
         WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
         WOLFSSL_ENTER("DoClientHello");
@@ -39389,6 +39389,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         /* Legacy protocol version cannot negotiate TLS 1.3 or higher. */
         if (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_3_MINOR)
             pv.minor = TLSv1_2_MINOR;
+
+        /* Snapshot the server's effective max version before the downgrade
+         * logic below lowers ssl->version.minor to the negotiated version.
+         * This honors runtime restrictions (e.g. SSL_OP_NO_TLSv1_3 on a
+         * TLS 1.3 capable method), unlike ssl->ctx->method->version.minor.
+         * Used by the TLS_FALLBACK_SCSV check, which runs after the cipher
+         * suites are parsed (and thus after ssl->version.minor is mutated). */
+        maxMinor = ssl->version.minor;
 
         lesserVersion = (byte)(!ssl->options.dtls &&
                                     ssl->version.minor > pv.minor);
@@ -39685,18 +39693,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             }
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
-#if defined(HAVE_FALLBACK_SCSV) || defined(OPENSSL_ALL)
-        /* check for TLS_FALLBACK_SCSV suite */
+        /* Check for TLS_FALLBACK_SCSV (RFC 7507). Always enforced. */
         if (FindSuite(ssl->clSuites, TLS_FALLBACK_SCSV, 0) >= 0) {
             WOLFSSL_MSG("Found Fallback SCSV");
-            if (ssl->ctx->method->version.minor > pv.minor) {
+            /* Abort if the server supports a version higher than the client
+             * offered. DTLS version minors decrease as the version increases. */
+            if ((!ssl->options.dtls && maxMinor > pv.minor) ||
+                (ssl->options.dtls && maxMinor < pv.minor)) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
                 SendAlert(ssl, alert_fatal, inappropriate_fallback);
                 ret = VERSION_ERROR;
                 goto out;
             }
         }
-#endif
 
         i += ssl->clSuites->suiteSz;
         ssl->clSuites->hashSigAlgoSz = 0;
