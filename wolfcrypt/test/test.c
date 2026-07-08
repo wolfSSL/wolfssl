@@ -964,7 +964,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
         !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
         (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_SWDEV)) && !defined(NO_ECC_SECP) && \
-        !defined(WOLFSSL_SE050)
+        !defined(WOLFSSL_SE050) && !defined(NO_ASN)
         /* skip for ATECC508/608A (cannot import private key buffers) and
          * SE050 (test vector uses a digest size SE050 does not accept) */
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void);
@@ -3114,7 +3114,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
         (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_SWDEV)) && !defined(NO_ECC_SECP) && \
-        !defined(WOLFSSL_SE050)
+        !defined(WOLFSSL_SE050) && !defined(NO_ASN)
         /* skip for ATECC508/608A (cannot import private key buffers) and
          * SE050 (test vector uses a digest size SE050 does not accept) */
         if ( (ret = ecc_test_buffers()) != 0)
@@ -40389,7 +40389,7 @@ done:
     return ret;
 }
 
-#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && \
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && !defined(NO_ASN) && \
    !defined(WC_NO_RNG) && (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_SWDEV))
 static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
 {
@@ -40470,7 +40470,7 @@ static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
 #endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 #endif /* HAVE_ECC_KEY_IMPORT */
 
-#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && \
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && !defined(NO_ASN) && \
    !defined(WC_NO_RNG) && (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_SWDEV))
 static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
@@ -41121,7 +41121,7 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 #endif
 
 #if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(NO_ASN_CRYPT) && !defined(WC_NO_RNG) && \
+    !defined(NO_ASN_CRYPT) && !defined(NO_ASN) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     ret = ecc_test_key_decode(rng, keySize);
     if (ret < 0) {
@@ -41135,7 +41135,8 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
     }
 #endif
 
-#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && !defined(WC_NO_RNG) && \
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT) && !defined(NO_ASN) && \
+    !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     ret = ecc_test_key_gen(rng, keySize);
     if (ret < 0) {
@@ -44706,7 +44707,7 @@ done:
     !defined(NO_ECC256) && \
     defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_SWDEV)) && !defined(NO_ECC_SECP) && \
-    !defined(WOLFSSL_SE050)
+    !defined(WOLFSSL_SE050) && !defined(NO_ASN)
 
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF) && \
     defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
