@@ -1134,6 +1134,10 @@ int wolfSSL_set_read_fd(WOLFSSL* ssl, int fd)
         if (ssl->options.dtls) {
             ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.rfd = fd;
+        #ifdef USE_WOLFSSL_IO
+            ssl->buffers.dtlsCtx.rfdIsDGram =
+                (byte)(wolfIO_SockIsDGram(fd) != 0);
+        #endif
         }
     #endif
 
@@ -1158,6 +1162,10 @@ int wolfSSL_set_write_fd(WOLFSSL* ssl, int fd)
         if (ssl->options.dtls) {
             ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.wfd = fd;
+        #ifdef USE_WOLFSSL_IO
+            ssl->buffers.dtlsCtx.wfdIsDGram =
+                (byte)(wolfIO_SockIsDGram(fd) != 0);
+        #endif
         }
     #endif
 
@@ -6822,6 +6830,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ssl->options.dtls) {
             ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.rfd = rfd;
+        #ifdef USE_WOLFSSL_IO
+            ssl->buffers.dtlsCtx.rfdIsDGram =
+                (byte)(wolfIO_SockIsDGram(rfd) != 0);
+        #endif
         }
     #endif
 
