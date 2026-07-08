@@ -6226,6 +6226,68 @@ int test_tls13_pqc_hybrid_malformed_ecdh(void)
     return EXPECT_RESULT();
 }
 
+/* Regression test for the async hybrid PQC server key share. Drives a full
+ * TLS 1.3 P-256 + ML-KEM-768 handshake through the software async simulator
+ * while forcing the server's ECDH keygen to complete synchronously so that
+ * only the ECDH shared-secret derivation suspends. This "B-first" ordering is
+ * what Intel QAT exhibits and previously dropped the server's KEM ciphertext,
+ * failing the handshake with SSL_connect -173. */
+int test_tls13_pqc_hybrid_async_server(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && \
+    !defined(WC_ECC_NONBLOCK) && !defined(WOLFSSL_SP_NONBLOCK)
+    /* Non-blocking math livelocks the hybrid async re-drive; not applicable. */
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int group = WOLFSSL_SECP256R1MLKEM768;
+    int devId = INVALID_DEVID;
+
+    /* Open the software async device so the handshake runs the async path. */
+    ExpectIntEQ(wolfAsync_DevOpen(&devId), 0);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_c, devId), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_s, devId), WOLFSSL_SUCCESS);
+
+    /* Negotiate the P-256 + ML-KEM-768 hybrid group on both ends. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+
+    /* Force the server's ECDH keygen to run synchronously so that only the
+     * ECDH shared-secret derivation suspends (the QAT "B-first" ordering). */
+    wolfAsync_SwForceSyncType(ASYNC_SW_ECC_MAKE);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+
+    /* Server selected and completed the hybrid group end-to-end. */
+    ExpectIntEQ(ssl_s->namedGroup, WOLFSSL_SECP256R1MLKEM768);
+
+    /* Restore default simulator ordering for subsequent tests. */
+    wolfAsync_SwForceSyncType(ASYNC_SW_NONE);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    wolfAsync_DevClose(&devId);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a TLS 1.3 NewSessionTicket with a ticket shorter than ID_LEN
  * (32 bytes) does not cause an unsigned integer underflow / OOB read in
  * SetTicket. Uses a full memio handshake, then injects a crafted

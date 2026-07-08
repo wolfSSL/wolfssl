@@ -67,6 +67,15 @@ static WC_ASYNC_DEV* wolfAsync_GetDev(WOLF_EVENT* event)
 /* Allow way to have async SW code included, and disabled at run-time */
 static int wolfAsyncSwDisabled = 0; /* default off */
 
+/* Test hook: an op of this type runs synchronously instead of suspending.
+ * Default ASYNC_SW_NONE means no type is forced (no real op uses NONE). */
+static int wolfAsyncSwForceSyncType = ASYNC_SW_NONE;
+
+WOLFSSL_TEST_VIS void wolfAsync_SwForceSyncType(int type)
+{
+    wolfAsyncSwForceSyncType = type;
+}
+
 
 static int wolfAsync_DoSw(WC_ASYNC_DEV* asyncDev)
 {
@@ -312,6 +321,9 @@ int wc_AsyncSwInit(WC_ASYNC_DEV* dev, int type)
     if (dev) {
         WC_ASYNC_SW* sw = &dev->sw;
         if (sw->type == ASYNC_SW_NONE) {
+            /* Test hook: force this op type to run synchronously. */
+            if (type == wolfAsyncSwForceSyncType)
+                return 0;
             sw->type = type;
             return 1;
         }
@@ -686,6 +698,9 @@ int wolfAsync_EventQueuePoll(WOLF_EVENT_QUEUE* queue, void* context_filter,
                         if (ret != 0) {
                             break;
                         }
+                        /* buffer flushed: restart indexing to avoid writing
+                         * past multi_req.req[CAVIUM_MAX_POLL] */
+                        req_count = 0;
                     }
             #else
                 #if defined(HAVE_INTEL_QA)
