@@ -31062,6 +31062,8 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
 #endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_TLS) && (!defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS))
+/* Smallest RSA key able to make an RSA-PSS/SHA-256 signature: emLen >= 2*hLen+2 = 66 bytes (RFC 8017 9.1.1, salt len = hash len). */
+#define RSA_PSS_SHA256_MIN_SZ  66   /* bytes: 2*WC_SHA256_DIGEST_SIZE + 2 */
 static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
 {
 #ifdef HAVE_ED25519
@@ -31124,9 +31126,14 @@ static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
         if (IsAtLeastTLSv1_3(ssl->version))
             return sigAlgo == rsa_pss_sa_algo;
     #endif
-        /* TLS 1.2 and below - RSA-PSS allowed. */
-        if (sigAlgo == rsa_pss_sa_algo)
+        /* TLS 1.2 and below - RSA-PSS allowed, but only if the RSA key is big
+         * enough to actually produce an RSA-PSS/SHA-256 signature. */
+        if (sigAlgo == rsa_pss_sa_algo) {
+            if (ssl->buffers.keySz != 0 &&
+                    ssl->buffers.keySz < RSA_PSS_SHA256_MIN_SZ)
+                return 0;
             return 1;
+        }
     }
 #endif
 #ifdef HAVE_ECC_BRAINPOOL
