@@ -265,6 +265,13 @@
       <PreprocessorDefinitions>USE_INTEL_SPEEDUP;WOLFSSL_X86_64_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <!-- Keep WOLFSSL_ARMASM consistent with the library (set by
+       /p:WolfSSLAarch64Asm=true) so struct layouts match. -->
+  <ItemDefinitionGroup Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">
+    <ClCompile>
+      <PreprocessorDefinitions>WOLFSSL_ARMASM;WOLFSSL_ARMASM_CRYPTO_SHA3;WOLFSSL_ARMASM_CRYPTO_SHA512;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

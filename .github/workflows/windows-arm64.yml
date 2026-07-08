@@ -1,0 +1,57 @@
+name: Windows ARM64 Test
+
+# Builds and tests wolfSSL on a native Windows-on-ARM64 runner.  Unlike the
+# cross-compiled ARM64 job in os-check.yml (which runs on an x64 runner and can
+# only build), this runs on GitHub's native windows-11-arm image so the test
+# suite executes on the target ISA.  The WolfSSLAarch64Asm=true leg assembles
+# the ARMv8 crypto .asm (armasm64) and enables the WOLFSSL_ARMASM code paths.
+
+on:
+  push:
+    branches: [ 'release/**' ]
+    paths-ignore:
+      - '**/*.md'
+      - 'doc/**'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+    paths-ignore:
+      - '**/*.md'
+      - 'doc/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows_arm64_build:
+    name: Windows ARM64 Build Test
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        # false: pure-C ARM64 build.  true: assemble the ARMv8 crypto .asm and
+        # enable the matching WOLFSSL_ARMASM code paths.
+        asm: [ false, true ]
+    timeout-minutes: 10
+    env:
+      SOLUTION_FILE_PATH: wolfssl64.sln
+      BUILD_CONFIGURATION: Release
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v3
+
+    - name: Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:PlatformToolset=v143 /p:Platform=ARM64 /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:WolfSSLAarch64Asm=${{matrix.asm}} ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Run Test
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: Release/ARM64/testsuite.exe

@@ -415,6 +415,73 @@
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
+#elif defined(_WIN32)
+    /* Windows on ARM64.  IsProcessorFeaturePresent() is the documented way to
+     * query instruction-set extensions: NEON (the 32x64-bit VFP register bank),
+     * the mandatory ARMv8 crypto extension (AES / PMULL / SHA-1 / SHA-256,
+     * reported as one feature), and the optional FEAT_SHA3 / FEAT_SHA512
+     * extensions each have their own flag.  FEAT_RDM (SQRDMLSH, ARMv8.1) has no
+     * dedicated flag, so it is gated on the ARMv8.2 dot-product feature. */
+    #include <windows.h>
+
+    /* Older Windows SDKs may not define these processor-feature constants. */
+    #ifndef PF_ARM_VFP_32_REGISTERS_AVAILABLE
+        #define PF_ARM_VFP_32_REGISTERS_AVAILABLE       18
+    #endif
+    #ifndef PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+        #define PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE 30
+    #endif
+    #ifndef PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE
+        #define PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE      64
+    #endif
+    #ifndef PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE
+        #define PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE    65
+    #endif
+    /* No dedicated flag for FEAT_RDM (ARMv8.1); gate on ARMv8.2 dot-product -
+     * a CPU reporting v8.2 DP necessarily implements the v8.1 RDM (SQRDMLSH)
+     * instructions the ML-KEM assembly uses. */
+    #ifndef PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
+        #define PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE    43
+    #endif
+
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            if (IsProcessorFeaturePresent(PF_ARM_VFP_32_REGISTERS_AVAILABLE))
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            if (IsProcessorFeaturePresent(
+                    PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
+                new_cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_SHA256;
+            }
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
+            if (IsProcessorFeaturePresent(
+                    PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE))
+                new_cpuid_flags |= CPUID_SHA512;
+        #endif
+        #if !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
+            if (IsProcessorFeaturePresent(
+                    PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE))
+                new_cpuid_flags |= CPUID_RDM;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+            if (IsProcessorFeaturePresent(
+                    PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE))
+                new_cpuid_flags |= CPUID_SHA3;
+        #endif
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
 #else
     static WC_INLINE void cpuid_set_flags(void)
     {
