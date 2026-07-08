@@ -3861,7 +3861,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
                                                     output += sizeof(word64)) {
         word64 rndTmpLocal;
-        ret = IntelRDseed64_r(&rndTmpLocal);
+        ret = IntelRDrand64_r(&rndTmpLocal);
         if (ret != 0) {
             ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
             return ret;

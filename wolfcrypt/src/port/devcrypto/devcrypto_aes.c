@@ -285,8 +285,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     return wc_AesSetKey(aes, key, len, NULL, AES_ENCRYPTION);
 }
 
-
-
 /* common code for AES-GCM encrypt/decrypt */
 static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
@@ -296,14 +294,21 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
 {
     struct crypt_auth_op crt = {0};
     int ret;
-    byte* buf;
-    word32 bufSz;
+    byte scratch[WC_AES_BLOCK_SIZE];
 
     /* argument checks */
     if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 
+    /* Account for NULL in/out buffers. Up to tag size is still written into
+     * in/out buffers */
+    if (out == NULL)
+        out = scratch;
+    if (in == NULL)
+        in = scratch;
+
+    XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
     if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_GCM, (byte*)aes->devKey,
                 aes->keylen);
@@ -311,34 +316,17 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
             return ret;
     }
 
-    /* cryptodev requires the ciphertext and tag to be contiguous: on encrypt
-     * the tag is appended after the ciphertext, and on decrypt the tag is read
-     * from the end of the input. The caller's in/out buffers only hold "sz"
-     * bytes, so use a temporary buffer with room for the tag to avoid writing
-     * past their bounds. */
-    bufSz = sz + WC_AES_BLOCK_SIZE;
-    buf = (byte*)XMALLOC(bufSz, aes->heap, DYNAMIC_TYPE_AES_BUFFER);
-    if (buf == NULL) {
-        return MEMORY_E;
-    }
-    XMEMSET(buf, 0, bufSz);
-
+    /* if decrypting then the tag is expected to be at the end of "in" buffer */
     if (dir == COP_DECRYPT) {
-        /* build "ciphertext || tag" for the device to verify */
-        if (in != NULL && sz > 0)
-            XMEMCPY(buf, in, sz);
-        XMEMCPY(buf + sz, authTag, authTagSz);
-        wc_SetupCryptAead(&crt, &aes->ctx, buf, sz + authTagSz, buf, (byte*)iv,
-                    ivSz, dir, (byte*)authIn, authInSz, authTag, authTagSz);
+        XMEMCPY(in + sz, authTag, authTagSz);
+        sz += authTagSz;
     }
-    else {
-        if (in != NULL && sz > 0)
-            XMEMCPY(buf, in, sz);
-        /* device writes the full block-sized tag after the ciphertext */
-        wc_SetupCryptAead(&crt, &aes->ctx, buf, sz, buf, (byte*)iv, ivSz, dir,
-                          (byte*)authIn, authInSz, authTag, WC_AES_BLOCK_SIZE);
+    else{
+        /* get full tag from hardware */
+        authTagSz = WC_AES_BLOCK_SIZE;
     }
-
+    wc_SetupCryptAead(&crt, &aes->ctx, (byte*)in, sz, out, (byte*)iv, ivSz,
+                      dir, (byte*)authIn, authInSz, authTag, authTagSz);
     ret = ioctl(aes->ctx.cfd, CIOCAUTHCRYPT, &crt);
     if (ret != 0) {
         #ifdef DEBUG_WOLFSSL
@@ -346,7 +334,6 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
             WOLFSSL_MSG("authIn Buffer greater than System Page Size");
         }
         #endif
-        XFREE(buf, aes->heap, DYNAMIC_TYPE_AES_BUFFER);
         if (dir == COP_DECRYPT) {
             return AES_GCM_AUTH_E;
         }
@@ -355,17 +342,10 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
         }
     }
 
-    /* copy the resulting plaintext/ciphertext back into the caller's buffer */
-    if (out != NULL && sz > 0) {
-        XMEMCPY(out, buf, sz);
-    }
-
-    /* after encryption the tag has been placed at the end of the buffer */
+    /* after encryption the tag has been placed at the end of "out" buffer */
     if (dir == COP_ENCRYPT) {
-        XMEMCPY(authTag, buf + sz, authTagSz);
+        XMEMCPY(authTag, out + sz, authTagSz);
     }
-
-    XFREE(buf, aes->heap, DYNAMIC_TYPE_AES_BUFFER);
     return 0;
 }
 
@@ -418,4 +398,3 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* HAVE_AES_ECB */
 #endif /* WOLFSSL_DEVCRYPTO_AES */
 #endif /* !NO_AES && WOLFSSL_DEVCRYPTO */
-

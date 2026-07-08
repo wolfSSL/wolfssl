@@ -3260,13 +3260,13 @@ int test_wc_AesGcmEncryptDecrypt_Sizes(void)
     int sz;
     int i;
     WC_DECLARE_VAR(plain, byte, GCM_LEN, NULL);
-    WC_DECLARE_VAR(cipher, byte, GCM_LEN, NULL);
+    WC_DECLARE_VAR(cipher, byte, GCM_LEN+WC_AES_BLOCK_SIZE, NULL);
 #ifdef HAVE_AES_DECRYPT
     WC_DECLARE_VAR(decrypted, byte, GCM_LEN, NULL);
 #endif
 
     WC_ALLOC_VAR(plain, byte, GCM_LEN, NULL);
-    WC_ALLOC_VAR(cipher, byte, GCM_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, GCM_LEN+WC_AES_BLOCK_SIZE, NULL);
 #ifdef HAVE_AES_DECRYPT
     WC_ALLOC_VAR(decrypted, byte, GCM_LEN, NULL);
 #endif
