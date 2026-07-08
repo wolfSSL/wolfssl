@@ -473,6 +473,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
         #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
     #endif
+    #ifdef WOLFSSL_RTL8735B_HOST_TEST
+        #include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -3363,6 +3366,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("crypto callback test failed!\n", ret);
     else
         TEST_PASS("crypto callback test passed!\n");
+#endif
+
+#ifdef WOLFSSL_RTL8735B_HOST_TEST
+    if ( (ret = wc_Rtl8735b_HukSelfTest()) != 0)
+        TEST_FAIL("RTL8735B HUK self-test failed!\n", ret);
+    else
+        TEST_PASS("RTL8735B HUK self-test passed!\n");
 #endif
 
 #ifdef WOLFSSL_CERT_PIV

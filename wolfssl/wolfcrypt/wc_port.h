@@ -920,10 +920,12 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 #endif
 
 
-/* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ or STM32 */
+/* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ, STM32, MAX3266X or
+ * RTL8735B */
 #if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
     defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG) || \
-    defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD) || \
+    defined(WOLFSSL_RTL8735B_HUK)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif

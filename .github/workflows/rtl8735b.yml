@@ -1,0 +1,96 @@
+name: RealTek RTL8735B (AmebaPro2) HUK port Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Weekday-morning cron seeds the master-scoped ccache that PR runs restore
+  # read-only (see ccache-setup).
+  schedule:
+    - cron: '27 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  # Compile + helper-KAT gate for the RTL8735B HUK crypto-callback port.
+  # --enable-rtl8735b sets WOLFSSL_RTL8735B_HOST_TEST, which swaps the vendor HAL
+  # headers for rtl8735b_shim.h (sentinel stubs, no real crypto). Two levels:
+  #  (1) build-only matrix -- exercises crypto-callback dispatch, info-struct
+  #      field access, compile guards, and build wiring across algo/guard combos
+  #      and both WOLFSSL_SMALL_STACK branches, via parallel-make-check.py.
+  #  (2) one config runs testwolfcrypt, which calls wc_Rtl8735b_HukSelfTest() --
+  #      real KATs of the silicon-independent helpers (BE/LE word conversion, CTR
+  #      counter increment, HMAC accumulator growth/overflow/cap, bounce
+  #      alignment). No fake-crypto shim path is asserted as "correct".
+  # Functional crypto correctness (AES/GCM/ECDSA on silicon) is validated on
+  # RTL8735B hardware, NOT here (see the port README).
+  build:
+    name: build + helper KATs (--enable-rtl8735b)
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: rtl8735b
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 100M
+
+      - name: Build all configs (compile-only, out-of-tree)
+        run: |
+          cat > "$RUNNER_TEMP/rtl8735b-configs.json" <<'EOF'
+          [
+          {"name": "full-smallstack", "minutes": 2,
+           "comment": "All port paths (AES-GCM/ECB/CBC/CTR, HMAC-SHA256, ECDSA P-256) with WOLFSSL_SMALL_STACK -> exercises the heap branch of the HW-ECDSA mp_int helpers.",
+           "configure": ["--enable-rtl8735b", "--enable-cryptocb", "--enable-ecc",
+            "--enable-aesgcm", "--enable-aesctr", "--enable-aescbc",
+            "CPPFLAGS=-DWOLFSSL_SMALL_STACK"]},
+          {"name": "full", "minutes": 2,
+           "comment": "Same algo coverage without WOLFSSL_SMALL_STACK -> exercises the on-stack (array) branch of the HW-ECDSA mp_int helpers.",
+           "configure": ["--enable-rtl8735b", "--enable-cryptocb", "--enable-ecc",
+            "--enable-aesgcm", "--enable-aesctr", "--enable-aescbc"]},
+          {"name": "min", "minutes": 2,
+           "comment": "Minimal: no ECC (HW/SW ECDSA sign code compiled out), AES + HMAC only -> exercises the non-ECC compile guards.",
+           "configure": ["--enable-rtl8735b", "--enable-cryptocb"]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py --build-only \
+            "$RUNNER_TEMP/rtl8735b-configs.json"
+
+      - name: Run helper KATs on host (testwolfcrypt self-test)
+        run: |
+          ./autogen.sh
+          ./configure --enable-rtl8735b --enable-cryptocb --enable-ecc \
+            --enable-aesgcm --enable-aesctr --enable-aescbc
+          make -j"$(nproc)"
+          ./wolfcrypt/test/testwolfcrypt
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: rtl8735b-logs
+          path: |
+            build-*/config.log
+          if-no-files-found: ignore

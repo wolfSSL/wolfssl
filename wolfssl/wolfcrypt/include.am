@@ -111,6 +111,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/silabs/silabs_random.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
+                         wolfssl/wolfcrypt/port/realtek/rtl8735b.h \
                          wolfssl/wolfcrypt/port/tropicsquare/tropic01.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
