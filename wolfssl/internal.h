@@ -3447,7 +3447,7 @@ typedef struct SignatureAlgorithms {
     #pragma warning(disable: 4200)
     #endif
     /* sig/algo to offer */
-    byte        hashSigAlgo[WC_FLEXIBLE_ARRAY_MEMBER];
+    byte        hashSigAlgo[WC_FLEXIBLE_ARRAY_SIZE];
 } SignatureAlgorithms;
 
 WOLFSSL_LOCAL SignatureAlgorithms* TLSX_SignatureAlgorithms_New(
@@ -3630,7 +3630,7 @@ typedef struct ExternalTicket {
     byte key_name[WOLFSSL_TICKET_NAME_SZ];     /* key context name - 16 */
     byte iv[WOLFSSL_TICKET_IV_SZ];             /* this ticket's iv - 16 */
     byte enc_len[OPAQUE16_LEN];                /* encrypted length - 2 */
-    byte enc_ticket[WC_FLEXIBLE_ARRAY_MEMBER]; /* encrypted ticket - var length
+    byte enc_ticket[WC_FLEXIBLE_ARRAY_SIZE]; /* encrypted ticket - var length
                                                 *   + total mac - 32 */
 } ExternalTicket;
 
@@ -3715,7 +3715,7 @@ typedef struct Cookie {
     #ifdef _MSC_VER
     #pragma warning(disable: 4200)
     #endif
-    byte   data[WC_FLEXIBLE_ARRAY_MEMBER];
+    byte   data[WC_FLEXIBLE_ARRAY_SIZE];
 } Cookie;
 
 WOLFSSL_LOCAL int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data,
@@ -5771,7 +5771,7 @@ typedef struct DtlsFragBucket {
 #ifdef _MSC_VER
 #pragma warning(disable: 4200)
 #endif
-    byte buf[WC_FLEXIBLE_ARRAY_MEMBER];
+    byte buf[WC_FLEXIBLE_ARRAY_SIZE];
 } DtlsFragBucket;
 
 typedef struct DtlsMsg {

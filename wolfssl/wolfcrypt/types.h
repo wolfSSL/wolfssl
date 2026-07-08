@@ -221,13 +221,27 @@ typedef const char wcchar[];
     #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) /* null expansion */
 #endif
 
-#if defined(WOLF_C89)
-    /* C99 flexible array member, or the C89 "struct hack" fallback.
+#if defined(WC_FLEXIBLE_ARRAY_SIZE)
+    /* keep override value. */
+#elif defined(__cplusplus)
+    /* No C++ standard has FAMs; [] and [0] are vendor extensions.
+     * Use the struct hack. */
+    #define WC_FLEXIBLE_ARRAY_SIZE 1
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+    /* Standard C99+ flexible array member -- valid even under
+     * __STRICT_ANSI__ / -pedantic. */
+    #define WC_FLEXIBLE_ARRAY_SIZE
+#elif defined(__STRICT_ANSI__) || defined(WOLF_C89)
+    /* C89 "struct hack" fallback.
      * See http://c-faq.com/struct/structhack.html */
-    #define WC_FLEXIBLE_ARRAY_MEMBER 1
+    #define WC_FLEXIBLE_ARRAY_SIZE 1
+#elif defined(__GNUC__) || defined(__clang__) || \
+      (defined(_MSC_VER) && !defined(__cplusplus))
+    /* gnu89 etc.: [] accepted as an extension without -pedantic;
+     * MSVC C mode accepts it too (C4200, off by default at /W3). */
+    #define WC_FLEXIBLE_ARRAY_SIZE
 #else
-    /* empty: C99 flexible array member */
-    #define WC_FLEXIBLE_ARRAY_MEMBER
+    #define WC_FLEXIBLE_ARRAY_SIZE 1
 #endif
 
 /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
