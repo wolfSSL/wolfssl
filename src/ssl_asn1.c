@@ -1368,6 +1368,11 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
         WOLFSSL_MSG("ASN.1 length not valid.");
         err = 1;
     }
+    /* Check that len + idx won't overflow a signed int */
+    if ((!err) && (len > INT_MAX - (int)idx)) {
+        WOLFSSL_MSG("ASN.1 length too large.");
+        err = 1;
+    }
     /* Allocate a new ASN.1 INTEGER object. */
     if ((!err) && ((ret = wolfSSL_ASN1_INTEGER_new()) == NULL)) {
         err = 1;
