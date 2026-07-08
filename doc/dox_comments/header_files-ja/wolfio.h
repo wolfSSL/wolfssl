@@ -404,22 +404,22 @@ void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 /*!
     \ingroup IO
 
-    \brief この関数は、WOLFSSL構造体内のnxCtx構造体のnxSocketおよびnxWaitメンバーを設定します。
+    \brief この関数は、WOLFSSL構造体内のnxCtx構造体のnxTcpSocketおよびnxWaitメンバーを設定します。
 
     \return none 戻り値なし。
 
     \param ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
-    \param nxSocket nxCTX構造体のnxSocketメンバーに設定されるNX_TCP_SOCKET型へのポインタ。
-    \param waitOption nxCtx構造体のnxWaitメンバーに設定されるULONG型。
+    \param nxsocket nxCtx構造体のnxTcpSocketメンバーに設定されるNX_TCP_SOCKET型へのポインタ。
+    \param waitoption nxCtx構造体のnxWaitメンバーに設定されるULONG型。
 
     _Example_
     \code
     WOLFSSL* ssl = wolfSSL_new(ctx);
-    NX_TCP_SOCKET* nxSocket;
-    ULONG waitOption;
+    NX_TCP_SOCKET* nxsocket;
+    ULONG waitoption;
     …
-    if(ssl != NULL || nxSocket != NULL || waitOption <= 0){
-    wolfSSL_SetIO_NetX(ssl, nxSocket, waitOption);
+    if(ssl != NULL || nxsocket != NULL || waitoption <= 0){
+    wolfSSL_SetIO_NetX(ssl, nxsocket, waitoption);
     } else {
     	// 適切なパラメータを渡す必要があります。
     }
@@ -431,6 +431,40 @@ void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 */
 void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
+
+/*!
+    \ingroup IO
+
+    \brief この関数は、DTLSセッション用のNetX Duo UDPコンテキストを設定します。
+    UDPソケット、送信先IPアドレス（値渡し）、送信先ポート、待機オプションを
+    WOLFSSL nxCtx構造体に格納します。WOLFSSL_NETX_DUOの定義が必要です（ThreadX NetX Duo SDK）。
+
+    \return none 戻り値なし。
+
+    \param ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
+    \param nxsocket 作成・バインド済みのNX_UDP_SOCKETへのポインタ。
+    \param nxdip 送信先NXD_ADDRESS（値渡し；IPv4またはIPv6）。
+    \param nxport 送信先UDPポート番号。
+    \param waitoption NetX待機オプション（例：NX_WAIT_FOREVERまたはティック数）。
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    NX_UDP_SOCKET udpsocket;
+    NXD_ADDRESS   peeraddr;
+    USHORT        peerport = 4433;
+    ULONG         wait     = NX_WAIT_FOREVER;
+    // … udpsocketとpeeraddrを初期化 …
+    wolfSSL_SetIO_NetX_Dtls(ssl, &udpsocket, peeraddr, peerport, wait);
+    \endcode
+
+    \sa wolfSSL_SetIO_NetX
+    \sa NetX_SendTo
+    \sa NetX_ReceiveFrom
+*/
+void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket,
+                              NXD_ADDRESS nxdip, USHORT nxport,
+                              ULONG waitoption);
 
 /*!
     \brief この関数は、WOLFSSL_CTX構造体のCBIOCookieメンバーのコールバックを設定します。
