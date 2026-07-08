@@ -2230,6 +2230,17 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
 
         /* wolfSSL_shutdown called again for bidirectional shutdown */
         if (ssl->options.sentNotify && !ssl->options.closeNotify) {
+            /* If there is still buffered application data waiting to be read,
+             * do not process incoming records here. clearOutputBuffer.buffer
+             * points into inputBuffer, and ProcessReply() may call
+             * GrowInputBuffer(), which frees and reallocates inputBuffer.
+             * Require the pending data to be drained first. */
+            if (ssl->buffers.clearOutputBuffer.length > 0) {
+                WOLFSSL_MSG("Pending application data, read it before shutdown");
+                ret = WOLFSSL_SHUTDOWN_NOT_DONE;
+                WOLFSSL_LEAVE("wolfSSL_shutdown", ret);
+                return ret;
+            }
             ret = ProcessReply(ssl);
             if ((ret == WC_NO_ERR_TRACE(ZERO_RETURN)) ||
                 (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))) {

@@ -34426,6 +34426,82 @@ static int test_wolfSSL_SSLDisableRead(void)
 }
 #endif
 
+/* Regression test for a heap use-after-free in the shutdown/read path.
+ *
+ * ReceiveData() delivers pending cleartext by copying from
+ * ssl->buffers.clearOutputBuffer.buffer, which points into
+ * ssl->buffers.inputBuffer. If application data is left buffered
+ * (clearOutputBuffer.length > 0) and the application then calls
+ * wolfSSL_shutdown(), the bidirectional-shutdown ProcessReply() could reach
+ * GrowInputBuffer() and free/realloc the input buffer, leaving
+ * clearOutputBuffer dangling. The next wolfSSL_read() then copied from freed
+ * heap memory. This drives exactly that sequence and confirms shutdown no
+ * longer grows the input buffer while application data is pending. */
+static int test_wolfSSL_shutdown_pending_data_uaf(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int rounds = 0;
+    byte appData[200];
+    byte readBuf[256];
+    /* A well-formed TLS record header announcing a 4096-byte application-data
+     * record (type=23, version=3,3, length=0x1000), followed by only a few
+     * body bytes. When ProcessReply() reads this during shutdown, GetInputData()
+     * calls GrowInputBuffer() for the announced size and then blocks on
+     * WANT_READ, so no full record is ever decrypted. */
+    byte partialRecord[5 + 8] = { 23, 3, 3, 0x10, 0x00,
+                                  0, 0, 0, 0, 0, 0, 0, 0 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(appData, 'A', sizeof(appData));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, &rounds), 0);
+
+    /* Server sends application data. STATIC_BUFFER_LEN is small, so this grows
+     * the client's input buffer to a dynamic allocation ("A"), and the record
+     * is decrypted in place inside A. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, appData, (int)sizeof(appData)),
+            (int)sizeof(appData));
+
+    /* Client reads a single byte. The remaining decrypted plaintext stays in
+     * clearOutputBuffer, which still points into input buffer A
+     * (ShrinkInputBuffer() is skipped while clearOutputBuffer.length > 0). */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, 1), 1);
+    ExpectIntEQ(wolfSSL_pending(ssl_c), (int)sizeof(appData) - 1);
+
+    /* Queue a partial oversized record for the client to process at shutdown. */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char*)partialRecord, (int)sizeof(partialRecord)), 0);
+
+    /* First shutdown sends close_notify; bidirectional shutdown not complete. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    /* Second shutdown previously called ProcessReply()->GrowInputBuffer(),
+     * freeing input buffer A and leaving clearOutputBuffer dangling. With the
+     * fix it detects the pending application data and returns without growing
+     * the input buffer (so it does not reach ProcessReply() and WANT_READ). */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+
+    /* Draining the buffered application data must not read freed memory; it
+     * returns the remaining bytes from the still-valid input buffer A. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+            (int)sizeof(appData) - 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_inject(void)
 {
     EXPECT_DECLS;
@@ -36425,6 +36501,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_SendUserCanceled),
     TEST_DECL(test_wolfSSL_SSLDisableRead),
+    TEST_DECL(test_wolfSSL_shutdown_pending_data_uaf),
     TEST_DECL(test_wolfSSL_inject),
     TEST_DECL(test_ocsp_status_callback),
     TEST_DECL(test_ocsp_basic_verify),
