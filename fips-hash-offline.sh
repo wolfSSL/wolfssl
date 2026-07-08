@@ -48,13 +48,13 @@
 # Usage: fips-hash-offline.sh [path-to-binary]
 #   default binary: wolfcrypt/test/testwolfcrypt
 
-set -u
+set -euo pipefail
 
 BIN="${1:-wolfcrypt/test/testwolfcrypt}"
 
 die() { echo "fips-hash-offline: error: $*" >&2; exit 1; }
 
-[ -f "$BIN" ] || die "binary not found: $BIN"
+[ -w "$BIN" ] || die "binary not writable: $BIN"
 command -v awk     >/dev/null 2>&1 || die "awk not found"
 command -v dd      >/dev/null 2>&1 || die "dd not found"
 command -v readelf >/dev/null 2>&1 || die "readelf not found"
@@ -84,9 +84,11 @@ vaddr_to_off() {
 }
 
 # Extract byte_count bytes starting at file_offset (both in bytes) to stdout.
-# Uses GNU dd byte-granular skip/count with a large block size for speed.
+# Uses a 1-byte block size so skip/count are byte-granular on any POSIX dd.
+# dd seeks over the skip on a regular file, so the offset is not read byte
+# by byte; only the small count is copied one byte at a time.
 extract() {
-    dd if="$BIN" bs=1M iflag=skip_bytes,count_bytes skip="$1" count="$2" 2>/dev/null
+    dd if="$BIN" bs=1 skip="$1" count="$2" 2>/dev/null
 }
 
 # --- gather the FIPS boundary and verifyCore/coreKey symbols ---
@@ -155,7 +157,7 @@ NEWHASH=$(
 # Overwrite the first digest_bytes*2 ASCII characters of verifyCore[] in place.
 # The trailing NUL terminator (byte digest_bytes*2) is left untouched.
 vcoff=$(vaddr_to_off "$vc") || die "cannot map verifyCore address to file offset"
-printf '%s' "$NEWHASH" | dd of="$BIN" bs=1M oflag=seek_bytes conv=notrunc seek="$vcoff" 2>/dev/null \
+printf '%s' "$NEWHASH" | dd of="$BIN" bs=1 conv=notrunc seek="$vcoff" 2>/dev/null \
     || die "failed to write verifyCore"
 
 # Confirm the patch landed.
