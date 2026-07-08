@@ -2946,7 +2946,7 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     int ret = 0;
 
     /* Validate parameters. */
-    if (aes == NULL) {
+    if ((aes == NULL) || (key == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     /* Check key size is supported by AES object. */
@@ -9097,6 +9097,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     /* sanity check on arguments */
     if ((aes == NULL) || ((inSz != 0) && ((in == NULL) || (out == NULL))) ||
+            ((authInSz > 0) && (authIn == NULL)) ||
             (nonce == NULL) || (authTag == NULL) || (nonceSz < 7) ||
             (nonceSz > 13)) {
         ret = BAD_FUNC_ARG;
@@ -9188,6 +9189,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     /* sanity check on arguments */
     if ((aes == NULL) || ((inSz != 0) && ((in == NULL) || (out == NULL))) ||
+            ((authInSz > 0) && (authIn == NULL)) ||
             (nonce == NULL) || (authTag == NULL) || (nonceSz < 7) ||
             (nonceSz > 13)) {
         ret = BAD_FUNC_ARG;
