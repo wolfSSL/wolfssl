@@ -3881,6 +3881,39 @@ static int Stm32Dhuk_PkSign(struct wc_CryptoInfo* info)
                           info->pk.eccsign.out, info->pk.eccsign.outlen,
                           info->pk.eccsign.rng);
 }
+
+#if defined(HAVE_ECC_VERIFY) && !defined(WC_STM32_PKA_SIGN_ONLY)
+/* Route an ECDSA verify to the HW PKA. Verify uses the public key only, so it
+ * is not device-bound -- but under WOLF_CRYPTO_CB_ONLY_ECC the software verify
+ * in ecc.c is compiled out and verify is dispatched to this callback instead.
+ * The signature arrives DER-encoded; decode it to (r,s) for the HW call. */
+static int Stm32Dhuk_PkVerify(struct wc_CryptoInfo* info)
+{
+    ecc_key* key = info->pk.eccverify.key;
+    mp_int   r;
+    mp_int   s;
+    int      ret;
+
+    if (key == NULL || info->pk.eccverify.sig == NULL ||
+            info->pk.eccverify.res == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    XMEMSET(&r, 0, sizeof(r));
+    XMEMSET(&s, 0, sizeof(s));
+
+    /* DecodeECC_DSA_Sig() mp_init's r and s (mirrors the ecc.c verify path). */
+    ret = DecodeECC_DSA_Sig(info->pk.eccverify.sig,
+                            info->pk.eccverify.siglen, &r, &s);
+    if (ret == 0) {
+        ret = stm32_ecc_verify_hash_ex(&r, &s, info->pk.eccverify.hash,
+                                       info->pk.eccverify.hashlen,
+                                       info->pk.eccverify.res, key);
+    }
+    mp_free(&r);
+    mp_free(&s);
+    return ret;
+}
+#endif /* HAVE_ECC_VERIFY && !WC_STM32_PKA_SIGN_ONLY */
 #endif /* HAVE_ECC && HAVE_ECC_SIGN && WOLFSSL_STM32_PKA */
 
 /* The crypto-callback device entry point (registered by wc_Stm32_DhukRegister).
@@ -3904,6 +3937,11 @@ static int Stm32_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
             if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
                 return Stm32Dhuk_PkSign(info);
             }
+#if defined(HAVE_ECC_VERIFY) && !defined(WC_STM32_PKA_SIGN_ONLY)
+            if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
+                return Stm32Dhuk_PkVerify(info);
+            }
+#endif
 #ifdef WOLFSSL_STM32_CCB
             /* Transparent provisioning: wc_ecc_make_key() on a WC_DHUK_DEVID
              * key binds a fresh CCB-protected blob to it (no CCB-specific API). */
