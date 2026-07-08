@@ -1684,7 +1684,7 @@ int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr, XSOCKLENT* peer_len)
 int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
     word16* outPort)
 {
-    int result = -1;
+    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
 
     if (url == NULL || urlSz == 0) {
         if (outName)
@@ -1710,6 +1710,8 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
             /* copy until ']' */
             while (i < MAX_URL_ITEM_SIZE-1 && cur < urlSz && url[cur] != 0 &&
                     url[cur] != ']') {
+                if (url[cur] == '\r' || url[cur] == '\n')
+                    return WOLFSSL_FATAL_ERROR;
                 if (outName)
                     outName[i] = url[cur];
                 i++; cur++;
@@ -1719,6 +1721,8 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
         else {
             while (i < MAX_URL_ITEM_SIZE-1 && cur < urlSz && url[cur] != 0 &&
                     url[cur] != ':' && url[cur] != '/') {
+                if (url[cur] == '\r' || url[cur] == '\n')
+                    return WOLFSSL_FATAL_ERROR;
                 if (outName)
                     outName[i] = url[cur];
                 i++; cur++;
@@ -1756,6 +1760,8 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
         if (cur < urlSz && url[cur] == '/') {
             i = 0;
             while (i < MAX_URL_ITEM_SIZE-1 && cur < urlSz && url[cur] != 0) {
+                if (url[cur] == '\r' || url[cur] == '\n')
+                    return WOLFSSL_FATAL_ERROR;
                 if (outPath)
                     outPath[i] = url[cur];
                 i++; cur++;
@@ -2069,6 +2075,21 @@ int wolfIO_HttpBuildRequest(const char *reqType, const char *domainName,
     return wolfIO_HttpBuildRequest_ex(reqType, domainName, path, pathLen, reqSz, contentType, "", buf, bufSize);
 }
 
+/* Returns 1 if the buffer contains a CR or LF byte, 0 otherwise. Used to
+ * reject attacker-controlled URL components that would allow HTTP header
+ * injection or request splitting. */
+static int wolfIO_UrlHasCrlf(const char* in, int inSz)
+{
+    int i = 0;
+    if (in == NULL)
+        return 0;
+    for (i = 0; i < inSz; i++) {
+        if (in[i] == '\r' || in[i] == '\n')
+            return 1;
+    }
+    return 0;
+}
+
 int wolfIO_HttpBuildRequest_ex(const char *reqType, const char *domainName,
                                 const char *path, int pathLen, int reqSz, const char *contentType,
                                 const char *exHdrs, byte *buf, int bufSize)
@@ -2086,10 +2107,23 @@ int wolfIO_HttpBuildRequest_ex(const char *reqType, const char *domainName,
     word32 blankStrLen, http11StrLen, hostStrLen, contentLenStrLen,
         contentTypeStrLen, singleCrLfStrLen, doubleCrLfStrLen;
 
+    /* reject NULL pointers and invalid lengths before any deref or length
+     * math: the XSTRLEN/copy calls below assume non-NULL inputs */
+    if (reqType == NULL || domainName == NULL || path == NULL ||
+            contentType == NULL || pathLen < 0 || bufSize <= 0)
+        return 0;
+
     reqTypeLen = (word32)XSTRLEN(reqType);
     domainNameLen = (word32)XSTRLEN(domainName);
     reqSzStrLen = wolfIO_Word16ToString(reqSzStr, (word16)reqSz);
     contentTypeLen = (word32)XSTRLEN(contentType);
+
+    /* reject CR/LF in the path or host to prevent HTTP header injection or
+     * request splitting from attacker-controlled URL components */
+    if (wolfIO_UrlHasCrlf(path, pathLen) ||
+            wolfIO_UrlHasCrlf(domainName, (int)domainNameLen)) {
+        return 0;
+    }
 
     blankStrLen = (word32)XSTRLEN(blankStr);
     http11StrLen = (word32)XSTRLEN(http11Str);
@@ -2130,7 +2164,10 @@ int wolfIO_HttpBuildRequest_ex(const char *reqType, const char *domainName,
     buf += reqTypeLen; bufSize -= (int)reqTypeLen;
     XSTRNCPY((char*)buf, blankStr, (size_t)bufSize);
     buf += blankStrLen; bufSize -= (int)blankStrLen;
-    XSTRNCPY((char*)buf, path, (size_t)bufSize);
+    /* path may not be NUL terminated (CRL raw-URL case passes a pointer into
+     * the certificate with only pathLen valid bytes), so bound the copy to
+     * pathLen rather than scanning for a NUL */
+    XMEMCPY((char*)buf, path, (size_t)pathLen);
     buf += pathLen; bufSize -= (int)pathLen;
     XSTRNCPY((char*)buf, http11Str, (size_t)bufSize);
     buf += http11StrLen; bufSize -= (int)http11StrLen;
@@ -2255,8 +2292,11 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
             httpBufSz = wolfIO_HttpBuildRequestOcsp(domainName, path, ocspReqSz,
                                                             httpBuf, httpBufSz);
 
-            ret = wolfIO_TcpConnect(&sfd, domainName, port, io_timeout_sec);
-            if (ret != 0) {
+            if (httpBufSz <= 0) {
+                WOLFSSL_MSG("Unable to build OCSP request");
+            }
+            else if ((ret = wolfIO_TcpConnect(&sfd, domainName, port,
+                                              io_timeout_sec)) != 0) {
                 WOLFSSL_MSG("OCSP Responder connection failed");
             }
             else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0) !=
@@ -2355,8 +2395,11 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
             httpBufSz = wolfIO_HttpBuildRequestCrl(url, urlSz, domainName,
                 httpBuf, httpBufSz);
 
-            ret = wolfIO_TcpConnect(&sfd, domainName, port, io_timeout_sec);
-            if (ret != 0) {
+            if (httpBufSz <= 0) {
+                WOLFSSL_MSG("Unable to build CRL request");
+            }
+            else if ((ret = wolfIO_TcpConnect(&sfd, domainName, port,
+                                              io_timeout_sec)) != 0) {
                 WOLFSSL_MSG("CRL connection failed");
             }
             else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0)
