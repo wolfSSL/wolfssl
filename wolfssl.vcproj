@@ -400,6 +400,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\tsp.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>

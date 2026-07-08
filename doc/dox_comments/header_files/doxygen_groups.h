@@ -263,6 +263,7 @@
     \defgroup MD4 Algorithms - MD4
     \defgroup MD5 Algorithms - MD5
     \defgroup PKCS7 Algorithms - PKCS7
+    \defgroup TSP Time-Stamp Protocol (RFC 3161)
     \defgroup PKCS11 Algorithms - PKCS11
     \defgroup Password Algorithms - Password Based
     \defgroup Poly1305 Algorithms - Poly1305

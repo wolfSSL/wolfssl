@@ -3902,7 +3902,7 @@ int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage)
 int DecodeExtKeyUsage(const byte* input, word32 sz,
         const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
         word32 *extExtKeyUsageCount, byte *extExtKeyUsage,
-        byte *extExtKeyUsageSsh)
+        byte *extExtKeyUsageSsh, word32 *extExtKeyUsageOidCnt)
 {
     word32 idx = 0, oid;
     int length, ret;
@@ -3920,6 +3920,8 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
     *extExtKeyUsageCount = 0;
 #endif
     *extExtKeyUsage = 0;
+    if (extExtKeyUsageOidCnt != NULL)
+        *extExtKeyUsageOidCnt = 0;
 #ifdef WOLFSSL_WOLFSSH
     *extExtKeyUsageSsh = 0;
 #endif
@@ -3936,8 +3938,14 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
 
     while (idx < (word32)sz) {
         ret = GetObjectId(input, &idx, &oid, oidCertKeyUseType, sz);
-        if (ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E))
+        if (ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E)) {
+            /* Unknown KeyPurposeId is still consumed - count it so the count
+             * matches the template parser (and every consumed OID). */
+            if (extExtKeyUsageOidCnt != NULL) {
+                (*extExtKeyUsageOidCnt)++;
+            }
             continue;
+        }
         else if (ret < 0)
             return ret;
 
@@ -3981,6 +3989,11 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         (*extExtKeyUsageCount)++;
     #endif
+
+        /* Count every KeyPurposeId consumed - recognized or not. */
+        if (extExtKeyUsageOidCnt != NULL) {
+            (*extExtKeyUsageOidCnt)++;
+        }
     }
 
     return 0;

@@ -774,6 +774,30 @@ static word32 SizeASN_Num(word32 n, int bits, byte tag)
     return len;
 }
 
+#ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+/* Calculate the size of a DER encoded BIT STRING of a 32-bit word.
+ *
+ * Named bit string: bit 0 is the most significant bit of the word and
+ * trailing zero bits are not encoded.
+ *
+ * @param [in] n  32-bit word to be encoded.
+ * @return  Number of bytes of the ASN.1 item.
+ */
+static word32 SizeASN_BitString32(word32 n)
+{
+    word32 len = 4;
+
+    /* Discover actual size by checking for trailing zero bytes. */
+    while ((len > 0) && ((n & 0xff) == 0)) {
+        n >>= 8;
+        len--;
+    }
+
+    /* Tag, length, unused bits byte and data. */
+    return 1 + 1 + 1 + len;
+}
+#endif
+
 /* Calculate the size of the data in the constructed item based on the
  * length of the ASN.1 items below.
  *
@@ -855,9 +879,18 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count,
                 len = SizeASN_Num(data[i].data.u16, 16, asn[i].tag);
                 break;
         #ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
-            /* Not used yet! */
             case ASN_DATA_TYPE_WORD32:
-                len = SizeASN_Num(data[i].data.u32, 32, asn[i].tag);
+                /* BIT_STRING is a named bit string in a 32-bit word. */
+                if (asn[i].tag == ASN_BIT_STRING) {
+                    len = SizeASN_BitString32(data[i].data.u32);
+                }
+                else {
+                    len = SizeASN_Num(data[i].data.u32, 32, asn[i].tag);
+                }
+                break;
+            /* Encoded as an INTEGER even when implicitly tagged. */
+            case ASN_DATA_TYPE_WORD32_INT:
+                len = SizeASN_Num(data[i].data.u32, 32, ASN_INTEGER);
                 break;
         #endif
 
@@ -1021,6 +1054,44 @@ static void SetASN_Num(word32 n, int bits, byte* out, byte tag)
         out[idx++] = (byte)(n >> j);
 }
 
+#ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+/* Create the DER encoding of a BIT STRING from a 32-bit word.
+ *
+ * Named bit string: bit 0 is the most significant bit of the word and
+ * trailing zero bits are not encoded.
+ *
+ * Assumes that the out buffer is large enough for encoding.
+ *
+ * @param [in]  n    32-bit word to be encoded.
+ * @param [out] out  Buffer to write encoding into - after tag byte.
+ */
+static void SetASN_BitString32(word32 n, byte* out)
+{
+    int  j;
+    byte len = 4;
+    byte unusedBits = 0;
+    word32 idx = 3;
+
+    /* Discover actual size by checking for trailing zero bytes. */
+    while ((len > 0) && ((n & 0xff) == 0)) {
+        n >>= 8;
+        len--;
+    }
+    if (len > 0) {
+        /* Count trailing zero bits of last byte. */
+        while (((n >> unusedBits) & 0x01) == 0x00)
+            unusedBits++;
+    }
+
+    /* Length includes unused bits byte. */
+    out[1] = (byte)(1 + len);
+    out[2] = unusedBits;
+    /* Place in the required bytes of the word. */
+    for (j = 8 * (len - 1); j >= 0; j -= 8)
+        out[idx++] = (byte)(n >> j);
+}
+#endif
+
 /* Creates the DER encoding of the ASN.1 items.
  *
  * Assumes the output buffer is large enough to hold encoding.
@@ -1082,9 +1153,18 @@ int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
                 SetASN_Num(data[i].data.u16, 16, out, asn[i].tag);
                 break;
         #ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
-            /* Not used yet! */
             case ASN_DATA_TYPE_WORD32:
-                SetASN_Num(data[i].data.u32, 32, out, asn[i].tag);
+                /* BIT_STRING is a named bit string in a 32-bit word. */
+                if (asn[i].tag == ASN_BIT_STRING) {
+                    SetASN_BitString32(data[i].data.u32, out);
+                }
+                else {
+                    SetASN_Num(data[i].data.u32, 32, out, asn[i].tag);
+                }
+                break;
+            /* Encoded as an INTEGER even when implicitly tagged. */
+            case ASN_DATA_TYPE_WORD32_INT:
+                SetASN_Num(data[i].data.u32, 32, out, ASN_INTEGER);
                 break;
         #endif
 
@@ -1446,7 +1526,8 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             #endif
                 return ASN_PARSE_E;
             }
-            if (!zeroPadded && (input[idx] >= 0x80U)) {
+            if ((asn->tag != ASN_BIT_STRING) && (!zeroPadded) &&
+                (input[idx] >= 0x80U)) {
             #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
                 WOLFSSL_MSG_VSNPRINTF("Unexpected negative INTEGER value");
             #endif
@@ -2316,6 +2397,33 @@ void SetASN_Int16Bit(ASNSetData *dataASN, word16 num)
     dataASN->dataType = ASN_DATA_TYPE_WORD16;
     dataASN->data.u16 = num;
 }
+
+#ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+/* Setup an ASN data item to set a 32-bit number.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] num      32-bit number to set.
+ */
+void SetASN_Int32Bit(ASNSetData *dataASN, word32 num)
+{
+    dataASN->dataType = ASN_DATA_TYPE_WORD32;
+    dataASN->data.u32 = num;
+}
+
+/* Setup an ASN data item to set a 32-bit number encoded as an INTEGER.
+ *
+ * For implicitly tagged INTEGERs - a zero byte is prepended to keep the
+ * number positive, as is done for INTEGER tagged items.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] num      32-bit number to set.
+ */
+void SetASN_Int32BitInt(ASNSetData *dataASN, word32 num)
+{
+    dataASN->dataType = ASN_DATA_TYPE_WORD32_INT;
+    dataASN->data.u32 = num;
+}
+#endif
 
 /* Setup an ASN data item to set the data in a buffer.
  *
@@ -15279,7 +15387,8 @@ int ValidateGmtime(struct tm* inTime)
 
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
-            defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER))
+            defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER) || \
+            defined(WOLFSSL_TSP))
 /* Set current time string, either UTC or GeneralizedTime.
  * (void*) currTime should be a pointer to time_t, output is placed in buf.
  *
@@ -20248,7 +20357,7 @@ enum {
 int DecodeExtKeyUsage(const byte* input, word32 sz,
         const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
         word32 *extExtKeyUsageCount, byte *extExtKeyUsage,
-        byte *extExtKeyUsageSsh)
+        byte *extExtKeyUsageSsh, word32 *extExtKeyUsageOidCnt)
 {
     word32 idx = 0;
     int length;
@@ -20267,6 +20376,8 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
     *extExtKeyUsageCount = 0;
 #endif
     *extExtKeyUsage = 0;
+    if (extExtKeyUsageOidCnt != NULL)
+        *extExtKeyUsageOidCnt = 0;
 #ifdef WOLFSSL_WOLFSSH
     *extExtKeyUsageSsh = 0;
 #endif
@@ -20330,6 +20441,11 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
             (*extExtKeyUsageCount)++;
         #endif
         }
+
+        /* Count every KeyPurposeId consumed - recognized or not. */
+        if ((ret == 0) && (extExtKeyUsageOidCnt != NULL)) {
+            (*extExtKeyUsageOidCnt)++;
+        }
     }
 
     return ret;
@@ -20363,10 +20479,11 @@ static int DecodeExtKeyUsageInternal(const byte* input, word32 sz,
 #endif
             &cert->extExtKeyUsage,
 #ifdef WOLFSSL_WOLFSSH
-            &cert->extExtKeyUsageSsh
+            &cert->extExtKeyUsageSsh,
 #else
-            NULL
+            NULL,
 #endif
+            &cert->extExtKeyUsageOidCnt
             );
 
     if (ret != 0)
@@ -39968,3 +40085,7 @@ const byte* AsnHashesGetHash(const AsnHashes* hashes, int hashAlg, int* size)
 #endif /* WOLFSSL_SEP */
 
 #undef ERROR_OUT
+
+/* Time-Stamp Protocol (TSP) encoding and decoding. RFC 3161. */
+#define WOLFSSL_ASN_TSP_INCLUDED
+#include "wolfcrypt/src/asn_tsp.c"

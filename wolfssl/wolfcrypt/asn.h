@@ -254,6 +254,11 @@ enum ASNItem_DataType {
     ASN_DATA_TYPE_MP_POS_NEG     = 10,
     /* ASN.1 CHOICE. A 0 terminated list of tags that are valid. */
     ASN_DATA_TYPE_CHOICE         = 11
+#ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+    /* 32-bit integer value encoded as an INTEGER's content even when the
+     * item is implicitly tagged. */
+    ,ASN_DATA_TYPE_WORD32_INT    = 12
+#endif
 };
 
 /* A template entry describing an ASN.1 item. */
@@ -390,6 +395,10 @@ WOLFSSL_LOCAL void GetASN_OIDData(const ASNGetData * dataASN, const byte** data,
 WOLFSSL_LOCAL void SetASN_Boolean(ASNSetData *dataASN, byte val);
 WOLFSSL_LOCAL void SetASN_Int8Bit(ASNSetData *dataASN, byte num);
 WOLFSSL_LOCAL void SetASN_Int16Bit(ASNSetData *dataASN, word16 num);
+#ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+WOLFSSL_LOCAL void SetASN_Int32Bit(ASNSetData *dataASN, word32 num);
+WOLFSSL_LOCAL void SetASN_Int32BitInt(ASNSetData *dataASN, word32 num);
+#endif
 WOLFSSL_LOCAL void SetASN_Buffer(ASNSetData *dataASN, const byte* data,
     word32 length);
 WOLFSSL_LOCAL void SetASN_ReplaceBuffer(ASNSetData *dataASN, const byte* data,
@@ -588,6 +597,33 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
         (dataASN)->data.u16 = (num);                                   \
     } while (0)
 
+#ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
+/* Setup an ASN data item to set a 32-bit number.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] num      32-bit number to set.
+ */
+#define SetASN_Int32Bit(dataASN, num)                                  \
+    do {                                                               \
+        (dataASN)->dataType = ASN_DATA_TYPE_WORD32;                    \
+        (dataASN)->data.u32 = (num);                                   \
+    } while (0)
+
+/* Setup an ASN data item to set a 32-bit number encoded as an INTEGER.
+ *
+ * For implicitly tagged INTEGERs - a zero byte is prepended to keep the
+ * number positive, as is done for INTEGER tagged items.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] num      32-bit number to set.
+ */
+#define SetASN_Int32BitInt(dataASN, num)                               \
+    do {                                                               \
+        (dataASN)->dataType = ASN_DATA_TYPE_WORD32_INT;                \
+        (dataASN)->data.u32 = (num);                                   \
+    } while (0)
+#endif
+
 /* Setup an ASN data item to set the data in a buffer.
  *
  * @param [in] dataASN  Dynamic ASN data item.
@@ -723,6 +759,32 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
     }                                                                  \
     while (0)
 
+/* Set the node, and when a header, all nodes below to not be encoded.
+ *
+ * A node that is not a header has no nodes below - no need to check
+ * further nodes at a lower depth.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] asn      ASN template item.
+ * @param [in] header   Node is a header - nodes below are also set to not
+ *                      be encoded.
+ * @param [in] node     Node which should not be encoded.
+ * @param [in] dataASNLen Number of items in dataASN.
+ */
+#define SetASNItem_NoOutNode_ex(dataASN, asn, header, node, dataASNLen) \
+    do {                                                                \
+        (dataASN)[node].noOut = 1;                                      \
+        if (header) {                                                   \
+            int ii;                                                     \
+            for (ii = (node) + 1; ii < (int)(dataASNLen); ii++) {       \
+                if ((asn)[ii].depth <= (asn)[node].depth)               \
+                    break;                                              \
+                (dataASN)[ii].noOut = 1;                                \
+            }                                                           \
+        }                                                               \
+    }                                                                   \
+    while (0)
+
 /* Set the node and all nodes below to not be encoded.
  *
  * @param [in] dataASN  Dynamic ASN data item.
@@ -732,16 +794,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
  * @param [in] dataASNLen Number of items in dataASN.
  */
 #define SetASNItem_NoOutNode(dataASN, asn, node, dataASNLen)           \
-    do {                                                               \
-        int ii;                                                        \
-        (dataASN)[node].noOut = 1;                                     \
-        for (ii = (node) + 1; ii < (int)(dataASNLen); ii++) {          \
-            if ((asn)[ii].depth <= (asn)[node].depth)                  \
-                break;                                                 \
-            (dataASN)[ii].noOut = 1;                                   \
-        }                                                              \
-    }                                                                  \
-    while (0)
+    SetASNItem_NoOutNode_ex(dataASN, asn, 1, node, dataASNLen)
 
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
@@ -2175,6 +2228,9 @@ struct DecodedCert {
     WOLFSSL_AIA_ENTRY extAuthInfoList[WOLFSSL_MAX_AIA_ENTRIES];
     WC_BITFIELD extAuthInfoListSz:7;
     WC_BITFIELD extAuthInfoListOverflow:1;
+    /* Appended to preserve the offsets of existing members. */
+    word32  extExtKeyUsageOidCnt;    /* Number of EKU KeyPurposeIds seen,
+                                      * recognized or not                */
 };
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -2490,7 +2546,7 @@ WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz,
 WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
         const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
         word32 *extExtKeyUsageCount, byte *extExtKeyUsage,
-        byte *extExtKeyUsageSsh);
+        byte *extExtKeyUsageSsh, word32 *extExtKeyUsageOidCnt);
 
 WOLFSSL_LOCAL int TryDecodeRPKToKey(DecodedCert* cert);
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
@@ -2547,7 +2603,8 @@ WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
 #endif
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
-            defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER))
+            defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER) || \
+            defined(WOLFSSL_TSP))
 WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format);

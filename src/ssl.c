@@ -455,6 +455,9 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
 #include "src/ssl_asn1.c"
 #endif /* OPENSSL_EXTRA_NO_ASN1 */
 
+#define WOLFSSL_SSL_TSP_INCLUDED
+#include "src/ssl_tsp.c"
+
 #define WOLFSSL_PK_INCLUDED
 #include "src/pk.c"
 

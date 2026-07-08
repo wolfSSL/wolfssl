@@ -3716,7 +3716,7 @@ static int wolfSSL_ASN1_STRING_into_old_ext_fmt(WOLFSSL_ASN1_STRING *asn1str,
 
             ret = DecodeExtKeyUsage((const byte*)asn1str->data, asn1str->length,
                     &extExtKeyUsageSrc, &extExtKeyUsageSz, &extExtKeyUsageCount,
-                    &extExtKeyUsage, &extExtKeyUsageSsh);
+                    &extExtKeyUsage, &extExtKeyUsageSsh, NULL);
             if (ret != 0)
                 return ret;
 

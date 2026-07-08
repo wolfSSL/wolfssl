@@ -29,6 +29,8 @@ my @fileList_ecc = (
         [ "./certs/server-ecc-comp.der",             "serv_ecc_comp_der_256" ],
         [ "./certs/server-ecc-rsa.der",              "serv_ecc_rsa_der_256" ],
         [ "./certs/server-ecc.der",                  "serv_ecc_der_256" ],
+        [ "./certs/tsa-ecc-key.der",                 "tsa_ecc_key_der_256" ],
+        [ "./certs/tsa-ecc-cert.der",                "tsa_ecc_cert_der_256" ],
         [ "./certs/ca-ecc-key.der",                  "ca_ecc_key_der_256" ],
         [ "./certs/ca-ecc-cert.der",                 "ca_ecc_cert_der_256" ],
         [ "./certs/ca-ecc384-key.der",               "ca_ecc_key_der_384" ],
@@ -87,7 +89,14 @@ my @fileList_2048 = (
         [ "./certs/ca-cert.der", "ca_cert_der_2048" ],
         [ "./certs/ca-cert-chain.der", "ca_cert_chain_der" ],
         [ "./certs/server-key.der", "server_key_der_2048" ],
-        [ "./certs/server-cert.der", "server_cert_der_2048" ]
+        [ "./certs/server-cert.der", "server_cert_der_2048" ],
+        [ "./certs/tsa-key.der", "tsa_key_der_2048" ],
+        [ "./certs/tsa-cert.der", "tsa_cert_der_2048" ],
+        [ "./certs/tsa-bad-ku-cert.der", "tsa_bad_ku_cert_der_2048" ],
+        [ "./certs/tsa-extra-eku-cert.der", "tsa_extra_eku_cert_der_2048" ],
+        [ "./certs/intermediate/ca-int-cert.der", "ca_int_cert_der_2048" ],
+        [ "./certs/tsa-chain-key.der", "tsa_chain_key_der_2048" ],
+        [ "./certs/tsa-chain-cert.der", "tsa_chain_cert_der_2048" ]
         );
 
 # 3072-bit certs/keys to be converted

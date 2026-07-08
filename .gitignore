@@ -72,6 +72,9 @@ examples/sctp/sctp-client-dtls
 examples/asn1/asn1
 examples/pem/pem
 examples/ocsp_responder/ocsp_responder
+examples/tsp/tsp_query
+examples/tsp/tsp_reply
+examples/tsp/tsp_verify
 server_ready
 snifftest
 output

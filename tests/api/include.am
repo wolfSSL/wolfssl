@@ -68,6 +68,8 @@ tests_unit_test_SOURCES += tests/api/test_session.c
 tests_unit_test_SOURCES += tests/api/test_x509.c
 # ASN
 tests_unit_test_SOURCES += tests/api/test_asn.c
+# Time-Stamp Protocol (RFC 3161)
+tests_unit_test_SOURCES += tests/api/test_tsp.c
 # PKCS#7
 tests_unit_test_SOURCES += tests/api/test_pkcs7.c
 # PKCS#12
@@ -76,6 +78,7 @@ tests_unit_test_SOURCES += tests/api/test_pkcs12.c
 tests_unit_test_SOURCES += tests/api/test_pwdbased.c
 # OpenSSL ASN.1
 tests_unit_test_SOURCES += tests/api/test_ossl_asn1.c
+tests_unit_test_SOURCES += tests/api/test_ossl_tsp.c
 # OpenSSL BN
 tests_unit_test_SOURCES += tests/api/test_ossl_bn.c
 # OpenSSL BIO
@@ -178,10 +181,12 @@ EXTRA_DIST += tests/api/test_tls.h
 EXTRA_DIST += tests/api/test_session.h
 EXTRA_DIST += tests/api/test_x509.h
 EXTRA_DIST += tests/api/test_asn.h
+EXTRA_DIST += tests/api/test_tsp.h
 EXTRA_DIST += tests/api/test_pkcs7.h
 EXTRA_DIST += tests/api/test_pkcs12.h
 EXTRA_DIST += tests/api/test_pwdbased.h
 EXTRA_DIST += tests/api/test_ossl_asn1.h
+EXTRA_DIST += tests/api/test_ossl_tsp.h
 EXTRA_DIST += tests/api/test_ossl_bn.h
 EXTRA_DIST += tests/api/test_ossl_bio.h
 EXTRA_DIST += tests/api/test_ossl_dgst.h

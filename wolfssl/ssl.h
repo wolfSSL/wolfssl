@@ -5691,6 +5691,9 @@ WOLFSSL_API int wolfSSL_ASN1_BIT_STRING_get_bit(
                             const WOLFSSL_ASN1_BIT_STRING* str, int i);
 WOLFSSL_API int wolfSSL_ASN1_BIT_STRING_set_bit(
                             WOLFSSL_ASN1_BIT_STRING* str, int pos, int val);
+WOLFSSL_API int wolfSSL_ASN1_BIT_STRING_set1(
+                            WOLFSSL_ASN1_BIT_STRING* str,
+                            const unsigned char* data, int len);
 WOLFSSL_API int wolfSSL_i2d_ASN1_BIT_STRING(const WOLFSSL_ASN1_BIT_STRING* bstr,
         unsigned char** pp);
 WOLFSSL_API WOLFSSL_ASN1_BIT_STRING* wolfSSL_d2i_ASN1_BIT_STRING(

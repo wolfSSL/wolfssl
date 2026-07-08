@@ -2316,6 +2316,9 @@ endif()
 set(WOLFSSL_PKCS7_HELP_STRING "Enable PKCS7 (default: disabled)")
 add_option(WOLFSSL_PKCS7 ${WOLFSSL_PKCS7_HELP_STRING} "no" "yes;no")
 
+set(WOLFSSL_TSP_HELP_STRING "Enable RFC 3161 Time-Stamp Protocol (default: disabled)")
+add_option(WOLFSSL_TSP ${WOLFSSL_TSP_HELP_STRING} "no" "yes;no")
+
 set(WOLFSSL_TPM_HELP_STRING "Enable wolfTPM options (default: disabled)")
 add_option(WOLFSSL_TPM ${WOLFSSL_TPM_HELP_STRING} "no" "yes;no")
 
@@ -2706,6 +2709,12 @@ if(WOLFSSL_AESCFB)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_CFB")
 endif()
 
+
+if(WOLFSSL_TSP)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TSP")
+    # Requires PKCS7 for time-stamp token creation and verification
+    override_cache(WOLFSSL_PKCS7 "yes")
+endif()
 
 if(WOLFSSL_PKCS7)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_PKCS7")
@@ -4196,6 +4205,8 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_asn.c
         tests/api/test_pkcs7.c
         tests/api/test_pkcs12.c
+        tests/api/test_tsp.c
+        tests/api/test_ossl_tsp.c
         tests/api/test_pwdbased.c
         tests/api/test_ossl_asn1.c
         tests/api/test_ossl_bio.c
