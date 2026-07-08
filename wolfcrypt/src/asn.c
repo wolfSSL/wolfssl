@@ -18897,20 +18897,30 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         byte nameType = nameTypes[i];
         DNS_entry* name = NULL;
         DNS_entry  subjectDnsName; /* temporary node used for subject name */
+        DNS_entry* dnsSan = NULL;  /* scan for a dNSName SAN */
 
         XMEMSET(&subjectDnsName, 0, sizeof(DNS_entry));
         switch (nameType) {
             case ASN_DNS_TYPE:
                 name = cert->altNames;
 
-                /* Apply DNS constraints to leaf Subject CN when no SAN
-                 * (legacy hostname-in-CN). Skipped for CAs. */
-                if (cert->subjectCN != NULL && cert->altNames == NULL &&
-                        !cert->isCA) {
-                    subjectDnsName.next = NULL;
-                    subjectDnsName.type = ASN_DNS_TYPE;
-                    subjectDnsName.len  = cert->subjectCNLen;
-                    subjectDnsName.name = cert->subjectCN;
+                /* Apply DNS name constraints to the Subject CN as a legacy
+                 * hostname-in-CN fallback only when the cert presents no
+                 * dNSName SAN (RFC 6125 6.4.4). A SAN of another type
+                 * (iPAddress/registeredID/otherName/...) must NOT suppress
+                 * this check. Skip for CA certs. */
+                if (cert->subjectCN != NULL && !cert->isCA) {
+                    for (dnsSan = cert->altNames; dnsSan != NULL;
+                            dnsSan = dnsSan->next) {
+                        if (dnsSan->type == ASN_DNS_TYPE)
+                            break;
+                    }
+                    if (dnsSan == NULL) { /* no dNSName SAN present */
+                        subjectDnsName.next = NULL;
+                        subjectDnsName.type = ASN_DNS_TYPE;
+                        subjectDnsName.len  = cert->subjectCNLen;
+                        subjectDnsName.name = cert->subjectCN;
+                    }
                 }
                 break;
             case ASN_IP_TYPE:
