@@ -15694,6 +15694,19 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
 /* Software AES - CFB Encrypt */
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+#ifdef WOLF_CRYPTO_CB
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret = wc_CryptoCb_AesCfbEncrypt(aes, out, in, sz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
     return AesCfbEncrypt_C(aes, out, in, sz);
 }
 
@@ -15712,6 +15725,19 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 /* Software AES - CFB Decrypt */
 int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+#ifdef WOLF_CRYPTO_CB
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret = wc_CryptoCb_AesCfbDecrypt(aes, out, in, sz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
     return AesCfbDecrypt_C(aes, out, in, sz, AES_CFB_MODE);
 }
 #endif /* HAVE_AES_DECRYPT */
@@ -16032,6 +16058,19 @@ static WARN_UNUSED_RESULT int AesOfbCrypt_C(Aes* aes, byte* out, const byte* in,
 /* Software AES - OFB Encrypt */
 int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+#ifdef WOLF_CRYPTO_CB
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret = wc_CryptoCb_AesOfbEncrypt(aes, out, in, sz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
     return AesOfbCrypt_C(aes, out, in, sz);
 }
 
@@ -16050,6 +16089,19 @@ int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 /* Software AES - OFB Decrypt */
 int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+#ifdef WOLF_CRYPTO_CB
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret = wc_CryptoCb_AesOfbDecrypt(aes, out, in, sz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
     return AesOfbCrypt_C(aes, out, in, sz);
 }
 #endif /* HAVE_AES_DECRYPT */
