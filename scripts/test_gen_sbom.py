@@ -365,6 +365,50 @@ class TestDetectLicense(unittest.TestCase):
                 'License version 3, or any later version.\n'),
             'GPL-3.0-or-later')
 
+    def test_gplv3_abbreviation_only(self):
+        # LICENSING that uses only the "GPLv3" abbreviation, with no
+        # canonical "GNU General Public License version 3" long form.
+        # This is exactly wolfSSH's LICENSING shape, which previously
+        # fell back to NOASSERTION.  Oracle: 'GPL-3.0-only'.
+        self.assertEqual(
+            self._detect(
+                'wolfExample is either licensed for use under the GPLv3 '
+                'or a standard commercial license.\n'),
+            'GPL-3.0-only')
+
+    def test_gplv2_abbreviation_only(self):
+        # Same abbreviation path for version 2.  Oracle: 'GPL-2.0-only'.
+        self.assertEqual(
+            self._detect('Distributed under the GPLv2.\n'),
+            'GPL-2.0-only')
+
+    def test_gplv3_plus_abbreviation_is_or_later(self):
+        # The "+" suffix on the abbreviated form (GPLv3+) denotes the
+        # or-later variant.  Oracle: 'GPL-3.0-or-later'.
+        self.assertEqual(
+            self._detect('Licensed under GPLv3+ terms.\n'),
+            'GPL-3.0-or-later')
+
+    def test_gplv2_abbreviation_or_later_prose(self):
+        # Abbreviated form followed by an explicit "or later" clause in
+        # prose (no "+") also promotes to or-later.  Oracle:
+        # 'GPL-2.0-or-later'.
+        self.assertEqual(
+            self._detect('Available under GPLv2 or later.\n'),
+            'GPL-2.0-or-later')
+
+    def test_real_wolfssh_licensing_shape_is_gpl3_only(self):
+        # Regression guard for the exact wolfSSH LICENSING wording: the
+        # "or a standard commercial license" clause after the GPLv3
+        # abbreviation must NOT be mistaken for an "or later" grant.
+        self.assertEqual(
+            self._detect(
+                '\nwolfSSH is either licensed for use under the GPLv3 or a '
+                'standard commercial\nlicense. For our users who cannot use '
+                'wolfSSH under GPLv3, a commercial license\nto wolfSSH is '
+                'available.\n'),
+            'GPL-3.0-only')
+
     def test_case_insensitive(self):
         # The regex is case-insensitive for both the GPL header line
         # and the 'or later' clause.  Real-world COPYING files use
@@ -782,8 +826,26 @@ class TestDepMetaShape(unittest.TestCase):
       * a future PR re-introducing the `falcon`/`libxmss`/`liblms`
         keys after they were intentionally removed."""
 
-    def test_only_libz_and_liboqs_are_tracked(self):
-        self.assertEqual(set(gs.DEP_META.keys()), {'libz', 'liboqs'})
+    def test_only_expected_deps_are_tracked(self):
+        # wolfssl is tracked so downstream wolfSSL-stack products (wolfSSH,
+        # wolfMQTT, ...) can declare it via --dep-wolfssl; libz/liboqs are
+        # wolfSSL's own optional linked deps.
+        self.assertEqual(set(gs.DEP_META.keys()),
+                         {'wolfssl', 'libz', 'liboqs'})
+
+    def test_wolfssl_dep_entry_describes_the_linked_artefact(self):
+        wolfssl = gs.DEP_META['wolfssl']
+        self.assertEqual(wolfssl['name'], 'wolfssl')
+        self.assertEqual(wolfssl['supplier'], 'wolfSSL Inc.')
+        self.assertEqual(wolfssl['pkgconfig'], 'wolfssl')
+        # wolfSSL ships under GPLv3 (LICENSING: "version 3 (GPLv3)", no
+        # "or later"); the dependency entry must match what
+        # detect_license() infers for wolfSSL's own main-package SBOM so a
+        # downstream product's wolfssl dep and wolfSSL's self-SBOM agree.
+        self.assertEqual(wolfssl['license'], 'GPL-3.0-only')
+        self.assertEqual(
+            wolfssl['purl']('5.7.4'),
+            'pkg:github/wolfSSL/wolfssl@v5.7.4')
 
     def test_liboqs_entry_describes_the_linked_artefact(self):
         liboqs = gs.DEP_META['liboqs']
@@ -824,6 +886,7 @@ class TestEnabledDepsCli(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('--dep-liboqs', result.stdout)
         self.assertIn('--dep-libz', result.stdout)
+        self.assertIn('--dep-wolfssl', result.stdout)
 
     def test_removed_flags_are_rejected(self):
         # Each of these was either renamed (--dep-falcon -> --dep-liboqs)

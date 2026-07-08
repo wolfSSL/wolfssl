@@ -53,6 +53,21 @@ _NO_HASH_NOTE = (
 SBOM_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'https://wolfssl.com/sbom/')
 
 
+def project_urls(name):
+    """Canonical wolfSSL GitHub URLs for a project, derived from its package
+    name.  Keeping these name-derived (rather than hardcoded to wolfssl) lets
+    the same generator emit correct VCS / issue-tracker / advisory / download
+    URLs for every product in the wolfSSL stack (wolfssl, wolfssh, wolfmqtt,
+    ...).  For name='wolfssl' the result is byte-identical to the historical
+    hardcoded URLs, so existing wolfSSL SBOMs do not change."""
+    base = f'https://github.com/wolfSSL/{name}'
+    return {
+        'vcs': base,
+        'issues': f'{base}/issues',
+        'advisories': f'{base}/security/advisories',
+    }
+
+
 def derived_uuid(*parts):
     """Deterministic UUID from joined parts under the wolfSSL SBOM namespace.
     Re-runs of `make sbom` against the same source produce identical UUIDs,
@@ -88,6 +103,25 @@ def build_timestamp():
 # / Dependency-Track resolve CVEs against the right package).  Algorithm
 # enablement is captured separately via build_props (HAVE_FALCON, ...).
 DEP_META = {
+    # wolfssl itself, declared as a dependency by downstream wolfSSL-stack
+    # products (wolfSSH, wolfMQTT, wolfTPM, ...) that link libwolfssl.  Only
+    # emitted when the caller passes --dep-wolfssl yes; wolfSSL's own
+    # `make sbom` never enables it (a package is not its own dependency).
+    # Recording it is what lets a CRA / vulnerability scanner associate
+    # wolfSSL advisories with a product that embeds wolfSSL.
+    'wolfssl': {
+        'name': 'wolfssl',
+        'supplier': 'wolfSSL Inc.',
+        # wolfSSL is distributed under GPLv3 (LICENSING: "version 3 (GPLv3)",
+        # no "or later"), with a commercial option.  This matches what
+        # detect_license() infers for wolfSSL's own main-package SBOM, so a
+        # downstream product's wolfssl dependency entry and wolfSSL's own
+        # self-SBOM agree on the licence.
+        'license': 'GPL-3.0-only',
+        'download': 'https://github.com/wolfSSL/wolfssl',
+        'pkgconfig': 'wolfssl',
+        'purl': lambda v: f'pkg:github/wolfSSL/wolfssl@v{v}',
+    },
     # liboqs is the only PQ external dependency wolfSSL still links against
     # after upstream PR #10293 collapsed the rest of the PQ surface into
     # native wolfCrypt.  Today, --enable-falcon strictly implies --with-liboqs
@@ -222,12 +256,25 @@ def detect_license(license_file):
         r'gnu general public license\s+version\s+(\d+)',
         text, re.IGNORECASE
     )
+    or_later_plus = False
+    if not m:
+        # Abbreviated form: some wolfSSL-stack LICENSING files (e.g. wolfSSH)
+        # say "GPLv3" rather than the canonical "GNU General Public License
+        # version 3", so the long-form regex above misses and detection would
+        # fall back to NOASSERTION.  A trailing "+" (GPLv3+) denotes the
+        # or-later variant; otherwise fall through to the shared "or later"
+        # prose check below.
+        m = re.search(r'\bGPLv(\d+)(\+)?', text, re.IGNORECASE)
+        if m and m.group(2) == '+':
+            or_later_plus = True
     if not m:
         print(f"WARNING: no GPL version found in {license_file}",
               file=sys.stderr)
         return None
 
     version = m.group(1)
+    if or_later_plus:
+        return f'GPL-{version}.0-or-later'
     excerpt = text[m.end():m.end() + 100]
     # Match upgrade-permission wording in the 100-byte excerpt that
     # follows the version mention.  Three FSF-derived shapes:
@@ -742,6 +789,7 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
                  dep_version_overrides=None, hash_kind='library-binary',
                  hash_source='lib', srcs_basenames=None, file_entries=None):
     bom_ref = derived_uuid(name, version, 'package')
+    urls = project_urls(name)
 
     dep_bom_refs = []
     components = []
@@ -793,13 +841,13 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
         'hashes': [{'alg': 'SHA-256', 'content': lib_hash}],
         'externalReferences': [
             {'type': 'vcs',
-             'url': 'https://github.com/wolfSSL/wolfssl'},
+             'url': urls['vcs']},
             {'type': 'website',
              'url': 'https://www.wolfssl.com/'},
             {'type': 'issue-tracker',
-             'url': 'https://github.com/wolfSSL/wolfssl/issues'},
+             'url': urls['issues']},
             {'type': 'advisories',
-             'url': 'https://github.com/wolfSSL/wolfssl/security/advisories'},
+             'url': urls['advisories']},
             {'type': 'security-contact',
              'url': 'https://www.wolfssl.com/.well-known/security.txt'},
         ],
@@ -884,12 +932,19 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
     if srcs_basenames:
         _annotate('wolfssl:sbom:source-set=' + ','.join(srcs_basenames))
 
+    urls = project_urls(name)
+    # Main-package SPDXID derived from --name (sanitised per SPDX 2.3 idstring
+    # rules) rather than hardcoded to wolfssl, so a wolfSSH/wolfMQTT SBOM does
+    # not mislabel its own package as wolfssl.  For name='wolfssl' the result
+    # is 'SPDXRef-Package-wolfssl', unchanged from before.
+    main_spdx_id = 'SPDXRef-Package-' + re.sub(r'[^A-Za-z0-9.]', '', name)
+
     wolfssl_pkg = {
-        'SPDXID': 'SPDXRef-Package-wolfssl',
+        'SPDXID': main_spdx_id,
         'name': name,
         'versionInfo': version,
         'supplier': f'Organization: {supplier}',
-        'downloadLocation': 'https://github.com/wolfSSL/wolfssl',
+        'downloadLocation': urls['vcs'],
         'filesAnalyzed': False,
         'checksums': [{'algorithm': 'SHA256', 'checksumValue': lib_hash}],
         'licenseConcluded': license_id,
@@ -913,9 +968,7 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
             {
                 'referenceCategory': 'SECURITY',
                 'referenceType': 'advisory',
-                'referenceLocator': (
-                    'https://github.com/wolfSSL/wolfssl/security/advisories'
-                ),
+                'referenceLocator': urls['advisories'],
             },
         ],
     }
@@ -941,7 +994,7 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
     packages = [wolfssl_pkg]
     relationships = [{
         'spdxElementId': 'SPDXRef-DOCUMENT',
-        'relatedSpdxElement': 'SPDXRef-Package-wolfssl',
+        'relatedSpdxElement': main_spdx_id,
         'relationshipType': 'DESCRIBES',
     }]
 
@@ -949,7 +1002,7 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
         spdx_id, pkg = spdx_dep_package(key, dep_version_overrides)
         packages.append(pkg)
         relationships.append({
-            'spdxElementId': 'SPDXRef-Package-wolfssl',
+            'spdxElementId': main_spdx_id,
             'relatedSpdxElement': spdx_id,
             'relationshipType': 'DEPENDS_ON',
         })
@@ -1102,6 +1155,13 @@ def main():
                              'directing integrators to contact wolfSSL.  '
                              'Mutually exclusive with --lib / --srcs / '
                              '--srcs-file.')
+    parser.add_argument('--dep-wolfssl', default='no',
+                        help='yes to record wolfssl as a dependency component '
+                             '(for downstream wolfSSL-stack products such as '
+                             'wolfSSH / wolfMQTT that link libwolfssl). '
+                             'wolfSSL\'s own SBOM leaves this off. Combine '
+                             'with --dep-version wolfssl=X.Y.Z on hosts '
+                             'without wolfssl.pc.')
     parser.add_argument('--dep-libz', default='no',
                         help='yes if built with --with-libz')
     parser.add_argument('--dep-liboqs', default='no',
@@ -1173,8 +1233,9 @@ def main():
 
     enabled_deps = [
         key for key, flag in [
-            ('libz',   args.dep_libz),
-            ('liboqs', args.dep_liboqs),
+            ('wolfssl', args.dep_wolfssl),
+            ('libz',    args.dep_libz),
+            ('liboqs',  args.dep_liboqs),
         ]
         if flag.lower() == 'yes'
     ]
