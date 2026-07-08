@@ -4199,6 +4199,10 @@
     #if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_ACERT)
         #define WOLFSSL_ACERT
     #endif
+
+    /* Delay-Tolerant Networking (RFC 9174) support */
+    #undef  WOLFSSL_DTN
+    #define WOLFSSL_DTN
 #endif
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
