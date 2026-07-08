@@ -43124,6 +43124,1073 @@ L_aes_xts_decrypt_arm64_crypto_done:
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_XTS */
+#ifdef WOLFSSL_AESGCM_SIV
+#ifndef __APPLE__
+.text
+.globl	AES_GCMSIV_polyval_pmull
+.type	AES_GCMSIV_polyval_pmull,@function
+.align	2
+AES_GCMSIV_polyval_pmull:
+#else
+.section	__TEXT,__text
+.globl	_AES_GCMSIV_polyval_pmull
+.p2align	2
+_AES_GCMSIV_polyval_pmull:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+	movi	v2.16b, #0
+	ld1	{v1.16b}, [x1]
+	ld1	{v0.16b}, [x0]
+	rev64	v0.16b, v0.16b
+	ext	v0.16b, v0.16b, v0.16b, #8
+	pmull	v18.1q, v1.1d, v1.1d
+	pmull2	v19.1q, v1.2d, v1.2d
+	ext	v22.16b, v1.16b, v1.16b, #8
+	pmull	v23.1q, v22.1d, v1.1d
+	pmull2	v22.1q, v22.2d, v1.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v3.16b, v19.16b, v18.16b
+	pmull	v18.1q, v3.1d, v1.1d
+	pmull2	v19.1q, v3.2d, v1.2d
+	ext	v22.16b, v3.16b, v3.16b, #8
+	pmull	v23.1q, v22.1d, v1.1d
+	pmull2	v22.1q, v22.2d, v1.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v4.16b, v19.16b, v18.16b
+	pmull	v18.1q, v3.1d, v3.1d
+	pmull2	v19.1q, v3.2d, v3.2d
+	ext	v22.16b, v3.16b, v3.16b, #8
+	pmull	v23.1q, v22.1d, v3.1d
+	pmull2	v22.1q, v22.2d, v3.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v5.16b, v19.16b, v18.16b
+	pmull	v18.1q, v5.1d, v1.1d
+	pmull2	v19.1q, v5.2d, v1.2d
+	ext	v22.16b, v5.16b, v5.16b, #8
+	pmull	v23.1q, v22.1d, v1.1d
+	pmull2	v22.1q, v22.2d, v1.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v6.16b, v19.16b, v18.16b
+	pmull	v18.1q, v5.1d, v3.1d
+	pmull2	v19.1q, v5.2d, v3.2d
+	ext	v22.16b, v5.16b, v5.16b, #8
+	pmull	v23.1q, v22.1d, v3.1d
+	pmull2	v22.1q, v22.2d, v3.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v7.16b, v19.16b, v18.16b
+	pmull	v18.1q, v5.1d, v4.1d
+	pmull2	v19.1q, v5.2d, v4.2d
+	ext	v22.16b, v5.16b, v5.16b, #8
+	pmull	v23.1q, v22.1d, v4.1d
+	pmull2	v22.1q, v22.2d, v4.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v8.16b, v19.16b, v18.16b
+	pmull	v18.1q, v5.1d, v5.1d
+	pmull2	v19.1q, v5.2d, v5.2d
+	ext	v22.16b, v5.16b, v5.16b, #8
+	pmull	v23.1q, v22.1d, v5.1d
+	pmull2	v22.1q, v22.2d, v5.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v9.16b, v19.16b, v18.16b
+L_AES_GCMSIV_polyval_pmull_loop8:
+	cmp	w3, #8
+	blt	L_AES_GCMSIV_polyval_pmull_done8
+	ld1	{v10.16b, v11.16b, v12.16b, v13.16b}, [x2], #0x40
+	ld1	{v14.16b, v15.16b, v16.16b, v17.16b}, [x2], #0x40
+	eor	v10.16b, v10.16b, v0.16b
+	pmull	v18.1q, v10.1d, v9.1d
+	pmull2	v19.1q, v10.2d, v9.2d
+	ext	v22.16b, v10.16b, v10.16b, #8
+	pmull	v23.1q, v22.1d, v9.1d
+	pmull2	v22.1q, v22.2d, v9.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	pmull	v20.1q, v11.1d, v8.1d
+	pmull2	v21.1q, v11.2d, v8.2d
+	ext	v22.16b, v11.16b, v11.16b, #8
+	pmull	v23.1q, v22.1d, v8.1d
+	pmull2	v22.1q, v22.2d, v8.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v12.1d, v7.1d
+	pmull2	v21.1q, v12.2d, v7.2d
+	ext	v22.16b, v12.16b, v12.16b, #8
+	pmull	v23.1q, v22.1d, v7.1d
+	pmull2	v22.1q, v22.2d, v7.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v13.1d, v6.1d
+	pmull2	v21.1q, v13.2d, v6.2d
+	ext	v22.16b, v13.16b, v13.16b, #8
+	pmull	v23.1q, v22.1d, v6.1d
+	pmull2	v22.1q, v22.2d, v6.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v14.1d, v5.1d
+	pmull2	v21.1q, v14.2d, v5.2d
+	ext	v22.16b, v14.16b, v14.16b, #8
+	pmull	v23.1q, v22.1d, v5.1d
+	pmull2	v22.1q, v22.2d, v5.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v15.1d, v4.1d
+	pmull2	v21.1q, v15.2d, v4.2d
+	ext	v22.16b, v15.16b, v15.16b, #8
+	pmull	v23.1q, v22.1d, v4.1d
+	pmull2	v22.1q, v22.2d, v4.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v16.1d, v3.1d
+	pmull2	v21.1q, v16.2d, v3.2d
+	ext	v22.16b, v16.16b, v16.16b, #8
+	pmull	v23.1q, v22.1d, v3.1d
+	pmull2	v22.1q, v22.2d, v3.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v17.1d, v1.1d
+	pmull2	v21.1q, v17.2d, v1.2d
+	ext	v22.16b, v17.16b, v17.16b, #8
+	pmull	v23.1q, v22.1d, v1.1d
+	pmull2	v22.1q, v22.2d, v1.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v0.16b, v19.16b, v18.16b
+	sub	w3, w3, #8
+	b	L_AES_GCMSIV_polyval_pmull_loop8
+L_AES_GCMSIV_polyval_pmull_done8:
+L_AES_GCMSIV_polyval_pmull_loop4:
+	cmp	w3, #4
+	blt	L_AES_GCMSIV_polyval_pmull_done4
+	ld1	{v10.16b, v11.16b, v12.16b, v13.16b}, [x2], #0x40
+	eor	v10.16b, v10.16b, v0.16b
+	pmull	v18.1q, v10.1d, v5.1d
+	pmull2	v19.1q, v10.2d, v5.2d
+	ext	v22.16b, v10.16b, v10.16b, #8
+	pmull	v23.1q, v22.1d, v5.1d
+	pmull2	v22.1q, v22.2d, v5.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	pmull	v20.1q, v11.1d, v4.1d
+	pmull2	v21.1q, v11.2d, v4.2d
+	ext	v22.16b, v11.16b, v11.16b, #8
+	pmull	v23.1q, v22.1d, v4.1d
+	pmull2	v22.1q, v22.2d, v4.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v12.1d, v3.1d
+	pmull2	v21.1q, v12.2d, v3.2d
+	ext	v22.16b, v12.16b, v12.16b, #8
+	pmull	v23.1q, v22.1d, v3.1d
+	pmull2	v22.1q, v22.2d, v3.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	pmull	v20.1q, v13.1d, v1.1d
+	pmull2	v21.1q, v13.2d, v1.2d
+	ext	v22.16b, v13.16b, v13.16b, #8
+	pmull	v23.1q, v22.1d, v1.1d
+	pmull2	v22.1q, v22.2d, v1.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v20.16b, v20.16b, v23.16b
+	eor	v21.16b, v21.16b, v22.16b
+	eor	v18.16b, v18.16b, v20.16b
+	eor	v19.16b, v19.16b, v21.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v0.16b, v19.16b, v18.16b
+	sub	w3, w3, #4
+	b	L_AES_GCMSIV_polyval_pmull_loop4
+L_AES_GCMSIV_polyval_pmull_done4:
+L_AES_GCMSIV_polyval_pmull_rem:
+	cbz	w3, L_AES_GCMSIV_polyval_pmull_done
+	ld1	{v10.16b}, [x2], #16
+	eor	v0.16b, v0.16b, v10.16b
+	pmull	v18.1q, v0.1d, v1.1d
+	pmull2	v19.1q, v0.2d, v1.2d
+	ext	v22.16b, v0.16b, v0.16b, #8
+	pmull	v23.1q, v22.1d, v1.1d
+	pmull2	v22.1q, v22.2d, v1.2d
+	eor	v22.16b, v22.16b, v23.16b
+	ext	v23.16b, v2.16b, v22.16b, #8
+	ext	v22.16b, v22.16b, v2.16b, #8
+	eor	v18.16b, v18.16b, v23.16b
+	eor	v19.16b, v19.16b, v22.16b
+	ushr	v24.4s, v18.4s, #31
+	ushr	v25.4s, v19.4s, #31
+	shl	v18.4s, v18.4s, #1
+	shl	v19.4s, v19.4s, #1
+	ext	v26.16b, v24.16b, v2.16b, #12
+	ext	v25.16b, v2.16b, v25.16b, #12
+	ext	v24.16b, v2.16b, v24.16b, #12
+	orr	v18.16b, v18.16b, v24.16b
+	orr	v19.16b, v19.16b, v25.16b
+	orr	v19.16b, v19.16b, v26.16b
+	shl	v24.4s, v18.4s, #31
+	shl	v25.4s, v18.4s, #30
+	shl	v26.4s, v18.4s, #25
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v24.16b, v24.16b, v26.16b
+	ext	v25.16b, v24.16b, v2.16b, #4
+	ext	v24.16b, v2.16b, v24.16b, #4
+	eor	v18.16b, v18.16b, v24.16b
+	ushr	v24.4s, v18.4s, #1
+	ushr	v26.4s, v18.4s, #2
+	ushr	v27.4s, v18.4s, #7
+	eor	v24.16b, v24.16b, v26.16b
+	eor	v24.16b, v24.16b, v27.16b
+	eor	v24.16b, v24.16b, v25.16b
+	eor	v18.16b, v18.16b, v24.16b
+	eor	v0.16b, v19.16b, v18.16b
+	subs	w3, w3, #1
+	bne	L_AES_GCMSIV_polyval_pmull_rem
+L_AES_GCMSIV_polyval_pmull_done:
+	rev64	v0.16b, v0.16b
+	ext	v0.16b, v0.16b, v0.16b, #8
+	st1	{v0.16b}, [x0]
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	AES_GCMSIV_polyval_pmull,.-AES_GCMSIV_polyval_pmull
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	AES_GCMSIV_ctr_aarch64
+.type	AES_GCMSIV_ctr_aarch64,@function
+.align	2
+AES_GCMSIV_ctr_aarch64:
+#else
+.section	__TEXT,__text
+.globl	_AES_GCMSIV_ctr_aarch64
+.p2align	2
+_AES_GCMSIV_ctr_aarch64:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+	ld1	{v15.2d}, [x5]
+	mov	w7, v15.s[0]
+	lsr	x6, x2, #4
+	ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [x3], #0x40
+	ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [x3], #0x40
+	cmp	w4, #12
+	blt	L_AES_GCMSIV_ctr_aarch64_start_128
+	bgt	L_AES_GCMSIV_ctr_aarch64_start_256
+	# AES_GCMSIV_CTR_192
+#ifndef NO_AES_192
+	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x3], #0x40
+	ld1	{v12.2d}, [x3]
+L_AES_GCMSIV_ctr_aarch64_192_loop4:
+	cmp	x6, #4
+	blt	L_AES_GCMSIV_ctr_aarch64_192_done4
+	mov	v16.16b, v15.16b
+	mov	v16.s[0], w7
+	mov	v17.16b, v15.16b
+	add	w8, w7, #1
+	mov	v17.s[0], w8
+	mov	v18.16b, v15.16b
+	add	w8, w7, #2
+	mov	v18.s[0], w8
+	mov	v19.16b, v15.16b
+	add	w8, w7, #3
+	mov	v19.s[0], w8
+	add	w7, w7, #4
+	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x0], #0x40
+	aese	v16.16b, v0.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v0.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v0.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v0.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v1.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v1.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v1.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v1.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v2.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v2.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v2.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v2.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v3.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v3.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v3.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v3.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v4.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v4.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v4.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v4.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v5.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v5.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v5.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v5.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v6.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v6.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v6.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v6.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v7.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v7.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v7.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v7.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v8.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v8.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v8.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v8.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v9.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v9.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v9.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v9.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v10.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v10.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v10.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v10.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v11.16b
+	eor	v16.16b, v16.16b, v12.16b
+	aese	v17.16b, v11.16b
+	eor	v17.16b, v17.16b, v12.16b
+	aese	v18.16b, v11.16b
+	eor	v18.16b, v18.16b, v12.16b
+	aese	v19.16b, v11.16b
+	eor	v19.16b, v19.16b, v12.16b
+	eor	v20.16b, v20.16b, v16.16b
+	eor	v21.16b, v21.16b, v17.16b
+	eor	v22.16b, v22.16b, v18.16b
+	eor	v23.16b, v23.16b, v19.16b
+	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
+	sub	x6, x6, #4
+	cmp	x6, #4
+	bge	L_AES_GCMSIV_ctr_aarch64_192_loop4
+L_AES_GCMSIV_ctr_aarch64_192_done4:
+L_AES_GCMSIV_ctr_aarch64_192_loop1:
+	cbz	x6, L_AES_GCMSIV_ctr_aarch64_192_done1
+	mov	v16.16b, v15.16b
+	mov	v16.s[0], w7
+	add	w7, w7, #1
+	ld1	{v20.16b}, [x0], #16
+	aese	v16.16b, v0.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v1.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v2.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v3.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v4.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v5.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v6.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v7.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v8.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v9.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v10.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v11.16b
+	eor	v16.16b, v16.16b, v12.16b
+	eor	v20.16b, v20.16b, v16.16b
+	st1	{v20.16b}, [x1], #16
+	sub	x6, x6, #1
+	b	L_AES_GCMSIV_ctr_aarch64_192_loop1
+L_AES_GCMSIV_ctr_aarch64_192_done1:
+#endif /* !NO_AES_192 */
+	b	L_AES_GCMSIV_ctr_aarch64_done
+	# AES_GCMSIV_CTR_256
+L_AES_GCMSIV_ctr_aarch64_start_256:
+#ifndef NO_AES_256
+	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x3], #0x40
+	ld1	{v12.2d, v13.2d}, [x3], #32
+	ld1	{v14.2d}, [x3]
+L_AES_GCMSIV_ctr_aarch64_256_loop4:
+	cmp	x6, #4
+	blt	L_AES_GCMSIV_ctr_aarch64_256_done4
+	mov	v16.16b, v15.16b
+	mov	v16.s[0], w7
+	mov	v17.16b, v15.16b
+	add	w8, w7, #1
+	mov	v17.s[0], w8
+	mov	v18.16b, v15.16b
+	add	w8, w7, #2
+	mov	v18.s[0], w8
+	mov	v19.16b, v15.16b
+	add	w8, w7, #3
+	mov	v19.s[0], w8
+	add	w7, w7, #4
+	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x0], #0x40
+	aese	v16.16b, v0.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v0.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v0.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v0.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v1.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v1.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v1.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v1.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v2.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v2.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v2.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v2.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v3.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v3.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v3.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v3.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v4.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v4.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v4.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v4.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v5.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v5.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v5.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v5.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v6.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v6.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v6.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v6.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v7.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v7.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v7.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v7.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v8.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v8.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v8.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v8.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v9.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v9.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v9.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v9.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v10.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v10.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v10.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v10.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v11.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v11.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v11.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v11.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v12.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v12.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v12.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v12.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v13.16b
+	eor	v16.16b, v16.16b, v14.16b
+	aese	v17.16b, v13.16b
+	eor	v17.16b, v17.16b, v14.16b
+	aese	v18.16b, v13.16b
+	eor	v18.16b, v18.16b, v14.16b
+	aese	v19.16b, v13.16b
+	eor	v19.16b, v19.16b, v14.16b
+	eor	v20.16b, v20.16b, v16.16b
+	eor	v21.16b, v21.16b, v17.16b
+	eor	v22.16b, v22.16b, v18.16b
+	eor	v23.16b, v23.16b, v19.16b
+	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
+	sub	x6, x6, #4
+	cmp	x6, #4
+	bge	L_AES_GCMSIV_ctr_aarch64_256_loop4
+L_AES_GCMSIV_ctr_aarch64_256_done4:
+L_AES_GCMSIV_ctr_aarch64_256_loop1:
+	cbz	x6, L_AES_GCMSIV_ctr_aarch64_256_done1
+	mov	v16.16b, v15.16b
+	mov	v16.s[0], w7
+	add	w7, w7, #1
+	ld1	{v20.16b}, [x0], #16
+	aese	v16.16b, v0.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v1.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v2.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v3.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v4.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v5.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v6.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v7.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v8.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v9.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v10.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v11.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v12.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v13.16b
+	eor	v16.16b, v16.16b, v14.16b
+	eor	v20.16b, v20.16b, v16.16b
+	st1	{v20.16b}, [x1], #16
+	sub	x6, x6, #1
+	b	L_AES_GCMSIV_ctr_aarch64_256_loop1
+L_AES_GCMSIV_ctr_aarch64_256_done1:
+#endif /* !NO_AES_256 */
+	b	L_AES_GCMSIV_ctr_aarch64_done
+	# AES_GCMSIV_CTR_128
+L_AES_GCMSIV_ctr_aarch64_start_128:
+#ifndef NO_AES_128
+	ld1	{v8.2d, v9.2d}, [x3], #32
+	ld1	{v10.2d}, [x3]
+L_AES_GCMSIV_ctr_aarch64_128_loop4:
+	cmp	x6, #4
+	blt	L_AES_GCMSIV_ctr_aarch64_128_done4
+	mov	v16.16b, v15.16b
+	mov	v16.s[0], w7
+	mov	v17.16b, v15.16b
+	add	w8, w7, #1
+	mov	v17.s[0], w8
+	mov	v18.16b, v15.16b
+	add	w8, w7, #2
+	mov	v18.s[0], w8
+	mov	v19.16b, v15.16b
+	add	w8, w7, #3
+	mov	v19.s[0], w8
+	add	w7, w7, #4
+	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x0], #0x40
+	aese	v16.16b, v0.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v0.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v0.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v0.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v1.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v1.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v1.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v1.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v2.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v2.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v2.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v2.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v3.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v3.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v3.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v3.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v4.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v4.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v4.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v4.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v5.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v5.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v5.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v5.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v6.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v6.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v6.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v6.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v7.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v7.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v7.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v7.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v8.16b
+	aesmc	v16.16b, v16.16b
+	aese	v17.16b, v8.16b
+	aesmc	v17.16b, v17.16b
+	aese	v18.16b, v8.16b
+	aesmc	v18.16b, v18.16b
+	aese	v19.16b, v8.16b
+	aesmc	v19.16b, v19.16b
+	aese	v16.16b, v9.16b
+	eor	v16.16b, v16.16b, v10.16b
+	aese	v17.16b, v9.16b
+	eor	v17.16b, v17.16b, v10.16b
+	aese	v18.16b, v9.16b
+	eor	v18.16b, v18.16b, v10.16b
+	aese	v19.16b, v9.16b
+	eor	v19.16b, v19.16b, v10.16b
+	eor	v20.16b, v20.16b, v16.16b
+	eor	v21.16b, v21.16b, v17.16b
+	eor	v22.16b, v22.16b, v18.16b
+	eor	v23.16b, v23.16b, v19.16b
+	st1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x1], #0x40
+	sub	x6, x6, #4
+	cmp	x6, #4
+	bge	L_AES_GCMSIV_ctr_aarch64_128_loop4
+L_AES_GCMSIV_ctr_aarch64_128_done4:
+L_AES_GCMSIV_ctr_aarch64_128_loop1:
+	cbz	x6, L_AES_GCMSIV_ctr_aarch64_128_done1
+	mov	v16.16b, v15.16b
+	mov	v16.s[0], w7
+	add	w7, w7, #1
+	ld1	{v20.16b}, [x0], #16
+	aese	v16.16b, v0.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v1.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v2.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v3.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v4.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v5.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v6.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v7.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v8.16b
+	aesmc	v16.16b, v16.16b
+	aese	v16.16b, v9.16b
+	eor	v16.16b, v16.16b, v10.16b
+	eor	v20.16b, v20.16b, v16.16b
+	st1	{v20.16b}, [x1], #16
+	sub	x6, x6, #1
+	b	L_AES_GCMSIV_ctr_aarch64_128_loop1
+L_AES_GCMSIV_ctr_aarch64_128_done1:
+#endif /* !NO_AES_128 */
+L_AES_GCMSIV_ctr_aarch64_done:
+	mov	v15.s[0], w7
+	st1	{v15.2d}, [x5]
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	AES_GCMSIV_ctr_aarch64,.-AES_GCMSIV_ctr_aarch64
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #ifndef WOLFSSL_ARMASM_NO_NEON
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
@@ -51280,6 +52347,1226 @@ L_AES_XTS_decrypt_NEON_data_done:
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_XTS */
+#ifdef WOLFSSL_AESGCM_SIV
+#ifndef __APPLE__
+.text
+.globl	AES_GCMSIV_polyval_neon
+.type	AES_GCMSIV_polyval_neon,@function
+.align	2
+AES_GCMSIV_polyval_neon:
+#else
+.section	__TEXT,__text
+.globl	_AES_GCMSIV_polyval_neon
+.p2align	2
+_AES_GCMSIV_polyval_neon:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+	ld1	{v18.2d}, [x0]
+	ld1	{v10.2d}, [x1]
+	movi	v19.16b, #15
+	eor	v20.16b, v20.16b, v20.16b
+	rev64	v10.16b, v10.16b
+	ext	v10.16b, v10.16b, v10.16b, #8
+	rbit	v10.16b, v10.16b
+	rbit	v18.16b, v18.16b
+	and	v12.16b, v10.16b, v19.16b
+	ushr	v13.16b, v10.16b, #4
+	eor	v14.16b, v12.16b, v13.16b
+	cbz	w3, L_AES_GCMSIV_polyval_neon_done
+L_AES_GCMSIV_polyval_neon_loop:
+	ld1	{v0.16b}, [x2], #16
+	rev64	v0.16b, v0.16b
+	ext	v0.16b, v0.16b, v0.16b, #8
+	rbit	v0.16b, v0.16b
+	eor	v18.16b, v18.16b, v0.16b
+	and	v15.16b, v18.16b, v19.16b
+	ushr	v16.16b, v18.16b, #4
+	eor	v17.16b, v15.16b, v16.16b
+	dup	v0.16b, v12.b[0]
+	dup	v2.16b, v14.b[0]
+	dup	v1.16b, v13.b[0]
+	pmul	v8.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v8.16b
+	eor	v5.16b, v5.16b, v4.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v8.16b, v8.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	dup	v0.16b, v12.b[1]
+	dup	v2.16b, v14.b[1]
+	dup	v1.16b, v13.b[1]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v6.16b, v20.16b, v3.16b, #15
+	ext	v9.16b, v3.16b, v20.16b, #15
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[2]
+	dup	v2.16b, v14.b[2]
+	dup	v1.16b, v13.b[2]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #14
+	ext	v6.16b, v20.16b, v3.16b, #14
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[3]
+	dup	v2.16b, v14.b[3]
+	dup	v1.16b, v13.b[3]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #13
+	ext	v6.16b, v20.16b, v3.16b, #13
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[4]
+	dup	v2.16b, v14.b[4]
+	dup	v1.16b, v13.b[4]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #12
+	ext	v6.16b, v20.16b, v3.16b, #12
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[5]
+	dup	v2.16b, v14.b[5]
+	dup	v1.16b, v13.b[5]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #11
+	ext	v6.16b, v20.16b, v3.16b, #11
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[6]
+	dup	v2.16b, v14.b[6]
+	dup	v1.16b, v13.b[6]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #10
+	ext	v6.16b, v20.16b, v3.16b, #10
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[7]
+	dup	v2.16b, v14.b[7]
+	dup	v1.16b, v13.b[7]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #9
+	ext	v6.16b, v20.16b, v3.16b, #9
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[8]
+	dup	v2.16b, v14.b[8]
+	dup	v1.16b, v13.b[8]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #8
+	ext	v6.16b, v20.16b, v3.16b, #8
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[9]
+	dup	v2.16b, v14.b[9]
+	dup	v1.16b, v13.b[9]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #7
+	ext	v6.16b, v20.16b, v3.16b, #7
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[10]
+	dup	v2.16b, v14.b[10]
+	dup	v1.16b, v13.b[10]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #6
+	ext	v6.16b, v20.16b, v3.16b, #6
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[11]
+	dup	v2.16b, v14.b[11]
+	dup	v1.16b, v13.b[11]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #5
+	ext	v6.16b, v20.16b, v3.16b, #5
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[12]
+	dup	v2.16b, v14.b[12]
+	dup	v1.16b, v13.b[12]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #4
+	ext	v6.16b, v20.16b, v3.16b, #4
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[13]
+	dup	v2.16b, v14.b[13]
+	dup	v1.16b, v13.b[13]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #3
+	ext	v6.16b, v20.16b, v3.16b, #3
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[14]
+	dup	v2.16b, v14.b[14]
+	dup	v1.16b, v13.b[14]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #2
+	ext	v6.16b, v20.16b, v3.16b, #2
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	dup	v0.16b, v12.b[15]
+	dup	v2.16b, v14.b[15]
+	dup	v1.16b, v13.b[15]
+	pmul	v3.16b, v15.16b, v0.16b
+	pmul	v5.16b, v17.16b, v2.16b
+	pmul	v4.16b, v16.16b, v1.16b
+	eor	v5.16b, v5.16b, v3.16b
+	eor	v5.16b, v5.16b, v4.16b
+	eor	v3.16b, v3.16b, v11.16b
+	shl	v6.16b, v5.16b, #4
+	ushr	v7.16b, v5.16b, #4
+	eor	v3.16b, v3.16b, v6.16b
+	eor	v11.16b, v4.16b, v7.16b
+	ext	v7.16b, v3.16b, v20.16b, #1
+	ext	v6.16b, v20.16b, v3.16b, #1
+	eor	v9.16b, v9.16b, v7.16b
+	eor	v8.16b, v8.16b, v6.16b
+	eor	v9.16b, v9.16b, v11.16b
+	shl	v0.16b, v9.16b, #1
+	shl	v1.16b, v9.16b, #2
+	shl	v2.16b, v9.16b, #7
+	ushr	v3.16b, v9.16b, #7
+	ushr	v4.16b, v9.16b, #6
+	ushr	v5.16b, v9.16b, #1
+	eor	v0.16b, v0.16b, v9.16b
+	eor	v1.16b, v1.16b, v2.16b
+	eor	v0.16b, v0.16b, v1.16b
+	eor	v8.16b, v8.16b, v0.16b
+	ext	v0.16b, v20.16b, v3.16b, #15
+	ext	v1.16b, v20.16b, v4.16b, #15
+	ext	v2.16b, v20.16b, v5.16b, #15
+	ext	v4.16b, v4.16b, v20.16b, #15
+	ext	v5.16b, v5.16b, v20.16b, #15
+	eor	v0.16b, v0.16b, v1.16b
+	eor	v8.16b, v8.16b, v2.16b
+	eor	v8.16b, v8.16b, v0.16b
+	eor	v3.16b, v4.16b, v5.16b
+	shl	v0.2d, v3.2d, #1
+	shl	v1.2d, v3.2d, #2
+	shl	v2.2d, v3.2d, #7
+	eor	v3.16b, v3.16b, v0.16b
+	eor	v1.16b, v1.16b, v2.16b
+	eor	v8.16b, v8.16b, v3.16b
+	eor	v18.16b, v8.16b, v1.16b
+	subs	w3, w3, #1
+	bne	L_AES_GCMSIV_polyval_neon_loop
+L_AES_GCMSIV_polyval_neon_done:
+	rbit	v18.16b, v18.16b
+	st1	{v18.2d}, [x0]
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	AES_GCMSIV_polyval_neon,.-AES_GCMSIV_polyval_neon
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	.text
+	.section	.rodata
+	.type	L_AES_GCMSIV_ctr_neon_te, %object
+	.size	L_AES_GCMSIV_ctr_neon_te, 256
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_ctr_neon_te:
+	.byte	0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5
+	.byte	0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76
+	.byte	0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0
+	.byte	0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0
+	.byte	0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc
+	.byte	0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15
+	.byte	0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a
+	.byte	0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75
+	.byte	0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0
+	.byte	0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84
+	.byte	0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b
+	.byte	0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf
+	.byte	0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85
+	.byte	0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8
+	.byte	0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5
+	.byte	0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2
+	.byte	0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17
+	.byte	0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73
+	.byte	0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88
+	.byte	0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb
+	.byte	0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c
+	.byte	0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79
+	.byte	0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9
+	.byte	0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08
+	.byte	0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6
+	.byte	0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a
+	.byte	0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e
+	.byte	0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e
+	.byte	0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94
+	.byte	0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf
+	.byte	0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68
+	.byte	0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
+#ifndef __APPLE__
+	.text
+	.section	.rodata
+	.type	L_AES_GCMSIV_ctr_neon_shuffle, %object
+	.size	L_AES_GCMSIV_ctr_neon_shuffle, 16
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_ctr_neon_shuffle:
+	.byte	0x0c,0x09,0x06,0x03,0x00,0x0d,0x0a,0x07
+	.byte	0x04,0x01,0x0e,0x0b,0x08,0x05,0x02,0x0f
+#ifndef __APPLE__
+.text
+.globl	AES_GCMSIV_ctr_neon
+.type	AES_GCMSIV_ctr_neon,@function
+.align	2
+AES_GCMSIV_ctr_neon:
+#else
+.section	__TEXT,__text
+.globl	_AES_GCMSIV_ctr_neon
+.p2align	2
+_AES_GCMSIV_ctr_neon:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+#ifndef __APPLE__
+	adrp x6, L_AES_GCMSIV_ctr_neon_te
+	add  x6, x6, :lo12:L_AES_GCMSIV_ctr_neon_te
+#else
+	adrp x6, L_AES_GCMSIV_ctr_neon_te@PAGE
+	add  x6, x6, L_AES_GCMSIV_ctr_neon_te@PAGEOFF
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	adrp x7, L_AES_GCMSIV_ctr_neon_shuffle
+	add  x7, x7, :lo12:L_AES_GCMSIV_ctr_neon_shuffle
+#else
+	adrp x7, L_AES_GCMSIV_ctr_neon_shuffle@PAGE
+	add  x7, x7, L_AES_GCMSIV_ctr_neon_shuffle@PAGEOFF
+#endif /* __APPLE__ */
+	ld1	{v16.16b, v17.16b, v18.16b, v19.16b}, [x6], #0x40
+	ld1	{v20.16b, v21.16b, v22.16b, v23.16b}, [x6], #0x40
+	ld1	{v24.16b, v25.16b, v26.16b, v27.16b}, [x6], #0x40
+	ld1	{v28.16b, v29.16b, v30.16b, v31.16b}, [x6]
+	ldr	w10, [x5]
+	cmp	x2, #0x40
+	blt	L_AES_GCMSIV_ctr_neon_start_2
+L_AES_GCMSIV_ctr_neon_loop_4:
+	mov	x9, x3
+	ld1	{v4.2d}, [x9], #16
+	# Round: 0 - build counters and XOR in key schedule
+	ld1	{v0.2d}, [x5]
+	mov	v0.s[0], w10
+	rev32	v0.16b, v0.16b
+	eor	v0.16b, v0.16b, v4.16b
+	ld1	{v1.2d}, [x5]
+	add	w8, w10, #1
+	mov	v1.s[0], w8
+	rev32	v1.16b, v1.16b
+	eor	v1.16b, v1.16b, v4.16b
+	ld1	{v2.2d}, [x5]
+	add	w8, w10, #2
+	mov	v2.s[0], w8
+	rev32	v2.16b, v2.16b
+	eor	v2.16b, v2.16b, v4.16b
+	ld1	{v3.2d}, [x5]
+	add	w8, w10, #3
+	mov	v3.s[0], w8
+	rev32	v3.16b, v3.16b
+	eor	v3.16b, v3.16b, v4.16b
+	add	w10, w10, #4
+	sub	w8, w4, #2
+L_AES_GCMSIV_ctr_neon_loop_nr_4:
+	tbl	v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v0.16b
+	tbl	v5.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v1.16b
+	tbl	v6.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v2.16b
+	tbl	v7.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v3.16b
+	movi	v12.16b, #0x40
+	movi	v13.16b, #0x80
+	movi	v14.16b, #0xc0
+	eor	v8.16b, v0.16b, v12.16b
+	eor	v9.16b, v1.16b, v12.16b
+	eor	v10.16b, v2.16b, v12.16b
+	eor	v11.16b, v3.16b, v12.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	tbl	v10.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v10.16b
+	tbl	v11.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	orr	v6.16b, v6.16b, v10.16b
+	orr	v7.16b, v7.16b, v11.16b
+	eor	v8.16b, v0.16b, v13.16b
+	eor	v9.16b, v1.16b, v13.16b
+	eor	v10.16b, v2.16b, v13.16b
+	eor	v11.16b, v3.16b, v13.16b
+	tbl	v8.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	orr	v6.16b, v6.16b, v10.16b
+	orr	v7.16b, v7.16b, v11.16b
+	eor	v8.16b, v0.16b, v14.16b
+	eor	v9.16b, v1.16b, v14.16b
+	eor	v10.16b, v2.16b, v14.16b
+	eor	v11.16b, v3.16b, v14.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	tbl	v11.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	orr	v6.16b, v6.16b, v10.16b
+	orr	v7.16b, v7.16b, v11.16b
+	ld1	{v0.16b}, [x7]
+	tbl	v4.16b, {v4.16b}, v0.16b
+	tbl	v5.16b, {v5.16b}, v0.16b
+	tbl	v6.16b, {v6.16b}, v0.16b
+	tbl	v7.16b, {v7.16b}, v0.16b
+	sshr	v8.16b, v4.16b, #7
+	sshr	v9.16b, v5.16b, #7
+	sshr	v10.16b, v6.16b, #7
+	sshr	v11.16b, v7.16b, #7
+	shl	v12.16b, v4.16b, #1
+	shl	v13.16b, v5.16b, #1
+	shl	v14.16b, v6.16b, #1
+	shl	v15.16b, v7.16b, #1
+	movi	v0.16b, #27
+	and	v8.16b, v8.16b, v0.16b
+	and	v9.16b, v9.16b, v0.16b
+	and	v10.16b, v10.16b, v0.16b
+	and	v11.16b, v11.16b, v0.16b
+	eor	v8.16b, v8.16b, v12.16b
+	eor	v9.16b, v9.16b, v13.16b
+	eor	v10.16b, v10.16b, v14.16b
+	eor	v11.16b, v11.16b, v15.16b
+	eor	v0.16b, v8.16b, v4.16b
+	eor	v1.16b, v9.16b, v5.16b
+	eor	v2.16b, v10.16b, v6.16b
+	eor	v3.16b, v11.16b, v7.16b
+	shl	v12.4s, v0.4s, #8
+	shl	v13.4s, v1.4s, #8
+	shl	v14.4s, v2.4s, #8
+	shl	v15.4s, v3.4s, #8
+	sri	v12.4s, v0.4s, #24
+	sri	v13.4s, v1.4s, #24
+	sri	v14.4s, v2.4s, #24
+	sri	v15.4s, v3.4s, #24
+	shl	v0.4s, v4.4s, #24
+	shl	v1.4s, v5.4s, #24
+	shl	v2.4s, v6.4s, #24
+	shl	v3.4s, v7.4s, #24
+	sri	v0.4s, v4.4s, #8
+	sri	v1.4s, v5.4s, #8
+	sri	v2.4s, v6.4s, #8
+	sri	v3.4s, v7.4s, #8
+	rev32	v4.8h, v4.8h
+	rev32	v5.8h, v5.8h
+	rev32	v6.8h, v6.8h
+	rev32	v7.8h, v7.8h
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v1.16b
+	eor	v6.16b, v6.16b, v2.16b
+	eor	v7.16b, v7.16b, v3.16b
+	#   XOR in Key Schedule
+	ld1	{v0.2d}, [x9], #16
+	eor	v4.16b, v4.16b, v8.16b
+	eor	v5.16b, v5.16b, v9.16b
+	eor	v6.16b, v6.16b, v10.16b
+	eor	v7.16b, v7.16b, v11.16b
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v0.16b
+	eor	v6.16b, v6.16b, v0.16b
+	eor	v7.16b, v7.16b, v0.16b
+	eor	v4.16b, v4.16b, v12.16b
+	eor	v5.16b, v5.16b, v13.16b
+	eor	v6.16b, v6.16b, v14.16b
+	eor	v7.16b, v7.16b, v15.16b
+	# Round Done
+	tbl	v0.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v4.16b
+	tbl	v1.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v5.16b
+	tbl	v2.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v6.16b
+	tbl	v3.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v7.16b
+	movi	v12.16b, #0x40
+	movi	v13.16b, #0x80
+	movi	v14.16b, #0xc0
+	eor	v8.16b, v4.16b, v12.16b
+	eor	v9.16b, v5.16b, v12.16b
+	eor	v10.16b, v6.16b, v12.16b
+	eor	v11.16b, v7.16b, v12.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	tbl	v10.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v10.16b
+	tbl	v11.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	orr	v2.16b, v2.16b, v10.16b
+	orr	v3.16b, v3.16b, v11.16b
+	eor	v8.16b, v4.16b, v13.16b
+	eor	v9.16b, v5.16b, v13.16b
+	eor	v10.16b, v6.16b, v13.16b
+	eor	v11.16b, v7.16b, v13.16b
+	tbl	v8.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	orr	v2.16b, v2.16b, v10.16b
+	orr	v3.16b, v3.16b, v11.16b
+	eor	v8.16b, v4.16b, v14.16b
+	eor	v9.16b, v5.16b, v14.16b
+	eor	v10.16b, v6.16b, v14.16b
+	eor	v11.16b, v7.16b, v14.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	tbl	v11.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	orr	v2.16b, v2.16b, v10.16b
+	orr	v3.16b, v3.16b, v11.16b
+	ld1	{v4.16b}, [x7]
+	tbl	v0.16b, {v0.16b}, v4.16b
+	tbl	v1.16b, {v1.16b}, v4.16b
+	tbl	v2.16b, {v2.16b}, v4.16b
+	tbl	v3.16b, {v3.16b}, v4.16b
+	sshr	v8.16b, v0.16b, #7
+	sshr	v9.16b, v1.16b, #7
+	sshr	v10.16b, v2.16b, #7
+	sshr	v11.16b, v3.16b, #7
+	shl	v12.16b, v0.16b, #1
+	shl	v13.16b, v1.16b, #1
+	shl	v14.16b, v2.16b, #1
+	shl	v15.16b, v3.16b, #1
+	movi	v4.16b, #27
+	and	v8.16b, v8.16b, v4.16b
+	and	v9.16b, v9.16b, v4.16b
+	and	v10.16b, v10.16b, v4.16b
+	and	v11.16b, v11.16b, v4.16b
+	eor	v8.16b, v8.16b, v12.16b
+	eor	v9.16b, v9.16b, v13.16b
+	eor	v10.16b, v10.16b, v14.16b
+	eor	v11.16b, v11.16b, v15.16b
+	eor	v4.16b, v8.16b, v0.16b
+	eor	v5.16b, v9.16b, v1.16b
+	eor	v6.16b, v10.16b, v2.16b
+	eor	v7.16b, v11.16b, v3.16b
+	shl	v12.4s, v4.4s, #8
+	shl	v13.4s, v5.4s, #8
+	shl	v14.4s, v6.4s, #8
+	shl	v15.4s, v7.4s, #8
+	sri	v12.4s, v4.4s, #24
+	sri	v13.4s, v5.4s, #24
+	sri	v14.4s, v6.4s, #24
+	sri	v15.4s, v7.4s, #24
+	shl	v4.4s, v0.4s, #24
+	shl	v5.4s, v1.4s, #24
+	shl	v6.4s, v2.4s, #24
+	shl	v7.4s, v3.4s, #24
+	sri	v4.4s, v0.4s, #8
+	sri	v5.4s, v1.4s, #8
+	sri	v6.4s, v2.4s, #8
+	sri	v7.4s, v3.4s, #8
+	rev32	v0.8h, v0.8h
+	rev32	v1.8h, v1.8h
+	rev32	v2.8h, v2.8h
+	rev32	v3.8h, v3.8h
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	#   XOR in Key Schedule
+	ld1	{v4.2d}, [x9], #16
+	eor	v0.16b, v0.16b, v8.16b
+	eor	v1.16b, v1.16b, v9.16b
+	eor	v2.16b, v2.16b, v10.16b
+	eor	v3.16b, v3.16b, v11.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v4.16b
+	eor	v2.16b, v2.16b, v4.16b
+	eor	v3.16b, v3.16b, v4.16b
+	eor	v0.16b, v0.16b, v12.16b
+	eor	v1.16b, v1.16b, v13.16b
+	eor	v2.16b, v2.16b, v14.16b
+	eor	v3.16b, v3.16b, v15.16b
+	# Round Done
+	subs	w8, w8, #2
+	bne	L_AES_GCMSIV_ctr_neon_loop_nr_4
+	tbl	v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v0.16b
+	tbl	v5.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v1.16b
+	tbl	v6.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v2.16b
+	tbl	v7.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v3.16b
+	movi	v12.16b, #0x40
+	movi	v13.16b, #0x80
+	movi	v14.16b, #0xc0
+	eor	v8.16b, v0.16b, v12.16b
+	eor	v9.16b, v1.16b, v12.16b
+	eor	v10.16b, v2.16b, v12.16b
+	eor	v11.16b, v3.16b, v12.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	tbl	v10.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v10.16b
+	tbl	v11.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	orr	v6.16b, v6.16b, v10.16b
+	orr	v7.16b, v7.16b, v11.16b
+	eor	v8.16b, v0.16b, v13.16b
+	eor	v9.16b, v1.16b, v13.16b
+	eor	v10.16b, v2.16b, v13.16b
+	eor	v11.16b, v3.16b, v13.16b
+	tbl	v8.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	orr	v6.16b, v6.16b, v10.16b
+	orr	v7.16b, v7.16b, v11.16b
+	eor	v8.16b, v0.16b, v14.16b
+	eor	v9.16b, v1.16b, v14.16b
+	eor	v10.16b, v2.16b, v14.16b
+	eor	v11.16b, v3.16b, v14.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	tbl	v11.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	orr	v6.16b, v6.16b, v10.16b
+	orr	v7.16b, v7.16b, v11.16b
+	ld1	{v0.16b}, [x7]
+	tbl	v4.16b, {v4.16b}, v0.16b
+	tbl	v5.16b, {v5.16b}, v0.16b
+	tbl	v6.16b, {v6.16b}, v0.16b
+	tbl	v7.16b, {v7.16b}, v0.16b
+	sshr	v8.16b, v4.16b, #7
+	sshr	v9.16b, v5.16b, #7
+	sshr	v10.16b, v6.16b, #7
+	sshr	v11.16b, v7.16b, #7
+	shl	v12.16b, v4.16b, #1
+	shl	v13.16b, v5.16b, #1
+	shl	v14.16b, v6.16b, #1
+	shl	v15.16b, v7.16b, #1
+	movi	v0.16b, #27
+	and	v8.16b, v8.16b, v0.16b
+	and	v9.16b, v9.16b, v0.16b
+	and	v10.16b, v10.16b, v0.16b
+	and	v11.16b, v11.16b, v0.16b
+	eor	v8.16b, v8.16b, v12.16b
+	eor	v9.16b, v9.16b, v13.16b
+	eor	v10.16b, v10.16b, v14.16b
+	eor	v11.16b, v11.16b, v15.16b
+	eor	v0.16b, v8.16b, v4.16b
+	eor	v1.16b, v9.16b, v5.16b
+	eor	v2.16b, v10.16b, v6.16b
+	eor	v3.16b, v11.16b, v7.16b
+	shl	v12.4s, v0.4s, #8
+	shl	v13.4s, v1.4s, #8
+	shl	v14.4s, v2.4s, #8
+	shl	v15.4s, v3.4s, #8
+	sri	v12.4s, v0.4s, #24
+	sri	v13.4s, v1.4s, #24
+	sri	v14.4s, v2.4s, #24
+	sri	v15.4s, v3.4s, #24
+	shl	v0.4s, v4.4s, #24
+	shl	v1.4s, v5.4s, #24
+	shl	v2.4s, v6.4s, #24
+	shl	v3.4s, v7.4s, #24
+	sri	v0.4s, v4.4s, #8
+	sri	v1.4s, v5.4s, #8
+	sri	v2.4s, v6.4s, #8
+	sri	v3.4s, v7.4s, #8
+	rev32	v4.8h, v4.8h
+	rev32	v5.8h, v5.8h
+	rev32	v6.8h, v6.8h
+	rev32	v7.8h, v7.8h
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v1.16b
+	eor	v6.16b, v6.16b, v2.16b
+	eor	v7.16b, v7.16b, v3.16b
+	#   XOR in Key Schedule
+	ld1	{v0.2d}, [x9], #16
+	eor	v4.16b, v4.16b, v8.16b
+	eor	v5.16b, v5.16b, v9.16b
+	eor	v6.16b, v6.16b, v10.16b
+	eor	v7.16b, v7.16b, v11.16b
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v0.16b
+	eor	v6.16b, v6.16b, v0.16b
+	eor	v7.16b, v7.16b, v0.16b
+	eor	v4.16b, v4.16b, v12.16b
+	eor	v5.16b, v5.16b, v13.16b
+	eor	v6.16b, v6.16b, v14.16b
+	eor	v7.16b, v7.16b, v15.16b
+	# Round Done
+	tbl	v0.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v4.16b
+	tbl	v1.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v5.16b
+	tbl	v2.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v6.16b
+	tbl	v3.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v7.16b
+	movi	v12.16b, #0x40
+	movi	v13.16b, #0x80
+	movi	v14.16b, #0xc0
+	eor	v8.16b, v4.16b, v12.16b
+	eor	v9.16b, v5.16b, v12.16b
+	eor	v10.16b, v6.16b, v12.16b
+	eor	v11.16b, v7.16b, v12.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	tbl	v10.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v10.16b
+	tbl	v11.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	orr	v2.16b, v2.16b, v10.16b
+	orr	v3.16b, v3.16b, v11.16b
+	eor	v8.16b, v4.16b, v13.16b
+	eor	v9.16b, v5.16b, v13.16b
+	eor	v10.16b, v6.16b, v13.16b
+	eor	v11.16b, v7.16b, v13.16b
+	tbl	v8.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	orr	v2.16b, v2.16b, v10.16b
+	orr	v3.16b, v3.16b, v11.16b
+	eor	v8.16b, v4.16b, v14.16b
+	eor	v9.16b, v5.16b, v14.16b
+	eor	v10.16b, v6.16b, v14.16b
+	eor	v11.16b, v7.16b, v14.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	tbl	v11.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	orr	v2.16b, v2.16b, v10.16b
+	orr	v3.16b, v3.16b, v11.16b
+	ld1	{v4.16b}, [x7]
+	tbl	v0.16b, {v0.16b}, v4.16b
+	tbl	v1.16b, {v1.16b}, v4.16b
+	tbl	v2.16b, {v2.16b}, v4.16b
+	tbl	v3.16b, {v3.16b}, v4.16b
+	#   XOR in Key Schedule
+	ld1	{v4.2d}, [x9], #16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v4.16b
+	eor	v2.16b, v2.16b, v4.16b
+	eor	v3.16b, v3.16b, v4.16b
+	# Round Done
+	rev32	v0.16b, v0.16b
+	rev32	v1.16b, v1.16b
+	rev32	v2.16b, v2.16b
+	rev32	v3.16b, v3.16b
+	ld1	{v4.16b, v5.16b, v6.16b, v7.16b}, [x0], #0x40
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	sub	x2, x2, #0x40
+	cmp	x2, #0x40
+	bge	L_AES_GCMSIV_ctr_neon_loop_4
+L_AES_GCMSIV_ctr_neon_start_2:
+	movi	v12.16b, #0x40
+	movi	v13.16b, #0x80
+	movi	v14.16b, #0xc0
+	movi	v15.16b, #27
+	cmp	x2, #16
+	beq	L_AES_GCMSIV_ctr_neon_start_1
+	blt	L_AES_GCMSIV_ctr_neon_data_done
+L_AES_GCMSIV_ctr_neon_loop_2:
+	mov	x9, x3
+	ld1	{v4.2d}, [x9], #16
+	# Round: 0 - build counters and XOR in key schedule
+	ld1	{v0.2d}, [x5]
+	mov	v0.s[0], w10
+	rev32	v0.16b, v0.16b
+	eor	v0.16b, v0.16b, v4.16b
+	ld1	{v1.2d}, [x5]
+	add	w8, w10, #1
+	mov	v1.s[0], w8
+	rev32	v1.16b, v1.16b
+	eor	v1.16b, v1.16b, v4.16b
+	add	w10, w10, #2
+	sub	w8, w4, #2
+L_AES_GCMSIV_ctr_neon_loop_nr_2:
+	eor	v8.16b, v0.16b, v12.16b
+	eor	v9.16b, v1.16b, v12.16b
+	tbl	v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v0.16b
+	tbl	v5.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v1.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	eor	v10.16b, v0.16b, v13.16b
+	eor	v11.16b, v1.16b, v13.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	eor	v8.16b, v0.16b, v14.16b
+	eor	v9.16b, v1.16b, v14.16b
+	orr	v4.16b, v4.16b, v10.16b
+	orr	v5.16b, v5.16b, v11.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	ld1	{v0.16b}, [x7]
+	tbl	v4.16b, {v4.16b}, v0.16b
+	tbl	v5.16b, {v5.16b}, v0.16b
+	sshr	v8.16b, v4.16b, #7
+	sshr	v9.16b, v5.16b, #7
+	shl	v10.16b, v4.16b, #1
+	shl	v11.16b, v5.16b, #1
+	and	v8.16b, v8.16b, v15.16b
+	and	v9.16b, v9.16b, v15.16b
+	eor	v8.16b, v8.16b, v10.16b
+	eor	v9.16b, v9.16b, v11.16b
+	eor	v0.16b, v8.16b, v4.16b
+	eor	v1.16b, v9.16b, v5.16b
+	shl	v10.4s, v0.4s, #8
+	shl	v11.4s, v1.4s, #8
+	sri	v10.4s, v0.4s, #24
+	sri	v11.4s, v1.4s, #24
+	shl	v0.4s, v4.4s, #24
+	shl	v1.4s, v5.4s, #24
+	sri	v0.4s, v4.4s, #8
+	sri	v1.4s, v5.4s, #8
+	rev32	v4.8h, v4.8h
+	rev32	v5.8h, v5.8h
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v1.16b
+	#   XOR in Key Schedule
+	ld1	{v0.2d}, [x9], #16
+	eor	v4.16b, v4.16b, v8.16b
+	eor	v5.16b, v5.16b, v9.16b
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v0.16b
+	eor	v4.16b, v4.16b, v10.16b
+	eor	v5.16b, v5.16b, v11.16b
+	# Round Done
+	eor	v8.16b, v4.16b, v12.16b
+	eor	v9.16b, v5.16b, v12.16b
+	tbl	v0.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v4.16b
+	tbl	v1.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v5.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	eor	v10.16b, v4.16b, v13.16b
+	eor	v11.16b, v5.16b, v13.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	eor	v8.16b, v4.16b, v14.16b
+	eor	v9.16b, v5.16b, v14.16b
+	orr	v0.16b, v0.16b, v10.16b
+	orr	v1.16b, v1.16b, v11.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	ld1	{v4.16b}, [x7]
+	tbl	v0.16b, {v0.16b}, v4.16b
+	tbl	v1.16b, {v1.16b}, v4.16b
+	sshr	v8.16b, v0.16b, #7
+	sshr	v9.16b, v1.16b, #7
+	shl	v10.16b, v0.16b, #1
+	shl	v11.16b, v1.16b, #1
+	and	v8.16b, v8.16b, v15.16b
+	and	v9.16b, v9.16b, v15.16b
+	eor	v8.16b, v8.16b, v10.16b
+	eor	v9.16b, v9.16b, v11.16b
+	eor	v4.16b, v8.16b, v0.16b
+	eor	v5.16b, v9.16b, v1.16b
+	shl	v10.4s, v4.4s, #8
+	shl	v11.4s, v5.4s, #8
+	sri	v10.4s, v4.4s, #24
+	sri	v11.4s, v5.4s, #24
+	shl	v4.4s, v0.4s, #24
+	shl	v5.4s, v1.4s, #24
+	sri	v4.4s, v0.4s, #8
+	sri	v5.4s, v1.4s, #8
+	rev32	v0.8h, v0.8h
+	rev32	v1.8h, v1.8h
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	#   XOR in Key Schedule
+	ld1	{v4.2d}, [x9], #16
+	eor	v0.16b, v0.16b, v8.16b
+	eor	v1.16b, v1.16b, v9.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v4.16b
+	eor	v0.16b, v0.16b, v10.16b
+	eor	v1.16b, v1.16b, v11.16b
+	# Round Done
+	subs	w8, w8, #2
+	bne	L_AES_GCMSIV_ctr_neon_loop_nr_2
+	eor	v8.16b, v0.16b, v12.16b
+	eor	v9.16b, v1.16b, v12.16b
+	tbl	v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v0.16b
+	tbl	v5.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v1.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	eor	v10.16b, v0.16b, v13.16b
+	eor	v11.16b, v1.16b, v13.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	eor	v8.16b, v0.16b, v14.16b
+	eor	v9.16b, v1.16b, v14.16b
+	orr	v4.16b, v4.16b, v10.16b
+	orr	v5.16b, v5.16b, v11.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v5.16b, v5.16b, v9.16b
+	ld1	{v0.16b}, [x7]
+	tbl	v4.16b, {v4.16b}, v0.16b
+	tbl	v5.16b, {v5.16b}, v0.16b
+	sshr	v8.16b, v4.16b, #7
+	sshr	v9.16b, v5.16b, #7
+	shl	v10.16b, v4.16b, #1
+	shl	v11.16b, v5.16b, #1
+	and	v8.16b, v8.16b, v15.16b
+	and	v9.16b, v9.16b, v15.16b
+	eor	v8.16b, v8.16b, v10.16b
+	eor	v9.16b, v9.16b, v11.16b
+	eor	v0.16b, v8.16b, v4.16b
+	eor	v1.16b, v9.16b, v5.16b
+	shl	v10.4s, v0.4s, #8
+	shl	v11.4s, v1.4s, #8
+	sri	v10.4s, v0.4s, #24
+	sri	v11.4s, v1.4s, #24
+	shl	v0.4s, v4.4s, #24
+	shl	v1.4s, v5.4s, #24
+	sri	v0.4s, v4.4s, #8
+	sri	v1.4s, v5.4s, #8
+	rev32	v4.8h, v4.8h
+	rev32	v5.8h, v5.8h
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v1.16b
+	#   XOR in Key Schedule
+	ld1	{v0.2d}, [x9], #16
+	eor	v4.16b, v4.16b, v8.16b
+	eor	v5.16b, v5.16b, v9.16b
+	eor	v4.16b, v4.16b, v0.16b
+	eor	v5.16b, v5.16b, v0.16b
+	eor	v4.16b, v4.16b, v10.16b
+	eor	v5.16b, v5.16b, v11.16b
+	# Round Done
+	eor	v8.16b, v4.16b, v12.16b
+	eor	v9.16b, v5.16b, v12.16b
+	tbl	v0.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v4.16b
+	tbl	v1.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v5.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v9.16b
+	eor	v10.16b, v4.16b, v13.16b
+	eor	v11.16b, v5.16b, v13.16b
+	tbl	v10.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v10.16b
+	tbl	v11.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v11.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	eor	v8.16b, v4.16b, v14.16b
+	eor	v9.16b, v5.16b, v14.16b
+	orr	v0.16b, v0.16b, v10.16b
+	orr	v1.16b, v1.16b, v11.16b
+	tbl	v8.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v8.16b
+	tbl	v9.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v9.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v1.16b, v1.16b, v9.16b
+	ld1	{v4.16b}, [x7]
+	tbl	v0.16b, {v0.16b}, v4.16b
+	tbl	v1.16b, {v1.16b}, v4.16b
+	#   XOR in Key Schedule
+	ld1	{v4.2d}, [x9], #16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v4.16b
+	# Round Done
+	rev32	v0.16b, v0.16b
+	rev32	v1.16b, v1.16b
+	ld1	{v4.16b, v5.16b}, [x0], #32
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	st1	{v0.16b, v1.16b}, [x1], #32
+	sub	x2, x2, #32
+	cmp	x2, #0
+	beq	L_AES_GCMSIV_ctr_neon_data_done
+L_AES_GCMSIV_ctr_neon_start_1:
+	ld1	{v3.2d}, [x7]
+	mov	x9, x3
+	ld1	{v4.2d}, [x9], #16
+	# Round: 0 - build counter and XOR in key schedule
+	ld1	{v0.2d}, [x5]
+	mov	v0.s[0], w10
+	rev32	v0.16b, v0.16b
+	eor	v0.16b, v0.16b, v4.16b
+	add	w10, w10, #1
+	sub	w8, w4, #2
+L_AES_GCMSIV_ctr_neon_loop_nr_1:
+	eor	v8.16b, v0.16b, v12.16b
+	eor	v9.16b, v0.16b, v13.16b
+	eor	v10.16b, v0.16b, v14.16b
+	tbl	v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v0.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v9.16b, v9.16b, v10.16b
+	orr	v4.16b, v4.16b, v9.16b
+	tbl	v4.16b, {v4.16b}, v3.16b
+	ld1	{v0.2d}, [x9], #16
+	sshr	v10.16b, v4.16b, #7
+	shl	v9.16b, v4.16b, #1
+	and	v10.16b, v10.16b, v15.16b
+	eor	v10.16b, v10.16b, v9.16b
+	rev32	v8.8h, v4.8h
+	eor	v11.16b, v10.16b, v4.16b
+	eor	v10.16b, v10.16b, v8.16b
+	shl	v9.4s, v4.4s, #24
+	shl	v8.4s, v11.4s, #8
+	#   XOR in Key Schedule
+	eor	v10.16b, v10.16b, v0.16b
+	sri	v9.4s, v4.4s, #8
+	sri	v8.4s, v11.4s, #24
+	eor	v4.16b, v10.16b, v9.16b
+	eor	v4.16b, v4.16b, v8.16b
+	eor	v8.16b, v4.16b, v12.16b
+	eor	v9.16b, v4.16b, v13.16b
+	eor	v10.16b, v4.16b, v14.16b
+	tbl	v0.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v4.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v9.16b, v9.16b, v10.16b
+	orr	v0.16b, v0.16b, v9.16b
+	tbl	v0.16b, {v0.16b}, v3.16b
+	ld1	{v4.2d}, [x9], #16
+	sshr	v10.16b, v0.16b, #7
+	shl	v9.16b, v0.16b, #1
+	and	v10.16b, v10.16b, v15.16b
+	eor	v10.16b, v10.16b, v9.16b
+	rev32	v8.8h, v0.8h
+	eor	v11.16b, v10.16b, v0.16b
+	eor	v10.16b, v10.16b, v8.16b
+	shl	v9.4s, v0.4s, #24
+	shl	v8.4s, v11.4s, #8
+	#   XOR in Key Schedule
+	eor	v10.16b, v10.16b, v4.16b
+	sri	v9.4s, v0.4s, #8
+	sri	v8.4s, v11.4s, #24
+	eor	v0.16b, v10.16b, v9.16b
+	eor	v0.16b, v0.16b, v8.16b
+	subs	w8, w8, #2
+	bne	L_AES_GCMSIV_ctr_neon_loop_nr_1
+	eor	v8.16b, v0.16b, v12.16b
+	eor	v9.16b, v0.16b, v13.16b
+	eor	v10.16b, v0.16b, v14.16b
+	tbl	v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v0.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	orr	v4.16b, v4.16b, v8.16b
+	orr	v9.16b, v9.16b, v10.16b
+	orr	v4.16b, v4.16b, v9.16b
+	tbl	v4.16b, {v4.16b}, v3.16b
+	ld1	{v0.2d}, [x9], #16
+	sshr	v10.16b, v4.16b, #7
+	shl	v9.16b, v4.16b, #1
+	and	v10.16b, v10.16b, v15.16b
+	eor	v10.16b, v10.16b, v9.16b
+	rev32	v8.8h, v4.8h
+	eor	v11.16b, v10.16b, v4.16b
+	eor	v10.16b, v10.16b, v8.16b
+	shl	v9.4s, v4.4s, #24
+	shl	v8.4s, v11.4s, #8
+	#   XOR in Key Schedule
+	eor	v10.16b, v10.16b, v0.16b
+	sri	v9.4s, v4.4s, #8
+	sri	v8.4s, v11.4s, #24
+	eor	v4.16b, v10.16b, v9.16b
+	eor	v4.16b, v4.16b, v8.16b
+	eor	v8.16b, v4.16b, v12.16b
+	eor	v9.16b, v4.16b, v13.16b
+	eor	v10.16b, v4.16b, v14.16b
+	tbl	v0.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v4.16b
+	tbl	v8.16b, {v20.16b, v21.16b, v22.16b, v23.16b}, v8.16b
+	tbl	v9.16b, {v24.16b, v25.16b, v26.16b, v27.16b}, v9.16b
+	tbl	v10.16b, {v28.16b, v29.16b, v30.16b, v31.16b}, v10.16b
+	orr	v0.16b, v0.16b, v8.16b
+	orr	v9.16b, v9.16b, v10.16b
+	orr	v0.16b, v0.16b, v9.16b
+	tbl	v0.16b, {v0.16b}, v3.16b
+	ld1	{v4.2d}, [x9], #16
+	#   XOR in Key Schedule
+	eor	v0.16b, v0.16b, v4.16b
+	rev32	v0.16b, v0.16b
+	ld1	{v4.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v4.16b
+	st1	{v0.16b}, [x1], #16
+L_AES_GCMSIV_ctr_neon_data_done:
+	str	w10, [x5]
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	AES_GCMSIV_ctr_neon,.-AES_GCMSIV_ctr_neon
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
 #ifdef HAVE_AES_DECRYPT
@@ -56774,6 +59061,840 @@ L_AES_XTS_decrypt_done_data:
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_XTS */
+#ifdef WOLFSSL_AESGCM_SIV
+#ifndef __APPLE__
+	.text
+	.section	.rodata
+	.type	L_AES_GCMSIV_polyval_base_r, %object
+	.size	L_AES_GCMSIV_polyval_base_r, 128
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
+#ifndef __APPLE__
+	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
+L_AES_GCMSIV_polyval_base_r:
+	.quad	0x0000000000000000,0x1c20000000000000
+	.quad	0x3840000000000000,0x2460000000000000
+	.quad	0x7080000000000000,0x6ca0000000000000
+	.quad	0x48c0000000000000,0x54e0000000000000
+	.quad	0xe100000000000000,0xfd20000000000000
+	.quad	0xd940000000000000,0xc560000000000000
+	.quad	0x9180000000000000,0x8da0000000000000
+	.quad	0xa9c0000000000000,0xb5e0000000000000
+#ifndef __APPLE__
+.text
+.globl	AES_GCMSIV_polyval_base
+.type	AES_GCMSIV_polyval_base,@function
+.align	2
+AES_GCMSIV_polyval_base:
+#else
+.section	__TEXT,__text
+.globl	_AES_GCMSIV_polyval_base
+.p2align	2
+_AES_GCMSIV_polyval_base:
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	adrp x15, L_AES_GCMSIV_polyval_base_r
+	add  x15, x15, :lo12:L_AES_GCMSIV_polyval_base_r
+#else
+	adrp x15, L_AES_GCMSIV_polyval_base_r@PAGE
+	add  x15, x15, L_AES_GCMSIV_polyval_base_r@PAGEOFF
+#endif /* __APPLE__ */
+	cbz	w3, L_AES_GCMSIV_polyval_base_done
+L_AES_GCMSIV_polyval_base_loop:
+	ldp	x6, x7, [x2]
+	ldp	x4, x5, [x0]
+	rev	x6, x6
+	rev	x7, x7
+	eor	x4, x4, x7
+	eor	x5, x5, x6
+	eor	x8, x8, x8
+	eor	x9, x9, x9
+	ubfx	x12, x5, #56, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #60, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #48, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #52, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #40, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #44, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #32, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #36, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #24, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #28, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #16, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #20, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #8, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #12, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #0, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x5, #4, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #56, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #60, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #48, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #52, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #40, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #44, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #32, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #36, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #24, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #28, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #16, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #20, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #8, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #12, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #0, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	and	x13, x9, #15
+	lsr	x9, x9, #4
+	orr	x9, x9, x8, lsl 60
+	lsr	x8, x8, #4
+	ldr	x10, [x15, x13, LSL 3]
+	eor	x8, x8, x10
+	ubfx	x12, x4, #4, #4
+	add	x14, x1, x12, lsl 4
+	ldp	x10, x11, [x14]
+	eor	x8, x8, x10
+	eor	x9, x9, x11
+	rev	x8, x8
+	rev	x9, x9
+	stp	x8, x9, [x0]
+	subs	w3, w3, #1
+	add	x2, x2, #16
+	bne	L_AES_GCMSIV_polyval_base_loop
+L_AES_GCMSIV_polyval_base_done:
+	ret
+#ifndef __APPLE__
+	.size	AES_GCMSIV_polyval_base,.-AES_GCMSIV_polyval_base
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	.text
+	.section	.rodata
+	.type	L_AES_GCMSIV_ctr_base_te, %object
+	.size	L_AES_GCMSIV_ctr_base_te, 1024
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_ctr_base_te:
+	.long	0xa5c66363,0x84f87c7c,0x99ee7777,0x8df67b7b
+	.long	0x0dfff2f2,0xbdd66b6b,0xb1de6f6f,0x5491c5c5
+	.long	0x50603030,0x03020101,0xa9ce6767,0x7d562b2b
+	.long	0x19e7fefe,0x62b5d7d7,0xe64dabab,0x9aec7676
+	.long	0x458fcaca,0x9d1f8282,0x4089c9c9,0x87fa7d7d
+	.long	0x15effafa,0xebb25959,0xc98e4747,0x0bfbf0f0
+	.long	0xec41adad,0x67b3d4d4,0xfd5fa2a2,0xea45afaf
+	.long	0xbf239c9c,0xf753a4a4,0x96e47272,0x5b9bc0c0
+	.long	0xc275b7b7,0x1ce1fdfd,0xae3d9393,0x6a4c2626
+	.long	0x5a6c3636,0x417e3f3f,0x02f5f7f7,0x4f83cccc
+	.long	0x5c683434,0xf451a5a5,0x34d1e5e5,0x08f9f1f1
+	.long	0x93e27171,0x73abd8d8,0x53623131,0x3f2a1515
+	.long	0x0c080404,0x5295c7c7,0x65462323,0x5e9dc3c3
+	.long	0x28301818,0xa1379696,0x0f0a0505,0xb52f9a9a
+	.long	0x090e0707,0x36241212,0x9b1b8080,0x3ddfe2e2
+	.long	0x26cdebeb,0x694e2727,0xcd7fb2b2,0x9fea7575
+	.long	0x1b120909,0x9e1d8383,0x74582c2c,0x2e341a1a
+	.long	0x2d361b1b,0xb2dc6e6e,0xeeb45a5a,0xfb5ba0a0
+	.long	0xf6a45252,0x4d763b3b,0x61b7d6d6,0xce7db3b3
+	.long	0x7b522929,0x3edde3e3,0x715e2f2f,0x97138484
+	.long	0xf5a65353,0x68b9d1d1,0x00000000,0x2cc1eded
+	.long	0x60402020,0x1fe3fcfc,0xc879b1b1,0xedb65b5b
+	.long	0xbed46a6a,0x468dcbcb,0xd967bebe,0x4b723939
+	.long	0xde944a4a,0xd4984c4c,0xe8b05858,0x4a85cfcf
+	.long	0x6bbbd0d0,0x2ac5efef,0xe54faaaa,0x16edfbfb
+	.long	0xc5864343,0xd79a4d4d,0x55663333,0x94118585
+	.long	0xcf8a4545,0x10e9f9f9,0x06040202,0x81fe7f7f
+	.long	0xf0a05050,0x44783c3c,0xba259f9f,0xe34ba8a8
+	.long	0xf3a25151,0xfe5da3a3,0xc0804040,0x8a058f8f
+	.long	0xad3f9292,0xbc219d9d,0x48703838,0x04f1f5f5
+	.long	0xdf63bcbc,0xc177b6b6,0x75afdada,0x63422121
+	.long	0x30201010,0x1ae5ffff,0x0efdf3f3,0x6dbfd2d2
+	.long	0x4c81cdcd,0x14180c0c,0x35261313,0x2fc3ecec
+	.long	0xe1be5f5f,0xa2359797,0xcc884444,0x392e1717
+	.long	0x5793c4c4,0xf255a7a7,0x82fc7e7e,0x477a3d3d
+	.long	0xacc86464,0xe7ba5d5d,0x2b321919,0x95e67373
+	.long	0xa0c06060,0x98198181,0xd19e4f4f,0x7fa3dcdc
+	.long	0x66442222,0x7e542a2a,0xab3b9090,0x830b8888
+	.long	0xca8c4646,0x29c7eeee,0xd36bb8b8,0x3c281414
+	.long	0x79a7dede,0xe2bc5e5e,0x1d160b0b,0x76addbdb
+	.long	0x3bdbe0e0,0x56643232,0x4e743a3a,0x1e140a0a
+	.long	0xdb924949,0x0a0c0606,0x6c482424,0xe4b85c5c
+	.long	0x5d9fc2c2,0x6ebdd3d3,0xef43acac,0xa6c46262
+	.long	0xa8399191,0xa4319595,0x37d3e4e4,0x8bf27979
+	.long	0x32d5e7e7,0x438bc8c8,0x596e3737,0xb7da6d6d
+	.long	0x8c018d8d,0x64b1d5d5,0xd29c4e4e,0xe049a9a9
+	.long	0xb4d86c6c,0xfaac5656,0x07f3f4f4,0x25cfeaea
+	.long	0xafca6565,0x8ef47a7a,0xe947aeae,0x18100808
+	.long	0xd56fbaba,0x88f07878,0x6f4a2525,0x725c2e2e
+	.long	0x24381c1c,0xf157a6a6,0xc773b4b4,0x5197c6c6
+	.long	0x23cbe8e8,0x7ca1dddd,0x9ce87474,0x213e1f1f
+	.long	0xdd964b4b,0xdc61bdbd,0x860d8b8b,0x850f8a8a
+	.long	0x90e07070,0x427c3e3e,0xc471b5b5,0xaacc6666
+	.long	0xd8904848,0x05060303,0x01f7f6f6,0x121c0e0e
+	.long	0xa3c26161,0x5f6a3535,0xf9ae5757,0xd069b9b9
+	.long	0x91178686,0x5899c1c1,0x273a1d1d,0xb9279e9e
+	.long	0x38d9e1e1,0x13ebf8f8,0xb32b9898,0x33221111
+	.long	0xbbd26969,0x70a9d9d9,0x89078e8e,0xa7339494
+	.long	0xb62d9b9b,0x223c1e1e,0x92158787,0x20c9e9e9
+	.long	0x4987cece,0xffaa5555,0x78502828,0x7aa5dfdf
+	.long	0x8f038c8c,0xf859a1a1,0x80098989,0x171a0d0d
+	.long	0xda65bfbf,0x31d7e6e6,0xc6844242,0xb8d06868
+	.long	0xc3824141,0xb0299999,0x775a2d2d,0x111e0f0f
+	.long	0xcb7bb0b0,0xfca85454,0xd66dbbbb,0x3a2c1616
+#ifndef __APPLE__
+.text
+.globl	AES_GCMSIV_ctr_base
+.type	AES_GCMSIV_ctr_base,@function
+.align	2
+AES_GCMSIV_ctr_base:
+#else
+.section	__TEXT,__text
+.globl	_AES_GCMSIV_ctr_base
+.p2align	2
+_AES_GCMSIV_ctr_base:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-64]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #24]
+	stp	x20, x21, [x29, #40]
+	str	x22, [x29, #56]
+#ifndef __APPLE__
+	adrp x6, L_AES_GCMSIV_ctr_base_te
+	add  x6, x6, :lo12:L_AES_GCMSIV_ctr_base_te
+#else
+	adrp x6, L_AES_GCMSIV_ctr_base_te@PAGE
+	add  x6, x6, L_AES_GCMSIV_ctr_base_te@PAGEOFF
+#endif /* __APPLE__ */
+	ldp	x15, x16, [x5]
+	mov	w17, w15
+	cbz	x2, L_AES_GCMSIV_ctr_base_done
+L_AES_GCMSIV_ctr_base_loop_block:
+	mov	x22, x3
+	ldp	x11, x12, [x22], #16
+	# Round: 0 - set counter, XOR in key schedule
+	bfi	x15, x17, #0, #32
+	rev32	x7, x15
+	rev32	x8, x16
+	eor	x7, x7, x11
+	eor	x8, x8, x12
+	sub	w21, w4, #2
+L_AES_GCMSIV_ctr_base_loop_nr:
+	ubfx	x11, x7, #48, #8
+	ubfx	x14, x7, #24, #8
+	ubfx	x19, x8, #8, #8
+	ubfx	x20, x8, #32, #8
+	ldr	x9, [x6]
+	ldr	x9, [x6, #64]
+	ldr	x9, [x6, #128]
+	ldr	x9, [x6, #192]
+	ldr	x9, [x6, #256]
+	ldr	x9, [x6, #320]
+	ldr	x9, [x6, #384]
+	ldr	x9, [x6, #448]
+	ldr	x9, [x6, #512]
+	ldr	x9, [x6, #576]
+	ldr	x9, [x6, #640]
+	ldr	x9, [x6, #704]
+	ldr	x9, [x6, #768]
+	ldr	x9, [x6, #832]
+	ldr	x9, [x6, #896]
+	ldr	x9, [x6, #960]
+	ldr	w11, [x6, x11, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x12, x8, #16, #8
+	eor	w11, w11, w14, ror 24
+	ubfx	x14, x7, #56, #8
+	eor	w11, w11, w19, ror 8
+	ubfx	x19, x8, #40, #8
+	eor	w11, w11, w20, ror 16
+	ubfx	x20, x7, #0, #8
+	ldr	w12, [x6, x12, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x13, x8, #48, #8
+	eor	w12, w12, w14, ror 24
+	ubfx	x14, x8, #24, #8
+	eor	w12, w12, w19, ror 8
+	ubfx	x19, x7, #8, #8
+	eor	w12, w12, w20, ror 16
+	ubfx	x20, x7, #32, #8
+	bfi	x11, x12, #32, #32
+	ldr	w13, [x6, x13, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x9, x8, #0, #8
+	eor	w13, w13, w14, ror 24
+	ubfx	x14, x7, #16, #8
+	eor	w13, w13, w19, ror 8
+	ubfx	x19, x8, #56, #8
+	eor	w12, w13, w20, ror 16
+	ubfx	x20, x7, #40, #8
+	ldr	w9, [x6, x9, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	eor	w19, w19, w9, ror 24
+	ldp	x7, x8, [x22], #16
+	eor	w14, w14, w19, ror 24
+	eor	w14, w14, w20, ror 8
+	bfi	x12, x14, #32, #32
+	#   XOR in Key Schedule
+	eor	x11, x11, x7
+	eor	x12, x12, x8
+	ubfx	x7, x11, #48, #8
+	ubfx	x10, x11, #24, #8
+	ubfx	x19, x12, #8, #8
+	ubfx	x20, x12, #32, #8
+	ldr	x13, [x6]
+	ldr	x13, [x6, #64]
+	ldr	x13, [x6, #128]
+	ldr	x13, [x6, #192]
+	ldr	x13, [x6, #256]
+	ldr	x13, [x6, #320]
+	ldr	x13, [x6, #384]
+	ldr	x13, [x6, #448]
+	ldr	x13, [x6, #512]
+	ldr	x13, [x6, #576]
+	ldr	x13, [x6, #640]
+	ldr	x13, [x6, #704]
+	ldr	x13, [x6, #768]
+	ldr	x13, [x6, #832]
+	ldr	x13, [x6, #896]
+	ldr	x13, [x6, #960]
+	ldr	w7, [x6, x7, LSL 2]
+	ldr	w10, [x6, x10, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x8, x12, #16, #8
+	eor	w7, w7, w10, ror 24
+	ubfx	x10, x11, #56, #8
+	eor	w7, w7, w19, ror 8
+	ubfx	x19, x12, #40, #8
+	eor	w7, w7, w20, ror 16
+	ubfx	x20, x11, #0, #8
+	ldr	w8, [x6, x8, LSL 2]
+	ldr	w10, [x6, x10, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x9, x12, #48, #8
+	eor	w8, w8, w10, ror 24
+	ubfx	x10, x12, #24, #8
+	eor	w8, w8, w19, ror 8
+	ubfx	x19, x11, #8, #8
+	eor	w8, w8, w20, ror 16
+	ubfx	x20, x11, #32, #8
+	bfi	x7, x8, #32, #32
+	ldr	w9, [x6, x9, LSL 2]
+	ldr	w10, [x6, x10, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x13, x12, #0, #8
+	eor	w9, w9, w10, ror 24
+	ubfx	x10, x11, #16, #8
+	eor	w9, w9, w19, ror 8
+	ubfx	x19, x12, #56, #8
+	eor	w8, w9, w20, ror 16
+	ubfx	x20, x11, #40, #8
+	ldr	w13, [x6, x13, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w10, [x6, x10, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	eor	w19, w19, w13, ror 24
+	ldp	x11, x12, [x22], #16
+	eor	w10, w10, w19, ror 24
+	eor	w10, w10, w20, ror 8
+	bfi	x8, x10, #32, #32
+	#   XOR in Key Schedule
+	eor	x7, x7, x11
+	eor	x8, x8, x12
+	subs	w21, w21, #2
+	bne	L_AES_GCMSIV_ctr_base_loop_nr
+	ubfx	x11, x7, #48, #8
+	ubfx	x14, x7, #24, #8
+	ubfx	x19, x8, #8, #8
+	ubfx	x20, x8, #32, #8
+	ldr	x9, [x6]
+	ldr	x9, [x6, #64]
+	ldr	x9, [x6, #128]
+	ldr	x9, [x6, #192]
+	ldr	x9, [x6, #256]
+	ldr	x9, [x6, #320]
+	ldr	x9, [x6, #384]
+	ldr	x9, [x6, #448]
+	ldr	x9, [x6, #512]
+	ldr	x9, [x6, #576]
+	ldr	x9, [x6, #640]
+	ldr	x9, [x6, #704]
+	ldr	x9, [x6, #768]
+	ldr	x9, [x6, #832]
+	ldr	x9, [x6, #896]
+	ldr	x9, [x6, #960]
+	ldr	w11, [x6, x11, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x12, x8, #16, #8
+	eor	w11, w11, w14, ror 24
+	ubfx	x14, x7, #56, #8
+	eor	w11, w11, w19, ror 8
+	ubfx	x19, x8, #40, #8
+	eor	w11, w11, w20, ror 16
+	ubfx	x20, x7, #0, #8
+	ldr	w12, [x6, x12, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x13, x8, #48, #8
+	eor	w12, w12, w14, ror 24
+	ubfx	x14, x8, #24, #8
+	eor	w12, w12, w19, ror 8
+	ubfx	x19, x7, #8, #8
+	eor	w12, w12, w20, ror 16
+	ubfx	x20, x7, #32, #8
+	bfi	x11, x12, #32, #32
+	ldr	w13, [x6, x13, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	ubfx	x9, x8, #0, #8
+	eor	w13, w13, w14, ror 24
+	ubfx	x14, x7, #16, #8
+	eor	w13, w13, w19, ror 8
+	ubfx	x19, x8, #56, #8
+	eor	w12, w13, w20, ror 16
+	ubfx	x20, x7, #40, #8
+	ldr	w9, [x6, x9, LSL 2]
+	ldr	w19, [x6, x19, LSL 2]
+	ldr	w14, [x6, x14, LSL 2]
+	ldr	w20, [x6, x20, LSL 2]
+	eor	w19, w19, w9, ror 24
+	ldp	x7, x8, [x22], #16
+	eor	w14, w14, w19, ror 24
+	eor	w14, w14, w20, ror 8
+	bfi	x12, x14, #32, #32
+	#   XOR in Key Schedule
+	eor	x11, x11, x7
+	eor	x12, x12, x8
+	ubfx	x7, x12, #32, #8
+	ubfx	x10, x12, #8, #8
+	ubfx	x19, x11, #48, #8
+	ubfx	x20, x11, #24, #8
+	lsl	w7, w7, #2
+	lsl	w10, w10, #2
+	lsl	w19, w19, #2
+	lsl	w20, w20, #2
+	ldr	x14, [x6]
+	ldr	x14, [x6, #64]
+	ldr	x14, [x6, #128]
+	ldr	x14, [x6, #192]
+	ldr	x14, [x6, #256]
+	ldr	x14, [x6, #320]
+	ldr	x14, [x6, #384]
+	ldr	x14, [x6, #448]
+	ldr	x14, [x6, #512]
+	ldr	x14, [x6, #576]
+	ldr	x14, [x6, #640]
+	ldr	x14, [x6, #704]
+	ldr	x14, [x6, #768]
+	ldr	x14, [x6, #832]
+	ldr	x14, [x6, #896]
+	ldr	x14, [x6, #960]
+	ldrb	w7, [x6, x7, LSL 0]
+	ldrb	w10, [x6, x10, LSL 0]
+	ldrb	w19, [x6, x19, LSL 0]
+	ldrb	w20, [x6, x20, LSL 0]
+	ubfx	x8, x11, #0, #8
+	eor	w7, w7, w10, lsl 8
+	ubfx	x10, x12, #40, #8
+	eor	w7, w7, w19, lsl 16
+	ubfx	x19, x12, #16, #8
+	eor	w7, w7, w20, lsl 24
+	ubfx	x20, x11, #56, #8
+	lsl	w8, w8, #2
+	lsl	w10, w10, #2
+	lsl	w19, w19, #2
+	lsl	w20, w20, #2
+	ldrb	w8, [x6, x8, LSL 0]
+	ldrb	w10, [x6, x10, LSL 0]
+	ldrb	w19, [x6, x19, LSL 0]
+	ldrb	w20, [x6, x20, LSL 0]
+	ubfx	x9, x11, #32, #8
+	eor	w8, w8, w10, lsl 8
+	ubfx	x10, x11, #8, #8
+	eor	w8, w8, w19, lsl 16
+	ubfx	x19, x12, #48, #8
+	eor	w8, w8, w20, lsl 24
+	ubfx	x20, x12, #24, #8
+	bfi	x7, x8, #32, #32
+	lsl	w9, w9, #2
+	lsl	w10, w10, #2
+	lsl	w19, w19, #2
+	lsl	w20, w20, #2
+	ldrb	w9, [x6, x9, LSL 0]
+	ldrb	w10, [x6, x10, LSL 0]
+	ldrb	w19, [x6, x19, LSL 0]
+	ldrb	w20, [x6, x20, LSL 0]
+	ubfx	x14, x12, #56, #8
+	eor	w9, w9, w10, lsl 8
+	ubfx	x10, x12, #0, #8
+	eor	w9, w9, w19, lsl 16
+	ubfx	x19, x11, #40, #8
+	eor	w8, w9, w20, lsl 24
+	ubfx	x20, x11, #16, #8
+	lsl	w14, w14, #2
+	lsl	w10, w10, #2
+	lsl	w19, w19, #2
+	lsl	w20, w20, #2
+	ldrb	w14, [x6, x14, LSL 0]
+	ldrb	w10, [x6, x10, LSL 0]
+	ldrb	w19, [x6, x19, LSL 0]
+	ldrb	w20, [x6, x20, LSL 0]
+	eor	w19, w19, w14, lsl 16
+	ldp	x11, x12, [x22]
+	eor	w10, w10, w19, lsl 8
+	eor	w10, w10, w20, lsl 16
+	bfi	x8, x10, #32, #32
+	#   XOR in Key Schedule
+	eor	x7, x7, x11
+	eor	x8, x8, x12
+	rev32	x7, x7
+	rev32	x8, x8
+	ldr	x11, [x0]
+	ldr	x12, [x0, #8]
+	eor	x7, x7, x11
+	eor	x8, x8, x12
+	str	x7, [x1]
+	str	x8, [x1, #8]
+	add	w17, w17, #1
+	subs	x2, x2, #16
+	add	x0, x0, #16
+	add	x1, x1, #16
+	bne	L_AES_GCMSIV_ctr_base_loop_block
+L_AES_GCMSIV_ctr_base_done:
+	bfi	x15, x17, #0, #32
+	stp	x15, x16, [x5]
+	ldp	x17, x19, [x29, #24]
+	ldp	x20, x21, [x29, #40]
+	ldr	x22, [x29, #56]
+	ldp	x29, x30, [sp], #0x40
+	ret
+#ifndef __APPLE__
+	.size	AES_GCMSIV_ctr_base,.-AES_GCMSIV_ctr_base
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP */
 #endif /* !defined(NO_AES) && defined(WOLFSSL_ARMASM) */
 #endif /* __aarch64__ */

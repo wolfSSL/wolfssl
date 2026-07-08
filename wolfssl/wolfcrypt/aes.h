@@ -824,6 +824,30 @@ int wc_AesSivDecrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
                         const byte* in, word32 inSz, byte* siv, byte* out);
 #endif
 
+#ifdef WOLFSSL_AESGCM_SIV
+/* AES-GCM-SIV (RFC 8452): nonce-misuse resistant AEAD.
+ *   key   : key-generating-key, 16 (AES-128) or 32 (AES-256) bytes.
+ *   nonce : 12 bytes.
+ *   tag   : 16 bytes (the RFC 8452 authentication tag).
+ * The encrypted output is the same length as the plaintext; the tag is
+ * returned separately.
+ *
+ * The POLYVAL hash is constant-time wherever the CPU provides carry-less
+ * multiply (x86 PCLMUL, Arm PMULL/VMULL) - the runtime default on such CPUs.
+ * Software-only builds fall back to a key-dependent 4-bit table (a cache-timing
+ * trade-off matching GCM_TABLE GHASH); GCM_SMALL avoids the table entirely. */
+WOLFSSL_API WARN_UNUSED_RESULT
+int wc_AesGcmSivEncrypt(const byte* key, word32 keySz, const byte* nonce,
+                        word32 nonceSz, const byte* aad, word32 aadSz,
+                        const byte* in, word32 inSz, byte* out,
+                        byte* tag, word32 tagSz);
+WOLFSSL_API WARN_UNUSED_RESULT
+int wc_AesGcmSivDecrypt(const byte* key, word32 keySz, const byte* nonce,
+                        word32 nonceSz, const byte* aad, word32 aadSz,
+                        const byte* in, word32 inSz, byte* out,
+                        const byte* tag, word32 tagSz);
+#endif /* WOLFSSL_AESGCM_SIV */
+
 #ifdef WOLFSSL_CMAC
 /* forward declaration, in case aes.h is being included by cmac.h */
 struct Cmac;

@@ -51,6 +51,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_AES_XTS:         Enable AES-XTS mode                   default: off
  * WOLFSSL_AES_CTS:         Enable AES-CTS (ciphertext stealing)  default: off
  * WOLFSSL_AES_SIV:         Enable AES-SIV (synthetic IV) mode    default: off
+ * WOLFSSL_AESGCM_SIV:      Enable AES-GCM-SIV (RFC 8452) mode    default: off
  * WOLFSSL_AES_EAX:         Enable AES-EAX AEAD mode              default: off
  * WOLFSSL_CMAC:            Enable AES-CMAC (RFC 4493)            default: off
  * HAVE_AESCCM:             Enable AES-CCM mode                   default: off
@@ -917,7 +918,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     /* Pick the widest available implementation at runtime.  Callers must
      * already be inside a VECTOR_REGISTERS_PUSH / SAVE_VECTOR_REGISTERS
      * region (all bulk AES-NI call sites are). */
-    static WC_MAYBE_UNUSED WC_INLINE void AesEcbEncryptBlocks(const unsigned char* in,
+    #ifdef HAVE_AES_ECB
+    static WC_INLINE void AesEcbEncryptBlocks(const unsigned char* in,
         unsigned char* out, word32 sz, const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
@@ -944,9 +946,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             AES_ECB_encrypt_AESNI(in, out, sz, key, nr);
         }
     }
+    #endif /* HAVE_AES_ECB */
 
-    #ifdef HAVE_AES_DECRYPT
-    static WC_MAYBE_UNUSED WC_INLINE void AesEcbDecryptBlocks(const unsigned char* in,
+    #if defined(HAVE_AES_ECB) && defined(HAVE_AES_DECRYPT)
+    static WC_INLINE void AesEcbDecryptBlocks(const unsigned char* in,
         unsigned char* out, word32 sz, const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
@@ -973,7 +976,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             AES_ECB_decrypt_AESNI(in, out, sz, key, nr);
         }
     }
-    #endif
+    #endif /* HAVE_AES_ECB && HAVE_AES_DECRYPT */
 
     #ifdef HAVE_AES_CBC
     static WC_MAYBE_UNUSED WC_INLINE void AesCbcEncryptBlocks(const unsigned char* in,
@@ -1037,7 +1040,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
     #endif /* HAVE_AES_DECRYPT */
 
-    static WC_MAYBE_UNUSED WC_INLINE void AesCtrEncryptBlocks(const unsigned char* in,
+    #ifdef WOLFSSL_AES_COUNTER
+    static WC_INLINE void AesCtrEncryptBlocks(const unsigned char* in,
         unsigned char* out, word32 sz, const unsigned char* key, int nr,
         unsigned char* ctr)
     {
@@ -1065,6 +1069,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             AES_CTR_encrypt_AESNI(in, out, sz, key, nr, ctr);
         }
     }
+    #endif /* WOLFSSL_AES_COUNTER */
 #endif /* WOLFSSL_X86_64_BUILD */
 
 
@@ -1172,7 +1177,7 @@ static void Check_CPU_support_HwCrypto(Aes* aes)
 #endif /* __aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM) || \
-    defined(WOLFSSL_AESGCM_STREAM)
+    defined(WOLFSSL_AESGCM_STREAM) || defined(WOLFSSL_AESGCM_SIV)
 static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock,
     byte* outBlock)
 {
@@ -18267,6 +18272,1138 @@ int wc_AesSivDecrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
 }
 
 #endif /* WOLFSSL_AES_SIV */
+
+#ifdef WOLFSSL_AESGCM_SIV
+
+/* AES-GCM-SIV - a nonce misuse-resistant AEAD. See RFC 8452.
+ *
+ * The implementation here is portable C.  AES block operations reuse the
+ * internal wc_AesEncrypt(), so HAVE_AESGCM is required for that to be built.
+ */
+#ifndef HAVE_AESGCM
+    #error "WOLFSSL_AESGCM_SIV requires HAVE_AESGCM"
+#endif
+
+#define AES_GCM_SIV_NONCE_SZ  12
+#define AES_GCM_SIV_TAG_SZ    WC_AES_BLOCK_SIZE
+
+#ifndef GCM_SMALL
+/* GF(2^128) reduction table used by the table-based software multiplies; not
+ * needed by the table-free GCM_SMALL variant. R[a] is the contribution, to the
+ * top two bytes, of reducing a nibble 'a' shifted out past x^127 (the GHASH
+ * polynomial x^128+x^7+x^2+x+1). Same table wolfSSL uses for table GHASH. */
+static const byte AES_GCM_SIV_R[16][2] = {
+    {0x00, 0x00}, {0x1c, 0x20}, {0x38, 0x40}, {0x24, 0x60},
+    {0x70, 0x80}, {0x6c, 0xa0}, {0x48, 0xc0}, {0x54, 0xe0},
+    {0xe1, 0x00}, {0xfd, 0x20}, {0xd9, 0x40}, {0xc5, 0x60},
+    {0x91, 0x80}, {0x8d, 0xa0}, {0xa9, 0xc0}, {0xb5, 0xe0},
+};
+#endif
+
+/* Reverse the order of the 16 bytes of a block. in and out must not alias. */
+static WC_INLINE void AesGcmSivByteReverse(byte* out, const byte* in)
+{
+#if !defined(WOLFSSL_USE_ALIGN) && defined(WORD64_AVAILABLE)
+    /* Unaligned word access is permitted: reverse eight bytes at a time with a
+     * hardware byte-swap rather than one byte at a time. Endian independent -
+     * load native, reverse the value's bytes, store native: that reverses the
+     * bytes in memory on both little- and big-endian. */
+    word64 lo, hi;
+    XMEMCPY(&lo, in,     sizeof(lo));
+    XMEMCPY(&hi, in + 8, sizeof(hi));
+    lo = ByteReverseWord64(lo);
+    hi = ByteReverseWord64(hi);
+    XMEMCPY(out,     &hi, sizeof(hi));
+    XMEMCPY(out + 8, &lo, sizeof(lo));
+#else
+    int i;
+    for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
+        out[i] = in[WC_AES_BLOCK_SIZE - 1 - i];
+    }
+#endif
+}
+
+/* POLYVAL state (RFC 8452 Section 3). POLYVAL is GHASH on byte-reversed inputs,
+ * so the field is the GHASH field with the most-significant bit of byte 0 the
+ * x^0 coefficient (see RFC 8452 Appendix A). The key is one of:
+ *  - GCM_SMALL: the 16-byte key (table-free, smallest footprint).
+ *  - word64:    a Shoup 4-bit table (256 bytes), word64 multiply - used when a
+ *               64-bit type is available and GCM_WORD32 is not requested.
+ *  - word32:    the same 4-bit table, word32 multiply - used for GCM_WORD32 or
+ *               when no 64-bit type is available.
+ *
+ * Every variant reads the message, key and running sum a byte at a time and
+ * (the word64/word32 variants) load/store their words with explicit shifts or
+ * a byte-swap rather than casting buffers, so all are independent of platform
+ * endianness; the word loads also respect WOLFSSL_USE_ALIGN, so input, key and
+ * output buffers may be little- or big-endian and aligned or unaligned.
+ */
+/* When the generated x86_64 AES-NI/PCLMUL POLYVAL multiply is available
+ * (aes_gcm_asm.S), the per-block multiply can be offloaded to it at runtime.
+ * This is the generated external assembly - no assembly lives in this file. */
+#if defined(WOLFSSL_AESNI) && defined(WOLFSSL_X86_64_BUILD)
+    #define WC_POLYVAL_ASM
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    /* s += POLYVAL of 'blocks' 16-byte blocks of data, hash key h prepared as
+     * the byte-reversed mulX_GHASH(ByteReverse(authKey)); s is POLYVAL byte
+     * order. */
+    void AES_GCMSIV_polyval_aesni(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_aesni");
+#ifdef HAVE_INTEL_AVX1
+    void AES_GCMSIV_polyval_avx1(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_avx1");
+#endif
+#ifdef HAVE_INTEL_VAES
+    /* Aggregated 2-blocks-per-ymm POLYVAL (VPCLMULQDQ). */
+    void AES_GCMSIV_polyval_vaes(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_vaes");
+#endif
+#ifdef HAVE_INTEL_AVX512
+    /* Aggregated 4-blocks-per-zmm POLYVAL (VPCLMULQDQ). */
+    void AES_GCMSIV_polyval_avx512(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_avx512");
+#endif
+    /* AES-GCM-SIV CTR keystream (RFC 8452): a 32-bit little-endian counter in
+     * the first 4 bytes of the block (mod 2^32, no carry), block used directly
+     * as the AES input. Encrypts the full-16-byte-block portion of 'length'
+     * bytes (pipelined), advancing and writing 'ctr' back. */
+    #define WC_GCMSIV_CTR_ASM
+    void AES_GCMSIV_ctr_aesni(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_aesni");
+#ifdef HAVE_INTEL_AVX1
+    void AES_GCMSIV_ctr_avx1(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_avx1");
+#endif
+#ifdef HAVE_INTEL_VAES
+    void AES_GCMSIV_ctr_vaes(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_vaes");
+#endif
+#ifdef HAVE_INTEL_AVX512
+    void AES_GCMSIV_ctr_avx512(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_avx512");
+#endif
+#ifdef __cplusplus
+    }
+#endif
+#elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+    /* The generated AArch64 POLYVAL multiplies (armv8-aes-asm.S) offload the
+     * per-block multiply: PMULL when the CPU has the crypto extension, else the
+     * 8-bit-pmul NEON variant, else the scalar (base) variant. This is the
+     * generated external assembly - no assembly lives here. */
+    #define WC_POLYVAL_ASM
+    #define WC_POLYVAL_ASM_AARCH64
+    /* The base (scalar) variant multiplies through the word64 software table
+     * poly->m, so it is only available when that table is built. */
+    #if defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) && \
+        !defined(GCM_SMALL) && !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
+        #define WC_POLYVAL_ASM_AARCH64_BASE
+    #endif
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    /* s += POLYVAL of 'blocks' 16-byte blocks of data. For the PMULL and NEON
+     * variants h is the prepared key (byte-reversed mulX_GHASH(ByteReverse(
+     * authKey))); for the base variant h is the word64 table poly->m. s is in
+     * POLYVAL byte order in every case. */
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+    void AES_GCMSIV_polyval_pmull(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_pmull");
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+    void AES_GCMSIV_polyval_neon(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_neon");
+#endif
+#ifdef WC_POLYVAL_ASM_AARCH64_BASE
+    void AES_GCMSIV_polyval_base(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_base");
+#endif
+    /* AES-GCM-SIV CTR keystream (RFC 8452): 32-bit little-endian counter in the
+     * first 4 bytes of the block, mod 2^32, block used directly. Full-block
+     * portion only (the C tail finishes any partial block). The crypto variant
+     * pipelines aese; the NEON/base variants pipeline software table AES. KS is
+     * the AES key schedule in every case. */
+    #define WC_GCMSIV_CTR_ASM
+    #define WC_GCMSIV_CTR_ASM_AARCH64
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+    void AES_GCMSIV_ctr_aarch64(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_aarch64");
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+    void AES_GCMSIV_ctr_neon(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_neon");
+#endif
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+    void AES_GCMSIV_ctr_base(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_base");
+#endif
+#ifdef __cplusplus
+    }
+#endif
+#elif defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+      !defined(WOLFSSL_ARMASM_THUMB2)
+    /* AArch32 (32-bit ARM). The generated armv8-32-aes-asm.S provides POLYVAL
+     * and CTR for the crypto (vmull.p64 / aese) and base (table) variants.
+     * crypto-vs-base is compile-time (WOLFSSL_ARMASM_NO_HW_CRYPTO) with no
+     * runtime fallback - the same as the rest of the AArch32 AES. */
+    #define WC_POLYVAL_ASM
+    #define WC_POLYVAL_ASM_AARCH32
+    #define WC_GCMSIV_CTR_ASM
+    #define WC_GCMSIV_CTR_ASM_AARCH32
+    /* The base POLYVAL multiplies through the word64 software table poly->m. It
+     * is only compiled in the base (no-crypto) build and only when that table
+     * is built. */
+    #if defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(WORD64_AVAILABLE) && \
+        !defined(GCM_WORD32) && !defined(GCM_SMALL)
+        #define WC_POLYVAL_ASM_AARCH32_BASE
+    #endif
+#ifdef __cplusplus
+    extern "C" {
+#endif
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+    void AES_GCMSIV_polyval_crypto(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_crypto");
+    void AES_GCMSIV_ctr_crypto(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_crypto");
+#else
+#ifdef WC_POLYVAL_ASM_AARCH32_BASE
+    void AES_GCMSIV_polyval_base(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_base");
+#endif
+    void AES_GCMSIV_ctr_base(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_base");
+#endif
+#ifdef __cplusplus
+    }
+#endif
+#elif defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARMASM_THUMB2)
+    /* Thumb-2 (32-bit ARM, Thumb-2 encoding). A single table-based variant
+     * (ported from the AArch32 base): POLYVAL multiplies through the word64
+     * software table poly->m; CTR is the table AES with the SIV counter. */
+    #define WC_GCMSIV_CTR_ASM
+    #define WC_GCMSIV_CTR_ASM_THUMB2
+    #if defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) && !defined(GCM_SMALL)
+        #define WC_POLYVAL_ASM
+        #define WC_POLYVAL_ASM_THUMB2
+    #endif
+#ifdef __cplusplus
+    extern "C" {
+#endif
+#ifdef WC_POLYVAL_ASM_THUMB2
+    void AES_GCMSIV_polyval_thumb2(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks)
+        XASM_LINK("AES_GCMSIV_polyval_thumb2");
+#endif
+    void AES_GCMSIV_ctr_thumb2(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr) XASM_LINK("AES_GCMSIV_ctr_thumb2");
+#ifdef __cplusplus
+    }
+#endif
+#endif
+
+#ifdef WC_POLYVAL_ASM
+    typedef void (*AesGcmSivPolyvalFn)(unsigned char* s, const unsigned char* h,
+        const unsigned char* data, word32 blocks);
+#endif
+#ifdef WC_GCMSIV_CTR_ASM
+    typedef void (*AesGcmSivCtrFn)(const unsigned char* in, unsigned char* out,
+        unsigned long length, const unsigned char* KS, int nr,
+        unsigned char* ctr);
+#endif
+
+typedef struct AesGcmSivPolyval {
+#ifdef WC_POLYVAL_ASM
+    byte hHw[WC_AES_BLOCK_SIZE]; /* prepared key for the asm multiply */
+    const byte* asmKey;          /* key passed to fn: hHw, or the table below */
+    AesGcmSivPolyvalFn fn;       /* asm multiply, or NULL for software */
+#endif
+#if defined(GCM_SMALL)
+    byte   h[WC_AES_BLOCK_SIZE]; /* hash key = mulX_GHASH(ByteReverse(H)) */
+#elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
+    word64 m[16][2];             /* m[i] = i * mulX_GHASH(ByteReverse(H)) */
+#else
+    word32 m[16][4];             /* m[i] = i * mulX_GHASH(ByteReverse(H)) */
+#endif
+    byte s[WC_AES_BLOCK_SIZE];   /* running sum, GHASH representation */
+} AesGcmSivPolyval;
+
+/* Multiply a GF(2^128) element (GHASH bit order: the most-significant bit of
+ * byte 0 is the x^0 coefficient) by x: shift the 128-bit value right by one
+ * and reduce with the GHASH polynomial. Branch free, so constant time. Used by
+ * the GCM_SMALL multiply and to derive the carry-less-multiply asm hash key
+ * (mulX_GHASH); the word64/word32 table variants use AesGcmSivMulX64/32, so this
+ * is only compiled when one of those two callers is. Placed after the
+ * WC_POLYVAL_ASM #defines above so that guard is resolved here. */
+#if defined(GCM_SMALL) || defined(WC_POLYVAL_ASM)
+static WC_INLINE void AesGcmSivMulX(byte* x)
+{
+    int i;
+    byte carryIn = 0;
+    byte borrow = (byte)((0x00U - (x[WC_AES_BLOCK_SIZE - 1] & 0x01U)) & 0xE1U);
+
+    for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
+        byte carryOut = (byte)((x[i] & 0x01) << 7);
+        x[i] = (byte)((x[i] >> 1) | carryIn);
+        carryIn = carryOut;
+    }
+    x[0] ^= borrow;
+}
+#endif /* GCM_SMALL || WC_POLYVAL_ASM */
+
+#if defined(GCM_SMALL)
+
+/* s = s * h with no precomputed table: decompose h bit-by-bit and accumulate
+ * shifted copies of s. Mirrors wolfSSL's GCM_SMALL GMULT. */
+static void AesGcmSivGMult(AesGcmSivPolyval* poly)
+{
+    byte Z[WC_AES_BLOCK_SIZE];
+    byte V[WC_AES_BLOCK_SIZE];
+    int i, j;
+
+    XMEMSET(Z, 0, sizeof(Z));
+    XMEMCPY(V, poly->s, WC_AES_BLOCK_SIZE);
+    for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
+        byte y = poly->h[i];
+        for (j = 0; j < 8; j++) {
+            if (y & 0x80) {
+                xorbuf(Z, V, WC_AES_BLOCK_SIZE);
+            }
+            AesGcmSivMulX(V);
+            y = (byte)(y << 1);
+        }
+    }
+    XMEMCPY(poly->s, Z, WC_AES_BLOCK_SIZE);
+}
+
+/* Store the hash key mulX_GHASH(ByteReverse(h)); no table to build. */
+static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
+{
+    AesGcmSivByteReverse(poly->h, h);
+    AesGcmSivMulX(poly->h);
+    XMEMSET(poly->s, 0, sizeof(poly->s));
+}
+
+#elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
+
+/* Load/store a big-endian word64 - the high word is bytes 0..7 of the block,
+ * so byte 0 (the x^0..x^7 coefficients) is the most-significant byte.
+ *
+ * Where unaligned word access is permitted (!WOLFSSL_USE_ALIGN) this is a
+ * single word64 load/store plus a hardware byte-swap on little-endian; where
+ * alignment is required it is assembled a byte at a time. Both forms are
+ * endian independent. */
+#ifndef WOLFSSL_USE_ALIGN
+static WC_INLINE word64 AesGcmSivLoad64(const byte* b)
+{
+    word64 v;
+    XMEMCPY(&v, b, sizeof(v));
+#ifdef LITTLE_ENDIAN_ORDER
+    v = ByteReverseWord64(v);
+#endif
+    return v;
+}
+static WC_INLINE void AesGcmSivStore64(byte* b, word64 v)
+{
+#ifdef LITTLE_ENDIAN_ORDER
+    v = ByteReverseWord64(v);
+#endif
+    XMEMCPY(b, &v, sizeof(v));
+}
+#else
+static WC_INLINE word64 AesGcmSivLoad64(const byte* b)
+{
+    return ((word64)b[0] << 56) | ((word64)b[1] << 48) |
+           ((word64)b[2] << 40) | ((word64)b[3] << 32) |
+           ((word64)b[4] << 24) | ((word64)b[5] << 16) |
+           ((word64)b[6] <<  8) | ((word64)b[7]);
+}
+static WC_INLINE void AesGcmSivStore64(byte* b, word64 v)
+{
+    b[0] = (byte)(v >> 56); b[1] = (byte)(v >> 48);
+    b[2] = (byte)(v >> 40); b[3] = (byte)(v >> 32);
+    b[4] = (byte)(v >> 24); b[5] = (byte)(v >> 16);
+    b[6] = (byte)(v >>  8); b[7] = (byte)(v);
+}
+#endif
+
+/* Multiply the 128-bit value (hi,lo) by x and reduce: a right shift by one of
+ * the whole value, XOR-ing the reduction polynomial (0xe1 into byte 0) when a
+ * one is shifted out past x^127 (the low bit of lo). */
+static WC_INLINE void AesGcmSivMulX64(word64* hi, word64* lo)
+{
+    word64 carry = *lo & 1;
+    *lo = (*lo >> 1) | (*hi << 63);
+    *hi = (*hi >> 1) ^ (W64LIT(0xe100000000000000) & (word64)(0 - carry));
+}
+
+/* s = s * H. The accumulator is shifted right a nibble at a time; the nibble
+ * that falls off is reduced through AES_GCM_SIV_R into the top two bytes. */
+static void AesGcmSivGMult(AesGcmSivPolyval* poly)
+{
+    byte* x = poly->s;
+    word64 (*m)[2] = poly->m;
+    word64 zHi = 0, zLo = 0;
+    int i;
+
+    for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
+        byte xi = x[i];
+        byte a;
+
+        /* low nibble */
+        zHi ^= m[xi & 0xf][0];
+        zLo ^= m[xi & 0xf][1];
+        a = (byte)(zLo & 0xf);
+        zLo = (zLo >> 4) | (zHi << 60);
+        zHi = zHi >> 4;
+        zHi ^= ((word64)AES_GCM_SIV_R[a][0] << 56) |
+               ((word64)AES_GCM_SIV_R[a][1] << 48);
+
+        /* high nibble */
+        zHi ^= m[xi >> 4][0];
+        zLo ^= m[xi >> 4][1];
+        if (i == 0) {
+            break;
+        }
+        a = (byte)(zLo & 0xf);
+        zLo = (zLo >> 4) | (zHi << 60);
+        zHi = zHi >> 4;
+        zHi ^= ((word64)AES_GCM_SIV_R[a][0] << 56) |
+               ((word64)AES_GCM_SIV_R[a][1] << 48);
+    }
+
+    AesGcmSivStore64(x,     zHi);
+    AesGcmSivStore64(x + 8, zLo);
+}
+
+/* Build the 4-bit table for mulX_GHASH(ByteReverse(h)). */
+static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
+{
+    byte hrev[WC_AES_BLOCK_SIZE];
+    word64 (*m)[2] = poly->m;
+    int i;
+
+    /* m[8] = 1 * H = mulX_GHASH(ByteReverse(h)); successive halvings give the
+     * power-of-two nibble entries. */
+    AesGcmSivByteReverse(hrev, h);
+    m[0x8][0] = AesGcmSivLoad64(hrev);
+    m[0x8][1] = AesGcmSivLoad64(hrev + 8);
+    AesGcmSivMulX64(&m[0x8][0], &m[0x8][1]);
+    m[0x4][0] = m[0x8][0]; m[0x4][1] = m[0x8][1]; AesGcmSivMulX64(&m[0x4][0], &m[0x4][1]);
+    m[0x2][0] = m[0x4][0]; m[0x2][1] = m[0x4][1]; AesGcmSivMulX64(&m[0x2][0], &m[0x2][1]);
+    m[0x1][0] = m[0x2][0]; m[0x1][1] = m[0x2][1]; AesGcmSivMulX64(&m[0x1][0], &m[0x1][1]);
+
+    /* The rest are sums of those basis entries (i = high bit + remainder). */
+    m[0x0][0] = 0; m[0x0][1] = 0;
+    for (i = 0; i < 16; i++) {
+        static const byte hibit[16] =
+            { 0, 0, 0, 2, 0, 4, 4, 4, 0, 8, 8, 8, 8, 8, 8, 8 };
+        int top = hibit[i];
+        if (top != 0) {
+            m[i][0] = m[top][0] ^ m[i - top][0];
+            m[i][1] = m[top][1] ^ m[i - top][1];
+        }
+    }
+
+    XMEMSET(poly->s, 0, sizeof(poly->s));
+    /* hrev held ByteReverse(H), the per-message hash key; wipe it. */
+    ForceZero(hrev, sizeof(hrev));
+}
+
+#else /* word32: GCM_WORD32 or no 64-bit type */
+
+/* Load/store a big-endian word32 - byte 0 is the most-significant byte. Same
+ * aligned/unaligned split as AesGcmSivLoad64/Store64; both forms are endian
+ * independent. */
+#ifndef WOLFSSL_USE_ALIGN
+static WC_INLINE word32 AesGcmSivLoad32(const byte* b)
+{
+    word32 v;
+    XMEMCPY(&v, b, sizeof(v));
+#ifdef LITTLE_ENDIAN_ORDER
+    v = ByteReverseWord32(v);
+#endif
+    return v;
+}
+static WC_INLINE void AesGcmSivStore32(byte* b, word32 v)
+{
+#ifdef LITTLE_ENDIAN_ORDER
+    v = ByteReverseWord32(v);
+#endif
+    XMEMCPY(b, &v, sizeof(v));
+}
+#else
+static WC_INLINE word32 AesGcmSivLoad32(const byte* b)
+{
+    return ((word32)b[0] << 24) | ((word32)b[1] << 16) |
+           ((word32)b[2] <<  8) | ((word32)b[3]);
+}
+static WC_INLINE void AesGcmSivStore32(byte* b, word32 v)
+{
+    b[0] = (byte)(v >> 24); b[1] = (byte)(v >> 16);
+    b[2] = (byte)(v >>  8); b[3] = (byte)(v);
+}
+#endif
+
+/* Multiply the 128-bit value (z[0] most significant) by x and reduce: shift
+ * the whole value right by one, XOR-ing 0xe1 into byte 0 when a one is shifted
+ * out past x^127 (the low bit of z[3]). */
+static WC_INLINE void AesGcmSivMulX32(word32* z)
+{
+    word32 carry = z[3] & 1;
+    z[3] = (z[3] >> 1) | (z[2] << 31);
+    z[2] = (z[2] >> 1) | (z[1] << 31);
+    z[1] = (z[1] >> 1) | (z[0] << 31);
+    z[0] = (z[0] >> 1) ^ (0xe1000000U & (word32)(0 - carry));
+}
+
+/* s = s * H. The accumulator is shifted right a nibble at a time; the nibble
+ * that falls off is reduced through AES_GCM_SIV_R into the top two bytes. */
+static void AesGcmSivGMult(AesGcmSivPolyval* poly)
+{
+    byte* x = poly->s;
+    word32 (*m)[4] = poly->m;
+    word32 z0 = 0, z1 = 0, z2 = 0, z3 = 0;
+    int i;
+
+    for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
+        word32* mr;
+        byte xi = x[i];
+        byte a;
+
+        /* low nibble */
+        mr = m[xi & 0xf];
+        z0 ^= mr[0]; z1 ^= mr[1]; z2 ^= mr[2]; z3 ^= mr[3];
+        a = (byte)(z3 & 0xf);
+        z3 = (z3 >> 4) | (z2 << 28);
+        z2 = (z2 >> 4) | (z1 << 28);
+        z1 = (z1 >> 4) | (z0 << 28);
+        z0 = z0 >> 4;
+        z0 ^= ((word32)AES_GCM_SIV_R[a][0] << 24) |
+              ((word32)AES_GCM_SIV_R[a][1] << 16);
+
+        /* high nibble */
+        mr = m[xi >> 4];
+        z0 ^= mr[0]; z1 ^= mr[1]; z2 ^= mr[2]; z3 ^= mr[3];
+        if (i == 0) {
+            break;
+        }
+        a = (byte)(z3 & 0xf);
+        z3 = (z3 >> 4) | (z2 << 28);
+        z2 = (z2 >> 4) | (z1 << 28);
+        z1 = (z1 >> 4) | (z0 << 28);
+        z0 = z0 >> 4;
+        z0 ^= ((word32)AES_GCM_SIV_R[a][0] << 24) |
+              ((word32)AES_GCM_SIV_R[a][1] << 16);
+    }
+
+    AesGcmSivStore32(x,      z0);
+    AesGcmSivStore32(x + 4,  z1);
+    AesGcmSivStore32(x + 8,  z2);
+    AesGcmSivStore32(x + 12, z3);
+}
+
+/* Build the 4-bit table for mulX_GHASH(ByteReverse(h)). */
+static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
+{
+    byte hrev[WC_AES_BLOCK_SIZE];
+    word32 (*m)[4] = poly->m;
+    int i;
+
+    /* m[8] = 1 * H = mulX_GHASH(ByteReverse(h)); successive halvings give the
+     * power-of-two nibble entries. */
+    AesGcmSivByteReverse(hrev, h);
+    m[0x8][0] = AesGcmSivLoad32(hrev);
+    m[0x8][1] = AesGcmSivLoad32(hrev + 4);
+    m[0x8][2] = AesGcmSivLoad32(hrev + 8);
+    m[0x8][3] = AesGcmSivLoad32(hrev + 12);
+    AesGcmSivMulX32(m[0x8]);
+    XMEMCPY(m[0x4], m[0x8], sizeof(m[0x4])); AesGcmSivMulX32(m[0x4]);
+    XMEMCPY(m[0x2], m[0x4], sizeof(m[0x2])); AesGcmSivMulX32(m[0x2]);
+    XMEMCPY(m[0x1], m[0x2], sizeof(m[0x1])); AesGcmSivMulX32(m[0x1]);
+
+    /* The rest are sums of those basis entries (i = high bit + remainder). */
+    m[0x0][0] = 0; m[0x0][1] = 0; m[0x0][2] = 0; m[0x0][3] = 0;
+    for (i = 0; i < 16; i++) {
+        static const byte hibit[16] =
+            { 0, 0, 0, 2, 0, 4, 4, 4, 0, 8, 8, 8, 8, 8, 8, 8 };
+        int top = hibit[i];
+        if (top != 0) {
+            m[i][0] = m[top][0] ^ m[i - top][0];
+            m[i][1] = m[top][1] ^ m[i - top][1];
+            m[i][2] = m[top][2] ^ m[i - top][2];
+            m[i][3] = m[top][3] ^ m[i - top][3];
+        }
+    }
+
+    XMEMSET(poly->s, 0, sizeof(poly->s));
+    /* hrev held ByteReverse(H), the per-message hash key; wipe it. */
+    ForceZero(hrev, sizeof(hrev));
+}
+
+#endif /* POLYVAL multiply variant */
+
+#ifdef WC_POLYVAL_ASM_THUMB2
+/* Thumb-2: the single table POLYVAL variant. */
+static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
+{
+    return &AES_GCMSIV_polyval_thumb2;
+}
+#elif defined(WC_POLYVAL_ASM_AARCH32)
+/* AArch32: crypto (vmull.p64) or base (table) POLYVAL, chosen at compile time. */
+static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
+{
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+    return &AES_GCMSIV_polyval_crypto;
+#elif defined(WC_POLYVAL_ASM_AARCH32_BASE)
+    return &AES_GCMSIV_polyval_base;
+#else
+    return NULL;
+#endif
+}
+#elif defined(WC_POLYVAL_ASM_AARCH64)
+/* Select the best available generated POLYVAL multiply: PMULL when the CPU has
+ * the crypto extension, else the 8-bit-pmul NEON variant, else the scalar base
+ * variant, else NULL to fall back to software. */
+static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
+{
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+    cpuid_get_flags_ex(&cpuid_flags);
+    if (IS_AARCH64_PMULL(cpuid_flags)) {
+        return &AES_GCMSIV_polyval_pmull;
+    }
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+    return &AES_GCMSIV_polyval_neon;
+#elif defined(WC_POLYVAL_ASM_AARCH64_BASE)
+    return &AES_GCMSIV_polyval_base;
+#else
+    return NULL;
+#endif
+}
+#elif defined(WC_POLYVAL_ASM)
+/* Select the best available generated POLYVAL multiply for this CPU, or NULL
+ * to fall back to software. PCLMUL is present on every AES-NI capable CPU, so
+ * AES-NI gates the base path (matching wolfSSL's AES-GCM). */
+static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
+{
+    cpuid_get_flags_ex(&intel_flags);
+    if (!IS_INTEL_AESNI(intel_flags)) {
+        return NULL;
+    }
+#ifdef HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        return &AES_GCMSIV_polyval_avx512;
+    }
+#endif
+#ifdef HAVE_INTEL_VAES
+    if (IS_INTEL_VAES(intel_flags) && IS_INTEL_AVX2(intel_flags)) {
+        return &AES_GCMSIV_polyval_vaes;
+    }
+#endif
+#ifdef HAVE_INTEL_AVX1
+    if (IS_INTEL_AVX1(intel_flags)) {
+        return &AES_GCMSIV_polyval_avx1;
+    }
+#endif
+    return &AES_GCMSIV_polyval_aesni;
+}
+#endif
+
+#ifdef WC_GCMSIV_CTR_ASM_THUMB2
+/* Thumb-2: the single table CTR variant. */
+static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
+{
+    return &AES_GCMSIV_ctr_thumb2;
+}
+#elif defined(WC_GCMSIV_CTR_ASM_AARCH32)
+/* AArch32: crypto (aese) or base (table) CTR, chosen at compile time. */
+static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
+{
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+    return &AES_GCMSIV_ctr_crypto;
+#else
+    return &AES_GCMSIV_ctr_base;
+#endif
+}
+#elif defined(WC_GCMSIV_CTR_ASM_AARCH64)
+/* Select the best generated CTR keystream: pipelined aese when the CPU has the
+ * AES extension, else the NEON or base software-table variant, else NULL. */
+static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
+{
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+    cpuid_get_flags_ex(&cpuid_flags);
+    if (IS_AARCH64_AES(cpuid_flags)) {
+        return &AES_GCMSIV_ctr_aarch64;
+    }
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+    return &AES_GCMSIV_ctr_neon;
+#elif !defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
+    return &AES_GCMSIV_ctr_base;
+#else
+    return NULL;
+#endif
+}
+#elif defined(WC_GCMSIV_CTR_ASM)
+/* Select the best generated AES-GCM-SIV CTR keystream for this CPU. AES-NI is
+ * the base; AVX1/VAES/AVX512 are progressively wider pipelines. */
+static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
+{
+    cpuid_get_flags_ex(&intel_flags);
+    if (!IS_INTEL_AESNI(intel_flags)) {
+        return NULL;
+    }
+#ifdef HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        return &AES_GCMSIV_ctr_avx512;
+    }
+#endif
+#ifdef HAVE_INTEL_VAES
+    if (IS_INTEL_VAES(intel_flags) && IS_INTEL_AVX2(intel_flags)) {
+        return &AES_GCMSIV_ctr_vaes;
+    }
+#endif
+#ifdef HAVE_INTEL_AVX1
+    if (IS_INTEL_AVX1(intel_flags)) {
+        return &AES_GCMSIV_ctr_avx1;
+    }
+#endif
+    return &AES_GCMSIV_ctr_aesni;
+}
+#endif
+
+/* Initialize POLYVAL with the 16-byte hash key h, using the generated assembly
+ * multiply when the CPU supports it and a software variant otherwise. */
+static void AesGcmSivPolyvalInit(AesGcmSivPolyval* poly, const byte* h)
+{
+#ifdef WC_POLYVAL_ASM
+    AesGcmSivPolyvalFn fn = AesGcmSivPolyvalAsm();
+    if (fn != NULL) {
+#if defined(WC_POLYVAL_ASM_AARCH64_BASE) || defined(WC_POLYVAL_ASM_AARCH32_BASE)
+        if (fn == &AES_GCMSIV_polyval_base) {
+            /* The scalar variant multiplies through the word64 software table,
+             * so build it and point the asm at it. */
+            AesGcmSivPolyvalInitSw(poly, h);
+            poly->asmKey = (const byte*)poly->m;
+            poly->fn = fn;
+            return;
+        }
+#endif
+#ifdef WC_POLYVAL_ASM_THUMB2
+        if (fn == &AES_GCMSIV_polyval_thumb2) {
+            /* Table variant: build the word64 software table and point at it. */
+            AesGcmSivPolyvalInitSw(poly, h);
+            poly->asmKey = (const byte*)poly->m;
+            poly->fn = fn;
+            return;
+        }
+#endif
+        {
+            byte t[WC_AES_BLOCK_SIZE];
+            /* Prepare the hash key for the asm: byte-reversed
+             * mulX_GHASH(ByteReverse(h)). */
+            AesGcmSivByteReverse(t, h);
+            AesGcmSivMulX(t);
+            AesGcmSivByteReverse(poly->hHw, t);
+            XMEMSET(poly->s, 0, sizeof(poly->s));
+            poly->asmKey = poly->hHw;
+            poly->fn = fn;
+            /* t held the prepared hash key; wipe the stack copy. */
+            ForceZero(t, sizeof(t));
+        }
+        return;
+    }
+    poly->fn = NULL;
+#endif
+    AesGcmSivPolyvalInitSw(poly, h);
+}
+
+/* Add data to the POLYVAL sum. A trailing partial block is zero-padded to a
+ * full block, which is exactly the padding RFC 8452 applies to the AAD and
+ * the plaintext independently. */
+static void AesGcmSivPolyvalUpdate(AesGcmSivPolyval* poly, const byte* data,
+    word32 sz)
+{
+    byte block[WC_AES_BLOCK_SIZE];
+    byte rev[WC_AES_BLOCK_SIZE];
+    int k;
+
+#ifdef WC_POLYVAL_ASM
+    if (poly->fn != NULL) {
+        word32 blocks = sz / WC_AES_BLOCK_SIZE;
+        word32 partial = sz % WC_AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            poly->fn(poly->s, poly->asmKey, data, blocks);
+            data += blocks * WC_AES_BLOCK_SIZE;
+        }
+        if (partial > 0) {
+            XMEMSET(block, 0, sizeof(block));
+            XMEMCPY(block, data, partial);
+            poly->fn(poly->s, poly->asmKey, block, 1);
+        }
+        /* block may have held a padded AAD/plaintext tail; wipe it. */
+        ForceZero(block, sizeof(block));
+        return;
+    }
+#endif
+    while (sz >= WC_AES_BLOCK_SIZE) {
+        AesGcmSivByteReverse(rev, data);
+        for (k = 0; k < WC_AES_BLOCK_SIZE; k++) {
+            poly->s[k] ^= rev[k];
+        }
+        AesGcmSivGMult(poly);
+        data += WC_AES_BLOCK_SIZE;
+        sz   -= WC_AES_BLOCK_SIZE;
+    }
+    if (sz > 0) {
+        XMEMSET(block, 0, sizeof(block));
+        XMEMCPY(block, data, sz);
+        AesGcmSivByteReverse(rev, block);
+        for (k = 0; k < WC_AES_BLOCK_SIZE; k++) {
+            poly->s[k] ^= rev[k];
+        }
+        AesGcmSivGMult(poly);
+    }
+    /* block/rev held byte-reversed AAD/plaintext blocks; wipe them. */
+    ForceZero(block, sizeof(block));
+    ForceZero(rev, sizeof(rev));
+}
+
+/* Output the 16-byte POLYVAL result and wipe the key material and state. */
+static void AesGcmSivPolyvalFinal(AesGcmSivPolyval* poly, byte* out)
+{
+    AesGcmSivByteReverse(out, poly->s);
+    ForceZero(poly, sizeof(*poly));
+}
+
+/* Derive the message-authentication-key and message-encryption-key from the
+ * key-generating-key (loaded into kgk) and the nonce. See RFC 8452 Section 4.
+ *
+ * authKey is 16 bytes; encKey is keySz bytes (16 or 32). */
+static WARN_UNUSED_RESULT int AesGcmSivDeriveKeys(Aes* kgk, const byte* nonce,
+    word32 keySz, byte* authKey, byte* encKey)
+{
+    byte block[WC_AES_BLOCK_SIZE];
+    byte out[WC_AES_BLOCK_SIZE];
+    word32 ctr;
+    word32 encBlocks = keySz / 8; /* 2 for AES-128, 4 for AES-256 */
+    int ret = 0;
+
+    /* Each derivation block is: LE32(counter) || nonce(12 bytes). The low 8
+     * bytes of each AES output are concatenated to form the derived keys. */
+    XMEMCPY(block + 4, nonce, AES_GCM_SIV_NONCE_SZ);
+
+    for (ctr = 0; ctr < 2; ctr++) {
+        block[0] = (byte)ctr;
+        block[1] = 0; block[2] = 0; block[3] = 0;
+        ret = wc_AesEncrypt(kgk, block, out);
+        if (ret != 0)
+            break;
+        XMEMCPY(authKey + ctr * 8, out, 8);
+    }
+
+    for (ctr = 0; (ret == 0) && (ctr < encBlocks); ctr++) {
+        block[0] = (byte)(ctr + 2);
+        block[1] = 0; block[2] = 0; block[3] = 0;
+        ret = wc_AesEncrypt(kgk, block, out);
+        if (ret != 0)
+            break;
+        XMEMCPY(encKey + ctr * 8, out, 8);
+    }
+
+    ForceZero(block, sizeof(block));
+    ForceZero(out, sizeof(out));
+
+    return ret;
+}
+
+/* Compute the AES-GCM-SIV tag over the AAD and plaintext. enc holds the
+ * message-encryption-key. See RFC 8452 Section 4. */
+static WARN_UNUSED_RESULT int AesGcmSivCalcTag(Aes* enc, const byte* authKey,
+    const byte* nonce, const byte* aad, word32 aadSz, const byte* plain,
+    word32 plainSz, byte* tag)
+{
+    AesGcmSivPolyval poly;
+    byte lenBlock[WC_AES_BLOCK_SIZE];
+    byte s[WC_AES_BLOCK_SIZE];
+    /* Bit lengths (sz * 8) as 64-bit values, computed without needing a
+     * 64-bit type: low 32 bits and the 3 bits that carry into the next word. */
+    word32 aadLo = aadSz << 3, aadHi = aadSz >> 29;
+    word32 ptLo  = plainSz << 3, ptHi = plainSz >> 29;
+    int i;
+    int ret;
+
+    AesGcmSivPolyvalInit(&poly, authKey);
+    AesGcmSivPolyvalUpdate(&poly, aad, aadSz);
+    AesGcmSivPolyvalUpdate(&poly, plain, plainSz);
+
+    /* Length block: LE64(aad_bits) || LE64(plaintext_bits). */
+    lenBlock[0]  = (byte)aadLo; lenBlock[1] = (byte)(aadLo >> 8);
+    lenBlock[2]  = (byte)(aadLo >> 16); lenBlock[3] = (byte)(aadLo >> 24);
+    lenBlock[4]  = (byte)aadHi; lenBlock[5] = (byte)(aadHi >> 8);
+    lenBlock[6]  = (byte)(aadHi >> 16); lenBlock[7] = (byte)(aadHi >> 24);
+    lenBlock[8]  = (byte)ptLo; lenBlock[9] = (byte)(ptLo >> 8);
+    lenBlock[10] = (byte)(ptLo >> 16); lenBlock[11] = (byte)(ptLo >> 24);
+    lenBlock[12] = (byte)ptHi; lenBlock[13] = (byte)(ptHi >> 8);
+    lenBlock[14] = (byte)(ptHi >> 16); lenBlock[15] = (byte)(ptHi >> 24);
+    AesGcmSivPolyvalUpdate(&poly, lenBlock, WC_AES_BLOCK_SIZE);
+
+    AesGcmSivPolyvalFinal(&poly, s);
+
+    /* XOR the nonce into the first 12 bytes and clear the top bit of the
+     * last byte, then encrypt to produce the tag. */
+    for (i = 0; i < AES_GCM_SIV_NONCE_SZ; i++) {
+        s[i] ^= nonce[i];
+    }
+    s[WC_AES_BLOCK_SIZE - 1] &= 0x7f;
+
+    ret = wc_AesEncrypt(enc, s, tag);
+
+    ForceZero(s, sizeof(s));
+    return ret;
+}
+
+/* Apply AES-GCM-SIV's counter mode to in, producing out. enc holds the
+ * message-encryption-key, tag is the 16-byte authentication tag. The counter
+ * is the tag with the top bit of the last byte set; only the first 4 bytes
+ * are incremented, as a little-endian 32-bit value, wrapping modulo 2^32.
+ * See RFC 8452 Section 4. */
+static WARN_UNUSED_RESULT int AesGcmSivCtr(Aes* enc, const byte* tag,
+    const byte* in, word32 sz, byte* out)
+{
+    byte ctrBlock[WC_AES_BLOCK_SIZE];
+    byte ks[WC_AES_BLOCK_SIZE];
+    word32 c;
+    int ret = 0;
+
+    XMEMCPY(ctrBlock, tag, WC_AES_BLOCK_SIZE);
+    ctrBlock[WC_AES_BLOCK_SIZE - 1] |= 0x80;
+
+#ifdef WC_GCMSIV_CTR_ASM
+    /* Offload the full-block keystream to the pipelined assembly; it advances
+     * and writes ctrBlock back. The final partial block (if any) is finished by
+     * the scalar loop below. */
+    {
+        AesGcmSivCtrFn fn = AesGcmSivCtrAsm();
+        if (fn != NULL) {
+            word32 full = sz & ~(word32)(WC_AES_BLOCK_SIZE - 1);
+            if (full > 0) {
+                fn(in, out, (unsigned long)full, (const byte*)enc->key,
+                    (int)enc->rounds, ctrBlock);
+                in  += full;
+                out += full;
+                sz  -= full;
+            }
+        }
+    }
+#endif
+
+    c = (word32)ctrBlock[0]        | ((word32)ctrBlock[1] << 8) |
+        ((word32)ctrBlock[2] << 16) | ((word32)ctrBlock[3] << 24);
+
+    while (sz > 0) {
+        word32 n = (sz < WC_AES_BLOCK_SIZE) ? sz : (word32)WC_AES_BLOCK_SIZE;
+        word32 i;
+
+        ret = wc_AesEncrypt(enc, ctrBlock, ks);
+        if (ret != 0)
+            break;
+        for (i = 0; i < n; i++) {
+            out[i] = (byte)(in[i] ^ ks[i]);
+        }
+
+        in  += n;
+        out += n;
+        sz  -= n;
+
+        c++;
+        ctrBlock[0] = (byte)c;         ctrBlock[1] = (byte)(c >> 8);
+        ctrBlock[2] = (byte)(c >> 16); ctrBlock[3] = (byte)(c >> 24);
+    }
+
+    ForceZero(ks, sizeof(ks));
+    ForceZero(ctrBlock, sizeof(ctrBlock));
+    return ret;
+}
+
+/* Common validation for the encrypt/decrypt entry points. */
+static WARN_UNUSED_RESULT int AesGcmSivCheckArgs(const byte* key, word32 keySz,
+    const byte* nonce, word32 nonceSz, const byte* aad, word32 aadSz,
+    const byte* in, word32 inSz, const byte* out, const byte* tag,
+    word32 tagSz)
+{
+    if (key == NULL || nonce == NULL || tag == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if ((inSz != 0) && ((in == NULL) || (out == NULL))) {
+        return BAD_FUNC_ARG;
+    }
+    if ((aadSz != 0) && (aad == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((keySz != 16) && (keySz != 32)) {
+        return BAD_FUNC_ARG;
+    }
+    if (nonceSz != AES_GCM_SIV_NONCE_SZ) {
+        return BAD_FUNC_ARG;
+    }
+    if (tagSz != AES_GCM_SIV_TAG_SZ) {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+
+/*
+ * Encrypt with AES-GCM-SIV. See RFC 8452 Section 4.
+ *
+ * out receives inSz bytes of ciphertext; tag receives the 16-byte tag.
+ */
+int wc_AesGcmSivEncrypt(const byte* key, word32 keySz, const byte* nonce,
+    word32 nonceSz, const byte* aad, word32 aadSz, const byte* in,
+    word32 inSz, byte* out, byte* tag, word32 tagSz)
+{
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
+    byte authKey[WC_AES_BLOCK_SIZE];
+    byte encKey[32];
+    byte tagTmp[AES_GCM_SIV_TAG_SZ];
+    int ret;
+
+    ret = AesGcmSivCheckArgs(key, keySz, nonce, nonceSz, aad, aadSz, in, inSz,
+                             out, tag, tagSz);
+
+    if (ret == 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        aes = wc_AesNew(NULL, INVALID_DEVID, &ret);
+    #else
+        ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    #endif
+    }
+
+    if (ret == 0) {
+        /* Load the key-generating-key and derive the per-message keys. */
+        ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
+        if (ret == 0) {
+            ret = AesGcmSivDeriveKeys(aes, nonce, keySz, authKey, encKey);
+        }
+        /* Switch the AES object to the message-encryption-key. */
+        if (ret == 0) {
+            ret = wc_AesSetKey(aes, encKey, keySz, NULL, AES_ENCRYPTION);
+        }
+        /* Tag is computed over the plaintext, then the plaintext is
+         * encrypted with the tag-derived counter. */
+        if (ret == 0) {
+            ret = AesGcmSivCalcTag(aes, authKey, nonce, aad, aadSz, in, inSz,
+                                   tagTmp);
+        }
+        if (ret == 0) {
+            ret = AesGcmSivCtr(aes, tagTmp, in, inSz, out);
+        }
+        if (ret == 0) {
+            XMEMCPY(tag, tagTmp, AES_GCM_SIV_TAG_SZ);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        wc_AesDelete(aes, NULL);
+    #else
+        wc_AesFree(aes);
+    #endif
+    }
+
+    ForceZero(authKey, sizeof(authKey));
+    ForceZero(encKey, sizeof(encKey));
+    ForceZero(tagTmp, sizeof(tagTmp));
+
+    return ret;
+}
+
+/*
+ * Decrypt with AES-GCM-SIV. See RFC 8452 Section 4.
+ *
+ * in is inSz bytes of ciphertext, tag is the received 16-byte tag. On a
+ * successful authentication out receives inSz bytes of plaintext; on failure
+ * out is zeroed and AES_GCM_AUTH_E is returned.
+ */
+int wc_AesGcmSivDecrypt(const byte* key, word32 keySz, const byte* nonce,
+    word32 nonceSz, const byte* aad, word32 aadSz, const byte* in,
+    word32 inSz, byte* out, const byte* tag, word32 tagSz)
+{
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
+    byte authKey[WC_AES_BLOCK_SIZE];
+    byte encKey[32];
+    byte expTag[AES_GCM_SIV_TAG_SZ];
+    int ret;
+
+    ret = AesGcmSivCheckArgs(key, keySz, nonce, nonceSz, aad, aadSz, in, inSz,
+                             out, tag, tagSz);
+
+    if (ret == 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        aes = wc_AesNew(NULL, INVALID_DEVID, &ret);
+    #else
+        ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    #endif
+    }
+
+    if (ret == 0) {
+        ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
+        if (ret == 0) {
+            ret = AesGcmSivDeriveKeys(aes, nonce, keySz, authKey, encKey);
+        }
+        if (ret == 0) {
+            ret = wc_AesSetKey(aes, encKey, keySz, NULL, AES_ENCRYPTION);
+        }
+        /* Recover the plaintext, then recompute and verify the tag over it. */
+        if (ret == 0) {
+            ret = AesGcmSivCtr(aes, tag, in, inSz, out);
+        }
+        if (ret == 0) {
+            ret = AesGcmSivCalcTag(aes, authKey, nonce, aad, aadSz, out, inSz,
+                                   expTag);
+        }
+        if (ret == 0) {
+            if (ConstantCompare(expTag, tag, AES_GCM_SIV_TAG_SZ) != 0) {
+                ret = AES_GCM_AUTH_E;
+            }
+        }
+        if (ret != 0) {
+            ForceZero(out, inSz);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        wc_AesDelete(aes, NULL);
+    #else
+        wc_AesFree(aes);
+    #endif
+    }
+
+    ForceZero(authKey, sizeof(authKey));
+    ForceZero(encKey, sizeof(encKey));
+    ForceZero(expTag, sizeof(expTag));
+
+    return ret;
+}
+
+#endif /* WOLFSSL_AESGCM_SIV */
 
 #if defined(WOLFSSL_AES_EAX)
 
