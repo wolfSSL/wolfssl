@@ -1630,7 +1630,14 @@ typedef struct ESD {
                         byte digEncAlgoId[MAX_ALGO_SZ];
 #endif
                         byte signedAttribSet[MAX_SET_SZ];
-                            EncodedAttrib signedAttribs[7];
+                            /* Working attribute array. signedAttribs points at
+                             * the inline buffer for the common case (no heap use,
+                             * important for no-malloc/static-memory builds) and is
+                             * redirected to a heap allocation only when the
+                             * attribute count exceeds MAX_SIGNED_ATTRIBS_SZ.
+                             * signedAttribsCap holds the usable entry count. */
+                            EncodedAttrib signedAttribsInline[MAX_SIGNED_ATTRIBS_SZ];
+                            EncodedAttrib* signedAttribs;
                         byte signerDigest[MAX_OCTET_STR_SZ];
     word32 innerOctetsSz, innerContSeqSz, contentInfoSeqSz;
     word32 outerSeqSz, outerContentSz, innerSeqSz, versionSz, digAlgoIdSetSz,
@@ -1639,7 +1646,7 @@ typedef struct ESD {
            issuerSnSeqSz, issuerNameSz, issuerSnSz, issuerSKIDSz,
            issuerSKIDSeqSz, signerDigAlgoIdSz, digEncAlgoIdSz, signerDigestSz;
     word32 encContentDigestSz, signedAttribsSz, signedAttribsCount,
-           signedAttribSetSz;
+           signedAttribSetSz, signedAttribsCap;
 } ESD;
 
 
@@ -2256,10 +2263,45 @@ static int wc_PKCS7_GetSignSize(wc_PKCS7* pkcs7)
 }
 
 
+/* Number of default ("canned") signed attributes that
+ * wc_PKCS7_BuildSignedAttributes() will emit for the current
+ * pkcs7->defaultSignedAttribs selection. This is the single source of truth for
+ * that count: it must stay in lock step with the emission logic in
+ * wc_PKCS7_BuildSignedAttributes() below, and is used by PKCS7_EncodeSigned() to
+ * size the working attribute array to the exact count. */
+static word32 wc_PKCS7_GetDefaultSignedAttribCount(const wc_PKCS7* pkcs7)
+{
+    word32 cnt = 0;
+    word16 flags;
+
+    if (pkcs7 == NULL)
+        return 0;
+
+    flags = pkcs7->defaultSignedAttribs;
+    if (flags == WOLFSSL_NO_ATTRIBUTES)
+        return 0;
+
+    if ((flags & WOLFSSL_CONTENT_TYPE_ATTRIBUTE) || flags == 0)
+        cnt++;
+#ifndef NO_ASN_TIME
+    if ((flags & WOLFSSL_SIGNING_TIME_ATTRIBUTE) || flags == 0)
+        cnt++;
+#endif
+    if ((flags & WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE) || flags == 0)
+        cnt++;
+
+    return cnt;
+}
+
+
 /* builds up SignedData signed attributes, including default ones.
  *
  * pkcs7 - pointer to initialized PKCS7 structure
  * esd   - pointer to initialized ESD structure, used for output
+ *
+ * The number of default attributes emitted here must match
+ * wc_PKCS7_GetDefaultSignedAttribCount(), which sizes the working array; the
+ * runtime bound-check below turns any drift into BUFFER_E rather than overflow.
  *
  * return 0 on success, negative on error */
 static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
@@ -2333,6 +2375,13 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
             idx++;
         }
 
+        /* the working array is sized for the canned count by PKCS7_EncodeSigned()
+         * via wc_PKCS7_GetDefaultSignedAttribCount(); bound-check here so a
+         * future drift between the two can never overflow it */
+        if (esd->signedAttribs == NULL ||
+            atrIdx + idx > esd->signedAttribsCap)
+            return BUFFER_E;
+
         esd->signedAttribsCount += idx;
         encAttribsSz = EncodeAttributes(&esd->signedAttribs[atrIdx],
             (int)idx, cannedAttribs, (int)idx);
@@ -2347,9 +2396,13 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
 
     /* add custom signed attributes if set */
     if (pkcs7->signedAttribsSz > 0 && pkcs7->signedAttribs != NULL) {
-        word32 availableSpace = MAX_SIGNED_ATTRIBS_SZ - atrIdx;
+        /* esd->signedAttribs was allocated to hold all attributes, but guard
+         * against writing past it in case the working array was undersized */
+        word32 availableSpace = (esd->signedAttribsCap > atrIdx) ?
+                                (esd->signedAttribsCap - atrIdx) : 0;
 
-        if (pkcs7->signedAttribsSz > availableSpace)
+        if (esd->signedAttribs == NULL ||
+            pkcs7->signedAttribsSz > availableSpace)
             return BUFFER_E;
 
         esd->signedAttribsCount += pkcs7->signedAttribsSz;
@@ -3062,6 +3115,8 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
     int keyIdSize;
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
+    word32 defaultAttribCap;
+    word32 neededCap;
 
     WC_DECLARE_VAR(esd, ESD, 1, 0);
 #ifdef ASN_BER_TO_DER
@@ -3072,7 +3127,10 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
 
     byte signingTime[MAX_TIME_STRING_SZ];
 
-    if (pkcs7 == NULL || pkcs7->hashOID == 0 ||
+    /* hashOID is unused on the degenerate (certs-only) path, so only require
+     * it when an actual signer is present */
+    if (pkcs7 == NULL ||
+        (pkcs7->hashOID == 0 && pkcs7->sidType != DEGENERATE_SID) ||
         outputSz == NULL) {
         WOLFSSL_MSG("PKCS7 struct / outputSz null, or hashOID is 0");
         return BAD_FUNC_ARG;
@@ -3083,9 +3141,12 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
     }
 
     /* signature size varies with ECDSA; RSA-PSS signs digest directly like
-     * ECDSA. For both, content hash must be known to build ASN.1 before signing */
+     * ECDSA. For both, content hash must be known to build ASN.1 before signing.
+     * The degenerate (certs-only) path has no signer, so this does not apply
+     * even though InitWithCert may have parsed an ECDSA/RSA-PSS cert and left
+     * publicKeyOID set. */
 #if defined(HAVE_ECC) || defined(WC_RSA_PSS)
-    if (hashBuf == NULL &&
+    if (pkcs7->sidType != DEGENERATE_SID && hashBuf == NULL &&
         (pkcs7->publicKeyOID == ECDSAk
 #ifdef WC_RSA_PSS
          || pkcs7->publicKeyOID == RSAPSSk
@@ -3277,6 +3338,50 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
                                             digEncAlgoType, 0, pkcs7->hashParamsAbsent);
         }
         signerInfoSz += esd->digEncAlgoIdSz;
+
+        /* Point the working attribute array at the inline buffer, sized for the
+         * actual attribute count: the user-supplied attributes plus the exact
+         * number of CMS auto-defaults that will be emitted for this
+         * pkcs7->defaultSignedAttribs selection. Only fall back to a heap
+         * allocation when more attributes are needed than fit inline, so the
+         * common case stays allocation-free. */
+        defaultAttribCap = wc_PKCS7_GetDefaultSignedAttribCount(pkcs7);
+        neededCap = defaultAttribCap + pkcs7->signedAttribsSz;
+
+        /* detect addition overflow */
+        if (neededCap < pkcs7->signedAttribsSz) {
+            idx = BUFFER_E;
+            goto out;
+        }
+
+        if (neededCap <= MAX_SIGNED_ATTRIBS_SZ) {
+            esd->signedAttribs    = esd->signedAttribsInline;
+            esd->signedAttribsCap = MAX_SIGNED_ATTRIBS_SZ;
+        }
+        else {
+        #ifdef WOLFSSL_NO_MALLOC
+            /* cannot grow beyond the inline array without a heap */
+            idx = BUFFER_E;
+            goto out;
+        #else
+            /* detect multiplication overflow */
+            if (neededCap > ((word32)WC_MAX_SINT_OF(int) /
+                             (word32)sizeof(EncodedAttrib))) {
+                idx = BUFFER_E;
+                goto out;
+            }
+            esd->signedAttribs = (EncodedAttrib*)XMALLOC(
+                neededCap * (word32)sizeof(EncodedAttrib),
+                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            if (esd->signedAttribs == NULL) {
+                idx = MEMORY_E;
+                goto out;
+            }
+            esd->signedAttribsCap = neededCap;
+        #endif
+        }
+        XMEMSET(esd->signedAttribs, 0,
+            esd->signedAttribsCap * (word32)sizeof(EncodedAttrib));
 
         /* build up signed attributes, include contentType, signingTime, and
            messageDigest by default */
@@ -3706,6 +3811,17 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
 
     XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
+    /* free the working attribute array only if it was heap-allocated (i.e. it
+     * is not the inline buffer) before freeing esd. In small-stack builds esd
+     * is heap-allocated and may be NULL here. */
+    if (WC_VAR_OK(esd)) {
+        if (esd->signedAttribs != NULL &&
+            esd->signedAttribs != esd->signedAttribsInline) {
+            XFREE(esd->signedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        }
+        esd->signedAttribs = NULL;
+    }
+
     WC_FREE_VAR_EX(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(signedDataOid, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -3877,17 +3993,21 @@ int wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* pre-calculate content hash for ECDSA and RSA-PSS (both sign digest
-     * directly).
+     * directly). Skipped on the degenerate (certs-only) path: there is no
+     * signer to hash for, and hashOID is 0 so deriving a hash type would fail
+     * even though InitWithCert may have left publicKeyOID set to the cert's
+     * OID.
      * A detached SignedData over empty content has no eContent to drive the
      * normal content-hashing pass, so its messageDigest signed attribute is
      * computed here as the hash of the empty content (e.g. an SCEP CertRep
-     * PENDING/FAILURE per RFC 8894) */
-    if (pkcs7->publicKeyOID == ECDSAk
+     * PENDING/FAILURE per RFC 8894). */
+    if (pkcs7->sidType != DEGENERATE_SID &&
+        (pkcs7->publicKeyOID == ECDSAk
 #ifdef WC_RSA_PSS
-        || pkcs7->publicKeyOID == RSAPSSk
+         || pkcs7->publicKeyOID == RSAPSSk
 #endif
-        || (pkcs7->detached && pkcs7->contentSz == 0)
-        ) {
+         || (pkcs7->detached && pkcs7->contentSz == 0)
+        )) {
         int hashSz;
         enum wc_HashType hashType;
         byte hashBuf[WC_MAX_DIGEST_SIZE];
@@ -7067,6 +7187,19 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     if (ret == 0 && MAX_PKCS7_CERTS > 0) {
                         int sz = 0;
                         int i;
+                        /* Absolute end of the certificate set within pkiMsg2.
+                         * idx is the start of the set, so the set spans
+                         * [idx, idx + length). In non-streaming mode idx is the
+                         * absolute offset into the message; in streaming mode it
+                         * is typically 0 (the set was copied to a standalone
+                         * buffer). Bounding the loop with the relative length
+                         * alone stops short by idx bytes in non-streaming mode
+                         * and can drop the last certificate. Clamp to pkiMsg2Sz
+                         * to guard against overflow/over-long length (reads stay
+                         * bounded by the certIdx + 1 < pkiMsg2Sz check below). */
+                        word32 certSetEnd = idx + (word32)length;
+                        if (certSetEnd < idx || certSetEnd > pkiMsg2Sz)
+                            certSetEnd = pkiMsg2Sz;
 
                         pkcs7->cert[0]   = cert;
                         pkcs7->certSz[0] = (word32)certSz;
@@ -7074,7 +7207,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                         for (i = 1; i < MAX_PKCS7_CERTS &&
                                 certIdx + 1 < pkiMsg2Sz &&
-                                certIdx + 1 < (word32)length; i++) {
+                                certIdx + 1 < certSetEnd; i++) {
                             localIdx = certIdx;
 
                             if (ret == 0 && GetASNTag(pkiMsg2, &certIdx, &tag,
