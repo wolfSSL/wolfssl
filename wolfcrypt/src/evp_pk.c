@@ -980,6 +980,9 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * size-keyed, so each level is tried in turn. DER input is decoded once,
  * letting the decoder auto-detect the level from the OID.
  *
+ * Under WOLFSSL_MLDSA_NO_ASN1 there is no PKCS#8 decoder, so a DER private
+ * key is always treated as not this key type; only raw bytes are accepted.
+ *
  * @param [in, out] out    On in, an EVP PKEY or NULL.
  *                         On out, an EVP PKEY or NULL.
  * @param [in]      mem    Memory containing key data.
@@ -1041,9 +1044,15 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
             WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
             return 0;
         }
-    #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+    #if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1)
         if (priv) {
             rc = wc_MlDsaKey_PrivateKeyDecode(mldsa, mem, inSz, &keyIdx);
+        }
+        else
+    #elif defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_NO_ASN1)
+        if (priv) {
+            /* No PrivateKeyDecode without ASN.1 support. */
+            rc = NOT_COMPILED_IN;
         }
         else
     #endif

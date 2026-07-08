@@ -12451,6 +12451,66 @@ static int mldsa_check_type(const byte* input, word32* inOutIdx, byte type,
     return ret;
 }
 
+/* Map an AlgorithmIdentifier OID byte string to a security level.
+ * Used to auto-detect the level when it is not already set on the key. */
+static int mldsa_oid_to_level(const byte* oid, word32 oidLen, byte* level)
+{
+    int ret = WC_NO_ERR_TRACE(ASN_PARSE_E);
+
+#if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
+#ifndef WOLFSSL_NO_ML_DSA_44
+    if ((oidLen == sizeof(mldsa_oid_44)) &&
+            (XMEMCMP(oid, mldsa_oid_44, oidLen) == 0)) {
+        *level = WC_ML_DSA_44_DRAFT;
+        ret = 0;
+    }
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+#ifndef WOLFSSL_NO_ML_DSA_44
+    else
+#endif
+    if ((oidLen == sizeof(mldsa_oid_65)) &&
+            (XMEMCMP(oid, mldsa_oid_65, oidLen) == 0)) {
+        *level = WC_ML_DSA_65_DRAFT;
+        ret = 0;
+    }
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+#if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_65)
+    else
+#endif
+    if ((oidLen == sizeof(mldsa_oid_87)) &&
+            (XMEMCMP(oid, mldsa_oid_87, oidLen) == 0)) {
+        *level = WC_ML_DSA_87_DRAFT;
+        ret = 0;
+    }
+#endif
+#endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
+#ifndef WOLFSSL_NO_ML_DSA_44
+    if ((ret != 0) && (oidLen == sizeof(ml_dsa_oid_44)) &&
+            (XMEMCMP(oid, ml_dsa_oid_44, oidLen) == 0)) {
+        *level = WC_ML_DSA_44;
+        ret = 0;
+    }
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    if ((ret != 0) && (oidLen == sizeof(ml_dsa_oid_65)) &&
+            (XMEMCMP(oid, ml_dsa_oid_65, oidLen) == 0)) {
+        *level = WC_ML_DSA_65;
+        ret = 0;
+    }
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    if ((ret != 0) && (oidLen == sizeof(ml_dsa_oid_87)) &&
+            (XMEMCMP(oid, ml_dsa_oid_87, oidLen) == 0)) {
+        *level = WC_ML_DSA_87;
+        ret = 0;
+    }
+#endif
+
+    return ret;
+}
+
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
 /* Decode the DER encoded ML-DSA public key.
@@ -12466,13 +12526,13 @@ static int mldsa_check_type(const byte* input, word32* inOutIdx, byte type,
  *                            input, the level will be detected from the DER
  *                            file based on the algorithm OID, appropriately
  *                            decoded, then updated in the key structure on
- *                            output. Auto-detection of the security level is
- *                            not supported if compiled for FIPS 204
- *                            draft mode.
+ *                            output. Auto-detection is not supported for
+ *                            FIPS 204 draft mode unless WOLFSSL_MLDSA_NO_ASN1
+ *                            is also defined.
  * @param [in]      inSz      Total size of data in array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
- * @return  BAD_FUNC_ARG when level not set.
+ * @return  BAD_FUNC_ARG when level not set and auto-detection unsupported.
  * @return  Other negative on parse error.
  */
 int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
@@ -12495,9 +12555,10 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
             int keyType = 0;
         #else
             int length = 0;
-            unsigned char* oid = NULL;
+            const unsigned char* oid = NULL;
             word32 oidLen = 0;
-            word32 idx = 0;
+            word32 idx = *inOutIdx;
+            word32 outerEnd = 0;
         #endif
 
             /* Start again. */
@@ -12547,59 +12608,8 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
                 }
             }
     #else
-            /* Get OID sum for level. */
-    #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
-            if (key->params == NULL) {
-                ret = BAD_FUNC_ARG;
-            }
-            else
-        #ifndef WOLFSSL_NO_ML_DSA_44
-            if (key->params->level == WC_ML_DSA_44_DRAFT) {
-                oid = mldsa_oid_44;
-                oidLen = (word32)sizeof(mldsa_oid_44);
-            }
-            else
-        #endif
-        #ifndef WOLFSSL_NO_ML_DSA_65
-            if (key->params->level == WC_ML_DSA_65_DRAFT) {
-                oid = mldsa_oid_65;
-                oidLen = (word32)sizeof(mldsa_oid_65);
-            }
-            else
-        #endif
-        #ifndef WOLFSSL_NO_ML_DSA_87
-            if (key->params->level == WC_ML_DSA_87_DRAFT) {
-                oid = mldsa_oid_87;
-                oidLen = (word32)sizeof(mldsa_oid_87);
-            }
-            else
-        #endif
-    #endif
-        #ifndef WOLFSSL_NO_ML_DSA_44
-            if (key->level == WC_ML_DSA_44) {
-                oid = ml_dsa_oid_44;
-                oidLen = (word32)sizeof(ml_dsa_oid_44);
-            }
-            else
-        #endif
-        #ifndef WOLFSSL_NO_ML_DSA_65
-            if (key->level == WC_ML_DSA_65) {
-                oid = ml_dsa_oid_65;
-                oidLen = (word32)sizeof(ml_dsa_oid_65);
-            }
-            else
-        #endif
-        #ifndef WOLFSSL_NO_ML_DSA_87
-            if (key->level == WC_ML_DSA_87) {
-                oid = ml_dsa_oid_87;
-                oidLen = (word32)sizeof(ml_dsa_oid_87);
-            }
-            else
-        #endif
-            {
-                /* Level not set. */
-                ret = BAD_FUNC_ARG;
-            }
+            /* Parse: SEQUENCE { SEQUENCE { OID } BIT STRING }, detecting the
+             * level from the OID. */
             if (ret == 0) {
                 ret = mldsa_check_type(input, &idx, 0x30, inSz);
             }
@@ -12607,43 +12617,81 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
                 ret = mldsa_get_der_length(input, &idx, &length, inSz);
             }
             if (ret == 0) {
-                ret = mldsa_check_type(input, &idx, 0x30, inSz);
-            }
-            if (ret == 0) {
-                ret = mldsa_get_der_length(input, &idx, &length, inSz);
-            }
-            if (ret == 0) {
-                ret = mldsa_check_type(input, &idx, 0x06, inSz);
-            }
-            if (ret == 0) {
-                ret = mldsa_get_der_length(input, &idx, &length, inSz);
-            }
-            if (ret == 0) {
-                if (((word32)length != oidLen) ||
-                        (XMEMCMP(input + idx, oid, oidLen) != 0)) {
+                outerEnd = idx + (word32)length;
+                /* Reject trailing bytes after the outer SEQUENCE. */
+                if (outerEnd != inSz) {
                     ret = ASN_PARSE_E;
                 }
+            }
+            if (ret == 0) {
+                ret = mldsa_check_type(input, &idx, 0x30, outerEnd);
+            }
+            if (ret == 0) {
+                ret = mldsa_get_der_length(input, &idx, &length, outerEnd);
+            }
+            if (ret == 0) {
+                ret = mldsa_check_type(input, &idx, 0x06, outerEnd);
+            }
+            if (ret == 0) {
+                ret = mldsa_get_der_length(input, &idx, &length, outerEnd);
+            }
+            if (ret == 0) {
+                oid = input + idx;
+                oidLen = (word32)length;
                 idx += oidLen;
             }
             if (ret == 0) {
-                ret = mldsa_check_type(input, &idx, 0x03, inSz);
+                byte detectedLevel = 0;
+                byte curLevel = 0;
+
+                ret = mldsa_oid_to_level(oid, oidLen, &detectedLevel);
+        #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
+                if ((ret == 0) && (key->params != NULL)) {
+                    curLevel = key->params->level;
+                }
+        #else
+                if (ret == 0) {
+                    curLevel = key->level;
+                }
+        #endif
+                if (ret == 0) {
+                    if (curLevel == 0) {
+                        /* Level not set by caller - use the detected one. */
+                        ret = wc_MlDsaKey_SetParams(key, detectedLevel);
+                    }
+                    else if (curLevel != detectedLevel) {
+                        ret = ASN_PARSE_E;
+                    }
+                }
             }
             if (ret == 0) {
-                ret = mldsa_get_der_length(input, &idx, &length, inSz);
+                ret = mldsa_check_type(input, &idx, 0x03, outerEnd);
             }
             if (ret == 0) {
-                if ((input[idx] != 0) || (length == 0)) {
+                ret = mldsa_get_der_length(input, &idx, &length, outerEnd);
+            }
+            if ((ret == 0) && (length == 0)) {
+                /* Reject before reading input[idx] below, else a
+                 * zero-length BIT STRING causes a one-byte over-read. */
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                if (input[idx] != 0) {
                     ret = ASN_PARSE_E;
                 }
                 idx++;
                 length--;
+            }
+            if ((ret == 0) && ((idx + (word32)length) != outerEnd)) {
+                /* BIT STRING must exactly fill the outer SEQUENCE. */
+                ret = ASN_PARSE_E;
             }
             if (ret == 0) {
                 /* This is the raw point data compressed or uncompressed. */
                 pubKeyLen = (word32)length;
                 pubKey = input + idx;
 
-                *inOutIdx += idx;
+                *inOutIdx = idx;
             }
     #endif
             if (ret == 0) {

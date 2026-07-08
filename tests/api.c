@@ -18751,10 +18751,14 @@ static int test_wolfSSL_d2i_SSL_SESSION_bounds_check(void)
 #ifndef NO_BIO
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA)
-/* Verify wc_MlDsaKey auto detects the expected ML-DSA level from the OID
- * in a SPKI / PKCS#8 DER buffer. Returns 0 on match. */
+/* Guarded to match its callers' build conditions, else unused. */
+#if !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
+    (!defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN))
+/* Verify wc_MlDsaKey auto-detects expectedLevel from a SPKI/PKCS#8 DER
+ * buffer. If presetLevel is non-zero, set it on the key first to also
+ * exercise the match/mismatch check. Returns 0 on match. */
 static int check_mldsa_der_level(const byte* der, word32 derSz,
-    byte expectedLevel, int isPrivate)
+    byte expectedLevel, int isPrivate, byte presetLevel)
 {
     wc_MlDsaKey key;
     word32 idx = 0;
@@ -18764,13 +18768,29 @@ static int check_mldsa_der_level(const byte* der, word32 derSz,
     (void)isPrivate;
 #endif
 
-    if ((rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID)) != 0) {
+    rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    if (rc != 0) {
         return rc;
     }
 
-#if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+    if (presetLevel != 0) {
+        rc = wc_MlDsaKey_SetParams(&key, presetLevel);
+    }
+
+    if (rc != 0) {
+        wc_MlDsaKey_Free(&key);
+        return rc;
+    }
+
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1)
     if (isPrivate) {
         rc = wc_MlDsaKey_PrivateKeyDecode(&key, der, derSz, &idx);
+    }
+    else
+#elif defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_NO_ASN1)
+    if (isPrivate) {
+        /* No PrivateKeyDecode without ASN.1 support. */
+        rc = NOT_COMPILED_IN;
     }
     else
 #endif
@@ -18790,6 +18810,292 @@ static int check_mldsa_der_level(const byte* der, word32 derSz,
 
     return rc;
 }
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY ||
+        * (!WOLFSSL_MLDSA_NO_ASN1 && !WOLFSSL_MLDSA_NO_SIGN) */
+
+#if defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_NO_ML_DSA_65) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Cover the level-preset match/mismatch branches in
+ * wc_MlDsaKey_PublicKeyDecode for WOLFSSL_MLDSA_NO_ASN1 builds. */
+static int test_mldsa_der_level_preset(void)
+{
+    EXPECT_DECLS;
+
+    /* Preset level matches the level encoded in the DER: succeeds. */
+    ExpectIntEQ(check_mldsa_der_level(mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, WC_ML_DSA_44, 0, WC_ML_DSA_44), 0);
+
+    /* Preset level does not match the level encoded in the DER: rejected. */
+    ExpectIntEQ(check_mldsa_der_level(mldsa65_pub_spki,
+        sizeof_mldsa65_pub_spki, WC_ML_DSA_65, 0, WC_ML_DSA_44),
+        ASN_PARSE_E);
+
+    /* Private-key DER decode is rejected when ASN.1 support is compiled
+     * out. */
+#if !defined(WOLFSSL_MLDSA_NO_SIGN)
+    ExpectIntEQ(check_mldsa_der_level(mldsa44_priv_only,
+        sizeof_mldsa44_priv_only, WC_ML_DSA_44, 1, 0), NOT_COMPILED_IN);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
+/* Build a FIPS 204 draft SPKI from a standard one by swapping in the
+ * 11-byte draft OID and fixing up the SEQUENCE lengths, then decode it.
+ * Verifies the resulting level against expectedLevel. Returns the decode
+ * result, or -1 if decode succeeded but the level is wrong. */
+static int check_mldsa_draft_der_level(const byte* base, word32 baseSz,
+    const byte* draftOid, byte expectedLevel, byte presetLevel)
+{
+    wc_MlDsaKey key;
+    byte* der = NULL;
+    word32 derSz = baseSz + 2;
+    word32 idx = 0;
+    word32 outerLen = 0;
+    int rc;
+
+    /* All standard ML-DSA SPKIs in certs_test.h use this fixed header:
+     * SEQUENCE (0x30 0x82 hh ll) SEQUENCE (0x30 0x0B) OID (0x06 0x09 ...) */
+    if ((baseSz < 17) || (base[0] != 0x30) || (base[1] != 0x82) ||
+            (base[4] != 0x30) || (base[5] != 0x0B) || (base[6] != 0x06) ||
+            (base[7] != 0x09)) {
+        return BAD_FUNC_ARG;
+    }
+
+    der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        return MEMORY_E;
+    }
+
+    /* Outer SEQUENCE grows by two bytes for the longer draft OID. */
+    outerLen = ((word32)base[2] << 8) + base[3] + 2;
+    der[0] = 0x30;
+    der[1] = 0x82;
+    der[2] = (byte)(outerLen >> 8);
+    der[3] = (byte)outerLen;
+    der[4] = 0x30; /* AlgorithmIdentifier SEQUENCE */
+    der[5] = 0x0D;
+    der[6] = 0x06; /* OID */
+    der[7] = 0x0B;
+    XMEMCPY(der + 8, draftOid, 11);
+    /* BIT STRING onward is unchanged. */
+    XMEMCPY(der + 19, base + 17, baseSz - 17);
+
+    rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    if (rc == 0) {
+        if (presetLevel != 0) {
+            rc = wc_MlDsaKey_SetParams(&key, presetLevel);
+        }
+        if (rc == 0) {
+            rc = wc_MlDsaKey_PublicKeyDecode(&key, der, derSz, &idx);
+        }
+        if ((rc == 0) && ((key.params == NULL) ||
+                (key.params->level != expectedLevel))) {
+            rc = -1;
+        }
+        wc_MlDsaKey_Free(&key);
+    }
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return rc;
+}
+
+/* Cover draft-OID auto-detection and preset match/mismatch in
+ * mldsa_oid_to_level(). */
+static int test_mldsa_der_level_draft_oid(void)
+{
+    EXPECT_DECLS;
+    static const byte draftOid44[] = {
+        0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b, 0x0c, 0x04, 0x04
+    };
+    static const byte draftOid65[] = {
+        0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b, 0x0c, 0x06, 0x05
+    };
+#ifndef WOLFSSL_NO_ML_DSA_87
+    static const byte draftOid87[] = {
+        0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b, 0x0c, 0x08, 0x07
+    };
+#endif
+
+    /* Auto-detect the draft level from the draft OID. */
+    ExpectIntEQ(check_mldsa_draft_der_level(mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, draftOid44, WC_ML_DSA_44_DRAFT, 0), 0);
+    ExpectIntEQ(check_mldsa_draft_der_level(mldsa65_pub_spki,
+        sizeof_mldsa65_pub_spki, draftOid65, WC_ML_DSA_65_DRAFT, 0), 0);
+#ifndef WOLFSSL_NO_ML_DSA_87
+    ExpectIntEQ(check_mldsa_draft_der_level(mldsa87_pub_spki,
+        sizeof_mldsa87_pub_spki, draftOid87, WC_ML_DSA_87_DRAFT, 0), 0);
+#endif
+
+    /* Preset draft level matches the draft OID: succeeds. */
+    ExpectIntEQ(check_mldsa_draft_der_level(mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, draftOid44, WC_ML_DSA_44_DRAFT,
+        WC_ML_DSA_44_DRAFT), 0);
+
+    /* Preset standard level does not match a draft OID: rejected. */
+    ExpectIntEQ(check_mldsa_draft_der_level(mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, draftOid44, WC_ML_DSA_44_DRAFT,
+        WC_ML_DSA_44), ASN_PARSE_E);
+
+    /* Preset draft level does not match a different draft OID: rejected. */
+    ExpectIntEQ(check_mldsa_draft_der_level(mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, draftOid44, WC_ML_DSA_44_DRAFT,
+        WC_ML_DSA_65_DRAFT), ASN_PARSE_E);
+
+    /* Preset draft level does not match a standard (non-draft) OID:
+     * rejected. */
+    ExpectIntEQ(check_mldsa_der_level(mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, WC_ML_DSA_44, 0, WC_ML_DSA_44_DRAFT),
+        ASN_PARSE_E);
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
+#endif /* WOLFSSL_MLDSA_NO_ASN1 && !WOLFSSL_NO_ML_DSA_44 &&
+        * !WOLFSSL_NO_ML_DSA_65 && !WOLFSSL_MLDSA_NO_VERIFY */
+
+#if defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+/* Copy mldsa44_pub_spki, apply a mutation and/or truncation to derSz, then
+ * decode. mutateOff < 0 means no byte mutation. Returns the decode result. */
+static int mldsa_der_mutate_and_decode(int mutateOff, byte mutateVal,
+    word32 derSz)
+{
+    byte der[sizeof(mldsa44_pub_spki)] = {0};
+    int rc;
+
+    /* Clamp so static analysis sees der's bounds respected. */
+    if (derSz > sizeof(der)) {
+        derSz = sizeof(der);
+    }
+
+    XMEMCPY(der, mldsa44_pub_spki, derSz);
+    if ((mutateOff >= 0) && ((word32)mutateOff < sizeof(der))) {
+        der[mutateOff] = mutateVal;
+    }
+
+    rc = check_mldsa_der_level(der, derSz, WC_ML_DSA_44, 0, 0);
+
+    return rc;
+}
+
+/* Malformed/truncated DER coverage for the WOLFSSL_MLDSA_NO_ASN1 SPKI
+ * parser's bounds checks and zero-length BIT STRING guard. */
+static int test_mldsa_der_level_preset_malformed(void)
+{
+    EXPECT_DECLS;
+    word32 fullSz = (word32)sizeof_mldsa44_pub_spki;
+
+    /* Empty buffer is rejected before any parsing is attempted. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(-1, 0, 0), BAD_FUNC_ARG);
+
+    /* Truncated buffers at various lengths, all rejected by
+     * mldsa_get_der_length()'s bounds check. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(-1, 0, 1), ASN_PARSE_E);
+    ExpectIntEQ(mldsa_der_mutate_and_decode(-1, 0, 4), ASN_PARSE_E);
+    ExpectIntEQ(mldsa_der_mutate_and_decode(-1, 0, 6), ASN_PARSE_E);
+    ExpectIntEQ(mldsa_der_mutate_and_decode(-1, 0, 10), ASN_PARSE_E);
+    ExpectIntEQ(mldsa_der_mutate_and_decode(-1, 0, 19), ASN_PARSE_E);
+    ExpectIntEQ(mldsa_der_mutate_and_decode(-1, 0, fullSz - 1), ASN_PARSE_E);
+
+    /* Wrong outer SEQUENCE tag. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(0, 0x31, fullSz), ASN_PARSE_E);
+    /* Wrong inner SEQUENCE (AlgorithmIdentifier) tag. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(4, 0x02, fullSz), ASN_PARSE_E);
+    /* Wrong OID tag. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(6, 0x04, fullSz), ASN_PARSE_E);
+    /* Wrong BIT STRING tag. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(17, 0x04, fullSz), ASN_PARSE_E);
+    /* Non-zero unused-bits byte in the BIT STRING. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(21, 0x01, fullSz), ASN_PARSE_E);
+    /* BIT STRING length claims more bytes than remain in the buffer. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(20, 0x7F, fullSz), ASN_PARSE_E);
+
+    /* Well-formed OID TLV whose content matches no known OID, exercising
+     * mldsa_oid_to_level()'s "no match" fallback. */
+    ExpectIntEQ(mldsa_der_mutate_and_decode(16, 0x00, fullSz), ASN_PARSE_E);
+
+    /* Zero-length BIT STRING (tag 0x03, length 0x00, no unused-bits byte).
+     * Without the length == 0 guard this reads one byte past the end. */
+    {
+        byte der[17];
+
+        der[0] = 0x30; /* outer SEQUENCE tag */
+        der[1] = 0x0F; /* outer length: inner SEQUENCE (13) + BIT STRING (2) */
+        der[2] = 0x30; /* inner SEQUENCE (AlgorithmIdentifier) tag */
+        der[3] = 0x0B; /* inner length: OID tag+length+content (11) */
+        der[4] = 0x06; /* OID tag */
+        der[5] = 0x09; /* OID length */
+        XMEMCPY(der + 6, mldsa44_pub_spki + 8, 9); /* OID content */
+        der[15] = 0x03; /* BIT STRING tag */
+        der[16] = 0x00; /* BIT STRING length 0 */
+
+        ExpectIntEQ(check_mldsa_der_level(der, sizeof(der), WC_ML_DSA_44,
+            0, 0), ASN_PARSE_E);
+    }
+
+    /* Outer SEQUENCE claims 4 bytes more than the BIT STRING fills; only
+     * the idx + length == outerEnd check at the end catches this. */
+    {
+        byte der[sizeof(mldsa44_pub_spki) + 4];
+        word32 outerLen;
+
+        XMEMCPY(der, mldsa44_pub_spki, sizeof(mldsa44_pub_spki));
+        XMEMSET(der + sizeof(mldsa44_pub_spki), 0, 4);
+
+        /* Outer SEQUENCE uses the long form (0x30 0x82 hh ll); inflate
+         * the declared length by 4 to claim the trailing padding as
+         * part of the outer SEQUENCE's content. */
+        outerLen = ((word32)der[2] << 8) + der[3] + 4;
+        der[2] = (byte)(outerLen >> 8);
+        der[3] = (byte)outerLen;
+
+        ExpectIntEQ(check_mldsa_der_level(der, sizeof(der), WC_ML_DSA_44,
+            0, 0), ASN_PARSE_E);
+    }
+
+    return EXPECT_RESULT();
+}
+
+/* Verify wc_MlDsaKey_PublicKeyDecode() honors a non-zero starting
+ * *inOutIdx and shifts the output index by the same offset, rather than
+ * assuming the DER starts at 0 or double-adding the offset. */
+static int test_mldsa_der_level_nonzero_idx(void)
+{
+    EXPECT_DECLS;
+    wc_MlDsaKey key;
+    byte der[4 + sizeof(mldsa44_pub_spki)];
+    word32 idx;
+    word32 baseIdx = 0;
+    int rc;
+
+    rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    ExpectIntEQ(rc, 0);
+    if (rc == 0) {
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, mldsa44_pub_spki,
+            (word32)sizeof_mldsa44_pub_spki, &baseIdx), 0);
+        wc_MlDsaKey_Free(&key);
+    }
+
+    XMEMSET(der, 0xFF, 4);
+    XMEMCPY(der + 4, mldsa44_pub_spki, sizeof(mldsa44_pub_spki));
+    idx = 4;
+
+    rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+    ExpectIntEQ(rc, 0);
+    if (rc == 0) {
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, der, sizeof(der),
+            &idx), 0);
+        ExpectIntEQ((int)idx, (int)(baseIdx + 4));
+        wc_MlDsaKey_Free(&key);
+    }
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_MLDSA_NO_ASN1 && !WOLFSSL_NO_ML_DSA_44 &&
+        * !WOLFSSL_MLDSA_NO_VERIFY */
 #endif /* OPENSSL_EXTRA && WOLFSSL_HAVE_MLDSA */
 
 static int test_wolfSSL_d2i_PUBKEY(void)
@@ -18858,7 +19164,7 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     ExpectIntEQ(check_mldsa_der_level(mldsa44_pub_spki,
-        sizeof_mldsa44_pub_spki, WC_ML_DSA_44, 0), 0);
+        sizeof_mldsa44_pub_spki, WC_ML_DSA_44, 0, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
@@ -18877,7 +19183,7 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     ExpectIntEQ(check_mldsa_der_level(mldsa65_pub_spki,
-        sizeof_mldsa65_pub_spki, WC_ML_DSA_65, 0), 0);
+        sizeof_mldsa65_pub_spki, WC_ML_DSA_65, 0, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
@@ -18896,7 +19202,7 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     ExpectIntEQ(check_mldsa_der_level(mldsa87_pub_spki,
-        sizeof_mldsa87_pub_spki, WC_ML_DSA_87, 0), 0);
+        sizeof_mldsa87_pub_spki, WC_ML_DSA_87, 0, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
@@ -19028,6 +19334,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 
+#ifndef WOLFSSL_MLDSA_NO_ASN1
     /* ML-DSA-44 PrivateKey test (LAMPS PKCS#8 priv-only DER) */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntGT(BIO_write(bio, mldsa44_priv_only,
@@ -19035,7 +19342,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     ExpectIntEQ(check_mldsa_der_level(mldsa44_priv_only,
-        sizeof_mldsa44_priv_only, WC_ML_DSA_44, 1), 0);
+        sizeof_mldsa44_priv_only, WC_ML_DSA_44, 1, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BIO_free(bio);
@@ -19065,6 +19372,16 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 #endif
+#else /* WOLFSSL_MLDSA_NO_ASN1 */
+    /* d2i_PrivateKey_bio must reject DER private keys without ASN.1
+     * support. */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa44_priv_only,
+        sizeof_mldsa44_priv_only), 0);
+    ExpectNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    BIO_free(bio);
+    bio = NULL;
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 */
 #endif
 
 #if !defined(WOLFSSL_NO_ML_DSA_65)
@@ -19079,6 +19396,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 
+#ifndef WOLFSSL_MLDSA_NO_ASN1
     /* ML-DSA-65 PrivateKey test (LAMPS PKCS#8 priv-only DER) */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntGT(BIO_write(bio, mldsa65_priv_only,
@@ -19086,7 +19404,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     ExpectIntEQ(check_mldsa_der_level(mldsa65_priv_only,
-        sizeof_mldsa65_priv_only, WC_ML_DSA_65, 1), 0);
+        sizeof_mldsa65_priv_only, WC_ML_DSA_65, 1, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BIO_free(bio);
@@ -19116,6 +19434,16 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 #endif
+#else /* WOLFSSL_MLDSA_NO_ASN1 */
+    /* d2i_PrivateKey_bio must reject DER private keys without ASN.1
+     * support. */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa65_priv_only,
+        sizeof_mldsa65_priv_only), 0);
+    ExpectNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    BIO_free(bio);
+    bio = NULL;
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 */
 #endif
 
 #if !defined(WOLFSSL_NO_ML_DSA_87)
@@ -19130,6 +19458,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 
+#ifndef WOLFSSL_MLDSA_NO_ASN1
     /* ML-DSA-87 PrivateKey test (LAMPS PKCS#8 priv-only DER) */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ExpectIntGT(BIO_write(bio, mldsa87_priv_only,
@@ -19137,7 +19466,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     ExpectIntEQ(check_mldsa_der_level(mldsa87_priv_only,
-        sizeof_mldsa87_priv_only, WC_ML_DSA_87, 1), 0);
+        sizeof_mldsa87_priv_only, WC_ML_DSA_87, 1, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BIO_free(bio);
@@ -19167,6 +19496,16 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 #endif
+#else /* WOLFSSL_MLDSA_NO_ASN1 */
+    /* d2i_PrivateKey_bio must reject DER private keys without ASN.1
+     * support. */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa87_priv_only,
+        sizeof_mldsa87_priv_only), 0);
+    ExpectNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    BIO_free(bio);
+    bio = NULL;
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 */
 #endif
 #endif /* WOLFSSL_HAVE_MLDSA && !NO_SIGN */
 
@@ -35428,6 +35767,20 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_d2i_and_i2d_PublicKey_ecc),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_d2i_PUBKEY),
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_NO_ML_DSA_65) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    TEST_DECL(test_mldsa_der_level_preset),
+#if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
+    TEST_DECL(test_mldsa_der_level_draft_oid),
+#endif
+#endif
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    TEST_DECL(test_mldsa_der_level_preset_malformed),
+    TEST_DECL(test_mldsa_der_level_nonzero_idx),
+#endif
 #endif
     TEST_DECL(test_wolfSSL_d2i_and_i2d_DSAparams),
     TEST_DECL(test_wolfSSL_i2d_PrivateKey),

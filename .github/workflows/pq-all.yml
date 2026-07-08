@@ -225,7 +225,15 @@ jobs:
           {"name": "mldsa-verify-only-dynamic-keys", "minutes": 1.2,
            "configure": ["--disable-intelasm",
             "--enable-dilithium=44,65,87,verify-only",
-            "CPPFLAGS=-DWOLFSSL_MLDSA_DYNAMIC_KEYS"]}
+            "CPPFLAGS=-DWOLFSSL_MLDSA_DYNAMIC_KEYS"]},
+          {"name": "mldsa-no-asn1-opensslextra", "minutes": 1.2,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-dilithium=yes", "--enable-opensslextra",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_NO_ASN1"]},
+          {"name": "mldsa-no-asn1-fips204-draft-opensslextra", "minutes": 1.2,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-dilithium=yes,draft", "--enable-opensslextra",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_NO_ASN1"]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
