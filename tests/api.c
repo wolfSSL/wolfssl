@@ -30143,13 +30143,81 @@ static int test_wc_CryptoCb(void)
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
      !defined(WOLF_CRYPTO_CB_ONLY_SHA512))
-    /* TODO: Add crypto callback API tests */
-
-#ifdef HAVE_IO_TESTS_DEPENDENCIES
-    #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519))
     int tlsVer;
+#endif
+    /* Exercise the exposed CryptoCb device-management API:
+     * wc_CryptoCb_RegisterDevice / UnRegisterDevice / IsDeviceRegistered /
+     * DefaultDevID (and InfoString when DEBUG_CRYPTOCB is enabled). */
+    {
+        int    getDevId  = 1234;
+        int    getDevCtx = 0;
+        int    i, n, rc;
+
+        /* Unregistered devId is not reported as registered. */
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 0);
+
+        /* Registering with INVALID_DEVID is rejected. */
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(INVALID_DEVID, NULL, &getDevCtx),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(INVALID_DEVID), 0);
+
+        /* After registering, the device is reported registered. */
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(getDevId, NULL, &getDevCtx), 0);
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 1);
+
+        /* A different, unregistered devId is still not reported registered. */
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId + 1), 0);
+
+        /* Re-registering an already-registered devId is rejected. */
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(getDevId, NULL, &getDevCtx),
+            WC_NO_ERR_TRACE(ALREADY_E));
+
+        /* wc_CryptoCb_DefaultDevID behavior depends on the build config. */
+    #ifdef WC_NO_DEFAULT_DEVID
+        ExpectIntEQ(wc_CryptoCb_DefaultDevID(), INVALID_DEVID);
+    #elif !defined(WOLFSSL_CAAM_DEVID) && !defined(HAVE_ARIA) && \
+          !defined(WC_USE_DEVID)
+        /* "first available" mode: a device is registered, so one is returned. */
+        ExpectIntNE(wc_CryptoCb_DefaultDevID(), INVALID_DEVID);
     #endif
 
+        /* After unregistering, the device is no longer registered. */
+        wc_CryptoCb_UnRegisterDevice(getDevId);
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 0);
+
+        /* Unregistering is a harmless no-op for unknown or invalid devIds. */
+        wc_CryptoCb_UnRegisterDevice(getDevId);       /* already removed */
+        wc_CryptoCb_UnRegisterDevice(INVALID_DEVID);  /* never a real devId */
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 0);
+
+        /* The device table is finite: once full, registration returns
+         * BUFFER_E. Registering MAX_CRYPTO_DEVID_CALLBACKS + 1 unique devIds is
+         * guaranteed to fill the table and hit BUFFER_E regardless of how many
+         * slots were already in use. Then unregister every id we tried
+         * (UnRegister is a no-op for the final failed attempt). */
+        rc = 0;
+        for (i = 0; rc == 0 && i <= MAX_CRYPTO_DEVID_CALLBACKS; i++) {
+            rc = wc_CryptoCb_RegisterDevice(0x5000 + i, NULL, NULL);
+        }
+        ExpectIntEQ(rc, WC_NO_ERR_TRACE(BUFFER_E));
+        for (n = 0; n < i; n++) {
+            wc_CryptoCb_UnRegisterDevice(0x5000 + n);
+        }
+
+    #ifdef DEBUG_CRYPTOCB
+        /* wc_CryptoCb_InfoString smoke test: must not dereference bad memory. */
+        {
+            wc_CryptoInfo info;
+            XMEMSET(&info, 0, sizeof(info));
+            info.algo_type = WC_ALGO_TYPE_NONE;
+            wc_CryptoCb_InfoString(&info);
+        }
+    #endif
+    }
+
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
     #ifndef NO_RSA
     for (tlsVer = WOLFSSL_SSLV3; tlsVer <= WOLFSSL_DTLSV1; tlsVer++) {
         ExpectIntEQ(test_wc_CryptoCb_TLS(tlsVer,

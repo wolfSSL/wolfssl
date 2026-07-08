@@ -13,6 +13,10 @@
 
     \return CRYPTOCB_UNAVAILABLE to fallback to using software crypto
     \return 0 for success
+    \return ALREADY_E if devId is already registered. A devId must be
+    un-registered with wc_CryptoCb_UnRegisterDevice before it can be
+    registered again; re-registering an active devId is not an in-place update.
+    \return BAD_FUNC_ARG if devId is INVALID_DEVID (-2)
     \return negative value for failure
 
     \param devId any unique value, not -2 (INVALID_DEVID)
@@ -97,6 +101,32 @@
     \sa wolfSSL_CTX_SetDevId
 */
 int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
+
+/*!
+    \ingroup CryptoCb
+
+    \brief This function reports whether a crypto callback device identifier
+    (devID) is currently registered. It is useful for checking registration
+    state before calling wc_CryptoCb_RegisterDevice, which now rejects an
+    already-registered devID with ALREADY_E.
+
+    \return 1 if the device ID is registered
+    \return 0 if the device ID is not registered, or if devId is
+    INVALID_DEVID (-2)
+
+    \param devId the device identifier to query
+
+    _Example_
+    \code
+    if (!wc_CryptoCb_IsDeviceRegistered(devId)) {
+        wc_CryptoCb_RegisterDevice(devId, myCryptoCb_Func, &myCtx);
+    }
+    \endcode
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_CryptoCb_UnRegisterDevice
+*/
+int wc_CryptoCb_IsDeviceRegistered(int devId);
 
 /*!
     \ingroup CryptoCb
