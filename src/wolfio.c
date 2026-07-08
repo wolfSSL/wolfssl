@@ -2821,14 +2821,17 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
-        nxCtx->nxOffset += copied;
-
-        if (copied == left) {
-            WOLFSSL_MSG("NetX Recv Drained packet");
-            NetX_ResetPacket(nxCtx);
+        /* DTLS datagram semantics: always release the full datagram after one
+         * read. If the caller's buffer (sz) is smaller than the datagram,
+         * the excess bytes are discarded here, matching EmbedReceiveFrom /
+         * recvfrom behavior. Partial-datagram retention would re-introduce
+         * TCP stream semantics and could mis-frame DTLS records. */
+        if (copied < left) {
+            WOLFSSL_MSG("NetX Recv datagram truncated, discarding remainder");
         }
+        NetX_ResetPacket(nxCtx);
 
-        return copied;
+        return (int)copied;
     } while (1);
 }
 
