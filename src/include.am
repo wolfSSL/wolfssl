@@ -285,7 +285,8 @@ endif
 endif
 
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-aes.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-aes-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-aes-asm_c.c
 endif BUILD_RISCV_ASM
 endif BUILD_AES
 
@@ -334,7 +335,8 @@ endif !BUILD_ARMASM_NEON
 
 
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha256.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm_c.c
 endif BUILD_RISCV_ASM
 
 if BUILD_PPC32_ASM
@@ -359,7 +361,9 @@ endif BUILD_PPC64_ASM
 
 if BUILD_SHA512
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm_c.c
 else
 
 if !BUILD_FIPS_V5
@@ -462,7 +466,8 @@ endif
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha3.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm_c.c
 endif BUILD_RISCV_ASM
 if BUILD_PPC64_ASM
 if BUILD_PPC64_ASM_INLINE
@@ -616,7 +621,8 @@ endif
 endif
 
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-aes.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-aes-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-aes-asm_c.c
 endif BUILD_RISCV_ASM
 
 if BUILD_SHA
@@ -661,7 +667,8 @@ endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha256.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm_c.c
 endif BUILD_RISCV_ASM
 
 if BUILD_PPC32_ASM
@@ -686,7 +693,9 @@ endif BUILD_PPC64_ASM
 
 if BUILD_SHA512
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm_c.c
 else
 
 if !BUILD_FIPS_V5
@@ -787,7 +796,8 @@ endif
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha3.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm_c.c
 endif BUILD_RISCV_ASM
 if BUILD_PPC64_ASM
 if BUILD_PPC64_ASM_INLINE
@@ -1039,7 +1049,8 @@ endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha256.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm_c.c
 endif BUILD_RISCV_ASM
 
 if BUILD_PPC32_ASM
@@ -1064,7 +1075,9 @@ endif BUILD_PPC64_ASM
 
 if BUILD_SHA512
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm_c.c
 else
 
 if !BUILD_FIPS_V5
@@ -1165,7 +1178,8 @@ endif
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha3.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm_c.c
 endif BUILD_RISCV_ASM
 if BUILD_PPC64_ASM
 if BUILD_PPC64_ASM_INLINE
@@ -1439,7 +1453,8 @@ endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha256.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha256-asm_c.c
 endif BUILD_RISCV_ASM
 
 if BUILD_PPC32_ASM
@@ -1605,7 +1620,8 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/af_alg/afalg_aes.c
 endif BUILD_AFALG
 
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-aes.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-aes-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-aes-asm_c.c
 endif BUILD_RISCV_ASM
 endif BUILD_AES
 endif !BUILD_FIPS_V2_PLUS
@@ -1635,7 +1651,9 @@ endif !BUILD_FIPS_V2_PLUS
 if !BUILD_FIPS_V2_PLUS
 if BUILD_SHA512
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm_c.c
 else
 
 if !BUILD_FIPS_V5
@@ -1740,7 +1758,8 @@ endif
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha3.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha3-asm_c.c
 endif BUILD_RISCV_ASM
 if BUILD_PPC64_ASM
 if BUILD_PPC64_ASM_INLINE
@@ -1891,7 +1910,8 @@ endif
 endif !BUILD_ARMASM_INLINE
 endif
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-poly1305.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-poly1305-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-poly1305-asm_c.c
 endif
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/poly1305.c
 if !BUILD_X86_ASM
@@ -1986,7 +2006,8 @@ endif
 endif !BUILD_ARMASM_INLINE
 else
 if BUILD_RISCV_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-chacha.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-chacha-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-chacha-asm_c.c
 endif BUILD_RISCV_ASM
 if !BUILD_X86_ASM
 if BUILD_INTELASM

@@ -347,6 +347,15 @@ void Transform_Sha256_Len_crypto(wc_Sha256* sha256, const byte* data,
     word32 len);
 #endif
 
+#if defined(WOLFSSL_RISCV_ASM)
+void Transform_Sha256_Len_riscv(wc_Sha256* sha256, const byte* data,
+    word32 len);
+void Transform_Sha256_Len_riscv_crypto(wc_Sha256* sha256, const byte* data,
+    word32 len);
+void Transform_Sha256_Len_riscv_vector(wc_Sha256* sha256, const byte* data,
+    word32 len);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

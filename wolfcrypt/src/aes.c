@@ -203,8 +203,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if !defined(WOLFSSL_RISCV_ASM)
-
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     /* case of possibly not using hardware acceleration for AES but using key
        blobs */
@@ -1527,7 +1525,36 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
-/* implemented in wolfcrypt/src/port/riscv/riscv-64-aes.c */
+/* Block cipher implemented by the generated RISC-V assembly
+ * (riscv-64-aes-asm.S / _c.c). The key schedule is wired in wc_AesSetKeyLocal.
+ * Vector-crypto overrides the bulk modes (ECB/CBC/CTR/GCM/XTS) with asm; scalar
+ * and base run the common-C modes over these single-block primitives, so the
+ * block routine is needed whenever a common-C mode (or Direct/CCM/GCM-stream)
+ * is built. */
+#if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_AESGCM_STREAM) || defined(HAVE_AESGCM) || \
+    defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_XTS) || \
+    defined(WOLFSSL_CMAC) || defined(WOLFSSL_AES_OFB) || \
+    defined(WOLFSSL_AES_CFB)
+static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock,
+    byte* outBlock)
+{
+    AES_encrypt_RISCV64(inBlock, outBlock, (byte*)aes->key, (int)aes->rounds);
+    return 0;
+}
+#endif
+
+#if defined(HAVE_AES_DECRYPT) && (defined(WOLFSSL_AES_DIRECT) || \
+    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB) || \
+    defined(WOLFSSL_AES_XTS) || defined(HAVE_AESCCM))
+static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
+    byte* outBlock)
+{
+    AES_decrypt_RISCV64(inBlock, outBlock, (byte*)aes->key, (int)aes->rounds);
+    return 0;
+}
+#endif
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
 /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
@@ -5411,8 +5438,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
 #endif /* NEED_AES_TABLES */
 
-#ifndef WOLFSSL_RISCV_ASM
-    /* Software AES - SetKey */
+    /* AES - SetKey (block schedule via generated asm on RISC-V) */
     static WARN_UNUSED_RESULT int wc_AesSetKeyLocal(
         Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
         int checkKeyLen)
@@ -5714,7 +5740,12 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
 #ifndef WC_C_DYNAMIC_FALLBACK
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_RISCV_ASM)
+        /* Generated RISC-V assembly key schedule (all paths). aes->rounds /
+         * aes->keylen were set above. */
+        AES_set_key_RISCV64(userKey, (int)keylen, (byte*)aes->key, dir);
+        return 0;
+#elif defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     #ifndef __aarch64__
         AES_set_key_AARCH32(userKey, keylen, (byte*)aes->key, dir);
@@ -5893,7 +5924,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
 
     } /* wc_AesSetKey() */
-#endif
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
@@ -6979,6 +7009,14 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
 #endif
 
+#if defined(WOLFSSL_RISCV_ASM)
+        AES_CBC_encrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
+            (int)aes->rounds);
+        (void)blocks;
+        (void)ret;
+        return 0;
+#endif
+
     #ifdef WOLFSSL_IMXRT_DCP
         /* Implemented in wolfcrypt/src/port/nxp/dcp_port.c */
         if (aes->keylen == 16)
@@ -7198,6 +7236,14 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return BAD_FUNC_ARG;
 #endif
         }
+
+#if defined(WOLFSSL_RISCV_ASM)
+        AES_CBC_decrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
+            (int)aes->rounds);
+        (void)blocks;
+        (void)ret;
+        return 0;
+#endif
 
     #ifdef WOLFSSL_IMXRT_DCP
         /* Implemented in wolfcrypt/src/port/nxp/dcp_port.c */
@@ -7704,6 +7750,17 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             aes->left -= processed;
             sz -= processed;
 
+    #if defined(WOLFSSL_RISCV_ASM)
+            if (sz > 0) {
+                AES_CTR_encrypt_RISCV64(in, out, sz, (byte*)aes->reg,
+                    (byte*)aes->key, (byte*)aes->tmp, &aes->left,
+                    (int)aes->rounds);
+            }
+            (void)scratch;
+            (void)ret;
+            return 0;
+    #endif
+
     #if defined(WOLFSSL_ARMASM)
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             #ifndef __aarch64__
@@ -7951,15 +8008,6 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #endif
 #endif
 
-#else  /* WOLFSSL_RISCV_ASM */
-
-#define AesEncrypt_preFetchOpt(aes, inBlock, outBlock, do_preFetch) \
-    wc_AesEncryptDirect(aes, outBlock, inBlock)
-#define AesDecrypt_preFetchOpt(aes, inBlock, outBlock, do_preFetch) \
-    wc_AesDecryptDirect(aes, outBlock, inBlock)
-
-#endif /* WOLFSSL_RISCV_ASM */
-
 /*
  * The IV for AES GCM and CCM, stored in struct Aes's member reg, is comprised
  * of two parts in order:
@@ -8063,10 +8111,7 @@ int wc_local_AesGcmCheckTagSz(word32 authTagSz) {
 #endif
 }
 
-#if defined(WOLFSSL_RISCV_ASM)
-    /* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
-
-#elif defined(WOLFSSL_AFALG)
+#if defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/afalg/afalg_aes.c */
 
 #elif defined(WOLFSSL_KCAPI_AES)
@@ -8390,6 +8435,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (ret == 0) {
         VECTOR_REGISTERS_PUSH;
 
+#if defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM) && \
+    !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
+        /* Compute H reflected for the carryless-multiply GHASH; the scalar
+         * GHASH uses no M0 table.  (Vector crypto supersedes scalar and needs H
+         * unreflected, so it falls through to the generic E(0) path below.) */
+        AES_GCM_set_key_RISCV64(iv, (byte*)aes->key, aes->gcm.H,
+            (int)aes->rounds);
+#else
         /* Generate H = AES_Encrypt(key, 0^128) */
         ret = wc_AesEncrypt(aes, iv, aes->gcm.H);
 
@@ -8425,6 +8478,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             }
 #endif /* GCM_TABLE || GCM_TABLE_4BIT */
         }
+#endif /* WOLFSSL_RISCV_SCALAR_CRYPTO_ASM */
 
         VECTOR_REGISTERS_POP;
     }
@@ -8546,7 +8600,94 @@ void AES_GCM_decrypt_vaes(const unsigned char *in, unsigned char *out,
 
 #if !defined(WOLFSSL_ARMASM) || defined(__aarch64__) || \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-#if defined(GCM_SMALL)
+#if defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM) && defined(HAVE_AESGCM) && \
+    !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
+/* GHASH using the RISC-V scalar carryless-multiply (Zbc) helper.  Vector crypto
+ * supersedes it (fused vghsh/vgmul), so this scalar path yields when both are on.
+ *
+ * H is stored reflected by AES_GCM_set_key_RISCV64, which is the form
+ * GHASH_RISCV64 expects.  GHASH_RISCV64(x, h, in, blocks) computes, for each
+ * 16-byte block, x = (x ^ block) * H in GF(2^128) (reflecting x in/out so the
+ * caller sees the standard domain).  A single padded/length block is therefore
+ * just GHASH_RISCV64(x, h, block, 1) - no software GMULT or M0 table is needed.
+ *
+ * @param [in]  gcm  GCM object.
+ * @param [in]  a    Additional Authentication Data (AAD).
+ * @param [in]  aSz  Length of AAD in bytes.
+ * @param [in]  c    Cipher text.
+ * @param [in]  cSz  Length of cipher text in bytes.
+ * @param [out] s    Hash result.
+ * @param [in]  sSz  Number of bytes to output.
+ */
+void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
+    word32 cSz, byte* s, word32 sSz)
+{
+    ALIGN8 byte x[WC_AES_BLOCK_SIZE];
+    ALIGN8 byte scratch[WC_AES_BLOCK_SIZE];
+    word32 blocks, partial;
+    byte* h = gcm->H;
+
+    XMEMSET(x, 0, WC_AES_BLOCK_SIZE);
+
+    /* Hash in A, the Additional Authentication Data */
+    if (aSz != 0 && a != NULL) {
+        blocks = aSz / WC_AES_BLOCK_SIZE;
+        partial = aSz % WC_AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            GHASH_RISCV64(x, h, a, blocks);
+            a += blocks * WC_AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
+            XMEMCPY(scratch, a, partial);
+            GHASH_RISCV64(x, h, scratch, 1);
+        }
+    }
+
+    /* Hash in C, the Ciphertext */
+    if (cSz != 0 && c != NULL) {
+        blocks = cSz / WC_AES_BLOCK_SIZE;
+        partial = cSz % WC_AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            GHASH_RISCV64(x, h, c, blocks);
+            c += blocks * WC_AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
+            XMEMCPY(scratch, c, partial);
+            GHASH_RISCV64(x, h, scratch, 1);
+        }
+    }
+
+    /* Hash in the lengths of A and C in bits */
+    FlattenSzInBits(&scratch[0], aSz);
+    FlattenSzInBits(&scratch[8], cSz);
+    GHASH_RISCV64(x, h, scratch, 1);
+
+    /* Copy the result into s. */
+    XMEMCPY(s, x, sSz);
+}
+
+#ifdef WOLFSSL_AESGCM_STREAM
+/* No extra initialization for the carryless-multiply implementation.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
+
+/* GHASH one block of data into the streaming tag.
+ *
+ * x = (tag ^ block) * H using the carryless-multiply helper (reflected H).
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK_SW(aes, block)                          \
+    GHASH_RISCV64(AES_TAG(aes), (aes)->gcm.H, block, 1)
+#endif /* WOLFSSL_AESGCM_STREAM */
+
+#define HAVE_GHASH
+#elif defined(GCM_SMALL)
 static void GMULT(byte* X, byte* Y)
 {
     byte Z[WC_AES_BLOCK_SIZE];
@@ -10769,6 +10910,21 @@ static int AES_GCM_encrypt_ASM(Aes* aes, byte* out, const byte* in,
 }
 #endif
 
+#if defined(WOLFSSL_RISCV_ASM)
+/* Pointer passed as "H" to the RISC-V GCM asm.  Scalar/vector crypto use the
+ * raw hash subkey gcm.H.  Base (software GHASH) uses the precomputed M0 table
+ * for GCM_TABLE/GCM_TABLE_4BIT, but gcm.H for the table-free GCM_WORD32/
+ * GCM_SMALL builds (which have no M0 member). */
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
+    defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+    #define AES_GCM_H_PTR(aes) ((aes)->gcm.H)
+#elif defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+    #define AES_GCM_H_PTR(aes) ((byte*)(aes)->gcm.M0)
+#else
+    #define AES_GCM_H_PTR(aes) ((byte*)(aes)->gcm.H)
+#endif
+#endif /* WOLFSSL_RISCV_ASM */
+
 /* Software AES - GCM Encrypt */
 int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
@@ -10888,6 +11044,19 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     return wc_Psoc6_Aes_GcmEncrypt(aes, out, in, sz, iv, ivSz, authTag,
                                    authTagSz, authIn, authInSz);
 #endif /* WOLFSSL_PSOC6_CRYPTO */
+
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
+    defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+    AES_GCM_encrypt_RISCV64(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
+        authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp, (byte*)aes->reg,
+        (int)aes->rounds);
+    return 0;
+#elif defined(WOLFSSL_RISCV_ASM)
+    AES_GCM_encrypt_RISCV64(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
+        authInSz, (byte*)aes->key, AES_GCM_H_PTR(aes), (byte*)aes->tmp,
+        (byte*)aes->reg, (int)aes->rounds);
+    return 0;
+#endif
 
     VECTOR_REGISTERS_PUSH;
 
@@ -11668,6 +11837,17 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     return wc_Psoc6_Aes_GcmDecrypt(aes, out, in, sz, iv, ivSz, authTag,
                                    authTagSz, authIn, authInSz);
 #endif /* WOLFSSL_PSOC6_CRYPTO */
+
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
+    defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+    return AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
+        authTagSz, authIn, authInSz, (byte*)aes->key, aes->gcm.H,
+        (byte*)aes->tmp, (byte*)aes->reg, (int)aes->rounds);
+#elif defined(WOLFSSL_RISCV_ASM)
+    return AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
+        authTagSz, authIn, authInSz, (byte*)aes->key, AES_GCM_H_PTR(aes),
+        (byte*)aes->tmp, (byte*)aes->reg, (int)aes->rounds);
+#endif
 
     VECTOR_REGISTERS_PUSH;
 
@@ -13372,6 +13552,369 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_AARCH64(
 #endif
 #endif
 
+/* AES_GCM_H_PTR is defined earlier (before wc_AesGcmEncrypt). */
+#if defined(WOLFSSL_RISCV_ASM) && defined(WOLFSSL_AESGCM_STREAM)
+
+static WARN_UNUSED_RESULT int AesGcmInit_RISCV64(Aes* aes, const byte* iv,
+    word32 ivSz)
+{
+    /* Reset state fields. */
+    aes->over = 0;
+    aes->aSz = 0;
+    aes->cSz = 0;
+    /* Set tag to all zeros as initial value. */
+    XMEMSET(AES_TAG(aes), 0, WC_AES_BLOCK_SIZE);
+    /* Reset counts of AAD and cipher text. */
+    aes->aOver = 0;
+    aes->cOver = 0;
+
+    {
+        AES_GCM_init_RISCV64((byte*)aes->key, (int)aes->rounds, iv, ivSz,
+            AES_GCM_H_PTR(aes), AES_COUNTER(aes), AES_INITCTR(aes));
+    }
+
+    return 0;
+}
+
+/* Update the AES GCM for encryption with authentication data.
+ *
+ * Implementation uses RISC-V optimized assembly code.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      a     Buffer holding authentication data.
+ * @param [in]      aSz   Length of authentication data in bytes.
+ * @param [in]      endA  Whether no more authentication data is expected.
+ */
+static WARN_UNUSED_RESULT int AesGcmAadUpdate_RISCV64(
+    Aes* aes, const byte* a, word32 aSz, int endA)
+{
+    word32 blocks;
+    int partial;
+
+    if (aSz != 0 && a != NULL) {
+        /* Total count of AAD updated. */
+        aes->aSz += aSz;
+        /* Check if we have unprocessed data. */
+        if (aes->aOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->aOver);
+            if (sz > aSz) {
+                sz = (byte)aSz;
+            }
+            /* Copy extra into last GHASH block array and update count. */
+            XMEMCPY(AES_LASTGBLOCK(aes) + aes->aOver, a, sz);
+            aes->aOver = (byte)(aes->aOver + sz);
+            if (aes->aOver == WC_AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+                {
+                    AES_GCM_ghash_block_RISCV64(AES_LASTGBLOCK(aes),
+                        AES_TAG(aes), AES_GCM_H_PTR(aes));
+                }
+                /* Reset count. */
+                aes->aOver = 0;
+            }
+            /* Used up some data. */
+            aSz -= sz;
+            a += sz;
+        }
+
+        /* Calculate number of blocks of AAD and the leftover. */
+        blocks = aSz / WC_AES_BLOCK_SIZE;
+        partial = aSz % WC_AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            /* GHASH full blocks now. */
+            {
+                AES_GCM_aad_update_RISCV64(a, blocks * WC_AES_BLOCK_SIZE,
+                    AES_TAG(aes), AES_GCM_H_PTR(aes));
+            }
+            /* Skip over to end of AAD blocks. */
+            a += blocks * WC_AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Cache the partial block. */
+            XMEMCPY(AES_LASTGBLOCK(aes), a, (size_t)partial);
+            aes->aOver = (byte)partial;
+        }
+    }
+    if (endA && (aes->aOver > 0)) {
+        /* No more AAD coming and we have a partial block. */
+        /* Fill the rest of the block with zeros. */
+        XMEMSET(AES_LASTGBLOCK(aes) + aes->aOver, 0,
+                (size_t)WC_AES_BLOCK_SIZE - aes->aOver);
+        /* GHASH last AAD block. */
+        {
+            AES_GCM_ghash_block_RISCV64(AES_LASTGBLOCK(aes),
+                AES_TAG(aes), AES_GCM_H_PTR(aes));
+        }
+        /* Clear partial count for next time through. */
+        aes->aOver = 0;
+    }
+
+    return 0;
+}
+
+/* Update the AES GCM for encryption with data and/or authentication data.
+ *
+ * Implementation uses RISC-V optimized assembly code.
+ *
+ * @param [in, out] aes  AES object.
+ * @param [out]     c    Buffer to hold cipher text.
+ * @param [in]      p    Buffer holding plaintext.
+ * @param [in]      cSz  Length of cipher text/plaintext in bytes.
+ * @param [in]      a    Buffer holding authentication data.
+ * @param [in]      aSz  Length of authentication data in bytes.
+ */
+static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_RISCV64(
+    Aes* aes, byte* c, const byte* p, word32 cSz, const byte* a, word32 aSz)
+{
+    word32 blocks;
+    int partial;
+    int ret;
+
+    /* Hash in A, the Authentication Data */
+    ret = AesGcmAadUpdate_RISCV64(aes, a, aSz, (cSz > 0) && (c != NULL));
+    if (ret != 0)
+        return ret;
+
+    /* Encrypt plaintext and Hash in C, the Cipher text */
+    if (cSz != 0 && c != NULL) {
+        /* Update count of cipher text we have hashed. */
+        aes->cSz += cSz;
+        if (aes->cOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->cOver);
+            if (sz > cSz) {
+                sz = (byte)cSz;
+            }
+            /* Encrypt some of the plaintext. */
+            xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, p, sz);
+            XMEMCPY(c, AES_LASTGBLOCK(aes) + aes->cOver, sz);
+            /* Update count of unused encrypted counter. */
+            aes->cOver = (byte)(aes->cOver + sz);
+            if (aes->cOver == WC_AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+                {
+                    AES_GCM_ghash_block_RISCV64(AES_LASTGBLOCK(aes),
+                        AES_TAG(aes), AES_GCM_H_PTR(aes));
+                }
+                /* Reset count. */
+                aes->cOver = 0;
+            }
+            /* Used up some data. */
+            cSz -= sz;
+            p += sz;
+            c += sz;
+        }
+
+        /* Calculate number of blocks of plaintext and the leftover. */
+        blocks = cSz / WC_AES_BLOCK_SIZE;
+        partial = cSz % WC_AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            /* Encrypt and GHASH full blocks now. */
+            {
+                AES_GCM_encrypt_update_RISCV64((byte*)aes->key,
+                    (int)aes->rounds, c, p, blocks * WC_AES_BLOCK_SIZE,
+                    AES_TAG(aes), AES_GCM_H_PTR(aes), AES_COUNTER(aes));
+            }
+            /* Skip over to end of blocks. */
+            p += blocks * WC_AES_BLOCK_SIZE;
+            c += blocks * WC_AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Encrypt the counter - XOR in zeros as proxy for plaintext. */
+            XMEMSET(AES_LASTGBLOCK(aes), 0, WC_AES_BLOCK_SIZE);
+            {
+                AES_GCM_encrypt_block_RISCV64((byte*)aes->key, (int)aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            /* XOR the remaining plaintext to calculate cipher text.
+             * Keep cipher text for GHASH of last partial block.
+             */
+            xorbuf(AES_LASTGBLOCK(aes), p, (word32)partial);
+            XMEMCPY(c, AES_LASTGBLOCK(aes), (size_t)partial);
+            /* Update count of the block used. */
+            aes->cOver = (byte)partial;
+        }
+    }
+    return 0;
+}
+
+/* Finalize the AES GCM for encryption and calculate the authentication tag.
+ *
+ * Calls ARCH64 optimized assembly code.
+ *
+ * @param [in, out] aes        AES object.
+ * @param [in]      authTag    Buffer to hold authentication tag.
+ * @param [in]      authTagSz  Length of authentication tag in bytes.
+ * @return  0 on success.
+ */
+static WARN_UNUSED_RESULT int AesGcmEncryptFinal_RISCV64(Aes* aes,
+    byte* authTag, word32 authTagSz)
+{
+    /* AAD block incomplete when > 0 */
+    byte over = aes->aOver;
+
+
+    if (aes->cOver > 0) {
+        /* Cipher text block incomplete. */
+        over = aes->cOver;
+    }
+    if (over > 0) {
+        /* Fill the rest of the block with zeros. */
+        XMEMSET(AES_LASTGBLOCK(aes) + over, 0,
+            (size_t)WC_AES_BLOCK_SIZE - over);
+        /* GHASH last cipher block. */
+        {
+            AES_GCM_ghash_block_RISCV64(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                AES_GCM_H_PTR(aes));
+        }
+    }
+    /* Calculate the authentication tag. */
+    {
+        AES_GCM_encrypt_final_RISCV64(AES_TAG(aes), authTag, authTagSz,
+            aes->cSz, aes->aSz, AES_GCM_H_PTR(aes), AES_INITCTR(aes));
+    }
+
+    return 0;
+}
+
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+/* Update the AES GCM for decryption with data and/or authentication data.
+ *
+ * @param [in, out] aes  AES object.
+ * @param [out]     p    Buffer to hold plaintext.
+ * @param [in]      c    Buffer holding cipher text.
+ * @param [in]      cSz  Length of cipher text/plaintext in bytes.
+ * @param [in]      a    Buffer holding authentication data.
+ * @param [in]      aSz  Length of authentication data in bytes.
+ */
+static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_RISCV64(Aes* aes, byte* p,
+    const byte* c, word32 cSz, const byte* a, word32 aSz)
+{
+    word32 blocks;
+    int partial;
+    int ret;
+
+    /* Hash in A, the Authentication Data */
+    ret = AesGcmAadUpdate_RISCV64(aes, a, aSz, cSz > 0);
+    if (ret != 0)
+        return ret;
+
+    /* Hash in C, the Cipher text, and decrypt. */
+    if (cSz != 0 && p != NULL) {
+        /* Update count of cipher text we have hashed. */
+        aes->cSz += cSz;
+        if (aes->cOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->cOver);
+            if (sz > cSz) {
+                sz = (byte)cSz;
+            }
+            /* Keep a copy of the cipher text for GHASH. */
+            XMEMCPY(AES_LASTBLOCK(aes) + aes->cOver, c, sz);
+            /* Decrypt some of the cipher text. */
+            xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
+            XMEMCPY(p, AES_LASTGBLOCK(aes) + aes->cOver, sz);
+            /* Update count of unused encrypted counter. */
+            aes->cOver = (byte)(aes->cOver + sz);
+            if (aes->cOver == WC_AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+                {
+                    AES_GCM_ghash_block_RISCV64(AES_LASTBLOCK(aes),
+                        AES_TAG(aes), AES_GCM_H_PTR(aes));
+                }
+                /* Reset count. */
+                aes->cOver = 0;
+            }
+            /* Used up some data. */
+            cSz -= sz;
+            c += sz;
+            p += sz;
+        }
+
+        /* Calculate number of blocks of plaintext and the leftover. */
+        blocks = cSz / WC_AES_BLOCK_SIZE;
+        partial = cSz % WC_AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            /* Decrypt and GHASH full blocks now. */
+            {
+                AES_GCM_decrypt_update_RISCV64((byte*)aes->key,
+                    (int)aes->rounds, p, c, blocks * WC_AES_BLOCK_SIZE,
+                    AES_TAG(aes), AES_GCM_H_PTR(aes), AES_COUNTER(aes));
+            }
+            /* Skip over to end of blocks. */
+            c += blocks * WC_AES_BLOCK_SIZE;
+            p += blocks * WC_AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Encrypt the counter - XOR in zeros as proxy for cipher text. */
+            XMEMSET(AES_LASTGBLOCK(aes), 0, WC_AES_BLOCK_SIZE);
+            {
+                AES_GCM_encrypt_block_RISCV64((byte*)aes->key, (int)aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            /* Keep cipher text for GHASH of last partial block. */
+            XMEMCPY(AES_LASTBLOCK(aes), c, (size_t)partial);
+            /* XOR the remaining cipher text to calculate plaintext. */
+            xorbuf(AES_LASTGBLOCK(aes), c, (word32)partial);
+            XMEMCPY(p, AES_LASTGBLOCK(aes), (size_t)partial);
+            /* Update count of the block used. */
+            aes->cOver = (byte)partial;
+        }
+    }
+
+    return 0;
+}
+
+/* Finalize the AES GCM for decryption and check the authentication tag.
+ *
+ * Implementation uses RISC-V optimized assembly code.
+ *
+ * @param [in, out] aes        AES object.
+ * @param [in]      authTag    Buffer holding authentication tag.
+ * @param [in]      authTagSz  Length of authentication tag in bytes.
+ * @return  0 on success.
+ * @return  AES_GCM_AUTH_E when authentication tag doesn't match calculated
+ *          value.
+ */
+static WARN_UNUSED_RESULT int AesGcmDecryptFinal_RISCV64(
+    Aes* aes, const byte* authTag, word32 authTagSz)
+{
+    int ret = 0;
+    int res;
+    /* AAD block incomplete when > 0 */
+    byte over = aes->aOver;
+    byte *lastBlock = AES_LASTGBLOCK(aes);
+
+
+    if (aes->cOver > 0) {
+        /* Cipher text block incomplete. */
+        over = aes->cOver;
+        lastBlock = AES_LASTBLOCK(aes);
+    }
+    if (over > 0) {
+        /* Zeroize the unused part of the block. */
+        XMEMSET(lastBlock + over, 0, (size_t)WC_AES_BLOCK_SIZE - over);
+        /* Hash the last block of cipher text. */
+        {
+            AES_GCM_ghash_block_RISCV64(lastBlock, AES_TAG(aes), AES_GCM_H_PTR(aes));
+        }
+    }
+    /* Calculate and compare the authentication tag. */
+    {
+        AES_GCM_decrypt_final_RISCV64(AES_TAG(aes), authTag, authTagSz,
+            aes->cSz, aes->aSz, AES_GCM_H_PTR(aes), AES_INITCTR(aes), &res);
+    }
+
+    /* Return error code when calculated doesn't match input. */
+    if (res == 0) {
+        ret = AES_GCM_AUTH_E;
+    }
+    return ret;
+}
+#endif
+#endif /* WOLFSSL_RISCV_ASM && WOLFSSL_AESGCM_STREAM */
+
 /* Initialize an AES GCM cipher for encryption or decryption.
  *
  * Must call wc_AesInit() before calling this function.
@@ -13446,6 +13989,9 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
                 ret = AesGcmInit_AARCH64(aes, iv, ivSz);
             }
             else
+        #elif defined(WOLFSSL_RISCV_ASM)
+            ret = AesGcmInit_RISCV64(aes, iv, ivSz);
+            if (0)
         #endif /* WOLFSSL_AESNI */
             {
                 ret = AesGcmInit_C(aes, iv, ivSz);
@@ -13574,6 +14120,9 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
                 authInSz);
         }
         else
+    #elif defined(WOLFSSL_RISCV_ASM)
+        ret = AesGcmEncryptUpdate_RISCV64(aes, out, in, sz, authIn, authInSz);
+        if (0)
     #endif
         {
             /* Encrypt the plaintext. */
@@ -13635,6 +14184,9 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
             ret = AesGcmEncryptFinal_AARCH64(aes, authTag, authTagSz);
         }
         else
+    #elif defined(WOLFSSL_RISCV_ASM)
+        ret = AesGcmEncryptFinal_RISCV64(aes, authTag, authTagSz);
+        if (0)
     #endif
         {
             ret = AesGcmFinal_C(aes, authTag, authTagSz);
@@ -13720,6 +14272,9 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
                 authInSz);
         }
         else
+    #elif defined(WOLFSSL_RISCV_ASM)
+        ret = AesGcmDecryptUpdate_RISCV64(aes, out, in, sz, authIn, authInSz);
+        if (0)
     #endif
         {
             /* Update the authentication tag with any authentication data and
@@ -13779,6 +14334,9 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
             ret = AesGcmDecryptFinal_AARCH64(aes, authTag, authTagSz);
         }
         else
+    #elif defined(WOLFSSL_RISCV_ASM)
+        ret = AesGcmDecryptFinal_RISCV64(aes, authTag, authTagSz);
+        if (0)
     #endif
         {
             ALIGN32 byte calcTag[WC_AES_BLOCK_SIZE];
@@ -14049,10 +14607,7 @@ int wc_AesCcmCheckTagSize(int sz)
     return 0;
 }
 
-#if defined(WOLFSSL_RISCV_ASM)
-    /* implementation located in wolfcrypt/src/port/riscv/riscv-64-aes.c */
-
-#elif defined(HAVE_COLDFIRE_SEC)
+#if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
 
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
@@ -15107,9 +15662,6 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
-#elif defined(WOLFSSL_RISCV_ASM)
-    /* implemented in wolfcrypt/src/port/riscv/riscv-64-aes.c */
-
 #elif defined(WOLFSSL_NXP_HASHCRYPT_AES)
     /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
 
@@ -15234,7 +15786,9 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
 
     VECTOR_REGISTERS_PUSH;
 
-#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_RISCV_ASM)
+    AES_encrypt_blocks_RISCV64(in, out, sz, (byte*)aes->key, (int)aes->rounds);
+#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     AES_encrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key, (int)aes->rounds);
 #else
@@ -15333,7 +15887,9 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 
     VECTOR_REGISTERS_PUSH;
 
-#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_RISCV_ASM)
+    AES_decrypt_blocks_RISCV64(in, out, sz, (byte*)aes->key, (int)aes->rounds);
+#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     AES_decrypt_blocks_AARCH32(in, out, sz, (byte*)aes->key, (int)aes->rounds);
 #else
@@ -16809,6 +17365,7 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
 static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
                                   word32 sz,
                                   byte *i);
+#if !defined(WOLFSSL_RISCV_ASM)
 static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         const byte* i)
 {
@@ -16821,6 +17378,7 @@ static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     return AesXtsEncryptUpdate_sw(xaes, out, in, sz, tweak_block);
 }
+#endif /* !WOLFSSL_RISCV_ASM */
 #endif
 
 #ifdef WOLFSSL_AESXTS_STREAM
@@ -16986,7 +17544,11 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+#if defined(WOLFSSL_RISCV_ASM)
+    AES_XTS_encrypt_RISCV64(in, out, sz, i, (byte*)xaes->aes.key,
+        (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, (int)xaes->aes.rounds);
+    ret = 0;
+#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     AES_XTS_encrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
@@ -17330,6 +17892,7 @@ int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
                                   word32 sz, byte *i);
 
+#if !defined(WOLFSSL_RISCV_ASM)
 static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         const byte* i)
 {
@@ -17342,6 +17905,7 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     return AesXtsDecryptUpdate_sw(xaes, out, in, sz, tweak_block);
 }
+#endif /* !WOLFSSL_RISCV_ASM */
 #endif
 
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
@@ -17525,7 +18089,14 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+#if defined(WOLFSSL_RISCV_ASM)
+    /* Use the selected decrypt schedule (aes), not xaes->aes - under
+     * WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS xaes->aes holds the
+     * ENCRYPT schedule; matches the AESNI branch below. */
+    AES_XTS_decrypt_RISCV64(in, out, sz, i, (byte*)aes->key,
+        (byte*)xaes->tweak.key, (byte*)aes->tmp, (int)aes->rounds);
+    ret = 0;
+#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);

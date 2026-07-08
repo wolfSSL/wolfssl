@@ -140,14 +140,29 @@ typedef struct Poly1305 {
     unsigned char buffer[POLY1305_BLOCK_SIZE];
     unsigned char finished;
 #elif defined(WOLFSSL_RISCV_ASM)
-    word64 r[2];
-#ifdef WOLFSSL_RISCV_VECTOR
-    word64 r2[6];
-#endif
+    /* Same layout/offsets as the generic POLY130564 struct (the scalar/base
+     * asm and common C depend on these offsets: r=0, h=24, pad=48, leftover=64,
+     * buffer=72, finished=88). */
+    word64 r[3];
     word64 h[3];
     word64 pad[2];
     size_t leftover;
     unsigned char buffer[POLY1305_BLOCK_SIZE];
+    unsigned char finished;
+#ifdef WOLFSSL_RISCV_VECTOR
+    /* Powers of r for the vector blocks path (44/44/42-bit limbs), stored as eight
+     * contiguous power-arrays so a single strided vector load gathers one limb's
+     * [r^4|r^3|r^2|r^1] (4-block, at r2[0]) or [r^8|r^7|r^6|r^5] (8-block pass A, at
+     * r2[12]) or [r^2|r^1] (2-block tail).  Layout (word64):
+     *   r2[0..2]=r^4, r2[3..5]=r^3, r2[6..8]=r^2, r2[9..11]=r^1,
+     *   r2[12..14]=r^8, r2[15..17]=r^7, r2[18..20]=r^6, r2[21..23]=r^5.
+     * Placed AFTER finished so the offsets above are unchanged. */
+    word64 r2[24];
+    /* Lazily-computed-powers level (offset 288): 0=none, 1=r^2 ready, 2=r^2..r^4
+     * ready, 3=r^2..r^8 ready.  SetKey clears it; the blocks path computes only the
+     * powers a given message size needs, so small messages skip the power setup. */
+    unsigned char r2_level;
+#endif
 #else
 #if defined(POLY130564)
     word64 r[3];
@@ -161,7 +176,7 @@ typedef struct Poly1305 {
     size_t leftover;
     unsigned char buffer[POLY1305_BLOCK_SIZE];
     unsigned char finished;
-#endif /* WOLFSSL_ARMASM */
+#endif /* USE_INTEL_POLY1305_SPEEDUP */
 } Poly1305;
 
 /* does init */
@@ -208,11 +223,12 @@ void poly1305_final(Poly1305* ctx, byte* mac);
 
 #if defined(WOLFSSL_RISCV_ASM)
 #define poly1305_blocks     poly1305_blocks_riscv64
-#define poly1305_block      poly1305_block_riscv64
 
 void poly1305_blocks_riscv64(Poly1305* ctx, const unsigned char *m,
     size_t bytes);
-void poly1305_block_riscv64(Poly1305* ctx, const unsigned char *m);
+void poly1305_block_16_riscv64(Poly1305* ctx, const unsigned char *m);
+void poly1305_set_key_riscv64(Poly1305* ctx, const byte* key);
+void poly1305_final_riscv64(Poly1305* ctx, byte* mac);
 #endif
 
 #ifdef __cplusplus

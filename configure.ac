@@ -1560,16 +1560,9 @@ then
     esac
 fi
 
-# RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.  Disable
-# implicit activation, and error on explicit activation.
-if test "$enable_riscv_asm" = "yes"
-then
-    if test "$enable_aesgcm_stream" = "yes"
-    then
-        AC_MSG_ERROR([RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.])
-    fi
-    enable_aesgcm_stream=no
-fi
+# RISC-V asm now supports WOLFSSL_AESGCM_STREAM: all tiers (base/scalar/vector)
+# have dedicated streaming assembly (AES_GCM_*_RISCV64).  (Previously disabled
+# here.)
 
 # All wolfCrypt features:
 AC_ARG_ENABLE([all-crypto],
@@ -4035,6 +4028,11 @@ do
     ENABLED_RISCV_ASM=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BASE_BIT_MANIPULATION"
     ;;
+  zba)
+    # SH2ADD - fused shift-add for table index calculation
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BASE_ADDRESS"
+    ;;
   zbc|zbkc)
     # CLMUL, CLMULH
     ENABLED_RISCV_ASM=yes
@@ -4080,7 +4078,7 @@ do
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_CRYPTO_ASM"
     ;;
   *)
-    AC_MSG_ERROR([Invalid RISC-V option [yes,zbkb,zbb,zbc,zbkc,zkn,zkned,zv,zvkg,zvbc,zvbb,zvkb,zvkned]: $ENABLED_RISCV_ASM.])
+    AC_MSG_ERROR([Invalid RISC-V option [yes,zba,zbkb,zbb,zbc,zbkc,zkned,zv,zvkg,zvbc,zvbb,zvkb,zvkned]: $ENABLED_RISCV_ASM.])
     break
     ;;
   esac
@@ -12143,9 +12141,6 @@ then
     if test "$ENABLED_AESGCM" = "no"
     then
         AC_MSG_ERROR([AES-GCM streaming is enabled but AES-GCM is disabled.])
-    elif test "$ENABLED_RISCV_ASM" = "yes"
-    then
-        AC_MSG_ERROR([RISC-V asm doesn't yet support WOLFSSL_AESGCM_STREAM.])
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"

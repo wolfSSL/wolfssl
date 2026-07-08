@@ -242,6 +242,15 @@ WOLFSSL_LOCAL void Transform_Sha512_Len_base(wc_Sha512* sha512,
     const byte* data, word32 len);
 #endif
 #endif /* WOLFSSL_ARMASM */
+
+#if defined(WOLFSSL_RISCV_ASM)
+WOLFSSL_LOCAL void Transform_Sha512_Len_riscv(wc_Sha512* sha512,
+    const byte* data, word32 len);
+WOLFSSL_LOCAL void Transform_Sha512_Len_riscv_crypto(wc_Sha512* sha512,
+    const byte* data, word32 len);
+WOLFSSL_LOCAL void Transform_Sha512_Len_riscv_vector(wc_Sha512* sha512,
+    const byte* data, word32 len);
+#endif
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 
 #if defined(WOLFSSL_SHA512)

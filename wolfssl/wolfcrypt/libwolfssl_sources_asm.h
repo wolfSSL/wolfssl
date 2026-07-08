@@ -43,6 +43,19 @@
     #define WC_CONFIG_H_INCLUDED
 #endif
 
+/* Generated assembly is guarded by the same feature macros as the C sources
+ * (e.g. WOLFSSL_SHA512).  In an autoconf build those macros are not in config.h
+ * - they live in wolfssl/options.h - so pull them in here, before settings.h,
+ * so the assembler sees the same configuration as the compiler.  This is a
+ * custom configuration method (options.h consumed directly), so tell settings.h
+ * not to warn about options.h in a library object. */
+#if defined(HAVE_CONFIG_H) && !defined(WOLFSSL_USER_SETTINGS)
+    #ifndef WOLFSSL_CUSTOM_CONFIG
+        #define WOLFSSL_CUSTOM_CONFIG
+    #endif
+    #include <wolfssl/options.h>
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
 
 #endif /* LIBWOLFSSL_SOURCES_ASM_H */
