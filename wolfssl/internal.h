@@ -3778,8 +3778,7 @@ enum PskDecryptReturn {
     PSK_DECRYPT_NONE = 0,
     PSK_DECRYPT_OK,
     PSK_DECRYPT_CREATE,
-    PSK_DECRYPT_FAIL,
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(PskDecryptReturn)
+    PSK_DECRYPT_FAIL
 };
 
 #ifdef HAVE_SESSION_TICKET
@@ -4511,8 +4510,7 @@ enum SignatureAlgorithm {
 enum SigAlgRsaPss {
     pss_sha256  = 0x09,
     pss_sha384  = 0x0a,
-    pss_sha512  = 0x0b,
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(SigAlgRsaPss)
+    pss_sha512  = 0x0b
 };
 
 #ifdef WOLFSSL_SM2
@@ -4547,8 +4545,7 @@ enum ClientCertificateType {
     rsa_fixed_ecdh      = 65,
     ecdsa_fixed_ecdh    = 66,
     falcon_sign         = 67,
-    mldsa_sign          = 68,
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(ClientCertificateType)
+    mldsa_sign          = 68
 };
 
 /* Maximum number of ClientCertificateType bytes the server emits in a
@@ -5094,16 +5091,14 @@ enum buildMsgState {
     BUILD_MSG_HASH,
     BUILD_MSG_VERIFY_MAC,
     BUILD_MSG_ENCRYPT,
-    BUILD_MSG_ENCRYPTED_VERIFY_MAC,
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(buildMsgState)
+    BUILD_MSG_ENCRYPTED_VERIFY_MAC
 };
 
 /* sub-states for cipher operations */
 enum cipherState {
     CIPHER_STATE_BEGIN = 0,
     CIPHER_STATE_DO,
-    CIPHER_STATE_END,
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(cipherState)
+    CIPHER_STATE_END
 };
 
 struct Options {
@@ -5460,8 +5455,7 @@ typedef enum {
     STACK_TYPE_X509_NAME_ENTRY    = 17,
     STACK_TYPE_X509_REQ_ATTR      = 18,
     STACK_TYPE_GENERAL_SUBTREE    = 19,
-    STACK_TYPE_X509_REVOKED       = 20,
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(WOLF_STACK_TYPE)
+    STACK_TYPE_X509_REVOKED       = 20
 } WOLF_STACK_TYPE;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
