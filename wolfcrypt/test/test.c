@@ -68706,7 +68706,10 @@ static wc_test_ret_t pkcs7_signed_multi_cert_test(
     byte*  out = NULL;
     byte*  content = NULL;
     int    encSz = 0;
-    const word32 outSz = FOURK_BUF * 4;
+    /* Encoded output is ~8.6 KB (4 KB content + three RSA certs); keep the
+     * buffer within the default WOLFSSL_STATIC_MEMORY largest bucket (16128)
+     * so it also runs under --enable-staticmemory with WOLFSSL_NO_MALLOC. */
+    const word32 outSz = FOURK_BUF * 3;
     const word32 contentSz = FOURK_BUF;   /* larger than the certificate set */
     int    found1 = 0, found2 = 0, found3 = 0, j;
 
@@ -68815,7 +68818,9 @@ static wc_test_ret_t pkcs7_signed_multi_cert_malformed_test(
     int    verifyRet;
     word32 p;
     word32 setStart = 0;
-    const word32 outSz = FOURK_BUF * 4;
+    /* See pkcs7_signed_multi_cert_test: keep within the default static-memory
+     * largest bucket (16128) so this runs under WOLFSSL_NO_MALLOC too. */
+    const word32 outSz = FOURK_BUF * 3;
     const word32 contentSz = FOURK_BUF;   /* pushes the cert set to a high offset */
 
     content = (byte*)XMALLOC(contentSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
