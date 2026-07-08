@@ -957,6 +957,239 @@ static int test_wolfSSL_X509_STORE_CTX_ex12(void)
 #endif
 #endif
 
+/* Regression test for the x509-limbo "pathlen" finding:
+ * wolfSSL_X509_verify_cert() must enforce the BasicConstraints
+ * pathLenConstraint (RFC 5280 sec. 4.2.1.9 / sec. 6.1.4).  A CA asserting
+ * pathlen:0 may only issue end-entity certificates; it must not be permitted
+ * to issue a further intermediate CA.  Reuses the certs/test-pathlen chains
+ * (see certs/test-pathlen/assemble-chains.sh):
+ *
+ *   ca-cert -> chainF-ICA2 (CA, pathlen:0) -> chainF-ICA1 (CA) -> entity
+ *
+ * chainF-ICA1 is an intermediate CA following the pathlen:0 chainF-ICA2, which
+ * RFC 5280 sec. 6.1.4 forbids, so the chain must be rejected with
+ * X509_V_ERR_PATH_LENGTH_EXCEEDED.  Before the fix this OpenSSL-compatibility
+ * path accepted the chain because each certificate was verified individually
+ * (as CERT_TYPE) without the issuer pathLen check the TLS handshake path
+ * performs. */
+int test_wolfSSL_X509_verify_cert_pathlen(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509* root = NULL;
+    X509* ica2 = NULL;
+    X509* ica1 = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* inter = NULL;
+
+    ExpectNotNull(root = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/ca-cert.pem"));
+    ExpectNotNull(ica2 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-ICA2-pathlen0.pem"));
+    ExpectNotNull(ica1 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-ICA1-pathlen1.pem"));
+    ExpectNotNull(leaf = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-entity.pem"));
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectNotNull(inter = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(inter, ica2), 0);
+    ExpectIntGT(sk_X509_push(inter, ica1), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, inter), 1);
+    /* Must be rejected: chainF-ICA1 violates chainF-ICA2's pathlen:0. */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_PATH_LENGTH_EXCEEDED);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(inter);
+    X509_free(root);
+    X509_free(ica2);
+    X509_free(ica1);
+    X509_free(leaf);
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_FILESYSTEM && !NO_RSA */
+    return EXPECT_RESULT();
+}
+
+/* Positive control: a legitimate chain whose intermediates assert pathlen:1
+ * then pathlen:0 must still verify, guarding pathLen enforcement against
+ * over-rejection.  Reuses the certs/test-pathlen chainB:
+ *
+ *   ca-cert -> chainB-ICA2 (CA, pathlen:1) -> chainB-ICA1 (CA, pathlen:0)
+ *           -> entity
+ *
+ * chainB-ICA2 permits one following intermediate (chainB-ICA1), so the chain
+ * is valid. */
+int test_wolfSSL_X509_verify_cert_pathlen_ok(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509* root = NULL;
+    X509* ica2 = NULL;
+    X509* ica1 = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* inter = NULL;
+
+    ExpectNotNull(root = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/ca-cert.pem"));
+    ExpectNotNull(ica2 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainB-ICA2-pathlen1.pem"));
+    ExpectNotNull(ica1 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainB-ICA1-pathlen0.pem"));
+    ExpectNotNull(leaf = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainB-entity.pem"));
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectNotNull(inter = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(inter, ica2), 0);
+    ExpectIntGT(sk_X509_push(inter, ica1), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, inter), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_OK);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(inter);
+    X509_free(root);
+    X509_free(ica2);
+    X509_free(ica1);
+    X509_free(leaf);
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_FILESYSTEM && !NO_RSA */
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+/* Records whether the pathLen violation was surfaced to the verify callback,
+ * then overrides it (returns 1) so verification continues - exercising the
+ * verify_cb override branch in X509StoreCheckPathLen(). */
+static int pathlen_override_seen = 0;
+static int pathlen_override_cb(int ok, X509_STORE_CTX *ctx)
+{
+    (void)ok;
+    if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_PATH_LENGTH_EXCEEDED)
+        pathlen_override_seen = 1;
+    return 1; /* override: accept despite the error */
+}
+#endif
+
+/* A verify callback that returns 1 must be able to override the pathLen
+ * violation, matching the INVALID_CA override handling in
+ * wolfSSL_X509_verify_cert().  Reuses the rejecting chainF: with the override
+ * callback installed the same chain must now verify, and the callback must have
+ * observed X509_V_ERR_PATH_LENGTH_EXCEEDED. */
+int test_wolfSSL_X509_verify_cert_pathlen_override(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509* root = NULL;
+    X509* ica2 = NULL;
+    X509* ica1 = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* inter = NULL;
+
+    pathlen_override_seen = 0;
+
+    ExpectNotNull(root = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/ca-cert.pem"));
+    ExpectNotNull(ica2 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-ICA2-pathlen0.pem"));
+    ExpectNotNull(ica1 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-ICA1-pathlen1.pem"));
+    ExpectNotNull(leaf = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-entity.pem"));
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    X509_STORE_set_verify_cb(store, pathlen_override_cb);
+    ExpectNotNull(inter = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(inter, ica2), 0);
+    ExpectIntGT(sk_X509_push(inter, ica1), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, inter), 1);
+    /* The callback overrides the violation, so verification now succeeds... */
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    /* ...and the callback must actually have seen the pathLen error. */
+    ExpectIntEQ(pathlen_override_seen, 1);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(inter);
+    X509_free(root);
+    X509_free(ica2);
+    X509_free(ica1);
+    X509_free(leaf);
+#endif /* OPENSSL_ALL && !NO_CERTS && !NO_FILESYSTEM && !NO_RSA */
+    return EXPECT_RESULT();
+}
+
+/* The trust anchor's own pathLenConstraint must bound the path (matching
+ * OpenSSL's -partial_chain behavior and wolfSSL's native ParseCertRelative).
+ * Trust chainF-ICA2 (pathlen:0) directly as a partial-chain anchor and verify
+ * the entity through chainF-ICA1 (a CA): chainF-ICA1 exceeds the anchor's
+ * pathlen:0, so it must be rejected.  This exercises the anchor-seeding branch
+ * of X509StoreCheckPathLen() (the violation comes from the anchor's constraint,
+ * not an intermediate's). */
+int test_wolfSSL_X509_verify_cert_pathlen_anchor(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509* ica2 = NULL;
+    X509* ica1 = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* inter = NULL;
+
+    ExpectNotNull(ica2 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-ICA2-pathlen0.pem"));
+    ExpectNotNull(ica1 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-ICA1-pathlen1.pem"));
+    ExpectNotNull(leaf = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/test-pathlen/chainF-entity.pem"));
+
+    /* Trust the pathlen:0 intermediate directly as a partial-chain anchor. */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, ica2), 1);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN), 1);
+    ExpectNotNull(inter = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(inter, ica1), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, inter), 1);
+    /* Must be rejected: chainF-ICA1 exceeds anchor chainF-ICA2's pathlen:0. */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_PATH_LENGTH_EXCEEDED);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(inter);
+    X509_free(ica2);
+    X509_free(ica1);
+    X509_free(leaf);
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_FILESYSTEM && !NO_RSA */
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_CTX_ex(void)
 {
     EXPECT_DECLS;

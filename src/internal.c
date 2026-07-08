@@ -13657,6 +13657,57 @@ static int PatternHasWildcardInALabel(const char* pattern, word32 patternLen)
     return 0;
 }
 
+/* Validate the placement of a wildcard ('*') in a presented identifier per
+ * RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3 and CA/Browser Forum Baseline
+ * Requirements sec. 3.2.2.6:
+ *   - a wildcard may only appear in the left-most label of the pattern, and
+ *   - a left-most label consisting solely of the wildcard ("*") may match only
+ *     when at least two further labels (i.e. at least two dots) follow it.
+ *
+ * This rejects a bare "*" (matches any single-label name), "*.com" (wildcard
+ * immediately to the left of a registry/public suffix), and
+ * "foo.*.example.com" (wildcard not in the left-most label), while still
+ * accepting the legitimate "*.example.com" form. Partial left-most wildcards
+ * such as "a*" or "a*b*" retain their existing matching behavior - they are
+ * not bare wildcard labels and are not subject to the two-label requirement.
+ * pattern/patternLen must already have any single trailing FQDN dot stripped.
+ *
+ * Returns 1 if the pattern has no wildcard or its wildcard placement is
+ * acceptable, 0 otherwise. */
+static int WildcardPlacementOK(const char* pattern, word32 patternLen)
+{
+    word32 i;
+    int sawWildcard = 0;
+    int sawDot = 0;
+    int dots = 0;
+
+    for (i = 0; i < patternLen; i++) {
+        if (pattern[i] == '*') {
+            /* A wildcard is only permitted in the left-most label: reject any
+             * '*' that appears after a label separator. */
+            if (sawDot)
+                return 0;
+            sawWildcard = 1;
+        }
+        else if (pattern[i] == '.') {
+            sawDot = 1;
+            dots++;
+        }
+    }
+
+    if (!sawWildcard)
+        return 1;
+
+    /* A left-most label that is exactly "*" (a bare wildcard label) requires at
+     * least two further labels. This rejects a bare "*" (0 dots) and "*.tld"
+     * (1 dot) but still allows "*.example.com" (2 dots). */
+    if (pattern[0] == '*' && (patternLen == 1 || pattern[1] == '.') &&
+            dots < 2)
+        return 0;
+
+    return 1;
+}
+
 /* Match names with wildcards, each wildcard can represent a single name
    component or fragment but not multiple names, i.e.,
    *.z.com matches y.z.com but not x.y.z.com
@@ -13712,6 +13763,13 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
                 return 0;
         }
     }
+
+    /* RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3 + CA/Browser Forum BR
+     * sec. 3.2.2.6: reject a pattern whose wildcard is not confined to the
+     * left-most label, or that has fewer than two labels to the right of the
+     * wildcard (e.g. "*", "*.com", "foo.*.example.com"). */
+    if (!WildcardPlacementOK(pattern, (word32)patternLen))
+        return 0;
 
     while (patternLen > 0) {
         /* Get the next pattern char to evaluate */

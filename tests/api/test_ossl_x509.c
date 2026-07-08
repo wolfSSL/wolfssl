@@ -1862,6 +1862,82 @@ int test_wolfSSL_X509_check_host_embedded_nul_san(void)
     return EXPECT_RESULT();
 }
 
+/* Verify that MatchDomainName() enforces RFC 6125 sec. 6.4.3 / RFC 9525
+ * sec. 6.3 and CA/Browser Forum BR sec. 3.2.2.6 wildcard placement rules:
+ * a wildcard is confined to the left-most label, and a bare wildcard label
+ * ("*") requires at least two further labels.  Regression test for the
+ * x509-limbo findings that "*", "*.com" and "foo.*.example.com" were matched.
+ *
+ * MatchDomainName() is exposed for testing via the visibility mechanism
+ * declared in wolfssl/internal.h. */
+int test_wolfSSL_MatchDomainName_wildcard(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+    static const struct {
+        const char* pattern;
+        const char* host;
+        unsigned int flags;
+        int expected; /* 1 = match, 0 = no match */
+        const char* note;
+    } cases[] = {
+        /* --- The reported forbidden patterns must NOT match. --- */
+        /* Bare wildcard: matches any single-label name. */
+        { "*",                   "com",                 0, 0, "bare wildcard" },
+        { "*",                   "anything",            0, 0,
+          "bare wildcard 2" },
+        /* Wildcard not in the left-most label. */
+        { "foo.*.example.com",   "foo.bar.example.com", 0, 0,
+          "wildcard in middle label" },
+        { "foo.*.example.com",   "foo.x.example.com",   0, 0,
+          "wildcard in middle label 2" },
+        /* Bare wildcard immediately left of a public/registry suffix. */
+        { "*.com",               "example.com",         0, 0,
+          "public-suffix wildcard" },
+        { "*.com",               "evil.com",            0, 0,
+          "public-suffix wildcard 2" },
+        /* Two label-spanning wildcards: the second is not left-most. */
+        { "*.*.example.com",     "a.b.example.com",     0, 0,
+          "second wildcard not left-most" },
+
+        /* --- Legitimate wildcards must still match. --- */
+        { "*.example.com",       "foo.example.com",     0, 1,
+          "single left-most wildcard" },
+        { "*.example.com",       "bar.example.com",     0, 1,
+          "single left-most wildcard 2" },
+        /* Two labels after the wildcard is sufficient; no public-suffix list
+         * is consulted (matching OpenSSL). */
+        { "*.co.uk",             "foo.co.uk",           0, 1,
+          "two labels after wildcard" },
+        /* Partial left-most wildcards retain their existing behavior and are
+         * not subject to the bare-wildcard two-label requirement. */
+        { "a*.example.com",      "abc.example.com",     0, 1,
+          "partial left-most wildcard" },
+        /* A wildcard never spans a label separator. */
+        { "*.example.com",       "foo.bar.example.com", 0, 0,
+          "wildcard does not cross a dot" },
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        int got = MatchDomainName(
+                    cases[i].pattern, (int)XSTRLEN(cases[i].pattern),
+                    cases[i].host,    (word32)XSTRLEN(cases[i].host),
+                    cases[i].flags);
+        ExpectIntEQ(got, cases[i].expected);
+        if (! EXPECT_SUCCESS()) {
+            fprintf(stderr,
+                "MatchDomainName(\"%s\", \"%s\", flags=0x%x) = %d, "
+                "expected %d (%s)\n",
+                cases[i].pattern, cases[i].host, cases[i].flags,
+                got, cases[i].expected, cases[i].note);
+            break;
+        }
+    }
+#endif /* !NO_ASN && !WOLFCRYPT_ONLY && !NO_CERTS */
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_max_altnames(void)
 {
     EXPECT_DECLS;

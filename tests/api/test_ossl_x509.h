@@ -51,6 +51,7 @@ int test_wolfSSL_X509_name_match3(void);
 int test_wolfssl_local_IsValidFQDN(void);
 int test_wolfSSL_MatchDomainName_idn(void);
 int test_wolfSSL_X509_check_host_embedded_nul_san(void);
+int test_wolfSSL_MatchDomainName_wildcard(void);
 int test_wolfSSL_X509_max_altnames(void);
 int test_wolfSSL_X509_max_name_constraints(void);
 int test_wolfSSL_X509_check_ca(void);
@@ -85,6 +86,7 @@ int test_wolfSSL_X509_cmp(void);
     TEST_DECL_GROUP("ossl_x509", test_wolfssl_local_IsValidFQDN),              \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_MatchDomainName_idn),            \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_host_embedded_nul_san),\
+    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_MatchDomainName_wildcard),       \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_max_altnames),              \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_max_name_constraints),      \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_ca),                  \
