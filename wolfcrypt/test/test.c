@@ -30413,7 +30413,8 @@ exit_rsa_certreq:
 /* Exercise both routing paths under WOLFSSL_SE050_ONLY_KEY_ID for RSA: a
  * generated software key (keyIdSet == 0 -> wolfCrypt software) and the same key
  * promoted into the SE050 (keyIdSet == 1 -> hardware). PKCS#1 v1.5 sign/verify
- * are checked on each path and cross-checked for interoperability. */
+ * and public-encrypt/private-decrypt are checked on each path and cross-checked
+ * for interoperability. */
 static wc_test_ret_t rsa_se050_onlykeyid_test(WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -30424,9 +30425,11 @@ static wc_test_ret_t rsa_se050_onlykeyid_test(WC_RNG* rng)
     byte    in[32];
     byte    sigSw[256];
     byte    sigHw[256];
+    byte    encSw[256];
+    byte    encHw[256];
     byte    plain[256];
     word32  inLen = (word32)sizeof(in);
-    int     sigSwSz, sigHwSz, plainSz;
+    int     sigSwSz, sigHwSz, encSwSz, encHwSz, plainSz;
 
     XMEMSET(in, 7, sizeof(in));
 
@@ -30485,6 +30488,53 @@ static wc_test_ret_t rsa_se050_onlykeyid_test(WC_RNG* rng)
     /* Cross-verify: RSA PKCS#1 v1.5 is deterministic, so the software and
      * hardware signatures over the same key and input must be identical. */
     if (sigSwSz != sigHwSz || XMEMCMP(sigSw, sigHw, (size_t)sigSwSz) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    /* The software private-key path (wc_RsaPrivateDecrypt) takes no RNG
+     * argument, so with RSA blinding enabled the RNG must be attached to the
+     * key beforehand. The SE050 path does not need it. */
+#ifdef WC_RSA_BLINDING
+    ret = wc_RsaSetRNG(&swKey, rng);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+#endif
+
+    /* Software path: public-encrypt + private-decrypt round-trip. */
+    encSwSz = wc_RsaPublicEncrypt(in, inLen, encSw, (word32)sizeof(encSw),
+            &swKey, rng);
+    if (encSwSz < 0) { ret = WC_TEST_RET_ENC_EC(encSwSz); goto done; }
+    plainSz = wc_RsaPrivateDecrypt(encSw, (word32)encSwSz, plain,
+            (word32)sizeof(plain), &swKey);
+    if (plainSz < 0) { ret = WC_TEST_RET_ENC_EC(plainSz); goto done; }
+    if ((word32)plainSz != inLen || XMEMCMP(plain, in, inLen) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    /* Hardware path: public-encrypt + private-decrypt round-trip. */
+    encHwSz = wc_RsaPublicEncrypt(in, inLen, encHw, (word32)sizeof(encHw),
+            &hwKey, rng);
+    if (encHwSz < 0) { ret = WC_TEST_RET_ENC_EC(encHwSz); goto done; }
+    plainSz = wc_RsaPrivateDecrypt(encHw, (word32)encHwSz, plain,
+            (word32)sizeof(plain), &hwKey);
+    if (plainSz < 0) { ret = WC_TEST_RET_ENC_EC(plainSz); goto done; }
+    if ((word32)plainSz != inLen || XMEMCMP(plain, in, inLen) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    /* Cross-decrypt: PKCS#1 v1.5 encryption padding is randomized, so the
+     * ciphertexts cannot be compared directly like the signatures above.
+     * Instead confirm the software and hardware paths interoperate by having
+     * each key decrypt the ciphertext produced by the other. */
+    plainSz = wc_RsaPrivateDecrypt(encSw, (word32)encSwSz, plain,
+            (word32)sizeof(plain), &hwKey);
+    if (plainSz < 0) { ret = WC_TEST_RET_ENC_EC(plainSz); goto done; }
+    if ((word32)plainSz != inLen || XMEMCMP(plain, in, inLen) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+    plainSz = wc_RsaPrivateDecrypt(encHw, (word32)encHwSz, plain,
+            (word32)sizeof(plain), &swKey);
+    if (plainSz < 0) { ret = WC_TEST_RET_ENC_EC(plainSz); goto done; }
+    if ((word32)plainSz != inLen || XMEMCMP(plain, in, inLen) != 0) {
         ret = WC_TEST_RET_ENC_NC; goto done;
     }
     ret = 0;
