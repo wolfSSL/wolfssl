@@ -231,7 +231,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 
 /* Define AES implementation includes and functions */
-#if defined(STM32_CRYPTO)
+#if defined(STM32_CRYPTO) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
      /* STM32F2/F4/F7/L4/L5/H7/WB55 hardware AES support for ECB, CBC, CTR and GCM modes */
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
