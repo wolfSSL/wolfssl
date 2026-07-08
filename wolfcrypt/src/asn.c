@@ -107,6 +107,8 @@ ASN Options:
  * WOLFSSL_ALLOW_AKID_SKID_MATCH: By default cert issuer is found using hash
  * of cert subject hash with signers subject hash. This option allows fallback
  * to using AKID and SKID matching.
+ * WOLFSSL_DTN: Enables Delay-Tolerant Networking (RFC 9174) support.
+ * Currently this enables id-on-bundleEID in otherName.
  *
  * Certificate Generation/Parsing:
  * WOLFSSL_CERT_REQ:         Enable certificate request (CSR) support
@@ -19547,7 +19549,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         if (ret != 0) {
             return ret;
         }
-    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
+    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
         /* FPKI/SEP also OID-decode the otherName into a separate altNames
          * entry that holds the parsed UPN/FASCN value (with oidSum != 0).
          * That parsed entry is consumed by wc_GetUUIDFromCert /
