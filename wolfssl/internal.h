@@ -3630,8 +3630,8 @@ typedef struct ExternalTicket {
     byte key_name[WOLFSSL_TICKET_NAME_SZ];     /* key context name - 16 */
     byte iv[WOLFSSL_TICKET_IV_SZ];             /* this ticket's iv - 16 */
     byte enc_len[OPAQUE16_LEN];                /* encrypted length - 2 */
-    byte enc_ticket[WC_FLEXIBLE_ARRAY_SIZE]; /* encrypted ticket - var length
-                                                *   + total mac - 32 */
+    byte enc_ticket[WC_FLEXIBLE_ARRAY_SIZE];   /* encrypted ticket - var length
+                                                * + total mac - 32 */
 } ExternalTicket;
 
 /* Fixed portion of external ticket (key_name + iv + enc_len) */
