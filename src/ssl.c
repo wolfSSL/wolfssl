@@ -12727,17 +12727,10 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     if (ssl == NULL)
         return;
 
-    /* ctx still owns certificate, certChain, key, dh, and cm */
-    if (ssl->buffers.weOwnCert) {
-        FreeDer(&ssl->buffers.certificate);
-        ssl->buffers.weOwnCert = 0;
-    }
-    ssl->buffers.certificate = NULL;
-    if (ssl->buffers.weOwnCertChain) {
-        FreeDer(&ssl->buffers.certChain);
-        ssl->buffers.weOwnCertChain = 0;
-    }
-    ssl->buffers.certChain = NULL;
+    FreeDer(&ssl->buffers.certificate);
+    ssl->buffers.weOwnCert = 0;
+    FreeDer(&ssl->buffers.certChain);
+    ssl->buffers.weOwnCertChain = 0;
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = 0;
 #endif
@@ -13200,8 +13193,14 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 #else
     /* ctx owns certificate, certChain and key */
+    FreeDer(&ssl->buffers.certificate);
+    ssl->buffers.weOwnCert = 0;
+    FreeDer(&ssl->buffers.certChain);
+    ssl->buffers.weOwnCertChain = 0;
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
+    RefDer(ssl->buffers.certificate);
+    RefDer(ssl->buffers.certChain);
 #endif
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;

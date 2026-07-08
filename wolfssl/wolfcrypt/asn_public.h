@@ -241,8 +241,9 @@ typedef struct DerBuffer {
     byte*  buffer;
     void*  heap;
     word32 length;
-    int    type;    /* enum CertType */
-    int    dynType; /* DYNAMIC_TYPE_* */
+    int    type;     /* enum CertType */
+    int    dynType;  /* DYNAMIC_TYPE_* */
+    wolfSSL_Ref ref; /* refcount for aliased pointers to the der */
 } DerBuffer;
 
 typedef struct WOLFSSL_ASN1_TIME {

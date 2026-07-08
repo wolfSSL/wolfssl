@@ -24693,11 +24693,28 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
         der->heap = heap;
         der->buffer = (byte*)der + sizeof(DerBuffer);
         der->length = length;
+        wolfSSL_RefInit(&der->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
+            XFREE(der, heap, dynType);
+            *pDer = NULL;
+            return ret;
+        }
+    #endif
         ret = 0; /* Success */
     } else {
         ret = BAD_FUNC_ARG;
     }
     return ret;
+}
+
+void RefDer(DerBuffer* der)
+{
+    if (der != NULL) {
+        int ref_err = 0;
+        wolfSSL_RefInc(&der->ref, &ref_err);
+        (void)ref_err;
+    }
 }
 
 int AllocCopyDer(DerBuffer** pDer, const unsigned char* buff, word32 length,
@@ -24715,15 +24732,21 @@ void FreeDer(DerBuffer** pDer)
 {
     if (pDer && *pDer) {
         DerBuffer* der = (DerBuffer*)*pDer;
+        int isZero = 1;
+        int ref_err = 0;
 
-        /* ForceZero private keys */
-        if (((der->type == PRIVATEKEY_TYPE) ||
-             (der->type == ALT_PRIVATEKEY_TYPE)) && der->buffer != NULL) {
-            ForceZero(der->buffer, der->length);
+        wolfSSL_RefDec(&der->ref, &isZero, &ref_err);
+        (void)ref_err;
+        if (isZero) {
+            if (((der->type == PRIVATEKEY_TYPE) ||
+                 (der->type == ALT_PRIVATEKEY_TYPE)) && der->buffer != NULL) {
+                ForceZero(der->buffer, der->length);
+            }
+            der->buffer = NULL;
+            der->length = 0;
+            wolfSSL_RefFree(&der->ref);
+            XFREE(der, der->heap, der->dynType);
         }
-        der->buffer = NULL;
-        der->length = 0;
-        XFREE(der, der->heap, der->dynType);
 
         *pDer = NULL;
     }

@@ -7174,6 +7174,10 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
+    /* Increment refcount on cert pointers since we've aliased them. This
+     * prevents early freeing of the cert buffers. */
+    RefDer(ssl->buffers.certificate);
+    RefDer(ssl->buffers.certChain);
 #endif
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
@@ -9218,6 +9222,12 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifndef NO_CERTS
     ssl->keepCert = 0; /* make sure certificate is free'd */
     wolfSSL_UnloadCertsKeys(ssl);
+    /* Release references on cert buffers aliased from the context. Owned
+     * buffers were already freed and cleared by wolfSSL_UnloadCertsKeys. */
+    FreeDer(&ssl->buffers.certificate);
+    ssl->buffers.weOwnCert = 0;
+    FreeDer(&ssl->buffers.certChain);
+    ssl->buffers.weOwnCertChain = 0;
 #endif
 #ifndef NO_RSA
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);

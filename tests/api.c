@@ -3956,25 +3956,18 @@ static int test_wolfSSL_add_to_chain_overflow(void)
     if (EXPECT_SUCCESS()) {
         /* Now ctx->certificate is set, next add goes to certChain via
          * wolfssl_add_to_chain.  Fake a chain whose length is near UINT32_MAX
-         * so the size calculation (len + CERT_HEADER_SZ + certSz) overflows. */
-        fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16, ctx->heap,
-            DYNAMIC_TYPE_CERT);
-        ExpectNotNull(fakeChain);
+         * so the size calculation (len + CERT_HEADER_SZ + certSz) overflows.
+         * Use AllocDer so the buffer refcount is initialized. */
+        ExpectIntEQ(AllocDer(&fakeChain, 16, CERT_TYPE, ctx->heap), 0);
     }
     if (EXPECT_SUCCESS()) {
-        XMEMSET(fakeChain, 0, sizeof(DerBuffer) + 16);
-        fakeChain->buffer = (byte*)(fakeChain + 1);
         fakeChain->length = WOLFSSL_MAX_32BIT - 2; /* will overflow with any cert */
-        fakeChain->type = CERT_TYPE;
-        fakeChain->dynType = DYNAMIC_TYPE_CERT;
         /* Replace the real chain with our fake one. */
-        if (ctx->certChain != NULL) {
-            XFREE(ctx->certChain, ctx->heap, DYNAMIC_TYPE_CERT);
-        }
+        FreeDer(&ctx->certChain);
         ctx->certChain = fakeChain;
     }
     else {
-        XFREE(fakeChain, ctx ? ctx->heap : NULL, DYNAMIC_TYPE_CERT);
+        FreeDer(&fakeChain);
     }
 
     /* Try to add another cert - this MUST fail due to overflow guard. */

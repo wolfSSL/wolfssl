@@ -242,10 +242,7 @@ static int ProcessUserChainRetain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     /* Store in SSL object if available. */
     if (ssl != NULL) {
-        /* Dispose of old chain if not reference to context's. */
-        if (ssl->buffers.weOwnCertChain) {
-            FreeDer(&ssl->buffers.certChain);
-        }
+        FreeDer(&ssl->buffers.certChain);
         /* Allocate and copy the buffer into SSL object. */
         ret = AllocCopyDer(&ssl->buffers.certChain, chainBuffer, len, type,
             heap);
@@ -2224,15 +2221,14 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* Leaf certificate - our certificate. */
     else if (type == CERT_TYPE) {
         if (ssl != NULL) {
-            /* Free previous certificate if we own it. */
+        #ifdef KEEP_OUR_CERT
             if (ssl->buffers.weOwnCert) {
-                FreeDer(&ssl->buffers.certificate);
-            #ifdef KEEP_OUR_CERT
                 /* Dispose of X509 version of certificate. */
                 wolfSSL_X509_free(ssl->ourCert);
                 ssl->ourCert = NULL;
-            #endif
             }
+        #endif
+            FreeDer(&ssl->buffers.certificate);
             /* Store certificate as ours. */
             ssl->buffers.certificate = der;
         #ifdef KEEP_OUR_CERT
