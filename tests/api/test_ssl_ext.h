@@ -28,6 +28,7 @@ int test_wolfSSL_CTX_num_tickets_ext(void);
 int test_wolfSSL_set1_groups_ext(void);
 int test_wolfSSL_set1_groups_list_ext(void);
 int test_wolfSSL_CTX_set_TicketHint_ext(void);
+int test_wolfSSL_CTX_set_TicketHint_default_cb_limit(void);
 int test_wolfSSL_tlsext_max_fragment_length_ext(void);
 int test_wolfSSL_DisableExtendedMasterSecret_ext(void);
 int test_wolfSSL_set_tlsext_host_name_ext(void);
@@ -57,6 +58,8 @@ int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void);
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set1_groups_ext),              \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set1_groups_list_ext),         \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_CTX_set_TicketHint_ext),       \
+        TEST_DECL_GROUP("ssl_ext",                                            \
+            test_wolfSSL_CTX_set_TicketHint_default_cb_limit),                \
         TEST_DECL_GROUP("ssl_ext",                                            \
             test_wolfSSL_tlsext_max_fragment_length_ext),                     \
         TEST_DECL_GROUP("ssl_ext",                                            \

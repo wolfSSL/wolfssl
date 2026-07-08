@@ -1055,8 +1055,6 @@ int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx, SessionTicketEncCb cb)
  *
  * @param [in] ctx   SSL/TLS context object.
  * @param [in] hint  Lifetime hint in seconds. No more than 604800 (7 days).
- *                   With the default ticket encryption callback, must also be
- *                   less than WOLFSSL_TICKET_KEY_LIFETIME / 2.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL or hint is out of range.
  */
@@ -1069,15 +1067,6 @@ int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int hint)
      * 604800 seconds (7 days). */
     if (hint < 0 || hint > 604800)
         return BAD_FUNC_ARG;
-
-#ifdef WOLFSSL_TICKET_KEY_LIFETIME
-    /* The default ticket encryption callback rotates two keys, each living
-     * WOLFSSL_TICKET_KEY_LIFETIME seconds. Its staggered rotation can only
-     * honor a hint below half that; a larger hint would leave no key available
-     * for encryption. */
-    if (hint >= WOLFSSL_TICKET_KEY_LIFETIME / 2)
-        return BAD_FUNC_ARG;
-#endif
 
     ctx->ticketHint = hint;
 

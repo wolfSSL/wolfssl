@@ -41744,6 +41744,13 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         return BUFFER_E;
     }
 
+    /* The two-key rotation can only honor a hint below half the key lifetime.
+     * Refuse to issue a ticket whose advertised lifetime it cannot cover. */
+    if (enc && 2 * ctx->ticketHint >= WOLFSSL_TICKET_KEY_LIFETIME) {
+        WOLFSSL_MSG("Ticket hint exceeds half the ticket key lifetime");
+        return WOLFSSL_TICKET_RET_FATAL;
+    }
+
     /* Check we have setup the RNG, name and primary key. */
     if (keyCtx->expirary[0] == 0) {
 #ifndef SINGLE_THREADED

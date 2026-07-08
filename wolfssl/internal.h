@@ -2047,8 +2047,8 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
         /* Default lifetime is 1 hour from issue of first ticket with key. */
         #define WOLFSSL_TICKET_KEY_LIFETIME       (60 * 60)
     #endif
-    #if WOLFSSL_TICKET_KEY_LIFETIME <= 2 * SESSION_TICKET_HINT_DEFAULT
-        #error "Ticket Key lifetime must be more than twice the ticket life hint."
+    #if WOLFSSL_TICKET_KEY_LIFETIME <= SESSION_TICKET_HINT_DEFAULT
+        #error "Ticket Key lifetime must be longer than ticket life hint."
     #endif
 #endif
 

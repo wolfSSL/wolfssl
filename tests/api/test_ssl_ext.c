@@ -188,20 +188,80 @@ int test_wolfSSL_CTX_set_TicketHint_ext(void)
     ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 604801),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 0), WOLFSSL_SUCCESS);
-#ifdef WOLFSSL_TICKET_KEY_LIFETIME
-    /* The default ticket encryption callback can only honor a hint below half
-     * the ticket key lifetime; larger values are rejected. */
-    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, WOLFSSL_TICKET_KEY_LIFETIME / 2),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx,
-        WOLFSSL_TICKET_KEY_LIFETIME / 2 - 1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 604800),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#else
     ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx, 604800), WOLFSSL_SUCCESS);
-#endif
 
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) \
+    && defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) \
+    && !defined(NO_WOLFSSL_SERVER)
+/* Trivial custom ticket encryption callback: it has no key-lifetime constraint,
+ * so it must be able to issue a ticket for any hint. */
+static int test_TicketHint_custom_encCb(WOLFSSL* ssl,
+        byte key_name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
+        byte mac[WOLFSSL_TICKET_MAC_SZ], int enc, byte* ticket, int inLen,
+        int* outLen, void* userCtx)
+{
+    int i;
+    (void)ssl;
+    (void)userCtx;
+    if (enc) {
+        XMEMSET(key_name, 0x2A, WOLFSSL_TICKET_NAME_SZ);
+        XMEMSET(iv, 0x2A, WOLFSSL_TICKET_IV_SZ);
+        XMEMSET(mac, 0x2A, WOLFSSL_TICKET_MAC_SZ);
+    }
+    for (i = 0; i < inLen; i++)
+        ticket[i] = (byte)(ticket[i] ^ 0xA5);
+    *outLen = inLen;
+    return WOLFSSL_TICKET_RET_OK;
+}
+
+/* Drive one TLS 1.3 handshake, returning the handshake result. */
+static int test_TicketHint_handshake(int hint, int customCb)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method) != 0) {
+        ret = -1;
+        goto done;
+    }
+    if (customCb)
+        wolfSSL_CTX_set_TicketEncCb(ctx_s, test_TicketHint_custom_encCb);
+    wolfSSL_CTX_set_TicketHint(ctx_s, hint);
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+done:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return ret;
+}
+#endif
+
+/* The default ticket encryption callback must refuse to issue a ticket when the
+ * hint exceeds half the key lifetime, but a custom callback has no such limit. */
+int test_wolfSSL_CTX_set_TicketHint_default_cb_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) \
+    && defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) \
+    && !defined(NO_WOLFSSL_SERVER)
+    /* Default callback: a hint below the limit is honored. */
+    ExpectIntEQ(test_TicketHint_handshake(WOLFSSL_TICKET_KEY_LIFETIME / 2 - 1, 0),
+        0);
+    /* Default callback: a hint at/above the limit fails the handshake. */
+    ExpectIntNE(test_TicketHint_handshake(WOLFSSL_TICKET_KEY_LIFETIME / 2, 0), 0);
+    /* Custom callback: the same oversized hint is fine. */
+    ExpectIntEQ(test_TicketHint_handshake(WOLFSSL_TICKET_KEY_LIFETIME / 2, 1), 0);
 #endif
     return EXPECT_RESULT();
 }
