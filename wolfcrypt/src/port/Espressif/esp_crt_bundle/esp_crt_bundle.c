@@ -1382,6 +1382,13 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
             ESP_LOGCBI(TAG, "- This certificate at 0x%x, length: %u",
                              (intptr_t)cur_crt, cert_len);
 
+            if (cur_crt + CRT_HEADER_OFFSET + cert_len > bundle_end) {
+                ESP_LOGE(TAG, "Invalid certificate bundle cert length");
+                _esp_crt_bundle_is_valid = ESP_FAIL;
+                ret = ESP_ERR_INVALID_ARG;
+                break;
+            }
+
             /* TODO: optional gate out serial check for performance.       */
             /* Useful only for custom cert bundle, known to have no zeros. */
             if (wolfssl_is_zero_serial_number(cur_crt + CRT_HEADER_OFFSET,

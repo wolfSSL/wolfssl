@@ -6225,16 +6225,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
          * a chain */
         if ((flags & WOLFSSL_BIO_FLAG_READ) && (ssl->biord != NULL)) {
             if ((flags & WOLFSSL_BIO_FLAG_WRITE) && (ssl->biord != ssl->biowr)) {
-                if (ssl->biowr != NULL && ssl->biowr->prev != NULL)
+                if (ssl->biowr != NULL && ssl->biowr->prev == NULL)
                     wolfSSL_BIO_free(ssl->biowr);
                 ssl->biowr = NULL;
             }
-            if (ssl->biord->prev != NULL)
+            if (ssl->biord->prev == NULL)
                 wolfSSL_BIO_free(ssl->biord);
             ssl->biord = NULL;
         }
         else if ((flags & WOLFSSL_BIO_FLAG_WRITE) && (ssl->biowr != NULL)) {
-            if (ssl->biowr->prev != NULL)
+            if (ssl->biowr->prev == NULL)
                 wolfSSL_BIO_free(ssl->biowr);
             ssl->biowr = NULL;
         }
