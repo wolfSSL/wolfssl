@@ -1375,8 +1375,10 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         #endif /* WOLFSSL_AES_256 */
                 break;
             default:
+                /* Not set or corrupted: match the generic wc_AesEncrypt
+                 * (aes.c) behavior for an unusable key schedule. */
                 WOLFSSL_MSG("Bad AES-CTR round value");
-                ret = BAD_FUNC_ARG;
+                ret = KEYUSAGE_E;
         }
     }
 
@@ -2946,7 +2948,7 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     int ret = 0;
 
     /* Validate parameters. */
-    if (aes == NULL) {
+    if ((aes == NULL) || (key == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     /* Check key size is supported by AES object. */
@@ -4125,8 +4127,10 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         #endif /* WOLFSSL_AES_256 */
                 break;
             default:
+                /* Not set or corrupted: match the generic wc_AesEncrypt
+                 * (aes.c) behavior for an unusable key schedule. */
                 WOLFSSL_MSG("Bad AES-CTR round value");
-                ret = BAD_FUNC_ARG;
+                ret = KEYUSAGE_E;
         }
     }
 
@@ -4236,6 +4240,12 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         WOLFSSL_MSG("Invalid input to wc_AesEncryptDirect");
         ret = BAD_FUNC_ARG;
     }
+    /* wc_AesEncrypt is void here so it cannot report an unusable key
+     * schedule itself; match the generic wc_AesEncrypt (aes.c) check. */
+    if ((ret == 0) &&
+            (((aes->rounds >> 1) > 7) || ((aes->rounds >> 1) == 0))) {
+        ret = KEYUSAGE_E;
+    }
     if (ret == 0) {
         wc_AesEncrypt(aes, in, out);
     }
@@ -4258,6 +4268,12 @@ int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         WOLFSSL_MSG("Invalid input to wc_AesDecryptDirect");
         ret = BAD_FUNC_ARG;
+    }
+    /* wc_AesDecrypt is void here so it cannot report an unusable key
+     * schedule itself; match the generic wc_AesDecrypt (aes.c) check. */
+    if ((ret == 0) &&
+            (((aes->rounds >> 1) > 7) || ((aes->rounds >> 1) == 0))) {
+        ret = KEYUSAGE_E;
     }
     if (ret == 0) {
         wc_AesDecrypt(aes, in, out);
@@ -9097,9 +9113,17 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     /* sanity check on arguments */
     if ((aes == NULL) || ((inSz != 0) && ((in == NULL) || (out == NULL))) ||
+            ((authInSz > 0) && (authIn == NULL)) ||
             (nonce == NULL) || (authTag == NULL) || (nonceSz < 7) ||
             (nonceSz > 13)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* The block cipher helpers are void here so they cannot report an
+     * unusable key schedule; match the generic wc_AesEncrypt (aes.c)
+     * check. */
+    if ((ret == 0) &&
+            (((aes->rounds >> 1) > 7) || ((aes->rounds >> 1) == 0))) {
+        ret = KEYUSAGE_E;
     }
 
     if ((ret == 0) && (wc_AesCcmCheckTagSize(authTagSz) != 0)) {
@@ -9188,9 +9212,17 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     /* sanity check on arguments */
     if ((aes == NULL) || ((inSz != 0) && ((in == NULL) || (out == NULL))) ||
+            ((authInSz > 0) && (authIn == NULL)) ||
             (nonce == NULL) || (authTag == NULL) || (nonceSz < 7) ||
             (nonceSz > 13)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* The block cipher helpers are void here so they cannot report an
+     * unusable key schedule; match the generic wc_AesEncrypt (aes.c)
+     * check. */
+    if ((ret == 0) &&
+            (((aes->rounds >> 1) > 7) || ((aes->rounds >> 1) == 0))) {
+        ret = KEYUSAGE_E;
     }
 
     if ((ret == 0) && (wc_AesCcmCheckTagSize(authTagSz) != 0)) {
