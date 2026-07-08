@@ -171,6 +171,9 @@
 #ifdef WOLFSSL_HAVE_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    #include <wolfssl/wolfcrypt/wc_frodokem.h>
+#endif
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     #include <wolfssl/wolfcrypt/wc_lms.h>
 #endif
@@ -914,6 +917,12 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define BENCH_ML_KEM_1024               0x00000080
 #define BENCH_ML_KEM                    (BENCH_ML_KEM_512 | BENCH_ML_KEM_768 | \
                                          BENCH_ML_KEM_1024)
+#define BENCH_FRODOKEM_640              0x00000100
+#define BENCH_FRODOKEM_976              0x00000200
+#define BENCH_FRODOKEM_1344             0x00000400
+#define BENCH_FRODOKEM                  (BENCH_FRODOKEM_640 | \
+                                         BENCH_FRODOKEM_976 | \
+                                         BENCH_FRODOKEM_1344)
 #define BENCH_FALCON_LEVEL1_SIGN        0x00000001
 #define BENCH_FALCON_LEVEL5_SIGN        0x00000002
 #define BENCH_ML_DSA_44_SIGN            0x04000000
@@ -1359,8 +1368,8 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 #endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
 #if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
-#if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
-    defined(WOLFSSL_HAVE_MLDSA)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
 /* The post-quantum-specific mapping of command line option to bit values and
  * OQS name. */
 typedef struct bench_pq_alg {
@@ -1383,6 +1392,12 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-ml-kem-512",        BENCH_ML_KEM_512        },
     { "-ml-kem-768",        BENCH_ML_KEM_768        },
     { "-ml-kem-1024",       BENCH_ML_KEM_1024       },
+#endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    { "-frodokem",          BENCH_FRODOKEM          },
+    { "-frodokem-640",      BENCH_FRODOKEM_640      },
+    { "-frodokem-976",      BENCH_FRODOKEM_976      },
+    { "-frodokem-1344",     BENCH_FRODOKEM_1344     },
 #endif
 #if defined(HAVE_FALCON)
     { "-falcon_level1",     BENCH_FALCON_LEVEL1_SIGN },
@@ -4455,6 +4470,26 @@ static void* benchmarks_do(void* args)
         }
     #endif
 #endif
+    }
+#endif
+
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    if (bench_all || (bench_pq_asym_algs & BENCH_FRODOKEM)) {
+    #ifdef WOLFSSL_WC_FRODOKEM_640
+        if (bench_all || (bench_pq_asym_algs & BENCH_FRODOKEM_640)) {
+            bench_frodokem(WC_FRODOKEM_640);
+        }
+    #endif
+    #ifdef WOLFSSL_WC_FRODOKEM_976
+        if (bench_all || (bench_pq_asym_algs & BENCH_FRODOKEM_976)) {
+            bench_frodokem(WC_FRODOKEM_976);
+        }
+    #endif
+    #ifdef WOLFSSL_WC_FRODOKEM_1344
+        if (bench_all || (bench_pq_asym_algs & BENCH_FRODOKEM_1344)) {
+            bench_frodokem(WC_FRODOKEM_1344);
+        }
+    #endif
     }
 #endif
 
@@ -11433,6 +11468,262 @@ void bench_mlkem(int type)
 
     wc_MlKemKey_Free(key2);
     wc_MlKemKey_Free(key1);
+
+    WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+}
+#endif
+
+#ifdef WOLFSSL_HAVE_FRODOKEM
+static void bench_frodokem_keygen(int type, const char* name, int keySize,
+    FrodoKemKey* key)
+{
+#ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
+    int ret = 0, times, count, pending = 0;
+    double start;
+    const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    /* FrodoKEM Make Key */
+    bench_stats_start(&count, &start);
+    do {
+        /* while free pending slots in queue, submit ops */
+        for (times = 0; times < agreeTimes || pending > 0; times++) {
+            wc_FrodoKemKey_Free(key);
+            ret = wc_FrodoKemKey_Init(key, type, HEAP_HINT, INVALID_DEVID);
+            if (ret != 0)
+                goto exit;
+
+            ret = wc_FrodoKemKey_MakeKey(key, &gRng);
+            if (ret != 0)
+                goto exit;
+            RECORD_MULTI_VALUE_STATS();
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+exit:
+    bench_stats_asym_finish(name, keySize, desc[2], 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+#else
+   (void)type;
+   (void)name;
+   (void)keySize;
+   (void)key;
+#endif /* !WOLFSSL_FRODOKEM_NO_MAKE_KEY */
+}
+
+#if !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+static void bench_frodokem_encap(int type, const char* name, int keySize,
+    FrodoKemKey* key1, FrodoKemKey* key2)
+{
+    int ret = 0, times, count, pending = 0;
+    double start;
+    const char**desc = bench_desc_words[lng_index];
+    WC_DECLARE_VAR(ct, byte, FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(ss, byte, FRODOKEM_MAX_LENSEC, HEAP_HINT);
+    WC_DECLARE_VAR(pub, byte, FRODOKEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT);
+    word32 pubLen;
+    word32 ctSz;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    WC_ALLOC_VAR(ct, byte, FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(ss, byte, FRODOKEM_MAX_LENSEC, HEAP_HINT);
+    WC_ALLOC_VAR(pub, byte, FRODOKEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT);
+
+    ret = wc_FrodoKemKey_PublicKeySize(key1, &pubLen);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_FrodoKemKey_EncodePublicKey(key1, pub, pubLen);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_FrodoKemKey_Init(key2, type, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_FrodoKemKey_DecodePublicKey(key2, pub, pubLen);
+    if (ret != 0) {
+        goto exit;
+    }
+
+    ret = wc_FrodoKemKey_CipherTextSize(key2, &ctSz);
+    if (ret != 0) {
+        goto exit;
+    }
+
+#ifndef WOLFSSL_FRODOKEM_NO_ENCAPSULATE
+    /* FrodoKEM Encapsulate */
+    bench_stats_start(&count, &start);
+    do {
+        /* while free pending slots in queue, submit ops */
+        for (times = 0; times < agreeTimes || pending > 0; times++) {
+            ret = wc_FrodoKemKey_Encapsulate(key2, ct, ss, &gRng);
+            if (ret != 0)
+                goto exit_encap;
+            RECORD_MULTI_VALUE_STATS();
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+exit_encap:
+    bench_stats_asym_finish(name, keySize, desc[9], 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+#endif
+
+#ifndef WOLFSSL_FRODOKEM_NO_DECAPSULATE
+    RESET_MULTI_VALUE_STATS_VARS();
+
+    /* FrodoKEM Decapsulate */
+    PRIVATE_KEY_UNLOCK();
+    bench_stats_start(&count, &start);
+    do {
+        /* while free pending slots in queue, submit ops */
+        for (times = 0; times < agreeTimes || pending > 0; times++) {
+            ret = wc_FrodoKemKey_Decapsulate(key1, ss, ct, ctSz);
+            if (ret != 0)
+                goto exit_decap;
+            RECORD_MULTI_VALUE_STATS();
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+exit_decap:
+    PRIVATE_KEY_LOCK();
+    bench_stats_asym_finish(name, keySize, desc[13], 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+#endif
+
+exit:
+
+    WC_FREE_VAR(ct, HEAP_HINT);
+    WC_FREE_VAR(ss, HEAP_HINT);
+    WC_FREE_VAR(pub, HEAP_HINT);
+
+    if (ret != 0)
+        printf("error: bench_frodokem_encap() failed with code %d.\n", ret);
+
+    return;
+}
+#endif
+
+void bench_frodokem(int type)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    FrodoKemKey *key1 = NULL;
+    FrodoKemKey *key2 = NULL;
+#else
+    FrodoKemKey key1[1];
+    FrodoKemKey key2[1];
+#endif
+    /* Matrix-A method and eFrodoKEM modifiers to layer onto the base parameter
+     * set. Only combinations that are compiled in are listed, so every built
+     * variant of the requested parameter set is benchmarked. */
+    static const int mods[] = {
+#ifdef WOLFSSL_FRODOKEM_SHAKE
+        0,
+    #ifdef WOLFSSL_FRODOKEM_EPHEMERAL
+        FRODOKEM_EPHEMERAL,
+    #endif
+#endif
+#ifdef WOLFSSL_FRODOKEM_AES
+        FRODOKEM_AES,
+    #ifdef WOLFSSL_FRODOKEM_EPHEMERAL
+        FRODOKEM_AES | FRODOKEM_EPHEMERAL,
+    #endif
+#endif
+    };
+    int base = type & ~(FRODOKEM_AES | FRODOKEM_EPHEMERAL);
+    const char* baseName = NULL;
+    int keySize = 0;
+    size_t v;
+
+    switch (base) {
+#ifdef WOLFSSL_WC_FRODOKEM_640
+    case WC_FRODOKEM_640:
+        baseName = "640 ";
+        keySize = 128;
+        break;
+#endif
+#ifdef WOLFSSL_WC_FRODOKEM_976
+    case WC_FRODOKEM_976:
+        baseName = "976 ";
+        keySize = 192;
+        break;
+#endif
+#ifdef WOLFSSL_WC_FRODOKEM_1344
+    case WC_FRODOKEM_1344:
+        baseName = "1344";
+        keySize = 256;
+        break;
+#endif
+    default:
+        return;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    key1 = (FrodoKemKey *)XMALLOC(sizeof(*key1), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key1 == NULL)
+        return;
+    key2 = (FrodoKemKey *)XMALLOC(sizeof(*key2), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key2 == NULL) {
+        XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return;
+    }
+#endif
+
+    /* Zero the key objects so the wc_FrodoKemKey_Free calls below are safe even
+     * if a benchmark helper returns before initializing its key. */
+    XMEMSET(key1, 0, sizeof(*key1));
+    XMEMSET(key2, 0, sizeof(*key2));
+
+    for (v = 0; v < sizeof(mods) / sizeof(mods[0]); v++) {
+        int mod = mods[v];
+        int fullType = base | mod;
+        /* e.g. "FRODOKEM 640  SHAKE" or "EFRODOKEM 1344 AES". */
+        char name[24];
+
+        (void)XSNPRINTF(name, sizeof(name), "%sFRODOKEM %s %s",
+            (mod & FRODOKEM_EPHEMERAL) ? "E" : "",
+            baseName,
+            (mod & FRODOKEM_AES) ? "AES" : "SHAKE");
+
+        bench_frodokem_keygen(fullType, name, keySize, key1);
+#if !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+        bench_frodokem_encap(fullType, name, keySize, key1, key2);
+#endif
+    }
+
+    wc_FrodoKemKey_Free(key2);
+    wc_FrodoKemKey_Free(key1);
 
     WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

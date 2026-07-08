@@ -8664,7 +8664,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
 }
 
 #endif /* WOLFSSL_HAVE_MLKEM */
-#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

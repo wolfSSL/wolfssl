@@ -8508,10 +8508,10 @@ L_mlkem_arm32_rej_uniform_done:
 	pop	{r4, r5, r6, r7, r8, pc}
 	.size	mlkem_arm32_rej_uniform,.-mlkem_arm32_rej_uniform
 #endif /* WOLFSSL_HAVE_MLKEM */
-#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

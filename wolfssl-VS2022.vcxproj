@@ -76,7 +76,7 @@
          the WOLFSSL_ARMASM* defines below); a symbol that is left undefined
          here simply drops the matching assembly (safe - the C caller then uses
          a C fallback), while a symbol enabled here but not in C is dead code. -->
-    <WolfSSLArmAsmDefs>-PreDefine "HAVE_AES_CBC SETL {TRUE}" -PreDefine "HAVE_AESCCM SETL {TRUE}" -PreDefine "HAVE_AESGCM SETL {TRUE}" -PreDefine "HAVE_AES_ECB SETL {TRUE}" -PreDefine "HAVE_AES_DECRYPT SETL {TRUE}" -PreDefine "WOLFSSL_AES_COUNTER SETL {TRUE}" -PreDefine "WOLFSSL_AES_DIRECT SETL {TRUE}" -PreDefine "WOLFSSL_AES_XTS SETL {TRUE}" -PreDefine "WOLFSSL_AESGCM_STREAM SETL {TRUE}" -PreDefine "WOLFSSL_SHA224 SETL {TRUE}" -PreDefine "WOLFSSL_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_SHA384 SETL {TRUE}" -PreDefine "WOLFSSL_SHA512 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA512 SETL {TRUE}" -PreDefine "HAVE_CHACHA SETL {TRUE}" -PreDefine "HAVE_CURVE25519 SETL {TRUE}" -PreDefine "HAVE_ED25519 SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_MLKEM SETL {TRUE}"</WolfSSLArmAsmDefs>
+    <WolfSSLArmAsmDefs>-PreDefine "HAVE_AES_CBC SETL {TRUE}" -PreDefine "HAVE_AESCCM SETL {TRUE}" -PreDefine "HAVE_AESGCM SETL {TRUE}" -PreDefine "HAVE_AES_ECB SETL {TRUE}" -PreDefine "HAVE_AES_DECRYPT SETL {TRUE}" -PreDefine "WOLFSSL_AES_COUNTER SETL {TRUE}" -PreDefine "WOLFSSL_AES_DIRECT SETL {TRUE}" -PreDefine "WOLFSSL_AES_XTS SETL {TRUE}" -PreDefine "WOLFSSL_AESGCM_STREAM SETL {TRUE}" -PreDefine "WOLFSSL_SHA224 SETL {TRUE}" -PreDefine "WOLFSSL_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_SHA384 SETL {TRUE}" -PreDefine "WOLFSSL_SHA512 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA512 SETL {TRUE}" -PreDefine "HAVE_CHACHA SETL {TRUE}" -PreDefine "HAVE_CURVE25519 SETL {TRUE}" -PreDefine "HAVE_ED25519 SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_MLKEM SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_FRODOKEM SETL {TRUE}"</WolfSSLArmAsmDefs>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -462,6 +462,8 @@
     <ClCompile Include="wolfcrypt\src\kdf.c" />
     <ClCompile Include="wolfcrypt\src\wc_mlkem.c" />
     <ClCompile Include="wolfcrypt\src\wc_mlkem_poly.c" />
+    <ClCompile Include="wolfcrypt\src\wc_frodokem.c" />
+    <ClCompile Include="wolfcrypt\src\wc_frodokem_mat.c" />
     <ClCompile Include="wolfcrypt\src\logging.c" />
     <ClCompile Include="wolfcrypt\src\md2.c" />
     <ClCompile Include="wolfcrypt\src\md4.c" />
@@ -677,6 +679,12 @@
       <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
       <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-frodokem-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\port\arm\armv8-poly1305-asm.asm">
       <ExcludedFromBuild>true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
@@ -700,6 +708,12 @@
       <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
       <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
       <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\wc_frodokem_asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLIntelAsm)'=='true' And '$(Platform)'=='x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLIntelAsm)'=='true' And '$(Platform)'=='x64'">ml64.exe /c /Zi /DWOLFSSL_X86_64_BUILD /DWOLFSSL_HAVE_FRODOKEM /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLIntelAsm)'=='true' And '$(Platform)'=='x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <ClInclude Include="IDE\WIN\user_settings.h" />
   </ItemGroup>

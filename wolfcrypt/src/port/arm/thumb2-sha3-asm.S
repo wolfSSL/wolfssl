@@ -1138,10 +1138,10 @@ L_sha3_thumb2_begin:
 	/* Cycle Count = 1505 */
 	.size	BlockSha3,.-BlockSha3
 #endif /* WOLFSSL_SHA3 */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

@@ -364,10 +364,10 @@ poly1305_final:
 	/* Cycle Count = 82 */
 	.size	poly1305_final,.-poly1305_final
 #endif /* HAVE_POLY1305 */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

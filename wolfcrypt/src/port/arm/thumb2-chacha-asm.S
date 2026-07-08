@@ -567,10 +567,10 @@ L_chacha_thumb2_over_done:
 	/* Cycle Count = 108 */
 	.size	wc_chacha_use_over,.-wc_chacha_use_over
 #endif /* HAVE_CHACHA */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

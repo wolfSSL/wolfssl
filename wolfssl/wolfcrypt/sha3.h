@@ -262,6 +262,10 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
         word64 c);
     WOLFSSL_LOCAL void sha3_block_avx2(word64* s);
     WOLFSSL_LOCAL void sha3_blocksx4_avx2(word64* s);
+    WOLFSSL_LOCAL void sha3_blocksx4_out_avx2(word64* s, byte* out,
+        word32 len);
+    WOLFSSL_LOCAL void sha3_blocksx8_out_avx512(word64* s, byte* out,
+        word32 len);
 
     WOLFSSL_LOCAL void sha3_128_blocksx4_seed_avx2(word64* s, byte* seed);
     WOLFSSL_LOCAL void sha3_256_blocksx4_seed_avx2(word64* s, byte* seed);

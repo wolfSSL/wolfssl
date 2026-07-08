@@ -253,6 +253,9 @@ function(generate_build_flags)
     if(WOLFSSL_MLKEM OR WOLFSSL_USER_SETTINGS)
         set(BUILD_WC_MLKEM "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_FRODOKEM OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_WC_FRODOKEM "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_MLDSA OR WOLFSSL_DILITHIUM OR WOLFSSL_USER_SETTINGS)
         set(BUILD_MLDSA "yes" PARENT_SCOPE)
     endif()
@@ -1172,6 +1175,35 @@ function(generate_lib_src_list LIB_SOURCES)
 
             if(BUILD_INTELASM)
                 list(APPEND LIB_SOURCES wolfcrypt/src/wc_mlkem_asm.S)
+            endif()
+        endif()
+
+        if(BUILD_WC_FRODOKEM)
+            list(APPEND LIB_SOURCES wolfcrypt/src/wc_frodokem.c)
+            list(APPEND LIB_SOURCES wolfcrypt/src/wc_frodokem_mat.c)
+
+            if(BUILD_ARMASM)
+                if(BUILD_ARMASM_INLINE)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-frodokem-asm_c.c
+                        wolfcrypt/src/port/arm/armv8-32-frodokem-asm_c.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-frodokem-asm.S
+                        wolfcrypt/src/port/arm/armv8-32-frodokem-asm.S)
+                endif()
+
+                if(BUILD_ARMASM_INLINE AND BUILD_ARM_THUMB)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/thumb2-frodokem-asm_c.c)
+                elseif(BUILD_ARM_THUMB)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/thumb2-frodokem-asm.S)
+                endif()
+            endif()
+
+            if(BUILD_INTELASM)
+                list(APPEND LIB_SOURCES wolfcrypt/src/wc_frodokem_asm.S)
             endif()
         endif()
 

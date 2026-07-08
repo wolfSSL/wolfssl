@@ -8861,10 +8861,10 @@ L_AES_GCMSIV_ctr_thumb2_end:
 	.size	AES_GCMSIV_ctr_thumb2,.-AES_GCMSIV_ctr_thumb2
 #endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !NO_AES */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

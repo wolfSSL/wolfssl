@@ -1849,6 +1849,43 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_port.c
 
+# FrodoKEM (experimental reference implementation)
+if BUILD_WC_FRODOKEM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_frodokem.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_frodokem_mat.c
+if BUILD_INTELASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_frodokem_asm.S
+endif BUILD_INTELASM
+# AArch64: NEON, plus the opt-in SVE and SME ops (guarded by WOLFSSL_FRODOKEM_SVE
+# / WOLFSSL_FRODOKEM_SME), all in the one armv8-frodokem-asm file.
+if BUILD_ARMASM_NEON
+if BUILD_ARMASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-frodokem-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-frodokem-asm.S
+endif !BUILD_ARMASM_INLINE
+endif BUILD_ARMASM_NEON
+# AArch32: NEON and the 32-bit-SIMD (SMLAD/SADD16/...) NEON-absent fallback share
+# the one armv8-32-frodokem-asm file, built for ARM (non-Thumb) with or without
+# NEON. Thumb2 has its own file.
+if BUILD_ARMASM
+if BUILD_ARM_NONTHUMB
+if BUILD_ARMASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-frodokem-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-frodokem-asm.S
+endif !BUILD_ARMASM_INLINE
+endif BUILD_ARM_NONTHUMB
+if BUILD_ARM_THUMB
+if BUILD_ARMASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-frodokem-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-frodokem-asm.S
+endif !BUILD_ARMASM_INLINE
+endif BUILD_ARM_THUMB
+endif BUILD_ARMASM
+endif
+
 if BUILD_ERROR_STRINGS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/error.c
 endif

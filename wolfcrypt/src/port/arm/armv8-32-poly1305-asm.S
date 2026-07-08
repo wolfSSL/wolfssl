@@ -1296,10 +1296,10 @@ poly1305_final:
 	.size	poly1305_final,.-poly1305_final
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* HAVE_POLY1305 */
-#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

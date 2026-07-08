@@ -3583,10 +3583,10 @@ L_mlkem_thumb2_rej_uniform_done:
 	/* Cycle Count = 225 */
 	.size	mlkem_thumb2_rej_uniform,.-mlkem_thumb2_rej_uniform
 #endif /* WOLFSSL_HAVE_MLKEM */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

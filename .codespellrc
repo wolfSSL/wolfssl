@@ -1,0 +1,12 @@
+# codespell configuration (read automatically from the repository root).
+#
+# "SME" is the Arm Scalable Matrix Extension, referenced throughout the
+# FrodoKEM Aarch64 code (comments, CPUID_..._SME macros, frodokem_..._sme
+# identifiers, "sve2+sme" build strings). codespell's dictionary treats it as
+# a misspelling of some/same/sms. The ignore-regex below drops the standalone
+# SME token (any case, including "_sme" / "+sme") before spell-checking, while
+# still flagging "sme" embedded in a larger alphabetic word - so genuine typos
+# are unaffected. Kept out of ignore-words-list so "sme" is not globally
+# whitelisted for every file.
+[codespell]
+ignore-regex = (?i)(?<![a-z])sme(?![a-z])

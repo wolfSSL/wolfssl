@@ -39,6 +39,18 @@
     selected when the key is initialized via wc_MlKemKey_Init() or
     wc_MlKemKey_New().
 
+    \defgroup FRODO_KEM Algorithms - FrodoKEM
+    FrodoKEM is a conservative, unstructured-lattice (plain LWE) key
+    encapsulation mechanism. This is an experimental reference
+    implementation following the ISO/CFRG (salted) FrodoKEM and the
+    ephemeral eFrodoKEM (salt-less) variants. Three parameter sets are
+    provided - FrodoKEM-640 (NIST level 1), FrodoKEM-976 (level 3) and
+    FrodoKEM-1344 (level 5) - each with either SHAKE-128 or AES-128
+    generation of the public matrix A. The variant is selected by the
+    key type (a base parameter set optionally OR'd with FRODOKEM_AES
+    and/or FRODOKEM_EPHEMERAL) when the key is initialized via
+    wc_FrodoKemKey_Init() or wc_FrodoKemKey_New().
+
     \defgroup SLH_DSA Algorithms - SLH-DSA (FIPS 205)
     SLH-DSA (Stateless Hash-based Digital Signature Algorithm) is a
     quantum-resistant signature scheme standardized by NIST as
