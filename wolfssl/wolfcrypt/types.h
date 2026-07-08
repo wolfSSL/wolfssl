@@ -322,7 +322,7 @@ typedef const char wcchar[];
     typedef unsigned long long word64;
 #elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
     #define WORD64_AVAILABLE
-    #ifdef WOLF_C89
+    #if defined(WOLF_C89) && !defined(W64LIT_FORCE_LONG_LONG)
         #define W64LIT(x) x##UL
         #define SW64LIT(x) x##L
     #else
@@ -333,7 +333,7 @@ typedef const char wcchar[];
     typedef unsigned long word64;
 #elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
     #define WORD64_AVAILABLE
-    #ifdef WOLF_C89
+    #if defined(WOLF_C89) && !defined(W64LIT_FORCE_LONG_LONG)
         #define W64LIT(x) x##UL
         #define SW64LIT(x) x##L
     #else
@@ -344,7 +344,7 @@ typedef const char wcchar[];
     typedef unsigned long long word64;
 #elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
     #define WORD64_AVAILABLE
-    #ifdef WOLF_C89
+    #if defined(WOLF_C89) && !defined(W64LIT_FORCE_LONG_LONG)
         #define W64LIT(x) x##UL
         #define SW64LIT(x) x##L
     #else
