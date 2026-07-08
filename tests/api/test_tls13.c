@@ -3639,9 +3639,10 @@ int test_tls13_pha(void)
 static int test_cert_alias_sni_cb(WOLFSSL* ssl, int* ad, void* arg)
 {
     WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
+    int* cbRet = (int*)arg;
     (void)ad;
-    (void)arg;
-    (void)wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+    /* Feed the reload result back to the parent function below. */
+    *cbRet = wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
         WOLFSSL_FILETYPE_PEM);
     /* 0 means ack the servername and continue the handshake. */
     return 0;
@@ -3659,6 +3660,7 @@ int test_tls13_cert_alias_uaf_sni(void)
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     const char* host = "example.com";
+    int cbRet = WOLFSSL_FATAL_ERROR;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     /* Server cert/key are loaded on ctx_s, so ssl_s->buffers.certificate
@@ -3668,6 +3670,7 @@ int test_tls13_cert_alias_uaf_sni(void)
 
     /* Server swaps its CTX certificate when the SNI arrives. */
     wolfSSL_CTX_set_servername_callback(ctx_s, test_cert_alias_sni_cb);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &cbRet), WOLFSSL_SUCCESS);
 
     /* Client offers SNI so the server callback fires while parsing the
      * ClientHello. */
@@ -3677,6 +3680,8 @@ int test_tls13_cert_alias_uaf_sni(void)
     /* The callback loads a new certificate on the server CTX, which is
      * aliased by the SSL. The handshake must complete without a UAF. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Fail the test if the callback's cert reload failed or didn't run. */
+    ExpectIntEQ(cbRet, WOLFSSL_SUCCESS);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

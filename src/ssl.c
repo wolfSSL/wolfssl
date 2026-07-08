@@ -13198,9 +13198,15 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     FreeDer(&ssl->buffers.certChain);
     ssl->buffers.weOwnCertChain = 0;
     ssl->buffers.certificate = ctx->certificate;
+    if (!RefDer(ssl->buffers.certificate)) {
+        ssl->buffers.certificate = NULL;
+        return NULL;
+    }
     ssl->buffers.certChain = ctx->certChain;
-    RefDer(ssl->buffers.certificate);
-    RefDer(ssl->buffers.certChain);
+    if (!RefDer(ssl->buffers.certChain)) {
+        ssl->buffers.certChain = NULL;
+        return NULL;
+    }
 #endif
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;

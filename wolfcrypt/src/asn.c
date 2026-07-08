@@ -24708,13 +24708,22 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
     return ret;
 }
 
-void RefDer(DerBuffer* der)
+/* Increments the reference count on a shared DER buffer.
+ *
+ * A mutex-backed refcount can fail to lock, leaving the count un-incremented;
+ * return failure so callers don't proceed with an un-referenced alias.
+ *
+ * @param [in, out] der  DER buffer. May be NULL.
+ * @return  1 on success
+ * @return  0 on error
+ */
+int RefDer(DerBuffer* der)
 {
+    int err = 0;
     if (der != NULL) {
-        int ref_err = 0;
-        wolfSSL_RefInc(&der->ref, &ref_err);
-        (void)ref_err;
+        wolfSSL_RefInc(&der->ref, &err);
     }
+    return !err;
 }
 
 int AllocCopyDer(DerBuffer** pDer, const unsigned char* buff, word32 length,

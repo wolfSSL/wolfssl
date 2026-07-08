@@ -7173,11 +7173,15 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #else
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
+    if (!RefDer(ssl->buffers.certificate)) {
+        ssl->buffers.certificate = NULL;
+        return BAD_MUTEX_E;
+    }
     ssl->buffers.certChain = ctx->certChain;
-    /* Increment refcount on cert pointers since we've aliased them. This
-     * prevents early freeing of the cert buffers. */
-    RefDer(ssl->buffers.certificate);
-    RefDer(ssl->buffers.certChain);
+    if (!RefDer(ssl->buffers.certChain)) {
+        ssl->buffers.certChain = NULL;
+        return BAD_MUTEX_E;
+    }
 #endif
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
