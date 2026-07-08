@@ -40181,6 +40181,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     }
 #endif
 
+    /* Returns 1 when the default ticket encryption callback is in use with a
+     * hint of at least half the key lifetime. */
+    int DefTicketHintTooLarge(WOLFSSL* ssl)
+    {
+    #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_WOLFSSL_SERVER)
+        return ssl->ctx->ticketEncCb == DefTicketEncCb &&
+               2 * ssl->ctx->ticketHint >= WOLFSSL_TICKET_KEY_LIFETIME;
+    #else
+        (void)ssl;
+        return 0;
+    #endif
+    }
+
     /* create a new session ticket, 0 on success
      * Do any kind of setup in SetupTicket */
     int CreateTicket(WOLFSSL* ssl)
@@ -41197,12 +41210,19 @@ cleanup:
             /* This will be set when SendHandshakeMsg returns WANT_WRITE. Create
              * a new ticket only once. */
             !ssl->options.buildingMsg) {
-            ret = SetupTicket(ssl);
-            if (ret != 0)
-                return ret;
-            ret = CreateTicket(ssl);
-            if (ret != 0)
-                return ret;
+            if (DefTicketHintTooLarge(ssl)) {
+                WOLFSSL_MSG("Ticket hint exceeds half the ticket key lifetime; "
+                            "skipping ticket");
+                ssl->session->ticketLen = 0;
+            }
+            else {
+                ret = SetupTicket(ssl);
+                if (ret != 0)
+                    return ret;
+                ret = CreateTicket(ssl);
+                if (ret != 0)
+                    return ret;
+            }
         }
 
         length += ssl->session->ticketLen;
@@ -41742,13 +41762,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
     /* For decryption, check minimum internal ticket size */
     if ((!enc) && (inLen < (int)WOLFSSL_INTERNAL_TICKET_LEN)) {
         return BUFFER_E;
-    }
-
-    /* The two-key rotation can only honor a hint below half the key lifetime.
-     * Refuse to issue a ticket whose advertised lifetime it cannot cover. */
-    if (enc && 2 * ctx->ticketHint >= WOLFSSL_TICKET_KEY_LIFETIME) {
-        WOLFSSL_MSG("Ticket hint exceeds half the ticket key lifetime");
-        return WOLFSSL_TICKET_RET_FATAL;
     }
 
     /* Check we have setup the RNG, name and primary key. */

@@ -219,25 +219,37 @@ static int test_TicketHint_custom_encCb(WOLFSSL* ssl,
     return WOLFSSL_TICKET_RET_OK;
 }
 
-/* Drive one TLS 1.3 handshake, returning the handshake result. */
-static int test_TicketHint_handshake(int hint, int customCb)
+/* Run a handshake with the given hint (optionally with the custom callback),
+ * process any (post-handshake) NewSessionTicket, and return the ticket length
+ * the client received: -1 if the handshake failed, 0 if it completed without a
+ * ticket, >0 if a ticket was issued. */
+static int test_TicketHint_client_ticket_len(method_provider client_meth,
+        method_provider server_meth, int hint, int customCb)
 {
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    char buf[64];
     int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method) != 0) {
+            client_meth, server_meth) != 0) {
         ret = -1;
         goto done;
     }
+    wolfSSL_UseSessionTicket(ssl_c);
     if (customCb)
         wolfSSL_CTX_set_TicketEncCb(ctx_s, test_TicketHint_custom_encCb);
     wolfSSL_CTX_set_TicketHint(ctx_s, hint);
 
-    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) != 0) {
+        ret = -1;
+        goto done;
+    }
+    /* Drive the client to process a post-handshake NewSessionTicket, if any. */
+    (void)wolfSSL_read(ssl_c, buf, sizeof(buf));
+    ret = ssl_c->session->ticketLen;
 done:
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -255,13 +267,24 @@ int test_wolfSSL_CTX_set_TicketHint_default_cb_limit(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) \
     && defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) \
     && !defined(NO_WOLFSSL_SERVER)
-    /* Default callback: a hint below the limit is honored. */
-    ExpectIntEQ(test_TicketHint_handshake(WOLFSSL_TICKET_KEY_LIFETIME / 2 - 1, 0),
-        0);
-    /* Default callback: a hint at/above the limit fails the handshake. */
-    ExpectIntNE(test_TicketHint_handshake(WOLFSSL_TICKET_KEY_LIFETIME / 2, 0), 0);
-    /* Custom callback: the same oversized hint is fine. */
-    ExpectIntEQ(test_TicketHint_handshake(WOLFSSL_TICKET_KEY_LIFETIME / 2, 1), 0);
+    /* Default callback, hint below the limit: handshake succeeds, ticket issued. */
+    ExpectIntGT(test_TicketHint_client_ticket_len(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, WOLFSSL_TICKET_KEY_LIFETIME / 2 - 1, 0), 0);
+    /* Default callback, hint at the limit: handshake succeeds, no ticket. */
+    ExpectIntEQ(test_TicketHint_client_ticket_len(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, WOLFSSL_TICKET_KEY_LIFETIME / 2, 0), 0);
+    /* Custom callback: the same oversized hint still issues a ticket. */
+    ExpectIntGT(test_TicketHint_client_ticket_len(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, WOLFSSL_TICKET_KEY_LIFETIME / 2, 1), 0);
+#ifndef WOLFSSL_NO_TLS12
+    /* Same behavior on the TLS 1.2 SendTicket path. */
+    ExpectIntGT(test_TicketHint_client_ticket_len(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, WOLFSSL_TICKET_KEY_LIFETIME / 2 - 1, 0), 0);
+    ExpectIntEQ(test_TicketHint_client_ticket_len(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, WOLFSSL_TICKET_KEY_LIFETIME / 2, 0), 0);
+    ExpectIntGT(test_TicketHint_client_ticket_len(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, WOLFSSL_TICKET_KEY_LIFETIME / 2, 1), 0);
+#endif
 #endif
     return EXPECT_RESULT();
 }
