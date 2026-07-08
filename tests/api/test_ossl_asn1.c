@@ -434,6 +434,8 @@ int test_wolfSSL_d2i_ASN1_INTEGER(void)
         0xd2, 0x96, 0xdf, 0xd9, 0xd0, 0x4f, 0xad, 0xd7
     };
     static const byte garbageDer[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    /* Long-form length with INT_MAX content bytes for overflow testing */
+    static const byte overflowLenDer[] = {0x02, 0x84, 0x7F, 0xFF, 0xFF, 0xFF};
 
     static const ASN1IntTestVector testVectors[] = {
         {zeroDer, sizeof(zeroDer), 0},
@@ -464,6 +466,12 @@ int test_wolfSSL_d2i_ASN1_INTEGER(void)
     p = garbageDer;
     ExpectNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, sizeof(garbageDer))));
     ExpectNull(b);
+    /* Only run on 64-bit systems where the `long` inSz param fits */
+    if (LONG_MAX >= 0x80000005L) {
+        p = overflowLenDer;
+        ExpectNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, 0x80000005L)));
+        ExpectNull(b);
+    }
 
     /* Check i2d error conditions */
     /* NULL input. */
