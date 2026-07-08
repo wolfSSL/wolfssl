@@ -49,80 +49,41 @@ jobs:
           read-only: ${{ github.event_name == 'pull_request' }}
           max-size: 150M
 
-      # The JSON list below is the former runner-per-config matrix (the
-      # shared base configure arguments are folded into every entry). Each
-      # build must come out clean under -Wframe-larger-than/-Wstack-usage,
+      # The JSON below feeds .github/scripts/parallel-make-check.py: a shared
+      # "base" (common configure flags, warning CFLAGS, and the testwolfcrypt
+      # run) plus one entry per asm/PQ variant whose "configure" is appended.
+      # Each build must come out clean under -Wframe-larger-than/-Wstack-usage,
       # then runs testwolfcrypt under the relative-stack checker.
       - name: Build all configs (parallel, out-of-tree)
         run: |
           cat > "$RUNNER_TEMP/smallstacksize-configs.json" <<'EOF'
-          [
-          {"name": "noasm", "minutes": 1,
-           "configure": ["--enable-cryptonly", "--disable-cryptocb",
-            "--disable-testcert", "--enable-smallstack",
-            "--enable-smallstackcache", "--enable-crypttests",
-            "--disable-benchmark", "--disable-examples",
-            "--with-max-rsa-bits=16384", "--enable-stacksize=verbose",
-            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DWOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES=8192 -DTEST_ALWAYS_RUN_TO_END",
-            "--disable-asm"],
-           "check": false,
-           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "noasm-pq", "minutes": 1,
-           "configure": ["--enable-cryptonly", "--disable-cryptocb",
-            "--disable-testcert", "--enable-smallstack",
-            "--enable-smallstackcache", "--enable-crypttests",
-            "--disable-benchmark", "--disable-examples",
-            "--with-max-rsa-bits=16384", "--enable-stacksize=verbose",
-            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DWOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES=8192 -DTEST_ALWAYS_RUN_TO_END",
-            "--disable-asm", "--enable-mlkem", "--enable-lms", "--enable-xmss",
-            "--enable-mldsa"],
-           "check": false,
-           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "noasm-allcrypto-pq", "minutes": 1,
-           "configure": ["--enable-cryptonly", "--disable-cryptocb",
-            "--disable-testcert", "--enable-smallstack",
-            "--enable-smallstackcache", "--enable-crypttests",
-            "--disable-benchmark", "--disable-examples",
-            "--with-max-rsa-bits=16384", "--enable-stacksize=verbose",
-            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DWOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES=8192 -DTEST_ALWAYS_RUN_TO_END",
-            "--disable-asm", "--enable-all-crypto", "--enable-mlkem",
-            "--enable-lms", "--enable-xmss", "--enable-mldsa"],
-           "check": false,
-           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "intelasm", "minutes": 1,
-           "configure": ["--enable-cryptonly", "--disable-cryptocb",
-            "--disable-testcert", "--enable-smallstack",
-            "--enable-smallstackcache", "--enable-crypttests",
-            "--disable-benchmark", "--disable-examples",
-            "--with-max-rsa-bits=16384", "--enable-stacksize=verbose",
-            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DWOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES=8192 -DTEST_ALWAYS_RUN_TO_END",
-            "--enable-intelasm", "--enable-sp-asm"],
-           "check": false,
-           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "intelasm-pq", "minutes": 1,
-           "configure": ["--enable-cryptonly", "--disable-cryptocb",
-            "--disable-testcert", "--enable-smallstack",
-            "--enable-smallstackcache", "--enable-crypttests",
-            "--disable-benchmark", "--disable-examples",
-            "--with-max-rsa-bits=16384", "--enable-stacksize=verbose",
-            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DWOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES=8192 -DTEST_ALWAYS_RUN_TO_END",
-            "--enable-intelasm", "--enable-sp-asm", "--enable-mlkem",
-            "--enable-lms", "--enable-xmss", "--enable-mldsa"],
-           "check": false,
-           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "intelasm-allcrypto-pq", "minutes": 1,
-           "configure": ["--enable-cryptonly", "--disable-cryptocb",
-            "--disable-testcert", "--enable-smallstack",
-            "--enable-smallstackcache", "--enable-crypttests",
-            "--disable-benchmark", "--disable-examples",
-            "--with-max-rsa-bits=16384", "--enable-stacksize=verbose",
-            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DWOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES=8192 -DTEST_ALWAYS_RUN_TO_END",
-            "--enable-intelasm", "--enable-sp-asm", "--enable-all-crypto",
-            "--enable-mlkem", "--enable-lms", "--enable-xmss",
-            "--enable-mldsa"],
-           "check": false,
-           "run": [["./wolfcrypt/test/testwolfcrypt"]]}
-          ]
+          {"base": {"minutes": 1, "check": false,
+            "run": [["./wolfcrypt/test/testwolfcrypt"]],
+            "configure": ["--enable-cryptonly", "--disable-cryptocb",
+             "--disable-testcert", "--enable-smallstack",
+             "--enable-smallstackcache", "--enable-crypttests",
+             "--disable-benchmark", "--disable-examples",
+             "--with-max-rsa-bits=16384", "--enable-stacksize=verbose",
+             "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DWOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES=8192 -DTEST_ALWAYS_RUN_TO_END"]},
+           "configs": [
+          {"name": "noasm",
+           "configure": ["--disable-asm"]},
+          {"name": "noasm-pq",
+           "configure": ["--disable-asm", "--enable-mlkem", "--enable-lms",
+            "--enable-xmss", "--enable-mldsa"]},
+          {"name": "noasm-allcrypto-pq",
+           "configure": ["--disable-asm", "--enable-all-crypto",
+            "--enable-mlkem", "--enable-lms", "--enable-xmss", "--enable-mldsa"]},
+          {"name": "intelasm",
+           "configure": ["--enable-intelasm", "--enable-sp-asm"]},
+          {"name": "intelasm-pq",
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-mlkem", "--enable-lms", "--enable-xmss", "--enable-mldsa"]},
+          {"name": "intelasm-allcrypto-pq",
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all-crypto", "--enable-mlkem", "--enable-lms",
+            "--enable-xmss", "--enable-mldsa"]}
+          ]}
           EOF
           .github/scripts/parallel-make-check.py \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
