@@ -236,26 +236,26 @@ int test_wc_PKCS12_parse_guardrails(void)
     word32 outCertSz = 0;
 
     ExpectIntEQ(wc_PKCS12_parse(NULL, "", &outKey, &outKeySz, &outCert,
-        &outCertSz, &outCa), BAD_FUNC_ARG);
+        &outCertSz, &outCa), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectNotNull(pkcs12 = wc_PKCS12_new());
     ExpectIntEQ(wc_PKCS12_parse(pkcs12, NULL, &outKey, &outKeySz, &outCert,
-        &outCertSz, &outCa), BAD_FUNC_ARG);
+        &outCertSz, &outCa), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", NULL, &outKeySz, &outCert,
-        &outCertSz, &outCa), BAD_FUNC_ARG);
+        &outCertSz, &outCa), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, NULL, &outCert,
-        &outCertSz, &outCa), BAD_FUNC_ARG);
+        &outCertSz, &outCa), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, NULL,
-        &outCertSz, &outCa), BAD_FUNC_ARG);
+        &outCertSz, &outCa), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, &outCert,
-        NULL, &outCa), BAD_FUNC_ARG);
+        NULL, &outCa), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     outKey = (byte*)1;
     outCert = (byte*)1;
     outKeySz = 17;
     outCertSz = 19;
     ExpectIntEQ(wc_PKCS12_parse(pkcs12, "", &outKey, &outKeySz, &outCert,
-        &outCertSz, &outCa), BAD_FUNC_ARG);
+        &outCertSz, &outCa), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectNull(outKey);
     ExpectNull(outCert);
     ExpectNull(outCa);

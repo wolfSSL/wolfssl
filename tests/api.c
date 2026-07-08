@@ -21463,8 +21463,7 @@ static int TXT_DB_cmp(const WOLFSSL_STRING *a, const WOLFSSL_STRING *b)
 static int test_wolfSSL_TXT_DB(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+#if !defined(NO_FILESYSTEM) && !defined(NO_BIO)
     BIO *bio = NULL;
     TXT_DB *db = NULL;
     const int columns = 6;
@@ -21546,7 +21545,10 @@ static int test_wolfSSL_NCONF(void)
 static int test_wolfSSL_NCONF_negative_paths(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_BIO)
+    /* Like its NCONF/TXT_DB siblings this sits inside the enclosing
+     * OPENSSL_ALL block (and its TEST_DECL is OPENSSL_ALL-gated), so the
+     * inner guard only narrows on the BIO dependency. */
+#if !defined(NO_FILESYSTEM) && !defined(NO_BIO)
     const char* confFile = "./tests/NCONF_test.cnf";
     const char* missingFile = "./tests/NCONF_missing.cnf";
     const char* value = NULL;

@@ -33,7 +33,7 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/types.h>
-#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+#ifdef HAVE_FALCON
     #include <wolfssl/wolfcrypt/falcon.h>
     #ifdef HAVE_LIBOQS
         #include <oqs/oqs.h>
@@ -171,7 +171,7 @@ int test_wc_SignatureGetSize_rsa(void)
 int test_wc_falcon_sign_verify(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PQC) && defined(HAVE_FALCON) && defined(HAVE_LIBOQS)
+#if defined(HAVE_FALCON) && defined(HAVE_LIBOQS)
     falcon_key key;
     WC_RNG rng;
     OQS_SIG* oqssig = NULL;
