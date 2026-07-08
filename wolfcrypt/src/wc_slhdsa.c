@@ -299,7 +299,10 @@ wc_static_assert(SLHDSA_MAX_MSG_SZ <= 255);
  */
 
 /* HashAddress type. */
+#ifndef WC_HASHADDRESS_TYPE_DEFINED
 typedef word32 HashAddress[8];
+    #define WC_HASHADDRESS_TYPE_DEFINED
+#endif
 
 /* Encode a HashAddress.
  *

@@ -601,7 +601,7 @@ typedef struct SlhDsaParameters {
 #endif
 
 /* SLH-DSA key data and state. */
-typedef struct SlhDsaKey {
+struct SlhDsaKey {
     /* Parameters. */
     const SlhDsaParameters* params;
     /* Flags of the key. */
@@ -654,7 +654,12 @@ typedef struct SlhDsaKey {
         } sha2;
 #endif
     } hash;
-} SlhDsaKey;
+};
+
+#ifndef WC_SLHDSAKEY_TYPE_DEFINED
+    typedef struct SlhDsaKey SlhDsaKey;
+    #define WC_SLHDSAKEY_TYPE_DEFINED
+#endif
 
 WOLFSSL_API int  wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param,
     void* heap, int devId);
