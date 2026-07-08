@@ -1138,7 +1138,6 @@ __XTENSA__
 __ZEPHYR__
 __aarch64__
 __alpha__
-__arch64__
 __arm__
 __clang__
 __clang_major__
