@@ -1502,6 +1502,19 @@ enum KeyIdType {
     #define WOLFSSL_IP6_ADDR_LEN 16
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
+/* No allocator: reference key/alt-name data in the source DER, not copies. */
+#if defined(WOLFSSL_NO_MALLOC) && defined(NO_WOLFSSL_MEMORY) && \
+    !defined(XMALLOC_USER) && !defined(WOLFSSL_STATIC_MEMORY)
+    #define WC_ASN_NO_HEAP
+#endif
+
+#ifdef WC_ASN_NO_HEAP
+    #ifndef WC_ASN_MAX_ALTNAMES
+        /* Total no-heap SAN pool slots across all lists; excess is rejected. */
+        #define WC_ASN_MAX_ALTNAMES 8
+    #endif
+#endif
+
 typedef struct DNS_entry   DNS_entry;
 
 struct DNS_entry {
@@ -1509,7 +1522,8 @@ struct DNS_entry {
     int        type;   /* i.e. ASN_DNS_TYPE */
     int        len;    /* actual DNS len */
     const char*
-               name;   /* actual DNS name */
+               name;   /* actual DNS name; under WC_ASN_NO_HEAP this points into
+                        * the source DER and is NOT NUL-terminated - use len */
     int        nameStored;
 #ifdef WOLFSSL_IP_ALT_NAME
     char*      ipString; /* human readable form of IP address */
@@ -1522,6 +1536,9 @@ struct DNS_entry {
 
 #ifdef WOLFSSL_FPKI
     int        oidSum; /* provide oid sum for verification */
+#endif
+#ifdef WC_ASN_NO_HEAP
+    WC_BITFIELD entryStored:1; /* 1 = heap node to free; 0 = no-heap pool node */
 #endif
 };
 
@@ -2231,6 +2248,12 @@ struct DecodedCert {
     /* Appended to preserve the offsets of existing members. */
     word32  extExtKeyUsageOidCnt;    /* Number of EKU KeyPurposeIds seen,
                                       * recognized or not                */
+#ifdef WC_ASN_NO_HEAP
+    /* No-heap SAN pool; entries chain through altNames into the source DER.
+     * Adds ~WC_ASN_MAX_ALTNAMES * sizeof(DNS_entry) of stack per parse. */
+    DNS_entry altNamePool[WC_ASN_MAX_ALTNAMES];
+    word32    altNamePoolUsed;
+#endif
 };
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -3278,6 +3301,12 @@ struct DecodedAcert {
     const byte * rawAttr; /* Not owned, points into raw acert. */
     word32       rawAttrLen;
     SignatureCtx sigCtx;
+#ifdef WC_ASN_NO_HEAP
+    /* No-heap alt-name pool, used like DecodedCert.altNamePool.
+     * Adds ~WC_ASN_MAX_ALTNAMES * sizeof(DNS_entry) of stack per parse. */
+    DNS_entry    altNamePool[WC_ASN_MAX_ALTNAMES];
+    word32       altNamePoolUsed;
+#endif
 };
 
 typedef struct DecodedAcert DecodedAcert;

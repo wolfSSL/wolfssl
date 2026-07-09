@@ -1037,6 +1037,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void);
 static wc_test_ret_t fill_signer_twice_test(void);
 #endif
+#if defined(WOLFSSL_TEST_CERT) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA)
+static wc_test_ret_t cert_no_malloc_test(void);
+#endif
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(WOLFSSL_GEN_CERT)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  certext_test(void);
@@ -3093,6 +3097,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("FILL SIGNER test failed!\n", ret);
     else
         TEST_PASS("FILL SIGNER test passed!\n");
+#endif
+
+#if defined(WOLFSSL_TEST_CERT) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA)
+    if ( (ret = cert_no_malloc_test()) != 0)
+        TEST_FAIL("CERT NOMALLOC test failed!\n", ret);
+    else
+        TEST_PASS("CERT NOMALLOC test passed!\n");
 #endif
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
@@ -26376,6 +26388,85 @@ done:
     return ret;
 }
 #endif /* WOLFSSL_TEST_CERT */
+
+#if defined(WOLFSSL_TEST_CERT) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA)
+/* Heap/file-free parse from a const DER buffer; checks in-place refs under
+ * WC_ASN_NO_HEAP. Kept outside the NO_FILESYSTEM cert block so it runs in real
+ * no-malloc/no-filesystem builds. */
+static wc_test_ret_t cert_no_malloc_test(void)
+{
+    DecodedCert cert;
+    wc_test_ret_t ret;
+#if defined(WC_ASN_NO_HEAP) && !defined(WOLFSSL_IP_ALT_NAME)
+    DNS_entry* dns;
+#endif
+
+    WOLFSSL_ENTER("cert_no_malloc_test");
+
+#if defined(WC_ASN_NO_HEAP) && defined(WOLFSSL_IP_ALT_NAME)
+    /* server_cert_der_2048 carries an IP SAN that the no-heap path fail-closes
+     * (rejection is gated on WOLFSSL_IP_ALT_NAME); confirm it rather than a
+     * successful parse. */
+    InitDecodedCert(&cert, server_cert_der_2048, sizeof_server_cert_der_2048,
+                    NULL);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(&cert);
+    if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    ret = 0;
+#else
+    InitDecodedCert(&cert, server_cert_der_2048, sizeof_server_cert_der_2048,
+                    NULL);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    if ((ret == 0) && ((cert.publicKey == NULL) || (cert.pubKeySize == 0))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+#ifdef WC_ASN_NO_HEAP
+    if ((ret == 0) && ((cert.pubKeyStored != 0) ||
+                       ((wc_ptr_t)cert.publicKey < (wc_ptr_t)cert.source) ||
+                       ((wc_ptr_t)cert.publicKey >=
+                            (wc_ptr_t)cert.source + cert.maxIdx))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+    /* Every SAN node must reference the source DER in place, not a heap copy. */
+    for (dns = cert.altNames; (ret == 0) && (dns != NULL); dns = dns->next) {
+        if ((dns->entryStored != 0) ||
+                ((wc_ptr_t)dns->name < (wc_ptr_t)cert.source) ||
+                ((wc_ptr_t)dns->name >= (wc_ptr_t)cert.source + cert.maxIdx)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+#endif
+    FreeDecodedCert(&cert);
+#endif
+
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    /* ECC leaf with no IP/RID SAN: exercises StoreEccKey in-place key ref. */
+    if (ret == 0) {
+        InitDecodedCert(&cert, ca_ecc_cert_der_256,
+                        sizeof_ca_ecc_cert_der_256, NULL);
+        ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+        if ((ret == 0) &&
+                ((cert.publicKey == NULL) || (cert.pubKeySize == 0))) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    #ifdef WC_ASN_NO_HEAP
+        if ((ret == 0) && ((cert.pubKeyStored != 0) ||
+                           ((wc_ptr_t)cert.publicKey < (wc_ptr_t)cert.source) ||
+                           ((wc_ptr_t)cert.publicKey >=
+                                (wc_ptr_t)cert.source + cert.maxIdx))) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    #endif
+        FreeDecodedCert(&cert);
+    }
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_TEST_CERT && USE_CERT_BUFFERS_2048 && !NO_RSA */
 
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
     !defined(NO_FILESYSTEM)

@@ -82,6 +82,12 @@ jobs:
             "--enable-staticmemory",
             "CFLAGS=-DWOLFSSL_NO_MALLOC -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
            "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+          {"name": "no-heap-cert", "minutes": 0.8,
+           "configure": ["--enable-rsa", "--enable-keygen", "--enable-ecc",
+            "--enable-acert", "--disable-dh", "--disable-filesystem",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -DNO_WOLFSSL_MEMORY -DRSA_MIN_SIZE=1024 -DWOLFSSL_TEST_CERT -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
            "run": [["./wolfcrypt/test/testwolfcrypt"]]}
           ]
           EOF
