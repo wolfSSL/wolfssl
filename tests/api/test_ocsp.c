@@ -26,6 +26,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/ocsp.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfio.h>
 #include <wolfssl/wolfcrypt/asn.h>
 
 #if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
@@ -44,6 +45,38 @@ struct test_conf {
     unsigned char* targetCert;
     int targetCertSz;
 };
+
+struct wolfio_http_test_ctx {
+    const char* data;
+    int dataSz;
+    int offset;
+    int maxChunk;
+    int finalRet;
+};
+
+static int wolfio_http_test_io_cb(char* buf, int sz, void* ctx)
+{
+    struct wolfio_http_test_ctx* ioCtx = (struct wolfio_http_test_ctx*)ctx;
+    int copySz;
+
+    if (ioCtx == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (ioCtx->offset >= ioCtx->dataSz)
+        return ioCtx->finalRet;
+
+    copySz = ioCtx->dataSz - ioCtx->offset;
+    if (copySz > sz)
+        copySz = sz;
+    if (ioCtx->maxChunk > 0 && copySz > ioCtx->maxChunk)
+        copySz = ioCtx->maxChunk;
+    if (copySz <= 0)
+        return WOLFSSL_FATAL_ERROR;
+
+    XMEMCPY(buf, ioCtx->data + ioCtx->offset, (size_t)copySz);
+    ioCtx->offset += copySz;
+    return copySz;
+}
 
 static int ocsp_cb(void* ctx, const char* url, int urlSz, unsigned char* req,
     int reqSz, unsigned char** respBuf)
@@ -100,6 +133,26 @@ int test_ocsp_response_parsing(void)
     EXPECT_DECLS;
     struct test_conf conf;
     int  expectedRet;
+    char urlName[80];
+    char urlPath[80];
+    word16 urlPort = 0;
+    byte reqBuf[256];
+    byte httpBuf[128];
+    byte* httpResp = NULL;
+    static const char* ocspAppStrList[] = {
+        "application/ocsp-response",
+        NULL
+    };
+    struct wolfio_http_test_ctx ioCtx;
+    static const char validHttpResp[] =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/ocsp-response\r\n"
+        "Content-Length: 3\r\n"
+        "\r\n"
+        "abc";
+    static const char headerEarlyEndResp[] =
+        "HTTP/1.1 200 OK\r\n"
+        "\r\n";
 
     conf.resp = (unsigned char*)resp;
     conf.respSz = sizeof(resp);
@@ -161,6 +214,81 @@ int test_ocsp_response_parsing(void)
     conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
     ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS),
         TEST_SUCCESS);
+
+    /* Truncated and empty responses should be rejected during decode. */
+    conf.resp = (unsigned char*)resp;
+    conf.respSz = sizeof(resp) - 1;
+    conf.ca0 = root_ca_cert_pem;
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = NULL;
+    conf.ca1Sz = 0;
+    conf.targetCert = intermediate1_ca_cert_pem;
+    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_LOOKUP_FAIL),
+        TEST_SUCCESS);
+
+    conf.resp = (unsigned char*)resp;
+    conf.respSz = 0;
+    conf.ca0 = root_ca_cert_pem;
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = NULL;
+    conf.ca1Sz = 0;
+    conf.targetCert = intermediate1_ca_cert_pem;
+    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_LOOKUP_FAIL),
+        TEST_SUCCESS);
+
+    /* wolfio helpers used by OCSP/CRL lookup should reject malformed inputs
+     * and accept a compact valid HTTP response. */
+    XMEMSET(urlName, 0, sizeof(urlName));
+    XMEMSET(urlPath, 0, sizeof(urlPath));
+    ExpectIntEQ(wolfIO_DecodeUrl(NULL, 0, urlName, urlPath, &urlPort), -1);
+    ExpectIntEQ(urlName[0], 0);
+    ExpectIntEQ(urlPath[0], 0);
+    ExpectIntEQ(urlPort, 0);
+    ExpectIntEQ(wolfIO_DecodeUrl("http://example.com:abc/", 23,
+        urlName, urlPath, &urlPort), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfIO_DecodeUrl("http://example.com/ocsp",
+        (int)XSTRLEN("http://example.com/ocsp"), urlName, urlPath, &urlPort),
+        0);
+    ExpectBufEQ(urlName, "example.com", (int)sizeof("example.com"));
+    ExpectBufEQ(urlPath, "/ocsp", (int)sizeof("/ocsp"));
+    ExpectIntEQ(urlPort, 80);
+
+    ExpectIntEQ(wolfIO_HttpBuildRequest("POST", "example.com", "/ocsp", 5, 3,
+        "application/ocsp-request", reqBuf, 8), 0);
+    ExpectIntGT(wolfIO_HttpBuildRequest("POST", "example.com", "/ocsp", 5, 3,
+        "application/ocsp-request", reqBuf, (int)sizeof(reqBuf)), 0);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.data = validHttpResp;
+    ioCtx.dataSz = (int)sizeof(validHttpResp) - 1;
+    ioCtx.maxChunk = 7;
+    ioCtx.finalRet = WOLFSSL_FATAL_ERROR;
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), 3);
+    ExpectNotNull(httpResp);
+    if (httpResp != NULL) {
+        ExpectBufEQ(httpResp, "abc", 3);
+        XFREE(httpResp, NULL, DYNAMIC_TYPE_OCSP);
+        httpResp = NULL;
+    }
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.finalRet = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ);
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), OCSP_WANT_READ);
+
+    XMEMSET(&ioCtx, 0, sizeof(ioCtx));
+    ioCtx.data = headerEarlyEndResp;
+    ioCtx.dataSz = (int)sizeof(headerEarlyEndResp) - 1;
+    ioCtx.maxChunk = 9;
+    ioCtx.finalRet = WOLFSSL_FATAL_ERROR;
+    ExpectIntEQ(wolfIO_HttpProcessResponseGenericIO(wolfio_http_test_io_cb,
+        &ioCtx, ocspAppStrList, &httpResp, httpBuf, (int)sizeof(httpBuf),
+        DYNAMIC_TYPE_OCSP, NULL), HTTP_HEADER_ERR);
     return EXPECT_SUCCESS();
 }
 #else  /* HAVE_OCSP && !NO_SHA */

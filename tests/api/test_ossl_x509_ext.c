@@ -41,7 +41,7 @@
 int test_wolfSSL_X509_get_extension_flags(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     XFILE f = XBADFILE;
     X509* x509 = NULL;
     unsigned int extFlags;
@@ -94,14 +94,15 @@ int test_wolfSSL_X509_get_extension_flags(void)
     ExpectIntEQ(X509_get_extension_flags(x509), extFlags);
     ExpectIntEQ(X509_get_key_usage(x509), keyUsageFlags);
     X509_free(x509);
-#endif /* OPENSSL_ALL */
+#endif
     return EXPECT_RESULT();
 }
 
 int test_wolfSSL_X509_get_ext(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     int ret = 0;
     XFILE f = XBADFILE;
     WOLFSSL_X509* x509 = NULL;
@@ -137,7 +138,7 @@ int test_wolfSSL_X509_get_ext(void)
 int test_wolfSSL_X509_get_ext_by_NID(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     int rc = 0;
     XFILE f = XBADFILE;
     WOLFSSL_X509* x509 = NULL;
@@ -187,7 +188,7 @@ int test_wolfSSL_X509_get_ext_by_NID(void)
 int test_wolfSSL_X509_get_ext_subj_alt_name(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     int rc = 0;
     XFILE f = XBADFILE;
     WOLFSSL_X509* x509 = NULL;
@@ -219,7 +220,7 @@ int test_wolfSSL_X509_get_ext_subj_alt_name(void)
 int test_wolfSSL_X509_set_ext(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     WOLFSSL_X509* x509 = NULL;
     XFILE f = XBADFILE;
     int loc;
@@ -250,7 +251,7 @@ int test_wolfSSL_X509_set_ext(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 static int test_X509_add_basic_constraints(WOLFSSL_X509* x509)
 {
     EXPECT_DECLS;
@@ -524,7 +525,7 @@ static int test_x509_add_subj_key_id(WOLFSSL_X509* x509)
 int test_wolfSSL_X509_add_ext(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509_EXTENSION* ext_empty = NULL;
     WOLFSSL_X509_EXTENSION* ext = NULL;
@@ -662,8 +663,8 @@ int test_wolfSSL_X509_add_ext_dirname_san_rejected(void)
 int test_wolfSSL_X509_get_ext_count(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_RSA)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     int ret = 0;
     WOLFSSL_X509* x509 = NULL;
     const char ocspRootCaFile[] = "./certs/ocsp/root-ca-cert.pem";
@@ -752,7 +753,7 @@ int test_wolfSSL_X509_stack_extensions(void)
 int test_wolfSSL_X509_EXTENSION_new(void)
 {
     EXPECT_DECLS;
-#if defined (OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     WOLFSSL_X509_EXTENSION* ext = NULL;
 
     ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
@@ -767,7 +768,7 @@ int test_wolfSSL_X509_EXTENSION_new(void)
 int test_wolfSSL_X509_EXTENSION_dup(void)
 {
     EXPECT_DECLS;
-#if defined (OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_X509_EXTENSION* dup = NULL;
 
@@ -784,7 +785,8 @@ int test_wolfSSL_X509_EXTENSION_dup(void)
 int test_wolfSSL_X509_EXTENSION_get_object(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_X509_EXTENSION* dup = NULL;
@@ -815,7 +817,8 @@ int test_wolfSSL_X509_EXTENSION_get_object(void)
 int test_wolfSSL_X509_EXTENSION_get_data(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_STRING* str = NULL;
@@ -850,7 +853,8 @@ int test_wolfSSL_X509_EXTENSION_get_data(void)
 int test_wolfSSL_X509_EXTENSION_get_critical(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509_EXTENSION* ext = NULL;
     XFILE file = XBADFILE;
@@ -874,13 +878,15 @@ int test_wolfSSL_X509_EXTENSION_get_critical(void)
 int test_wolfSSL_X509_EXTENSION_create_by_OBJ(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     XFILE file = XBADFILE;
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509* empty = NULL;
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_X509_EXTENSION* ext2 = NULL;
     WOLFSSL_X509_EXTENSION* ext3 = NULL;
+    WOLFSSL_X509_EXTENSION* found = NULL;
     WOLFSSL_ASN1_OBJECT* o = NULL;
     int crit = 0;
     WOLFSSL_ASN1_STRING* str = NULL;
@@ -893,6 +899,11 @@ int test_wolfSSL_X509_EXTENSION_create_by_OBJ(void)
 
     ExpectNotNull(o = wolfSSL_X509_EXTENSION_get_object(ext));
     ExpectIntEQ(crit = wolfSSL_X509_EXTENSION_get_critical(ext), 0);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_critical(NULL, 1), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_critical(ext, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_get_critical(ext), 1);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_critical(ext, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_get_critical(ext), 0);
     ExpectNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
 
     ExpectNull(wolfSSL_X509_EXTENSION_create_by_OBJ(NULL, NULL, 0, NULL));
@@ -929,6 +940,9 @@ int test_wolfSSL_X509_EXTENSION_create_by_OBJ(void)
     ExpectIntEQ(wolfSSL_X509_get_ext_by_OBJ(x509, o, -2), 0);
     ExpectIntEQ(wolfSSL_X509_get_ext_by_OBJ(x509, o, 0),
         WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectNotNull(found = wolfSSL_X509_get_ext(x509, 0));
+    ExpectNotNull(found->obj);
+    ExpectIntEQ(wolfSSL_X509_get_ext_by_OBJ(x509, found->obj, -1), 0);
 
     wolfSSL_X509_free(x509);
 #endif
@@ -984,7 +998,8 @@ int test_wolfSSL_X509V3_set_ctx(void)
 int test_wolfSSL_X509V3_EXT_get(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     XFILE f = XBADFILE;
     int numOfExt =0;
     int extNid = 0;
@@ -1053,7 +1068,7 @@ int test_wolfSSL_X509V3_EXT_get(void)
 int test_wolfSSL_X509V3_EXT_nconf(void)
 {
     EXPECT_DECLS;
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     const char *ext_names[] = {
         "subjectKeyIdentifier",
         "authorityKeyIdentifier",
@@ -1164,7 +1179,8 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
 int test_wolfSSL_X509V3_EXT_bc(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     WOLFSSL_BASIC_CONSTRAINTS* bc = NULL;
@@ -1298,7 +1314,8 @@ int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
 int test_wolfSSL_X509V3_EXT_san(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     WOLFSSL_STACK* sk = NULL;
@@ -1333,7 +1350,8 @@ int test_wolfSSL_X509V3_EXT_san(void)
 int test_wolfSSL_X509V3_EXT_aia(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     WOLFSSL_STACK* sk = NULL;
@@ -1397,6 +1415,13 @@ int test_wolfSSL_X509V3_EXT_aia(void)
 int test_wolfSSL_X509V3_EXT(void)
 {
     EXPECT_DECLS;
+/* This test walks the OCSP root CA's extensions by hardcoded index (i=0 basic
+ * constraints, i=1 subject key id, i=2 authority key id, ...) and asserts fixed
+ * values. That ordering/index assumption only holds for OPENSSL_ALL builds; in
+ * OPENSSL_EXTRA-only configs the stored-extension order can differ, so the SKID
+ * i2s check reads the AKID instead and fails. Keep this test OPENSSL_ALL-only
+ * (its state on master); the by-NID AIA test above is the one that needed
+ * widening to OPENSSL_EXTRA. */
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     XFILE f = XBADFILE;
     int numOfExt = 0, nid = 0, i = 0, expected, actual = 0;
@@ -1414,6 +1439,7 @@ int test_wolfSSL_X509V3_EXT(void)
     WOLFSSL_BASIC_CONSTRAINTS* bc = NULL;
     WOLFSSL_ACCESS_DESCRIPTION* ad = NULL;
     WOLFSSL_GENERAL_NAME* gn = NULL;
+    int critical = -1;
 
     /* Check NULL argument */
     ExpectNull(wolfSSL_X509V3_EXT_d2i(NULL));
@@ -1459,6 +1485,16 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectNotNull(obj = wolfSSL_X509_EXTENSION_get_object(ext));
     ExpectIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_basic_constraints);
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
+    critical = -1;
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_basic_constraints,
+        &critical, NULL));
+    ExpectIntNE(critical, -1);
+    /* X509_get_ext_d2i() returns a newly-allocated object; free before reuse. */
+    wolfSSL_BASIC_CONSTRAINTS_free((WOLFSSL_BASIC_CONSTRAINTS*)ext2);
+    ext2 = NULL;
+    ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_basic_constraints, 1, bc));
+    X509_EXTENSION_free(ext2);
+    ext2 = NULL;
 
     ExpectIntEQ(bc->ca, 1);
     ExpectNull(bc->pathlen);
@@ -1472,6 +1508,15 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_subject_key_identifier);
 
     ExpectNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
+    critical = -1;
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_subject_key_identifier,
+        &critical, NULL));
+    ExpectIntNE(critical, -1);
+    /* get_ext_d2i(subject_key_identifier) wraps the value in a
+     * STACK_OF(ASN1_OBJECT) (see wolfSSL_X509_get_ext_d2i). */
+    wolfSSL_sk_ASN1_OBJECT_pop_free((WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*)ext2,
+        NULL);
+    ext2 = NULL;
     ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_subject_key_identifier, 0,
         asn1str));
     X509_EXTENSION_free(ext2);
@@ -1497,6 +1542,16 @@ int test_wolfSSL_X509V3_EXT(void)
 
     ExpectNotNull(aKeyId = (WOLFSSL_AUTHORITY_KEYID*)wolfSSL_X509V3_EXT_d2i(
         ext));
+    critical = -1;
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_authority_key_identifier,
+        &critical, NULL));
+    ExpectIntNE(critical, -1);
+    wolfSSL_AUTHORITY_KEYID_free((WOLFSSL_AUTHORITY_KEYID*)ext2);
+    ext2 = NULL;
+    ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_authority_key_identifier,
+        0, aKeyId));
+    X509_EXTENSION_free(ext2);
+    ext2 = NULL;
     ExpectNotNull(method = wolfSSL_X509V3_EXT_get(ext));
     ExpectNotNull(asn1str = aKeyId->keyid);
     ExpectNotNull(str = wolfSSL_i2s_ASN1_STRING((WOLFSSL_v3_ext_method*)method,
@@ -1519,6 +1574,15 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_key_usage);
 
     ExpectNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
+    critical = -1;
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_key_usage, &critical,
+        NULL));
+    ExpectIntNE(critical, -1);
+    wolfSSL_ASN1_STRING_free((WOLFSSL_ASN1_STRING*)ext2);
+    ext2 = NULL;
+    ExpectNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_key_usage, 0, asn1str));
+    X509_EXTENSION_free(ext2);
+    ext2 = NULL;
 #if defined(WOLFSSL_QT)
     ExpectNotNull(data = (unsigned char*)ASN1_STRING_get0_data(asn1str));
 #else
@@ -1545,6 +1609,13 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_info_access);
     ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS*)wolfSSL_X509V3_EXT_d2i(
         ext));
+    critical = -1;
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509, NID_info_access, &critical,
+        NULL));
+    ExpectIntNE(critical, -1);
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(
+        (WOLFSSL_AUTHORITY_INFO_ACCESS*)ext2, NULL);
+    ext2 = NULL;
 #if defined(WOLFSSL_QT)
     ExpectIntEQ(OPENSSL_sk_num(aia), 1); /* Only one URI entry for this cert */
 #else
@@ -1580,7 +1651,11 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(NULL, 0));
     ExpectNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(aia, 1));
     ExpectNotNull(wolfSSL_sk_ACCESS_DESCRIPTION_value(aia, 0));
-    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
+    /* Pass the element free explicitly: the stack's default (type-based) element
+     * free for ACCESS_DESCRIPTION is only wired up under OPENSSL_ALL, so with a
+     * NULL callback an OPENSSL_EXTRA-only build (this block now compiles there)
+     * frees the stack nodes but leaks each ACCESS_DESCRIPTION. */
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, wolfSSL_ACCESS_DESCRIPTION_free);
     aia = NULL;
 
 #ifndef NO_WOLFSSL_STUB
@@ -1595,8 +1670,9 @@ int test_wolfSSL_X509V3_EXT(void)
 int test_wolfSSL_X509V3_EXT_print(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_BIO) && \
-    !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(NO_BIO) && !defined(NO_RSA)
 
     {
         XFILE f = XBADFILE;
@@ -2365,6 +2441,63 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_NAME_CONSTRAINTS_manual_paths(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    NAME_CONSTRAINTS* nc = NULL;
+    GENERAL_SUBTREE* subtree = NULL;
+    GENERAL_NAME* gn = NULL;
+    const char dnsName[] = ".wolfssl.com";
+
+    ExpectNotNull(nc = NAME_CONSTRAINTS_new());
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(nc->permittedSubtrees = wolfSSL_sk_new_null());
+    }
+    if (EXPECT_SUCCESS()) {
+        nc->permittedSubtrees->type = STACK_TYPE_GENERAL_SUBTREE;
+        ExpectNotNull(subtree = GENERAL_SUBTREE_new());
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_sk_push(nc->permittedSubtrees, subtree), 1);
+        subtree = NULL;
+    }
+
+    /* base == NULL should be skipped, leaving the name permitted. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.example.com", 15), 1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(subtree = sk_GENERAL_SUBTREE_value(nc->permittedSubtrees,
+            0));
+        ExpectNotNull(gn = GENERAL_NAME_new());
+    }
+    if (EXPECT_SUCCESS()) {
+        subtree->base = gn;
+        gn = NULL;
+        subtree->base->type = GEN_EMAIL;
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.example.com", 15), 1);
+    }
+
+    /* Same-type permitted constraint with no match should now reject. */
+    if (EXPECT_SUCCESS()) {
+        subtree->base->type = GEN_DNS;
+        ExpectIntEQ(ASN1_STRING_set(subtree->base->d.dNSName, dnsName,
+            (int)XSTRLEN(dnsName)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.example.com", 15), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "www.sub.wolfssl.com", 19), 1);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+#endif /* OPENSSL_EXTRA && !IGNORE_NAME_CONSTRAINTS */
+    return EXPECT_RESULT();
+}
+
 /*
  * Test DNS type name constraint checking with leading dot (subdomain matching).
  * Uses cert-ext-nc-combined.pem which has permitted;DNS:.wolfssl.com
@@ -2506,4 +2639,3 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void)
         * !IGNORE_NAME_CONSTRAINTS */
     return EXPECT_RESULT();
 }
-

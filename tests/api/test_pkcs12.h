@@ -26,6 +26,8 @@
 
 int test_wc_i2d_PKCS12(void);
 int test_wc_PKCS12_create(void);
+int test_wc_PKCS12_create_guardrails(void);
+int test_wc_PKCS12_parse_guardrails(void);
 int test_wc_d2i_PKCS12_bad_mac_salt(void);
 int test_wc_d2i_PKCS12_oid_underflow(void);
 int test_wc_PKCS12_encrypted_content_bounds(void);
@@ -42,6 +44,8 @@ int test_wc_PKCS12_PBKDF_ex_sha512_256(void);
 #define TEST_PKCS12_DECLS                                               \
     TEST_DECL_GROUP("pkcs12", test_wc_i2d_PKCS12),                     \
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_create),                  \
+    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_create_guardrails),       \
+    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_parse_guardrails),        \
     TEST_DECL_GROUP("pkcs12", test_wc_d2i_PKCS12_bad_mac_salt),        \
     TEST_DECL_GROUP("pkcs12", test_wc_d2i_PKCS12_oid_underflow),       \
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_encrypted_content_bounds), \
