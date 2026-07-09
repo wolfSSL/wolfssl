@@ -175,6 +175,7 @@ int test_wc_falcon_sign_verify(void)
     falcon_key key;
     WC_RNG rng;
     OQS_SIG* oqssig = NULL;
+    OQS_STATUS oqs_status;
     byte pub[FALCON_LEVEL1_PUB_KEY_SIZE];
     byte priv[FALCON_LEVEL1_KEY_SIZE];
     byte sig[FALCON_LEVEL1_SIG_SIZE];
@@ -189,7 +190,11 @@ int test_wc_falcon_sign_verify(void)
 
     ExpectNotNull(oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_512));
     if (oqssig != NULL) {
-        ExpectIntEQ(OQS_SIG_keypair(oqssig, pub, priv), OQS_SUCCESS);
+        /* Keep the call out of ExpectIntEQ: the macro casts its arguments to
+         * int, and casting a function call returning the OQS_STATUS enum
+         * trips -Werror=bad-function-cast; casting a variable does not. */
+        oqs_status = OQS_SIG_keypair(oqssig, pub, priv);
+        ExpectIntEQ((int)oqs_status, (int)OQS_SUCCESS);
         ExpectIntEQ(wc_falcon_import_private_key(priv, (word32)sizeof(priv), pub,
             (word32)sizeof(pub), &key), 0);
         ExpectIntGT(wc_falcon_size(&key), 0);
