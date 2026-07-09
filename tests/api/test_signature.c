@@ -35,9 +35,6 @@
 #include <wolfssl/wolfcrypt/types.h>
 #ifdef HAVE_FALCON
     #include <wolfssl/wolfcrypt/falcon.h>
-    #ifdef HAVE_LIBOQS
-        #include <oqs/oqs.h>
-    #endif
 #endif
 #include <tests/api/api.h>
 #include <tests/api/test_signature.h>
@@ -174,12 +171,9 @@ int test_wc_falcon_sign_verify(void)
 #if defined(HAVE_FALCON) && defined(HAVE_LIBOQS)
     falcon_key key;
     WC_RNG rng;
-    OQS_SIG* oqssig = NULL;
-    OQS_STATUS oqs_status;
-    byte pub[FALCON_LEVEL1_PUB_KEY_SIZE];
-    byte priv[FALCON_LEVEL1_KEY_SIZE];
     byte sig[FALCON_LEVEL1_SIG_SIZE];
     word32 sigLen = (word32)sizeof(sig);
+    word32 idx = 0;
     int verified = 0;
     static const byte msg[] = "wolfssl falcon coverage";
 
@@ -188,29 +182,27 @@ int test_wc_falcon_sign_verify(void)
     ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    ExpectNotNull(oqssig = OQS_SIG_new(OQS_SIG_alg_falcon_512));
-    if (oqssig != NULL) {
-        /* Keep the call out of ExpectIntEQ: the macro casts its arguments to
-         * int, and casting a function call returning the OQS_STATUS enum
-         * trips -Werror=bad-function-cast; casting a variable does not. */
-        oqs_status = OQS_SIG_keypair(oqssig, pub, priv);
-        ExpectIntEQ((int)oqs_status, (int)OQS_SUCCESS);
-        ExpectIntEQ(wc_falcon_import_private_key(priv, (word32)sizeof(priv), pub,
-            (word32)sizeof(pub), &key), 0);
-        ExpectIntGT(wc_falcon_size(&key), 0);
-        ExpectIntGT(wc_falcon_pub_size(&key), 0);
-        ExpectIntGT(wc_falcon_priv_size(&key), 0);
-        ExpectIntGT(wc_falcon_sig_size(&key), 0);
-        ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
-            &key, &rng), 0);
-        ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
-            &verified, &key), 0);
-        ExpectIntEQ(verified, 1);
-    }
+    /* Use the embedded benchmark key rather than generating one with a
+     * direct OQS_SIG_keypair() call: that call draws from liboqs'
+     * randombytes callback, which wolfSSL points at its default liboqs RNG.
+     * Any earlier wolfCrypt_Init/Cleanup cycle in this suite leaves that RNG
+     * freed (wolfSSL_liboqsClose() does not reset liboqs_init, so re-Init
+     * never re-creates it) and the callback then abort()s. The wolfSSL API
+     * paths below hand OUR rng to liboqs instead, so they do not depend on
+     * that state. */
+    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(bench_falcon_level1_key, &idx,
+        &key, (word32)sizeof_bench_falcon_level1_key), 0);
 
-    if (oqssig != NULL) {
-        OQS_SIG_free(oqssig);
-    }
+    ExpectIntGT(wc_falcon_size(&key), 0);
+    ExpectIntGT(wc_falcon_pub_size(&key), 0);
+    ExpectIntGT(wc_falcon_priv_size(&key), 0);
+    ExpectIntGT(wc_falcon_sig_size(&key), 0);
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &verified, &key), 0);
+    ExpectIntEQ(verified, 1);
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_falcon_free(&key);
 #endif
