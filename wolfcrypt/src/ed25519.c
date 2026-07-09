@@ -473,6 +473,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     (void)type;
     ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
 #elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+    (void)ed25519Ctx;
     ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
     if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
@@ -1390,7 +1391,7 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
              * with its top bit replaced by the parity of x. Same byte
              * transform as ge_compress_key minus the canonical reduction
              * (as in the ED25519_SMALL variant); the key check below
-             * rejects non-canonical keys. This inlined code avoids pulling 
+             * rejects non-canonical keys. This inlined code avoids pulling
              * in ge_compress_key(), etc. */
             const byte* xIn = in + 1;
             const byte* yIn = in + 1 + ED25519_PUB_KEY_SIZE;
