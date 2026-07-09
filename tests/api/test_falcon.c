@@ -406,8 +406,9 @@ int test_wc_falcon_import_export(void)
 }
 
 /*
- * check_key: valid key passes; a corrupted public copy, a public-only key, and
- * a private-only key all fail; NULL is rejected.
+ * check_key: valid key passes; a public-only key, a private-only key, and a
+ * mismatched public/private pair (which must fail the h*f == g cross-check)
+ * all fail; NULL is rejected.
  */
 int test_wc_falcon_check_key(void)
 {
@@ -477,6 +478,25 @@ int test_wc_falcon_check_key(void)
         ExpectIntEQ(wc_falcon_import_public(pub, pubLen, &key), 0);
         ExpectIntEQ(wc_falcon_import_private_only(prv, prvLen, &key), 0);
         ExpectIntEQ(wc_falcon_check_key(&key), 0);
+        wc_falcon_free(&key);
+
+        /* Mismatched pair: the public half of a DIFFERENT key of the same
+         * level together with the original private key must fail the
+         * cryptographic h*f == g (mod q) cross-check. */
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, level), 0);
+        ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+        pubLen = FALCON_MAX_PUB_KEY_SIZE;
+        ExpectIntEQ(wc_falcon_export_public(&key, pub, &pubLen), 0);
+        wc_falcon_free(&key);
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, level), 0);
+        ExpectIntEQ(wc_falcon_import_public(pub, pubLen, &key), 0);
+        ExpectIntEQ(wc_falcon_import_private_only(prv, prvLen, &key), 0);
+        ExpectIntEQ(wc_falcon_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         wc_falcon_free(&key);
     }
 

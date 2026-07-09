@@ -225,6 +225,7 @@ WOLFSSL_API int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output,
 WOLFSSL_LOCAL int falcon_native_make_key(falcon_key* key, WC_RNG* rng);
 WOLFSSL_LOCAL int falcon_native_sign_msg(const byte* in, word32 inLen,
         byte* out, word32* outLen, falcon_key* key, WC_RNG* rng);
+WOLFSSL_LOCAL int falcon_native_check_key(falcon_key* key);
 #endif
 WOLFSSL_LOCAL int falcon_native_verify_msg(const byte* sig, word32 sigLen,
         const byte* msg, word32 msgLen, int* res, falcon_key* key);

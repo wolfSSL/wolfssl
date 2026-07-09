@@ -300,6 +300,9 @@ static int falcon_compute_public(word16* h, const sword8* f, const sword8* g,
     mq_ntt(h, n, zetas);
     for (u = 0; u < n; u++) {
         if (ff[u] == 0) {
+            /* The tail of the buffer (ff) holds NTT(f) -- secret material. */
+            wc_ForceZero(zetas, (word32)((size_t)3 * (size_t)n
+                    * sizeof(word16)));
             XFREE(zetas, heap, DYNAMIC_TYPE_TMP_BUFFER);
             return 0;
         }
@@ -307,6 +310,8 @@ static int falcon_compute_public(word16* h, const sword8* f, const sword8* g,
     }
     mq_intt(h, n, izetas);
 
+    /* The tail of the buffer (ff) holds NTT(f) -- secret material. */
+    wc_ForceZero(zetas, (word32)((size_t)3 * (size_t)n * sizeof(word16)));
     XFREE(zetas, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return 1;
 }
@@ -1890,6 +1895,11 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
 out:
     falcon_rng_free(&rc);
     if (h == NULL) {
+        /* hwork holds the public key h by now (g was overwritten in place);
+         * zeroized anyway for consistency with the tmpbuf hardening. */
+        if (hwork != NULL) {
+            wc_ForceZero(hwork, (word32)(n * sizeof(word16)));
+        }
         XFREE(hwork, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     /* tmpbuf held the full secret-key expansion (f,g in RNS/NTT, F,G, FFT

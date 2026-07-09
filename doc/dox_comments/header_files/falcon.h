@@ -411,12 +411,16 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
 /*!
     \ingroup Falcon
 
-    \brief Checks the consistency of a Falcon key, verifying that the stored
-    public key matches the private key when both are present.
+    \brief Checks the consistency of a Falcon key. Requires both key halves to
+    be present. When the native signing core is compiled in, the stored public
+    key h is additionally verified against the private key by checking the
+    defining relation h*f == g (mod q); in verify-only or crypto-callback-only
+    builds only the presence of both halves is checked.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL.
-    \return PUBLIC_KEY_E if the public and private keys are inconsistent.
+    \return BAD_FUNC_ARG if key is NULL or the level is unset.
+    \return PUBLIC_KEY_E if either key half is missing, or if the public and
+    private keys are cryptographically inconsistent.
 
     \param [in] key Pointer to a falcon_key to check.
 

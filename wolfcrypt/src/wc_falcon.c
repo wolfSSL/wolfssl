@@ -882,6 +882,108 @@ out:
     }
     return ret;
 }
+
+/* Cryptographic private/public consistency check. Decodes (f, g) from the
+ * private key and h from the public key, and verifies the defining relation
+ * h = g/f (mod q, mod X^n + 1) as h*f == g slot-wise in the NTT domain
+ * (falcon_ntt keeps every value canonical in [0, q), so direct comparison is
+ * exact). A slot with NTT(f) == 0 is rejected as well: keygen only emits f
+ * invertible mod q, and a non-invertible f does not determine h.
+ *
+ * Returns 0 when the pair is consistent, PUBLIC_KEY_E on mismatch, or a
+ * negative wolfCrypt error on decode/allocation failure. */
+int falcon_native_check_key(falcon_key* key)
+{
+    int ret = 0;
+    unsigned logn = 0;
+    int n = 0, i;
+    word32 pubSz = 0, keySz;
+    sword8 *f = NULL, *g = NULL, *F = NULL;
+    word16 *h = NULL, *ft = NULL, *gt = NULL;
+    const word16* zetas = NULL;
+    const word16* izetas = NULL;
+    void* heap;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (falcon_level_params(key->level, &logn, &n, &pubSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    keySz = (key->level == FALCON_LEVEL1) ? FALCON_LEVEL1_KEY_SIZE
+                                          : FALCON_LEVEL5_KEY_SIZE;
+    heap = key->heap;
+
+    f  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    g  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    F  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    h  = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    ft = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    gt = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (f == NULL || g == NULL || F == NULL || h == NULL || ft == NULL ||
+            gt == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
+    ret = falcon_privkey_decode(key->k, keySz, f, g, F, logn);
+    if (ret != 0) {
+        goto out;
+    }
+    if (key->p[0] != (byte)(FALCON_PUB_HEAD | logn)) {
+        ret = ASN_PARSE_E;
+        goto out;
+    }
+    {
+        int rc = falcon_modq_decode(key->p + 1, pubSz - 1, h, logn);
+        if (rc < 0) {
+            ret = rc;
+            goto out;
+        }
+    }
+
+    for (i = 0; i < n; i++) {
+        int x = f[i];
+        if (x < 0) {
+            x += FALCON_Q;
+        }
+        ft[i] = (word16)x;
+        x = g[i];
+        if (x < 0) {
+            x += FALCON_Q;
+        }
+        gt[i] = (word16)x;
+    }
+    falcon_get_tables(logn, &zetas, &izetas);
+    falcon_ntt(ft, n, zetas);
+    falcon_ntt(gt, n, zetas);
+    falcon_ntt(h, n, zetas);
+    for (i = 0; i < n; i++) {
+        if (ft[i] == 0 ||
+                (word16)(((word64)h[i] * ft[i]) % FALCON_Q) != gt[i]) {
+            ret = PUBLIC_KEY_E;
+            break;
+        }
+    }
+
+out:
+    if (f != NULL)  { ForceZero(f, (word32)n); XFREE(f, heap, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (g != NULL)  { ForceZero(g, (word32)n); XFREE(g, heap, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (F != NULL)  { ForceZero(F, (word32)n); XFREE(F, heap, DYNAMIC_TYPE_TMP_BUFFER); }
+    if (ft != NULL) {
+        ForceZero(ft, (word32)(n * (int)sizeof(word16)));
+        XFREE(ft, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (gt != NULL) {
+        ForceZero(gt, (word32)(n * (int)sizeof(word16)));
+        XFREE(gt, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (h != NULL)  XFREE(h, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
 
 int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,

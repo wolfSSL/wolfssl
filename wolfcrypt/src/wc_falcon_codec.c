@@ -186,6 +186,12 @@ size_t falcon_trim_i8_encode(byte* out, size_t max_out, const sword8* x,
     word32 acc = 0, mask;
     unsigned acc_len = 0;
 
+    /* Callers only pass falcon_max_fg_bits/falcon_max_FG_bits values (5..8);
+     * guard the shifts below against out-of-range widths anyway. */
+    if (bits < 2 || bits > 8) {
+        return 0;
+    }
+
     maxv = (1 << (bits - 1)) - 1;
     minv = -maxv;
     for (u = 0; u < n; u++) {
@@ -224,6 +230,11 @@ size_t falcon_trim_i8_decode(sword8* x, unsigned logn, unsigned bits,
     size_t u, v;
     word32 acc = 0, mask1, mask2;
     unsigned acc_len = 0;
+
+    /* Same defensive width guard as falcon_trim_i8_encode. */
+    if (bits < 2 || bits > 8) {
+        return 0;
+    }
 
     if (in_len > max_in) {
         return 0;

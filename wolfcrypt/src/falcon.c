@@ -643,17 +643,18 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
  *
  * key     [in]      Falcon private/public key.
  * returns BAD_FUNC_ARG when key is NULL or the level is unset,
- *         PUBLIC_KEY_E when either the public or private half is not set,
+ *         PUBLIC_KEY_E when either half is not set, or when the stored public
+ *         key h does not satisfy the defining relation h = g/f (mod q) for the
+ *         private (f, g),
  *         0 otherwise.
  *
- * Note: this verifies both halves of the pair are loaded. It does not yet
- * perform a full cryptographic cross-check (recomputing the public key h from
- * the private (f, g) and comparing it against the stored public key); that is a
- * TODO once a standalone public-key-from-private helper is exposed by the native
- * core. The previous implementation compared the stored public key against a
- * duplicate copy kept behind the private key, which was always a copy of the
- * same bytes and so could never detect a mismatch.
- */
+ * When the native signing core is compiled in, both halves are decoded and the
+ * relation h*f == g (mod q, mod X^n + 1) is verified in the NTT domain, so a
+ * mismatched pair is detected cryptographically. In verify-only or
+ * callback-only builds (no private-key codec available) only the presence of
+ * both halves is checked. The pre-native implementation compared the stored
+ * public key against a duplicate copy kept behind the private key, which was
+ * always a copy of the same bytes and so could never detect a mismatch. */
 int wc_falcon_check_key(falcon_key* key)
 {
     if (key == NULL) {
@@ -668,7 +669,11 @@ int wc_falcon_check_key(falcon_key* key)
         return PUBLIC_KEY_E;
     }
 
+#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+    return falcon_native_check_key(key);
+#else
     return 0;
+#endif
 }
 
 /* Returns the size of a falcon private key.

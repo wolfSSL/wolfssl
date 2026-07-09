@@ -118,14 +118,23 @@ static const fpr falcon_fpr_sigma_min[11] = {
 /* Squeeze a fresh batch of blocks into the buffer. Constant-time. */
 static int falcon_prng_refill(falcon_prng* p)
 {
-    int ret = wc_Shake256_SqueezeBlocks(&p->shake, p->buf, FALCON_PRNG_BLOCKS);
+    int ret;
+
+    /* Once the sticky error is latched the stream is already invalid and the
+     * result will be rejected; don't keep re-issuing failing squeezes. */
+    if (p->err != 0) {
+        p->ptr = 0;
+        p->len = 0;
+        return p->err;
+    }
+    ret = wc_Shake256_SqueezeBlocks(&p->shake, p->buf, FALCON_PRNG_BLOCKS);
     p->ptr = 0;
     p->len = (ret == 0) ? (word32)FALCON_PRNG_BUFLEN : 0;
     /* Latch the first failure. get_u8/get_u64 have no error return, so a squeeze
      * failure is made sticky here and checked by the signer (falcon_sign_core),
      * which rejects any signature produced from an invalid PRNG state instead of
      * consuming stale buffer bytes. */
-    if (ret != 0 && p->err == 0)
+    if (ret != 0)
         p->err = ret;
     return ret;
 }
@@ -138,19 +147,27 @@ int falcon_prng_init(falcon_prng* p, WC_RNG* rng)
     if (p == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
-    ret = wc_RNG_GenerateBlock(rng, seed, (word32)sizeof(seed));
-    if (ret == 0)
-        ret = wc_InitShake256(&p->shake, NULL, INVALID_DEVID);
-    if (ret == 0)
-        ret = wc_Shake256_Absorb(&p->shake, seed, (word32)sizeof(seed));
-
     p->ptr = 0;
     p->len = 0;
     p->err = 0;
-    ForceZero(seed, (word32)sizeof(seed));
 
-    if (ret == 0)
-        ret = falcon_prng_refill(p);
+    ret = wc_RNG_GenerateBlock(rng, seed, (word32)sizeof(seed));
+    if (ret == 0) {
+        ret = wc_InitShake256(&p->shake, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_Shake256_Absorb(&p->shake, seed, (word32)sizeof(seed));
+            if (ret == 0)
+                ret = falcon_prng_refill(p);
+            /* On failure past a successful init the caller never sees a live
+             * context (falcon_native_sign_msg only frees the sponge when this
+             * function succeeded), so release it here. This matters in
+             * WOLFSSL_ASYNC_CRYPT builds where wc_InitShake256 allocates a
+             * device context. */
+            if (ret != 0)
+                wc_Shake256_Free(&p->shake);
+        }
+    }
+    ForceZero(seed, (word32)sizeof(seed));
 
     return ret;
 }
@@ -321,6 +338,15 @@ int falcon_sampler_z(void* ctx, fpr mu, fpr isigma)
     for (;;) {
         int z0, z, b;
         fpr x;
+
+        /* A wedged PRNG (latched sticky error) turns every squeezed byte into
+         * a constant, which can make the rejection test below deterministic --
+         * and, if it rejects, this loop endless. Bail out instead: the value
+         * returned is discarded, as falcon_sign_core rejects the entire
+         * signature whenever p.err is set. */
+        if (spc->p.err != 0) {
+            return s;
+        }
 
         /* Half-Gaussian sample, plus a random bit b turning it bimodal:
          * b = 1 -> use z0+1 (centered on 1), b = 0 -> use -z0 (centered 0). */
