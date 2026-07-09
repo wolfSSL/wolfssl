@@ -7203,6 +7203,12 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 #else
     ssl->buffers.key      = ctx->privateKey;
+    /* Hold a reference on the shared key so reloading it on the CTX cannot
+     * free it while this SSL still aliases it. */
+    if (!RefDer(ssl->buffers.key)) {
+        ssl->buffers.key = NULL;
+        return BAD_MUTEX_E;
+    }
 #endif
 #else
     if (ctx->privateKey != NULL) {
@@ -7233,6 +7239,11 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
     ssl->buffers.altKey   = ctx->altPrivateKey;
+    /* Hold a reference on the shared alternative key. */
+    if (!RefDer(ssl->buffers.altKey)) {
+        ssl->buffers.altKey = NULL;
+        return BAD_MUTEX_E;
+    }
 #else
     if (ctx->altPrivateKey != NULL) {
         ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,
@@ -9226,12 +9237,25 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifndef NO_CERTS
     ssl->keepCert = 0; /* make sure certificate is free'd */
     wolfSSL_UnloadCertsKeys(ssl);
-    /* Release references on cert buffers aliased from the context. Owned
-     * buffers were already freed and cleared by wolfSSL_UnloadCertsKeys. */
+    /* Release references on cert and key buffers aliased from the context.
+     * Owned buffers were already freed and cleared by
+     * wolfSSL_UnloadCertsKeys. */
     FreeDer(&ssl->buffers.certificate);
     ssl->buffers.weOwnCert = 0;
     FreeDer(&ssl->buffers.certChain);
     ssl->buffers.weOwnCertChain = 0;
+    FreeDer(&ssl->buffers.key);
+    ssl->buffers.weOwnKey = 0;
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ssl->buffers.keyMask);
+#endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    FreeDer(&ssl->buffers.altKey);
+    ssl->buffers.weOwnAltKey = 0;
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ssl->buffers.altKeyMask);
+#endif
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif
 #ifndef NO_RSA
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);

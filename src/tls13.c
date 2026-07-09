@@ -10142,20 +10142,29 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     }
                     ssl->buffers.keyType = ssl->buffers.altKeyType;
                     ssl->buffers.keySz = ssl->buffers.altKeySz;
-                    /* If we own it, free key before overriding it. */
-                    if (ssl->buffers.weOwnKey) {
-                        FreeDer(&ssl->buffers.key);
-                    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                        FreeDer(&ssl->buffers.keyMask);
-                    #endif
-                    }
+                    /* Release our reference to the current key before
+                     * overriding it (owned copy or CTX alias). */
+                    FreeDer(&ssl->buffers.key);
+                #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                    FreeDer(&ssl->buffers.keyMask);
+                #endif
 
-                    /* Swap keys */
+                    /* Swap keys. key and altKey now reference the same buffer,
+                     * so take a reference for the new alias. */
                     ssl->buffers.key     = ssl->buffers.altKey;
                     ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
+                    if (!RefDer(ssl->buffers.key)) {
+                        ssl->buffers.key = NULL;
+                        ssl->buffers.weOwnKey = 0;
+                        ERROR_OUT(BAD_MUTEX_E, exit_scv);
+                    }
 
                 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                     ssl->buffers.keyMask = ssl->buffers.altKeyMask;
+                    if (!RefDer(ssl->buffers.keyMask)) {
+                        ssl->buffers.keyMask = NULL;
+                        ERROR_OUT(BAD_MUTEX_E, exit_scv);
+                    }
                     /* Unblind the alternative key before decoding */
                     wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
                 #endif

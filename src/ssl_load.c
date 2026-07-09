@@ -1317,13 +1317,12 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     else
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
     if (ssl != NULL) {
-        /* Dispose of previous key if not context's. */
-        if (ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
-        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-            FreeDer(&ssl->buffers.keyMask);
-        #endif
-        }
+        /* Release our reference to the previous key (owned copy or CTX
+         * alias) before storing the new one. */
+        FreeDer(&ssl->buffers.key);
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        FreeDer(&ssl->buffers.keyMask);
+    #endif
         ssl->buffers.keyId = 0;
         ssl->buffers.keyLabel = 0;
         ssl->buffers.keyDevId = INVALID_DEVID;
@@ -4621,12 +4620,11 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
     }
 
     /* Dispose of old private key if owned and allocate and copy in id. */
-    if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.keyMask);
-    #endif
-    }
+    /* Release our reference to the old key (owned copy or CTX alias). */
+    FreeDer(&ssl->buffers.key);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ssl->buffers.keyMask);
+#endif
     if (AllocCopyDer(&ssl->buffers.key, id, (word32)sz, PRIVATEKEY_TYPE,
             ssl->heap) != 0) {
         ret = 0;
@@ -4697,12 +4695,11 @@ int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
     sz = (word32)XSTRLEN(label) + 1;
 
     /* Dispose of old private key if owned and allocate and copy in label. */
-    if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.keyMask);
-    #endif
-    }
+    /* Release our reference to the old key (owned copy or CTX alias). */
+    FreeDer(&ssl->buffers.key);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ssl->buffers.keyMask);
+#endif
     if (AllocCopyDer(&ssl->buffers.key, (const byte*)label, (word32)sz,
             PRIVATEKEY_TYPE, ssl->heap) != 0) {
         ret = 0;

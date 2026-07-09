@@ -12734,16 +12734,11 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = 0;
 #endif
-    if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.keyMask);
-    #endif
-        ssl->buffers.weOwnKey = 0;
-    }
-    ssl->buffers.key      = NULL;
+    /* Release our reference to the key (owned copy or CTX alias). */
+    FreeDer(&ssl->buffers.key);
+    ssl->buffers.weOwnKey = 0;
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    ssl->buffers.keyMask  = NULL;
+    FreeDer(&ssl->buffers.keyMask);
 #endif
     ssl->buffers.keyType  = 0;
     ssl->buffers.keyId    = 0;
@@ -12751,16 +12746,11 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     ssl->buffers.keySz    = 0;
     ssl->buffers.keyDevId = 0;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    if (ssl->buffers.weOwnAltKey) {
-        FreeDer(&ssl->buffers.altKey);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.altKeyMask);
-    #endif
-        ssl->buffers.weOwnAltKey = 0;
-    }
-    ssl->buffers.altKey     = NULL;
+    /* Release our reference to the alternative key (owned copy or CTX alias). */
+    FreeDer(&ssl->buffers.altKey);
+    ssl->buffers.weOwnAltKey = 0;
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    ssl->buffers.altKeyMask = NULL;
+    FreeDer(&ssl->buffers.altKeyMask);
 #endif
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 }
@@ -13230,7 +13220,14 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.key      = ctx->privateKey;
     }
 #else
+    /* Release our previous key reference before aliasing the new CTX's. */
+    FreeDer(&ssl->buffers.key);
+    ssl->buffers.weOwnKey = 0;
     ssl->buffers.key      = ctx->privateKey;
+    if (!RefDer(ssl->buffers.key)) {
+        ssl->buffers.key = NULL;
+        return NULL;
+    }
 #endif
 #else
     if (ctx->privateKey != NULL) {
@@ -13267,7 +13264,14 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.haveMlDsaSig = ctx->haveMlDsaSig;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
+    /* Release our previous alt key reference before aliasing the new CTX's. */
+    FreeDer(&ssl->buffers.altKey);
+    ssl->buffers.weOwnAltKey = 0;
     ssl->buffers.altKey   = ctx->altPrivateKey;
+    if (!RefDer(ssl->buffers.altKey)) {
+        ssl->buffers.altKey = NULL;
+        return NULL;
+    }
 #else
     if (ctx->altPrivateKey != NULL) {
         ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,

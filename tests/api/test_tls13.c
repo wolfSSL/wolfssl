@@ -3691,6 +3691,73 @@ int test_tls13_cert_alias_uaf_sni(void)
 }
 
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && !defined(WOLFSSL_COPY_KEY) && \
+    !defined(WOLFSSL_BLIND_PRIVATE_KEY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+/* React to the client SNI by reloading the private key on the existing CTX.
+ * Without WOLFSSL_COPY_KEY the key buffer is shared between the CTX and SSL,
+ * so freeing it on the CTX would dangle the SSL's alias. The server signs its
+ * CertificateVerify with that key, so a dangling alias is a heap-use-after-free
+ * on the signing path; the handshake must still complete. */
+static int test_key_alias_sni_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
+    int* cbRet = (int*)arg;
+    (void)ad;
+    /* Feed the reload result back to the parent function below. */
+    *cbRet = wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE);
+    /* 0 means ack the servername and continue the handshake. */
+    return 0;
+}
+#endif
+
+int test_tls13_key_alias_uaf_sni(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && !defined(WOLFSSL_COPY_KEY) && \
+    !defined(WOLFSSL_BLIND_PRIVATE_KEY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* host = "example.com";
+    int cbRet = WOLFSSL_FATAL_ERROR;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* Server cert/key are loaded on ctx_s, so ssl_s->buffers.key aliases
+     * ctx_s->privateKey. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Server swaps its CTX private key when the SNI arrives. */
+    wolfSSL_CTX_set_servername_callback(ctx_s, test_key_alias_sni_cb);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &cbRet), WOLFSSL_SUCCESS);
+
+    /* Client offers SNI so the server callback fires while parsing the
+     * ClientHello. */
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+        (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+
+    /* The callback frees the aliased key mid-handshake; the server then signs
+     * CertificateVerify with ssl->buffers.key. The handshake must complete
+     * without a UAF. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Fail the test if the callback's key reload failed or didn't run. */
+    ExpectIntEQ(cbRet, WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
