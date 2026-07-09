@@ -1,0 +1,25 @@
+name: wolfMQTT cross-library
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  cross-library:
+    uses: ./.github/workflows/cross-library.yml
+    with:
+      product: wolfmqtt
+      repo: wolfSSL/wolfMQTT
+      # wolfMQTT needs --enable-base64encode; --enable-all covers it.
+      wolfssl_configure: --enable-all
+      product_configure: ''
+      script: wolfmqtt.sh

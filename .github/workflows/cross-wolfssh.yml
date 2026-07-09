@@ -1,0 +1,25 @@
+name: wolfSSH cross-library
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  cross-library:
+    uses: ./.github/workflows/cross-library.yml
+    with:
+      product: wolfssh
+      repo: wolfSSL/wolfssh
+      # wolfSSH's own CI builds wolfSSL with --enable-all.
+      wolfssl_configure: --enable-all
+      product_configure: --enable-all
+      script: wolfssh.sh
