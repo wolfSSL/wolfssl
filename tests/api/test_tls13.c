@@ -3642,8 +3642,7 @@ static int test_cert_alias_sni_cb(WOLFSSL* ssl, int* ad, void* arg)
     int* cbRet = (int*)arg;
     (void)ad;
     /* Feed the reload result back to the parent function below. */
-    *cbRet = wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-        WOLFSSL_FILETYPE_PEM);
+    *cbRet = wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, CERT_FILETYPE);
     /* 0 means ack the servername and continue the handshake. */
     return 0;
 }
