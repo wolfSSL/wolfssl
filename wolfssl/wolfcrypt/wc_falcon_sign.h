@@ -33,8 +33,11 @@
  *   - falcon_expand_privkey: build the B0 = [[g, -f], [G, -F]] basis in FFT
  *     representation, the Gram matrix G = B*B^*, and the normalized ffLDL
  *     tree (the "expanded private key").
- *   - falcon_ffSampling_fft: the Fast Fourier sampling recursion driving the
- *     discrete Gaussian sampler over the ffLDL tree.
+ *   - falcon_ffSampling_fft: the Fast Fourier sampling walk driving the
+ *     discrete Gaussian sampler over the ffLDL tree. The reference expresses
+ *     this (and the ffLDL construction) as recursions; per wolfSSL's
+ *     no-recursion rule they are implemented as explicit-stack iterations
+ *     that visit sub-problems in the exact reference order.
  *   - falcon_do_sign_tree / falcon_sign_core: produce the signature short
  *     vector s2, looping over the sampler until the (s1, s2) squared l2-norm
  *     is within the Falcon acceptance bound.
@@ -97,8 +100,9 @@ WOLFSSL_LOCAL int falcon_expand_privkey(fpr* expanded, const sword8* f,
 
 /* Fast Fourier sampling: sample the target (t0, t1) against the ffLDL 'tree',
  * writing the sampled lattice coordinates into (z0, z1). 'tmp' needs room for
- * at least two polynomials of degree 2^logn. Faithful port of the reference
- * ffSampling_fft. */
+ * at least two polynomials of degree 2^logn. Iterative (explicit-stack)
+ * equivalent of the reference ffSampling_fft recursion; sampler invocation
+ * order is identical to the reference. */
 WOLFSSL_LOCAL void falcon_ffSampling_fft(falcon_samplerZ samp, void* samp_ctx,
         fpr* z0, fpr* z1, const fpr* tree, const fpr* t0, const fpr* t1,
         unsigned logn, fpr* tmp);
