@@ -6529,12 +6529,38 @@ int test_tls13_short_session_ticket(void)
 }
 
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+/* Custom ticket encryption callback with no key-lifetime limit, so the server
+ * issues a ticket for any hint (the default callback refuses a hint of at least
+ * half the key lifetime). */
+static int test_tls13_max_lifetime_ticketEncCb(WOLFSSL* ssl,
+        byte key_name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
+        byte mac[WOLFSSL_TICKET_MAC_SZ], int enc, byte* ticket, int inLen,
+        int* outLen, void* userCtx)
+{
+    int i;
+    (void)ssl;
+    (void)userCtx;
+    if (enc) {
+        XMEMSET(key_name, 0x2A, WOLFSSL_TICKET_NAME_SZ);
+        XMEMSET(iv, 0x2A, WOLFSSL_TICKET_IV_SZ);
+        XMEMSET(mac, 0x2A, WOLFSSL_TICKET_MAC_SZ);
+    }
+    for (i = 0; i < inLen; i++)
+        ticket[i] = (byte)(ticket[i] ^ 0xA5);
+    *outLen = inLen;
+    return WOLFSSL_TICKET_RET_OK;
+}
+#endif
+
 /* RFC 8446 Section 4.6.1: a NewSessionTicket lifetime greater than
  * MAX_LIFETIME (604800 seconds, 7 days) must be rejected. The public
  * wolfSSL_CTX_set_TicketHint setter clamps the value, so write the
- * out-of-range hint directly into the server CTX to force the server to
- * encode an over-limit lifetime onto the wire and confirm the client's
- * DoTls13NewSessionTicket bound check fires. */
+ * out-of-range hint directly into the server CTX. A custom encryption callback
+ * is installed so the default callback's key-lifetime limit does not block
+ * issuance, forcing the server to encode the over-limit lifetime onto the wire
+ * and confirming the client's DoTls13NewSessionTicket bound check fires. */
 int test_tls13_new_session_ticket_max_lifetime(void)
 {
     EXPECT_DECLS;
@@ -6548,6 +6574,8 @@ int test_tls13_new_session_ticket_max_lifetime(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_set_TicketEncCb(ctx_s, test_tls13_max_lifetime_ticketEncCb);
 
     /* Bypass the public-API clamp at 604800. */
     if (EXPECT_SUCCESS()) {

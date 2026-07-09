@@ -2251,6 +2251,7 @@ WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, 
 #endif
 WOLFSSL_LOCAL int  SetupTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
+WOLFSSL_LOCAL int  DefTicketHintTooLarge(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  HashRaw(WOLFSSL* ssl, const byte* data, int sz);
 WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
