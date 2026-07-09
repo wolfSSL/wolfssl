@@ -662,10 +662,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     ForceZero(az, sizeof(az));
     ForceZero(nonce, sizeof(nonce));
-#endif /* WOLFSSL_SE050 */
 
-#if defined(WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    /* belongs to the software path: orig_k snapshots the key the software
+     * math read, so there is nothing to compare when a device signs */
     if (ret == 0) {
         int  i;
         byte c = 0;
@@ -676,6 +676,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
     ForceZero(orig_k, sizeof(orig_k));
 #endif
+#endif /* WOLFSSL_SE050 */
 
     return ret;
 }
