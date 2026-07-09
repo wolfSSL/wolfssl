@@ -8076,6 +8076,14 @@ int test_wc_AesEaxArgMcdc(void)
     /* cond: in == NULL */
     ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out, NULL, sizeof(in), NULL, 0),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: authInSz > 0 && authIn == NULL -> BAD_FUNC_ARG (both the
+     * authInSz>0 and authIn==NULL conditions true). */
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out, in, sizeof(in), NULL,
+                sizeof(in)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: authInSz > 0 && authIn != NULL -> valid (authIn==NULL false while
+     * authInSz>0 true), completing that pair. */
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out, in, sizeof(in), in,
+                sizeof(in)), 0);
     ExpectIntEQ(wc_AesEaxFree(&eax), 0);
 
     /* ---- wc_AesEaxDecryptUpdate(): eax/out/in OR-chain ---- */
@@ -8093,6 +8101,12 @@ int test_wc_AesEaxArgMcdc(void)
     /* cond: in == NULL */
     ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out, NULL, sizeof(in), NULL, 0),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: authInSz > 0 && authIn == NULL -> BAD_FUNC_ARG. */
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out, in, sizeof(in), NULL,
+                sizeof(in)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: authInSz > 0 && authIn != NULL -> valid, completing the pair. */
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out, in, sizeof(in), in,
+                sizeof(in)), 0);
     ExpectIntEQ(wc_AesEaxFree(&eax), 0);
 
     /* ---- wc_AesEaxEncryptFinal(): authTag == NULL / authTagSz == 0 ---- */
