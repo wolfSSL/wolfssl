@@ -60,16 +60,29 @@ L_SHA256_transform_len_k:
 	.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	Transform_Sha256_Len
 .type	Transform_Sha256_Len,@function
 .align	16
 Transform_Sha256_Len:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	Transform_Sha256_Len, .-Transform_Sha256_Len
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.Transform_Sha256_Len) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	Transform_Sha256_Len
+.type	Transform_Sha256_Len,@function
+.align	3
+Transform_Sha256_Len:
+	.quad	.L.Transform_Sha256_Len,.TOC.@tocbase,0
+	.size	Transform_Sha256_Len,24
+.text
+.align	16
+.L.Transform_Sha256_Len:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_Len
@@ -114,6 +127,40 @@ _Transform_Sha256_Len:
 	# Start of loop processing a block
 L_SHA256_transform_len_begin:
 	# Load W - 64 bytes
+#ifdef __LITTLE_ENDIAN__
+	li	0, 0
+	lwbrx	16, 4, 0
+	li	0, 4
+	lwbrx	17, 4, 0
+	li	0, 8
+	lwbrx	18, 4, 0
+	li	0, 12
+	lwbrx	19, 4, 0
+	li	0, 16
+	lwbrx	20, 4, 0
+	li	0, 20
+	lwbrx	21, 4, 0
+	li	0, 24
+	lwbrx	22, 4, 0
+	li	0, 28
+	lwbrx	23, 4, 0
+	li	0, 32
+	lwbrx	24, 4, 0
+	li	0, 36
+	lwbrx	25, 4, 0
+	li	0, 40
+	lwbrx	26, 4, 0
+	li	0, 44
+	lwbrx	27, 4, 0
+	li	0, 48
+	lwbrx	28, 4, 0
+	li	0, 52
+	lwbrx	29, 4, 0
+	li	0, 56
+	lwbrx	30, 4, 0
+	li	0, 60
+	lwbrx	31, 4, 0
+#else
 	lwz	16, 0(4)
 	lwz	17, 4(4)
 	lwz	18, 8(4)
@@ -130,6 +177,7 @@ L_SHA256_transform_len_begin:
 	lwz	29, 52(4)
 	lwz	30, 56(4)
 	lwz	31, 60(4)
+#endif /* __LITTLE_ENDIAN__ */
 	# Start of 16 rounds
 	# Round 0
 	rotlwi	0, 11, 26
@@ -2504,6 +2552,40 @@ L_SHA256_transform_len_begin:
 	# Start of loop processing a block
 L_SHA256_transform_len_begin:
 	# Load W - 64 bytes
+#ifdef __LITTLE_ENDIAN__
+	li	0, 0
+	lwbrx	16, 4, 0
+	li	0, 4
+	lwbrx	17, 4, 0
+	li	0, 8
+	lwbrx	18, 4, 0
+	li	0, 12
+	lwbrx	19, 4, 0
+	li	0, 16
+	lwbrx	20, 4, 0
+	li	0, 20
+	lwbrx	21, 4, 0
+	li	0, 24
+	lwbrx	22, 4, 0
+	li	0, 28
+	lwbrx	23, 4, 0
+	li	0, 32
+	lwbrx	24, 4, 0
+	li	0, 36
+	lwbrx	25, 4, 0
+	li	0, 40
+	lwbrx	26, 4, 0
+	li	0, 44
+	lwbrx	27, 4, 0
+	li	0, 48
+	lwbrx	28, 4, 0
+	li	0, 52
+	lwbrx	29, 4, 0
+	li	0, 56
+	lwbrx	30, 4, 0
+	li	0, 60
+	lwbrx	31, 4, 0
+#else
 	lwz	16, 0(4)
 	lwz	17, 4(4)
 	lwz	18, 8(4)
@@ -2520,6 +2602,7 @@ L_SHA256_transform_len_begin:
 	lwz	29, 52(4)
 	lwz	30, 56(4)
 	lwz	31, 60(4)
+#endif /* __LITTLE_ENDIAN__ */
 	li	0, 4
 	mtctr	0
 	# Start of 16 rounds
@@ -3287,7 +3370,11 @@ L_SHA256_transform_len_after_blk_15:
 	addi	1, 1, 0x98
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
+#else
+	.size	.L.Transform_Sha256_Len,.-.L.Transform_Sha256_Len
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #ifdef WOLFSSL_PPC64_ASM_CRYPTO
 #ifndef __APPLE__
@@ -3324,16 +3411,29 @@ L_SHA256_crypto_k:
 	.machine	"push"
 	.machine	"power8"
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	Transform_Sha256_Len_crypto
 .type	Transform_Sha256_Len_crypto,@function
 .align	16
 Transform_Sha256_Len_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	Transform_Sha256_Len_crypto, .-Transform_Sha256_Len_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.Transform_Sha256_Len_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	Transform_Sha256_Len_crypto
+.type	Transform_Sha256_Len_crypto,@function
+.align	3
+Transform_Sha256_Len_crypto:
+	.quad	.L.Transform_Sha256_Len_crypto,.TOC.@tocbase,0
+	.size	Transform_Sha256_Len_crypto,24
+.text
+.align	16
+.L.Transform_Sha256_Len_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_Len_crypto
@@ -4781,7 +4881,11 @@ L_SHA256_crypto_begin:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	Transform_Sha256_Len_crypto,.-Transform_Sha256_Len_crypto
+#else
+	.size	.L.Transform_Sha256_Len_crypto,.-.L.Transform_Sha256_Len_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* WOLFSSL_PPC64_ASM_CRYPTO */

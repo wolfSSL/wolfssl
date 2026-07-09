@@ -1084,6 +1084,7 @@ __INTEL_COMPILER
 __KEIL__
 __KEY_DATA_H__
 __LINUX__
+__LITTLE_ENDIAN__
 __LP64
 __LP64__
 __MACH__
@@ -1098,6 +1099,7 @@ __OS2__
 __OpenBSD__
 __PIC__
 __PIE__
+__POWER9_VECTOR__
 __POWERPC__
 __PPC__
 __PPU

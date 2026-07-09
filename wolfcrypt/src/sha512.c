@@ -1182,7 +1182,7 @@ static int InitSha512_256(wc_Sha512* sha512)
     }  /* extern "C" */
 #endif
 
-    static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
+    static cpuid_flags_atomic_t intel_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
 #if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
     #define WC_NO_INTERNAL_FUNCTION_POINTERS
@@ -1220,7 +1220,7 @@ static int InitSha512_256(wc_Sha512* sha512)
         }
     #endif
 
-        cpuid_get_flags_ex(&intel_flags);
+        cpuid_get_flags_atomic(&intel_flags);
 
     #if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_AVX2(intel_flags)) {
@@ -1363,7 +1363,7 @@ static int InitSha512_256(wc_Sha512* sha512)
         if (transform_check)
             return;
 
-        cpuid_get_flags_ex(&intel_flags);
+        cpuid_get_flags_atomic(&intel_flags);
 
     #if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_AVX2(intel_flags)) {
@@ -1432,7 +1432,7 @@ static int InitSha512_256(wc_Sha512* sha512)
 #define NEED_SOFT_SHA512
 
 static int transform_check = 0;
-static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
 static int _Transform_Sha512(wc_Sha512* sha512);
 static int Transform_Sha512_C(wc_Sha512* sha512, const byte* data);
@@ -1517,7 +1517,7 @@ static void Sha512_SetTransform(void)
     if (transform_check)
         return;
 
-    cpuid_get_flags_ex(&cpuid_flags);
+    cpuid_get_flags_atomic(&cpuid_flags);
 
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
     if (IS_AARCH64_SHA512(cpuid_flags)) {
@@ -1614,18 +1614,26 @@ extern void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
 extern void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
     word32 len);
 
-/* -1 = not yet determined, 0 = base, 1 = vector-crypto */
-static int sha512_use_crypto = -1;
+/* Resolved dispatch decision, accessed with the wolfSSL atomic APIs so the
+ * lazy one-time detection is free of data races.  WC_CPUID_INITIALIZER means
+ * "not yet determined"; the write is idempotent (all callers compute the same
+ * value from the atomic master flags), so a benign concurrent double-write is
+ * harmless. */
+static wolfSSL_Atomic_Uint sha512_use_crypto =
+    WOLFSSL_ATOMIC_INITIALIZER(WC_CPUID_INITIALIZER);
 
-/* Detect CPU support via the central cpuid module on first use.  Idempotent -
- * safe to call from multiple threads as all callers compute the same value. */
+/* Detect CPU support via the central cpuid module on first use. */
 static WC_INLINE void SHA512_TRANSFORM_LEN(wc_Sha512* sha512, const byte* data,
     word32 len)
 {
-    if (sha512_use_crypto < 0)
-        sha512_use_crypto = IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0;
+    unsigned int use_crypto = WOLFSSL_ATOMIC_LOAD(sha512_use_crypto);
 
-    if (sha512_use_crypto)
+    if (use_crypto == WC_CPUID_INITIALIZER) {
+        use_crypto = (unsigned int)(IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0);
+        WOLFSSL_ATOMIC_STORE(sha512_use_crypto, use_crypto);
+    }
+
+    if (use_crypto)
         Transform_Sha512_Len_crypto(sha512, data, len);
     else
         Transform_Sha512_Len(sha512, data, len);
@@ -1953,7 +1961,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
         #if (!defined(WOLFSSL_ESP32_CRYPT) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
-             !defined(WOLFSSL_ARMASM)
+             !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
         #endif
@@ -2195,7 +2203,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         #if (!defined(WOLFSSL_ESP32_CRYPT) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
-             !defined(WOLFSSL_ARMASM)
+             !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
             ByteReverseWords64(sha512->buffer,sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
         #endif
@@ -2252,7 +2260,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     #if (!defined(WOLFSSL_ESP32_CRYPT) || \
           defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
           defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
-         !defined(WOLFSSL_ARMASM)
+         !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
             ByteReverseWords64(sha512->buffer, sha512->buffer, WC_SHA512_PAD_SIZE);
     #endif
 #endif
@@ -2283,6 +2291,17 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         ByteReverseWords64(&(sha512->buffer[SHA512_PAD_LEN_64]),
                            &(sha512->buffer[SHA512_PAD_LEN_64]),
                            WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE);
+    }
+#elif defined(WOLFSSL_PPC64_ASM) && defined(LITTLE_ENDIAN_ORDER)
+    /* The PPC64 assembly loads the message with byte-reversed loads on
+     * little-endian, treating the whole block as a big-endian byte stream.  The
+     * 128-bit length just stored is in native (little-endian) word order, so
+     * reverse it here to keep the block a consistent big-endian stream. */
+    {
+        ByteReverseWords64(
+            &(sha512->buffer[WC_SHA512_PAD_SIZE / sizeof(word64)]),
+            &(sha512->buffer[WC_SHA512_PAD_SIZE / sizeof(word64)]),
+            WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE);
     }
 #endif
 

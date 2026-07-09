@@ -438,7 +438,7 @@ static int InitSha256(wc_Sha256* sha256)
     }  /* extern "C" */
 #endif
 
-    static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
+    static cpuid_flags_atomic_t intel_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
 #if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
     #define WC_NO_INTERNAL_FUNCTION_POINTERS
@@ -475,7 +475,7 @@ static int InitSha256(wc_Sha256* sha256)
         }
     #endif
 
-        cpuid_get_flags_ex(&intel_flags);
+        cpuid_get_flags_atomic(&intel_flags);
 
         if (IS_INTEL_SHA(intel_flags)) {
         #ifdef HAVE_INTEL_AVX1
@@ -652,7 +652,7 @@ static int InitSha256(wc_Sha256* sha256)
         if (transform_check)
             return;
 
-        cpuid_get_flags_ex(&intel_flags);
+        cpuid_get_flags_atomic(&intel_flags);
 
         if (IS_INTEL_SHA(intel_flags)) {
         #ifdef HAVE_INTEL_AVX1
@@ -1149,21 +1149,23 @@ extern void Transform_Sha256_Len_crypto(wc_Sha256* sha256, const byte* data,
     word32 len);
 
 /* -1 = not yet determined, 0 = base, 1 = vector-crypto */
-static int sha256_use_crypto = -1;
+/* Resolved dispatch decision (0 = base, 1 = vector-crypto), accessed with the
+ * wolfSSL atomic APIs so the one-time detection is free of data races.  The
+ * write is idempotent (all callers compute the same value from the atomic
+ * master flags), so a benign concurrent double-write is harmless. */
+static wolfSSL_Atomic_Uint sha256_use_crypto = WOLFSSL_ATOMIC_INITIALIZER(0);
 
-/* Detect CPU support via the central cpuid module.  Idempotent - safe to call
- * from multiple threads as all callers compute the same value. */
+/* Detect CPU support via the central cpuid module. */
 static void Sha256_SetTransform(void)
 {
-    if (sha256_use_crypto < 0) {
-        sha256_use_crypto = IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0;
-    }
+    WOLFSSL_ATOMIC_STORE(sha256_use_crypto,
+        (unsigned int)(IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0));
 }
 
 static WC_INLINE void SHA256_TRANSFORM_LEN(wc_Sha256* sha256, const byte* data,
     word32 len)
 {
-    if (sha256_use_crypto)
+    if (WOLFSSL_ATOMIC_LOAD(sha256_use_crypto))
         Transform_Sha256_Len_crypto(sha256, data, len);
     else
         Transform_Sha256_Len(sha256, data, len);
@@ -1213,7 +1215,7 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
       !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
 static int transform_check = 0;
-static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
 static int Transform_Sha256(wc_Sha256* sha256, const byte* data);
 static int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
@@ -1281,7 +1283,7 @@ static void Sha256_SetTransform(void)
     if (transform_check)
         return;
 
-    cpuid_get_flags_ex(&cpuid_flags);
+    cpuid_get_flags_atomic(&cpuid_flags);
 
 #if !defined(WOLFSSL_ARMASM_NO_NEON)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
@@ -1986,6 +1988,16 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         }
     #endif
     #if defined(WOLFSSL_ARMASM) && !defined(FREESCALE_MMCAU_SHA)
+        ByteReverseWords( &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
+            &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
+            2 * sizeof(word32));
+    #endif
+    #if defined(WOLFSSL_PPC64_ASM) && defined(LITTLE_ENDIAN_ORDER)
+        /* The PPC64 assembly loads the message with byte-reversed loads on
+         * little-endian, treating the whole block as a big-endian byte stream.
+         * The 64-bit length above is stored in native (little-endian) word
+         * order, so reverse it here to keep the block a consistent big-endian
+         * stream. */
         ByteReverseWords( &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             2 * sizeof(word32));
