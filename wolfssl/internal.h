@@ -2090,7 +2090,7 @@ enum states {
 #ifdef WOLFSSL_DTLS13
     SERVER_FINISHED_ACKED,
 #endif /* WOLFSSL_DTLS13 */
-
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(states)
 };
 
 /* SSL Version */
@@ -3086,10 +3086,10 @@ typedef enum {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
     TLSX_CKS                        = TLSXT_CKS,
 #endif
-    TLSX_RENEGOTIATION_INFO         = TLSXT_RENEGOTIATION_INFO,
 #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = TLSXT_KEY_QUIC_TP_PARAMS_DRAFT,
 #endif
+    TLSX_RENEGOTIATION_INFO         = TLSXT_RENEGOTIATION_INFO
 } TLSX_Type;
 
 /* TLS Certificate type defined RFC7250
@@ -3450,7 +3450,8 @@ typedef struct SignatureAlgorithms {
     #ifdef _MSC_VER
     #pragma warning(disable: 4200)
     #endif
-    byte        hashSigAlgo[]; /* sig/algo to offer */
+    /* sig/algo to offer */
+    byte        hashSigAlgo[WC_FLEXIBLE_ARRAY_SIZE];
 } SignatureAlgorithms;
 
 WOLFSSL_LOCAL SignatureAlgorithms* TLSX_SignatureAlgorithms_New(
@@ -3630,11 +3631,11 @@ typedef struct InternalTicket {
 /* RFC 5077 defines this for session tickets. All members need to be a byte or
  * array of byte to avoid alignment issues */
 typedef struct ExternalTicket {
-    byte key_name[WOLFSSL_TICKET_NAME_SZ];  /* key context name - 16 */
-    byte iv[WOLFSSL_TICKET_IV_SZ];          /* this ticket's iv - 16 */
-    byte enc_len[OPAQUE16_LEN];             /* encrypted length - 2 */
-    byte enc_ticket[];                      /* encrypted ticket - var length
-                                             *   + total mac - 32 */
+    byte key_name[WOLFSSL_TICKET_NAME_SZ];     /* key context name - 16 */
+    byte iv[WOLFSSL_TICKET_IV_SZ];             /* this ticket's iv - 16 */
+    byte enc_len[OPAQUE16_LEN];                /* encrypted length - 2 */
+    byte enc_ticket[WC_FLEXIBLE_ARRAY_SIZE];   /* encrypted ticket - var length
+                                                * + total mac - 32 */
 } ExternalTicket;
 
 /* Fixed portion of external ticket (key_name + iv + enc_len) */
@@ -3718,7 +3719,7 @@ typedef struct Cookie {
     #ifdef _MSC_VER
     #pragma warning(disable: 4200)
     #endif
-    byte   data[];
+    byte   data[WC_FLEXIBLE_ARRAY_SIZE];
 } Cookie;
 
 WOLFSSL_LOCAL int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data,
@@ -3781,7 +3782,7 @@ enum PskDecryptReturn {
     PSK_DECRYPT_NONE = 0,
     PSK_DECRYPT_OK,
     PSK_DECRYPT_CREATE,
-    PSK_DECRYPT_FAIL,
+    PSK_DECRYPT_FAIL
 };
 
 #ifdef HAVE_SESSION_TICKET
@@ -4513,7 +4514,7 @@ enum SignatureAlgorithm {
 enum SigAlgRsaPss {
     pss_sha256  = 0x09,
     pss_sha384  = 0x0a,
-    pss_sha512  = 0x0b,
+    pss_sha512  = 0x0b
 };
 
 #ifdef WOLFSSL_SM2
@@ -4548,7 +4549,7 @@ enum ClientCertificateType {
     rsa_fixed_ecdh      = 65,
     ecdsa_fixed_ecdh    = 66,
     falcon_sign         = 67,
-    mldsa_sign          = 68,
+    mldsa_sign          = 68
 };
 
 /* Maximum number of ClientCertificateType bytes the server emits in a
@@ -5094,14 +5095,14 @@ enum buildMsgState {
     BUILD_MSG_HASH,
     BUILD_MSG_VERIFY_MAC,
     BUILD_MSG_ENCRYPT,
-    BUILD_MSG_ENCRYPTED_VERIFY_MAC,
+    BUILD_MSG_ENCRYPTED_VERIFY_MAC
 };
 
 /* sub-states for cipher operations */
 enum cipherState {
     CIPHER_STATE_BEGIN = 0,
     CIPHER_STATE_DO,
-    CIPHER_STATE_END,
+    CIPHER_STATE_END
 };
 
 struct Options {
@@ -5458,7 +5459,7 @@ typedef enum {
     STACK_TYPE_X509_NAME_ENTRY    = 17,
     STACK_TYPE_X509_REQ_ATTR      = 18,
     STACK_TYPE_GENERAL_SUBTREE    = 19,
-    STACK_TYPE_X509_REVOKED       = 20,
+    STACK_TYPE_X509_REVOKED       = 20
 } WOLF_STACK_TYPE;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -5769,7 +5770,7 @@ typedef struct DtlsFragBucket {
 #ifdef _MSC_VER
 #pragma warning(disable: 4200)
 #endif
-    byte buf[];
+    byte buf[WC_FLEXIBLE_ARRAY_SIZE];
 } DtlsFragBucket;
 
 typedef struct DtlsMsg {
@@ -6796,6 +6797,7 @@ enum ContentType {
 #ifdef WOLFSSL_DTLS13
     ack                = 26,
 #endif /* WOLFSSL_DTLS13 */
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(ContentType)
 };
 
 
@@ -6955,7 +6957,7 @@ WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side);
 WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsTLS_ex(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
-WOLFSSL_LOCAL int IsAtLeastTLSv1_3(ProtocolVersion pv);
+WOLFSSL_LOCAL int IsAtLeastTLSv1_3(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsEncryptionOn(const WOLFSSL* ssl, int isSend);
 WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 
@@ -7265,7 +7267,7 @@ typedef struct CipherSuiteInfo {
 #endif
 WOLFSSL_TEST_VIS const CipherSuiteInfo* GetCipherNames(void);
 WOLFSSL_TEST_VIS int GetCipherNamesSize(void);
-WOLFSSL_LOCAL const char* GetCipherNameInternal(byte cipherSuite0, byte cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* used in wolfSSL_sk_CIPHER_description */
 #define MAX_SEGMENTS    5
@@ -7281,7 +7283,7 @@ WOLFSSL_LOCAL const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL int SetCipherBits(const char* enc);
 WOLFSSL_LOCAL int IsCipherAEAD(char n[][MAX_SEGMENT_SZ]);
 #endif
-WOLFSSL_LOCAL const char* GetCipherNameIana(byte cipherSuite0, byte cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 WOLFSSL_LOCAL int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,

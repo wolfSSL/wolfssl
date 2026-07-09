@@ -34131,7 +34131,7 @@ enum {
     SINGLERESPONSEASN_IDX_THISUPDATE_GT,
     SINGLERESPONSEASN_IDX_NEXTUPDATE,
     SINGLERESPONSEASN_IDX_NEXTUPDATE_GT,
-    SINGLERESPONSEASN_IDX_EXT,
+    SINGLERESPONSEASN_IDX_EXT
 };
 
 /* Number of items in ASN.1 template for OCSP single response. */
@@ -34156,7 +34156,7 @@ enum {
     CERTIDASN_IDX_CID_HASHALGO_NULL,
     CERTIDASN_IDX_CID_ISSUERHASH,
     CERTIDASN_IDX_CID_ISSUERKEYHASH,
-    CERTIDASN_IDX_CID_SERIAL,
+    CERTIDASN_IDX_CID_SERIAL
 };
 
 #define certidasn_Length (sizeof(certIDASNItems) / sizeof(ASNItem))
@@ -34531,7 +34531,7 @@ static const ASNItem respExtHdrASN[] = {
 };
 enum {
     RESPEXTHDRASN_IDX_EXT = 0,
-    RESPEXTHDRASN_IDX_EXT_SEQ,
+    RESPEXTHDRASN_IDX_EXT_SEQ
 };
 
 /* Number of items in ASN.1 template for OCSP response extension header. */
@@ -34625,7 +34625,7 @@ enum {
     OCSPNONCEEXTASN_IDX_EXT,
     OCSPNONCEEXTASN_IDX_EXT_OID,
     OCSPNONCEEXTASN_IDX_EXT_VAL,
-    OCSPNONCEEXTASN_IDX_EXT_NONCE,
+    OCSPNONCEEXTASN_IDX_EXT_NONCE
 };
 
 /* Number of items in ASN.1 template for OCSP nonce extension. */
@@ -34702,7 +34702,7 @@ enum {
     OCSPRESPDATAASN_IDX_BYKEY_OCT,
     OCSPRESPDATAASN_IDX_PA,
     OCSPRESPDATAASN_IDX_RESP,
-    OCSPRESPDATAASN_IDX_RESPEXT,
+    OCSPRESPDATAASN_IDX_RESPEXT
 };
 
 /* Number of items in ASN.1 template for OCSP ResponseData. */
@@ -34985,7 +34985,7 @@ enum {
 #endif
     OCSPBASICRESPASN_IDX_SIGNATURE,
     OCSPBASICRESPASN_IDX_CERTS,
-    OCSPBASICRESPASN_IDX_CERTS_SEQ,
+    OCSPBASICRESPASN_IDX_CERTS_SEQ
 };
 
 /* Number of items in ASN.1 template for BasicOCSPResponse. */
@@ -35438,7 +35438,7 @@ enum {
 
     OCSPRESPONSEASN_IDX_BYTES_TYPE,
 
-    OCSPRESPONSEASN_IDX_BYTES_VAL,
+    OCSPRESPONSEASN_IDX_BYTES_VAL
 };
 
 /* Number of items in ASN.1 template for OCSPResponse. */
@@ -35715,7 +35715,7 @@ enum {
     OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY,
     OCSPREQUESTASN_IDX_TBS_REQ_SERIAL,
     OCSPREQUESTASN_IDX_TBS_REQEXT,
-    OCSPREQUESTASN_IDX_OPT_SIG,
+    OCSPREQUESTASN_IDX_OPT_SIG
 };
 
 /* Number of items in ASN.1 template for OCSPRequest. */
@@ -36278,7 +36278,7 @@ enum {
     REVOKEDASN_IDX_CERT,
     REVOKEDASN_IDX_TIME_UTC,
     REVOKEDASN_IDX_TIME_GT,
-    REVOKEDASN_IDX_TIME_EXT,
+    REVOKEDASN_IDX_TIME_EXT
 };
 
 /* Number of items in ASN.1 template for revoked certificates. */
@@ -36875,7 +36875,7 @@ enum {
 #ifdef WC_RSA_PSS
     CRLASN_IDX_SIGALGO_PARAMS,
 #endif
-    CRLASN_IDX_SIGNATURE,
+    CRLASN_IDX_SIGNATURE
 };
 
 /* Number of items in ASN.1 template for a CRL- CertificateList. */
