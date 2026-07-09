@@ -341,3 +341,55 @@ int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
     \sa wc_ecc_check_key
 */
 int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv);
+
+/*!
+    \ingroup CryptoCb
+
+    \brief Offload deriving an Ed25519 public key from its private key to a
+    CryptoCB device.
+
+    Used by wc_ed25519_make_public (and so by key generation and private-key
+    import). The boundary is byte-oriented: the device writes the compressed
+    public key into wc_CryptoInfo.pk.ed25519makepub (\c pubOut /
+    \c pubOutSz, always ED25519_PUB_KEY_SIZE). The private key is taken from
+    the ed25519_key (resident in a secure element, or key->k). On success the
+    caller marks the public key set.
+
+    \param key      Ed25519 key providing the device id, heap hint and the
+                    private key
+    \param pubKey   [out] resulting compressed public key
+    \param pubKeySz size of pubKey buffer, must be ED25519_PUB_KEY_SIZE
+
+    \return 0 on success
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation, or key or
+            pubKey is NULL or pubKeySz is wrong (wolfCrypt falls back to
+            software, which reports the argument error)
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ed25519_make_public
+*/
+int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
+    word32 pubKeySz);
+
+/*!
+    \ingroup CryptoCb
+
+    \brief Offload validating an Ed25519 key to a CryptoCB device.
+
+    Used by wc_ed25519_check_key and the key import validation paths. The
+    public key crosses the callback boundary as its compressed wire bytes in
+    wc_CryptoInfo.pk.ed25519checkkey (\c pubKey / \c pubKeySz), so a device
+    handler only deals with byte arrays. The dispatch only runs when a public
+    key is present; \c checkPriv is 1 when a private key is also set and the
+    device should additionally validate priv/pub consistency.
+
+    \param key Ed25519 key to validate
+
+    \return 0 if the key is valid
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation (wolfCrypt
+            falls back to software)
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ed25519_check_key
+*/
+int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);

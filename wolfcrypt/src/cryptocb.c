@@ -157,6 +157,8 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_EC_GET_SIG_SIZE: return "ECC GetSigSize";
         case WC_PK_TYPE_EC_MAKE_PUB: return "ECC MakePub";
         case WC_PK_TYPE_EC_CHECK_PUB_KEY: return "ECC CheckPubKey";
+        case WC_PK_TYPE_ED25519_MAKE_PUB: return "ED25519 MakePub";
+        case WC_PK_TYPE_ED25519_CHECK_KEY: return "ED25519 CheckKey";
     }
     return NULL;
 }
@@ -1162,6 +1164,60 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
         cryptoInfo.pk.ed25519verify.type = type;
         cryptoInfo.pk.ed25519verify.context = context;
         cryptoInfo.pk.ed25519verify.contextLen = contextLen;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey, word32 pubKeySz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL || pubKey == NULL || pubKeySz != ED25519_PUB_KEY_SIZE)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED25519_MAKE_PUB;
+        cryptoInfo.pk.ed25519makepub.key = key;
+        cryptoInfo.pk.ed25519makepub.pubOut = pubKey;
+        cryptoInfo.pk.ed25519makepub.pubOutSz = pubKeySz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED25519_CHECK_KEY;
+        cryptoInfo.pk.ed25519checkkey.key = key;
+        /* key->p is already the compressed wire form; cross it as bytes so a
+         * device can validate the actual input without touching key internals
+         */
+        cryptoInfo.pk.ed25519checkkey.pubKey = key->p;
+        cryptoInfo.pk.ed25519checkkey.pubKeySz = ED25519_PUB_KEY_SIZE;
+        cryptoInfo.pk.ed25519checkkey.checkPriv = key->privKeySet ? 1 : 0;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

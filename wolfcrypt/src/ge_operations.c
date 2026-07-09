@@ -26,7 +26,11 @@
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
 
-#if defined(HAVE_ED25519) || defined(WOLFSSL_CURVE25519_USE_ED25519)
+/* under WOLF_CRYPTO_CB_ONLY_ED25519 the callback device does all Ed25519
+ * group math, so this file (and its large precomputed tables) compiles out
+ * unless curve25519 also needs it */
+#if (defined(HAVE_ED25519) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519)) || \
+    defined(WOLFSSL_CURVE25519_USE_ED25519)
 #ifndef ED25519_SMALL /* run when not defined to use small memory math */
 
 #include <wolfssl/wolfcrypt/ed25519.h>

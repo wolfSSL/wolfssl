@@ -75704,6 +75704,12 @@ static wc_test_ret_t ed25519_onlycb_test(myCryptoDevCtx *ctx)
 #ifdef HAVE_ED25519_MAKE_KEY
     WC_RNG rng;
 #endif
+#ifdef HAVE_ED25519_KEY_IMPORT
+    byte keyBytes[ED25519_KEY_SIZE];
+#ifdef HAVE_ED25519_MAKE_KEY
+    byte pub[ED25519_PUB_KEY_SIZE];
+#endif
+#endif
 
 #if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_VERIFY)
     XMEMSET(sig, 0, sizeof(sig));
@@ -75774,8 +75780,55 @@ static wc_test_ret_t ed25519_onlycb_test(myCryptoDevCtx *ctx)
     }
 #endif /* HAVE_ED25519_VERIFY */
 
+#ifdef HAVE_ED25519_KEY_IMPORT
+    /* seed key state for the make-public/check-key dispatch tests. Neither
+     * import validates here: private-only import has no public key to check
+     * against yet and the public import is flagged trusted. */
+    XMEMSET(keyBytes, 1, sizeof(keyBytes));
+    ret = wc_ed25519_import_private_only(keyBytes, (word32)sizeof(keyBytes),
+        &key);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    ret = wc_ed25519_import_public_ex(keyBytes, (word32)sizeof(keyBytes),
+        &key, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+#ifdef HAVE_ED25519_MAKE_KEY
+    /* make_public: cb handles the op, expects 0(success) */
+    ctx->exampleVar = 99;
+    ret = wc_ed25519_make_public(&key, pub, (word32)sizeof(pub));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+    /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+    ctx->exampleVar = 1;
+    ret = wc_ed25519_make_public(&key, pub, (word32)sizeof(pub));
+    if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    } else {
+        ret = 0;
+    }
+#endif /* HAVE_ED25519_MAKE_KEY */
+
+    /* check_key: cb handles the op, expects 0(success) */
+    ctx->exampleVar = 99;
+    ret = wc_ed25519_check_key(&key);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+    /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+    ctx->exampleVar = 1;
+    ret = wc_ed25519_check_key(&key);
+    if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    } else {
+        ret = 0;
+    }
+#endif /* HAVE_ED25519_KEY_IMPORT */
+
 #if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN) || \
-    defined(HAVE_ED25519_VERIFY)
+    defined(HAVE_ED25519_VERIFY) || defined(HAVE_ED25519_KEY_IMPORT)
 exit_onlycb:
 #endif
 #ifdef HAVE_ED25519_MAKE_KEY
@@ -76271,6 +76324,44 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.ed25519verify.key->devId = devIdArg;
         }
         #endif
+        else if (info->pk.type == WC_PK_TYPE_ED25519_MAKE_PUB) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed25519makepub.key->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->pk.ed25519makepub.key->devId = devIdArg;
+                return 0;
+            }
+            #endif
+
+            ret = wc_ed25519_make_public(info->pk.ed25519makepub.key,
+                info->pk.ed25519makepub.pubOut,
+                info->pk.ed25519makepub.pubOutSz);
+
+            /* reset devId */
+            info->pk.ed25519makepub.key->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ED25519_CHECK_KEY) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed25519checkkey.key->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->pk.ed25519checkkey.key->devId = devIdArg;
+                return 0;
+            }
+            #endif
+
+            ret = wc_ed25519_check_key(info->pk.ed25519checkkey.key);
+
+            /* reset devId */
+            info->pk.ed25519checkkey.key->devId = devIdArg;
+        }
     #endif /* HAVE_ED25519 */
     #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
         if (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN) {

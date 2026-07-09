@@ -106,7 +106,7 @@ jobs:
            "comment": "Same as aes but tells swdev to refuse AES-GCM (SWDEV_AES_ONLYECB). That forces the parent's CB_ONLY_AES host-side GCM software path: GHASH runs on the host while AES-CTR blocks dispatch back through cryptocb ECB. The aes entry instead has swdev handle GCM end-to-end, so the host-side GCM path is otherwise uncovered.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_AES -DSWDEV_AES_ONLYECB"]},
           {"name": "ed25519",
-           "comment": "WOLF_CRYPTO_CB_ONLY_ED25519: strips software Ed25519 (keygen/sign/verify); swdev provides the software path via cryptocb. Streaming verify has no callback path and is left disabled.",
+           "comment": "WOLF_CRYPTO_CB_ONLY_ED25519: strips software Ed25519 (keygen/sign/verify/make-pub/check-key) including the ge/fe curve math and tables; swdev provides the software path via cryptocb. Streaming verify has no callback path and is left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ED25519"]},
           {"name": "all",
            "comment": "All six ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
