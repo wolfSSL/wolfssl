@@ -165,6 +165,10 @@ int wolfkmod_vecreg_save(int flags_unused)
                    td_tid, curthread->td_tid);
             return (EINVAL);
         }
+        if (fpu_states[PCPU_GET(cpuid)].nest == UINT_MAX) {
+            printf("error: wolfkmod_vecreg_save: nest overflow\n");
+            return (EINVAL);
+        }
         fpu_states[PCPU_GET(cpuid)].nest++;
     }
     else {
@@ -184,6 +188,10 @@ int wolfkmod_vecreg_save(int flags_unused)
         }
 
         /* increment nest and save td_tid. */
+        if (fpu_states[PCPU_GET(cpuid)].nest == UINT_MAX) {
+            printf("error: wolfkmod_vecreg_save: nest overflow\n");
+            return (EINVAL);
+        }
         fpu_states[PCPU_GET(cpuid)].nest++;
         fpu_states[PCPU_GET(cpuid)].td_tid = curthread->td_tid;
     }
