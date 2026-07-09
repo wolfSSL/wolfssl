@@ -9243,7 +9243,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
      defined(HAVE_CURVE448) || defined(HAVE_FALCON) || \
-     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA))
+     (defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY)) || \
+     defined(WOLFSSL_HAVE_SLHDSA))
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
@@ -15414,9 +15415,12 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
     }
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     x509->pkCurveOID = dCert->pkCurveOID;
-#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
+#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || HAVE_FALCON ||
+        * WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     copyRet = CopyDecodedDualAlg(x509, dCert);
@@ -17182,6 +17186,10 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
                                     int* pRet)
 {
     int ret = *pRet;
+
+    /* Every case below sits under an algorithm guard, so a build with no
+     * peer-verifiable key type leaves this unused. */
+    (void)ssl;
 
     switch (args->dCert->keyOID) {
     #ifndef NO_RSA
@@ -32948,6 +32956,9 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
 #if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
     int      devSlhParam = -1;
 #endif
+
+    /* Every reader below sits under an algorithm guard. */
+    (void)ssl;
 
     /* make sure private key exists */
     if (key == NULL || key->buffer == NULL) {

@@ -49,7 +49,10 @@
 #if !defined(WOLFSSL_ALLOW_NO_SUITES) && !defined(WOLFCRYPT_ONLY)
     #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
                 && !defined(WOLFSSL_STATIC_DH) && !defined(WOLFSSL_STATIC_PSK) \
-                && !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448)
+                && !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448) \
+                && (!defined(WOLFSSL_TLS13) \
+                    || !defined(WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT) \
+                    || defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE))
         #error "No cipher suites defined because DH disabled, ECC disabled, " \
                "and no static suites defined. Please see top of README"
     #endif

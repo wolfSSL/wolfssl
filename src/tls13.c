@@ -8816,6 +8816,7 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo,
     byte hsType, byte* output)
 {
     (void)ssl;
+    (void)hashAlgo;
     switch (hsType) {
 #ifdef HAVE_ECC
         case ecc_dsa_sa_algo:
@@ -8848,7 +8849,6 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo,
         case ed25519_sa_algo:
             output[0] = ED25519_SA_MAJOR;
             output[1] = ED25519_SA_MINOR;
-            (void)hashAlgo;
             break;
 #endif
 #ifdef HAVE_ED448
@@ -8856,7 +8856,6 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo,
         case ed448_sa_algo:
             output[0] = ED448_SA_MAJOR;
             output[1] = ED448_SA_MINOR;
-            (void)hashAlgo;
             break;
 #endif
 #ifndef NO_RSA
@@ -10918,6 +10917,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 sigOut += OPAQUE16_LEN;
             }
         #endif
+            /* Only the per-algorithm signing branches below consume this. */
+            (void)sigOut;
         #ifdef HAVE_ECC
             if (ssl->hsType == DYNAMIC_TYPE_ECC) {
             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -12724,7 +12725,8 @@ exit_dcv:
 
     return ret;
 }
-#endif /* !NO_RSA || HAVE_ECC */
+#endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 || HAVE_ED448 ||
+        * HAVE_FALCON || WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
 #endif /* !NO_CERTS */
 
 /* Parse and handle a TLS v1.3 Finished message.

@@ -2414,6 +2414,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         verifyCert = caEd448CertFile;
         ourCert    = cliEd448CertFile;
         ourKey     = cliEd448KeyFile;
+    #elif defined(TEST_HAVE_MLDSA_CERTS)
+        verifyCert = caMldsaCertFile;
+        ourCert    = cliMldsaCertFile;
+        ourKey     = cliMldsaKeyFile;
+    #elif defined(TEST_HAVE_SLHDSA_CERTS)
+        verifyCert = caSlhdsaCertFile;
+        ourCert    = cliSlhdsaCertFile;
+        ourKey     = cliSlhdsaKeyFile;
     #else
         verifyCert = NULL;
         ourCert    = NULL;
@@ -3486,8 +3494,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
-                                                            !defined(HAVE_ED448)
+#if defined(TEST_NO_CLASSIC_AUTH) && !defined(TEST_HAVE_PQC_CERT_AUTH)
     if (!usePsk) {
         usePsk = 1;
     }

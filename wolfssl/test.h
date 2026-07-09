@@ -52,6 +52,13 @@
 #include <wolfssl/wolfcrypt/mem_track.h>
 #include <wolfssl/wolfio.h>
 #include <wolfssl/wolfcrypt/asn.h>
+/* The credential gates below read the derived sub-config macros of these. */
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 
 #ifdef ATOMIC_USER
     #include <wolfssl/wolfcrypt/aes.h>
@@ -461,19 +468,78 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
     } while(0)
 
 
-#ifndef WOLFSSL_NO_TLS12
-#define SERVER_DEFAULT_VERSION 3
-#else
-#define SERVER_DEFAULT_VERSION 4
+/* No classic public key authentication compiled in. Shared with the PSK
+ * fallbacks in the examples so the conditions cannot drift apart. */
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
+    !defined(HAVE_ED448)
+    #define TEST_NO_CLASSIC_AUTH
 #endif
+
+/* The ML-DSA credential paths below name real files. Loading the certificate
+ * needs verification support only. */
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_65) || \
+     !defined(WOLFSSL_NO_ML_DSA_87))
+    #define TEST_HAVE_MLDSA_CERT_FILES
+#endif
+
+/* The same for SLH-DSA. Only the 128s parameter sets have certificates wired
+ * up, and the entity certificates ship as PEM only. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_PEM_TO_DER) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S))
+    #define TEST_HAVE_SLHDSA_CERT_FILES
+#endif
+
+/* The same credentials, plus the ability to sign and to verify: a verify-only
+ * build can neither load the key nor produce a CertificateVerify, and a
+ * sign-only build cannot check the peer's chain. */
+#if defined(TEST_HAVE_MLDSA_CERT_FILES) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    #define TEST_HAVE_MLDSA_CERTS
+#endif
+#if defined(TEST_HAVE_SLHDSA_CERT_FILES) && \
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    #define TEST_HAVE_SLHDSA_CERTS
+#endif
+
+/* The examples can authenticate with a post-quantum certificate. Both
+ * algorithms are TLS 1.3 only, so the version is folded in. Falcon is absent
+ * on purpose: it has no credentials in the ladders. */
+#if defined(WOLFSSL_TLS13) && \
+    (defined(TEST_HAVE_MLDSA_CERTS) || defined(TEST_HAVE_SLHDSA_CERTS))
+    #define TEST_HAVE_PQC_CERT_AUTH
+#endif
+
+/* No key exchange that TLS 1.2 and earlier can negotiate. ML-KEM is the only
+ * one left and it is TLS 1.3 only, so those versions have no cipher suite at
+ * all. Mirrors the check guarding the "No cipher suites defined" #error in
+ * src/ssl.c. */
+#if defined(WOLFSSL_TLS13) && defined(NO_DH) && !defined(HAVE_ECC) && \
+    !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448) && \
+    !defined(WOLFSSL_STATIC_RSA) && !defined(WOLFSSL_STATIC_DH) && \
+    !defined(WOLFSSL_STATIC_PSK)
+    #define TEST_NO_CLASSIC_KEX
+#endif
+
+/* A post-quantum-only build can only work over TLS 1.3, so default to it:
+ * post-quantum certificate authentication and standalone ML-KEM are both
+ * TLS 1.3 only. A build left with nothing but PSK over a classic key exchange
+ * keeps the TLS 1.2 default. One macro so the client and server defaults
+ * cannot drift apart. */
+#if defined(WOLFSSL_NO_TLS12) || defined(TEST_NO_CLASSIC_KEX) || \
+    (defined(TEST_NO_CLASSIC_AUTH) && defined(TEST_HAVE_PQC_CERT_AUTH))
+    #define TEST_DEFAULT_TLS_VERSION 4
+#else
+    #define TEST_DEFAULT_TLS_VERSION 3
+#endif
+
+#define SERVER_DEFAULT_VERSION TEST_DEFAULT_TLS_VERSION
 #define SERVER_DTLS_DEFAULT_VERSION (-2)
 #define SERVER_INVALID_VERSION (-99)
 #define SERVER_DOWNGRADE_VERSION (-98)
-#ifndef WOLFSSL_NO_TLS12
-#define CLIENT_DEFAULT_VERSION 3
-#else
-#define CLIENT_DEFAULT_VERSION 4
-#endif
+#define CLIENT_DEFAULT_VERSION TEST_DEFAULT_TLS_VERSION
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
 #define CLIENT_DOWNGRADE_VERSION (-98)
@@ -681,6 +747,97 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
     #define wnrConfig     "./wnr-example.conf"
 #endif
 #endif
+
+/* ML-DSA (FIPS 204) certificate material. The mldsa<N>-cert files are
+ * self-signed, so the same file is both peer certificate and trust anchor.
+ * MLDSA_TEST_LEVEL and MLDSA_TEST_DIR compose the path, which depends on the
+ * built parameter level and on the target base directory. */
+#if defined(TEST_HAVE_MLDSA_CERT_FILES)
+
+#if !defined(WOLFSSL_NO_ML_DSA_65)
+    #define MLDSA_TEST_LEVEL "mldsa65"
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+    #define MLDSA_TEST_LEVEL "mldsa44"
+#else
+    #define MLDSA_TEST_LEVEL "mldsa87"
+#endif
+
+#if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
+    #define MLDSA_TEST_DIR "certs/mldsa/"
+#elif defined(NETOS) && defined(HAVE_FIPS)
+    #define MLDSA_TEST_DIR FS_VOLUME1_DIR "certs/mldsa/"
+#else
+    #define MLDSA_TEST_DIR "./certs/mldsa/"
+#endif
+
+#ifdef WOLFSSL_PEM_TO_DER
+    #ifndef mldsaCertFile
+        #define mldsaCertFile     MLDSA_TEST_DIR MLDSA_TEST_LEVEL "-cert.pem"
+    #endif
+    #ifndef mldsaKeyFile
+        #define mldsaKeyFile      MLDSA_TEST_DIR MLDSA_TEST_LEVEL "-key.pem"
+    #endif
+#else
+    #ifndef mldsaCertFile
+        #define mldsaCertFile     MLDSA_TEST_DIR MLDSA_TEST_LEVEL "-cert.der"
+    #endif
+    #ifndef mldsaKeyFile
+        /* Not _priv-only.der: only -key.der matches the certificate. */
+        #define mldsaKeyFile      MLDSA_TEST_DIR MLDSA_TEST_LEVEL "-key.der"
+    #endif
+#endif
+#ifndef cliMldsaCertFile
+    #define cliMldsaCertFile  mldsaCertFile
+#endif
+#ifndef cliMldsaKeyFile
+    #define cliMldsaKeyFile   mldsaKeyFile
+#endif
+#ifndef caMldsaCertFile
+    #define caMldsaCertFile   mldsaCertFile
+#endif
+#endif /* TEST_HAVE_MLDSA_CERT_FILES */
+
+/* SLH-DSA (FIPS 205) certificate material. Unlike the ML-DSA files above, the
+ * leaves are signed by a shared 128s root, so the trust anchor is a distinct
+ * file. SLHDSA_TEST_FAM picks the SHAKE family, falling back to SHA2 only when
+ * SHAKE-128s is not compiled in. */
+#if defined(TEST_HAVE_SLHDSA_CERT_FILES)
+
+#if defined(WOLFSSL_SLHDSA_PARAM_128S)
+    #define SLHDSA_TEST_FAM "shake"
+#else
+    #define SLHDSA_TEST_FAM "sha2"
+#endif
+
+#if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
+    #define SLHDSA_TEST_DIR "certs/slhdsa/"
+#elif defined(NETOS) && defined(HAVE_FIPS)
+    #define SLHDSA_TEST_DIR FS_VOLUME1_DIR "certs/slhdsa/"
+#else
+    #define SLHDSA_TEST_DIR "./certs/slhdsa/"
+#endif
+
+#ifndef slhdsaCertFile
+    #define slhdsaCertFile    SLHDSA_TEST_DIR "server-slhdsa-" SLHDSA_TEST_FAM \
+                              "-128s.pem"
+#endif
+#ifndef slhdsaKeyFile
+    #define slhdsaKeyFile     SLHDSA_TEST_DIR "server-slhdsa-" SLHDSA_TEST_FAM \
+                              "-128s-priv.pem"
+#endif
+#ifndef cliSlhdsaCertFile
+    #define cliSlhdsaCertFile SLHDSA_TEST_DIR "client-slhdsa-" SLHDSA_TEST_FAM \
+                              "-128s.pem"
+#endif
+#ifndef cliSlhdsaKeyFile
+    #define cliSlhdsaKeyFile  SLHDSA_TEST_DIR "client-slhdsa-" SLHDSA_TEST_FAM \
+                              "-128s-priv.pem"
+#endif
+#ifndef caSlhdsaCertFile
+    #define caSlhdsaCertFile  SLHDSA_TEST_DIR "root-slhdsa-" SLHDSA_TEST_FAM \
+                              "-128s.pem"
+#endif
+#endif /* TEST_HAVE_SLHDSA_CERT_FILES */
 
 #ifdef WOLFSSL_PEM_TO_DER
     #define CERT_FILETYPE WOLFSSL_FILETYPE_PEM

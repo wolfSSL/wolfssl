@@ -84,6 +84,19 @@ int test_tls13_apis(void)
 #elif defined(HAVE_ED448)
     const char*  ourCert = ed448CertFile;
     const char*  ourKey  = ed448KeyFile;
+/* The CERT_FILES gates, not the signing ones: only a certificate on the context
+ * is needed here, so the key load below is allowed to fail. */
+#elif defined(TEST_HAVE_MLDSA_CERT_FILES)
+    const char*  ourCert = mldsaCertFile;
+    const char*  ourKey  = mldsaKeyFile;
+#elif defined(TEST_HAVE_SLHDSA_CERT_FILES)
+    const char*  ourCert = slhdsaCertFile;
+    const char*  ourKey  = slhdsaKeyFile;
+#else
+    /* No certificate to load. The loads below ignore the return value and a
+     * NULL filename fails cleanly rather than being dereferenced. */
+    const char*  ourCert = NULL;
+    const char*  ourKey  = NULL;
 #endif
 #endif
 #endif

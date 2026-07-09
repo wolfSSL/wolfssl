@@ -1164,6 +1164,9 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     (void)heap;
     (void)devId;
     (void)type;
+    /* Only the per-algorithm decoders below read these back. */
+    (void)keyType;
+    (void)keySz;
 
     /* Validate parameters. */
     if ((der == NULL) || (keyFormat == NULL)) {

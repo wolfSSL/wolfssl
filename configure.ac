@@ -8251,7 +8251,8 @@ then
     # base. If none of those is available, hybrids contribute no usable groups
     # for TLS 1.3 key exchange. In that case, auto-enable standalone ML-KEM so
     # TLS 1.3 has a functional KEM.
-    if test "$ENABLED_MLKEM" = "yes" && test "$ENABLED_ML_KEM" != "no" && \
+    if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_MLKEM" = "yes" && \
+       test "$ENABLED_ML_KEM" != "no" && \
        test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && \
        test "x$ENABLED_CURVE448" = "xno"
     then
