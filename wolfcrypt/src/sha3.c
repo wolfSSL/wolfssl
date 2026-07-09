@@ -1222,13 +1222,17 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 {
     int ret;
 
-    if (sha3 == NULL || (data == NULL && len > 0)) {
+    if (sha3 == NULL) {
         return BAD_FUNC_ARG;
     }
 
     if (data == NULL && len == 0) {
         /* valid, but do nothing */
         return 0;
+    }
+
+    if (data == NULL) {
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -1900,13 +1904,17 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
  */
 int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
 {
-    if (shake == NULL || (data == NULL && len > 0)) {
-         return BAD_FUNC_ARG;
+    if (shake == NULL) {
+        return BAD_FUNC_ARG;
     }
 
     if (data == NULL && len == 0) {
         /* valid, but do nothing */
         return 0;
+    }
+
+    if (data == NULL) {
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -2192,13 +2200,17 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
  */
 int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
 {
-    if (shake == NULL || (data == NULL && len > 0)) {
-         return BAD_FUNC_ARG;
+    if (shake == NULL) {
+        return BAD_FUNC_ARG;
     }
 
     if (data == NULL && len == 0) {
         /* valid, but do nothing */
         return 0;
+    }
+
+    if (data == NULL) {
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB
