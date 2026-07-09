@@ -1716,6 +1716,12 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
                     outName[i] = url[cur];
                 i++; cur++;
             }
+            /* A bracketed IPv6 literal must be terminated by ']'. The loop
+             * above can also stop on end-of-buffer, NUL, or the length cap,
+             * none of which represent a well-formed host. Reject those cases
+             * rather than accepting the unterminated tail as the hostname. */
+            if (cur >= urlSz || url[cur] != ']')
+                return WOLFSSL_FATAL_ERROR;
             cur++; /* skip ']' */
         }
         else {
@@ -1733,7 +1739,7 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
         /* Need to pick out the path after the domain name */
 
         if (cur < urlSz && url[cur] == ':') {
-            char port[6];
+            char port[5];
             int j;
             word32 bigPort = 0;
             i = 0;
@@ -1741,15 +1747,27 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
 
             XMEMSET(port, 0, sizeof(port));
 
-            while (i < 6 && cur < urlSz && url[cur] != 0 && url[cur] != '/') {
+            while (i < 5 && cur < urlSz && url[cur] != 0 && url[cur] != '/') {
                 port[i] = url[cur];
                 i++; cur++;
             }
+
+            /* A valid port is at most 5 digits; if more characters remain
+             * before the path/terminator the port field is malformed (e.g.
+             * a 6-digit port) and must be rejected rather than parsed from a
+             * truncated digit string. */
+            if (cur < urlSz && url[cur] != 0 && url[cur] != '/')
+                return WOLFSSL_FATAL_ERROR;
 
             for (j = 0; j < i; j++) {
                 if (port[j] < '0' || port[j] > '9') return WOLFSSL_FATAL_ERROR;
                 bigPort = (bigPort * 10) + (word32)(port[j] - '0');
             }
+            /* Reject out-of-range ports rather than silently truncating to
+             * word16, which would otherwise wrap (e.g. 65536 -> 0) and
+             * connect to an unintended port. */
+            if (bigPort > WOLFSSL_MAX_16BIT)
+                return WOLFSSL_FATAL_ERROR;
             if (outPort)
                 *outPort = (word16)bigPort;
         }

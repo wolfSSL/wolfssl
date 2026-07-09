@@ -15442,20 +15442,20 @@ WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void)
 int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
         char zeroFill)
 {
-
-    int len_int = (int)len;
-    int mx;
+    size_t mx;
     char* tmp;
 
-    /* verify provided arguments */
-    if (buf == NULL || len_int < 0) {
+    /* verify provided arguments. The return value is an int holding the
+     * resulting length, so reject any len that cannot be represented as a
+     * non-negative int. This also prevents truncating size_t to int. */
+    if (buf == NULL || len > (size_t)WC_MAX_SINT_OF(int)) {
         return 0; /* BAD_FUNC_ARG; */
     }
 
     /* check to see if fits in existing length */
     if (buf->length > len) {
         buf->length = len;
-        return len_int;
+        return (int)len;
     }
 
     /* check to see if fits in max buffer */
@@ -15464,11 +15464,11 @@ int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
             XMEMSET(&buf->data[buf->length], 0, len - buf->length);
         }
         buf->length = len;
-        return len_int;
+        return (int)len;
     }
 
     /* expand size, to handle growth */
-    mx = (len_int + 3) / 3 * 4;
+    mx = (len + 3) / 3 * 4;
 
 #ifdef WOLFSSL_NO_REALLOC
     tmp = (char*)XMALLOC(mx, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -15489,12 +15489,12 @@ int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
     }
     buf->data = tmp;
 
-    buf->max = (size_t)mx;
+    buf->max = mx;
     if (zeroFill)
         XMEMSET(&buf->data[buf->length], 0, len - buf->length);
     buf->length = len;
 
-    return len_int;
+    return (int)len;
 
 }
 
@@ -15508,10 +15508,11 @@ int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
 int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
 {
     char* tmp;
-    int mx;
+    size_t mx;
 
-    /* verify provided arguments */
-    if (buf == NULL || len == 0 || (int)len <= 0) {
+    /* verify provided arguments. The return value is an int, so reject any
+     * len that cannot be represented as a positive int. */
+    if (buf == NULL || len == 0 || len > (size_t)WC_MAX_SINT_OF(int)) {
         return 0; /* BAD_FUNC_ARG; */
     }
 
@@ -15522,7 +15523,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
         return wolfSSL_BUF_MEM_grow_ex(buf, len, 0);
 
     /* expand size, to handle growth */
-    mx = ((int)len + 3) / 3 * 4;
+    mx = (len + 3) / 3 * 4;
 
     /* We want to shrink the internal buffer */
 #ifdef WOLFSSL_NO_REALLOC
@@ -15542,7 +15543,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
 
     buf->data = tmp;
     buf->length = len;
-    buf->max = (size_t)mx;
+    buf->max = mx;
 
     return (int)len;
 }
