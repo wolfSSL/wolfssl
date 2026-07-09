@@ -443,15 +443,18 @@ typedef const char wcchar[];
 
 #elif defined(WC_16BIT_CPU)
     /* WC_16BIT_CPU selects 16-bit int (word16=unsigned int, word32=unsigned
-     * long).  It historically also assumes no native 64-bit type, but targets
-     * like the TI C2000 C28x are 16-bit-int yet have a 64-bit long long, so
-     * keep WORD64_AVAILABLE when one genuinely exists.  Porting note: any other
-     * 16-bit-int target with a 64-bit long/long long now keeps the 64-bit paths
-     * (SHA-512, word64 rotates) that were previously force-disabled here. */
+     * long).  Historically every WC_16BIT_CPU build (except MICROCHIP_PIC24)
+     * force-disabled WORD64_AVAILABLE.  The TI C2000 C28x is 16-bit-int yet has
+     * a 64-bit long long and needs the 64-bit paths (SHA-512, ML-DSA/ML-KEM),
+     * so keep WORD64_AVAILABLE for CHAR_BIT != 8 (WOLFSSL_WIDE_BYTE) targets
+     * that genuinely have a 64-bit type.  All other 16-bit-int targets (e.g.
+     * MSP430) retain the historical behavior, so this is not a silent ABI or
+     * code-path change for existing non-C28x ports. */
     #if !defined(MICROCHIP_PIC24) && \
-        !(defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)) && \
-        !(defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)) && \
-        !(defined(__SIZEOF_LONG_LONG__) && (__SIZEOF_LONG_LONG__ == 8))
+        !(defined(WOLFSSL_WIDE_BYTE) && \
+          ((defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)) || \
+           (defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)) || \
+           (defined(__SIZEOF_LONG_LONG__) && (__SIZEOF_LONG_LONG__ == 8))))
         #undef WORD64_AVAILABLE
     #endif
     typedef word16 wolfssl_word;

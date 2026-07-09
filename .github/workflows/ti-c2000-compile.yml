@@ -19,7 +19,7 @@ on:
       - '.github/workflows/ti-c2000-compile.yml'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    branches: [ '*' ]
+    branches: [ '**' ]
     paths:
       - 'wolfcrypt/src/**'
       - 'wolfssl/wolfcrypt/**'
@@ -105,3 +105,25 @@ jobs:
         run: |
           CGT_ROOT="${{ steps.find-cl.outputs.cgt_root }}" \
             IDE/C2000/compile.sh
+
+  # Portable regression guard for the WC_SHA3_SPLIT64 Keccak permutation added
+  # for CHAR_BIT != 8 targets.  It is pure C and runs on any host, so force it
+  # on a normal x86-64 build and run the crypto KATs (SHA-3/SHAKE plus the
+  # SHAKE-heavy ML-DSA/ML-KEM) that exercise it.  No hardware or TI CGT needed,
+  # so unlike the compile-only guard above this always runs.
+  sha3_split64_host:
+    name: SHA-3 split-64 host test
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Build + run crypto KATs with WC_SHA3_SPLIT64 forced
+        run: |
+          ./autogen.sh
+          ./configure --enable-dilithium --enable-mlkem --enable-experimental \
+              --enable-shake128 --enable-shake256 CPPFLAGS="-DWC_SHA3_SPLIT64"
+          make
+          ./wolfcrypt/test/testwolfcrypt
