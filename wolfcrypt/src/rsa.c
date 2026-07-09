@@ -3682,6 +3682,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     int ret = 0;
     int sz;
     int state;
+    int check_min_pad = 1;
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     RsaPadding padding;
 #endif
@@ -3699,21 +3700,18 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return WC_KEY_SIZE_E;
     }
 
-    {
-        int check_min_pad = 1;
 #ifdef WC_RSA_NO_PADDING
-        /* No-padding mode: input may be the full key size. */
-        if (pad_type == WC_RSA_NO_PAD)
-            check_min_pad = 0;
+    /* No-padding mode: input may be the full key size. */
+    if (pad_type == WC_RSA_NO_PAD)
+        check_min_pad = 0;
 #endif
 #ifdef WC_RSA_PSS
-        /* PSS performs its own size check inside RsaPad_PSS. */
-        if (pad_type == WC_RSA_PSS_PAD)
-            check_min_pad = 0;
+    /* PSS performs its own size check inside RsaPad_PSS. */
+    if (pad_type == WC_RSA_PSS_PAD)
+        check_min_pad = 0;
 #endif
-        if (check_min_pad && inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
-            return RSA_BUFFER_E;
-        }
+    if (check_min_pad && inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
+        return RSA_BUFFER_E;
     }
 
 #ifndef WOLFSSL_BIND
