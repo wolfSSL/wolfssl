@@ -5454,8 +5454,13 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(HAVE_OCSP) && defined(NO_RSA) && !defined(HAVE_ECC)
     #error "OCSP (HAVE_OCSP) requires RSA or ECC (HAVE_ECC)"
 #endif
-#if defined(HAVE_PKCS7) && defined(NO_RSA) && !defined(HAVE_ECC)
-    #error "PKCS7 (HAVE_PKCS7) requires RSA or ECC (HAVE_ECC)"
+#if defined(HAVE_PKCS7) && defined(NO_RSA) && !defined(HAVE_ECC) && \
+        (!defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_MLDSA_NO_ASN1))
+    /* The ML-DSA-only escape hatch requires ML-DSA ASN.1 support: pkcs7.c only
+     * compiles its ML-DSA SignedData code when WC_PKCS7_HAVE_MLDSA is defined,
+     * which needs !WOLFSSL_MLDSA_NO_ASN1. Without it, PKCS7 would build with no
+     * usable signature algorithm. */
+    #error "PKCS7 (HAVE_PKCS7) requires RSA, ECC (HAVE_ECC), or ML-DSA with ASN.1 (not WOLFSSL_MLDSA_NO_ASN1)"
 #endif
 #if defined(HAVE_PKCS7) && defined(NO_SHA) && defined(NO_SHA256)
     #error "PKCS7 (HAVE_PKCS7) requires SHA or SHA-256"
