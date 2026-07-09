@@ -759,6 +759,7 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             key_server_aes = (FSPSM_AES_PWKEY)XMALLOC(sizeof(FSPSM_AES_WKEY),
                                             ssl->heap, DYNAMIC_TYPE_AES);
             if (key_client_aes == NULL || key_server_aes == NULL) {
+                wc_fspsm_hw_unlock();
                 return MEMORY_E;
             }
 
@@ -790,15 +791,19 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                 if (enc->aes == NULL) {
                     enc->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap,
                                                     DYNAMIC_TYPE_CIPHER);
-                    if (enc->aes == NULL)
+                    if (enc->aes == NULL) {
+                        wc_fspsm_hw_unlock();
                         return MEMORY_E;
+                    }
                 }
                 XMEMSET(enc->aes, 0, sizeof(Aes));
                 enc->aes->ctx.wrapped_key = (FSPSM_AES_PWKEY)XMALLOC
                                             (sizeof(FSPSM_AES_WKEY),
                                             ssl->heap, DYNAMIC_TYPE_AES);
-                if (enc->aes->ctx.wrapped_key == NULL)
+                if (enc->aes->ctx.wrapped_key == NULL) {
+                    wc_fspsm_hw_unlock();
                     return MEMORY_E;
+                }
             }
             if (dec) {
                 if (dec->aes == NULL) {
@@ -808,6 +813,7 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                         if (enc) {
                             XFREE(enc->aes, NULL, DYNAMIC_TYPE_CIPHER);
                         }
+                        wc_fspsm_hw_unlock();
                         return MEMORY_E;
                     }
                     XMEMSET(dec->aes, 0, sizeof(Aes));
@@ -815,22 +821,29 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                     dec->aes->ctx.wrapped_key = (FSPSM_AES_PWKEY)XMALLOC
                                             (sizeof(FSPSM_AES_WKEY),
                                             ssl->heap, DYNAMIC_TYPE_AES);
-                    if (dec->aes->ctx.wrapped_key == NULL)
+                    if (dec->aes->ctx.wrapped_key == NULL) {
+                        wc_fspsm_hw_unlock();
                         return MEMORY_E;
                     }
+                    }
             }
-            /* copy key index into aes */
-            if (ssl->options.side == PROVISION_CLIENT) {
-                XMEMCPY(enc->aes->ctx.wrapped_key, key_client_aes,
-                                                    sizeof(FSPSM_AES_WKEY));
-                XMEMCPY(dec->aes->ctx.wrapped_key, key_server_aes,
-                                                    sizeof(FSPSM_AES_WKEY));
-            }
-            else {
-                XMEMCPY(enc->aes->ctx.wrapped_key, key_server_aes,
-                                                    sizeof(FSPSM_AES_WKEY));
-                XMEMCPY(dec->aes->ctx.wrapped_key, key_client_aes,
-                                                    sizeof(FSPSM_AES_WKEY));
+            /* copy key index into aes. Skipped when AES-GCM session-key
+             * generation was deferred above -- key_client_aes/key_server_aes
+             * are NULL in that case, and the real per-record key is
+             * generated later inside wc_fspsm_AesGcmEncrypt/Decrypt. */
+            if (key_client_aes != NULL && key_server_aes != NULL) {
+                if (ssl->options.side == PROVISION_CLIENT) {
+                    XMEMCPY(enc->aes->ctx.wrapped_key, key_client_aes,
+                                                        sizeof(FSPSM_AES_WKEY));
+                    XMEMCPY(dec->aes->ctx.wrapped_key, key_server_aes,
+                                                        sizeof(FSPSM_AES_WKEY));
+                }
+                else {
+                    XMEMCPY(enc->aes->ctx.wrapped_key, key_server_aes,
+                                                        sizeof(FSPSM_AES_WKEY));
+                    XMEMCPY(dec->aes->ctx.wrapped_key, key_client_aes,
+                                                        sizeof(FSPSM_AES_WKEY));
+                }
             }
             /* copy mac key index into keys */
             ssl->keys.fspsm_client_write_MAC_secret = key_client_mac;
