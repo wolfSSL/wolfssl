@@ -1566,6 +1566,188 @@ int test_wc_RsaDecisionCoverage(void)
     }
 #endif /* !HAVE_FIPS && !WC_NO_RSA_OAEP && !NO_SHA256 */
 
+    /* ---- wc_RsaFunction: 7-condition argument-check (rsa.c line ~3542) ----
+     * key/in/inLen/out/outLen/*outLen/type each independently reject. The
+     * all-false side is produced by every real encrypt/decrypt; these supply
+     * the single-true half of each condition's MC/DC pair. */
+    {
+        word32 rawOutLen = cipherLen;
+        word32 rawZeroLen = 0;
+        ExpectIntEQ(wc_RsaFunction(NULL, cipherLen, plain, &rawOutLen,
+            RSA_PUBLIC_DECRYPT, &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        rawOutLen = cipherLen;
+        ExpectIntEQ(wc_RsaFunction(cipher, 0, plain, &rawOutLen,
+            RSA_PUBLIC_DECRYPT, &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        rawOutLen = cipherLen;
+        ExpectIntEQ(wc_RsaFunction(cipher, cipherLen, NULL, &rawOutLen,
+            RSA_PUBLIC_DECRYPT, &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RsaFunction(cipher, cipherLen, plain, NULL,
+            RSA_PUBLIC_DECRYPT, &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RsaFunction(cipher, cipherLen, plain, &rawZeroLen,
+            RSA_PUBLIC_DECRYPT, &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        rawOutLen = cipherLen;
+        ExpectIntEQ(wc_RsaFunction(cipher, cipherLen, plain, &rawOutLen,
+            RSA_TYPE_UNKNOWN, &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        rawOutLen = cipherLen;
+        ExpectIntEQ(wc_RsaFunction(cipher, cipherLen, plain, &rawOutLen,
+            RSA_PUBLIC_DECRYPT, NULL, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* ---- wc_RsaDirect: in/outSz/key argument-check (rsa.c line ~3304) ----
+     * Compiled because the base enables WC_RSA_NO_PADDING. */
+#if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING)
+    {
+        word32 directSz = cipherLen;
+        ExpectIntEQ(wc_RsaDirect(NULL, cipherLen, cipher, &directSz, &key,
+            RSA_PUBLIC_ENCRYPT, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RsaDirect(cipher, cipherLen, cipher, NULL, &key,
+            RSA_PUBLIC_ENCRYPT, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RsaDirect(cipher, cipherLen, cipher, &directSz, NULL,
+            RSA_PUBLIC_ENCRYPT, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+
+    /* ---- wc_MakeRsaKey size check: RsaSizeCheck (rsa.c line ~5153) ----
+     * size < RSA_MIN_SIZE and size > RSA_MAX_SIZE both reject; the valid-size
+     * (all-false) side came from the MAKE_RSA_KEY above. Called on the already
+     * initialized key: the bad size rejects before any key mutation. */
+    ExpectIntEQ(wc_MakeRsaKey(&key, RSA_MIN_SIZE - 1, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MakeRsaKey(&key, RSA_MAX_SIZE + 1, WC_RSA_EXPONENT, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ---- wc_CheckProbablePrime_ex argument checks (rsa.c ~5286/~5293) ---- */
+    {
+        byte cpp_p[2] = { 0x03, 0x03 };
+        byte cpp_e[3] = { 0x01, 0x00, 0x01 };
+        int  cpp_isPrime = 0;
+        /* line ~5286 cond isPrime==NULL. */
+        ExpectIntEQ(wc_CheckProbablePrime(cpp_p, sizeof(cpp_p), NULL, 0,
+            cpp_e, sizeof(cpp_e), 1024, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* line ~5293: qRaw!=NULL with qRawSz==0, and qRaw==NULL with
+         * qRawSz!=0 (both invalid p/q pairings). */
+        ExpectIntEQ(wc_CheckProbablePrime(cpp_p, sizeof(cpp_p), cpp_p, 0,
+            cpp_e, sizeof(cpp_e), 1024, &cpp_isPrime),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CheckProbablePrime(cpp_p, sizeof(cpp_p), NULL, 2,
+            cpp_e, sizeof(cpp_e), 1024, &cpp_isPrime),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* ---- wc_RsaPSS_CheckPadding argument checks (rsa.c line ~4515) ---- */
+#if defined(WC_RSA_PSS) && !defined(NO_SHA256)
+    {
+        byte pssHash[WC_SHA256_DIGEST_SIZE];
+        byte pssSig[WC_SHA256_DIGEST_SIZE * 2];
+        XMEMSET(pssHash, 0, sizeof(pssHash));
+        XMEMSET(pssSig, 0, sizeof(pssSig));
+        ExpectIntEQ(wc_RsaPSS_CheckPadding(NULL, sizeof(pssHash), pssSig,
+            sizeof(pssSig), WC_HASH_TYPE_SHA256), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RsaPSS_CheckPadding(pssHash, sizeof(pssHash), NULL,
+            sizeof(pssSig), WC_HASH_TYPE_SHA256), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* digSz < 0 via an unsupported hash type. */
+        ExpectIntEQ(wc_RsaPSS_CheckPadding(pssHash, sizeof(pssHash), pssSig,
+            sizeof(pssSig), WC_HASH_TYPE_NONE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* inSz != digSz. */
+        ExpectIntEQ(wc_RsaPSS_CheckPadding(pssHash, 1, pssSig,
+            sizeof(pssSig), WC_HASH_TYPE_SHA256), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif /* WC_RSA_PSS && !NO_SHA256 */
+
+    /* ---- wc_InitRsaKey_Id / wc_InitRsaKey_Label argument checks
+     * (rsa.c ~396/~400/~420/~424) ---- */
+#ifdef WOLF_PRIVATE_KEY_ID
+    {
+        RsaKey idKey;
+        static const byte idBuf[4] = { 0x01, 0x02, 0x03, 0x04 };
+
+        /* line ~396: len < 0 and len > RSA_MAX_ID_LEN both return BUFFER_E
+         * before init (no free required). */
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_InitRsaKey_Id(&idKey, (byte*)idBuf, -1, HEAP_HINT,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_InitRsaKey_Id(&idKey, (byte*)idBuf, RSA_MAX_ID_LEN + 1,
+            HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        /* key == NULL rejects (line ~394). */
+        ExpectIntEQ(wc_InitRsaKey_Id(NULL, (byte*)idBuf, 4, HEAP_HINT,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* line ~400: id==NULL and len==0 both SUCCEED (key initialized, no id
+         * copied) - must free the initialized key. */
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_InitRsaKey_Id(&idKey, NULL, 4, HEAP_HINT, INVALID_DEVID),
+            0);
+        DoExpectIntEQ(wc_FreeRsaKey(&idKey), 0);
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_InitRsaKey_Id(&idKey, (byte*)idBuf, 0, HEAP_HINT,
+            INVALID_DEVID), 0);
+        DoExpectIntEQ(wc_FreeRsaKey(&idKey), 0);
+
+        /* line ~420: key==NULL / label==NULL. */
+        ExpectIntEQ(wc_InitRsaKey_Label(NULL, "lbl", HEAP_HINT, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_InitRsaKey_Label(&idKey, NULL, HEAP_HINT, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* line ~424: empty label (labelLen==0) and over-long label both
+         * return BUFFER_E before init. */
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_InitRsaKey_Label(&idKey, "", HEAP_HINT, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        {
+            char longLabel[RSA_MAX_LABEL_LEN + 2];
+            XMEMSET(longLabel, 'a', sizeof(longLabel));
+            longLabel[sizeof(longLabel) - 1] = '\0';
+            XMEMSET(&idKey, 0, sizeof(idKey));
+            ExpectIntEQ(wc_InitRsaKey_Label(&idKey, longLabel, HEAP_HINT,
+                INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        }
+    }
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+    /* ---- OAEP RsaPad label mismatch: optLabel==NULL with labelLen>0
+     * (rsa.c line ~1322 encrypt, ~1791 decrypt) rejects with BUFFER_E. ---- */
+#if !defined(HAVE_FIPS) && !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256)
+    ExpectIntLT(wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherLen, &key,
+        &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 5), 0);
+    /* Decrypt-side RsaUnPad_OAEP optLabel==NULL/labelLen>0 (line ~1791): make a
+     * valid OAEP-SHA256 cipher, then decrypt requesting a NULL label with a
+     * non-zero label length. */
+    {
+        int oaepLen = wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherLen, &key,
+            &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        ExpectIntGT(oaepLen, 0);
+        if (oaepLen > 0) {
+            ExpectIntLT(wc_RsaPrivateDecrypt_ex(cipher, (word32)oaepLen, plain,
+                cipherLen, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+                WC_MGF1SHA256, NULL, 5), 0);
+        }
+    }
+#endif
+
+    /* ---- PSS with SHA-512 on a 1024-bit key: exercises the FIPS 186-4
+     * 5.5(e) salt-length reduction branch (bits==1024 && hLen==SHA512) in
+     * RsaPad_PSS / RsaUnPad_PSS / wc_RsaPSS_CheckPadding (rsa.c ~1530/~1939/
+     * ~4524/~4655/~4715). Only reached when TEST_RSA_BITS==1024; harmless
+     * (still valid PSS) at 2048. ---- */
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_SHA512) && !defined(HAVE_FIPS)
+    if (TEST_RSA_BITS == 1024) {
+        byte pssHash512[WC_SHA512_DIGEST_SIZE];
+        byte pssSig512[TEST_RSA_BYTES];
+        byte pssOut512[TEST_RSA_BYTES];
+        int  pssSigLen512;
+        XMEMSET(pssHash512, 0x2b, sizeof(pssHash512));
+        pssSigLen512 = wc_RsaPSS_Sign(pssHash512, sizeof(pssHash512), pssSig512,
+            sizeof(pssSig512), WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &key, &rng);
+        ExpectIntGT(pssSigLen512, 0);
+        if (pssSigLen512 > 0) {
+            ExpectIntGT(wc_RsaPSS_Verify(pssSig512, (word32)pssSigLen512,
+                pssOut512, sizeof(pssOut512), WC_HASH_TYPE_SHA512,
+                WC_MGF1SHA512, &key), 0);
+        }
+    }
+#endif /* WC_RSA_PSS && WOLFSSL_SHA512 && !HAVE_FIPS */
+
     WC_FREE_VAR(in, NULL);
     WC_FREE_VAR(cipher, NULL);
     WC_FREE_VAR(plain, NULL);
@@ -1780,6 +1962,32 @@ int test_wc_RsaFeatureCoverage(void)
         ExpectIntGT(nSz, 0);
         ExpectIntGT(eSz, 0);
     }
+
+    /* ---- WC_RSA_NO_PADDING raw round trip: drives the no-padding pad/unpad
+     * branches (RsaPad/RsaUnPad WC_RSA_NO_PAD, rsa.c ~1731/~2150) via the
+     * wc_RsaDirect API. Input is exactly the modulus byte length with a zero
+     * leading byte so the integer stays below the modulus. ---- */
+#ifdef WC_RSA_NO_PADDING
+    {
+        byte rawIn[256];
+        byte rawEnc[256];
+        byte rawDec[256];
+        word32 rawEncSz;
+        word32 rawDecSz;
+        int keySz = wc_RsaEncryptSize(&key);
+        if (keySz > 0 && keySz <= (int)sizeof(rawIn)) {
+            XMEMSET(rawIn, 0, sizeof(rawIn));
+            XMEMSET(rawIn + 1, 0x42, (size_t)keySz - 1);
+            rawEncSz = (word32)keySz;
+            ExpectIntGT(wc_RsaDirect(rawIn, (word32)keySz, rawEnc, &rawEncSz,
+                &key, RSA_PUBLIC_ENCRYPT, &rng), 0);
+            rawDecSz = (word32)keySz;
+            ExpectIntGT(wc_RsaDirect(rawEnc, rawEncSz, rawDec, &rawDecSz, &key,
+                RSA_PRIVATE_DECRYPT, &rng), 0);
+            ExpectBufEQ(rawDec, rawIn, (word32)keySz);
+        }
+    }
+#endif /* WC_RSA_NO_PADDING */
 
     if (initKey) DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
     if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
