@@ -157,6 +157,71 @@ static void wb_sha3_dispatch(void)
 
 #endif
 
+/* The __aarch64__ twin of the dispatch above (line ~759, inside
+ * `#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)`), compiled only in
+ * the qemu-aarch64 emulator lane (db/lanes.json):
+ *
+ *   InitSha3 dispatch (line ~759):
+ *       (! cpuid_flags_were_updated) && (SHA3_BLOCK != NULL)
+ *
+ * cond0 (! cpuid_flags_were_updated) is already reached both ways from
+ * tests/api: the process's very first InitSha3 call sees the file-static
+ * cpuid_flags at its WC_CPUID_INITIALIZER seed (cond0 false), and every
+ * call after that sees the cached real value (cond0 true). The residual is
+ * cond1 (SHA3_BLOCK != NULL): on a qemu -cpu max host every real detection
+ * already leaves SHA3_BLOCK non-NULL, so with cond0 held true (a real,
+ * cached cpuid_flags) the FALSE half of cond1 -- SHA3_BLOCK forced NULL,
+ * forcing a re-select -- never happens through the public API.
+ *
+ * Mirrors wb_init_with()/wb_sha3_dispatch() above: force cpuid_flags to a
+ * real (non-INITIALIZER) value and vary sha3_block, without hashing, so no
+ * asm block ever executes.
+ */
+#if !defined(WOLFSSL_NO_SHA3) && defined(WOLFSSL_SHA3) && \
+    defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WC_C_DYNAMIC_FALLBACK)
+
+static void wb_init_with_aarch64(cpuid_flags_t flags, void (*block)(word64*))
+{
+    wc_Sha3 s;
+    cpuid_flags = flags;
+    sha3_block  = block;
+    if (wc_InitSha3_256(&s, NULL, INVALID_DEVID) == 0) {
+        wc_Sha3_256_Free(&s);
+    }
+    else {
+        WB_NOTE("wc_InitSha3_256 failed (aarch64 dispatch case skipped)");
+        wb_fail = 1;
+    }
+}
+
+static void wb_sha3_dispatch_aarch64(void)
+{
+    cpuid_flags_t saved_flags    = cpuid_flags;
+    void (*saved_block)(word64*) = sha3_block;
+
+    /* 759: (! updated) && (SHA3_BLOCK != NULL), cond1 (SHA3_BLOCK != NULL).
+     * Hold cond0 true throughout (flags a real, non-INITIALIZER value on
+     * every call), flip sha3_block. */
+    wb_init_with_aarch64((cpuid_flags_t)0, BlockSha3_base); /* cond1 T: cached,
+                                                              * no re-select */
+    wb_init_with_aarch64((cpuid_flags_t)0, NULL);           /* cond1 F: NULL
+                                                              * forces re-select */
+
+    cpuid_flags = saved_flags;
+    sha3_block  = saved_block;
+    WB_NOTE("aarch64 sha3 dispatch (line 759) cond1 pair exercised");
+}
+
+#else
+
+static void wb_sha3_dispatch_aarch64(void)
+{
+    WB_NOTE("sha3 aarch64 dispatch not compiled in this variant; skipped");
+}
+
+#endif
+
 int main(void)
 {
     printf("sha3.c white-box MC/DC supplement\n");
@@ -165,6 +230,7 @@ int main(void)
     return 0;
 #else
     wb_sha3_dispatch();
+    wb_sha3_dispatch_aarch64();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     return 0;
 #endif
