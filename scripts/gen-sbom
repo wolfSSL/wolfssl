@@ -145,6 +145,21 @@ DEP_META = {
         # vendor:product mapping a pkg:generic PURL would force.
         'purl': lambda v: f'pkg:github/madler/zlib@{v}',
     },
+    # openssl, declared as a dependency by the OpenSSL-compat products
+    # (wolfProvider, wolfEngine) that link libcrypto/libssl alongside wolfSSL.
+    # Only emitted when the caller passes --dep-openssl yes.  These products
+    # target the OpenSSL 3.x provider/engine ABI, which is Apache-2.0 (older
+    # 1.1.x was the SPDX "OpenSSL" licence); Apache-2.0 is therefore the correct
+    # id for the supported surface.  The purl uses OpenSSL 3.x's "openssl-X.Y.Z"
+    # git tag form so it resolves in OSV / GHSA.
+    'openssl': {
+        'name': 'openssl',
+        'supplier': 'OpenSSL Software Foundation',
+        'license': 'Apache-2.0',
+        'download': 'https://github.com/openssl/openssl',
+        'pkgconfig': 'openssl',
+        'purl': lambda v: f'pkg:github/openssl/openssl@openssl-{v}',
+    },
 }
 
 
@@ -1162,6 +1177,12 @@ def main():
                              'wolfSSL\'s own SBOM leaves this off. Combine '
                              'with --dep-version wolfssl=X.Y.Z on hosts '
                              'without wolfssl.pc.')
+    parser.add_argument('--dep-openssl', default='no',
+                        help='yes to record openssl as a dependency component '
+                             '(for OpenSSL-compat products such as wolfProvider '
+                             '/ wolfEngine that link libcrypto/libssl). Combine '
+                             'with --dep-version openssl=X.Y.Z on hosts without '
+                             'openssl.pc.')
     parser.add_argument('--dep-libz', default='no',
                         help='yes if built with --with-libz')
     parser.add_argument('--dep-liboqs', default='no',
@@ -1234,6 +1255,7 @@ def main():
     enabled_deps = [
         key for key, flag in [
             ('wolfssl', args.dep_wolfssl),
+            ('openssl', args.dep_openssl),
             ('libz',    args.dep_libz),
             ('liboqs',  args.dep_liboqs),
         ]

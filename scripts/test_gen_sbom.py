@@ -828,10 +828,11 @@ class TestDepMetaShape(unittest.TestCase):
 
     def test_only_expected_deps_are_tracked(self):
         # wolfssl is tracked so downstream wolfSSL-stack products (wolfSSH,
-        # wolfMQTT, ...) can declare it via --dep-wolfssl; libz/liboqs are
-        # wolfSSL's own optional linked deps.
+        # wolfMQTT, ...) can declare it via --dep-wolfssl; openssl so the
+        # OpenSSL-compat products (wolfProvider, wolfEngine) can declare it via
+        # --dep-openssl; libz/liboqs are wolfSSL's own optional linked deps.
         self.assertEqual(set(gs.DEP_META.keys()),
-                         {'wolfssl', 'libz', 'liboqs'})
+                         {'wolfssl', 'openssl', 'libz', 'liboqs'})
 
     def test_wolfssl_dep_entry_describes_the_linked_artefact(self):
         wolfssl = gs.DEP_META['wolfssl']
@@ -846,6 +847,19 @@ class TestDepMetaShape(unittest.TestCase):
         self.assertEqual(
             wolfssl['purl']('5.7.4'),
             'pkg:github/wolfSSL/wolfssl@v5.7.4')
+
+    def test_openssl_dep_entry_describes_the_linked_artefact(self):
+        openssl = gs.DEP_META['openssl']
+        self.assertEqual(openssl['name'], 'openssl')
+        self.assertEqual(openssl['supplier'], 'OpenSSL Software Foundation')
+        self.assertEqual(openssl['pkgconfig'], 'openssl')
+        # wolfProvider / wolfEngine target the OpenSSL 3.x provider/engine ABI,
+        # which is Apache-2.0.  The purl uses OpenSSL 3.x's "openssl-X.Y.Z" git
+        # tag form so it resolves in OSV / GHSA.
+        self.assertEqual(openssl['license'], 'Apache-2.0')
+        self.assertEqual(
+            openssl['purl']('3.5.0'),
+            'pkg:github/openssl/openssl@openssl-3.5.0')
 
     def test_liboqs_entry_describes_the_linked_artefact(self):
         liboqs = gs.DEP_META['liboqs']
@@ -887,6 +901,7 @@ class TestEnabledDepsCli(unittest.TestCase):
         self.assertIn('--dep-liboqs', result.stdout)
         self.assertIn('--dep-libz', result.stdout)
         self.assertIn('--dep-wolfssl', result.stdout)
+        self.assertIn('--dep-openssl', result.stdout)
 
     def test_removed_flags_are_rejected(self):
         # Each of these was either renamed (--dep-falcon -> --dep-liboqs)
