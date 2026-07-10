@@ -12152,6 +12152,10 @@ static void TLSX_PreSharedKey_FreeAll(PreSharedKey* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
+        /* identity may hold an in-place decrypted ticket whose bytes are the
+         * resumption master secret; wipe before returning it to the heap. */
+        if (current->identity != NULL)
+            ForceZero(current->identity, current->identityLen);
         XFREE(current->identity, heap, DYNAMIC_TYPE_TLSX);
         XFREE(current, heap, DYNAMIC_TYPE_TLSX);
     }
