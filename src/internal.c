@@ -12914,6 +12914,8 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
     }
 
+    ForceZero(sha_result, WC_SHA_DIGEST_SIZE);
+
     WC_FREE_VAR_EX(sha, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
