@@ -2869,7 +2869,7 @@ int test_wolfSSL_CRL_critical_idp(void)
 int test_wolfSSL_cert_critical_policy_constraints(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_RSA)
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(WOLFSSL_NO_ASN_STRICT)
     /* Critical policyConstraints is parsed but never enforced, so RFC 5280 Sec 4.2 requires rejecting the cert rather than silently accepting it. */
     static const unsigned char cert_crit_policy[] = {
         0x30, 0x82, 0x03, 0x38, 0x30, 0x82, 0x02, 0x20, 0xa0, 0x03, 0x02,
