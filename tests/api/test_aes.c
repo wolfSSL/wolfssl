@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef WOLFSSL_CMAC
+    /* Explicit include (rather than relying on aes.h's conditional
+     * transitive include via WOLFSSL_AES_EAX) so struct Cmac / wc_InitCmac()
+     * etc. are visible regardless of whether AES-EAX is also enabled. */
+    #include <wolfssl/wolfcrypt/cmac.h>
+#endif
 /* <wolfssl/internal.h> is required because the CryptoCB TLS 1.3 key-zeroing
  * tests below inspect session state (ssl->keys.*_write_key,
  * ssl->encrypt.aes->devCtx) to verify that the TLS-layer staging buffers are
@@ -41,6 +47,26 @@
 #include <tests/api/api.h>
 #include <tests/api/test_aes.h>
 #include <tests/utils.h>
+
+/* Several tests corrupt aes.rounds (or cmac.aes.rounds) to force KEYUSAGE_E from
+ * the AES rounds-validity check. That check lives only in the pure-C block
+ * encrypt (AesEncryptBlocks_C), so the corruption is only observable when that
+ * path runs. It is NOT observable when:
+ *  - the op is offloaded to a crypto callback: WOLF_CRYPTO_CB_FIND routes even
+ *    INVALID_DEVID to the callback, and WOLF_CRYPTO_CB_ONLY_AES strips the
+ *    software AES entirely; or
+ *  - an asm/HW backend provides its own wc_AesEncrypt that skips the check
+ *    (e.g. WOLFSSL_ARMASM on ARMv8 with crypto extensions).
+ * In all these cases the corrupted struct is ignored and the op returns 0. */
+#if defined(WOLF_CRYPTO_CB_FIND) || defined(WOLF_CRYPTO_CB_ONLY_AES) || \
+    defined(WOLFSSL_ARMASM) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    /* The aes->rounds=0 corruption trick relies on the pure-C AesEncryptBlocks_C
+     * guard (if r==0 return KEYUSAGE_E). When AES is offloaded (crypto-cb / asm)
+     * or provided by the FIPS/self-test module, that guard is absent: rounds=0
+     * runs AES with a zero-round key schedule and segfaults instead of erroring.
+     * Treat those builds as offloaded so the corruption blocks are skipped. */
+    #define WC_TEST_AES_ROUNDS_OFFLOADED
+#endif
 
 #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS_VERSION) && \
     (HAVE_FIPS_VERSION <= 2))
@@ -8014,9 +8040,2179 @@ int test_wc_AesEaxStream(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesEaxStream() */
 
+/*
+ * Testing AES-EAX argument-validation MC/DC gaps:
+ *   wc_AesEaxEncryptUpdate, wc_AesEaxDecryptUpdate,
+ *   wc_AesEaxEncryptFinal, wc_AesEaxDecryptFinal
+ */
+int test_wc_AesEaxArgMcdc(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_AES_128
+    const byte key[]   = {0x23, 0x39, 0x52, 0xde, 0xe4, 0xd5, 0xed, 0x5f,
+                           0x9b, 0x9c, 0x6d, 0x6f, 0xf8, 0x0f, 0xf4, 0x78};
+    const byte nonce[] = {0x62, 0xec, 0x67, 0xf9, 0xc3, 0xa4, 0xa4, 0x07,
+                           0xfc, 0xb2, 0xa8, 0xc4, 0x90, 0x31, 0xa8, 0xb3};
+    AesEax eax;
+    byte   in[8]  = { 0 };
+    byte   out[8] = { 0 };
+    byte   tagBuf[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(&eax, 0, sizeof(eax));
+    XMEMSET(tagBuf, 0, sizeof(tagBuf));
+
+    /* ---- wc_AesEaxEncryptUpdate(): eax/out/in OR-chain ---- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key, sizeof(key), nonce, sizeof(nonce),
+                              NULL, 0), 0);
+    /* baseline: all operands valid -> all conditions false. */
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out, in, sizeof(in), NULL, 0),
+                0);
+    /* cond: eax == NULL */
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(NULL, out, in, sizeof(in), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: out == NULL */
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, NULL, in, sizeof(in), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: in == NULL */
+    ExpectIntEQ(wc_AesEaxEncryptUpdate(&eax, out, NULL, sizeof(in), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* ---- wc_AesEaxDecryptUpdate(): eax/out/in OR-chain ---- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key, sizeof(key), nonce, sizeof(nonce),
+                              NULL, 0), 0);
+    /* baseline: all operands valid -> all conditions false. */
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out, in, sizeof(in), NULL, 0),
+                0);
+    /* cond: eax == NULL */
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(NULL, out, in, sizeof(in), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: out == NULL */
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, NULL, in, sizeof(in), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: in == NULL */
+    ExpectIntEQ(wc_AesEaxDecryptUpdate(&eax, out, NULL, sizeof(in), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* ---- wc_AesEaxEncryptFinal(): authTag == NULL / authTagSz == 0 ---- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key, sizeof(key), nonce, sizeof(nonce),
+                              NULL, 0), 0);
+    /* baseline: valid authTag/authTagSz -> conditions false. */
+    ExpectIntEQ(wc_AesEaxEncryptFinal(&eax, tagBuf, sizeof(tagBuf)), 0);
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    ExpectIntEQ(wc_AesEaxInit(&eax, key, sizeof(key), nonce, sizeof(nonce),
+                              NULL, 0), 0);
+    /* cond: authTag == NULL (eax valid). */
+    ExpectIntEQ(wc_AesEaxEncryptFinal(&eax, NULL, sizeof(tagBuf)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* cond: authTagSz == 0 (eax/authTag valid). */
+    ExpectIntEQ(wc_AesEaxEncryptFinal(&eax, tagBuf, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    /* ---- wc_AesEaxDecryptFinal(): authIn == NULL ---- */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key, sizeof(key), nonce, sizeof(nonce),
+                              NULL, 0), 0);
+    /* baseline: valid authIn -> the arg-check decision is false (tag may
+     * still legitimately mismatch, so only assert it isn't BAD_FUNC_ARG). */
+    ExpectIntNE(wc_AesEaxDecryptFinal(&eax, tagBuf, sizeof(tagBuf)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+    ExpectIntEQ(wc_AesEaxInit(&eax, key, sizeof(key), nonce, sizeof(nonce),
+                              NULL, 0), 0);
+    /* cond: authIn == NULL (eax valid). */
+    ExpectIntEQ(wc_AesEaxDecryptFinal(&eax, NULL, sizeof(tagBuf)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
+#endif /* WOLFSSL_AES_128 */
+
+    return EXPECT_RESULT();
+} /* END test_wc_AesEaxArgMcdc() */
+
 #endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256
         * (!HAVE_FIPS || FIPS_VERSION_GE(5, 3)) && !HAVE_SELFTEST
         */
+
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+typedef struct test_aes_keywrap_vector {
+    const byte* key;
+    word32 keySz;
+    const byte* msg;
+    word32 msgSz;
+    const byte* ct;
+    word32 ctSz;
+} test_aes_keywrap_vector;
+#endif
+
+int test_wc_AesKeyWrapVectors(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    static const byte key1[] = {
+        0x6f, 0x67, 0x48, 0x6d, 0x1e, 0x91, 0x44, 0x19,
+        0xcb, 0x43, 0xc2, 0x85, 0x09, 0xc7, 0xc1, 0xea
+    };
+    static const byte msg1[] = {
+        0x8d, 0xc0, 0x63, 0x2d, 0x92, 0xee, 0x0b, 0xe4,
+        0xf7, 0x40, 0x02, 0x84, 0x10, 0xb0, 0x82, 0x70
+    };
+    static const byte ct1[] = {
+        0x9d, 0xe4, 0x53, 0xce, 0xd5, 0xd4, 0xab, 0x46,
+        0xa5, 0x60, 0x17, 0x08, 0xee, 0xef, 0xef, 0xb5,
+        0xe5, 0x93, 0xe6, 0xae, 0x8e, 0x86, 0xb2, 0x6b
+    };
+    static const byte key2[] = {
+        0xa0, 0xb1, 0x71, 0x72, 0xbb, 0x29, 0x6d, 0xb7,
+        0xf5, 0xc8, 0x69, 0xe9, 0xa3, 0x6b, 0x5c, 0xe3
+    };
+    static const byte msg2[] = {
+        0x61, 0x5d, 0xd0, 0x22, 0xd6, 0x07, 0xc9, 0x10,
+        0xf2, 0x01, 0x78, 0xcb, 0xdf, 0x42, 0x06, 0x0f
+    };
+    static const byte ct2[] = {
+        0x8c, 0x3a, 0xba, 0x85, 0xcc, 0x0a, 0xe1, 0xae,
+        0x10, 0xb3, 0x66, 0x58, 0xb0, 0x68, 0xf5, 0x95,
+        0xba, 0xf8, 0xca, 0xaf, 0xb7, 0x45, 0xef, 0x3c
+    };
+    static const byte key3[] = {
+        0x0e, 0x49, 0xd5, 0x71, 0xc1, 0x9b, 0x52, 0x50,
+        0xef, 0xfd, 0x41, 0xd9, 0x4b, 0xde, 0x39, 0xd6
+    };
+    static const byte msg3[] = {
+        0xf2, 0x5e, 0x4d, 0xe8, 0xca, 0xca, 0x36, 0x3f,
+        0xd5, 0xf2, 0x94, 0x42, 0xeb, 0x14, 0x7b, 0x55
+    };
+    static const byte ct3[] = {
+        0x1d, 0xe0, 0x93, 0x65, 0x48, 0x26, 0xf1, 0x8f,
+        0xcd, 0x0f, 0x3f, 0xd4, 0x99, 0x41, 0x6f, 0xf2,
+        0x2e, 0xd7, 0x5e, 0xe1, 0x2f, 0xe0, 0xb6, 0x24
+    };
+    static const byte key4[] = {
+        0xe0, 0xe1, 0x29, 0x59, 0x10, 0x91, 0x03, 0xe3,
+        0x0a, 0xe8, 0xb5, 0x68, 0x4a, 0x22, 0xe6, 0x62
+    };
+    static const byte msg4[] = {
+        0xdb, 0xb0, 0xf2, 0xbb, 0x2b, 0xe9, 0x12, 0xa2,
+        0x04, 0x30, 0x97, 0x2d, 0x98, 0x42, 0xce, 0x3f,
+        0xd3, 0xb9, 0x28, 0xe5, 0x73, 0xe1, 0xac, 0x8e
+    };
+    static const byte ct4[] = {
+        0x9c, 0x3d, 0xdc, 0x23, 0x82, 0x7b, 0x7b, 0x3c,
+        0x13, 0x10, 0x5f, 0x9e, 0x8b, 0x11, 0x52, 0x3b,
+        0xac, 0xcd, 0xfb, 0x6c, 0x8b, 0x7e, 0x78, 0x25,
+        0x49, 0x6e, 0x7a, 0x84, 0x0b, 0xd3, 0x2a, 0xec
+    };
+    static const test_aes_keywrap_vector vectors[] = {
+        { key1, sizeof(key1), msg1, sizeof(msg1), ct1, sizeof(ct1) },
+        { key2, sizeof(key2), msg2, sizeof(msg2), ct2, sizeof(ct2) },
+        { key3, sizeof(key3), msg3, sizeof(msg3), ct3, sizeof(ct3) },
+        { key4, sizeof(key4), msg4, sizeof(msg4), ct4, sizeof(ct4) }
+    };
+    byte wrapped[40];
+    byte unwrapped[32];
+    byte tampered[sizeof(ct1)];
+    word32 i;
+    int wrapSz;
+    int unwrapSz;
+
+    for (i = 0; i < (word32)XELEM_CNT(vectors); i++) {
+        XMEMSET(wrapped, 0, sizeof(wrapped));
+        XMEMSET(unwrapped, 0, sizeof(unwrapped));
+
+        wrapSz = wc_AesKeyWrap(vectors[i].key, vectors[i].keySz, vectors[i].msg,
+            vectors[i].msgSz, wrapped, vectors[i].ctSz, NULL);
+        ExpectIntEQ(wrapSz, (int)vectors[i].ctSz);
+        ExpectBufEQ(wrapped, vectors[i].ct, vectors[i].ctSz);
+
+        unwrapSz = wc_AesKeyUnWrap(vectors[i].key, vectors[i].keySz,
+            vectors[i].ct, vectors[i].ctSz, unwrapped, vectors[i].msgSz, NULL);
+        ExpectIntEQ(unwrapSz, (int)vectors[i].msgSz);
+        ExpectBufEQ(unwrapped, vectors[i].msg, vectors[i].msgSz);
+    }
+
+    XMEMCPY(tampered, ct1, sizeof(tampered));
+    tampered[sizeof(tampered) - 1] ^= 0x01;
+    ExpectIntLT(wc_AesKeyUnWrap(key1, sizeof(key1), tampered, sizeof(tampered),
+        unwrapped, sizeof(msg1), NULL), 0);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC wave 2 - decision-targeted negative paths for AES KeyWrap.
+ * Existing vector coverage above does not exercise the argument-check,
+ * short-output-buffer, or misaligned-length decision branches in the
+ * RFC 3394 wrap/unwrap implementation inside wolfcrypt/src/aes.c.
+ */
+int test_wc_AesKeyWrapDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    static const byte kek[16] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+    static const byte plain[16] = {
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+        0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF
+    };
+    /* Non-multiple-of-8 length to exercise the length-alignment branch. */
+    static const byte badLenPlain[15] = {
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+        0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE
+    };
+    byte wrapped[24];
+    byte unwrapped[16];
+
+    /* wc_AesKeyWrap: null key, null in, null out decision branches. */
+    ExpectIntEQ(wc_AesKeyWrap(NULL, sizeof(kek), plain, sizeof(plain),
+        wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyWrap(kek, sizeof(kek), NULL, sizeof(plain),
+        wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyWrap(kek, sizeof(kek), plain, sizeof(plain),
+        NULL, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Output buffer smaller than inSz + KEYWRAP_BLOCK_SIZE: short-buffer
+     * decision branch. */
+    ExpectIntEQ(wc_AesKeyWrap(kek, sizeof(kek), plain, sizeof(plain),
+        wrapped, sizeof(plain), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* inSz is not a multiple of KEYWRAP_BLOCK_SIZE (8): alignment branch. */
+    ExpectIntLT(wc_AesKeyWrap(kek, sizeof(kek), badLenPlain,
+        sizeof(badLenPlain), wrapped, sizeof(wrapped), NULL), 0);
+
+    /* wc_AesKeyUnWrap: null key, null in, null out decision branches. */
+    ExpectIntEQ(wc_AesKeyUnWrap(NULL, sizeof(kek), wrapped, sizeof(wrapped),
+        unwrapped, sizeof(unwrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyUnWrap(kek, sizeof(kek), NULL, sizeof(wrapped),
+        unwrapped, sizeof(unwrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyUnWrap(kek, sizeof(kek), wrapped, sizeof(wrapped),
+        NULL, sizeof(unwrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Output buffer smaller than unwrapped size: short-buffer branch. */
+    ExpectIntEQ(wc_AesKeyUnWrap(kek, sizeof(kek), wrapped, sizeof(wrapped),
+        unwrapped, sizeof(wrapped) - 9, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* inSz not a multiple of KEYWRAP_BLOCK_SIZE: alignment branch. */
+    ExpectIntLT(wc_AesKeyUnWrap(kek, sizeof(kek), wrapped, sizeof(wrapped) - 1,
+        unwrapped, sizeof(unwrapped), NULL), 0);
+
+#ifdef WOLFSSL_AES_DIRECT
+    /* wc_AesKeyWrap_ex / wc_AesKeyUnWrap_ex argument-check branches. */
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, kek, sizeof(kek), NULL, AES_ENCRYPTION),
+            0);
+
+        ExpectIntEQ(wc_AesKeyWrap_ex(NULL, plain, sizeof(plain),
+            wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyWrap_ex(&aes, NULL, sizeof(plain),
+            wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyWrap_ex(&aes, plain, sizeof(plain),
+            NULL, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(NULL, wrapped, sizeof(wrapped),
+            unwrapped, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(&aes, NULL, sizeof(wrapped),
+            unwrapped, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(&aes, wrapped, sizeof(wrapped),
+            NULL, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AES_DIRECT */
+#endif /* !NO_AES && HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC wave 2 - decision-targeted negative paths for AES-GCM SetExtIV
+ * and the short-buffer / bad-length branches left uncovered by the existing
+ * GCM tests.
+ */
+int test_wc_AesGcmDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    static const byte key[16] = {
+        0xFE,0xFF,0xE9,0x92,0x86,0x65,0x73,0x1C,
+        0x6D,0x6A,0x8F,0x94,0x67,0x30,0x83,0x08
+    };
+    /* wc_AesGcmSetExtIV needs an RNG and is absent from the self-test module. */
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
+    static const byte iv[GCM_NONCE_MID_SZ] = {
+        0xCA,0xFE,0xBA,0xBE,0xFA,0xCE,0xDB,0xAD,
+        0xDE,0xCA,0xF8,0x88
+    };
+#endif
+    Aes aes;
+    int initDone = 0;
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) initDone = 1;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
+    /* wc_AesGcmSetExtIV null-argument decision branches. */
+    ExpectIntEQ(wc_AesGcmSetExtIV(NULL, iv, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, NULL, sizeof(iv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Zero-length IV branch: should reject. */
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    /* wc_AesGcmSetKey invalid key-length decision branch. */
+    {
+        static const byte badKey[15] = {0};
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, badKey, sizeof(badKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    if (initDone) wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC wave 2 - feature-oriented positive paths to lift aes.c MC/DC by
+ * exercising real GCM stream / CCM / GMAC / key-wrap-ex code paths that the
+ * existing tests skip.
+ */
+int test_wc_AesFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+/* This function's value is MC/DC of the *open* wolfcrypt/src/aes.c feature
+ * paths. Frozen crypto modules (self-test v4.1.0, old FIPS v2/v5 = WCv4) do not
+ * exercise that aes.c and predate some modern behaviours asserted here. The
+ * GCM/GMAC block works on all of them, so it only excludes HAVE_SELFTEST; the
+ * CCM block additionally excludes old FIPS (its AAD-only case diverges there,
+ * see the per-block note); the key-wrap block excludes all FIPS + self-test.
+ * The open MC/DC campaign builds are unaffected. */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST)
+    /* ---- AES-GCM streaming API: multi-chunk AAD and data ---- */
+    /* Uses a hardcoded 256-bit key, so requires AES-256. */
+#if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_AES_256)
+    {
+        static const byte key[32] = {
+            0xfe,0xff,0xe9,0x92,0x86,0x65,0x73,0x1c,
+            0x6d,0x6a,0x8f,0x94,0x67,0x30,0x83,0x08,
+            0xfe,0xff,0xe9,0x92,0x86,0x65,0x73,0x1c,
+            0x6d,0x6a,0x8f,0x94,0x67,0x30,0x83,0x08
+        };
+        static const byte iv[GCM_NONCE_MID_SZ] = {
+            0xca,0xfe,0xba,0xbe,0xfa,0xce,0xdb,0xad,
+            0xde,0xca,0xf8,0x88
+        };
+        static const byte aad1[5] = { 0xa1,0xa2,0xa3,0xa4,0xa5 };
+        static const byte aad2[7] = { 0xb1,0xb2,0xb3,0xb4,0xb5,0xb6,0xb7 };
+        static const byte plain[40] = {
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+            0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,
+            0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+            0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,
+            0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37
+        };
+        Aes aes;
+        byte cipher[sizeof(plain)];
+        byte recovered[sizeof(plain)];
+        byte tag[AES_BLOCK_SIZE];
+        int initDone = 0;
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        if (EXPECT_SUCCESS()) initDone = 1;
+
+        /* Encrypt: feed AAD across two updates, then plaintext across three. */
+        ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, sizeof(key), iv,
+            sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, aad1,
+            sizeof(aad1)), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher, plain, 16, aad2,
+            sizeof(aad2)), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher + 16, plain + 16, 16,
+            NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, cipher + 32, plain + 32, 8,
+            NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmEncryptFinal(&aes, tag, sizeof(tag)), 0);
+
+        /* Decrypt: same chunking, must recover plaintext and tag must match. */
+        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, sizeof(key), iv,
+            sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad1,
+            sizeof(aad1)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered, cipher, 16, aad2,
+            sizeof(aad2)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered + 16, cipher + 16,
+            16, NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered + 32, cipher + 32,
+            8, NULL, 0), 0);
+        ExpectIntEQ(wc_AesGcmDecryptFinal(&aes, tag, sizeof(tag)), 0);
+        ExpectBufEQ(recovered, plain, sizeof(plain));
+
+        /* Tampered tag must be rejected. */
+        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, sizeof(key), iv,
+            sizeof(iv)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered, cipher,
+            sizeof(plain), aad1, sizeof(aad1)), 0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad2,
+            sizeof(aad2)), 0);
+        {
+            byte badTag[AES_BLOCK_SIZE];
+            XMEMCPY(badTag, tag, sizeof(badTag));
+            badTag[0] ^= 0x01;
+            ExpectIntLT(wc_AesGcmDecryptFinal(&aes, badTag, sizeof(badTag)),
+                0);
+        }
+
+        if (initDone) wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AESGCM_STREAM */
+
+    /* ---- GMAC: multi-call setup with non-trivial AAD/IV ---- */
+    {
+        Gmac gmac;
+        static const byte gmacKey[16] = {
+            0x77,0xbe,0x63,0x70,0x89,0x71,0xc4,0xe2,
+            0x40,0xd1,0xcb,0x79,0xe8,0xd7,0x7f,0xeb
+        };
+        static const byte gmacIv[12] = {
+            0xe0,0xe0,0x0f,0x19,0xfe,0xd7,0xba,0x01,
+            0x36,0xa7,0x97,0xf3
+        };
+        static const byte gmacAad[20] = {
+            0x7a,0x43,0xec,0x1d,0x9c,0x0a,0x5a,0x78,
+            0xa0,0xb1,0x65,0x33,0xa6,0x21,0x3c,0xab,
+            0x10,0x11,0x12,0x13
+        };
+        byte gmacTag[16];
+
+        XMEMSET(&gmac, 0, sizeof(gmac));
+        ExpectIntEQ(wc_AesInit(&gmac.aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_GmacSetKey(&gmac, gmacKey, sizeof(gmacKey)), 0);
+        ExpectIntEQ(wc_GmacUpdate(&gmac, gmacIv, sizeof(gmacIv), gmacAad,
+            sizeof(gmacAad), gmacTag, sizeof(gmacTag)), 0);
+        wc_AesFree(&gmac.aes);
+    }
+#endif /* !NO_AES && HAVE_AESGCM && !HAVE_SELFTEST */
+
+/* The AAD-only wc_AesCcmEncrypt(NULL,NULL,0,...) case below returns 0 in
+ * current wolfCrypt / FIPS v6 but BAD_FUNC_ARG in the frozen self-test (v4.1.0)
+ * AND old FIPS modules (v2/v5 = WCv4), which reject in/out==NULL
+ * unconditionally. Exclude both, matching the modern-API guard idiom. */
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION > 6))
+    /* ---- AES-CCM round trips with varied AAD / nonce / tag sizes ---- */
+    {
+        static const byte ccmKey[16] = {
+            0xc0,0xc1,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7,
+            0xc8,0xc9,0xca,0xcb,0xcc,0xcd,0xce,0xcf
+        };
+        static const byte ccmNonce13[13] = {
+            0x00,0x00,0x00,0x03,0x02,0x01,0x00,0xa0,
+            0xa1,0xa2,0xa3,0xa4,0xa5
+        };
+        static const byte ccmNonce7[7] = {
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16
+        };
+        static const byte ccmAad[8] = {
+            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
+        };
+        static const byte ccmPlain[23] = {
+            0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+            0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,
+            0x30,0x31,0x32,0x33,0x34,0x35,0x36
+        };
+        Aes aes;
+        byte ccmCipher[sizeof(ccmPlain)];
+        byte ccmTag[16] = { 0 };
+        byte ccmRecovered[sizeof(ccmPlain)];
+        int initDone = 0;
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        if (EXPECT_SUCCESS()) initDone = 1;
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, ccmKey, sizeof(ccmKey)), 0);
+
+        /* 13-byte nonce, 16-byte tag, 8-byte AAD. */
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, ccmCipher, ccmPlain,
+            sizeof(ccmPlain), ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, ccmRecovered, ccmCipher,
+            sizeof(ccmPlain), ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+        ExpectBufEQ(ccmRecovered, ccmPlain, sizeof(ccmPlain));
+
+        /* 7-byte nonce, 8-byte tag, no AAD. */
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, ccmCipher, ccmPlain,
+            sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
+            ccmTag, 8, NULL, 0), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, ccmRecovered, ccmCipher,
+            sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
+            ccmTag, 8, NULL, 0), 0);
+        ExpectBufEQ(ccmRecovered, ccmPlain, sizeof(ccmPlain));
+
+        /* Tampered tag rejected. */
+        ccmTag[0] ^= 0x01;
+        ExpectIntLT(wc_AesCcmDecrypt(&aes, ccmRecovered, ccmCipher,
+            sizeof(ccmPlain), ccmNonce7, sizeof(ccmNonce7),
+            ccmTag, 8, NULL, 0), 0);
+
+        /* Empty plaintext: AAD-only authentication. */
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, NULL, NULL, 0,
+            ccmNonce13, sizeof(ccmNonce13),
+            ccmTag, 16, ccmAad, sizeof(ccmAad)), 0);
+
+        if (initDone) wc_AesFree(&aes);
+    }
+#endif /* !NO_AES && HAVE_AESCCM && !HAVE_SELFTEST && (!FIPS || FIPS>6) */
+
+/* kwKey below is a 192-bit key, so this block requires AES-192. */
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_192) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* ---- AES-KeyWrap with explicit non-default IV ---- */
+    {
+        static const byte kwKey[24] = {
+            0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
+        };
+        static const byte kwPlain[16] = {
+            0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+            0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff
+        };
+        static const byte altIv[8] = {
+            0xa6,0xa6,0xa6,0xa6,0xa6,0xa6,0xa6,0xa6
+        };
+        byte wrapped[sizeof(kwPlain) + KEYWRAP_BLOCK_SIZE];
+        byte unwrapped[sizeof(kwPlain)];
+        int wrapSz;
+
+        wrapSz = wc_AesKeyWrap(kwKey, sizeof(kwKey), kwPlain, sizeof(kwPlain),
+            wrapped, sizeof(wrapped), altIv);
+        ExpectIntEQ(wrapSz, sizeof(wrapped));
+        ExpectIntEQ(wc_AesKeyUnWrap(kwKey, sizeof(kwKey), wrapped,
+            sizeof(wrapped), unwrapped, sizeof(unwrapped), altIv),
+            sizeof(unwrapped));
+        ExpectBufEQ(unwrapped, kwPlain, sizeof(kwPlain));
+
+        /* Default-IV path: NULL iv selects RFC 3394 default. */
+        wrapSz = wc_AesKeyWrap(kwKey, sizeof(kwKey), kwPlain, sizeof(kwPlain),
+            wrapped, sizeof(wrapped), NULL);
+        ExpectIntEQ(wrapSz, sizeof(wrapped));
+        ExpectIntEQ(wc_AesKeyUnWrap(kwKey, sizeof(kwKey), wrapped,
+            sizeof(wrapped), unwrapped, sizeof(unwrapped), NULL),
+            sizeof(unwrapped));
+        ExpectBufEQ(unwrapped, kwPlain, sizeof(kwPlain));
+    }
+#endif /* !NO_AES && HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
+
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure - wc_AesEncryptDirect()/wc_AesDecryptDirect() (aes.c
+ * ~6015) NULL-argument OR-chain, plus the "r > 7 || r == 0" rounds-sanity
+ * decision inside the internal wc_AesEncrypt()/wc_AesDecrypt() that they
+ * wrap (aes.c ~3422, ~4274).  Neither rounds condition's independence is
+ * exercised by the happy-path SetKey/EncryptDirect tests elsewhere in this
+ * file; aes->rounds is a plain, non-opaque struct field (the same technique
+ * is already used for aes->gcmKeySet/aes->nonceSet by
+ * test_wc_AesGcmStream_MidStreamState()), so corrupt it directly to drive
+ * each side of the decision.
+ */
+int test_wc_AesSetKeyArgMcdc(void)
+{
+    EXPECT_DECLS;
+/* wc_AesEncryptDirect/wc_AesDecryptDirect return int (checkable) only in the
+ * modern API; the older FIPS module declares them void. Match the guard used by
+ * test_wc_AesEncryptDecryptDirect_WithKey above. */
+#if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    Aes aes;
+    byte key[AES_128_KEY_SIZE] = { 0 };
+    byte in[WC_AES_BLOCK_SIZE] = { 0 };
+    byte out[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_ENCRYPTION),
+        0);
+
+    /* wc_AesEncryptDirect() NULL-argument OR-chain (cond0 "aes == NULL" is
+     * covered elsewhere; conditions 1 "out == NULL" and 2 "in == NULL" are
+     * the reported gap). */
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, NULL, in),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Baseline: valid rounds (AES-128 -> 10 rounds, r = rounds>>1 = 5). */
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, in), 0);
+
+    /* rounds-check only observable when the software AES runs (see note). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+    /* r > 7 independently drives KEYUSAGE_E. */
+    aes.rounds = 17; /* r = 8 */
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, in),
+        WC_NO_ERR_TRACE(KEYUSAGE_E));
+
+    /* r == 0 independently drives KEYUSAGE_E. */
+    aes.rounds = 0; /* r = 0 */
+    ExpectIntEQ(wc_AesEncryptDirect(&aes, out, in),
+        WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+
+#if defined(HAVE_AES_DECRYPT)
+    ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL, AES_DECRYPTION),
+        0);
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, in), 0);
+
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+    aes.rounds = 17; /* r = 8, r > 7 */
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, in),
+        WC_NO_ERR_TRACE(KEYUSAGE_E));
+
+    aes.rounds = 0; /* r = 0 */
+    ExpectIntEQ(wc_AesDecryptDirect(&aes, out, in),
+        WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+#endif /* HAVE_AES_DECRYPT */
+
+    wc_AesFree(&aes);
+#endif /* !NO_AES && WOLFSSL_AES_DIRECT && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure - the AES-CTR/CFB/OFB software cores each finish with
+ * an "if ((ret == 0) && sz)" decision (aes.c ~7910 wc_AesCtrEncrypt, ~15497
+ * AesCfbEncrypt_C, ~15624 AesCfbDecrypt_C, ~15968 AesOfbCrypt_C) guarding
+ * the leftover/partial-block encrypt step.  The happy-path streaming tests
+ * elsewhere only ever observe ret == 0 there; corrupt aes->rounds (as in
+ * test_wc_AesSetKeyArgMcdc()) so the first full-block AES core call inside
+ * the preceding while loop fails, forcing ret != 0 while sz is still
+ * non-zero (the while loop's "break" does not decrement sz), independently
+ * flipping the decision to false.
+ *
+ * Also covers the wc_AesFeedbackCFB8()/wc_AesFeedbackCFB1() NULL-argument
+ * OR-chains (aes.c ~15716, ~15776) and the "bit >= 0 && bit < 7" decision
+ * inside wc_AesFeedbackCFB1() (aes.c ~15833).  NOTE: "bit" is only ever
+ * incremented down to -1 immediately before being reset to 7 within the
+ * same loop iteration, so it is never negative when this final check is
+ * reached - "bit >= 0" is structurally always true at that point and its
+ * false side is an unreachable defensive check; only "bit < 7" is
+ * independently exercised here.
+ */
+int test_wc_AesModesArgMcdc(void)
+{
+    EXPECT_DECLS;
+/* Uses AES_IV_FIXED_SZ and checkable wc_AesEncryptDirect/wc_AesGcmSetExtIV_ex,
+ * absent/void in the older FIPS module; gate on the modern API. */
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    byte key[AES_128_KEY_SIZE] = { 0 };
+    byte in[64] = { 0 };
+    byte out[64];
+
+    /* Each mode below is independently guarded; without any of CTR/CFB/OFB
+     * enabled these remain unused, so mark them to satisfy -Werror. */
+    (void)key;
+    (void)in;
+    (void)out;
+
+#ifdef WOLFSSL_AES_COUNTER
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL,
+            AES_ENCRYPTION), 0);
+
+        /* sz < block size: no full-block loop iterations, ret stays 0 ->
+         * decision true, leftover is processed. */
+        ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, 5), 0);
+
+        /* Corrupted rounds + a NON-block-multiple size: the full blocks may be
+         * consumed by a batch path that does not surface wc_AesEncrypt()'s
+         * rounds check - the AES-NI batch, or the HAVE_AES_ECB fast path taken
+         * when in != out, which ignores wc_AesEcbEncrypt()'s return. With an
+         * exact block multiple that path leaves no leftover and can return 0.
+         * Leaving a partial trailing block (WC_AES_BLOCK_SIZE + 4) forces the
+         * "(ret == 0) && sz" leftover-handling call, which goes through
+         * wc_AesEncrypt() and fails on the corrupted rounds in every backend. */
+        /* Corrupting aes.rounds only fails the in-process software op. Under
+         * a crypto callback the op is offloaded to (see note at top of file),
+         * callback (even for INVALID_DEVID), which ignores the corrupted struct
+         * and succeeds, so skip this internal-failure check there. */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesCtrEncrypt(&aes, out, in, WC_AES_BLOCK_SIZE + 4),
+            WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+
+        wc_AesFree(&aes);
+    }
+
+    /* "(ret == 0) && sz" cond0 (ret == 0) independence: force the
+     * *first* full-block AES core call inside wc_AesCtrEncrypt()'s
+     * software block loop to fail while sz is still non-zero, so the
+     * decision is observed false (ret != 0) with sz left untouched by
+     * the break.  Two things have to be steered to reach that loop
+     * instead of a path that swallows the failure:
+     *  - in == out skips the HAVE_AES_ECB "batch" branch, which calls
+     *    wc_AesEcbEncrypt() without checking its return code;
+     *  - use_aesni == 0 (when compiled in) skips the AES-NI batch path,
+     *    which encrypts full blocks in asm without going through
+     *    wc_AesEncrypt()'s rounds validity check at all. */
+    {
+        Aes aes;
+        byte buf[2 * WC_AES_BLOCK_SIZE] = { 0 };
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL,
+            AES_ENCRYPTION), 0);
+#ifdef WOLFSSL_AESNI
+        aes.use_aesni = 0;
+#endif
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesCtrEncrypt(&aes, buf, buf, sizeof(buf)),
+            WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)buf; /* only referenced by the offload-guarded check */
+
+        wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AES_COUNTER */
+
+#ifdef WOLFSSL_AES_CFB
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL,
+            AES_ENCRYPTION), 0);
+
+        ExpectIntEQ(wc_AesCfbEncrypt(&aes, out, in, 5), 0);
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesCfbEncrypt(&aes, out, in, 32),
+            WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+
+        wc_AesFree(&aes);
+    }
+#if defined(HAVE_AES_DECRYPT)
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL,
+            AES_ENCRYPTION), 0);
+
+        ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 5), 0);
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesCfbDecrypt(&aes, out, in, 32),
+            WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+
+        wc_AesFree(&aes);
+    }
+#endif /* HAVE_AES_DECRYPT */
+
+#ifndef WOLFSSL_NO_AES_CFB_1_8
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL,
+            AES_ENCRYPTION), 0);
+
+        /* wc_AesCfb8Encrypt()/wc_AesCfb1Encrypt() NULL-argument OR-chains.
+         */
+        ExpectIntEQ(wc_AesCfb8Encrypt(NULL, out, in, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb8Encrypt(&aes, NULL, in, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb8Encrypt(&aes, out, NULL, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb8Encrypt(&aes, out, in, 1), 0);
+
+        ExpectIntEQ(wc_AesCfb1Encrypt(NULL, out, in, 8),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb1Encrypt(&aes, NULL, in, 8),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb1Encrypt(&aes, out, NULL, 8),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* sz a multiple of 8 bits: loop finishes with bit reset to 7 ->
+         * (bit >= 0 && bit < 7) false -> no extra partial-byte write. */
+        ExpectIntEQ(wc_AesCfb1Encrypt(&aes, out, in, 8), 0);
+        /* sz not a multiple of 8 bits: loop finishes with 0 <= bit < 7 ->
+         * decision true -> partial-byte write happens. */
+        ExpectIntEQ(wc_AesCfb1Encrypt(&aes, out, in, 5), 0);
+
+#if defined(HAVE_AES_DECRYPT)
+        ExpectIntEQ(wc_AesCfb8Decrypt(NULL, out, in, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb8Decrypt(&aes, NULL, in, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb8Decrypt(&aes, out, NULL, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        ExpectIntEQ(wc_AesCfb1Decrypt(NULL, out, in, 8),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb1Decrypt(&aes, NULL, in, 8),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCfb1Decrypt(&aes, out, NULL, 8),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif /* HAVE_AES_DECRYPT */
+
+        wc_AesFree(&aes);
+    }
+#endif /* !WOLFSSL_NO_AES_CFB_1_8 */
+#endif /* WOLFSSL_AES_CFB */
+
+#ifdef WOLFSSL_AES_OFB
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL,
+            AES_ENCRYPTION), 0);
+
+        ExpectIntEQ(wc_AesOfbEncrypt(&aes, out, in, 5), 0);
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesOfbEncrypt(&aes, out, in, 32),
+            WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+
+        wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AES_OFB */
+#endif /* !NO_AES && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure for the AES-GCM argument-validation and small
+ * decision-only branches in wolfcrypt/src/aes.c that are not already
+ * independence-covered by test_wc_AesGcmDecisionCoverage() /
+ * test_wc_AesGcmStream_MidStreamState() / test_wc_AesFeatureCoverage().
+ *
+ * Covers (line numbers refer to wolfcrypt/src/aes.c as of this writing):
+ *  - wc_AesGcmEncrypt()          ~10791  (sz/in/out/authTag/authIn chain)
+ *  - wc_AesGcmInit()             ~13386  (ivSz/iv correlation terms)
+ *  - wc_AesGcmEncryptInit_ex()   ~13494  (aes/ivOut/ivOutSz OR-chain)
+ *  - wc_AesGcmEncryptUpdate()    ~13514,13533,13540 (sz term, overflow AND,
+ *                                 ctrSet/aSz/cSz AND)
+ *  - wc_AesGcmDecryptUpdate()    ~13670,13689 (sz term, overflow AND)
+ *  - wc_AesGcmDecryptFinal()     ~13752  (nonceSet AND)
+ *  - CheckAesGcmIvSize()/wc_AesGcmSetIV() ~13798,13836
+ *  - wc_AesGcmEncrypt_ex()       ~13875  (full OR-chain)
+ *
+ * NOTE: The internal GHASH()/GHASH_UPDATE() helpers also have "aSz != 0 &&
+ * a != NULL" / "cSz != 0 && c != NULL" decisions flagged in the MC/DC gap
+ * report (aes.c ~9413, ~9442, ~10130, ~10168, ~10180).  Every public
+ * wc_AesGcm*() caller of these helpers already rejects "size != 0 with a
+ * NULL pointer" as BAD_FUNC_ARG before the helper is ever invoked (see the
+ * "sz != 0 && (in == NULL || out == NULL)" / "authInSz > 0 && authIn ==
+ * NULL" checks exercised throughout this function), so "size != 0" can
+ * never reach GHASH()/GHASH_UPDATE() together with a NULL pointer - the
+ * "pointer == NULL" half of those AND terms is an unreachable defensive
+ * check and is intentionally not targeted here.
+ *
+ * NOTE: wc_AesGcmInit()'s "(ivSz == 0 && iv != NULL) || (ivSz > 0 && iv ==
+ * NULL)" pair (aes.c ~13386-13388) and wc_AesGcmSetIV()'s "(ivFixed == NULL
+ * && ivFixedSz != 0) || (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ)"
+ * pair (aes.c ~13836-13838) each contain two conditions that are exact
+ * logical complements of one another on the same underlying value (ivSz ==
+ * 0 vs. ivSz > 0; ivFixed == NULL vs. ivFixed != NULL).  The first
+ * condition of each pair (ivSz == 0 / ivFixed == NULL) is unconditionally
+ * evaluated as soon as its clause is reached - it cannot be skipped - so it
+ * is always evaluated together with, and always holds the opposite value
+ * of, the second pair's leading condition (ivSz > 0 / ivFixed != NULL)
+ * whenever the second clause is reached.  Masking MC/DC for the *second*
+ * condition of each pair (ivSz > 0 / ivFixed != NULL - the reported gaps)
+ * would require holding the first pair's leading condition constant while
+ * this one flips, which is mathematically impossible given they are
+ * complements of the same variable; masking MC/DC for the *first*
+ * condition of each pair is achievable instead (and is already exercised
+ * below), because it can be masked via the independent iv/ivFixed pointer
+ * condition instead of via the ivSz/ivFixedSz-derived one.  This is a
+ * structural defensive-check gap, not something a test can select.
+ */
+int test_wc_AesGcmArgMcdc(void)
+{
+    EXPECT_DECLS;
+/* Uses AES_IV_FIXED_SZ, GCM_NONCE_MIN/MID/MAX_SZ (undeclared in the older FIPS
+ * module); gate on the modern API. */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    byte key[AES_128_KEY_SIZE] = { 0 };
+    byte iv[GCM_NONCE_MID_SZ] = { 1 };
+    byte authTag[WC_AES_BLOCK_SIZE];
+    byte plain[8] = { 0 };
+    byte cipher[8];
+    byte aad[5] = { 0xaa, 0xbb, 0xcc, 0xdd, 0xee };
+
+    /* ---- wc_AesGcmEncrypt(): sz/in/out/authTag/authIn chain ---- */
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+
+        /* baseline: sz == 0 -> in/out are don't-cares -> success. */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, NULL, NULL, 0, iv, sizeof(iv),
+            authTag, sizeof(authTag), NULL, 0), 0);
+
+        /* cond: sz != 0 && in == NULL (out fixed non-NULL). */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, NULL, sizeof(plain),
+            iv, sizeof(iv), authTag, sizeof(authTag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* sz == 0 with the same in == NULL / out != NULL pattern -> false.
+         */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, NULL, 0, iv, sizeof(iv),
+            authTag, sizeof(authTag), NULL, 0), 0);
+
+        /* Real encrypt: in/out both valid -> inner OR false. */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, plain, sizeof(plain),
+            iv, sizeof(iv), authTag, sizeof(authTag), NULL, 0), 0);
+        /* cond: sz != 0 && out == NULL (in fixed non-NULL). */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, NULL, plain, sizeof(plain),
+            iv, sizeof(iv), authTag, sizeof(authTag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* cond: authTag == NULL. */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, NULL, NULL, 0, iv, sizeof(iv),
+            NULL, sizeof(authTag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* cond: authInSz > 0 && authIn == NULL. */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, NULL, NULL, 0, iv, sizeof(iv),
+            authTag, sizeof(authTag), NULL, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* Real AAD: authIn != NULL, authInSz > 0 -> false. */
+        ExpectIntEQ(wc_AesGcmEncrypt(&aes, NULL, NULL, 0, iv, sizeof(iv),
+            authTag, sizeof(authTag), aad, sizeof(aad)), 0);
+
+        wc_AesFree(&aes);
+    }
+
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* ---- wc_AesGcmInit(): ivSz/iv correlation terms ---- */
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+
+        /* ivSz == 0, iv == NULL -> both correlation terms false (key only,
+         * no IV yet - valid). */
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), NULL, 0), 0);
+        /* ivSz == 0, iv != NULL -> "ivSz==0 && iv!=NULL" true. */
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* ivSz != 0, iv == NULL -> "ivSz>0 && iv==NULL" true. */
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), NULL,
+            sizeof(iv)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* ivSz != 0, iv != NULL -> both correlation terms false (valid). */
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)),
+            0);
+
+        wc_AesFree(&aes);
+    }
+
+    /* ---- wc_AesGcmEncryptInit_ex(): aes/ivOut/ivOutSz OR-chain ---- */
+    {
+        Aes aes;
+        byte ivOut[GCM_NONCE_MID_SZ];
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)),
+            0);
+
+        /* baseline: ivOutSz == aes->nonceSz -> success. */
+        ExpectIntEQ(wc_AesGcmEncryptInit_ex(&aes, NULL, 0, ivOut,
+            sizeof(ivOut)), 0);
+        /* cond: aes == NULL */
+        ExpectIntEQ(wc_AesGcmEncryptInit_ex(NULL, NULL, 0, ivOut,
+            sizeof(ivOut)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: ivOut == NULL */
+        ExpectIntEQ(wc_AesGcmEncryptInit_ex(&aes, NULL, 0, NULL,
+            sizeof(ivOut)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: ivOutSz != aes->nonceSz */
+        ExpectIntEQ(wc_AesGcmEncryptInit_ex(&aes, NULL, 0, ivOut,
+            sizeof(ivOut) - 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        wc_AesFree(&aes);
+    }
+
+    /* ---- wc_AesGcmEncryptUpdate(): sz term, overflow AND, ctrSet/aSz/cSz
+     * AND ---- */
+    {
+        Aes aes;
+        byte data[8] = { 0 };
+        byte encOut[8];
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)),
+            0);
+
+        /* cond: sz > 0 && (out == NULL || in == NULL); baseline sz == 0. */
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
+            0);
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, sizeof(data),
+            NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Overflow AND: (ret==0) && (cSz>MAX-sz || aSz>MAX-authInSz).
+         * cond ret == 0 independence: force ret != 0 (MISSING_KEY) first
+         * with cSz already corrupted, then repeat with the key restored so
+         * ret == 0 reaches the check with the same corrupted cSz. */
+        aes.cSz = WOLFSSL_MAX_32BIT;
+        aes.gcmKeySet = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), WC_NO_ERR_TRACE(MISSING_KEY));
+        aes.gcmKeySet = 1;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
+        /* cond cSz > MAX - sz independence: restore cSz/aSz -> false. */
+        aes.cSz = 0;
+        aes.aSz = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            NULL, 0), 0);
+        /* cond aSz > MAX - authInSz independence. */
+        aes.aSz = WOLFSSL_MAX_32BIT;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, encOut, data, sizeof(data),
+            aad, sizeof(aad)), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
+
+        /* ctrSet && aSz==0 && cSz==0 (invocation-counter bump). This has
+         * no externally-visible effect on the return code, so assert on
+         * aes.invokeCtr directly (same white-box technique as above). */
+        aes.aSz = 0;
+        aes.cSz = 0;
+        aes.ctrSet = 1;
+        aes.invokeCtr[0] = 0;
+        aes.invokeCtr[1] = 0;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
+            0);
+        ExpectIntEQ(aes.invokeCtr[0], 1);
+        /* cond aSz == 0 independence: non-zero aSz -> no bump. */
+        aes.aSz = 4;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
+            0);
+        ExpectIntEQ(aes.invokeCtr[0], 1);
+        /* cond cSz == 0 independence: non-zero cSz -> no bump. */
+        aes.aSz = 0;
+        aes.cSz = 4;
+        ExpectIntEQ(wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
+            0);
+        ExpectIntEQ(aes.invokeCtr[0], 1);
+
+        wc_AesFree(&aes);
+    }
+
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+    /* ---- wc_AesGcmDecryptUpdate(): sz term, overflow AND ---- */
+    {
+        Aes aes;
+        byte data[8] = { 0 };
+        byte decOut[8];
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)),
+            0);
+
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, NULL, 0),
+            0);
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, sizeof(data),
+            NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        aes.cSz = WOLFSSL_MAX_32BIT;
+        aes.gcmKeySet = 0;
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, decOut, data, sizeof(data),
+            NULL, 0), WC_NO_ERR_TRACE(MISSING_KEY));
+        aes.gcmKeySet = 1;
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, decOut, data, sizeof(data),
+            NULL, 0), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
+        aes.cSz = 0;
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, decOut, data, sizeof(data),
+            NULL, 0), 0);
+        aes.aSz = WOLFSSL_MAX_32BIT;
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, decOut, data, sizeof(data),
+            aad, sizeof(aad)), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
+
+        wc_AesFree(&aes);
+    }
+
+    /* ---- wc_AesGcmDecryptFinal(): nonceSet AND ---- */
+    {
+        Aes aes;
+        byte tag[WC_AES_BLOCK_SIZE];
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmInit(&aes, key, sizeof(key), iv, sizeof(iv)),
+            0);
+
+        /* cond ret == 0 independence: force MISSING_KEY first (ret != 0
+         * before the nonceSet check is reached) with nonceSet corrupted
+         * the same way in both rows. */
+        aes.nonceSet = 0;
+        aes.gcmKeySet = 0;
+        ExpectIntEQ(wc_AesGcmDecryptFinal(&aes, tag, sizeof(tag)),
+            WC_NO_ERR_TRACE(MISSING_KEY));
+        aes.gcmKeySet = 1;
+        ExpectIntEQ(wc_AesGcmDecryptFinal(&aes, tag, sizeof(tag)),
+            WC_NO_ERR_TRACE(MISSING_IV));
+
+        /* cond !nonceSet independence: a freshly (re-)initialized decrypt
+         * stream has nonceSet == 1, so the decision is false and execution
+         * reaches the real tag comparison instead of MISSING_IV. */
+        ExpectIntEQ(wc_AesGcmDecryptInit(&aes, key, sizeof(key), iv,
+            sizeof(iv)), 0);
+        ExpectIntNE(wc_AesGcmDecryptFinal(&aes, tag, sizeof(tag)),
+            WC_NO_ERR_TRACE(MISSING_IV));
+
+        wc_AesFree(&aes);
+    }
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* WOLFSSL_AESGCM_STREAM */
+
+#ifndef WC_NO_RNG
+    /* ---- CheckAesGcmIvSize()/wc_AesGcmSetIV(): OR-chain ---- */
+    {
+        Aes aes;
+        WC_RNG rng;
+        byte fixedIv[AES_IV_FIXED_SZ] = { 0x11, 0x22, 0x33, 0x44 };
+        byte longIv[AES_IV_FIXED_SZ + 1] = { 0 };
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+
+        /* CheckAesGcmIvSize(): baseline invalid size (all 3 conditions
+         * false), then GCM_NONCE_MIN_SZ / MID_SZ / MAX_SZ independently
+         * (MIN_SZ and MAX_SZ are the reported gap; MID_SZ included for a
+         * self-contained demonstration). */
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, 10, NULL, 0, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, NULL, 0, &rng),
+            0);
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, &rng),
+            0);
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, NULL, 0, &rng),
+            0);
+
+        /* wc_AesGcmSetIV(): aes/rng == NULL OR-terms. */
+        ExpectIntEQ(wc_AesGcmSetIV(NULL, GCM_NONCE_MID_SZ, NULL, 0, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* (ivFixed == NULL && ivFixedSz != 0) AND term. */
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL,
+            AES_IV_FIXED_SZ, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ) AND term:
+         * cond ivFixed != NULL independence (ivFixedSz == 0 fixed, same as
+         * the NULL/0 rows above). */
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, fixedIv, 0,
+            &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* Normal fixed-IV usage: both AND terms false -> success. */
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, fixedIv,
+            AES_IV_FIXED_SZ, &rng), 0);
+        /* cond ivFixedSz != AES_IV_FIXED_SZ independence (ivFixed != NULL
+         * fixed, same as the row above). */
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, longIv,
+            sizeof(longIv), &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        wc_FreeRng(&rng);
+        wc_AesFree(&aes);
+    }
+
+    /* ---- wc_AesGcmEncrypt_ex(): full OR-chain ---- */
+    {
+        Aes aes;
+        WC_RNG rng;
+        byte fixedIv[AES_IV_FIXED_SZ] = { 0x55, 0x66, 0x77, 0x88 };
+        byte ivOut[GCM_NONCE_MID_SZ];
+        byte tag[WC_AES_BLOCK_SIZE];
+        byte data[8] = { 0 };
+        byte encOut[8];
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, fixedIv,
+            AES_IV_FIXED_SZ, &rng), 0);
+
+        /* baseline: sz == 0, ivOutSz == nonceSz, authIn == NULL/authInSz
+         * == 0 -> all OR terms false -> success. */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, ivOut,
+            sizeof(ivOut), tag, sizeof(tag), NULL, 0), 0);
+        /* cond: aes == NULL */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(NULL, NULL, NULL, 0, ivOut,
+            sizeof(ivOut), tag, sizeof(tag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: sz != 0 && in == NULL (out fixed non-NULL). */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, encOut, NULL, sizeof(data),
+            ivOut, sizeof(ivOut), tag, sizeof(tag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* sz == 0 with the same pattern -> false. */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, encOut, NULL, 0, ivOut,
+            sizeof(ivOut), tag, sizeof(tag), NULL, 0), 0);
+        /* Real encrypt: in/out both valid -> inner OR false. */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, encOut, data, sizeof(data),
+            ivOut, sizeof(ivOut), tag, sizeof(tag), NULL, 0), 0);
+        /* cond: sz != 0 && out == NULL (in fixed non-NULL). */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, data, sizeof(data),
+            ivOut, sizeof(ivOut), tag, sizeof(tag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: ivOut == NULL */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, NULL,
+            sizeof(ivOut), tag, sizeof(tag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: ivOutSz != aes->nonceSz */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, ivOut,
+            sizeof(ivOut) - 1, tag, sizeof(tag), NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: authIn == NULL && authInSz != 0. */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, ivOut,
+            sizeof(ivOut), tag, sizeof(tag), NULL, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: authIn != NULL (authInSz fixed non-zero) -> false, real
+         * AAD. */
+        ExpectIntEQ(wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, ivOut,
+            sizeof(ivOut), tag, sizeof(tag), aad, sizeof(aad)), 0);
+
+        wc_FreeRng(&rng);
+        wc_AesFree(&aes);
+    }
+#endif /* !WC_NO_RNG */
+#endif /* !NO_AES && HAVE_AESGCM && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure for wc_Gmac()/wc_GmacVerify()/wc_GmacSetKey() argument
+ * validation (aes.c ~13911, ~13950, ~13992).
+ */
+int test_wc_AesGmacArgMcdc(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
+/* wc_Gmac()/wc_GmacVerify() need an RNG and are absent from the self-test
+ * module (present under FIPS); wc_GmacSetKey() below stays available. */
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
+    {
+        WC_RNG rng;
+        byte key[AES_128_KEY_SIZE] = { 0 };
+        byte iv[GCM_NONCE_MID_SZ];
+        byte aad[5] = { 1, 2, 3, 4, 5 };
+        byte authTag[WC_AES_BLOCK_SIZE];
+
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+
+        /* ---- wc_Gmac(): full OR-chain ---- */
+        /* baseline: authIn == NULL, authInSz == 0 -> success. */
+        ExpectIntEQ(wc_Gmac(key, sizeof(key), iv, sizeof(iv), NULL, 0,
+            authTag, sizeof(authTag), &rng), 0);
+        /* cond: key == NULL */
+        ExpectIntEQ(wc_Gmac(NULL, sizeof(key), iv, sizeof(iv), NULL, 0,
+            authTag, sizeof(authTag), &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: iv == NULL */
+        ExpectIntEQ(wc_Gmac(key, sizeof(key), NULL, sizeof(iv), NULL, 0,
+            authTag, sizeof(authTag), &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: authIn == NULL && authInSz != 0 */
+        ExpectIntEQ(wc_Gmac(key, sizeof(key), iv, sizeof(iv), NULL,
+            sizeof(aad), authTag, sizeof(authTag), &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: authIn != NULL (authInSz fixed non-zero) -> false. */
+        ExpectIntEQ(wc_Gmac(key, sizeof(key), iv, sizeof(iv), aad,
+            sizeof(aad), authTag, sizeof(authTag), &rng), 0);
+        /* cond: authTag == NULL */
+        ExpectIntEQ(wc_Gmac(key, sizeof(key), iv, sizeof(iv), NULL, 0,
+            NULL, sizeof(authTag), &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: authTagSz == 0 */
+        ExpectIntEQ(wc_Gmac(key, sizeof(key), iv, sizeof(iv), NULL, 0,
+            authTag, 0, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond: rng == NULL */
+        ExpectIntEQ(wc_Gmac(key, sizeof(key), iv, sizeof(iv), NULL, 0,
+            authTag, sizeof(authTag), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef HAVE_AES_DECRYPT
+        /* ---- wc_GmacVerify(): full OR-chain ---- */
+        {
+            byte goodTag[WC_AES_BLOCK_SIZE];
+            ExpectIntEQ(wc_Gmac(key, sizeof(key), iv, sizeof(iv), NULL, 0,
+                goodTag, sizeof(goodTag), &rng), 0);
+
+            ExpectIntEQ(wc_GmacVerify(key, sizeof(key), iv, sizeof(iv),
+                NULL, 0, goodTag, sizeof(goodTag)), 0);
+            ExpectIntEQ(wc_GmacVerify(NULL, sizeof(key), iv, sizeof(iv),
+                NULL, 0, goodTag, sizeof(goodTag)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_GmacVerify(key, sizeof(key), NULL, sizeof(iv),
+                NULL, 0, goodTag, sizeof(goodTag)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_GmacVerify(key, sizeof(key), iv, sizeof(iv),
+                NULL, sizeof(aad), goodTag, sizeof(goodTag)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* authIn != NULL (mismatches goodTag's AAD-less digest, so
+             * AES_GCM_AUTH_E rather than 0, but reaches past arg
+             * validation which is all this branch measures). */
+            ExpectIntNE(wc_GmacVerify(key, sizeof(key), iv, sizeof(iv),
+                aad, sizeof(aad), goodTag, sizeof(goodTag)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_GmacVerify(key, sizeof(key), iv, sizeof(iv),
+                NULL, 0, NULL, sizeof(goodTag)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_GmacVerify(key, sizeof(key), iv, sizeof(iv),
+                NULL, 0, goodTag, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_GmacVerify(key, sizeof(key), iv, sizeof(iv),
+                NULL, 0, goodTag, WC_AES_BLOCK_SIZE + 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+#endif /* HAVE_AES_DECRYPT */
+
+        wc_FreeRng(&rng);
+    }
+#endif /* !WC_NO_RNG */
+
+    /* ---- wc_GmacSetKey(): gmac/key == NULL OR-chain ---- */
+    {
+        Gmac gmac;
+        byte key[AES_128_KEY_SIZE] = { 0 };
+
+        XMEMSET(&gmac, 0, sizeof(gmac));
+        ExpectIntEQ(wc_AesInit(&gmac.aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_GmacSetKey(&gmac, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_GmacSetKey(NULL, key, sizeof(key)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_GmacSetKey(&gmac, NULL, sizeof(key)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_AesFree(&gmac.aes);
+    }
+#endif /* !NO_AES && HAVE_AESGCM && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure for AES-CCM argument validation in wolfcrypt/src/aes.c:
+ *  - wc_AesCcmCheckTagSize()  ~14033 (7-way AND-of-inequalities chain)
+ *  - wc_AesCcmEncrypt()       ~14346 (authTagSz), ~14353 (authIn),
+ *                              ~14366 (nonce/length overflow), ~14412,
+ *                              ~14415, ~14464, ~14467 ("ret == 0"
+ *                              independence via a corrupted aes->rounds)
+ *  - wc_AesCcmDecrypt()       ~14510, ~14517, ~14530 (mirror of the
+ *                              above), ~14599, ~14602, ~14630 ("ret == 0"
+ *                              independence, mirror of the encrypt-side)
+ *  - wc_AesCcmSetNonce()      ~14683 (aes/nonce/nonceSz OR-chain)
+ *  - wc_AesCcmEncrypt_ex()    ~14709 (full OR-chain)
+ *
+ * NOTE: roll_auth()'s own "(ret == 0) && (inSz > 0)" decision (~14268) is
+ * NOT targeted here. Unlike the wc_AesCcmEncrypt()/wc_AesCcmDecrypt()
+ * checkpoints above - each of which only needs the *first* internal AES
+ * core call of the whole operation to fail - "ret == 0" being false at
+ * ~14268 requires roll_auth()'s *own* internal AesEncrypt_preFetchOpt()
+ * call to fail while the earlier wc_AesEncrypt(aes, B, A) call that must
+ * gate entry into roll_auth() (~14412/~14628) already succeeded, on the
+ * very same Aes object within a single library call. aes->rounds is a
+ * single value fixed for the whole call, so it cannot be valid for one
+ * internal call and invalid for a later one; there is no public argument
+ * that selectively fails only roll_auth()'s internal AES op. This is a
+ * structural gap, not something a test can select.
+ */
+int test_wc_AesCcmArgMcdc(void)
+{
+    EXPECT_DECLS;
+/* This probes pure-C aes.c CCM internals: the inSz overflow check (via a 1-byte
+ * buffer with a 65536 length, safe only because the pure-C path rejects before
+ * writing) and the rounds=0 corruption. Under the FIPS/self-test module those
+ * guards are absent, so the oversized encrypt writes past the buffer and
+ * segfaults. The decisions being covered are not compiled in FIPS builds
+ * anyway, so skip the whole test there. */
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    byte key[AES_128_KEY_SIZE] = { 0 };
+    byte nonce13[13] = {
+        0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0xa0,
+        0xa1, 0xa2, 0xa3, 0xa4, 0xa5
+    };
+    byte nonce7[7] = { 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 };
+    byte aad[5] = { 1, 2, 3, 4, 5 };
+    byte plain[8] = { 0 };
+    byte cipher[8];
+    byte tag[16];
+
+    /* ---- wc_AesCcmCheckTagSize(): 7-way AND-of-inequalities chain ----
+     * wc_AesCcmCheckTagSize is WOLFSSL_LOCAL (hidden visibility); it only links
+     * into the test binary when the library is built with test-static
+     * visibility. Guard so normal (shared) builds don't fail at link time. */
+#ifdef WOLFSSL_TEST_STATIC_BUILD
+    ExpectIntEQ(wc_AesCcmCheckTagSize(5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCcmCheckTagSize(4), 0);
+    ExpectIntEQ(wc_AesCcmCheckTagSize(6), 0);
+    ExpectIntEQ(wc_AesCcmCheckTagSize(8), 0);
+    ExpectIntEQ(wc_AesCcmCheckTagSize(10), 0);
+    ExpectIntEQ(wc_AesCcmCheckTagSize(12), 0);
+    ExpectIntEQ(wc_AesCcmCheckTagSize(14), 0);
+    ExpectIntEQ(wc_AesCcmCheckTagSize(16), 0);
+#endif /* WOLFSSL_TEST_STATIC_BUILD */
+
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+
+        /* ---- wc_AesCcmEncrypt(): authTagSz > WC_AES_BLOCK_SIZE cond. */
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+            nonce13, sizeof(nonce13), tag, sizeof(tag), aad, sizeof(aad)),
+            0);
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+            nonce13, sizeof(nonce13), tag, WC_AES_BLOCK_SIZE + 1, aad,
+            sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* ---- authIn == NULL && authInSz > 0. ---- */
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+            nonce13, sizeof(nonce13), tag, sizeof(tag), NULL,
+            sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+            nonce13, sizeof(nonce13), tag, sizeof(tag), NULL, 0), 0);
+
+        /* ---- lenSz < sizeof(inSz) && inSz >= 1<<(lenSz*8). With a
+         * 13-byte nonce, lenSz == 2 and the overflow threshold is 1<<16
+         * (65536).  This check runs before any buffer is touched, so a
+         * 1-byte dummy in/out buffer is safe even though inSz claims to be
+         * much larger. ---- */
+        {
+            byte dummy[1] = { 0 };
+            /* cond lenSz < sizeof(inSz) independence: a 7-byte nonce gives
+             * lenSz == 8, so the term is false regardless of inSz. */
+            ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+                nonce7, sizeof(nonce7), tag, sizeof(tag), NULL, 0), 0);
+            /* cond inSz >= 1<<(lenSz*8) independence: same 13-byte nonce,
+             * inSz below vs at the 65536 threshold. */
+            ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+                nonce13, sizeof(nonce13), tag, sizeof(tag), NULL, 0), 0);
+            ExpectIntEQ(wc_AesCcmEncrypt(&aes, dummy, dummy, 65536,
+                nonce13, sizeof(nonce13), tag, sizeof(tag), NULL, 0),
+                WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E));
+        }
+
+        /* ---- roll_auth(): "(ret == 0) && (inSz > 0)" cond1 (inSz > 0)
+         * independence. roll_auth() encodes the authInSz length into the
+         * first 2 (or 6) bytes of the first block, leaving
+         * "remainder = WC_AES_BLOCK_SIZE - authLenSz" bytes of that block
+         * for AAD.  With a 13-byte nonce authLenSz == 2, so remainder ==
+         * 14: authInSz <= 14 (the 5-byte aad[] above) is fully absorbed by
+         * the first block -> inSz == 0 -> false (already exercised).
+         * authInSz > 14 leaves bulk AAD for roll_x() -> inSz > 0 -> true.
+         */
+        {
+            byte aadBig[20] = { 0 };
+            ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+                nonce13, sizeof(nonce13), tag, sizeof(tag), aadBig,
+                sizeof(aadBig)), 0);
+        }
+
+        wc_AesFree(&aes);
+    }
+
+    /* ---- wc_AesCcmEncrypt(): "ret == 0" independence for the four
+     * checkpoints that follow the B0 MAC-seed block (aes.c ~14412,
+     * ~14415, ~14464, ~14467) - "(ret == 0) && (authInSz > 0))",
+     * "(ret == 0) && (inSz > 0)" (twice more, guarding the final partial
+     * block).  Corrupting aes->rounds (as in test_wc_AesSetKeyArgMcdc())
+     * makes the very first internal AES core call
+     * (wc_AesEncrypt(aes, B, A)) fail with KEYUSAGE_E; nothing resets
+     * "ret" afterwards, so all four checkpoints independently observe
+     * "ret == 0" as false (authInSz > 0 and inSz > 0 both true here, but
+     * masked/don't-care once "ret == 0" is false) - paired against the
+     * successful encrypts above, where "ret == 0" is true at each
+     * checkpoint. ---- */
+    {
+        Aes aes;
+        byte bigIn[32] = { 0 };
+        byte bigOut[32];
+        byte bigTag[WC_AES_BLOCK_SIZE];
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, bigOut, bigIn, sizeof(bigIn),
+            nonce13, sizeof(nonce13), bigTag, sizeof(bigTag), aad,
+            sizeof(aad)), WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)bigIn; (void)bigOut; (void)bigTag; /* CB_FIND-guarded above */
+        wc_AesFree(&aes);
+    }
+
+#ifdef HAVE_AES_DECRYPT
+    {
+        Aes aes;
+        byte recovered[8];
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_AesCcmEncrypt(&aes, cipher, plain, sizeof(plain),
+            nonce13, sizeof(nonce13), tag, sizeof(tag), aad, sizeof(aad)),
+            0);
+
+        /* ---- wc_AesCcmDecrypt(): mirror of the wc_AesCcmEncrypt() checks
+         * above. ---- */
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, recovered, cipher,
+            sizeof(cipher), nonce13, sizeof(nonce13), tag, sizeof(tag),
+            aad, sizeof(aad)), 0);
+        ExpectBufEQ(recovered, plain, sizeof(plain));
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, recovered, cipher,
+            sizeof(cipher), nonce13, sizeof(nonce13), tag,
+            WC_AES_BLOCK_SIZE + 1, aad, sizeof(aad)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, recovered, cipher,
+            sizeof(cipher), nonce13, sizeof(nonce13), tag, sizeof(tag),
+            NULL, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        {
+            byte dummy[1] = { 0 };
+            ExpectIntEQ(wc_AesCcmDecrypt(&aes, dummy, dummy, 65536,
+                nonce13, sizeof(nonce13), tag, sizeof(tag), NULL, 0),
+                WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E));
+        }
+
+        wc_AesFree(&aes);
+    }
+
+    /* ---- wc_AesCcmDecrypt(): "ret == 0" independence for the mirror of
+     * the encrypt-side checkpoints above (aes.c ~14599, ~14602, ~14630) -
+     * "(ret == 0) && (inSz > 0)" three times, guarding the final partial
+     * block, the auth-tag setup, and the AAD roll-in.  inSz == 32 (two
+     * full blocks, below the AES-NI 4-block batch threshold used by the
+     * "aes->use_aesni" fast path at the top of wc_AesCcmDecrypt(), which
+     * bypasses wc_AesEncrypt()'s rounds check entirely) drives the
+     * per-block software loop instead, whose first
+     * AesEncrypt_preFetchOpt() call fails via the corrupted rounds -
+     * "ret" stays non-zero through all three checkpoints (paired against
+     * the successful decrypt above, where "ret == 0" is true at each
+     * checkpoint). use_aesni is also forced off defensively. ---- */
+    {
+        Aes aes;
+        byte bigIn[32] = { 0 };
+        byte bigOut[32];
+        byte bigTag[WC_AES_BLOCK_SIZE] = { 0 };
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+#ifdef WOLFSSL_AESNI
+        aes.use_aesni = 0;
+#endif
+        /* Offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note above). */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        aes.rounds = 0;
+        ExpectIntEQ(wc_AesCcmDecrypt(&aes, bigOut, bigIn, sizeof(bigIn),
+            nonce13, sizeof(nonce13), bigTag, sizeof(bigTag), aad,
+            sizeof(aad)), WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)bigIn; (void)bigOut; (void)bigTag; /* CB_FIND-guarded above */
+        wc_AesFree(&aes);
+    }
+#endif /* HAVE_AES_DECRYPT */
+
+    /* ---- wc_AesCcmSetNonce(): aes/nonce/nonceSz OR-chain ---- */
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+
+        ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce13, sizeof(nonce13)), 0);
+        ExpectIntEQ(wc_AesCcmSetNonce(NULL, nonce13, sizeof(nonce13)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCcmSetNonce(&aes, NULL, sizeof(nonce13)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce13, CCM_NONCE_MIN_SZ - 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce13, CCM_NONCE_MAX_SZ + 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* ---- wc_AesCcmEncrypt_ex(): full OR-chain ---- */
+        {
+            byte ivOut[13];
+            byte data[8] = { 0 };
+            byte encOut[8];
+
+            ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce13, sizeof(nonce13)),
+                0);
+
+            /* baseline: sz == 0, ivOutSz == nonceSz, authIn == NULL /
+             * authInSz == 0 -> success. */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, NULL, 0, ivOut,
+                sizeof(ivOut), tag, sizeof(tag), NULL, 0), 0);
+            /* cond: aes == NULL */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(NULL, cipher, NULL, 0, ivOut,
+                sizeof(ivOut), tag, sizeof(tag), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* cond: out == NULL */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, NULL, NULL, 0, ivOut,
+                sizeof(ivOut), tag, sizeof(tag), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* cond: in == NULL && sz != 0 */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, encOut, NULL,
+                sizeof(data), ivOut, sizeof(ivOut), tag, sizeof(tag), NULL,
+                0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* Real encrypt: in != NULL, sz != 0 -> AND term false. */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, encOut, data,
+                sizeof(data), ivOut, sizeof(ivOut), tag, sizeof(tag), NULL,
+                0), 0);
+            /* cond: ivOut == NULL */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, NULL, 0, NULL,
+                sizeof(ivOut), tag, sizeof(tag), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* cond: authIn == NULL && authInSz != 0 */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, NULL, 0, ivOut,
+                sizeof(ivOut), tag, sizeof(tag), NULL, sizeof(aad)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* cond: authIn != NULL (authInSz fixed non-zero) -> false. */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, NULL, 0, ivOut,
+                sizeof(ivOut), tag, sizeof(tag), aad, sizeof(aad)), 0);
+            /* cond: ivOutSz != aes->nonceSz */
+            ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, NULL, 0, ivOut,
+                sizeof(ivOut) - 1, tag, sizeof(tag), NULL, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+
+        wc_AesFree(&aes);
+    }
+#endif /* !NO_AES && HAVE_AESCCM && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure for:
+ *  - wc_AesXtsSetKeyNoInit(): aes/key == NULL OR-chain (aes.c ~16330)
+ *  - wc_AesXtsEncryptConsecutiveSectors()/
+ *    wc_AesXtsDecryptConsecutiveSectors(): "remainder && ret == 0"
+ *    (aes.c ~17807, ~17858)
+ */
+int test_wc_AesXtsArgMcdc(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_XTS) && defined(WOLFSSL_AES_128)
+    byte key32[AES_128_KEY_SIZE * 2] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+    };
+
+    /* ---- wc_AesXtsSetKeyNoInit(): aes/key == NULL OR-chain ---- */
+    {
+        XtsAes xaes;
+
+        ExpectIntEQ(wc_AesXtsInit(&xaes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesXtsSetKeyNoInit(&xaes, key32, sizeof(key32),
+            AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesXtsSetKeyNoInit(NULL, key32, sizeof(key32),
+            AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesXtsSetKeyNoInit(&xaes, NULL, sizeof(key32),
+            AES_ENCRYPTION), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        wc_AesXtsFree(&xaes);
+    }
+
+    /* ---- wc_AesXtsEncryptConsecutiveSectors(): "remainder && ret == 0"
+     * ---- */
+    {
+        XtsAes xaes;
+        byte buf[64];
+        byte out[64];
+
+        XMEMSET(buf, 0, sizeof(buf));
+        ExpectIntEQ(wc_AesXtsSetKey(&xaes, key32, sizeof(key32),
+            AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
+
+        /* cond ret == 0 independence: a sector size smaller than
+         * WC_AES_BLOCK_SIZE makes the very first whole-sector encrypt fail
+         * immediately (ret != 0), while sz % sectorSz still leaves a
+         * non-zero remainder -> decision false, remainder is skipped. */
+        ExpectIntEQ(wc_AesXtsEncryptConsecutiveSectors(&xaes, out, buf, 21,
+            0, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* cond remainder != 0 independence: remainder == 0 by construction
+         * (sz is an exact multiple of sectorSz) -> decision false via the
+         * other operand, remainder step skipped, success either way. */
+        ExpectIntEQ(wc_AesXtsEncryptConsecutiveSectors(&xaes, out, buf, 32,
+            0, 32), 0);
+        /* remainder != 0, ret == 0 (whole sector succeeds) -> the trailing
+         * partial sector is also encrypted -> success. */
+        ExpectIntEQ(wc_AesXtsEncryptConsecutiveSectors(&xaes, out, buf, 48,
+            0, 32), 0);
+
+        wc_AesXtsFree(&xaes);
+    }
+#ifdef HAVE_AES_DECRYPT
+    {
+        XtsAes xaes;
+        byte buf[64];
+        byte out[64];
+
+        XMEMSET(buf, 0, sizeof(buf));
+        ExpectIntEQ(wc_AesXtsSetKey(&xaes, key32, sizeof(key32),
+            AES_DECRYPTION, NULL, INVALID_DEVID), 0);
+
+        ExpectIntEQ(wc_AesXtsDecryptConsecutiveSectors(&xaes, out, buf, 21,
+            0, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesXtsDecryptConsecutiveSectors(&xaes, out, buf, 32,
+            0, 32), 0);
+        ExpectIntEQ(wc_AesXtsDecryptConsecutiveSectors(&xaes, out, buf, 48,
+            0, 32), 0);
+
+        wc_AesXtsFree(&xaes);
+    }
+#endif /* HAVE_AES_DECRYPT */
+#endif /* !NO_AES && WOLFSSL_AES_XTS && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure for wc_local_CmacUpdateAes() (aes.c ~17878, ~17886),
+ * reached from the public wc_CmacUpdate() API.  struct Cmac embeds a plain,
+ * non-opaque "Aes aes;" member, so the same aes->rounds corruption
+ * technique used by test_wc_AesSetKeyArgMcdc() applies here too.
+ */
+int test_wc_AesCmacArgMcdc(void)
+{
+    EXPECT_DECLS;
+/* Uses wc_CmacFree(), absent from the older FIPS module's CMAC API; gate on the
+ * modern API (same idiom as the AES-DIRECT tests above). */
+#if !defined(NO_AES) && defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_128) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    byte key[AES_128_KEY_SIZE] = { 0 };
+    byte block1[WC_AES_BLOCK_SIZE] = { 0 };
+    byte block2[WC_AES_BLOCK_SIZE] = { 1 };
+    byte multi[WC_AES_BLOCK_SIZE + 4] = { 2 };
+    byte out[WC_AES_BLOCK_SIZE];
+    word32 outSz;
+
+    /* Outer "while ((ret == 0) && (inSz != 0))": prime the internal
+     * 16-byte buffer to exactly full without yet triggering an encrypt (no
+     * more data pending), then corrupt rounds and feed more data so the
+     * pending block's encrypt fails with data still outstanding - this
+     * flips (ret == 0) to false while (inSz != 0) stays true, independent
+     * of the loop's other condition. */
+    {
+        Cmac cmac;
+        XMEMSET(&cmac, 0, sizeof(cmac));
+        ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL),
+            0);
+        ExpectIntEQ(wc_CmacUpdate(&cmac, block1, sizeof(block1)), 0);
+        /* wc_CmacUpdate is offloaded to a crypto callback (see WC_TEST_AES_ROUNDS_OFFLOADED note
+         * above), bypassing the corrupted cmac.aes.rounds. */
+#ifndef WC_TEST_AES_ROUNDS_OFFLOADED
+        cmac.aes.rounds = 0;
+        ExpectIntEQ(wc_CmacUpdate(&cmac, block2, sizeof(block2)),
+            WC_NO_ERR_TRACE(KEYUSAGE_E));
+#endif
+        (void)block2; /* only referenced by the CB_FIND-guarded check */
+        wc_CmacFree(&cmac);
+    }
+
+    /*
+     * "cmac->bufferSz == WC_AES_BLOCK_SIZE && inSz != 0": a single update
+     * spanning more than one block naturally fills the buffer to exactly
+     * 16 with data still pending (decision true, mid-call block flush),
+     * while a lone 16-byte update fills the buffer to exactly 16 with
+     * nothing left pending (decision false).
+     *
+     * NOTE: the update loop's "add = min(inSz, 16 - bufferSz)" guarantees
+     * that whenever data remains unconsumed (inSz != 0) after adding, the
+     * buffer must have been filled to exactly 16 - "bufferSz == 16" can
+     * never be false while "inSz != 0" is true.  That half of the reported
+     * MC/DC pair is an unreachable dead combination (a structural
+     * invariant of the loop), not a coverage gap, and is not targeted
+     * here.
+     */
+    {
+        Cmac cmac;
+        XMEMSET(&cmac, 0, sizeof(cmac));
+        ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL),
+            0);
+        ExpectIntEQ(wc_CmacUpdate(&cmac, block1, sizeof(block1)), 0);
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_CmacFinal(&cmac, out, &outSz), 0);
+    }
+    {
+        Cmac cmac;
+        XMEMSET(&cmac, 0, sizeof(cmac));
+        ExpectIntEQ(wc_InitCmac(&cmac, key, sizeof(key), WC_CMAC_AES, NULL),
+            0);
+        ExpectIntEQ(wc_CmacUpdate(&cmac, multi, sizeof(multi)), 0);
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_CmacFinal(&cmac, out, &outSz), 0);
+    }
+#endif /* !NO_AES && WOLFSSL_CMAC && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure for the AES private-key-ID / label construction and
+ * lookup helpers in wolfcrypt/src/aes.c:
+ *  - _AesNew_common() (via wc_AesNew_Id()/wc_AesNew_Label())  ~14766,14774,
+ *    14783
+ *  - wc_AesInit_Id()      ~14898
+ *  - wc_AesInit_Label()   ~14917, ~14921
+ *  - wc_AesGetKeySize()   ~15041
+ */
+int test_wc_AesKeyExportArgMcdc(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES)
+#if defined(WOLF_PRIVATE_KEY_ID)
+    byte id[4] = { 1, 2, 3, 4 };
+    const char* label = "test-label";
+
+#ifndef WC_NO_CONSTRUCTORS
+    /*
+     * _AesNew_common() (aes.c ~14766, ~14774, ~14783) validates its
+     * id/idLen/label arguments differently per construction path.  Each
+     * public wrapper hard-codes two of the three arguments:
+     *   - wc_AesNew_Id(id, idLen, ...):    always passes label == NULL
+     *   - wc_AesNew_Label(label, ...):     always passes id == NULL,
+     *                                       idLen == 0
+     *   - wc_AesNew(...):                  always passes id == NULL,
+     *                                       idLen == 0, label == NULL
+     * so only "id == NULL" / "idLen == 0" (ID case) and "label == NULL"
+     * (LABEL case) are reachable from the public API.  The "label !=
+     * NULL" check in the ID case, the "id != NULL" / "idLen != 0" checks
+     * in the LABEL case, and the entire default-case decision "id != NULL
+     * || idLen != 0 || label != NULL" are unreachable defensive checks -
+     * the switch cases that guard them are only ever entered with those
+     * arguments hard-coded to NULL/0 by the wrapper that dispatched into
+     * them - and are intentionally not targeted here.
+     */
+    {
+        int rc = -1;
+        Aes* aes;
+
+        aes = wc_AesNew_Id(id, sizeof(id), NULL, INVALID_DEVID, &rc);
+        ExpectNotNull(aes);
+        ExpectIntEQ(rc, 0);
+        if (aes != NULL) {
+            wc_AesDelete(aes, NULL);
+        }
+
+        aes = wc_AesNew_Id(NULL, sizeof(id), NULL, INVALID_DEVID, &rc);
+        ExpectNull(aes);
+        ExpectIntEQ(rc, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        aes = wc_AesNew_Id(id, 0, NULL, INVALID_DEVID, &rc);
+        ExpectNull(aes);
+        ExpectIntEQ(rc, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        aes = wc_AesNew_Label(label, NULL, INVALID_DEVID, &rc);
+        ExpectNotNull(aes);
+        ExpectIntEQ(rc, 0);
+        if (aes != NULL) {
+            wc_AesDelete(aes, NULL);
+        }
+
+        aes = wc_AesNew_Label(NULL, NULL, INVALID_DEVID, &rc);
+        ExpectNull(aes);
+        ExpectIntEQ(rc, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif /* !WC_NO_CONSTRUCTORS */
+
+    /* wc_AesInit_Id(): cond ret == 0 independence (aes == NULL forces
+     * ret != 0 before the len check, with the same "bad" len in both
+     * rows), plus len < 0 / len > AES_MAX_ID_LEN independently. */
+    {
+        Aes aes;
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit_Id(&aes, id, sizeof(id), NULL,
+            INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesInit_Id(NULL, id, -1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesInit_Id(&aes, id, -1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_AesInit_Id(&aes, id, AES_MAX_ID_LEN + 1, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        wc_AesFree(&aes); /* first init succeeded; free its lifecycle tag */
+    }
+
+    /* wc_AesInit_Label(): aes/label == NULL OR-chain, plus labelLen == 0 /
+     * labelLen > AES_MAX_LABEL_LEN independently. */
+    {
+        Aes aes;
+        char longLabel[AES_MAX_LABEL_LEN + 2];
+        char emptyLabel[1] = { '\0' };
+
+        XMEMSET(longLabel, 'a', sizeof(longLabel) - 1);
+        longLabel[sizeof(longLabel) - 1] = '\0';
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit_Label(&aes, label, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesInit_Label(NULL, label, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesInit_Label(&aes, NULL, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesInit_Label(&aes, emptyLabel, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_AesInit_Label(&aes, longLabel, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        wc_AesFree(&aes); /* first init succeeded; free its lifecycle tag */
+    }
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+    /* wc_AesGetKeySize(): aes == NULL || keySize == NULL OR-chain. */
+#ifdef WOLFSSL_AES_128
+    {
+        Aes aes;
+        word32 keySize = 0;
+        byte key[AES_128_KEY_SIZE] = { 0 };
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), NULL,
+            AES_ENCRYPTION), 0);
+
+        ExpectIntEQ(wc_AesGetKeySize(&aes, &keySize), 0);
+        ExpectIntEQ(keySize, AES_128_KEY_SIZE);
+        ExpectIntEQ(wc_AesGetKeySize(NULL, &keySize),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesGetKeySize(&aes, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AES_128 */
+#endif /* !NO_AES */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC gap closure for AES-SIV in wolfcrypt/src/aes.c:
+ *  - AesSivCipher(): key/siv/out == NULL OR-chain (~18051), keySz !=
+ *    {32,48,64} AND-chain (~18056), enc == 0 branch (~18105), and the
+ *    ConstantCompare() tamper check (~18112).
+ *  - S2V(): numAssoc > 126 || (nonceSz > 0 && numAssoc > 125) (~17939),
+ *    reached through wc_AesSivEncrypt_ex(); and the "(ret == 0) &&
+ *    (nonceSz > 0)" nonce-AD step (~17967).
+ *
+ * NOTE on "ret == 0" independence at ~18105/~18112/~17967: AesSivCipher()'s
+ * function-local Aes object (created on its own stack/heap) is never
+ * exposed to the caller, so it cannot be corrupted the way
+ * test_wc_AesSetKeyArgMcdc() corrupts aes->rounds.  Instead, "ret == 0" is
+ * driven false via genuine public-API argument failures reached *after*
+ * AesSivCipher()'s own NULL/keySz gate has already passed:
+ *  - ~18105 (decrypt-only "ret == 0 && enc == 0" gate): wc_AesSivDecrypt()
+ *    with in == NULL and inSz > 0 lets dataSz > 0 through (only key/siv/out
+ *    are NULL-checked up front), so the internal wc_AesCtrEncrypt(aes, out,
+ *    data, dataSz) call rejects data == NULL with BAD_FUNC_ARG before the
+ *    enc == 0 re-verification step is reached.
+ *  - ~18112 (ConstantCompare tamper check) and ~17967 (S2V's nonce-AD
+ *    step): S2V() itself can be made to fail via public arguments - either
+ *    numAssoc > 126 (its own explicit limit check, used for ~18112 with
+ *    dataSz == 0 so no CTR step is involved) or an AesSivAssoc entry whose
+ *    .assoc pointer is NULL with a non-zero .assocSz (used for ~17967 - the
+ *    inner wc_AesCmacGenerate() call rejects NULL/non-zero-size input,
+ *    which fails and breaks out of S2V()'s AD loop before the nonce-AD
+ *    check is reached, independently driving its "ret == 0" to false).
+ */
+#if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
+int test_wc_AesSivArgMcdc(void)
+{
+    EXPECT_DECLS;
+    byte key32[AES_128_KEY_SIZE * 2] = {
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+        0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    byte assoc[4] = { 0x10, 0x11, 0x12, 0x13 };
+    byte nonce[8] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27 };
+    byte plain[8] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37 };
+    byte siv[WC_AES_BLOCK_SIZE];
+    byte cipher[sizeof(plain)];
+    byte decoded[sizeof(plain)];
+
+    /* ---- AesSivCipher(): key/siv/out == NULL OR-chain ---- */
+    XMEMSET(siv, 0, sizeof(siv));
+    ExpectIntEQ(wc_AesSivEncrypt(key32, sizeof(key32), assoc, sizeof(assoc),
+        NULL, 0, plain, sizeof(plain), siv, cipher), 0);
+    ExpectIntEQ(wc_AesSivEncrypt(NULL, sizeof(key32), assoc, sizeof(assoc),
+        NULL, 0, plain, sizeof(plain), siv, cipher),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSivEncrypt(key32, sizeof(key32), assoc, sizeof(assoc),
+        NULL, 0, plain, sizeof(plain), NULL, cipher),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSivEncrypt(key32, sizeof(key32), assoc, sizeof(assoc),
+        NULL, 0, plain, sizeof(plain), siv, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ---- AesSivCipher(): keySz != {32,48,64} AND-chain ---- */
+    {
+        byte badKey[20] = { 0 };
+
+        /* cond ret == 0 independence: key == NULL (ret != 0 already) vs
+         * key valid (ret == 0), same "bad" keySz in both rows so only the
+         * ret==0 term differs. */
+        ExpectIntEQ(wc_AesSivEncrypt(NULL, sizeof(badKey), assoc,
+            sizeof(assoc), NULL, 0, plain, sizeof(plain), siv, cipher),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesSivEncrypt(badKey, sizeof(badKey), assoc,
+            sizeof(assoc), NULL, 0, plain, sizeof(plain), siv, cipher),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#if defined(WOLFSSL_AES_192) && !defined(HAVE_FIPS)
+        {
+            byte key48[AES_192_KEY_SIZE * 2] = { 0 };
+            ExpectIntEQ(wc_AesSivEncrypt(key48, sizeof(key48), assoc,
+                sizeof(assoc), NULL, 0, plain, sizeof(plain), siv, cipher),
+                0);
+        }
+#endif
+#ifdef WOLFSSL_AES_256
+        {
+            byte key64[AES_256_KEY_SIZE * 2] = { 0 };
+            ExpectIntEQ(wc_AesSivEncrypt(key64, sizeof(key64), assoc,
+                sizeof(assoc), NULL, 0, plain, sizeof(plain), siv, cipher),
+                0);
+        }
+#endif
+    }
+
+    /* ---- AesSivCipher(): enc == 0 branch / ConstantCompare tamper check
+     * ---- */
+    ExpectIntEQ(wc_AesSivEncrypt(key32, sizeof(key32), assoc, sizeof(assoc),
+        nonce, sizeof(nonce), plain, sizeof(plain), siv, cipher), 0);
+    /* enc == 0 true, ConstantCompare matches -> success. */
+    ExpectIntEQ(wc_AesSivDecrypt(key32, sizeof(key32), assoc, sizeof(assoc),
+        nonce, sizeof(nonce), cipher, sizeof(cipher), siv, decoded), 0);
+    ExpectBufEQ(decoded, plain, sizeof(plain));
+    /* Tampered SIV -> ConstantCompare mismatch -> AES_SIV_AUTH_E. */
+    {
+        byte badSiv[WC_AES_BLOCK_SIZE];
+        XMEMCPY(badSiv, siv, sizeof(badSiv));
+        badSiv[0] ^= 0x01;
+        ExpectIntEQ(wc_AesSivDecrypt(key32, sizeof(key32), assoc,
+            sizeof(assoc), nonce, sizeof(nonce), cipher, sizeof(cipher),
+            badSiv, decoded), WC_NO_ERR_TRACE(AES_SIV_AUTH_E));
+    }
+
+    /* ---- AesSivCipher(): "ret == 0 && enc == 0" (~18105) cond "ret == 0"
+     * independence. wc_AesSivDecrypt() only NULL-checks key/siv/out up
+     * front, so in == NULL with inSz > 0 reaches the internal
+     * wc_AesCtrEncrypt(aes, out, data, dataSz) call with data == NULL,
+     * dataSz > 0, which fails with BAD_FUNC_ARG *before* the "enc == 0"
+     * re-verification gate - independently driving that gate's "ret == 0"
+     * to false (paired against the successful decrypt above, where "ret ==
+     * 0" is true at the same checkpoint). ---- */
+    ExpectIntEQ(wc_AesSivDecrypt(key32, sizeof(key32), assoc, sizeof(assoc),
+        nonce, sizeof(nonce), NULL, sizeof(cipher), siv, decoded),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ---- S2V(): numAssoc > 126 || (nonceSz > 0 && numAssoc > 125),
+     * reached through wc_AesSivEncrypt_ex(). ---- */
+    {
+        AesSivAssoc many[127];
+        int i;
+        byte tinyAssoc = 0x42;
+        byte sivMany[WC_AES_BLOCK_SIZE];
+
+        for (i = 0; i < 127; i++) {
+            many[i].assoc = &tinyAssoc;
+            many[i].assocSz = 1;
+        }
+
+        /* cond numAssoc > 126 (nonceSz == 0 fixed) -> true. */
+        ExpectIntEQ(wc_AesSivEncrypt_ex(key32, sizeof(key32), many, 127,
+            NULL, 0, plain, sizeof(plain), sivMany, cipher),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* numAssoc == 126, nonceSz == 0 -> both OR terms false (valid). */
+        ExpectIntEQ(wc_AesSivEncrypt_ex(key32, sizeof(key32), many, 126,
+            NULL, 0, plain, sizeof(plain), sivMany, cipher), 0);
+        /* cond nonceSz > 0 && numAssoc > 125, with numAssoc == 126 ->
+         * true. */
+        ExpectIntEQ(wc_AesSivEncrypt_ex(key32, sizeof(key32), many, 126,
+            nonce, sizeof(nonce), plain, sizeof(plain), sivMany, cipher),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* numAssoc == 125, nonceSz > 0 -> numAssoc > 125 false (valid). */
+        ExpectIntEQ(wc_AesSivEncrypt_ex(key32, sizeof(key32), many, 125,
+            nonce, sizeof(nonce), plain, sizeof(plain), sivMany, cipher),
+            0);
+
+        /* ---- AesSivCipher(): "ret == 0 && ConstantCompare(...) != 0"
+         * (~18112) cond "ret == 0" independence. Force S2V() to fail via
+         * its own numAssoc > 126 check *inside* the enc == 0 branch by
+         * calling wc_AesSivDecrypt_ex() with 127 associated-data entries
+         * and dataSz == 0 (so no CTR step runs first) - "ret == 0" is
+         * false by the time the ConstantCompare() check is reached (paired
+         * against the successful-decrypt and tampered-SIV rows above,
+         * where "ret == 0" is true at the same checkpoint). ---- */
+        ExpectIntEQ(wc_AesSivDecrypt_ex(key32, sizeof(key32), many, 127,
+            NULL, 0, NULL, 0, sivMany, decoded),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* ---- S2V(): "(ret == 0) && (nonceSz > 0)" nonce-AD step (~17967)
+     * cond "ret == 0" independence. An AesSivAssoc entry with .assoc ==
+     * NULL and .assocSz > 0 makes the inner wc_AesCmacGenerate() call in
+     * S2V()'s AD loop reject the NULL/non-zero-size input, breaking out of
+     * the loop with ret != 0 before the nonce-AD check is reached (paired
+     * against the nonceSz > 0 encrypt calls above, where "ret == 0" is
+     * true at the same checkpoint). ---- */
+    {
+        AesSivAssoc badAssoc;
+        byte sivBad[WC_AES_BLOCK_SIZE];
+
+        badAssoc.assoc = NULL;
+        badAssoc.assocSz = sizeof(assoc);
+        ExpectIntEQ(wc_AesSivEncrypt_ex(key32, sizeof(key32), &badAssoc, 1,
+            nonce, sizeof(nonce), plain, sizeof(plain), sivBad, cipher),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
 
 /*----------------------------------------------------------------------------*
  | AES-SIV Test
@@ -8456,6 +10652,14 @@ int test_wc_CryptoCb_AesSetKey(void)
     ExpectIntEQ(ret, 0);
     ExpectIntEQ(aes->devId, TEST_CRYPTOCB_AES_DEVID);
 
+    /* Direct callback entry guardrails. */
+    ExpectIntEQ(wc_CryptoCb_AesSetKey(NULL, key, sizeof(key)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, NULL, sizeof(key)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, key, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
     /* Set key - should trigger CryptoCB and "import" to mock SE */
     ret = wc_AesGcmSetKey(aes, key, sizeof(key));
     ExpectIntEQ(ret, 0);
@@ -8479,6 +10683,18 @@ int test_wc_CryptoCb_AesSetKey(void)
         /* Key should NOT be copied to devKey - SE owns it */
         ExpectIntEQ(XMEMCMP(aes->devKey, zeroKey, sizeof(key)), 0);
     }
+
+    /* Missing device context should fail in the callback instead of falling
+     * through as a successful offload path. */
+    aes->devCtx = NULL;
+    ExpectIntEQ(wc_AesGcmEncrypt(aes, cipher, plain, sizeof(plain),
+        iv, sizeof(iv), authTag, sizeof(authTag), NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Restore callback-owned state for the rest of the test. */
+    ret = wc_AesGcmSetKey(aes, key, sizeof(key));
+    ExpectIntEQ(ret, 0);
+    ExpectPtrEq(aes->devCtx, cryptoCbAesMockHandle);
 
     /* Test encrypt - callback performs crypto using stored key */
     ret = wc_AesGcmEncrypt(aes, cipher, plain, sizeof(plain),
@@ -8514,6 +10730,8 @@ int test_wc_CryptoCb_AesSetKey(void)
 
     /* Cleanup */
     wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AES_DEVID);
+    ExpectIntEQ(wc_CryptoCb_AesSetKey(aes, key, sizeof(key)),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
 
     /* Test software path (no devId) still works */
     XMEMSET(aes, 0, sizeof(Aes));

@@ -546,13 +546,17 @@ static int _DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
     if (err == MP_OKAY)
         err = mp_read_radix(&dsa->g, g, MP_RADIX_HEX);
 
-    /* verify (L,N) pair bit lengths */
-    pSz = mp_unsigned_bin_size(&dsa->p);
-    qSz = mp_unsigned_bin_size(&dsa->q);
+    /* verify (L,N) pair bit lengths - only when the reads above succeeded, so
+     * a more specific earlier error (e.g. DH_CHECK_PUB_E from the primality
+     * check) is not overwritten and qSz is not read from an unset q. */
+    if (err == MP_OKAY) {
+        pSz = mp_unsigned_bin_size(&dsa->p);
+        qSz = mp_unsigned_bin_size(&dsa->q);
 
-    if (CheckDsaLN(pSz * WOLFSSL_BIT_SIZE, qSz * WOLFSSL_BIT_SIZE) != 0) {
-        WOLFSSL_MSG("Invalid DSA p or q parameter size");
-        err = BAD_FUNC_ARG;
+        if (CheckDsaLN(pSz * WOLFSSL_BIT_SIZE, qSz * WOLFSSL_BIT_SIZE) != 0) {
+            WOLFSSL_MSG("Invalid DSA p or q parameter size");
+            err = BAD_FUNC_ARG;
+        }
     }
 
     if (err != MP_OKAY) {

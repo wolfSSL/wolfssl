@@ -247,7 +247,10 @@ enum wolfSSL_ErrorCodes {
 
     SEQUENCE_NUMBER_E            = -520,   /* Record sequence number would wrap */
 
-    WOLFSSL_LAST_E               = -520
+    RPK_UNTRUSTED_E              = -521,   /* RFC 7250 Raw Public Key not trusted
+                                           * out of band */
+
+    WOLFSSL_LAST_E               = -521
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };

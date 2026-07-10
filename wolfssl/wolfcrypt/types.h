@@ -221,6 +221,29 @@ typedef const char wcchar[];
     #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) /* null expansion */
 #endif
 
+#if defined(WC_FLEXIBLE_ARRAY_SIZE)
+    /* keep override value. */
+#elif defined(__cplusplus)
+    /* No C++ standard has FAMs; [] and [0] are vendor extensions.
+     * Use the struct hack. */
+    #define WC_FLEXIBLE_ARRAY_SIZE 1
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+    /* Standard C99+ flexible array member -- valid even under
+     * __STRICT_ANSI__ / -pedantic. */
+    #define WC_FLEXIBLE_ARRAY_SIZE
+#elif defined(__STRICT_ANSI__) || defined(WOLF_C89)
+    /* C89 "struct hack" fallback.
+     * See http://c-faq.com/struct/structhack.html */
+    #define WC_FLEXIBLE_ARRAY_SIZE 1
+#elif defined(__GNUC__) || defined(__clang__) || \
+      (defined(_MSC_VER) && !defined(__cplusplus))
+    /* gnu89 etc.: [] accepted as an extension without -pedantic;
+     * MSVC C mode accepts it too (C4200, off by default at /W3). */
+    #define WC_FLEXIBLE_ARRAY_SIZE
+#else
+    #define WC_FLEXIBLE_ARRAY_SIZE 1
+#endif
+
 /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
 #if defined(_WIN32) || defined(HAVE_LIMITS_H)
     #include <limits.h>
@@ -299,7 +322,7 @@ typedef const char wcchar[];
     typedef unsigned long long word64;
 #elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
     #define WORD64_AVAILABLE
-    #ifdef WOLF_C89
+    #if defined(WOLF_C89) && !defined(W64LIT_FORCE_LONG_LONG)
         #define W64LIT(x) x##UL
         #define SW64LIT(x) x##L
     #else
@@ -310,7 +333,7 @@ typedef const char wcchar[];
     typedef unsigned long word64;
 #elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
     #define WORD64_AVAILABLE
-    #ifdef WOLF_C89
+    #if defined(WOLF_C89) && !defined(W64LIT_FORCE_LONG_LONG)
         #define W64LIT(x) x##UL
         #define SW64LIT(x) x##L
     #else
@@ -321,7 +344,7 @@ typedef const char wcchar[];
     typedef unsigned long long word64;
 #elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
     #define WORD64_AVAILABLE
-    #ifdef WOLF_C89
+    #if defined(WOLF_C89) && !defined(W64LIT_FORCE_LONG_LONG)
         #define W64LIT(x) x##UL
         #define SW64LIT(x) x##L
     #else

@@ -12969,6 +12969,12 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_SEND);
     WOLFSSL_ENTER("SendTls13NewSessionTicket");
 
+    if (DefTicketHintTooLarge(ssl)) {
+        WOLFSSL_MSG("Ticket hint exceeds half the ticket key lifetime; "
+                    "skipping ticket");
+        return 0;
+    }
+
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
         idx = Dtls13GetRlHeaderLength(ssl, 1) + DTLS_HANDSHAKE_HEADER_SZ;

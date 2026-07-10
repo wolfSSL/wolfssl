@@ -1,0 +1,24 @@
+name: wolfCLU cross-library
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  cross-library:
+    uses: ./.github/workflows/cross-library.yml
+    with:
+      product: wolfclu
+      repo: wolfSSL/wolfCLU
+      wolfssl_configure: --enable-wolfclu
+      product_configure: ''
+      script: wolfclu.sh

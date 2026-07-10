@@ -1286,6 +1286,105 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 /*!
     \ingroup ECC
 
+    \brief This function imports an STM32 DHUK-protected private key onto an
+    ecc_key for transparent hardware signing. The private scalar is supplied as
+    a chip-bound wrapped blob together with the 256-bit derivation seed; the
+    plaintext scalar is never imported. The key must be bound to the STM32 DHUK
+    crypto-callback device (init with wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)
+    after registering the device with wc_Stm32_DhukRegister). Available only on
+    STM32 builds with WOLFSSL_DHUK and a DHUK-capable SAES (WC_STM32_HAS_DHUK).
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned if key, seed, or wrapped is NULL; if seedSz is
+    not 32; if wrappedLen is zero or not a multiple of the AES block size; if
+    wrappedLen exceeds the on-key blob buffer; if plainLen is zero or larger
+    than wrappedLen; or if wrappedLen is larger than plainLen padded to a full
+    AES block.
+
+    \param key pointer to the ecc_key (bound to WC_DHUK_DEVID) to import into.
+    \param seed pointer to the 256-bit (32-byte) per-key DHUK derivation seed.
+    \param seedSz length of seed in bytes; must be 32.
+    \param wrapped pointer to the DHUK-wrapped private scalar blob.
+    \param wrappedLen length of the wrapped blob; a non-zero multiple of the AES
+    block size, no larger than the on-key buffer.
+    \param plainLen length in bytes of the plaintext scalar inside the blob.
+
+    _Example_
+    \code
+    ecc_key key;
+    wc_Stm32_DhukRegister(WC_DHUK_DEVID);
+    wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID);
+    if (wc_ecc_import_wrapped_private(&key, seed, 32, wrapped, wrappedLen,
+            plainLen) == 0) {
+        wc_ecc_sign_hash(hash, hashLen, sig, &sigLen, &rng, &key);
+    }
+    wc_ecc_free(&key);
+    \endcode
+
+    \sa wc_ecc_import_wrapped_private_ex
+    \sa wc_ecc_sign_hash
+    \sa wc_ecc_init_ex
+*/
+int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+                                  const byte* wrapped, word32 wrappedLen,
+                                  word32 plainLen);
+
+/*!
+    \ingroup ECC
+
+    \brief This function restores a previously provisioned STM32 CCB-protected
+    ECDSA key onto an ecc_key. The device-bound key is supplied as the wrapped
+    scalar blob plus its AES-GCM iv/tag and the in-clear public key; signing is
+    performed transparently with the scalar unwrapped SAES->PKA in hardware. The
+    key must be bound to the STM32 DHUK/CCB crypto-callback device (init with
+    wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)). Available only on STM32 builds
+    with WOLFSSL_DHUK and WOLFSSL_STM32_CCB.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned if key, wrapped, iv, tag, or pub is NULL; if
+    ivLen or tagLen is not 16; if curve_id is not a supported curve; if
+    wrappedLen is zero or exceeds the on-key blob buffer; or if pubLen is not
+    twice the curve modulus size.
+    \return <0 A negative error code may be returned if importing the public key
+    fails.
+
+    \param key pointer to the ecc_key (bound to WC_DHUK_DEVID) to import into.
+    \param curve_id the ECC curve id of the wrapped key (e.g. ECC_SECP256R1).
+    \param wrapped pointer to the CCB wrapped private scalar blob.
+    \param wrappedLen length of the wrapped blob, no larger than the on-key
+    buffer.
+    \param iv pointer to the 16-byte AES-GCM iv of the blob.
+    \param ivLen length of iv in bytes; must be 16.
+    \param tag pointer to the 16-byte AES-GCM authentication tag of the blob.
+    \param tagLen length of tag in bytes; must be 16.
+    \param pub pointer to the public key in uncompressed qx||qy form.
+    \param pubLen length of pub in bytes; must be twice the curve modulus size.
+
+    _Example_
+    \code
+    ecc_key key;
+    wc_Stm32_DhukRegister(WC_DHUK_DEVID);
+    wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID);
+    if (wc_ecc_import_wrapped_private_ex(&key, ECC_SECP256R1, wrapped,
+            wrappedLen, iv, 16, tag, 16, pub, pubLen) == 0) {
+        wc_ecc_sign_hash(hash, hashLen, sig, &sigLen, &rng, &key);
+    }
+    wc_ecc_free(&key);
+    \endcode
+
+    \sa wc_ecc_import_wrapped_private
+    \sa wc_ecc_make_key_ex
+    \sa wc_ecc_sign_hash
+*/
+int wc_ecc_import_wrapped_private_ex(ecc_key* key, int curve_id,
+                           const byte* wrapped, word32 wrappedLen,
+                           const byte* iv, word32 ivLen,
+                           const byte* tag, word32 tagLen,
+                           const byte* pub, word32 pubLen);
+
+/*!
+    \ingroup ECC
+
     \brief This function converts the R and S portions of an ECC signature
     into a DER-encoded ECDSA signature. This function also stores the length
     written to the output buffer, out, in outlen.

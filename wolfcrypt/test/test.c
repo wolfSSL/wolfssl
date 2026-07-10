@@ -473,6 +473,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
         #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
     #endif
+    #ifdef WOLFSSL_RTL8735B_HOST_TEST
+        #include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -1040,6 +1043,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_x509_tiny_test(void);
     !defined(NO_FILESYSTEM)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void);
 static wc_test_ret_t fill_signer_twice_test(void);
+#endif
+#if defined(WOLFSSL_TEST_CERT) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA)
+static wc_test_ret_t cert_no_malloc_test(void);
 #endif
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(WOLFSSL_GEN_CERT)
@@ -3107,6 +3114,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("X509 TINY test passed!\n");
 #endif
 
+#if defined(WOLFSSL_TEST_CERT) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA)
+    if ( (ret = cert_no_malloc_test()) != 0)
+        TEST_FAIL("CERT NOMALLOC test failed!\n", ret);
+    else
+        TEST_PASS("CERT NOMALLOC test passed!\n");
+#endif
+
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(WOLFSSL_GEN_CERT)
     if ( (ret = certext_test()) != 0)
@@ -3375,6 +3390,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("crypto callback test failed!\n", ret);
     else
         TEST_PASS("crypto callback test passed!\n");
+#endif
+
+#ifdef WOLFSSL_RTL8735B_HOST_TEST
+    if ( (ret = wc_Rtl8735b_HukSelfTest()) != 0)
+        TEST_FAIL("RTL8735B HUK self-test failed!\n", ret);
+    else
+        TEST_PASS("RTL8735B HUK self-test passed!\n");
 #endif
 
 #ifdef WOLFSSL_CERT_PIV
@@ -26554,6 +26576,85 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_x509_tiny_test(void)
     return 0;
 }
 #endif /* WOLFSSL_X509_TINY && HAVE_ECC */
+
+#if defined(WOLFSSL_TEST_CERT) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA)
+/* Heap/file-free parse from a const DER buffer; checks in-place refs under
+ * WC_ASN_NO_HEAP. Kept outside the NO_FILESYSTEM cert block so it runs in real
+ * no-malloc/no-filesystem builds. */
+static wc_test_ret_t cert_no_malloc_test(void)
+{
+    DecodedCert cert;
+    wc_test_ret_t ret;
+#if defined(WC_ASN_NO_HEAP) && !defined(WOLFSSL_IP_ALT_NAME)
+    DNS_entry* dns;
+#endif
+
+    WOLFSSL_ENTER("cert_no_malloc_test");
+
+#if defined(WC_ASN_NO_HEAP) && defined(WOLFSSL_IP_ALT_NAME)
+    /* server_cert_der_2048 carries an IP SAN that the no-heap path fail-closes
+     * (rejection is gated on WOLFSSL_IP_ALT_NAME); confirm it rather than a
+     * successful parse. */
+    InitDecodedCert(&cert, server_cert_der_2048, sizeof_server_cert_der_2048,
+                    NULL);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(&cert);
+    if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    ret = 0;
+#else
+    InitDecodedCert(&cert, server_cert_der_2048, sizeof_server_cert_der_2048,
+                    NULL);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    if ((ret == 0) && ((cert.publicKey == NULL) || (cert.pubKeySize == 0))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+#ifdef WC_ASN_NO_HEAP
+    if ((ret == 0) && ((cert.pubKeyStored != 0) ||
+                       ((wc_ptr_t)cert.publicKey < (wc_ptr_t)cert.source) ||
+                       ((wc_ptr_t)cert.publicKey >=
+                            (wc_ptr_t)cert.source + cert.maxIdx))) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+    /* Every SAN node must reference the source DER in place, not a heap copy. */
+    for (dns = cert.altNames; (ret == 0) && (dns != NULL); dns = dns->next) {
+        if ((dns->entryStored != 0) ||
+                ((wc_ptr_t)dns->name < (wc_ptr_t)cert.source) ||
+                ((wc_ptr_t)dns->name >= (wc_ptr_t)cert.source + cert.maxIdx)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+#endif
+    FreeDecodedCert(&cert);
+#endif
+
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    /* ECC leaf with no IP/RID SAN: exercises StoreEccKey in-place key ref. */
+    if (ret == 0) {
+        InitDecodedCert(&cert, ca_ecc_cert_der_256,
+                        sizeof_ca_ecc_cert_der_256, NULL);
+        ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+        if ((ret == 0) &&
+                ((cert.publicKey == NULL) || (cert.pubKeySize == 0))) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    #ifdef WC_ASN_NO_HEAP
+        if ((ret == 0) && ((cert.pubKeyStored != 0) ||
+                           ((wc_ptr_t)cert.publicKey < (wc_ptr_t)cert.source) ||
+                           ((wc_ptr_t)cert.publicKey >=
+                                (wc_ptr_t)cert.source + cert.maxIdx))) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    #endif
+        FreeDecodedCert(&cert);
+    }
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_TEST_CERT && USE_CERT_BUFFERS_2048 && !NO_RSA */
 
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
     !defined(NO_FILESYSTEM)
@@ -67238,6 +67339,12 @@ static wc_test_ret_t pkcs7signed_run_vectors(
 
     XMEMSET(&rng, 0, sizeof(rng));
 
+    /* These attribute blobs are only referenced by the RSA/ECC test vectors
+     * below. Keep them used so a build without RSA and ECC (e.g. ML-DSA only)
+     * does not warn on unused variables. */
+    (void)attribs;
+    (void)customContentType;
+
     testVectors = (pkcs7SignedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
                                      HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (testVectors == NULL) {
@@ -67743,6 +67850,15 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
     pkcs7SignedVector *testVectors = NULL;
 
     XMEMSET(&rng, 0, sizeof(rng));
+
+    /* These blobs are only referenced by the RSA/ECC test vectors below. Keep
+     * them used so a build without RSA and ECC (e.g. ML-DSA only) does not
+     * warn on unused variables. */
+    (void)attribs;
+#if !defined(NO_PKCS7_ENCRYPTED_DATA) && \
+     defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    (void)aes256Key;
+#endif
 
     testVectors = (pkcs7SignedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
                                      HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -68884,7 +69000,10 @@ static wc_test_ret_t pkcs7_signed_multi_cert_test(
     byte*  out = NULL;
     byte*  content = NULL;
     int    encSz = 0;
-    const word32 outSz = FOURK_BUF * 4;
+    /* Encoded output is ~8.6 KB (4 KB content + three RSA certs); keep the
+     * buffer within the default WOLFSSL_STATIC_MEMORY largest bucket (16128)
+     * so it also runs under --enable-staticmemory with WOLFSSL_NO_MALLOC. */
+    const word32 outSz = FOURK_BUF * 3;
     const word32 contentSz = FOURK_BUF;   /* larger than the certificate set */
     int    found1 = 0, found2 = 0, found3 = 0, j;
 
@@ -68993,7 +69112,9 @@ static wc_test_ret_t pkcs7_signed_multi_cert_malformed_test(
     int    verifyRet;
     word32 p;
     word32 setStart = 0;
-    const word32 outSz = FOURK_BUF * 4;
+    /* See pkcs7_signed_multi_cert_test: keep within the default static-memory
+     * largest bucket (16128) so this runs under WOLFSSL_NO_MALLOC too. */
+    const word32 outSz = FOURK_BUF * 3;
     const word32 contentSz = FOURK_BUF;   /* pushes the cert set to a high offset */
 
     content = (byte*)XMALLOC(contentSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -69219,6 +69340,370 @@ out_lbl:
 #endif /* !NO_RSA && !NO_SHA256 */
 
 
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_ASN)
+
+typedef struct {
+    const char* certFile;        /* signer certificate, DER */
+    const char* keyFile;         /* matching ML-DSA private key, PKCS#8 DER */
+    int         hashOID;         /* message-digest algorithm for signed attrs */
+    int         noSignedAttribs; /* 1: exercise the pure-eContent path */
+} pkcs7MlDsaVector;
+
+#if defined(WOLFSSL_SHA3) && \
+    (defined(WOLFSSL_SHAKE256) || defined(WOLFSSL_SHAKE128))
+/* RFC 8702: a SHAKE digest AlgorithmIdentifier MUST omit the parameters
+ * field. A digest algorithm appears in a CMS SignedData both in the
+ * SignedData.digestAlgorithms SET and in the SignerInfo.digestAlgorithm, so
+ * every occurrence must be checked. Walk the buffer for each
+ * "SEQUENCE { OID oidDer }" (anchored on the SEQUENCE tag to avoid matching
+ * the OID bytes inside signatures/keys) and confirm the SEQUENCE holds the
+ * OID only, i.e. the (short-form) SEQUENCE length equals the OID length so the
+ * parameters field is absent. *found receives the number of digest
+ * AlgorithmIdentifiers inspected; the return value is the number that carry a
+ * (non-absent) parameters field. */
+static int pkcs7_digest_oid_params_present(const byte* buf, word32 bufSz,
+            const byte* oidDer, word32 oidDerSz, int* found)
+{
+    int present = 0;
+    word32 i;
+    *found = 0;
+    if (oidDerSz == 0 || bufSz < oidDerSz + 2)
+        return 0;
+    for (i = 2; i + oidDerSz <= bufSz; i++) {
+        word32 seqLen;
+        /* AlgorithmIdentifier ::= SEQUENCE { OBJECT IDENTIFIER, params } is
+         * encoded as 0x30 <len> <oidDer> [params]; oidDer begins with its own
+         * 0x06 tag, so the SEQUENCE tag sits two octets before the match. */
+        if (buf[i - 2] != 0x30 || XMEMCMP(buf + i, oidDer, oidDerSz) != 0)
+            continue;
+        /* Validate the wrapper so the OID bytes appearing by chance inside a
+         * signature or key are not counted as a digest AlgorithmIdentifier:
+         * the short-form SEQUENCE length must span exactly the OID (params
+         * absent) or the OID plus a 2-byte NULL (05 00, the non-compliant
+         * shape this check is meant to catch). */
+        seqLen = buf[i - 1];
+        if (seqLen == oidDerSz) {
+            (*found)++;          /* params absent - RFC 8702 compliant */
+        }
+        else if (seqLen == oidDerSz + 2 && i + oidDerSz + 2 <= bufSz &&
+                 buf[i + oidDerSz] == 0x05 && buf[i + oidDerSz + 1] == 0x00) {
+            (*found)++;
+            present++;           /* explicit NULL params - non-compliant */
+        }
+    }
+    return present;
+}
+#endif
+
+/* Round-trip (encode then verify) test of CMS/PKCS#7 SignedData using ML-DSA
+ * signatures, per RFC 9882. Exercises each enabled ML-DSA parameter set with
+ * the strongest enabled non-SHAKE digest (SHA-512 when available) and, when
+ * available, a SHAKE256 message digest. */
+static wc_test_ret_t pkcs7signed_mldsa_test(void)
+{
+    wc_test_ret_t ret = 0;
+    WC_RNG  rng;
+    wc_PKCS7* pkcs7 = NULL;
+    XFILE   f = NULL;
+    byte*   cert = NULL;
+    byte*   key  = NULL;
+    byte*   out  = NULL;
+    word32  certSz, keySz;
+    word32  outHeadSz, outFootSz;
+    int     encodedSz;
+    int     i, testSz;
+    int     rngInit = 0;
+    byte    preHash[WC_MAX_DIGEST_SIZE];
+
+    /* "Hello PQC" */
+    WOLFSSL_SMALL_STACK_STATIC const byte content[] = {
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x50,0x51,0x43
+    };
+
+    #define MLDSA_CERT(n) CERT_ROOT "mldsa" CERT_PATH_SEP "mldsa" n "-cert.der"
+    #define MLDSA_KEY(n)  CERT_ROOT "mldsa" CERT_PATH_SEP "mldsa" n "-key.der"
+
+    /* RFC 9882 recommends SHA-512, but ML-DSA uses SHA-3/SHAKE internally and
+     * does not require SHA-512, and PKCS#7 only requires SHA-1 or SHA-256.
+     * Track the strongest non-SHAKE digest actually enabled so the test builds
+     * in configurations that disable SHA-512. */
+    #if defined(WOLFSSL_SHA512)
+        #define MLDSA_TEST_HASH SHA512h
+    #elif !defined(NO_SHA256)
+        #define MLDSA_TEST_HASH SHA256h
+    #else
+        #define MLDSA_TEST_HASH SHAh
+    #endif
+
+    /* one row per (level, message-digest) combination that is enabled;
+     * MLDSA_TEST_HASH (SHA-512 when enabled, per the RFC 9882 recommendation)
+     * always, plus SHAKE256 to exercise the SHAKE digest-OID path. SHAKE128
+     * (128-bit collision strength) is only
+     * paired with ML-DSA-44 (NIST level 2), where the message-digest strength
+     * matches the signature; pairing it with the stronger levels would weaken
+     * the content binding, so it is intentionally not used there. */
+    pkcs7MlDsaVector vectors[12];
+    testSz = 0;
+    XMEMSET(vectors, 0, sizeof(vectors));
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    vectors[testSz].certFile = MLDSA_CERT("44");
+    vectors[testSz].keyFile  = MLDSA_KEY("44");
+    vectors[testSz].hashOID  = MLDSA_TEST_HASH;
+    testSz++;
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+    vectors[testSz].certFile = MLDSA_CERT("44");
+    vectors[testSz].keyFile  = MLDSA_KEY("44");
+    vectors[testSz].hashOID  = SHAKE256h;
+    testSz++;
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+    vectors[testSz].certFile = MLDSA_CERT("44");
+    vectors[testSz].keyFile  = MLDSA_KEY("44");
+    vectors[testSz].hashOID  = SHAKE128h;
+    testSz++;
+    #endif
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    vectors[testSz].certFile = MLDSA_CERT("65");
+    vectors[testSz].keyFile  = MLDSA_KEY("65");
+    vectors[testSz].hashOID  = MLDSA_TEST_HASH;
+    testSz++;
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+    vectors[testSz].certFile = MLDSA_CERT("65");
+    vectors[testSz].keyFile  = MLDSA_KEY("65");
+    vectors[testSz].hashOID  = SHAKE256h;
+    testSz++;
+    #endif
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    vectors[testSz].certFile = MLDSA_CERT("87");
+    vectors[testSz].keyFile  = MLDSA_KEY("87");
+    vectors[testSz].hashOID  = MLDSA_TEST_HASH;
+    testSz++;
+#endif
+
+    /* Additionally exercise the no-signed-attributes (pure eContent) encode and
+     * verify path (RFC 9882), which signs over pkcs7->content directly instead
+     * of a reconstructed signed-attributes SET. One enabled level is enough to
+     * cover the branch. */
+#if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_65) || \
+    !defined(WOLFSSL_NO_ML_DSA_87)
+    #ifndef WOLFSSL_NO_ML_DSA_44
+    vectors[testSz].certFile = MLDSA_CERT("44");
+    vectors[testSz].keyFile  = MLDSA_KEY("44");
+    #elif !defined(WOLFSSL_NO_ML_DSA_65)
+    vectors[testSz].certFile = MLDSA_CERT("65");
+    vectors[testSz].keyFile  = MLDSA_KEY("65");
+    #else
+    vectors[testSz].certFile = MLDSA_CERT("87");
+    vectors[testSz].keyFile  = MLDSA_KEY("87");
+    #endif
+    vectors[testSz].hashOID         = MLDSA_TEST_HASH;
+    vectors[testSz].noSignedAttribs = 1;
+    testSz++;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    cert = (byte*)XMALLOC(FOURK_BUF * 2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key  = (byte*)XMALLOC(FOURK_BUF * 2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    out  = (byte*)XMALLOC(FOURK_BUF * 5, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL || key == NULL || out == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+    rngInit = 1;
+
+    /* at least one ML-DSA level must be enabled, else the test would pass
+     * without exercising anything */
+    if (testSz == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+    for (i = 0; i < testSz; i++) {
+        /* load signer certificate (DER) */
+        f = XFOPEN(vectors[i].certFile, "rb");
+        if (f == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+        certSz = (word32)XFREAD(cert, 1, FOURK_BUF * 2, f);
+        XFCLOSE(f);
+        f = NULL;
+        if (certSz == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+        /* load matching ML-DSA private key (PKCS#8 DER) */
+        f = XFOPEN(vectors[i].keyFile, "rb");
+        if (f == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+        keySz = (word32)XFREAD(key, 1, FOURK_BUF * 2, f);
+        XFCLOSE(f);
+        f = NULL;
+        if (keySz == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+        /* --- encode SignedData --- */
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+        ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+        pkcs7->rng          = &rng;
+        pkcs7->content      = (byte*)content;
+        pkcs7->contentSz    = (word32)sizeof(content);
+        pkcs7->contentOID   = DATA;
+        pkcs7->hashOID      = vectors[i].hashOID;
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = keySz;
+
+        if (vectors[i].noSignedAttribs) {
+            ret = wc_PKCS7_SetDefaultSignedAttribs(pkcs7, WOLFSSL_NO_ATTRIBUTES);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+        }
+
+        encodedSz = wc_PKCS7_EncodeSignedData(pkcs7, out, FOURK_BUF * 5);
+        if (encodedSz <= 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(encodedSz), out_lbl);
+
+        /* RFC 8702: a SHAKE digest algorithm must be encoded with absent
+         * parameters, not NULL. Confirm both the SignedData.digestAlgorithms
+         * and the SignerInfo.digestAlgorithm occurrences comply. */
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+        if (vectors[i].hashOID == SHAKE256h) {
+            static const byte shake256OidDer[] = { 0x06,0x09,0x60,0x86,0x48,
+                0x01,0x65,0x03,0x04,0x02,0x0c };
+            int found = 0;
+            if (pkcs7_digest_oid_params_present(out, (word32)encodedSz,
+                    shake256OidDer, (word32)sizeof(shake256OidDer), &found) != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+            if (found < 2)   /* digestAlgorithms SET + SignerInfo must be seen */
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+        }
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+        if (vectors[i].hashOID == SHAKE128h) {
+            static const byte shake128OidDer[] = { 0x06,0x09,0x60,0x86,0x48,
+                0x01,0x65,0x03,0x04,0x02,0x0b };
+            int found = 0;
+            if (pkcs7_digest_oid_params_present(out, (word32)encodedSz,
+                    shake128OidDer, (word32)sizeof(shake128OidDer), &found) != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+            if (found < 2)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+        }
+    #endif
+
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* --- verify SignedData (signer cert is embedded in the bundle) --- */
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+        ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+        ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encodedSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+        /* content should be recovered and match what was signed */
+        if (pkcs7->contentSz != (word32)sizeof(content) ||
+                XMEMCMP(pkcs7->content, content, sizeof(content)) != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+        }
+
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* --- negative case: tamper with the signature and confirm the
+         * verifier rejects it with SIG_VERIFY_E rather than accepting it.
+         * The ML-DSA signature value is the last element of the bundle, so
+         * flipping its final byte corrupts the signature while leaving the
+         * ASN.1 structure and the signed content intact, exercising the
+         * wc_PKCS7_MlDsaVerify rejection path. */
+        out[encodedSz - 1] ^= 0xFF;
+
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+        ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+        ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encodedSz);
+        if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+        ret = 0;
+
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* negative: ML-DSA signs the full message in pure mode (RFC 9882), so a
+     * caller-supplied pre-computed content hash is meaningless and must be
+     * rejected. Confirm wc_PKCS7_EncodeSignedData_ex returns BAD_FUNC_ARG
+     * instead of producing a signature. Reuses the last vector's cert/key. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    pkcs7->rng          = &rng;
+    pkcs7->content      = (byte*)content;
+    pkcs7->contentSz    = (word32)sizeof(content);
+    pkcs7->contentOID   = DATA;
+    pkcs7->hashOID      = MLDSA_TEST_HASH;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+
+    XMEMSET(preHash, 0, sizeof(preHash));
+    outHeadSz = FOURK_BUF * 5;
+    outFootSz = FOURK_BUF * 5;
+    ret = wc_PKCS7_EncodeSignedData_ex(pkcs7, preHash, (word32)sizeof(preHash),
+            out, &outHeadSz, out, &outFootSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ret = 0;
+
+out_lbl:
+    if (f != NULL)
+        XFCLOSE(f);
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key,  HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out,  HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    #undef MLDSA_CERT
+    #undef MLDSA_KEY
+    #undef MLDSA_TEST_HASH
+
+    return ret;
+}
+
+#endif /* WOLFSSL_HAVE_MLDSA && sign && verify && filesystem */
+
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -69426,6 +69911,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
                             rsaServerCertBuf, (word32)rsaServerCertBufSz,
                             rsaCaCertBuf,     (word32)rsaCaCertBufSz);
 #endif
+
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_ASN)
+    if (ret >= 0)
+        ret = pkcs7signed_mldsa_test();
+#endif
+
     XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaServerCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

@@ -2709,6 +2709,30 @@ static int MyRpkVerifyCb(int mode, WOLFSSL_X509_STORE_CTX* strctx)
 }
 #endif /* WOLFSSL_ALWAYS_VERIFY_CB && WOLFSSL_TLS13 */
 
+#if !defined(NO_SHA256)
+/* Pin the peer's Raw Public Key so it is authenticated out of band (RFC 7250).
+ * In this test the RPK cert files are DER SubjectPublicKeyInfo (passed as
+ * WOLFSSL_FILETYPE_ASN1), which is exactly what is sent on the wire, so the raw
+ * file bytes are the pin. PEM files are X.509 and are left unpinned. */
+static int test_rpk_pin_peer(WOLFSSL_CTX* ctx, const char* file, int fmt)
+{
+    byte* buf = NULL;
+    size_t sz = 0;
+    int ret = 0;
+
+    if (fmt != WOLFSSL_FILETYPE_ASN1)
+        return 0; /* not an RPK file - nothing to pin */
+    if (load_file(file, &buf, &sz) != 0)
+        return -1;
+    if (wolfSSL_CTX_set_expected_rpk(ctx, buf, (unsigned int)sz)
+            != WOLFSSL_SUCCESS) {
+        ret = -1;
+    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* !NO_SHA256 */
+
 static WC_INLINE int test_rpk_memio_setup(
     struct test_memio_ctx *ctx,
     WOLFSSL_CTX **ctx_c,
@@ -2746,6 +2770,17 @@ static WC_INLINE int test_rpk_memio_setup(
         if (ret != WOLFSSL_SUCCESS) {
             return -1;
         }
+        /* This helper sets WOLFSSL_VERIFY_PEER on both ends, so the RPK
+         * handshake cases below rely on the peer key being pinned here to
+         * complete (otherwise they fail closed). Pinning needs SHA-256; the
+         * RPK + NO_SHA256 combination is not exercised because the unit test
+         * suite does not build under NO_SHA256 (e.g. test_random.c). */
+#if !defined(NO_SHA256)
+        /* client must trust the server's RPK (if the server presents one) */
+        if (test_rpk_pin_peer(*ctx_c, certfile_s, fmt_cs) != 0) {
+            return -1;
+        }
+#endif
     }
 
     if (ctx_s != NULL && *ctx_s == NULL) {
@@ -2768,6 +2803,12 @@ static WC_INLINE int test_rpk_memio_setup(
         if (ret != WOLFSSL_SUCCESS) {
             return -1;
         }
+#if !defined(NO_SHA256)
+        /* server must trust the client's RPK (if the client presents one) */
+        if (test_rpk_pin_peer(*ctx_s, certfile_c, fmt_cc) != 0) {
+            return -1;
+        }
+#endif
         wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
         wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
         if (ctx->s_ciphers != NULL) {
@@ -2938,6 +2979,14 @@ int test_tls13_rpk_handshake(void)
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_UNKNOWN);
 
+    /* x509 handshake: peer cert was verified against a CA, so the verify
+     * result stays WOLFSSL_X509_V_OK. This is the contrast case for the
+     * RPK checks below. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_s), WOLFSSL_X509_V_OK);
+#endif
+
     (void)typeCnt_c;
     (void)typeCnt_s;
 
@@ -3005,6 +3054,15 @@ int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    /* TLS1.3 RPK: an RPK cert (RFC 7250) has no issuer and no signature chain,
+     * so it is only authenticated by the out-of-band pin established in
+     * test_rpk_memio_setup(). Because the peer's key was pinned, the handshake
+     * completes and wolfSSL_get_verify_result() reports WOLFSSL_X509_V_OK. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_s), WOLFSSL_X509_V_OK);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -3074,6 +3132,13 @@ int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    /* TLS1.2 RPK: same as the TLS1.3 case above - the peer's key was pinned
+     * out of band, so the verify result is WOLFSSL_X509_V_OK. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_s), WOLFSSL_X509_V_OK);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -3623,6 +3688,393 @@ int test_tls13_pha(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 #endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SHA256)
+/* Verify callback that unconditionally accepts the peer (returns "ok"),
+ * overriding any error - used to exercise the documented RPK override path.
+ * Only used by test_tls13_rpk_trust(), which requires SHA-256. */
+static int test_rpk_accept_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    return 1;
+}
+
+/* Mimics a real-world X.509 verify callback that accepts ONLY the "issuer not
+ * found locally" errors (the pattern used elsewhere to allow an unchained or
+ * self-signed leaf). It must NOT rescue an untrusted RPK: because the RPK
+ * failure now reports WOLFSSL_X509_V_ERR_RPK_UNTRUSTED (not the X.509
+ * issuer-lookup codes), these checks no longer match and the RPK stays rejected.
+ * Returns 1 (accept) only for the X.509 issuer codes, otherwise rejects. */
+static int test_rpk_x509_issuer_accept_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    if ((store->error == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E))
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        || (store->error ==
+                WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+#endif
+        ) {
+        return 1; /* would wrongly accept an RPK that reused these codes */
+    }
+    return 0; /* reject everything else, including WOLFSSL_X509_V_ERR_RPK_* */
+}
+#endif /* HAVE_RPK && WOLFSSL_TLS13 && client && server && !NO_SHA256 */
+
+#if defined(HAVE_RPK) && \
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Build a client/server pair (protocol chosen by the caller) that both present
+ * a Raw Public Key but pin NOTHING (unlike test_rpk_memio_setup, which pins the
+ * peer key). Verify mode is left at the CTX default; the caller sets it on the
+ * SSL objects before the handshake. Returns 0 on success. */
+static int test_rpk_nopin_setup(struct test_memio_ctx* tctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s,
+    WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    method_provider method_c, method_provider method_s)
+{
+    char certType[MAX_CLIENT_CERT_TYPE_CNT];
+
+    *ctx_c = wolfSSL_CTX_new(method_c());
+    *ctx_s = wolfSSL_CTX_new(method_s());
+    if ((*ctx_c == NULL) || (*ctx_s == NULL))
+        return -1;
+
+    if (wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0)
+            != WOLFSSL_SUCCESS)
+        return -1;
+    if (wolfSSL_CTX_use_certificate_file(*ctx_c, clntRpkCertFile,
+            WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        return -1;
+    if (wolfSSL_CTX_use_PrivateKey_file(*ctx_c, cliKeyFile, CERT_FILETYPE)
+            != WOLFSSL_SUCCESS)
+        return -1;
+    wolfSSL_SetIORecv(*ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(*ctx_c, test_memio_write_cb);
+
+    if (wolfSSL_CTX_load_verify_locations(*ctx_s, cliCertFile, 0)
+            != WOLFSSL_SUCCESS)
+        return -1;
+    if (wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile, CERT_FILETYPE)
+            != WOLFSSL_SUCCESS)
+        return -1;
+    if (wolfSSL_CTX_use_certificate_file(*ctx_s, svrRpkCertFile,
+            WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        return -1;
+    wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
+
+    *ssl_c = wolfSSL_new(*ctx_c);
+    *ssl_s = wolfSSL_new(*ctx_s);
+    if ((*ssl_c == NULL) || (*ssl_s == NULL))
+        return -1;
+    wolfSSL_SetIOWriteCtx(*ssl_c, tctx);
+    wolfSSL_SetIOReadCtx(*ssl_c, tctx);
+    wolfSSL_SetIOWriteCtx(*ssl_s, tctx);
+    wolfSSL_SetIOReadCtx(*ssl_s, tctx);
+#if !defined(NO_DH)
+    SetDH(*ssl_s);
+#endif
+
+    /* let both sides negotiate RPK in either direction */
+    certType[0] = WOLFSSL_CERT_TYPE_RPK;
+    certType[1] = WOLFSSL_CERT_TYPE_X509;
+    if ((wolfSSL_set_client_cert_type(*ssl_c, certType, 2) != WOLFSSL_SUCCESS) ||
+        (wolfSSL_set_server_cert_type(*ssl_c, certType, 2) != WOLFSSL_SUCCESS) ||
+        (wolfSSL_set_client_cert_type(*ssl_s, certType, 2) != WOLFSSL_SUCCESS) ||
+        (wolfSSL_set_server_cert_type(*ssl_s, certType, 2) != WOLFSSL_SUCCESS))
+        return -1;
+
+    return 0;
+}
+#endif /* HAVE_RPK && (WOLFSSL_TLS13 || !WOLFSSL_NO_TLS12) && client && server */
+
+/* Regression test for the RPK fail-closed behaviour: a peer that presents a
+ * Raw Public Key (RFC 7250) without an out-of-band pin must NOT be silently
+ * accepted while it is being authenticated. Covers both an explicit
+ * WOLFSSL_VERIFY_PEER client and a default-verify client (verify mode never
+ * set), since RPK server
+ * authentication is gated on !verifyNone, matching the X.509 path. Runs for
+ * every available protocol version, since the fail-closed code in
+ * ProcessPeerCerts is shared between the TLS 1.2 and TLS 1.3 state machines. */
+int test_tls13_rpk_untrusted(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && \
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int explicitVerifyPeer;
+    size_t v;
+    struct {
+        method_provider c;
+        method_provider s;
+    } methods[2];
+    size_t methodCnt = 0;
+
+#ifdef WOLFSSL_TLS13
+    methods[methodCnt].c = wolfTLSv1_3_client_method;
+    methods[methodCnt].s = wolfTLSv1_3_server_method;
+    methodCnt++;
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    methods[methodCnt].c = wolfTLSv1_2_client_method;
+    methods[methodCnt].s = wolfTLSv1_2_server_method;
+    methodCnt++;
+#endif
+
+    for (v = 0; v < methodCnt; v++) {
+        /* round 0: explicit WOLFSSL_VERIFY_PEER on both ends.
+         * round 1: default authenticating client - verifyNone=0 but verifyPeer
+         * never set. Both must fail closed against an unpinned RPK server. */
+        for (explicitVerifyPeer = 1; explicitVerifyPeer >= 0;
+                explicitVerifyPeer--) {
+            ctx_c = ctx_s = NULL;
+            ssl_c = ssl_s = NULL;
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+            ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                        &ssl_c, &ssl_s, methods[v].c, methods[v].s), 0);
+            if (explicitVerifyPeer) {
+                /* explicit mutual WOLFSSL_VERIFY_PEER on both ends */
+                wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+                wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+            }
+            else {
+                /* Default authenticating client: verifyNone=0 with verifyPeer
+                 * NOT set. WOLFSSL_VERIFY_DEFAULT sets exactly that state, and
+                 * it is applied explicitly so the test is deterministic
+                 * regardless of OPENSSL_COMPATIBLE_DEFAULTS (which would
+                 * otherwise default the CTX to WOLFSSL_VERIFY_NONE and skip
+                 * authentication). The server is left non-requesting
+                 * (verifyPeer=0) so the only authentication is the client
+                 * validating the server's RPK - isolating the !verifyNone gate:
+                 * it must fail closed even though verifyPeer was never set. */
+                wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_DEFAULT, NULL);
+                wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_DEFAULT, NULL);
+            }
+
+            /* With no pin and the peer being authenticated the handshake must
+             * NOT complete. */
+            ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            /* and the failure is specifically the untrusted RPK */
+            ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                        WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+#endif
+
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+        }
+    }
+#endif /* HAVE_RPK && (WOLFSSL_TLS13 || !WOLFSSL_NO_TLS12) && client&&server */
+    return EXPECT_RESULT();
+}
+
+/* Exercises the trust-establishment paths around the RPK fail-closed change:
+ *  - WOLFSSL_VERIFY_NONE: handshake completes, get_verify_result() still
+ *    reports the key as untrusted.
+ *  - verify callback override: an untrusted RPK is accepted because the
+ *    callback returns ok.
+ *  - SSL-level pin via wolfSSL_set_expected_rpk(): pinned key -> V_OK.
+ *  - pinning API argument and capacity errors. */
+int test_tls13_rpk_trust(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte* svrSpki = NULL;
+    byte* cliSpki = NULL;
+    size_t svrSpkiSz = 0;
+    size_t cliSpkiSz = 0;
+    int i;
+
+    ExpectIntEQ(load_file(svrRpkCertFile, &svrSpki, &svrSpkiSz), 0);
+    ExpectIntEQ(load_file(clntRpkCertFile, &cliSpki, &cliSpkiSz), 0);
+    /* If either pin failed to load, stop before feeding NULL/zero-length
+     * buffers into the pinning calls below (which would only produce
+     * misleading downstream failures). */
+    if (EXPECT_FAIL()) {
+        XFREE(svrSpki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cliSpki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return EXPECT_RESULT();
+    }
+
+    /* --- WOLFSSL_VERIFY_NONE: completes, but reported as untrusted --- */
+    ctx_c = ctx_s = NULL;
+    ssl_c = ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+#endif
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* --- verify callback overrides the untrusted RPK -> completes --- */
+    ctx_c = ctx_s = NULL;
+    ssl_c = ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_rpk_accept_cb);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, test_rpk_accept_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* --- a callback that accepts only X.509 issuer-lookup errors must NOT
+     * rescue an untrusted RPK: the RPK failure reports its own error code, so
+     * the callback's X.509 checks do not match and the handshake fails closed.
+     * (Would complete if the RPK reused ASN_NO_SIGNER_E / the issuer-lookup
+     * verify-result code.) --- */
+    ctx_c = ctx_s = NULL;
+    ssl_c = ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER,
+                       test_rpk_x509_issuer_accept_cb);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER,
+                       test_rpk_x509_issuer_accept_cb);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+#endif
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* --- SSL-level pin via wolfSSL_set_expected_rpk() -> V_OK --- */
+    ctx_c = ctx_s = NULL;
+    ssl_c = ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    /* client trusts the server's key, server trusts the client's key */
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, svrSpki,
+                (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_s, cliSpki,
+                (unsigned int)cliSpkiSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_s), WOLFSSL_X509_V_OK);
+#endif
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* --- non-matching pin: table populated, but with the WRONG key ---
+     * The client pins the *client's* own key, which is not what the server
+     * presents (the server's key), so RpkIsTrusted's compare loop runs to
+     * completion and finds no match -> fail closed. Distinct from the no-pin
+     * case (empty table) above. */
+    ctx_c = ctx_s = NULL;
+    ssl_c = ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    /* wrong key pinned on the client: it expects cliSpki but gets svrSpki */
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, cliSpki,
+                (unsigned int)cliSpkiSz), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+#endif
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* --- pinning API argument and capacity errors --- */
+    ctx_c = NULL;
+    ssl_c = NULL;
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    /* NULL handle / NULL spki / zero length all report BAD_FUNC_ARG */
+    ExpectIntEQ(wolfSSL_set_expected_rpk(NULL, svrSpki,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, NULL,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, svrSpki, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* fill the pin table, then the next add overflows with BUFFER_E */
+    for (i = 0; i < WOLFSSL_MAX_RPK_PINS; i++) {
+        ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, svrSpki,
+                    (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, svrSpki,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BUFFER_E));
+    /* clear empties the (full) table so an add succeeds again */
+    ExpectIntEQ(wolfSSL_clear_expected_rpk(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_clear_expected_rpk(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, svrSpki,
+                (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+
+    /* same argument/capacity errors for the CTX-level wrapper */
+    ctx_c = NULL;
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(NULL, svrSpki,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, NULL,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    for (i = 0; i < WOLFSSL_MAX_RPK_PINS; i++) {
+        ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki,
+                    (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BUFFER_E));
+    /* clear empties the (full) table so an add succeeds again */
+    ExpectIntEQ(wolfSSL_CTX_clear_expected_rpk(NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_clear_expected_rpk(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki,
+                (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx_c);
+
+    XFREE(svrSpki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cliSpki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* HAVE_RPK && WOLFSSL_TLS13 && client && server && !NO_SHA256 */
     return EXPECT_RESULT();
 }
 
@@ -6529,12 +6981,38 @@ int test_tls13_short_session_ticket(void)
 }
 
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+/* Custom ticket encryption callback with no key-lifetime limit, so the server
+ * issues a ticket for any hint (the default callback refuses a hint of at least
+ * half the key lifetime). */
+static int test_tls13_max_lifetime_ticketEncCb(WOLFSSL* ssl,
+        byte key_name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
+        byte mac[WOLFSSL_TICKET_MAC_SZ], int enc, byte* ticket, int inLen,
+        int* outLen, void* userCtx)
+{
+    int i;
+    (void)ssl;
+    (void)userCtx;
+    if (enc) {
+        XMEMSET(key_name, 0x2A, WOLFSSL_TICKET_NAME_SZ);
+        XMEMSET(iv, 0x2A, WOLFSSL_TICKET_IV_SZ);
+        XMEMSET(mac, 0x2A, WOLFSSL_TICKET_MAC_SZ);
+    }
+    for (i = 0; i < inLen; i++)
+        ticket[i] = (byte)(ticket[i] ^ 0xA5);
+    *outLen = inLen;
+    return WOLFSSL_TICKET_RET_OK;
+}
+#endif
+
 /* RFC 8446 Section 4.6.1: a NewSessionTicket lifetime greater than
  * MAX_LIFETIME (604800 seconds, 7 days) must be rejected. The public
  * wolfSSL_CTX_set_TicketHint setter clamps the value, so write the
- * out-of-range hint directly into the server CTX to force the server to
- * encode an over-limit lifetime onto the wire and confirm the client's
- * DoTls13NewSessionTicket bound check fires. */
+ * out-of-range hint directly into the server CTX. A custom encryption callback
+ * is installed so the default callback's key-lifetime limit does not block
+ * issuance, forcing the server to encode the over-limit lifetime onto the wire
+ * and confirming the client's DoTls13NewSessionTicket bound check fires. */
 int test_tls13_new_session_ticket_max_lifetime(void)
 {
     EXPECT_DECLS;
@@ -6548,6 +7026,8 @@ int test_tls13_new_session_ticket_max_lifetime(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_set_TicketEncCb(ctx_s, test_tls13_max_lifetime_ticketEncCb);
 
     /* Bypass the public-API clamp at 604800. */
     if (EXPECT_SUCCESS()) {

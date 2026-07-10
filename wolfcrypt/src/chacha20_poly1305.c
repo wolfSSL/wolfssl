@@ -74,7 +74,10 @@ int wc_ChaCha20Poly1305_Encrypt(
             inPlaintextLen);
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_Final(aead, outAuthTag);
-
+    #ifdef WOLFSSL_SMALL_STACK
+    if (aead != NULL)
+    #endif
+        ForceZero(aead, sizeof(ChaChaPoly_Aead));
     WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -123,6 +126,10 @@ int wc_ChaCha20Poly1305_Decrypt(
         /* zero plaintext on error */
         ForceZero(outPlaintext, inCiphertextLen);
     }
+    #ifdef WOLFSSL_SMALL_STACK
+    if (aead != NULL)
+    #endif
+        ForceZero(aead, sizeof(ChaChaPoly_Aead));
     WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -408,6 +415,14 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
 
     if (dst_space < dst_len) {
         ret = BUFFER_E;
+        goto out;
+    }
+
+    /* Sanity check lengths to prevent truncation when cast to word32. */
+    if ((ad_len > WOLFSSL_MAX_32BIT) ||
+        (nonce_len > WOLFSSL_MAX_32BIT) ||
+        (key_len > WOLFSSL_MAX_32BIT)) {
+        ret = BAD_FUNC_ARG;
         goto out;
     }
 

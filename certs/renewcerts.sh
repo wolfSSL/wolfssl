@@ -1187,13 +1187,19 @@ EOF
     ############################################################
     #### ML-DSA (FIPS 204) self-signed certificates          ###
     ############################################################
-    # ML-DSA requires an OpenSSL 3.x binary with ML-DSA support
-    # (via oqsprovider or built-in). Detect support by probing candidates.
+    # ML-DSA requires an OpenSSL 3.5+ binary with the built-in ML-DSA provider.
+    # Besides key/cert generation the block also produces the expanded-only
+    # PKCS#8 key.der (-provparam ml-dsa.output_formats=priv, a 3.5+ built-in
+    # construct) that the PKCS#7 tests decode without keygen-from-seed. The
+    # probe below requires both keygen and that conversion, so the common
+    # unsuitable binaries (oqsprovider or pre-3.5, which lack the expanded-only
+    # conversion) are rejected here and the block is skipped cleanly rather
+    # than aborting after writing a cert.der but no matching key.der.
     OPENSSL3=""
     for candidate in \
-        "/usr/local/opt/openssl@3.2/bin/openssl" \
+        "/usr/local/opt/openssl@3.5/bin/openssl" \
         "/usr/local/opt/openssl@3/bin/openssl" \
-        "/opt/homebrew/opt/openssl@3.2/bin/openssl" \
+        "/opt/homebrew/opt/openssl@3.5/bin/openssl" \
         "/opt/homebrew/opt/openssl@3/bin/openssl" \
         "openssl"; do
         if [ "$candidate" = "openssl" ]; then
@@ -1203,7 +1209,23 @@ EOF
             # Skip non-existent or non-executable absolute paths.
             [ -x "$candidate" ] || continue
         fi
-        if "$candidate" genpkey -algorithm mldsa44 -out /dev/null 2>/dev/null; then
+        probe_key="$(mktemp)" || continue
+        # Probe every level the loop below generates (44/65/87), for both
+        # keygen and the expanded-only conversion, so a partially-capable
+        # binary is rejected up front rather than aborting mid-loop.
+        probe_ok=1
+        for probe_level in 44 65 87; do
+            if ! "$candidate" genpkey -algorithm "mldsa${probe_level}" \
+                    -out "$probe_key" 2>/dev/null || \
+               ! "$candidate" pkey -in "$probe_key" \
+                    -provparam ml-dsa.output_formats=priv -outform DER \
+                    -out /dev/null 2>/dev/null; then
+                probe_ok=0
+                break
+            fi
+        done
+        rm -f "$probe_key"
+        if [ "$probe_ok" -eq 1 ]; then
             OPENSSL3="$candidate"
             break
         fi
@@ -1230,6 +1252,19 @@ EOF
                 -outform DER -out "mldsa/mldsa${level}-cert.der"
             check_result $? "ML-DSA-${level} DER conversion"
 
+            # Matching private key in the portable expanded-only PKCS#8 DER
+            # shape, used by the PKCS#7/CMS SignedData tests. Derived from the
+            # same mldsa${level}-key.pem so it corresponds to the public key in
+            # mldsa${level}-cert.der. The expanded-only form (no seed) decodes
+            # via ImportPrivRaw without keygen-from-seed or the ASN template,
+            # so the tests pass in WOLFSSL_MLDSA_NO_MAKE_KEY and non-template
+            # builds too; the seed-and-expanded default would not. The probe
+            # above already verified this binary supports the conversion.
+            "$OPENSSL3" pkey -in "mldsa/mldsa${level}-key.pem" \
+                -provparam ml-dsa.output_formats=priv -outform DER \
+                -out "mldsa/mldsa${level}-key.der"
+            check_result $? "ML-DSA-${level} key DER conversion"
+
             echo "End of ML-DSA-${level} section"
         done
 
@@ -1254,7 +1289,7 @@ EOF
         echo "End of ecc-leaf-mldsa44 section"
         echo "---------------------------------------------------------------------"
     else
-        echo "Skipping ML-DSA cert generation (no OpenSSL 3.3+ with ML-DSA support found)"
+        echo "Skipping ML-DSA cert generation (no OpenSSL 3.5+ built-in ML-DSA provider found)"
         echo "---------------------------------------------------------------------"
     fi
 

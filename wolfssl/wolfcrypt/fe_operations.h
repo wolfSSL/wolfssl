@@ -40,6 +40,20 @@
     #define CURVED25519_ASM_64BIT
     #define CURVED25519_ASM
 #endif
+
+/* The small (reduced-C) curve25519/ed25519 code and the Intel x64 assembly
+ * both provide the same fe_, sc_ and curve25519 symbols, so selecting both
+ * (for example a user_settings.h that keeps CURVE25519_SMALL/ED25519_SMALL
+ * while USE_INTEL_SPEEDUP enables the x64 assembly) produces duplicate-symbol
+ * link errors that are hard to diagnose. Detect the incompatible combination
+ * at compile time with a clear message instead. To keep the small
+ * implementation define NO_CURVED25519_X64; to use the assembly drop
+ * CURVE25519_SMALL / ED25519_SMALL. */
+#if defined(CURVED25519_X64) && \
+    (defined(CURVE25519_SMALL) || defined(ED25519_SMALL))
+    #error "CURVE25519_SMALL/ED25519_SMALL are incompatible with the Intel x64 curve25519/ed25519 assembly (CURVED25519_X64); define NO_CURVED25519_X64 to keep the small implementation, or remove the SMALL settings to use the assembly"
+#endif
+
 #if defined(WOLFSSL_ARMASM)
     #ifdef __aarch64__
         #define CURVED25519_ASM_64BIT
@@ -112,6 +126,13 @@ WOLFSSL_LOCAL int curve25519_nb(byte * q, const byte * n, const byte * p,
 WOLFSSL_LOCAL void fe_init(void);
 
 WOLFSSL_LOCAL int curve25519(byte * q, const byte * n, const byte * p);
+#if defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+/* Fixed-base scalar multiply provided by the x64/aarch64 assembly
+ * (fe_x25519_asm.S, armv8-curve25519); declared here as no other header
+ * prototypes it, which otherwise breaks a strict C (implicit-declaration)
+ * build of curve25519.c. */
+WOLFSSL_LOCAL int curve25519_base(byte * q, const byte * n);
+#endif
 #ifdef WOLFSSL_CURVE25519_BLINDING
 WOLFSSL_LOCAL int curve25519_blind(byte* q, const byte* n, const byte* mask,
     const byte* p, const byte* rz);

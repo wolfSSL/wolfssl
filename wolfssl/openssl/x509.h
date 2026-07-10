@@ -210,6 +210,9 @@
 #define X509_V_ERR_CA_CERT_MISSING_KEY_USAGE           92
 #define X509_V_ERR_EXTENSIONS_REQUIRE_VERSION_3        93
 #define X509_V_ERR_EC_KEY_EXPLICIT_PARAMS              94
+/* 95 matches OpenSSL's X509_V_ERR_RPK_UNTRUSTED (OpenSSL 3.2+) for source
+ * compatibility. */
+#define X509_V_ERR_RPK_UNTRUSTED                       95
 #define X509_R_CERT_ALREADY_IN_HASH_TABLE              101
 #define X509_R_KEY_VALUES_MISMATCH                     WC_KEY_MISMATCH_E
 

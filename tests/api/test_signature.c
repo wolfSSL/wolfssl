@@ -31,7 +31,11 @@
 #include <wolfssl/wolfcrypt/signature.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef HAVE_FALCON
+    #include <wolfssl/wolfcrypt/falcon.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_signature.h>
 
@@ -161,3 +165,46 @@ int test_wc_SignatureGetSize_rsa(void)
     return EXPECT_RESULT();
 } /* END test_wc_SignatureGetSize_rsa(void) */
 
+int test_wc_falcon_sign_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_FALCON) && defined(HAVE_LIBOQS)
+    falcon_key key;
+    WC_RNG rng;
+    byte sig[FALCON_LEVEL1_SIG_SIZE];
+    word32 sigLen = (word32)sizeof(sig);
+    word32 idx = 0;
+    int verified = 0;
+    static const byte msg[] = "wolfssl falcon coverage";
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Use the embedded benchmark key rather than generating one with a
+     * direct OQS_SIG_keypair() call: that call draws from liboqs'
+     * randombytes callback, which wolfSSL points at its default liboqs RNG.
+     * Any earlier wolfCrypt_Init/Cleanup cycle in this suite leaves that RNG
+     * freed (wolfSSL_liboqsClose() does not reset liboqs_init, so re-Init
+     * never re-creates it) and the callback then abort()s. The wolfSSL API
+     * paths below hand OUR rng to liboqs instead, so they do not depend on
+     * that state. */
+    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(bench_falcon_level1_key, &idx,
+        &key, (word32)sizeof_bench_falcon_level1_key), 0);
+
+    ExpectIntGT(wc_falcon_size(&key), 0);
+    ExpectIntGT(wc_falcon_pub_size(&key), 0);
+    ExpectIntGT(wc_falcon_priv_size(&key), 0);
+    ExpectIntGT(wc_falcon_sig_size(&key), 0);
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &verified, &key), 0);
+    ExpectIntEQ(verified, 1);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_falcon_free(&key);
+#endif
+    return EXPECT_RESULT();
+}

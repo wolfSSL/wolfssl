@@ -26,9 +26,11 @@
 
 int test_wc_SignatureGetSize_ecc(void);
 int test_wc_SignatureGetSize_rsa(void);
+int test_wc_falcon_sign_verify(void);
 
 #define TEST_SIGNATURE_DECLS                                    \
     TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc), \
-    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_rsa)
+    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_rsa), \
+    TEST_DECL_GROUP("signature", test_wc_falcon_sign_verify)
 
 #endif /* WOLFCRYPT_TEST_SIGNATURE_H */

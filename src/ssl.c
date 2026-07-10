@@ -15442,20 +15442,20 @@ WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void)
 int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
         char zeroFill)
 {
-
-    int len_int = (int)len;
-    int mx;
+    size_t mx;
     char* tmp;
 
-    /* verify provided arguments */
-    if (buf == NULL || len_int < 0) {
+    /* verify provided arguments. The return value is an int holding the
+     * resulting length, so reject any len that cannot be represented as a
+     * non-negative int. This also prevents truncating size_t to int. */
+    if (buf == NULL || len > (size_t)WC_MAX_SINT_OF(int)) {
         return 0; /* BAD_FUNC_ARG; */
     }
 
     /* check to see if fits in existing length */
     if (buf->length > len) {
         buf->length = len;
-        return len_int;
+        return (int)len;
     }
 
     /* check to see if fits in max buffer */
@@ -15464,11 +15464,11 @@ int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
             XMEMSET(&buf->data[buf->length], 0, len - buf->length);
         }
         buf->length = len;
-        return len_int;
+        return (int)len;
     }
 
     /* expand size, to handle growth */
-    mx = (len_int + 3) / 3 * 4;
+    mx = (len + 3) / 3 * 4;
 
 #ifdef WOLFSSL_NO_REALLOC
     tmp = (char*)XMALLOC(mx, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -15489,12 +15489,12 @@ int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
     }
     buf->data = tmp;
 
-    buf->max = (size_t)mx;
+    buf->max = mx;
     if (zeroFill)
         XMEMSET(&buf->data[buf->length], 0, len - buf->length);
     buf->length = len;
 
-    return len_int;
+    return (int)len;
 
 }
 
@@ -15508,10 +15508,11 @@ int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
 int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
 {
     char* tmp;
-    int mx;
+    size_t mx;
 
-    /* verify provided arguments */
-    if (buf == NULL || len == 0 || (int)len <= 0) {
+    /* verify provided arguments. The return value is an int, so reject any
+     * len that cannot be represented as a positive int. */
+    if (buf == NULL || len == 0 || len > (size_t)WC_MAX_SINT_OF(int)) {
         return 0; /* BAD_FUNC_ARG; */
     }
 
@@ -15522,7 +15523,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
         return wolfSSL_BUF_MEM_grow_ex(buf, len, 0);
 
     /* expand size, to handle growth */
-    mx = ((int)len + 3) / 3 * 4;
+    mx = (len + 3) / 3 * 4;
 
     /* We want to shrink the internal buffer */
 #ifdef WOLFSSL_NO_REALLOC
@@ -15542,7 +15543,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
 
     buf->data = tmp;
     buf->length = len;
-    buf->max = (size_t)mx;
+    buf->max = mx;
 
     return (int)len;
 }
@@ -15733,7 +15734,11 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 }
 
 
-/* Writes 1024 bytes from the RNG to the given file name.
+#ifndef WOLFSSL_RAND_WRITE_FILE_BUF_SZ
+#define WOLFSSL_RAND_WRITE_FILE_BUF_SZ 1024
+#endif
+/* Writes WOLFSSL_RAND_WRITE_FILE_BUF_SZ bytes (1024 by default) from the RNG
+ * to the given file name.
  *
  * fname name of file to write to
  *
@@ -15752,16 +15757,16 @@ int wolfSSL_RAND_write_file(const char* fname)
 #ifndef NO_FILESYSTEM
     {
     #ifndef WOLFSSL_SMALL_STACK
-        unsigned char buf[1024];
+        unsigned char buf[WOLFSSL_RAND_WRITE_FILE_BUF_SZ];
     #else
-        unsigned char* buf = (unsigned char *)XMALLOC(1024, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        unsigned char* buf = (unsigned char *)XMALLOC(
+            WOLFSSL_RAND_WRITE_FILE_BUF_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (buf == NULL) {
             WOLFSSL_MSG("malloc failed");
             return WOLFSSL_FAILURE;
         }
     #endif
-        bytes = 1024; /* default size of buf */
+        bytes = WOLFSSL_RAND_WRITE_FILE_BUF_SZ;
 
         if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("No RNG to use");
@@ -15769,12 +15774,21 @@ int wolfSSL_RAND_write_file(const char* fname)
             return 0;
         }
 
+        if (wc_LockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
+            WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return 0;
+        }
+
         if (wc_RNG_GenerateBlock(&globalRNG, buf, (word32)bytes) != 0) {
+            wc_UnLockMutex(&globalRNGMutex);
             WOLFSSL_MSG("Error generating random buffer");
             bytes = 0;
         }
         else {
             XFILE f;
+
+            wc_UnLockMutex(&globalRNGMutex);
 
         #ifdef WOLFSSL_CHECK_MEM_ZERO
             wc_MemZero_Add("wolfSSL_RAND_write_file buf", buf, bytes);
@@ -15791,7 +15805,9 @@ int wolfSSL_RAND_write_file(const char* fname)
                 XFCLOSE(f);
             }
         }
-        ForceZero(buf, (word32)bytes);
+        /* wipe the whole buffer, not just (word32)bytes: error paths set
+         * bytes = 0 but the buffer may still hold generated random data */
+        ForceZero(buf, WOLFSSL_RAND_WRITE_FILE_BUF_SZ);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -15925,21 +15941,30 @@ int wolfSSL_RAND_egd(const char* nm)
             WOLFSSL_MSG("Error with initializing global RNG structure");
             ret = WOLFSSL_FATAL_ERROR;
         }
-        else if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
-                != 0) {
-            WOLFSSL_MSG("Error with reseeding DRBG structure");
+        else if (wc_LockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
             ret = WOLFSSL_FATAL_ERROR;
         }
-        #ifdef SHOW_SECRETS
-        else { /* print out entropy found only when no error occurred */
-            word32 i;
-            printf("EGD Entropy = ");
-            for (i = 0; i < bytes; i++) {
-                printf("%02X", buf[i]);
+        else {
+            if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
+                    != 0) {
+                WOLFSSL_MSG("Error with reseeding DRBG structure");
+                ret = WOLFSSL_FATAL_ERROR;
             }
-            printf("\n");
+            wc_UnLockMutex(&globalRNGMutex);
+
+            #ifdef SHOW_SECRETS
+            /* print out entropy found only when no error occurred */
+            if (ret == WOLFSSL_SUCCESS) {
+                word32 i;
+                printf("EGD Entropy = ");
+                for (i = 0; i < bytes; i++) {
+                    printf("%02X", buf[i]);
+                }
+                printf("\n");
+            }
+            #endif
         }
-        #endif
     }
 
     ForceZero(buf, bytes);
@@ -16167,18 +16192,21 @@ int wolfSSL_RAND_poll(void)
         WOLFSSL_MSG("Global RNG no Init");
         return  WOLFSSL_FAILURE;
     }
+
+    /* lock intentionally covers wc_GenerateSeed as well, since it writes
+     * globalRNG.seed; do not narrow this scope or the seed write races */
+    if (wc_LockMutex(&globalRNGMutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex rng");
+        return WOLFSSL_FAILURE;
+    }
+
     ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
     if (ret != 0) {
-        WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+        WOLFSSL_MSG("Bad wc_GenerateSeed");
         ret = WOLFSSL_FAILURE;
     }
     else {
 #ifdef HAVE_HASHDRBG
-        if (wc_LockMutex(&globalRNGMutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex rng");
-            return ret;
-        }
-
         ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
         if (ret != 0) {
             WOLFSSL_MSG("Error reseeding DRBG");
@@ -16187,7 +16215,6 @@ int wolfSSL_RAND_poll(void)
         else {
             ret = WOLFSSL_SUCCESS;
         }
-        wc_UnLockMutex(&globalRNGMutex);
 #elif defined(HAVE_INTEL_RDRAND)
         WOLFSSL_MSG("Not polling with RAND_poll, RDRAND used without "
                     "HAVE_HASHDRBG");
@@ -16197,6 +16224,8 @@ int wolfSSL_RAND_poll(void)
         ret = WOLFSSL_FAILURE;
 #endif
     }
+
+    wc_UnLockMutex(&globalRNGMutex);
 
     return ret;
 }

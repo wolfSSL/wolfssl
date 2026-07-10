@@ -9,6 +9,24 @@ File variants, per level N in {44, 65, 87}:
   mldsa<N>_oqskeypair.der   liboqs concatenated (priv || pub) format
   mldsa<N>_pub-spki.der     SubjectPublicKeyInfo wrapping the public key
 
+Self-signed certificates and their matching keys (used by the PKCS#7/CMS
+SignedData tests), per level N in {44, 65, 87}:
+  mldsa<N>-cert.pem / mldsa<N>-cert.der   self-signed ML-DSA certificate
+  mldsa<N>-key.pem                        matching private key (PEM,
+                                          seed-and-expanded PKCS#8)
+  mldsa<N>-key.der                        matching private key (DER,
+                                          expanded-only PKCS#8)
+
+The mldsa<N>-key.der files were derived from the matching mldsa<N>-key.pem
+using OpenSSL 3.5+, selecting the portable expanded-only private-key shape:
+
+  openssl pkey -in mldsa<N>-key.pem \
+      -provparam ml-dsa.output_formats=priv -outform DER \
+      -out mldsa<N>-key.der
+
+Unlike the standalone mldsa<N>_priv-only.der vectors above, these correspond
+to the public key in mldsa<N>-cert.der.
+
 The *_pub-spki.der files were derived from the matching *_priv-only.der files
 using OpenSSL 3.5+:
 

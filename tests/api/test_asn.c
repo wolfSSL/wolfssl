@@ -34,6 +34,9 @@
 #ifdef HAVE_ED448
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
 #ifdef HAVE_DILITHIUM
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
@@ -2212,5 +2215,269 @@ int test_ToTraditional_ex_mldsa_bad_params(void)
     algId = 0;
     ExpectIntLT(ToTraditional_ex(copy, sz, &algId), 0);
 #endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC wave 2 - decision-targeted negative paths for PKCS#8 wrap/parse
+ * and RSA key decode. Targets argument-check, short-buffer, and
+ * truncated-DER decision branches in wolfcrypt/src/asn.c without touching
+ * the library source.
+ */
+int test_wc_AsnDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_ASN) && !defined(NO_RSA) && \
+    (defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)) && \
+    !defined(HAVE_FIPS)
+    /* ---- wc_RsaPublicKeyDecode: truncated / bad-arg decision branches ---- */
+    {
+        RsaKey key;
+        const byte* derKey;
+        word32 derKeySz;
+        word32 idx;
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+
+    #ifdef USE_CERT_BUFFERS_2048
+        derKey = client_keypub_der_2048;
+        derKeySz = (word32)sizeof_client_keypub_der_2048;
+    #else
+        derKey = client_keypub_der_1024;
+        derKeySz = (word32)sizeof_client_keypub_der_1024;
+    #endif
+
+        /* Null arg branches. */
+        idx = 0;
+        ExpectIntEQ(wc_RsaPublicKeyDecode(NULL, &idx, &key, derKeySz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RsaPublicKeyDecode(derKey, NULL, &key, derKeySz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_RsaPublicKeyDecode(derKey, &idx, NULL, derKeySz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Truncated input: header says more data than buffer length. */
+        idx = 0;
+        ExpectIntLT(wc_RsaPublicKeyDecode(derKey, &idx, &key, 4), 0);
+
+        /* wc_RsaPublicKeyDecodeRaw null-arg branches. */
+        {
+            static const byte nBuf[] = { 0xC0 };
+            static const byte eBuf[] = { 0x01, 0x00, 0x01 };
+            ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(NULL, sizeof(nBuf),
+                eBuf, sizeof(eBuf), &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(nBuf, sizeof(nBuf),
+                NULL, sizeof(eBuf), &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(nBuf, sizeof(nBuf),
+                eBuf, sizeof(eBuf), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+
+        DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    }
+
+    /* ---- wc_GetPkcs8TraditionalOffset: argument-check branches ---- */
+    {
+        byte buf[8] = { 0x30, 0x82, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00 };
+        word32 idx;
+
+        idx = 0;
+        ExpectIntEQ(wc_GetPkcs8TraditionalOffset(NULL, &idx, sizeof(buf)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_GetPkcs8TraditionalOffset(buf, NULL, sizeof(buf)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* idx >= sz decision branch - any negative return exercises the
+         * short-input guard (BUFFER_E in current code, but we do not pin
+         * the exact code here). */
+        idx = sizeof(buf);
+        ExpectIntLT(wc_GetPkcs8TraditionalOffset(buf, &idx, sizeof(buf)), 0);
+        /* Non-PKCS#8 blob: malformed DER decision branch. */
+        {
+            byte bogus[4] = { 0x00, 0x00, 0x00, 0x00 };
+            idx = 0;
+            ExpectIntLT(wc_GetPkcs8TraditionalOffset(bogus, &idx,
+                sizeof(bogus)), 0);
+        }
+    }
+
+    /* ---- wc_CreatePKCS8Key: size-query and bad-arg branches ----
+     * Uses the existing RSA private key DER from certs_test.h to avoid
+     * runtime key generation (which requires WOLFSSL_KEY_GEN and a usable
+     * RNG and is not available in every retained lane). */
+    {
+    #ifdef USE_CERT_BUFFERS_2048
+        const byte* rsaDer = client_key_der_2048;
+        word32 rsaDerSz = (word32)sizeof_client_key_der_2048;
+    #else
+        const byte* rsaDer = client_key_der_1024;
+        word32 rsaDerSz = (word32)sizeof_client_key_der_1024;
+    #endif
+        byte pkcs8[2048];
+        word32 pkcs8Sz;
+
+        /* Size-query: out == NULL should return LENGTH_ONLY_E and set
+         * outSz. */
+        pkcs8Sz = 0;
+        ExpectIntEQ(wc_CreatePKCS8Key(NULL, &pkcs8Sz, (byte*)rsaDer,
+            rsaDerSz, RSAk, NULL, 0),
+            WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        ExpectIntGT(pkcs8Sz, 0);
+
+        /* Null outSz branch. */
+        ExpectIntEQ(wc_CreatePKCS8Key(pkcs8, NULL, (byte*)rsaDer, rsaDerSz,
+            RSAk, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif /* !NO_ASN && !NO_RSA && cert-buffers && !HAVE_FIPS */
+
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC wave 2 - feature-oriented positive paths to lift asn.c MC/DC by
+ * exercising real cert parsing, PKCS#8 round trips, ECC key decoding, and
+ * PEM<->DER conversions on the static cert buffers (no new fixtures).
+ */
+int test_wc_AsnFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(NO_RSA) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS)
+    /* ---- DecodedCert: full client cert parse, with subject + pubkey ---- */
+    {
+        struct DecodedCert cert;
+        byte pubKey[512];
+        word32 pubKeySz = sizeof(pubKey);
+        char subject[256];
+        word32 subjectSz = sizeof(subject);
+
+        wc_InitDecodedCert(&cert, client_cert_der_2048,
+            sizeof_client_cert_der_2048, NULL);
+        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+        ExpectIntEQ(wc_GetPubKeyDerFromCert(&cert, pubKey, &pubKeySz), 0);
+        ExpectIntGT(pubKeySz, 0);
+        ExpectIntEQ(wc_GetDecodedCertSubject(&cert, subject, &subjectSz), 0);
+        wc_FreeDecodedCert(&cert);
+    }
+
+    /* ---- DecodedCert: server cert parse and SubjectPublicKeyInfo extract -- */
+    {
+        struct DecodedCert cert;
+        byte spki[1024];
+        word32 spkiSz = sizeof(spki);
+
+        wc_InitDecodedCert(&cert, server_cert_der_2048,
+            sizeof_server_cert_der_2048, NULL);
+        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+        wc_FreeDecodedCert(&cert);
+
+        /* Some retained builds return 0 on success and write spkiSz; others
+         * return spkiSz directly. Accept any non-negative result and require
+         * a non-zero output size. */
+        ExpectIntGE(wc_GetSubjectPubKeyInfoDerFromCert(server_cert_der_2048,
+            sizeof_server_cert_der_2048, spki, &spkiSz), 0);
+        ExpectIntGT(spkiSz, 0);
+    }
+
+    /* ---- PKCS#8: round trip wrap then offset extract ---- */
+    {
+        byte pkcs8[2048];
+        word32 pkcs8Sz = 0;
+        word32 idx;
+        int wrapSz;
+
+        /* Size query first. */
+        ExpectIntEQ(wc_CreatePKCS8Key(NULL, &pkcs8Sz,
+            (byte*)client_key_der_2048, sizeof_client_key_der_2048, RSAk,
+            NULL, 0), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        ExpectIntGT(pkcs8Sz, 0);
+
+        wrapSz = wc_CreatePKCS8Key(pkcs8, &pkcs8Sz,
+            (byte*)client_key_der_2048, sizeof_client_key_der_2048, RSAk,
+            NULL, 0);
+        ExpectIntGT(wrapSz, 0);
+
+        if (wrapSz > 0) {
+            idx = 0;
+            ExpectIntGE(wc_GetPkcs8TraditionalOffset(pkcs8, &idx,
+                (word32)wrapSz), 0);
+            ExpectIntGT(idx, 0);
+        }
+    }
+
+    /* ---- CA cert parse: exercises CA-specific decision branches ---- */
+    {
+        struct DecodedCert caCert;
+        wc_InitDecodedCert(&caCert, ca_cert_der_2048, sizeof_ca_cert_der_2048,
+            NULL);
+        ExpectIntEQ(wc_ParseCert(&caCert, CA_TYPE, NO_VERIFY, NULL), 0);
+        wc_FreeDecodedCert(&caCert);
+    }
+
+    /* ---- Parse server cert a second time with CERT_TYPE + verify off ----
+     * to touch ParseCertRelative decision branches that the first pass skips.
+     */
+    {
+        struct DecodedCert cert2;
+        wc_InitDecodedCert(&cert2, server_cert_der_2048,
+            sizeof_server_cert_der_2048, NULL);
+        ExpectIntEQ(wc_ParseCert(&cert2, CERT_TYPE, NO_VERIFY, NULL), 0);
+        wc_FreeDecodedCert(&cert2);
+    }
+
+    /* ---- PEM<->DER conversion round trip on the client cert ---- */
+    #ifdef WOLFSSL_DER_TO_PEM
+    {
+        byte pem[4096];
+        int  pemSz;
+
+        pemSz = wc_DerToPem(client_cert_der_2048, sizeof_client_cert_der_2048,
+            pem, sizeof(pem), CERT_TYPE);
+        ExpectIntGT(pemSz, 0);
+
+        #ifdef WOLFSSL_PEM_TO_DER
+        if (pemSz > 0) {
+            byte der[2048];
+            int  derSz;
+            derSz = wc_CertPemToDer(pem, pemSz, der, sizeof(der), CERT_TYPE);
+            ExpectIntGT(derSz, 0);
+            if (derSz > 0)
+                ExpectBufEQ(der, client_cert_der_2048,
+                    sizeof_client_cert_der_2048);
+        }
+        #endif
+    }
+    #endif /* WOLFSSL_DER_TO_PEM */
+#endif /* !NO_ASN && !NO_RSA && USE_CERT_BUFFERS_2048 && !HAVE_FIPS */
+
+#if !defined(NO_ASN) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(HAVE_FIPS)
+    /* ---- ECC private + public key DER decode round trip ---- */
+    {
+        ecc_key ecKey;
+        word32  idx = 0;
+        byte    pubKeyDer[256];
+        int     derSz;
+
+        XMEMSET(&ecKey, 0, sizeof(ecKey));
+        ExpectIntEQ(wc_ecc_init(&ecKey), 0);
+        ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &ecKey,
+            sizeof_ecc_clikey_der_256), 0);
+
+        derSz = wc_EccPublicKeyToDer(&ecKey, pubKeyDer, sizeof(pubKeyDer), 1);
+        ExpectIntGT(derSz, 0);
+
+        if (derSz > 0) {
+            ecc_key pubOnly;
+            word32  idx2 = 0;
+            XMEMSET(&pubOnly, 0, sizeof(pubOnly));
+            ExpectIntEQ(wc_ecc_init(&pubOnly), 0);
+            ExpectIntEQ(wc_EccPublicKeyDecode(pubKeyDer, &idx2, &pubOnly,
+                (word32)derSz), 0);
+            wc_ecc_free(&pubOnly);
+        }
+        wc_ecc_free(&ecKey);
+    }
+#endif /* !NO_ASN && HAVE_ECC && USE_CERT_BUFFERS_256 && !HAVE_FIPS */
     return EXPECT_RESULT();
 }

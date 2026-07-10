@@ -16096,6 +16096,129 @@ int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
 int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp);
 
 /*!
+ \ingroup Setup
+ \brief  Pin a DER-encoded SubjectPublicKeyInfo that the peer is expected to
+ present as a Raw Public Key (RFC 7250), establishing out-of-band trust on the
+ WOLFSSL_CTX object. An unauthenticated RPK peer is otherwise rejected: when the
+ peer is being authenticated (any verify mode other than WOLFSSL_VERIFY_NONE)
+ the handshake fails closed unless the presented key matches a pin (or a verify
+ callback accepts it). May be called more than once to pin several keys, up to
+ WOLFSSL_MAX_RPK_PINS. The key is stored as its SHA-256 digest, so this API
+ requires SHA-256. Pins are append-only - there is no per-entry remove, but
+ wolfSSL_CTX_clear_expected_rpk() empties the table so it can be repopulated.
+
+ \return WOLFSSL_SUCCESS on success
+ \return BAD_FUNC_ARG if ctx or spki is NULL, or spkiSz is 0
+ \return BUFFER_E if the pin table is already full (WOLFSSL_MAX_RPK_PINS)
+ \return other negative error code on a hashing failure
+
+ \param ctx     WOLFSSL_CTX object pointer
+ \param spki    DER-encoded SubjectPublicKeyInfo the peer is expected to present
+ \param spkiSz  length of spki in bytes
+    _Example_
+ \code
+  int ret;
+  WOLFSSL_CTX* ctx;
+  const unsigned char* spki;
+  unsigned int spkiSz;
+  ...
+
+  ret = wolfSSL_CTX_set_expected_rpk(ctx, spki, spkiSz);
+ \endcode
+ \sa wolfSSL_set_expected_rpk
+ \sa wolfSSL_CTX_clear_expected_rpk
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ */
+int wolfSSL_CTX_set_expected_rpk(WOLFSSL_CTX* ctx, const unsigned char* spki,
+    unsigned int spkiSz);
+
+/*!
+ \ingroup Setup
+ \brief  Pin a DER-encoded SubjectPublicKeyInfo that the peer is expected to
+ present as a Raw Public Key (RFC 7250), establishing out-of-band trust on the
+ WOLFSSL object. An unauthenticated RPK peer is otherwise rejected: when the
+ peer is being authenticated (any verify mode other than WOLFSSL_VERIFY_NONE)
+ the handshake fails closed unless the presented key matches a pin (or a verify
+ callback accepts it). May be called more than once to pin several keys, up to
+ WOLFSSL_MAX_RPK_PINS. The key is stored as its SHA-256 digest, so this API
+ requires SHA-256. Pins are append-only - there is no per-entry remove, but
+ wolfSSL_clear_expected_rpk() empties the table so it can be repopulated.
+
+ \return WOLFSSL_SUCCESS on success
+ \return BAD_FUNC_ARG if ssl or spki is NULL, or spkiSz is 0
+ \return BUFFER_E if the pin table is already full (WOLFSSL_MAX_RPK_PINS)
+ \return other negative error code on a hashing failure
+
+ \param ssl     WOLFSSL object pointer
+ \param spki    DER-encoded SubjectPublicKeyInfo the peer is expected to present
+ \param spkiSz  length of spki in bytes
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  const unsigned char* spki;
+  unsigned int spkiSz;
+  ...
+
+  ret = wolfSSL_set_expected_rpk(ssl, spki, spkiSz);
+ \endcode
+ \sa wolfSSL_CTX_set_expected_rpk
+ \sa wolfSSL_clear_expected_rpk
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ */
+int wolfSSL_set_expected_rpk(WOLFSSL* ssl, const unsigned char* spki,
+    unsigned int spkiSz);
+
+/*!
+ \ingroup Setup
+ \brief  Remove all pinned expected peer Raw Public Keys (RFC 7250) from the
+ WOLFSSL_CTX object, emptying the table so it can be repopulated - for example
+ across a peer key rotation, since the pinning APIs are otherwise append-only.
+ Like other WOLFSSL_CTX setters this is not locked, so reconfigure the pins on a
+ shared CTX while no handshakes are in flight (a WOLFSSL created with
+ wolfSSL_new() copies the pin table by value at creation time).
+
+ \return WOLFSSL_SUCCESS on success
+ \return BAD_FUNC_ARG if ctx is NULL
+
+ \param ctx  WOLFSSL_CTX object pointer
+    _Example_
+ \code
+  WOLFSSL_CTX* ctx;
+  ...
+
+  wolfSSL_CTX_clear_expected_rpk(ctx);
+ \endcode
+ \sa wolfSSL_CTX_set_expected_rpk
+ \sa wolfSSL_clear_expected_rpk
+ */
+int wolfSSL_CTX_clear_expected_rpk(WOLFSSL_CTX* ctx);
+
+/*!
+ \ingroup Setup
+ \brief  Remove all pinned expected peer Raw Public Keys (RFC 7250) from the
+ WOLFSSL object, emptying the table so it can be repopulated - for example
+ across a peer key rotation, since the pinning APIs are otherwise append-only.
+
+ \return WOLFSSL_SUCCESS on success
+ \return BAD_FUNC_ARG if ssl is NULL
+
+ \param ssl  WOLFSSL object pointer
+    _Example_
+ \code
+  WOLFSSL* ssl;
+  ...
+
+  wolfSSL_clear_expected_rpk(ssl);
+ \endcode
+ \sa wolfSSL_set_expected_rpk
+ \sa wolfSSL_CTX_clear_expected_rpk
+ */
+int wolfSSL_clear_expected_rpk(WOLFSSL* ssl);
+
+/*!
 
 \brief Enable use of ConnectionID extensions for the SSL object. See RFC 9146
 and RFC 9147

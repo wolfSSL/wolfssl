@@ -1,0 +1,28 @@
+name: wolfPKCS11 cross-library
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  cross-library:
+    uses: ./.github/workflows/cross-library.yml
+    with:
+      product: wolfpkcs11
+      repo: wolfSSL/wolfPKCS11
+      # wolfPKCS11's documented wolfSSL build (see its README).
+      wolfssl_configure: >-
+        --enable-aescfb --enable-rsapss --enable-keygen --enable-pwdbased
+        --enable-scrypt
+        C_EXTRA_FLAGS="-DWOLFSSL_PUBLIC_MP -DWC_RSA_DIRECT -DHAVE_AES_ECB -DHAVE_AES_KEYWRAP"
+      product_configure: ''
+      script: wolfpkcs11.sh
