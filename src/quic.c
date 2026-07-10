@@ -1348,6 +1348,10 @@ int wolfSSL_quic_aead_encrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
      * TODO: there is some fiddling in OpenSSL+quic in regard to CCM ciphers
      *       which we need to check.
      */
+    if (plainlen > INT_MAX || aadlen > INT_MAX) {
+        return WOLFSSL_FAILURE;
+    }
+
     if (wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 1) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherUpdate(
                 ctx, NULL, &len, aad, (int)aadlen) != WOLFSSL_SUCCESS
