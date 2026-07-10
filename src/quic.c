@@ -1377,7 +1377,7 @@ int wolfSSL_quic_aead_decrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
     const uint8_t* tag;
 
     /* See rationale for wolfSSL_quic_aead_encrypt() on why this is here */
-    if (enclen > INT_MAX || ctx->authTagSz > (int)enclen) {
+    if (enclen > INT_MAX || aadlen > INT_MAX || ctx->authTagSz > (int)enclen) {
         return WOLFSSL_FAILURE;
     }
 
