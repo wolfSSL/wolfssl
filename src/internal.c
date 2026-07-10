@@ -22724,7 +22724,9 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END &&
             ssl->earlyData > early_data_ext) {
-        if (ssl->earlyDataSz + dataSz > ssl->options.maxEarlyDataSz) {
+        if (ssl->earlyDataSz > ssl->options.maxEarlyDataSz ||
+                (word32)dataSz >
+                    ssl->options.maxEarlyDataSz - ssl->earlyDataSz) {
             if (sniff == NO_SNIFF) {
                 SendAlert(ssl, alert_fatal, unexpected_message);
             }
