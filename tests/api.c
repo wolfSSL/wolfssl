@@ -30477,10 +30477,10 @@ static int test_wc_CryptoCb_registry(void)
         NULL), 0);
     ExpectIntEQ(wc_CryptoCb_GetDevIdAtIndex(0), devId);
 
-    /* Re-registering the same device id updates the entry instead of growing
-     * the device table. */
-    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, NULL, (void*)1), 0);
-    ExpectIntEQ(wc_CryptoCb_GetDevIdAtIndex(0), devId);
+    /* Re-registering the same device id used to (5.9.2-) update the entry
+     * instead of growing the device table.  Now it just returns ALREADY_E --
+     * the way to update it is to unregister and freshly register. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, NULL, (void*)1), ALREADY_E);
 
     wc_CryptoCb_UnRegisterDevice(INVALID_DEVID);
     ExpectIntEQ(wc_CryptoCb_GetDevIdAtIndex(0), devId);
