@@ -167,7 +167,10 @@ int test_wc_CmacFinal(void)
     word32      keySz    = (word32)sizeof(key);
     word32      macSz    = sizeof(mac);
     word32      badMacSz = 17;
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    /* only used by the bad-arg checks in the matching #if block below */
     word32      tooSmallMacSz = WC_CMAC_TAG_MIN_SZ - 1;
+#endif
     int         expMacSz = sizeof(expMac);
     int         type     = WC_CMAC_AES;
 
