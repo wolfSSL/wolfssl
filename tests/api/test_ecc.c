@@ -1403,13 +1403,96 @@ int test_wc_ecc_ctx_set_info(void)
 } /* END test_wc_ecc_ctx_set_info */
 
 /*
+ * Testing the crypto-callback context accessors wc_ecc_ctx_get_algo,
+ * wc_ecc_ctx_get_kdf_salt and wc_ecc_ctx_get_info (built only when
+ * WOLF_CRYPTO_CB is enabled).
+ */
+int test_wc_ecc_ctx_getters(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC)
+    ecEncCtx*   ctx = NULL;
+    WC_RNG      rng;
+    byte        encAlgo = 0, kdfAlgo = 0, macAlgo = 0;
+    const byte* got = NULL;
+    word32      gotSz = 0;
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[EXCHANGE_SALT_SZ] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+    };
+    const char* info   = "ctx getter info";
+    word32      infoSz = (word32)XSTRLEN(info);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+
+    /* get_algo: set then read back */
+    ExpectIntEQ(wc_ecc_ctx_set_algo(ctx, ecAES_256_GCM, ecHKDF_SHA256,
+        ecHMAC_SHA256), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_algo(ctx, &encAlgo, &kdfAlgo, &macAlgo), 0);
+    ExpectIntEQ(encAlgo, ecAES_256_GCM);
+    ExpectIntEQ(kdfAlgo, ecHKDF_SHA256);
+    ExpectIntEQ(macAlgo, ecHMAC_SHA256);
+    /* individual NULL out-params are allowed (skipped) */
+    encAlgo = 0;
+    ExpectIntEQ(wc_ecc_ctx_get_algo(ctx, &encAlgo, NULL, NULL), 0);
+    ExpectIntEQ(encAlgo, ecAES_256_GCM);
+    /* bad arg: NULL ctx */
+    ExpectIntEQ(wc_ecc_ctx_get_algo(NULL, &encAlgo, &kdfAlgo, &macAlgo),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* get_kdf_salt: set then read back */
+    ExpectIntEQ(wc_ecc_ctx_set_kdf_salt(ctx, salt, (word32)sizeof(salt)), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_kdf_salt(ctx, &got, &gotSz), 0);
+    ExpectIntEQ(gotSz, (word32)sizeof(salt));
+    ExpectNotNull(got);
+    ExpectIntEQ(XMEMCMP(got, salt, sizeof(salt)), 0);
+    /* bad args */
+    ExpectIntEQ(wc_ecc_ctx_get_kdf_salt(NULL, &got, &gotSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ecc_ctx_get_kdf_salt(ctx, NULL, &gotSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ecc_ctx_get_kdf_salt(ctx, &got, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* get_info: set then read back */
+    got = NULL; gotSz = 0;
+    ExpectIntEQ(wc_ecc_ctx_set_info(ctx, (const byte*)info, (int)infoSz), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_info(ctx, &got, &gotSz), 0);
+    ExpectIntEQ(gotSz, infoSz);
+    ExpectNotNull(got);
+    ExpectIntEQ(XMEMCMP(got, info, infoSz), 0);
+    /* bad args */
+    ExpectIntEQ(wc_ecc_ctx_get_info(NULL, &got, &gotSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ecc_ctx_get_info(ctx, NULL, &gotSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ecc_ctx_get_info(ctx, &got, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_ecc_ctx_free(ctx);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ctx_getters */
+
+/*
  * Testing wc_ecc_encrypt() and wc_ecc_decrypt()
  */
 int test_wc_ecc_encryptDecrypt(void)
 {
     EXPECT_DECLS;
+/* The test drives the default DEM (NULL ctx). That is AES-CBC when available;
+ * otherwise ecc_ctx_init falls back to AES-GCM, which in the default IV mode
+ * needs an opt-in (GEN_IV, OLD, or STATIC_GCM_NONCE) or wc_ecc_encrypt returns
+ * NOT_COMPILED_IN. Only build the test when the default DEM actually works. */
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
-    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
     ecc_key     srvKey;
     ecc_key     cliKey;
     ecc_key     tmpKey;
@@ -1509,6 +1592,306 @@ int test_wc_ecc_encryptDecrypt(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_encryptDecrypt */
+
+/*
+ * Testing ECIES with the AES-256-GCM DEM. Exercises, each with its own
+ * single-use client/server ctx pair:
+ *   tc 0: round-trip succeeds and matches
+ *   tc 1: tag corruption -> decrypt rejected (GCM authentication)
+ *   tc 2: encrypt into too-small output buffer -> BUFFER_E
+ *   tc 3: decrypt truncated input -> BAD_FUNC_ARG
+ *   tc 4: decrypt into too-small plaintext buffer -> BUFFER_E
+ */
+int test_wc_ecc_ecies_gcm(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256) && \
+    defined(HAVE_HKDF) && defined(WOLFSSL_ECIES_STATIC_GCM_NONCE) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    WC_RNG      rng;
+    int         tc;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (tc = 0; tc <= 4 && EXPECT_SUCCESS(); tc++) {
+        ecc_key    cliKey;
+        ecc_key    srvKey;
+        ecEncCtx*  cliCtx = NULL;
+        ecEncCtx*  srvCtx = NULL;
+        byte       msg[32];
+        byte       out[256];
+        byte       plain[64];
+        word32     outSz   = (word32)sizeof(out);
+        word32     plainSz = (word32)sizeof(plain);
+        byte       cliSalt[EXCHANGE_SALT_SZ];
+        byte       srvSalt[EXCHANGE_SALT_SZ];
+        const byte* tmpSalt = NULL;
+        /* OLD format has no embedded ephemeral key, so decrypt needs the
+         * sender's public key; newer formats read it from the message. */
+#ifdef WOLFSSL_ECIES_OLD
+        ecc_key*   decPub;
+#else
+        ecc_key*   decPub = NULL;
+#endif
+        int        i;
+
+        XMEMSET(&cliKey, 0, sizeof(cliKey));
+        XMEMSET(&srvKey, 0, sizeof(srvKey));
+        for (i = 0; i < (int)sizeof(msg); i++)
+            msg[i] = (byte)i;
+
+        ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+        ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+        ExpectIntEQ(wc_ecc_make_key(&rng, 32, &cliKey), 0);
+        ExpectIntEQ(wc_ecc_make_key(&rng, 32, &srvKey), 0);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+        ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
+        ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
+#endif
+#ifdef WOLFSSL_ECIES_OLD
+        decPub = &cliKey;
+#endif
+
+        ExpectNotNull(cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+        ExpectNotNull(srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng));
+        ExpectIntEQ(wc_ecc_ctx_set_algo(cliCtx, ecAES_256_GCM, ecHKDF_SHA256,
+            ecHMAC_SHA256), 0);
+        ExpectIntEQ(wc_ecc_ctx_set_algo(srvCtx, ecAES_256_GCM, ecHKDF_SHA256,
+            ecHMAC_SHA256), 0);
+
+        /* exchange salts */
+        ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx));
+        if (tmpSalt != NULL)
+            XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+        ExpectNotNull(tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx));
+        if (tmpSalt != NULL)
+            XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+        ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt), 0);
+        ExpectIntEQ(wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt), 0);
+
+        if (tc == 2) {
+            /* encrypt into a buffer too small for pubKey+nonce+ct+tag */
+            word32 smallSz = 8;
+            ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+                &smallSz, cliCtx), WC_NO_ERR_TRACE(BUFFER_E));
+        }
+        else {
+            ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+                &outSz, cliCtx), 0);
+
+            if (tc == 0) {
+                ExpectIntEQ(wc_ecc_decrypt(&srvKey, decPub, out, outSz, plain,
+                    &plainSz, srvCtx), 0);
+                ExpectIntEQ(plainSz, sizeof(msg));
+                ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+            }
+            else if (tc == 1) {
+                /* flip a bit in the trailing GCM tag -> auth must reject with
+                 * the specific GCM authentication error, proving the tag check
+                 * (not an earlier size check) rejected it. */
+                if (EXPECT_SUCCESS() && outSz > 0)
+                    out[outSz - 1] ^= 0x01;
+                ExpectIntEQ(wc_ecc_decrypt(&srvKey, decPub, out, outSz, plain,
+                    &plainSz, srvCtx), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+            }
+            else if (tc == 3) {
+                /* truncated input: below the smallest valid size in any IV
+                 * mode (OLD needs only the tag, so use < digestSz) */
+                ExpectIntEQ(wc_ecc_decrypt(&srvKey, decPub, out, 8, plain,
+                    &plainSz, srvCtx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            }
+            else { /* tc == 4: plaintext buffer too small */
+                plainSz = 4;
+                ExpectIntEQ(wc_ecc_decrypt(&srvKey, decPub, out, outSz, plain,
+                    &plainSz, srvCtx), WC_NO_ERR_TRACE(BUFFER_E));
+            }
+        }
+
+        wc_ecc_ctx_free(cliCtx);
+        wc_ecc_ctx_free(srvCtx);
+        wc_ecc_free(&srvKey);
+        wc_ecc_free(&cliKey);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_gcm */
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+/* CryptoCb that services ECIES by forwarding to software (proving the dispatch
+ * path is reached), and reports UNAVAILABLE for everything else. The registered
+ * ctx is an int* invocation flag, set per direction; passing it through ctx (not
+ * a shared global) keeps the test safe if run concurrently. */
+static int myEciesApiCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int* invoked = (int*)ctx;
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+        if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT) {
+            if (invoked != NULL)
+                *invoked = 1;
+            info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
+            ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
+                info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
+                info->pk.eciesencrypt.msgSz, info->pk.eciesencrypt.out,
+                info->pk.eciesencrypt.outSz, info->pk.eciesencrypt.ctx,
+                info->pk.eciesencrypt.compressed);
+            info->pk.eciesencrypt.privKey->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
+            if (invoked != NULL)
+                *invoked = 1;
+            info->pk.eciesdecrypt.privKey->devId = INVALID_DEVID;
+            ret = wc_ecc_decrypt(info->pk.eciesdecrypt.privKey,
+                info->pk.eciesdecrypt.pubKey, info->pk.eciesdecrypt.msg,
+                info->pk.eciesdecrypt.msgSz, info->pk.eciesdecrypt.out,
+                info->pk.eciesdecrypt.outSz, info->pk.eciesdecrypt.ctx);
+            info->pk.eciesdecrypt.privKey->devId = devIdArg;
+        }
+    }
+    return ret;
+}
+#endif
+
+/*
+ * Testing ECIES encrypt/decrypt dispatch through the CryptoCb framework.
+ */
+int test_wc_ecc_ecies_cryptocb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_OLD) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+    const int   cbDevId = 0x45434230; /* 'ECB0' */
+    ecc_key     cliKey;
+    ecc_key     srvKey;
+    WC_RNG      rng;
+    byte        msg[32];
+    byte        out[256];
+    byte        plain[64];
+    word32      outSz   = (word32)sizeof(out);
+    word32      plainSz = (word32)sizeof(plain);
+    int         i;
+    int         registered = 0;
+    int         cbInvoked  = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(cbDevId, myEciesApiCryptoCb,
+        &cbInvoked), 0);
+    if (EXPECT_SUCCESS())
+        registered = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* build keys with software, then route ECIES through the callback */
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &srvKey), 0);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
+#endif
+    cliKey.devId = cbDevId;
+    srvKey.devId = cbDevId;
+
+    cbInvoked = 0;
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out, &outSz,
+        NULL), 0);
+    /* callback must have serviced the encrypt */
+    ExpectIntEQ(cbInvoked, 1);
+
+    cbInvoked = 0;
+    /* OLD format needs the sender's public key supplied; newer formats take
+     * NULL and read the ephemeral key from the message. */
+#ifdef WOLFSSL_ECIES_OLD
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain, &plainSz,
+        NULL), 0);
+#else
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain, &plainSz,
+        NULL), 0);
+#endif
+    ExpectIntEQ(cbInvoked, 1);
+    ExpectIntEQ(plainSz, sizeof(msg));
+    ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+
+    cliKey.devId = INVALID_DEVID;
+    srvKey.devId = INVALID_DEVID;
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(cbDevId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_cryptocb */
+
+/*
+ * The ECIES AES-GCM DEM needs an RNG only in GEN_IV mode, where it generates a
+ * random per-message nonce (default mode uses a fixed nonce and OLD derives it
+ * from the KDF - neither needs an RNG).  MISSING_RNG_E is therefore observable
+ * only when GCM is the *default* DEM (no AES-CBC/CTR in the build) AND
+ * WOLFSSL_ECIES_GEN_IV is set, so that encrypting with a NULL context (no RNG)
+ * and a key with no RNG hits the guard.  Otherwise the test compiles out.
+ */
+int test_wc_ecc_ecies_gcm_no_rng(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(HAVE_AES_CBC) && \
+    !defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_ECIES_GEN_IV) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
+    (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
+    WC_RNG   rng;
+    ecc_key  cliKey;
+    ecc_key  srvKey;
+    byte     msg[32];
+    byte     out[256];
+    word32   outSz = (word32)sizeof(out);
+    int      i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &srvKey), 0);
+
+    /* Deliberately do NOT call wc_ecc_set_rng() on cliKey, and pass a NULL
+     * context so no RNG is available for the GCM nonce. */
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out, &outSz,
+        NULL), WC_NO_ERR_TRACE(MISSING_RNG_E));
+
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_gcm_no_rng */
 
 /*
  * Testing wc_ecc_del_point() and wc_ecc_new_point()

@@ -1625,6 +1625,12 @@ enum wc_PkType {
     WC_PK_TYPE_ED25519_CHECK_KEY = 37,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED25519_CHECK_KEY
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+    WC_PK_TYPE_ECIES_ENCRYPT    = 38,
+    WC_PK_TYPE_ECIES_DECRYPT    = 39,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ECIES_DECRYPT
+#endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 

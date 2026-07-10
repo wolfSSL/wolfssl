@@ -13914,6 +13914,32 @@ exit:
 
 
 #ifdef HAVE_ECC_ENCRYPT
+/* Drive an ECIES exchange context to the SALT_SET state with fixed salts and a
+ * chosen DEM cipher.  The ECIES contexts are single-use per message, so the
+ * per-cipher benchmark loops reset and re-prime the context before each op.
+ * Fixed salts let the encrypt/decrypt directions agree (required for GCM's
+ * authentication tag to verify). */
+static int bench_ecies_prep(ecEncCtx* ctx, byte encAlgo, const byte* ownSalt,
+                            const byte* peerSalt)
+{
+    int   ret;
+    byte* own;
+
+    ret = wc_ecc_ctx_reset(ctx, &gRng);
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_algo(ctx, encAlgo, ecHKDF_SHA256, ecHMAC_SHA256);
+    if (ret == 0) {
+        own = (byte*)wc_ecc_ctx_get_own_salt(ctx);
+        if (own == NULL)
+            ret = BAD_FUNC_ARG;
+        else {
+            XMEMCPY(own, ownSalt, EXCHANGE_SALT_SZ);
+            ret = wc_ecc_ctx_set_peer_salt(ctx, peerSalt);
+        }
+    }
+    return ret;
+}
+
 void bench_eccEncrypt(int curveId)
 {
 #define BENCH_ECCENCRYPT_MSG_SIZE 48
@@ -13998,62 +14024,143 @@ void bench_eccEncrypt(int curveId)
         msg[i] = (byte)i;
     }
 
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < ntimes; i++) {
+    /* One enc/dec benchmark pair per DEM cipher available in this build so the
+     * AES-CBC/CTR/GCM variants can be compared side by side.  A trailing {0,NULL}
+     * sentinel keeps the table non-empty when only one cipher is enabled. */
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte fixedCliSalt[EXCHANGE_SALT_SZ] = {
+            0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+            0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+        };
+        WOLFSSL_SMALL_STACK_STATIC const byte fixedSrvSalt[EXCHANGE_SALT_SZ] = {
+            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+            0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+        };
+        static const struct { byte algo; const char* label; } eciesCiphers[] = {
+        #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+            #ifdef WOLFSSL_AES_128
+            { ecAES_128_CBC, "AES128CBC" },
+            #endif
+            #ifdef WOLFSSL_AES_256
+            { ecAES_256_CBC, "AES256CBC" },
+            #endif
+        #endif
+        #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+            #ifdef WOLFSSL_AES_128
+            { ecAES_128_CTR, "AES128CTR" },
+            #endif
+            #ifdef WOLFSSL_AES_256
+            { ecAES_256_CTR, "AES256CTR" },
+            #endif
+        #endif
+        #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
+            defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)
+            #ifdef WOLFSSL_AES_128
+            { ecAES_128_GCM, "AES128GCM" },
+            #endif
+            #ifdef WOLFSSL_AES_256
+            { ecAES_256_GCM, "AES256GCM" },
+            #endif
+        #endif
+            { 0, NULL } /* sentinel */
+        };
+        ecEncCtx* cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &gRng);
+        ecEncCtx* srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &gRng);
+        char      encDesc[32];
+        char      decDesc[32];
+        size_t    c;
+    #ifdef WOLFSSL_ECIES_OLD
+        /* OLD format carries no ephemeral point, so decrypt needs the sender's
+         * public key. */
+        ecc_key*  decPubKey = userA;
+    #else
+        /* SEC1 decrypt imports the ephemeral point into its pubKey argument, so
+         * pass NULL to avoid clobbering userA between cipher iterations. */
+        ecc_key*  decPubKey = NULL;
+    #endif
+
+        (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]",
+                        wc_ecc_get_name(curveId));
+
+        if (cliCtx == NULL || srvCtx == NULL) {
+            printf("bench_eccEncrypt ctx alloc failed\n");
+            wc_ecc_ctx_free(cliCtx);
+            wc_ecc_ctx_free(srvCtx);
+            goto exit;
+        }
+
+        for (c = 0; eciesCiphers[c].label != NULL; c++) {
+            byte algo = eciesCiphers[c].algo;
+
+            (void)XSNPRINTF(encDesc, sizeof(encDesc), "%s-%s", desc[6],
+                            eciesCiphers[c].label);
+            (void)XSNPRINTF(decDesc, sizeof(decDesc), "%s-%s", desc[7],
+                            eciesCiphers[c].label);
+
             /* encrypt msg to B */
-            ret = wc_ecc_encrypt(userA, userB, msg, BENCH_ECCENCRYPT_MSG_SIZE,
-                                 out, &outSz, NULL);
-            if (ret != 0) {
-                printf("wc_ecc_encrypt failed! %d\n", ret);
-                goto exit_enc;
-            }
-            RECORD_MULTI_VALUE_STATS();
+            bench_stats_start(&count, &start);
+            do {
+                for (i = 0; i < ntimes; i++) {
+                    outSz = BENCH_ECCENCRYPT_OUT_SIZE;
+                    ret = bench_ecies_prep(cliCtx, algo, fixedCliSalt,
+                                           fixedSrvSalt);
+                    if (ret == 0)
+                        ret = wc_ecc_encrypt(userA, userB, msg,
+                                BENCH_ECCENCRYPT_MSG_SIZE, out, &outSz, cliCtx);
+                    if (ret != 0) {
+                        printf("wc_ecc_encrypt failed! %d\n", ret);
+                        goto exit_ecies;
+                    }
+                    RECORD_MULTI_VALUE_STATS();
+                }
+                count += i;
+            } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+               || runs < minimum_runs
+#endif
+               );
+            bench_stats_asym_finish(name, keySize * 8, encDesc, 0, count, start,
+                                    ret);
+#ifdef MULTI_VALUE_STATISTICS
+            bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+            RESET_MULTI_VALUE_STATS_VARS();
+
+            /* decrypt the last ciphertext produced above (fixed salts make the
+             * server's derived keys match the client's, so GCM auth passes) */
+            bench_stats_start(&count, &start);
+            do {
+                for (i = 0; i < ntimes; i++) {
+                    bench_plainSz = bench_size;
+                    ret = bench_ecies_prep(srvCtx, algo, fixedSrvSalt,
+                                           fixedCliSalt);
+                    if (ret == 0)
+                        ret = wc_ecc_decrypt(userB, decPubKey, out, outSz,
+                                bench_plain, &bench_plainSz, srvCtx);
+                    if (ret != 0) {
+                        printf("wc_ecc_decrypt failed! %d\n", ret);
+                        goto exit_ecies;
+                    }
+                    RECORD_MULTI_VALUE_STATS();
+                }
+                count += i;
+            } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+               || runs < minimum_runs
+#endif
+               );
+            bench_stats_asym_finish(name, keySize * 8, decDesc, 0, count, start,
+                                    ret);
+#ifdef MULTI_VALUE_STATISTICS
+            bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+            RESET_MULTI_VALUE_STATS_VARS();
         }
-        count += i;
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
 
-exit_enc:
-    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]",
-                    wc_ecc_get_name(curveId));
-    bench_stats_asym_finish(name, keySize * 8, desc[6], 0, count, start, ret);
-#ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(max, min, sum, squareSum, runs);
-#endif
-
-    RESET_MULTI_VALUE_STATS_VARS();
-
-    if (ret != 0)
-        goto exit;
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < ntimes; i++) {
-            /* decrypt msg from A */
-            ret = wc_ecc_decrypt(userB, userA, out, outSz, bench_plain,
-                    &bench_plainSz, NULL);
-            if (ret != 0) {
-                printf("wc_ecc_decrypt failed! %d\n", ret);
-                goto exit_dec;
-            }
-            RECORD_MULTI_VALUE_STATS();
-        }
-        count += i;
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
-
-exit_dec:
-    bench_stats_asym_finish(name, keySize * 8, desc[7], 0, count, start, ret);
-#ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(max, min, sum, squareSum, runs);
-#endif
+exit_ecies:
+        wc_ecc_ctx_free(cliCtx);
+        wc_ecc_ctx_free(srvCtx);
+    }
 
 exit:
 

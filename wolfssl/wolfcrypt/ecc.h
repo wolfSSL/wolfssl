@@ -1036,7 +1036,9 @@ enum ecEncAlgo {
     ecAES_128_CBC = 1,  /* default */
     ecAES_256_CBC = 2,
     ecAES_128_CTR = 3,
-    ecAES_256_CTR = 4
+    ecAES_256_CTR = 4,
+    ecAES_128_GCM = 5,
+    ecAES_256_GCM = 6
 };
 
 enum ecKdfAlgo {
@@ -1059,6 +1061,8 @@ enum {
     IV_SIZE_64       =  8,
     IV_SIZE_128      = 16,
     ECC_MAX_IV_SIZE  = 16,
+    AES_GCM_NONCE_SZ = 12,   /* GCM IV/nonce length for ECIES DEM */
+    AES_GCM_TAG_SZ   = 16,   /* GCM authentication tag length     */
     EXCHANGE_SALT_SZ = 16,
     EXCHANGE_INFO_SZ = 23
 };
@@ -1087,6 +1091,16 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o al
 WOLFSSL_API
 int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     byte macAlgo);
+#ifdef WOLF_CRYPTO_CB
+/* Accessors for crypto-callback backends; only built with WOLF_CRYPTO_CB. */
+WOLFSSL_API
+int wc_ecc_ctx_get_algo(ecEncCtx* ctx, byte* encAlgo, byte* kdfAlgo,
+    byte* macAlgo);
+WOLFSSL_API
+int wc_ecc_ctx_get_kdf_salt(ecEncCtx* ctx, const byte** salt, word32* sz);
+WOLFSSL_API
+int wc_ecc_ctx_get_info(ecEncCtx* ctx, const byte** info, word32* sz);
+#endif /* WOLF_CRYPTO_CB */
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
 WOLFSSL_API

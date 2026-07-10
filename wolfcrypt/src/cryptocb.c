@@ -1022,6 +1022,70 @@ int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_ECC_CHECK_KEY */
+
+#ifdef HAVE_ECC_ENCRYPT
+int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
+    int compressed)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (privKey == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(privKey->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ECIES_ENCRYPT;
+        cryptoInfo.pk.eciesencrypt.privKey = privKey;
+        cryptoInfo.pk.eciesencrypt.pubKey = pubKey;
+        cryptoInfo.pk.eciesencrypt.msg = msg;
+        cryptoInfo.pk.eciesencrypt.msgSz = msgSz;
+        cryptoInfo.pk.eciesencrypt.out = out;
+        cryptoInfo.pk.eciesencrypt.outSz = outSz;
+        cryptoInfo.pk.eciesencrypt.ctx = ctx;
+        cryptoInfo.pk.eciesencrypt.compressed = compressed;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_EciesDecrypt(ecc_key* privKey, ecc_key* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (privKey == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(privKey->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ECIES_DECRYPT;
+        cryptoInfo.pk.eciesdecrypt.privKey = privKey;
+        cryptoInfo.pk.eciesdecrypt.pubKey = pubKey;
+        cryptoInfo.pk.eciesdecrypt.msg = msg;
+        cryptoInfo.pk.eciesdecrypt.msgSz = msgSz;
+        cryptoInfo.pk.eciesdecrypt.out = out;
+        cryptoInfo.pk.eciesdecrypt.outSz = outSz;
+        cryptoInfo.pk.eciesdecrypt.ctx = ctx;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_ECC_ENCRYPT */
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519

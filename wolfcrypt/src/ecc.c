@@ -133,6 +133,18 @@ Possible ECC enable options:
  *                      (includes public key in shared secret).
  * WOLFSSL_ECIES_GEN_IV: Generates random IV for ECIES          default: off
  *                      encryption instead of deriving from KDF.
+ * WOLFSSL_ECIES_STATIC_GCM_NONCE:                              default: off
+ *                      Allows the AES-GCM DEM in the default IV mode, where the
+ *                      GCM nonce is a fixed all-zero value that is not sent.
+ *                      This is ONLY safe because ECIES derives a fresh key from
+ *                      a fresh ephemeral key each message, so the (key, nonce)
+ *                      pair never repeats.  Reusing the ephemeral key would
+ *                      reuse both the key and the nonce - catastrophic for GCM.
+ *                      Off by default: without this define, the GCM DEM returns
+ *                      NOT_COMPILED_IN in the default IV mode so the fixed nonce
+ *                      cannot be selected by accident.  Not needed with
+ *                      WOLFSSL_ECIES_GEN_IV (random nonce) or WOLFSSL_ECIES_OLD
+ *                      (KDF-derived nonce).
  *
  * Fixed Point Cache options (requires FP_ECC):
  * FP_ENTRIES:          Number of FP cache entries               default: 15
@@ -14837,6 +14849,50 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo, byte macAlgo)
     return 0;
 }
 
+#ifdef WOLF_CRYPTO_CB
+/* Read back the parameters a caller configured on the context.  Intended for
+ * crypto-callback backends (e.g. a hardware ECIES engine) that must reproduce
+ * the algorithm, KDF salt and KDF info to run the operation off-device.  Only
+ * built when crypto callbacks are enabled, so default builds are unaffected. */
+int wc_ecc_ctx_get_algo(ecEncCtx* ctx, byte* encAlgo, byte* kdfAlgo,
+                        byte* macAlgo)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    if (encAlgo != NULL)
+        *encAlgo = ctx->encAlgo;
+    if (kdfAlgo != NULL)
+        *kdfAlgo = ctx->kdfAlgo;
+    if (macAlgo != NULL)
+        *macAlgo = ctx->macAlgo;
+
+    return 0;
+}
+
+int wc_ecc_ctx_get_kdf_salt(ecEncCtx* ctx, const byte** salt, word32* sz)
+{
+    if (ctx == NULL || salt == NULL || sz == NULL)
+        return BAD_FUNC_ARG;
+
+    *salt = ctx->kdfSalt;
+    *sz   = ctx->kdfSaltSz;
+
+    return 0;
+}
+
+int wc_ecc_ctx_get_info(ecEncCtx* ctx, const byte** info, word32* sz)
+{
+    if (ctx == NULL || info == NULL || sz == NULL)
+        return BAD_FUNC_ARG;
+
+    *info = ctx->kdfInfo;
+    *sz   = ctx->kdfInfoSz;
+
+    return 0;
+}
+#endif /* WOLF_CRYPTO_CB */
+
 
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx)
 {
@@ -15024,6 +15080,12 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
         #else
             ctx->encAlgo  = ecAES_128_CTR;
         #endif
+    #elif !defined(NO_AES) && defined(HAVE_AESGCM)
+        #ifdef WOLFSSL_AES_128
+            ctx->encAlgo  = ecAES_128_GCM;
+        #else
+            ctx->encAlgo  = ecAES_256_GCM;
+        #endif
     #else
         #error "No valid encryption algorithm for ECIES configured."
     #endif
@@ -15093,6 +15155,18 @@ void wc_ecc_ctx_free(ecEncCtx* ctx)
     }
 }
 
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+/* Is the ECIES encryption algorithm an AES-GCM (AEAD) mode?  GCM replaces the
+ * AES + HMAC pair with a single authenticated-encryption pass. */
+static WC_INLINE int ecc_is_gcm(byte encAlgo)
+{
+    return (encAlgo == ecAES_128_GCM || encAlgo == ecAES_256_GCM);
+}
+#else
+/* Compile GCM branches out entirely when AES-GCM isn't available. */
+#define ecc_is_gcm(encAlgo) (0)
+#endif
+
 static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
                              int* keysLen, word32* digestSz, word32* blockSz)
 {
@@ -15122,25 +15196,56 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
                 *blockSz  = 1;
                 break;
         #endif
+        #if !defined(NO_AES) && defined(HAVE_AESGCM)
+            case ecAES_128_GCM:
+                *encKeySz = KEY_SIZE_128;
+                *ivSz     = AES_GCM_NONCE_SZ;
+                *blockSz  = 1;
+                break;
+            case ecAES_256_GCM:
+                *encKeySz = KEY_SIZE_256;
+                *ivSz     = AES_GCM_NONCE_SZ;
+                *blockSz  = 1;
+                break;
+        #endif
             default:
                 return BAD_FUNC_ARG;
         }
 
-        switch (ctx->macAlgo) {
-            case ecHMAC_SHA256:
-                *digestSz = WC_SHA256_DIGEST_SIZE;
-                break;
-            default:
-                return BAD_FUNC_ARG;
+        if (ecc_is_gcm(ctx->encAlgo)) {
+            /* GCM is AEAD: the 16-byte tag replaces the HMAC digest, and no
+             * separate MAC algorithm/key is used. */
+            *digestSz = AES_GCM_TAG_SZ;
+        }
+        else {
+            switch (ctx->macAlgo) {
+                case ecHMAC_SHA256:
+                    *digestSz = WC_SHA256_DIGEST_SIZE;
+                    break;
+                default:
+                    return BAD_FUNC_ARG;
+            }
         }
     } else
         return BAD_FUNC_ARG;
 
+    if (ecc_is_gcm(ctx->encAlgo)) {
+        /* No MAC key.  The nonce follows the ECIES IV build mode, matching the
+         * CBC/CTR DEMs: derived from the KDF (OLD), a fresh random value
+         * (GEN_IV), or a fixed zero (default). */
 #ifdef WOLFSSL_ECIES_OLD
-    *keysLen  = *encKeySz + *ivSz + (int)*digestSz;
+        *keysLen = *encKeySz + *ivSz;   /* nonce is part of the KDF output */
 #else
-    *keysLen  = *encKeySz + (int)*digestSz;
+        *keysLen = *encKeySz;
 #endif
+    }
+    else {
+#ifdef WOLFSSL_ECIES_OLD
+        *keysLen  = *encKeySz + *ivSz + (int)*digestSz;
+#else
+        *keysLen  = *encKeySz + (int)*digestSz;
+#endif
+    }
 
     return 0;
 }
@@ -15192,6 +15297,19 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                            outSz  == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (privKey->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_EciesEncrypt(privKey, pubKey, msg, msgSz, out, outSz,
+                                       ctx, compressed);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        ret = 0; /* fall-through to software */
+    }
+#endif
+
     if (ctx == NULL) {  /* use defaults */
         ecc_ctx_init(&localCtx, 0, NULL);
         ctx = &localCtx;
@@ -15201,6 +15319,15 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                             &blockSz);
     if (ret != 0)
         return ret;
+
+#if !defined(WOLFSSL_ECIES_OLD) && !defined(WOLFSSL_ECIES_GEN_IV) && \
+    !defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)
+    /* Default IV mode gives the GCM DEM a fixed (zero) nonce, which is only safe
+     * with a fresh ephemeral key per message.  Require explicit opt-in so it is
+     * never selected by accident; see WOLFSSL_ECIES_STATIC_GCM_NONCE. */
+    if (ecc_is_gcm(ctx->encAlgo))
+        return NOT_COMPILED_IN;
+#endif
 
 #ifndef WOLFSSL_ECIES_OLD
     if (!compressed) {
@@ -15235,16 +15362,32 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if ((msgSz % blockSz) != 0)
         return BAD_PADDING_E;
 
+    if (ecc_is_gcm(ctx->encAlgo)) {
+        /* Nonce is embedded in the output only in GEN_IV mode; OLD derives it
+         * from the KDF and default uses a fixed nonce (neither is sent). */
 #ifdef WOLFSSL_ECIES_OLD
-    if (*outSz < (msgSz + digestSz))
-        return BUFFER_E;
+        if (*outSz < (msgSz + digestSz))
+            return BUFFER_E;
 #elif defined(WOLFSSL_ECIES_GEN_IV)
-    if (*outSz < (pubKeySz + ivSz + msgSz + digestSz))
-        return BUFFER_E;
+        if (*outSz < (pubKeySz + (word32)ivSz + msgSz + digestSz))
+            return BUFFER_E;
 #else
-    if (*outSz < (pubKeySz + msgSz + digestSz))
-        return BUFFER_E;
+        if (*outSz < (pubKeySz + msgSz + digestSz))
+            return BUFFER_E;
 #endif
+    }
+    else {
+#ifdef WOLFSSL_ECIES_OLD
+        if (*outSz < (msgSz + digestSz))
+            return BUFFER_E;
+#elif defined(WOLFSSL_ECIES_GEN_IV)
+        if (*outSz < (pubKeySz + ivSz + msgSz + digestSz))
+            return BUFFER_E;
+#else
+        if (*outSz < (pubKeySz + msgSz + digestSz))
+            return BUFFER_E;
+#endif
+    }
 
 #ifdef ECC_TIMING_RESISTANT
     if (ctx->rng != NULL && privKey->rng == NULL)
@@ -15342,22 +15485,47 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 
     if (ret == 0) {
+        if (ecc_is_gcm(ctx->encAlgo)) {
+            /* GCM nonce follows the ECIES IV build mode, matching CBC/CTR:
+             * OLD -> from the KDF output; GEN_IV -> fresh random, embedded;
+             * default -> fixed zero.  No MAC key. */
+            encKey = keys + offset;
+            macKey = NULL;
+#ifdef WOLFSSL_ECIES_OLD
+            encIv  = encKey + encKeySz;
+#elif defined(WOLFSSL_ECIES_GEN_IV)
+            {
+                WC_RNG* rng = (privKey->rng != NULL) ? privKey->rng : ctx->rng;
+                encIv  = out;
+                out   += ivSz;
+                if (rng == NULL)
+                    ret = MISSING_RNG_E;
+                else
+                    ret = wc_RNG_GenerateBlock(rng, encIv, (word32)ivSz);
+            }
+#else
+            XMEMSET(iv, 0, (size_t)ivSz);
+            encIv  = iv;
+#endif
+        }
+        else {
     #ifdef WOLFSSL_ECIES_OLD
-        encKey = keys + offset;
-        encIv  = encKey + encKeySz;
-        macKey = encKey + encKeySz + ivSz;
+            encKey = keys + offset;
+            encIv  = encKey + encKeySz;
+            macKey = encKey + encKeySz + ivSz;
     #elif defined(WOLFSSL_ECIES_GEN_IV)
-        encKey = keys + offset;
-        encIv  = out;
-        out += ivSz;
-        macKey = encKey + encKeySz;
-        ret = wc_RNG_GenerateBlock(privKey->rng, encIv, ivSz);
+            encKey = keys + offset;
+            encIv  = out;
+            out += ivSz;
+            macKey = encKey + encKeySz;
+            ret = wc_RNG_GenerateBlock(privKey->rng, encIv, ivSz);
     #else
-        XMEMSET(iv, 0, (size_t)ivSz);
-        encKey = keys + offset;
-        encIv  = iv;
-        macKey = encKey + encKeySz;
+            XMEMSET(iv, 0, (size_t)ivSz);
+            encKey = keys + offset;
+            encIv  = iv;
+            macKey = encKey + encKeySz;
     #endif
+        }
     }
 
     if (ret == 0) {
@@ -15376,7 +15544,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Aes aes[1];
             #endif
-                ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, encIv,
                                                                 AES_ENCRYPTION);
@@ -15417,7 +15585,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 XMEMSET(ctr_iv + WOLFSSL_ECIES_GEN_IV_SIZE, 0,
                     WC_AES_BLOCK_SIZE - WOLFSSL_ECIES_GEN_IV_SIZE);
 
-                ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, ctr_iv,
                                                                 AES_ENCRYPTION);
@@ -15437,13 +15605,50 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         #endif
                 break;
             }
+        #if !defined(NO_AES) && defined(HAVE_AESGCM)
+            case ecAES_128_GCM:
+            case ecAES_256_GCM:
+            {
+            #ifdef WOLFSSL_SMALL_STACK
+                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
+                                          DYNAMIC_TYPE_AES);
+                if (aes == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+            #else
+                Aes aes[1];
+            #endif
+                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                if (ret == 0) {
+                    ret = wc_AesGcmSetKey(aes, encKey, (word32)encKeySz);
+                    if (ret == 0) {
+                        /* tag is written directly after the ciphertext; the
+                         * mac salt (if any) is bound in as AAD, mirroring the
+                         * HMAC salt used by the CBC/CTR paths. */
+                        ret = wc_AesGcmEncrypt(aes, out, msg, msgSz,
+                                    encIv, (word32)ivSz,
+                                    out + msgSz, digestSz,
+                                    ctx->macSalt, ctx->macSaltSz);
+                    #if defined(WOLFSSL_ASYNC_CRYPT) && \
+                                                    defined(WC_ASYNC_ENABLE_AES)
+                        ret = wc_AsyncWait(ret, &aes->asyncDev,
+                                            WC_ASYNC_FLAG_NONE);
+                    #endif
+                    }
+                    wc_AesFree(aes);
+                }
+                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+                break;
+            }
+        #endif
             default:
                 ret = BAD_FUNC_ARG;
                 break;
         }
     }
 
-    if (ret == 0) {
+    if (ret == 0 && !ecc_is_gcm(ctx->encAlgo)) {
         switch (ctx->macAlgo) {
             case ecHMAC_SHA256:
             {
@@ -15457,7 +15662,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Hmac hmac[1];
             #endif
-                ret = wc_HmacInit(hmac, NULL, INVALID_DEVID);
+                ret = wc_HmacInit(hmac, privKey->heap, privKey->devId);
                 if (ret == 0) {
                     ret = wc_HmacSetKey(hmac, WC_SHA256, macKey,
                                                          WC_SHA256_DIGEST_SIZE);
@@ -15486,13 +15691,25 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 
     if (ret == 0) {
+        if (ecc_is_gcm(ctx->encAlgo)) {
+            /* Nonce is only in the output in GEN_IV mode. */
 #ifdef WOLFSSL_ECIES_OLD
-        *outSz = msgSz + digestSz;
+            *outSz = msgSz + digestSz;
 #elif defined(WOLFSSL_ECIES_GEN_IV)
-        *outSz = pubKeySz + ivSz + msgSz + digestSz;
+            *outSz = pubKeySz + (word32)ivSz + msgSz + digestSz;
 #else
-        *outSz = pubKeySz + msgSz + digestSz;
+            *outSz = pubKeySz + msgSz + digestSz;
 #endif
+        }
+        else {
+#ifdef WOLFSSL_ECIES_OLD
+            *outSz = msgSz + digestSz;
+#elif defined(WOLFSSL_ECIES_GEN_IV)
+            *outSz = pubKeySz + ivSz + msgSz + digestSz;
+#else
+            *outSz = pubKeySz + msgSz + digestSz;
+#endif
+        }
     }
 
     ForceZero(sharedSecret, sharedSz);
@@ -15564,6 +15781,19 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BAD_FUNC_ARG;
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (privKey->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_EciesDecrypt(privKey, pubKey, msg, msgSz, out, outSz,
+                                       ctx);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        ret = 0; /* fall-through to software */
+    }
+#endif
+
     if (ctx == NULL) {  /* use defaults */
         ecc_ctx_init(&localCtx, 0, NULL);
         ctx = &localCtx;
@@ -15573,6 +15803,15 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                             &blockSz);
     if (ret != 0)
         return ret;
+
+#if !defined(WOLFSSL_ECIES_OLD) && !defined(WOLFSSL_ECIES_GEN_IV) && \
+    !defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)
+    /* Default IV mode gives the GCM DEM a fixed (zero) nonce, which is only safe
+     * with a fresh ephemeral key per message.  Require explicit opt-in so it is
+     * never selected by accident; see WOLFSSL_ECIES_STATIC_GCM_NONCE. */
+    if (ecc_is_gcm(ctx->encAlgo))
+        return NOT_COMPILED_IN;
+#endif
 
 #ifndef WOLFSSL_ECIES_OLD
     ret = ecc_public_key_size(privKey, &pubKeySz);
@@ -15604,6 +15843,27 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (keysLen > ECC_BUFSIZE) /* keys size */
         return BUFFER_E;
 
+    if (ecc_is_gcm(ctx->encAlgo)) {
+        /* GCM has a trailing tag (digestSz) and no block padding.  The nonce is
+         * only present in the input in GEN_IV mode. */
+#ifdef WOLFSSL_ECIES_OLD
+        if (msgSz < digestSz)
+            return BAD_FUNC_ARG;
+        if (*outSz < (msgSz - digestSz))
+            return BUFFER_E;
+#elif defined(WOLFSSL_ECIES_GEN_IV)
+        if (msgSz < pubKeySz + (word32)ivSz + digestSz)
+            return BAD_FUNC_ARG;
+        if (*outSz < (msgSz - (word32)ivSz - digestSz - pubKeySz))
+            return BUFFER_E;
+#else
+        if (msgSz < pubKeySz + digestSz)
+            return BAD_FUNC_ARG;
+        if (*outSz < (msgSz - digestSz - pubKeySz))
+            return BUFFER_E;
+#endif
+    }
+    else {
 #ifdef WOLFSSL_ECIES_OLD
     if (((msgSz - digestSz) % blockSz) != 0)
         return BAD_PADDING_E;
@@ -15627,6 +15887,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (*outSz < (msgSz - digestSz - pubKeySz))
         return BUFFER_E;
 #endif
+    }
 
 #ifdef ECC_TIMING_RESISTANT
     if (ctx->rng != NULL && privKey->rng == NULL)
@@ -15741,7 +16002,23 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
          }
     }
 
-    if (ret == 0) {
+    if (ret == 0 && ecc_is_gcm(ctx->encAlgo)) {
+        /* GCM nonce follows the ECIES IV build mode (matching CBC/CTR); no MAC
+         * key and no separate HMAC verify (GCM authenticates on decrypt). */
+        encKey = keys + offset;
+        macKey = NULL;
+#ifdef WOLFSSL_ECIES_OLD
+        encIv  = encKey + encKeySz;
+#elif defined(WOLFSSL_ECIES_GEN_IV)
+        encIv  = msg;
+        msg   += ivSz;
+        msgSz -= (word32)ivSz;
+#else
+        XMEMSET(iv, 0, (size_t)ivSz);
+        encIv  = iv;
+#endif
+    }
+    else if (ret == 0) {
     #ifdef WOLFSSL_ECIES_OLD
         encKey = keys + offset;
         encIv  = encKey + encKeySz;
@@ -15773,7 +16050,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Hmac hmac[1];
             #endif
-                ret = wc_HmacInit(hmac, NULL, INVALID_DEVID);
+                ret = wc_HmacInit(hmac, privKey->heap, privKey->devId);
                 if (ret == 0) {
                     ret = wc_HmacSetKey(hmac, WC_SHA256, macKey,
                                                          WC_SHA256_DIGEST_SIZE);
@@ -15823,7 +16100,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Aes aes[1];
             #endif
-                ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, encIv,
                                                                 AES_DECRYPTION);
@@ -15855,7 +16132,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
              #else
                 Aes aes[1];
              #endif
-                ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
                 if (ret == 0) {
                     byte ctr_iv[WC_AES_BLOCK_SIZE];
                     /* Make a 16 byte IV from the bytes passed in. */
@@ -15866,6 +16143,42 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                                                                 AES_ENCRYPTION);
                     if (ret == 0) {
                         ret = wc_AesCtrEncrypt(aes, out, msg, msgSz-digestSz);
+                    #if defined(WOLFSSL_ASYNC_CRYPT) && \
+                                                    defined(WC_ASYNC_ENABLE_AES)
+                        ret = wc_AsyncWait(ret, &aes->asyncDev,
+                                                            WC_ASYNC_FLAG_NONE);
+                    #endif
+                    }
+                    wc_AesFree(aes);
+                }
+                WC_FREE_VAR_EX(aes, ctx->heap, DYNAMIC_TYPE_AES);
+                break;
+            }
+        #endif
+        #if !defined(NO_AES) && defined(HAVE_AESGCM)
+            case ecAES_128_GCM:
+            case ecAES_256_GCM:
+            {
+            #ifdef WOLFSSL_SMALL_STACK
+                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
+                                          DYNAMIC_TYPE_AES);
+                if (aes == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+            #else
+                Aes aes[1];
+            #endif
+                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                if (ret == 0) {
+                    ret = wc_AesGcmSetKey(aes, encKey, (word32)encKeySz);
+                    if (ret == 0) {
+                        /* tag trails the ciphertext; mac salt (if any) is the
+                         * AAD.  A tag mismatch returns AES_GCM_AUTH_E. */
+                        ret = wc_AesGcmDecrypt(aes, out, msg, msgSz - digestSz,
+                                    encIv, (word32)ivSz,
+                                    msg + msgSz - digestSz, digestSz,
+                                    ctx->macSalt, ctx->macSaltSz);
                     #if defined(WOLFSSL_ASYNC_CRYPT) && \
                                                     defined(WC_ASYNC_ENABLE_AES)
                         ret = wc_AsyncWait(ret, &aes->asyncDev,
