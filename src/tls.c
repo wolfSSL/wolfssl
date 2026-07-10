@@ -14593,6 +14593,17 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     return ret;
 }
 
+/* Header bytes reserved before the ECH inner ClientHello (DTLS uses a larger handshake header than TLS). */
+static word32 TLSX_EchInnerHeaderSz(const WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_DTLS13
+    return ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ : HANDSHAKE_HEADER_SZ;
+#else
+    (void)ssl;
+    return HANDSHAKE_HEADER_SZ;
+#endif
+}
+
 /* return status after attempting to open the hpke encrypted ech extension, if
  * successful the inner client hello will be stored in
  * ech->innerClientHelloLen */
@@ -14680,7 +14691,7 @@ static int TLSX_ExtractEch(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     if (ret == 0) {
         ret = wc_HpkeContextOpenBase(ech->hpke, ech->hpkeContext, aad, aadLen,
             ech->outerClientPayload, ech->innerClientHelloLen,
-            ech->innerClientHello + HANDSHAKE_HEADER_SZ);
+            ech->innerClientHello + TLSX_EchInnerHeaderSz(ssl));
     }
 
 #ifdef HAVE_SECRET_CALLBACK
@@ -14898,7 +14909,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         /* allocate the inner payload buffer */
         ech->innerClientHello =
-            (byte*)XMALLOC(ech->innerClientHelloLen + HANDSHAKE_HEADER_SZ,
+            (byte*)XMALLOC(ech->innerClientHelloLen + TLSX_EchInnerHeaderSz(ssl),
             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (ech->innerClientHello == NULL) {
             XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
