@@ -5320,7 +5320,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret = 0;
 
-        if (os == NULL) {
+        /* Validate output before any entropy backend dereferences it: some
+         * (e.g. glibc's vDSO getrandom()) fault on a NULL buffer rather than
+         * returning an error. Mirrors wc_RNG_GenerateBlock's NULL check. */
+        if (os == NULL || output == NULL) {
             return BAD_FUNC_ARG;
         }
 
