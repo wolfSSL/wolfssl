@@ -2352,7 +2352,8 @@ int test_wc_EccDecisionCoverage2(void)
 #endif
     ExpectIntEQ(ret, 0);
 
-#if defined(HAVE_ECC_VERIFY) && !defined(WOLFSSL_SP_MATH)
+#if defined(HAVE_ECC_VERIFY) && !defined(WOLFSSL_SP_MATH) && \
+    defined(WOLFSSL_PUBLIC_MP)
     /* ---- wc_ecc_check_r_s_range (via wc_ecc_verify_hash_ex): GAPS.md
      * 8939, 8942 ----
      * if ((err == 0) && (mp_cmp(r, curve->order) != MP_LT)) -> r >= order
@@ -2428,22 +2429,13 @@ int test_wc_EccDecisionCoverage2(void)
 
 #ifdef HAVE_COMP_KEY
         {
-            byte   cder[DER_SZ(KEY32)];
-            word32 cderSz = sizeof(cder);
-            word32 cLenOnly = 0;
-
-            ExpectIntEQ(wc_ecc_export_point_der_compressed(key.idx,
-                &key.pubkey, NULL, &cLenOnly), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-            ExpectIntGT(cLenOnly, 0);
-            ExpectIntEQ(wc_ecc_export_point_der_compressed(key.idx,
-                &key.pubkey, cder, &cderSz), 0);
-            ExpectIntEQ(wc_ecc_export_point_der_compressed(key.idx, NULL,
-                NULL, NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
-            ExpectIntEQ(wc_ecc_export_point_der_compressed(-1, &key.pubkey,
-                cder, &cderSz), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
-
-            /* wc_ecc_export_x963_ex(..., compressed=1): GAPS.md 16058
-             * (the static wc_ecc_export_x963_compressed helper). */
+            /* wc_ecc_export_point_der_compressed is WOLFSSL_LOCAL (hidden in a
+             * shared library), so it is not linkable from the shared-library
+             * unit test; its own decision coverage is driven by the campaign's
+             * ecc white-box (which includes ecc.c directly). The public
+             * compressed export path wc_ecc_export_x963_ex(..., 1) is exercised
+             * here (GAPS.md 16058, the static wc_ecc_export_x963_compressed
+             * helper). */
 #ifdef HAVE_ECC_KEY_EXPORT
             {
                 byte   x963c[ECC_BUFSIZE];
