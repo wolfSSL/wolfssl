@@ -28059,6 +28059,16 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
                                };
 #endif /* WOLFSSL_MICROCHIP_TA100 */
 
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_SHA512) && !defined(WOLFSSL_SE050)
+    /* RsaKey is large (mp_int members); heap-allocate under small stack to
+     * keep this frame under the stack-usage / frame-larger-than limits. */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    RsaKey*          smallKey = NULL;
+#else
+    RsaKey           smallKey[1];
+#endif
+#endif
+
     WC_DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -28148,9 +28158,15 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
             0x2d, 0xfb, 0x6c, 0xe7, 0x25, 0x14, 0x9f, 0xe8, 0x6a, 0x1b, 0x4f, 0xd5,
             0x7c, 0xc2, 0x55, 0x14, 0x13, 0x12, 0x32, 0x6c,
         };
-        RsaKey smallKey;
         word32 kIdx;
         int    pssRet;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        smallKey = (RsaKey*)XMALLOC(sizeof(*smallKey), HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (smallKey == NULL)
+            ERROR_OUT(MEMORY_E, exit_rsa_pss);
+#endif
 
         /* Compute a SHA-512 digest of the test message to sign. */
         ret = wc_Hash(WC_HASH_TYPE_SHA512, in, inLen, digest, sizeof(digest));
@@ -28158,39 +28174,39 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
 
         /* 576-bit: saltLen=0 is geometrically valid; must now sign. */
-        ret = wc_InitRsaKey_ex(&smallKey, HEAP_HINT, INVALID_DEVID);
+        ret = wc_InitRsaKey_ex(smallKey, HEAP_HINT, INVALID_DEVID);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
         kIdx = 0;
-        ret = wc_RsaPrivateKeyDecode(rsaKeyPss576, &kIdx, &smallKey,
+        ret = wc_RsaPrivateKeyDecode(rsaKeyPss576, &kIdx, smallKey,
                                      (word32)sizeof(rsaKeyPss576));
         if (ret != 0) {
-            wc_FreeRsaKey(&smallKey);
+            wc_FreeRsaKey(smallKey);
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
         }
         pssRet = wc_RsaPSS_Sign_ex(digest, WC_SHA512_DIGEST_SIZE, out,
                                    RSA_TEST_BYTES, WC_HASH_TYPE_SHA512,
-                                   WC_MGF1SHA512, 0, &smallKey, rng);
-        wc_FreeRsaKey(&smallKey);
+                                   WC_MGF1SHA512, 0, smallKey, rng);
+        wc_FreeRsaKey(smallKey);
         if (pssRet <= 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(pssRet), exit_rsa_pss);
 
         /* 512-bit: too small for saltLen=0; RsaPad_PSS (not the outer guard)
          * must reject it with PSS_SALTLEN_E. */
-        ret = wc_InitRsaKey_ex(&smallKey, HEAP_HINT, INVALID_DEVID);
+        ret = wc_InitRsaKey_ex(smallKey, HEAP_HINT, INVALID_DEVID);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
         kIdx = 0;
-        ret = wc_RsaPrivateKeyDecode(rsaKeyPss512, &kIdx, &smallKey,
+        ret = wc_RsaPrivateKeyDecode(rsaKeyPss512, &kIdx, smallKey,
                                      (word32)sizeof(rsaKeyPss512));
         if (ret != 0) {
-            wc_FreeRsaKey(&smallKey);
+            wc_FreeRsaKey(smallKey);
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
         }
         pssRet = wc_RsaPSS_Sign_ex(digest, WC_SHA512_DIGEST_SIZE, out,
                                    RSA_TEST_BYTES, WC_HASH_TYPE_SHA512,
-                                   WC_MGF1SHA512, 0, &smallKey, rng);
-        wc_FreeRsaKey(&smallKey);
+                                   WC_MGF1SHA512, 0, smallKey, rng);
+        wc_FreeRsaKey(smallKey);
         if (pssRet != WC_NO_ERR_TRACE(PSS_SALTLEN_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(pssRet), exit_rsa_pss);
 
@@ -28426,6 +28442,10 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     ret = 0;
 #endif /* WOLFSSL_SE050 */
 exit_rsa_pss:
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_SHA512) && !defined(WOLFSSL_SE050) && \
+    defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(smallKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     WC_FREE_VAR(sig, HEAP_HINT);
     WC_FREE_VAR(in, HEAP_HINT);
     WC_FREE_VAR(out, HEAP_HINT);
