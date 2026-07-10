@@ -7645,7 +7645,9 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                                     (int)(localIdx - certIdx), length)) {
                             ret = ASN_PARSE_E;
                         }
-                        idx = certIdx;
+                        else {
+                            idx = certIdx;
+                        }
                     }
                 }
                 /* in case certificates set has definite length  */
