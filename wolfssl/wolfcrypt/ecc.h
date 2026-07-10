@@ -623,6 +623,38 @@ struct ecc_key {
 #ifdef WC_ECC_NONBLOCK
     ecc_nb_ctx_t* nb_ctx;
 #endif
+#ifdef WOLFSSL_DHUK
+    /* DHUK ECC sign: the ECC private scalar, AES-encrypted with the device key
+     * that the SAES derives (from the 256-bit seed below) inside the hardware.
+     * At sign time it is decrypted into a short-lived buffer; the device key
+     * never enters software.
+     *  - dhuk_wrapped_priv      -- the wrapped scalar. Length is a multiple of
+     *    16; 96 bytes covers P-521 (66 padded to 80) plus headroom.
+     *  - dhuk_seed              -- 256-bit derivation seed (mixed with the
+     *    silicon DHUK to derive the unwrap key).
+     *  - dhuk_wrapped_priv_len  -- wrapped blob length.
+     *  - dhuk_plain_priv_len    -- actual scalar size in bytes (32 P-256,
+     *    48 P-384, 66 P-521).
+     *  - dhuk_seed_sz           -- seed length (must be 32).
+     * Set via wc_ecc_import_wrapped_private(); enable the device by setting
+     * devId at init (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)). */
+    byte    dhuk_wrapped_priv[96];
+    byte    dhuk_seed[32];
+    word32  dhuk_wrapped_priv_len;
+    word32  dhuk_plain_priv_len;
+    word32  dhuk_seed_sz;
+#ifdef WOLFSSL_STM32_CCB
+    /* CCB (Coupling and Chaining Bridge) ECDSA blob. The wrapped scalar reuses
+     * dhuk_wrapped_priv (+ dhuk_wrapped_priv_len); the AES-GCM blob IV and tag
+     * are here; the public key is the standard key->pubkey. dhuk_is_ccb selects
+     * the CCB sign path in the crypto callback. Provisioned on-device by the
+     * standard wc_ecc_make_key() (intercepted in the crypto callback) or loaded
+     * via wc_ecc_import_wrapped_private_ex(). */
+    byte    ccb_iv[16];
+    byte    ccb_tag[16];
+    byte    dhuk_is_ccb;
+#endif
+#endif
 };
 
 #ifndef WOLFSSL_ECC_BLIND_K
@@ -731,6 +763,54 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
+#if defined(WOLFSSL_DHUK) && defined(WOLFSSL_STM32_BARE) && \
+    defined(WC_STM32_HAS_DHUK)
+/* DHUK ECC sign: import a hardware-wrapped ECC private scalar + its derivation
+ * seed onto the ecc_key for the crypto-callback sign path. The caller MUST also
+ * populate key->pubkey (via wc_ecc_import_x963) so verify can use the
+ * in-clear public counterpart, and enable the device by setting devId at init
+ * (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)).
+ *   seed        -- 256-bit derivation seed (mixed with the silicon DHUK to
+ *                  derive the key that unwraps the scalar)
+ *   seedSz      -- seed length, must be 32
+ *   wrapped     -- ECC scalar AES-encrypted with the SAES-derived device key;
+ *                  length is a multiple of 16, <= 96
+ *   wrappedLen  -- length of the wrapped blob
+ *   plainLen    -- actual scalar size (e.g. 32 for P-256)
+ *
+ * On success: stores seed + blob + lengths, returns 0 (does NOT set devId).
+ * On failure: BAD_FUNC_ARG. */
+WOLFSSL_API
+int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+                                  const byte* wrapped, word32 wrappedLen,
+                                  word32 plainLen);
+#endif
+
+#if defined(WOLFSSL_DHUK) && defined(WOLFSSL_STM32_CCB)
+/* STM32 CCB (Coupling and Chaining Bridge) ECDSA, HW DHUK->PKA. The private
+ * scalar is wrapped in an AES-GCM "blob" that only the device's CCB can unwrap
+ * into the PKA -- it never enters software.
+ *
+ * Provisioning is transparent through the standard ECC API: init the key with
+ * WC_DHUK_DEVID (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)) and call the normal
+ * wc_ecc_make_key() -- the STM32 crypto callback intercepts keygen and binds a
+ * fresh device blob to the key (no CCB-specific public API). wc_ecc_sign_hash()
+ * then signs through the same callback.
+ *
+ * wc_ecc_import_wrapped_private_ex: restore a previously provisioned blob (the
+ *   wrapped scalar + AES-GCM iv/tag + public key) onto a WC_DHUK_DEVID key. */
+WOLFSSL_API
+int wc_ecc_import_wrapped_private_ex(ecc_key* key, int curve_id,
+                           const byte* wrapped, word32 wrappedLen,
+                           const byte* iv, word32 ivLen,
+                           const byte* tag, word32 tagLen,
+                           const byte* pub, word32 pubLen);
+/* Internal: crypto-callback keygen handler -- binds a fresh device blob to the
+ * key using the supplied rng. Not a public entry point; callers reach it via
+ * wc_ecc_make_key() on a WC_DHUK_DEVID key. */
+WOLFSSL_LOCAL
+int wc_ecc_dev_make_key(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
+#endif
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
 WOLFSSL_API
