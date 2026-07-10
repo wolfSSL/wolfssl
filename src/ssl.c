@@ -16071,6 +16071,7 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     (void)hash;
     (void)secret;
 #endif
+    ForceZero(secret, DRBG_SEED_LEN);
     return ret;
 }
 
