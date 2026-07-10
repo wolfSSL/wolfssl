@@ -2456,6 +2456,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
             const char* port;
+            int portVal = 0;
 #ifdef WOLFSSL_IPV6
             const char* ipv6Start = XSTRSTR(str, "[");
             const char* ipv6End = XSTRSTR(str, "]");
@@ -2466,8 +2467,13 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 #endif
                 port = XSTRSTR(str, ":");
 
-            if (port != NULL)
-                bio->port = (word16)XATOI(port + 1);
+            if (port != NULL) {
+                portVal = XATOI(port + 1);
+                /* Reject out-of-range ports instead of truncating to word16. */
+                if ((portVal < 0) || (portVal > 65535))
+                    portVal = 0;
+                bio->port = (word16)portVal;
+            }
             else
                 port = str + XSTRLEN(str); /* point to null terminator */
 
