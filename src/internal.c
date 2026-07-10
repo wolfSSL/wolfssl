@@ -23775,6 +23775,14 @@ static int CheckResumptionConsistency(WOLFSSL* ssl)
 static int DoChangeCipherSpecTls13(WOLFSSL* ssl)
 {
     word32 i = ssl->buffers.inputBuffer.idx;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        /* CCS is not part of DTLS 1.3; discard the record without alerting so a
+         * spoofed CCS cannot tear down the handshake. */
+        ssl->buffers.inputBuffer.idx += ssl->curSize;
+        return 0;
+    }
+#endif
     if (ssl->options.handShakeState == HANDSHAKE_DONE) {
         SendAlert(ssl, alert_fatal, unexpected_message);
         WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
