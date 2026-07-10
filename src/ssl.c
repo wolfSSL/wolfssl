@@ -16941,8 +16941,11 @@ void wolfSSL_FIPS_drbg_free(WOLFSSL_DRBG_CTX *ctx)
     if (ctx != NULL) {
         /* As safety check if free'ing the default drbg, then mark global NULL.
          * Technically the user should not call free on the default drbg. */
-        if (ctx == gDrbgDefCtx) {
-            gDrbgDefCtx = NULL;
+        if (wc_LockMutex(&globalRNGMutex) == 0) {
+            if (ctx == gDrbgDefCtx) {
+                gDrbgDefCtx = NULL;
+            }
+            wc_UnLockMutex(&globalRNGMutex);
         }
         wolfSSL_FIPS_drbg_uninstantiate(ctx);
         XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -16950,9 +16953,12 @@ void wolfSSL_FIPS_drbg_free(WOLFSSL_DRBG_CTX *ctx)
 }
 WOLFSSL_DRBG_CTX* wolfSSL_FIPS_get_default_drbg(void)
 {
+    if (wc_LockMutex(&globalRNGMutex) != 0)
+        return NULL;
     if (gDrbgDefCtx == NULL) {
         gDrbgDefCtx = wolfSSL_FIPS_drbg_new(0, 0);
     }
+    wc_UnLockMutex(&globalRNGMutex);
     return gDrbgDefCtx;
 }
 void wolfSSL_FIPS_get_timevec(unsigned char* buf, unsigned long* pctr)
