@@ -25234,6 +25234,8 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
         }
     }
 
+    ForceZero(md5_result, WC_MD5_DIGEST_SIZE);
+
     WC_FREE_VAR_EX(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
