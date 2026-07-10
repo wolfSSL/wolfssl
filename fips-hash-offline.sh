@@ -64,8 +64,8 @@ command -v xxd     >/dev/null 2>&1 || die "xxd not found"
 # Symbol lookup from the ELF symbol table.
 # readelf -s columns: Num: Value Size Type Bind Vis Ndx Name
 #   -> Value ($2) is hexadecimal, Size ($3) is decimal, Ndx ($7), Name ($8).
-sym_val()  { readelf -sW "$BIN" | awk -v n="$1" '$8==n && $7!="UND"{print $2; exit}'; }
-sym_size() { readelf -sW "$BIN" | awk -v n="$1" '$8==n && $7!="UND"{print $3; exit}'; }
+sym_val()  { readelf -sW "$BIN" | awk -v n="$1" '{if (!printed && $8==n && $7!="UND"){print $2; printed=1; }}'; }
+sym_size() { readelf -sW "$BIN" | awk -v n="$1" '{if (!printed && $8==n && $7!="UND"){print $3; printed=1; }}'; }
 
 # Map a virtual address to a file offset using the containing PROGBITS section.
 # This avoids assuming any particular load base or section padding.
