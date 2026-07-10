@@ -7756,7 +7756,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                             ret = ASN_PARSE_E;
 
                         cert = &pkiMsg2[idx];
-                        certSz += (int)(certIdx - idx);
+                        if (!WC_SAFE_SUM_SIGNED(int, certSz,
+                                    (int)(certIdx - idx), certSz)) {
+                            ret = BUFFER_E;
+                            break;
+                        }
                         if (certSz > length) {
                             ret = BUFFER_E;
                             break;
