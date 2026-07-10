@@ -977,7 +977,7 @@ int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian)
         /* Check for order-1 or higher. */
         if (pub[0] == 0x7f) {
             for (i = 1; i < CURVE25519_KEYSIZE - 1; i++) {
-                if (pub[i] != 0)
+                if (pub[i] != 0xff)
                     break;
             }
             if (i == CURVE25519_KEYSIZE - 1 && (pub[i] >= 0xec))
