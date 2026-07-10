@@ -446,9 +446,15 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
     #endif
         SetupStoreCtxError(ctx, ret);
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        if (ctx->store->verify_cb)
-            ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0, ctx) == 1 ?
-                                                        WOLFSSL_SUCCESS : -1;
+        if (ctx->store->verify_cb) {
+            if (ctx->store->verify_cb(ret >= 0 ? 1 : 0, ctx) == 1) {
+                ret = WOLFSSL_SUCCESS;
+            }
+            else {
+                /* Callback rejection is terminal; don't let a later pass override it. */
+                return -1;
+            }
+        }
     #endif
     }
 #if !defined(NO_ASN_TIME) && defined(OPENSSL_ALL)
