@@ -2880,6 +2880,8 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
             }
         }
         wc_Des3Free(des3);
+
+        ForceZero(key, DES3_KEY_SIZE);
     }
 
     WC_FREE_VAR_EX(des3, NULL, DYNAMIC_TYPE_CIPHER);
