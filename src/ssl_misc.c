@@ -70,6 +70,11 @@ static int wolfssl_read_bio_file(WOLFSSL_BIO* bio, char** data)
 
             /* Update total read. */
             ret += sz;
+            /* Cap total like the direct-file path to avoid int overflow. */
+            if (ret > MAX_WOLFSSL_FILE_SIZE) {
+                sz = BUFFER_E;
+                break;
+            }
             /* Calculate remaining unused memory. */
             remaining = READ_BIO_FILE_CHUNK - (ret % READ_BIO_FILE_CHUNK);
             /* Check for space remaining. */
