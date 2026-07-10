@@ -997,20 +997,14 @@ int test_wc_curve25519_check_public_le(void)
 /*
  * Testing wc_curve25519_check_public: the endian==EC25519_BIG_ENDIAN side.
  *
- * NOTE (source quirk, not fixed here - test-only campaign): the
- * LITTLE_ENDIAN branch's "order-1 or higher" inner loop looks for a byte
- * that is NOT 0xff (i.e. it expects the near-order value's middle bytes to
- * be 0xff, matching a value close to the field prime p = 2^255-19). The
- * BIG_ENDIAN branch's mirror-image loop instead checks `pub[i] != 0` (looks
- * for a byte that is NOT 0x00), so as written it only fires its "order or
- * higher" rejection when pub[0]==0x7f and pub[1..30] are all ZERO -- which
- * is nowhere near the field prime in big-endian form (pub[0]=0x7f,
- * pub[1..30]=0xff, pub[31]=0xed would be the actual big-endian encoding of
- * p). This looks like a copy/paste asymmetry bug between the two branches;
- * flagged in the campaign report rather than changed here. The test below
- * targets the actual (as-shipped) decision shape, using an all-zero filler
- * to reach both sides of the compound, not a value that is meaningfully
- * "close to the order".
+ * The "order-1 or higher" inner loop mirrors the LITTLE_ENDIAN branch: it
+ * scans for a byte that is NOT 0xff (matching a value close to the field
+ * prime p = 2^255-19), and only fires its rejection when pub[0]==0x7f, the
+ * middle bytes pub[1..30] are all 0xff, and pub[31] >= 0xec -- the actual
+ * big-endian encoding of a near-order value. (An earlier revision compared
+ * `pub[i] != 0` here, an asymmetry vs the little-endian branch that was
+ * fixed in commit 600880a0a "curve25519: fix big-endian public-key order
+ * check operand"; the cases below target the corrected decision shape.)
  */
 int test_wc_curve25519_check_public_be(void)
 {
@@ -1046,21 +1040,24 @@ int test_wc_curve25519_check_public_be(void)
     ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
         EC25519_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
 
-    /* pub[0] == 0x7f, pub[1..30] == 0x00 (see note above -- NOT 0xff),
-     * pub[31] >= 0xec: the "order or higher" rejection as actually coded. */
-    XMEMSET(buf, 0, sizeof(buf));
+    /* pub[0] == 0x7f, pub[1..30] == 0xff (inner loop runs to i==KEYSIZE-1),
+     * pub[31] >= 0xec: both operands of the compound true -> "order or
+     * higher" rejection. */
+    XMEMSET(buf, 0xff, sizeof(buf));
     buf[0] = 0x7f;
     buf[CURVE25519_KEYSIZE - 1] = 0xec;
     ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
         EC25519_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
-    /* same shape, pub[31] < 0xec: compound false side (accepted). */
-    XMEMSET(buf, 0, sizeof(buf));
+    /* same shape, pub[31] < 0xec: i==KEYSIZE-1 true but pub[i]>=0xec false
+     * (compound false side, accepted). */
+    XMEMSET(buf, 0xff, sizeof(buf));
     buf[0] = 0x7f;
     buf[CURVE25519_KEYSIZE - 1] = 0xeb;
     ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
         EC25519_BIG_ENDIAN), 0);
-    /* pub[0] == 0x7f but inner loop breaks early (a middle byte nonzero). */
-    XMEMSET(buf, 0, sizeof(buf));
+    /* pub[0] == 0x7f but inner loop breaks early (a middle byte != 0xff):
+     * i != KEYSIZE-1, compound false on the first operand (accepted). */
+    XMEMSET(buf, 0xff, sizeof(buf));
     buf[0] = 0x7f;
     buf[15] = 0x01;
     ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),

@@ -896,21 +896,15 @@ int test_wc_DsaImportParamsRaw_individual_args(void)
     /* untrusted path (wc_DsaImportParamsRawCheck, trusted=0): err==MP_OKAY
      * (the p hex-radix read succeeded) && !trusted (true) -> the primality
      * check runs, and the synthetic (non-prime) p is rejected internally
-     * with DH_CHECK_PUB_E. Note: _DsaImportParamsRaw's final CheckDsaLN
-     * check is NOT itself guarded by "if (err == MP_OKAY)" the way every
-     * other step in this function is, so once the primality rejection sets
-     * err it still falls through to the q/g bit-length check; q was never
-     * read (the "if (err == MP_OKAY) err = mp_read_radix(&dsa->q, ...)"
-     * step above is skipped once err != MP_OKAY), so dsa->q is still the
-     * key's original zero value, CheckDsaLN(2048, 0) fails, and its
-     * "err = BAD_FUNC_ARG" unconditionally overwrites the earlier
-     * DH_CHECK_PUB_E. The function's actual observable return code for
-     * this input is therefore BAD_FUNC_ARG, not DH_CHECK_PUB_E - noted as
-     * a library finding (the CheckDsaLN block arguably should also be
-     * gated on err == MP_OKAY), not fixed here. */
+     * with DH_CHECK_PUB_E. Once the primality rejection sets err, every
+     * later step in _DsaImportParamsRaw is gated on "if (err == MP_OKAY)" --
+     * including the final CheckDsaLN(L,N) bit-length check (gated as of
+     * commit 30ceba03c "dsa: gate CheckDsaLN on err==MP_OKAY") -- so nothing
+     * overwrites the DH_CHECK_PUB_E, and it is the function's observable
+     * return code for this input. */
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
     ExpectIntEQ(wc_DsaImportParamsRawCheck(&key, p2048, q256, g, 0, NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
     wc_FreeDsaKey(&key);
 #endif
 #endif
