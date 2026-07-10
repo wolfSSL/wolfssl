@@ -112,6 +112,13 @@ WOLFSSL_LOCAL int curve25519_nb(byte * q, const byte * n, const byte * p,
 WOLFSSL_LOCAL void fe_init(void);
 
 WOLFSSL_LOCAL int curve25519(byte * q, const byte * n, const byte * p);
+#if defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+/* Fixed-base scalar multiply provided by the x64/aarch64 assembly
+ * (fe_x25519_asm.S, armv8-curve25519); declared here as no other header
+ * prototypes it, which otherwise breaks a strict C (implicit-declaration)
+ * build of curve25519.c. */
+WOLFSSL_LOCAL int curve25519_base(byte * q, const byte * n);
+#endif
 #ifdef WOLFSSL_CURVE25519_BLINDING
 WOLFSSL_LOCAL int curve25519_blind(byte* q, const byte* n, const byte* mask,
     const byte* p, const byte* rz);
