@@ -1031,7 +1031,7 @@ static int test_random_seedCb_fail(OS_Seed* os, byte* seed, word32 sz)
 int test_wc_RNG_SeedCb(void)
 {
     EXPECT_DECLS;
-#if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG)
+#if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG rng;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));

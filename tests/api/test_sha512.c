@@ -975,7 +975,8 @@ int test_wc_sha512_cryptocb_fallback(void)
     !defined(NO_SHA2_CRYPTO_CB) && \
     !defined(WOLF_CRYPTO_CB_NO_SHA512_FALLBACK) && \
     (defined(WOLFSSL_SHA384) || defined(TEST_WC_SHA512_224_FALLBACK) || \
-     defined(TEST_WC_SHA512_256_FALLBACK))
+     defined(TEST_WC_SHA512_256_FALLBACK)) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     typedef struct {
         const char* name;
         int (*initFn)(wc_Sha512* sha, void* heap, int devId);
@@ -1069,7 +1070,8 @@ int test_wc_sha512_variants_default_devid(void)
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
     defined(WOLFSSL_SHA512) && !defined(NO_SHA2_CRYPTO_CB) && \
     !defined(WC_NO_DEFAULT_DEVID) && \
-    (!defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256))
+    (!defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256)) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     typedef struct {
         const char* name;
         int (*initFn)(wc_Sha512* sha);

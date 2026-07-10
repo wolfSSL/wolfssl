@@ -299,7 +299,7 @@ int test_wc_DsaKeyToDer(void)
 int test_wc_DsaKeyToPublicDer(void)
 {
     EXPECT_DECLS;
-#ifndef HAVE_SELFTEST
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 #if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
     DsaKey key;
     WC_RNG rng;

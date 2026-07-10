@@ -1767,7 +1767,8 @@ int test_wc_RsaFeatureCoverage(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS)
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
     RsaKey key;
     WC_RNG rng;
     word32 idx = 0;

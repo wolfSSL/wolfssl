@@ -1817,7 +1817,8 @@ int test_wc_ecc_mulmod(void)
     !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
       defined(WOLFSSL_MICROCHIP_TA100) || \
       defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
     ecc_key     key1;
     ecc_key     key2;
     ecc_key     key3;
@@ -2062,7 +2063,8 @@ int test_wc_EccDecisionCoverage(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
     int     ret;
@@ -2337,7 +2339,8 @@ int test_wc_EccDecisionCoverage2(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
     int     ret;
@@ -2625,7 +2628,8 @@ int test_wc_EccDecisionCoverage4(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
     int     ret;

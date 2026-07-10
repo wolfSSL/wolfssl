@@ -848,7 +848,12 @@ int test_wc_HmacSizeByType(void)
 int test_wc_HmacCopy(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_HMAC) && !defined(NO_SHA256)
+/* wc_HmacCopy() is newer than the frozen FIPS/selftest wolfcrypt modules
+ * (absent from the v4.1.0-stable hmac.h that cavp-selftest-v2 pins, and from
+ * every frozen FIPS bundle), so skip it there to keep those builds warning-
+ * clean; the campaign measures MC/DC on non-FIPS variants regardless. */
+#if !defined(NO_HMAC) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     Hmac src;
     Hmac dst;
     const byte key[] = "0123456789abcdef";
@@ -887,7 +892,8 @@ int test_wc_HmacCopy(void)
 int test_wc_HmacInit_Id(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_HMAC) && defined(WOLF_PRIVATE_KEY_ID)
+#if !defined(NO_HMAC) && defined(WOLF_PRIVATE_KEY_ID) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     Hmac hmac;
     byte id[HMAC_MAX_ID_LEN];
     int i;
@@ -933,7 +939,7 @@ int test_wc_HmacInit_Id(void)
 int test_wc_HmacInit_Label(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_HMAC) && defined(WOLF_PRIVATE_KEY_ID)
+#if !defined(NO_HMAC) && defined(WOLF_PRIVATE_KEY_ID) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     Hmac hmac;
     char longLabel[HMAC_MAX_LABEL_LEN + 2];
     int i;
@@ -1022,7 +1028,11 @@ int test_wc_HmacFree_CryptoCb(void)
 int test_wc_HKDF_NullKeyEdgeCases(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HKDF) && !defined(NO_HMAC) && !defined(NO_SHA)
+/* The wc_HKDF_*_ex() heap/devId variants are newer than the frozen FIPS/
+ * selftest wolfcrypt modules (absent from the v4.1.0-stable hmac.h that
+ * cavp-selftest-v2 pins, and from every frozen FIPS bundle), so skip there. */
+#if defined(HAVE_HKDF) && !defined(NO_HMAC) && !defined(NO_SHA) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     byte prk[WC_SHA_DIGEST_SIZE];
     byte okm[WC_SHA_DIGEST_SIZE];
 

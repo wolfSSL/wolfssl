@@ -243,7 +243,8 @@ int test_wc_DhAgree_subgroup_check(void)
 int test_wc_DhSetKey(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
     const DhParams* params = NULL;
@@ -322,7 +323,8 @@ int test_wc_DhSetKey(void)
 int test_wc_DhSetNamedKey_and_helpers(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     const DhParams* p2048 = NULL;
     word32 pSz = 0, gSz = 0, qSz = 0;
@@ -452,7 +454,8 @@ int test_wc_DhSetNamedKey_and_helpers(void)
 int test_wc_DhGenerateKeyPair_bad_args(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
     byte priv[TEST_DH_BUF_SIZE];
@@ -504,7 +507,7 @@ int test_wc_DhGenerateKeyPair_bad_args(void)
 int test_wc_DhGenerateKeyPair_and_Agree(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH)
+#if !defined(NO_DH) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey aliceKey, bobKey;
     WC_RNG rng;
     byte alicePriv[TEST_DH_BUF_SIZE], alicePub[TEST_DH_BUF_SIZE];
@@ -608,7 +611,8 @@ int test_wc_DhGenerateKeyPair_and_Agree(void)
 int test_wc_DhAgree_nonblock(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(WC_DH_NONBLOCK) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(WC_DH_NONBLOCK) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey aliceKey, bobKey;
     WC_RNG rng;
     DhNb nb;
@@ -678,7 +682,8 @@ int test_wc_DhAgree_nonblock(void)
 int test_wc_DhImportExportKeyPair(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
     byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
@@ -756,7 +761,8 @@ int test_wc_DhImportExportKeyPair(void)
 int test_wc_DhCheckPubKey(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
     const DhParams* params = NULL;
@@ -823,7 +829,8 @@ int test_wc_DhCheckPubKey(void)
 int test_wc_DhCheckPrivKey(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
     const DhParams* params = NULL;
@@ -893,7 +900,8 @@ int test_wc_DhCheckPrivKey(void)
 int test_wc_DhCheckKeyPair(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
     byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
@@ -1031,7 +1039,8 @@ int test_wc_DhGenerateKeyPair_CheckDhLN(void)
  * wc_DhGeneratePublic would (correctly) reject the generated key. */
 #if !defined(NO_DH) && !defined(WOLFSSL_NO_DH186) && \
     !defined(WOLFSSL_VALIDATE_DH_KEYGEN) && \
-    defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
     const DhParams* params = NULL;
