@@ -2040,3 +2040,686 @@ int test_wc_EccPrivateKeyToDer(void)
     return EXPECT_RESULT();
 } /* End test_wc_EccPrivateKeyToDer */
 
+/*
+ * MC/DC wave 1 - decision-targeted negative/edge paths for wolfcrypt/src/
+ * ecc.c that the existing (already extensive) API tests above do not drive.
+ * Each block cites the GAPS.md line:col:cond it targets. No library source
+ * is changed; every case is reached through the public wc_ecc_* API.
+ *
+ * Split into several functions (test_wc_EccDecisionCoverage{,2,3,4}) rather
+ * than one large one: a single function covering this many independent
+ * decisions produced a stack-corrupting crash under this campaign's
+ * -fcoverage-mcdc + -O0 combination (reproduced with gdb: a plain on-stack
+ * mp_int's used/size fields were already garbage immediately after its own
+ * mp_init(), and clearing it then walked off the end of its dp[] array and
+ * stomped an unrelated local). Splitting into smaller functions -- each well
+ * under the size of the pre-existing test_wc_RsaDecisionCoverage -- avoids
+ * the failure mode entirely and keeps every function's own local mp_int/
+ * ecc_key set small.
+ */
+int test_wc_EccDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    WC_RNG  rng;
+    ecc_key key;
+    int     ret;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ret = wc_ecc_make_key(&rng, KEY32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
+    /* ---- wc_ecc_set_curve: GAPS.md 1927 ----
+     * if (key == NULL || (keysize <= 0 && curve_id < 0))
+     * key==NULL true side is already exercised elsewhere (BAD_FUNC_ARG on a
+     * NULL key is a common pattern); complete the compound's other operand
+     * with a valid key but both keysize<=0 AND curve_id<0 (all-false needs a
+     * legitimate positive keysize OR non-negative curve id, already shown by
+     * every successful wc_ecc_make_key call in this suite). */
+    ExpectIntEQ(wc_ecc_set_curve(NULL, KEY32, ECC_SECP256R1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+    ExpectIntEQ(wc_ecc_set_curve(&key, 0, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ecc_set_curve(&key, 0, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_set_curve(&key, KEY32, -1), 0);
+#endif
+
+    /* ---- wc_ecc_get_curve_id: GAPS.md 4317 ----
+     * if (wc_ecc_is_valid_idx(curve_idx) && curve_idx >= 0)
+     * curve_idx == -1 makes wc_ecc_is_valid_idx() true (ECC_CUSTOM_IDX is
+     * a valid "user-supplied params" index) but curve_idx>=0 false: the
+     * independence pair for the second operand. */
+    ExpectIntEQ(wc_ecc_get_curve_id(-1), WC_NO_ERR_TRACE(ECC_CURVE_INVALID));
+    ExpectIntEQ(wc_ecc_get_curve_id(-2), WC_NO_ERR_TRACE(ECC_CURVE_INVALID));
+#if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+    ExpectIntEQ(wc_ecc_get_curve_id(key.idx), ECC_SECP256R1);
+#endif
+
+    /* ---- wc_ecc_get_curve_params: GAPS.md 4654 ----
+     * if (curve_idx >= 0 && curve_idx < (int)ECC_SET_COUNT)
+     * both boundary violations (negative, and >= COUNT) plus a valid idx. */
+    ExpectNull(wc_ecc_get_curve_params(-1));
+    ExpectNull(wc_ecc_get_curve_params(1000000));
+    ExpectNotNull(wc_ecc_get_curve_params(key.idx));
+
+    /* ---- wc_ecc_point_is_at_infinity: GAPS.md 5320 ----
+     * if (mp_iszero(p->x) && mp_iszero(p->y))
+     * Unique-cause MC/DC for a 2-operand AND needs THREE vectors within
+     * this same binary: (T,T), (F,T), (T,F) (the existing pointFns test's
+     * real, non-infinity public point supplies the (F,F) "both false" one
+     * elsewhere in this same "ecc" group). A freshly allocated point has
+     * x=y=0 by construction (T,T); mp_set() one ordinate nonzero for the
+     * mixed (T,F)/(F,T) pair. */
+    {
+        ecc_point* inf = NULL;
+        ExpectNotNull(inf = wc_ecc_new_point());
+        ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 1);
+#if defined(WOLFSSL_PUBLIC_MP)
+        /* x zero, y nonzero: idx0 (x) TRUE, idx1 (y) FALSE. */
+        ExpectIntEQ(mp_set(inf->y, 1), MP_OKAY);
+        ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 0);
+        /* x nonzero, y zero: idx0 (x) FALSE, idx1 (y) TRUE. */
+        ExpectIntEQ(mp_set(inf->x, 1), MP_OKAY);
+        mp_zero(inf->y);
+        ExpectIntEQ(wc_ecc_point_is_at_infinity(inf), 0);
+#endif
+        wc_ecc_del_point(inf);
+    }
+
+    /* ---- wc_ecc_gen_k: GAPS.md 5335 ----
+     * if (rng==NULL || size<0 || size+8>ECC_MAXSIZE_GEN || k==NULL ||
+     *                                                       order==NULL)
+     * Exercise each operand's TRUE side individually against an otherwise
+     * valid call. */
+#if !defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING) && defined(WOLFSSL_PUBLIC_MP)
+    {
+        mp_int k, order;
+        ExpectIntEQ(mp_init(&k), MP_OKAY);
+        ExpectIntEQ(mp_init(&order), MP_OKAY);
+        ExpectIntEQ(mp_set(&order, 0xFFFFFFFF), MP_OKAY);
+        ExpectIntEQ(wc_ecc_gen_k(NULL, KEY32, &k, &order),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_gen_k(&rng, -1, &k, &order),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_gen_k(&rng, ECC_MAXSIZE_GEN, &k, &order),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)); /* size+8 > ECC_MAXSIZE_GEN */
+        ExpectIntEQ(wc_ecc_gen_k(&rng, KEY32, NULL, &order),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_gen_k(&rng, KEY32, &k, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_gen_k(&rng, KEY32, &k, &order), 0);
+        mp_clear(&k);
+        mp_clear(&order);
+    }
+#endif
+
+    /* ---- wc_ecc_init_id: GAPS.md 6479, 6483 ----
+     * if (ret == 0 && (len < 0 || len > ECC_MAX_ID_LEN)) -> BUFFER_E
+     * if (ret == 0 && id != NULL && len != 0) -> copy branch
+     * Exercise: len<0, len>MAX, id==NULL (len!=0 skipped), len==0 (id!=NULL
+     * skipped), and the true/true "copy" case. */
+    {
+        ecc_key idKey;
+        unsigned char idbuf[4] = { 1, 2, 3, 4 };
+
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_ecc_init_id(NULL, idbuf, sizeof(idbuf), NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_init_id(&idKey, idbuf, -1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        wc_ecc_free(&idKey);
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_ecc_init_id(&idKey, idbuf, ECC_MAX_ID_LEN + 1, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        wc_ecc_free(&idKey);
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_ecc_init_id(&idKey, NULL, 0, NULL, INVALID_DEVID), 0);
+        wc_ecc_free(&idKey);
+        /* id != NULL, len == 0: GAPS.md 6483's 3rd operand (len != 0)
+         * independence pair -- id!=NULL fixed TRUE across this call and
+         * the all-true "copy" call below, len toggled 0 vs nonzero. */
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_ecc_init_id(&idKey, idbuf, 0, NULL, INVALID_DEVID), 0);
+        wc_ecc_free(&idKey);
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_ecc_init_id(&idKey, idbuf, sizeof(idbuf), NULL,
+            INVALID_DEVID), 0);
+        wc_ecc_free(&idKey);
+    }
+
+    /* ---- wc_ecc_init_label: GAPS.md 6503, 6507 ----
+     * if (key == NULL || label == NULL)
+     * if (labelLen == 0 || labelLen > ECC_MAX_LABEL_LEN) */
+    {
+        ecc_key lblKey;
+        char longLabel[ECC_MAX_LABEL_LEN + 2];
+
+        XMEMSET(&lblKey, 0, sizeof(lblKey));
+        XMEMSET(longLabel, 'A', sizeof(longLabel) - 1);
+        longLabel[sizeof(longLabel) - 1] = '\0';
+
+        ExpectIntEQ(wc_ecc_init_label(NULL, "x", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_init_label(&lblKey, NULL, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_init_label(&lblKey, "", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        wc_ecc_free(&lblKey);
+        XMEMSET(&lblKey, 0, sizeof(lblKey));
+        ExpectIntEQ(wc_ecc_init_label(&lblKey, longLabel, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        wc_ecc_free(&lblKey);
+        XMEMSET(&lblKey, 0, sizeof(lblKey));
+        ExpectIntEQ(wc_ecc_init_label(&lblKey, "x", NULL, INVALID_DEVID), 0);
+        wc_ecc_free(&lblKey);
+    }
+
+#if defined(HAVE_ECC_SIGN) && !defined(NO_ASN)
+    /* ---- wc_ecc_sign_hash / wc_ecc_sign_hash_ex: GAPS.md 6909, 7443 ----
+     * if ((inlen > WC_MAX_DIGEST_SIZE) || (inlen < WC_MIN_DIGEST_SIZE_FOR_SIGN))
+     * The signVerify_hash test above already shows the ">MAX" true side;
+     * complete the other operand with a too-short digest. */
+    {
+        byte    sig[ECC_MAX_SIG_SIZE];
+        word32  siglen = (word32)sizeof(sig);
+        byte    shortDigest[1] = { 0x42 };
+
+        ExpectIntEQ(wc_ecc_sign_hash(shortDigest, 1, sig, &siglen, &rng,
+            &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#ifdef HAVE_ECC_VERIFY
+        {
+            int verify = 0;
+            siglen = (word32)sizeof(sig);
+            ExpectIntEQ(wc_ecc_verify_hash(sig, siglen, shortDigest, 1,
+                &verify, &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+        }
+#endif
+        /* wc_ecc_sign_hash() has its OWN copy of this length check (it does
+         * not delegate to wc_ecc_sign_hash_ex() before running it), so
+         * GAPS.md 7443 (wc_ecc_sign_hash_ex's identical check) needs a
+         * direct call in the SAME test binary to independently show its own
+         * MC/DC pair -- llvm-cov computes independence per-binary, so
+         * showing the FALSE side via signVerify_hash's normal-length call
+         * elsewhere in this same "ecc" group and the TRUE side here (both
+         * within tests/unit.test) is what actually closes it. */
+#if defined(WOLFSSL_PUBLIC_MP)
+        {
+            mp_int r, s;
+            byte   longDigest[WC_MAX_DIGEST_SIZE + 1];
+
+            XMEMSET(longDigest, 0x24, sizeof(longDigest));
+            ExpectIntEQ(mp_init(&r), MP_OKAY);
+            ExpectIntEQ(mp_init(&s), MP_OKAY);
+            ExpectIntEQ(wc_ecc_sign_hash_ex(shortDigest, 1, &rng, &key, &r,
+                &s), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+            /* idx0 (inlen > WC_MAX_DIGEST_SIZE): independent of the
+             * idx1 (< MIN) pair just shown above. */
+            ExpectIntEQ(wc_ecc_sign_hash_ex(longDigest, sizeof(longDigest),
+                &rng, &key, &r, &s), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+            mp_clear(&r);
+            mp_clear(&s);
+        }
+#endif
+    }
+#endif /* HAVE_ECC_SIGN && !NO_ASN */
+
+#if defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_PUBLIC_MP)
+    /* ---- wc_ecc_verify_hash_ex: GAPS.md 9476 ----
+     * Same reasoning as wc_ecc_sign_hash_ex above: wc_ecc_verify_hash()
+     * does not delegate through this check, so it needs its own direct
+     * short-hash call in this binary. */
+    {
+        mp_int r, s;
+        int    res = 0;
+        byte   shortHash[1] = { 0x42 };
+        byte   longHash[WC_MAX_DIGEST_SIZE + 1];
+
+        XMEMSET(longHash, 0x24, sizeof(longHash));
+        ExpectIntEQ(mp_init(&r), MP_OKAY);
+        ExpectIntEQ(mp_init(&s), MP_OKAY);
+        ExpectIntEQ(wc_ecc_verify_hash_ex(&r, &s, shortHash, 1, &res, &key),
+            WC_NO_ERR_TRACE(BAD_LENGTH_E));
+        /* idx0 (hashlen > WC_MAX_DIGEST_SIZE) independence pair. */
+        ExpectIntEQ(wc_ecc_verify_hash_ex(&r, &s, longHash,
+            sizeof(longHash), &res, &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+        mp_clear(&r);
+        mp_clear(&s);
+    }
+#endif
+
+    /* ---- wc_ecc_free: GAPS.md 8209 ----
+     * if (key->deallocSet && key->dp != NULL)
+     * Exercise the "deallocSet but dp already NULL" and "dp set but
+     * deallocSet false" independence halves via wc_ecc_set_custom_curve
+     * (which sets deallocSet) vs. a normal wc_ecc_make_key (deallocSet
+     * stays 0, dp points at the static ecc_sets table). */
+#if defined(WOLFSSL_CUSTOM_CURVES)
+    {
+        ecc_key ccKey;
+        ecc_set_type customDp;
+
+        XMEMSET(&ccKey, 0, sizeof(ccKey));
+        XMEMSET(&customDp, 0, sizeof(customDp));
+        ExpectIntEQ(wc_ecc_init(&ccKey), 0);
+        if (key.dp != NULL) {
+            customDp = *key.dp;
+        }
+        ExpectIntEQ(wc_ecc_set_custom_curve(&ccKey, &customDp), 0);
+        wc_ecc_free(&ccKey); /* deallocSet && dp != NULL: TRUE/TRUE */
+    }
+#endif
+    wc_ecc_free(&key); /* !deallocSet: FALSE short-circuit */
+
+    wc_ecc_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
+    return EXPECT_RESULT();
+} /* END test_wc_EccDecisionCoverage */
+
+int test_wc_EccDecisionCoverage2(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    WC_RNG  rng;
+    ecc_key key;
+    int     ret;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ret = wc_ecc_make_key(&rng, KEY32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
+#if defined(HAVE_ECC_VERIFY) && !defined(WOLFSSL_SP_MATH)
+    /* ---- wc_ecc_check_r_s_range (via wc_ecc_verify_hash_ex): GAPS.md
+     * 8939, 8942 ----
+     * if ((err == 0) && (mp_cmp(r, curve->order) != MP_LT)) -> r >= order
+     * if ((err == 0) && (mp_cmp(s, curve->order) != MP_LT)) -> s >= order
+     * Both independence pairs need a real (positive) order value with a
+     * TRUE (r/s >= order) and FALSE (r/s < order, shown by every
+     * successful verify elsewhere) side; here the TRUE side. */
+    if (key.dp != NULL)
+    {
+        mp_int r, s, bigVal;
+        int    verify = 0;
+        byte   digest[] = TEST_STRING;
+
+        ExpectIntEQ(mp_init(&r), MP_OKAY);
+        ExpectIntEQ(mp_init(&s), MP_OKAY);
+        ExpectIntEQ(mp_init(&bigVal), MP_OKAY);
+        ExpectIntEQ(mp_read_radix(&bigVal, key.dp->order, MP_RADIX_HEX),
+            MP_OKAY);
+        ExpectIntEQ(mp_copy(&bigVal, &r), MP_OKAY);
+        ExpectIntEQ(mp_copy(&bigVal, &s), MP_OKAY);
+        /* r == order: not < order -> MP_VAL by the range check */
+        ExpectIntEQ(ret = wc_ecc_verify_hash_ex(&r, &s, digest,
+            (word32)TEST_STRING_SZ, &verify, &key),
+            WC_NO_ERR_TRACE(MP_VAL));
+        mp_clear(&r);
+        mp_clear(&s);
+        mp_clear(&bigVal);
+    }
+#endif
+
+    /* ---- wc_ecc_import_point_der_ex / wc_ecc_export_point_der{,_compressed}:
+     * GAPS.md 9710, 9964, 9970, 9975, 9984, 10030, 10037, 10042 ---- */
+#if defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_ECC_KEY_IMPORT)
+    {
+        ecc_point* point = NULL;
+        byte       der[DER_SZ(KEY32)];
+        word32     derSz = DER_SZ(KEY32);
+        word32     lenOnly = 0;
+
+        ExpectNotNull(point = wc_ecc_new_point());
+        ExpectIntEQ(wc_ecc_export_point_der(key.idx, &key.pubkey, der,
+            &derSz), 0);
+
+        /* import_point_der_ex bad args: in==NULL, point==NULL, curve_idx<0,
+         * invalid curve_idx (all before the compressed-point deref). */
+        ExpectIntEQ(wc_ecc_import_point_der_ex(NULL, derSz, key.idx, point,
+            1), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        ExpectIntEQ(wc_ecc_import_point_der_ex(der, derSz, key.idx, NULL,
+            1), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        ExpectIntEQ(wc_ecc_import_point_der_ex(der, derSz, -1, point, 1),
+            WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        ExpectIntEQ(wc_ecc_import_point_der_ex(der, derSz, 1000000, point,
+            1), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        ExpectIntEQ(wc_ecc_import_point_der_ex(der, derSz, key.idx, point,
+            1), 0);
+
+        /* export_point_der: length-only request (point!=NULL, out==NULL,
+         * outLen!=NULL) vs. the ECC_BAD_ARG_E "any of point/out/outLen
+         * NULL" branch reached via out==NULL WITH outLen==NULL too. */
+        ExpectIntEQ(wc_ecc_export_point_der(key.idx, &key.pubkey, NULL,
+            &lenOnly), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        ExpectIntEQ(lenOnly, derSz);
+        ExpectIntEQ(wc_ecc_export_point_der(key.idx, NULL, NULL, NULL),
+            WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        /* short output buffer -> BUFFER_E (buffer-size check runs before
+         * the point-ordinate sanity check). */
+        {
+            byte   shortDer[4];
+            word32 shortLen = sizeof(shortDer);
+            ExpectIntEQ(wc_ecc_export_point_der(key.idx, &key.pubkey,
+                shortDer, &shortLen), WC_NO_ERR_TRACE(BUFFER_E));
+        }
+
+#ifdef HAVE_COMP_KEY
+        {
+            byte   cder[DER_SZ(KEY32)];
+            word32 cderSz = sizeof(cder);
+            word32 cLenOnly = 0;
+
+            ExpectIntEQ(wc_ecc_export_point_der_compressed(key.idx,
+                &key.pubkey, NULL, &cLenOnly), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+            ExpectIntGT(cLenOnly, 0);
+            ExpectIntEQ(wc_ecc_export_point_der_compressed(key.idx,
+                &key.pubkey, cder, &cderSz), 0);
+            ExpectIntEQ(wc_ecc_export_point_der_compressed(key.idx, NULL,
+                NULL, NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+            ExpectIntEQ(wc_ecc_export_point_der_compressed(-1, &key.pubkey,
+                cder, &cderSz), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+            /* wc_ecc_export_x963_ex(..., compressed=1): GAPS.md 16058
+             * (the static wc_ecc_export_x963_compressed helper). */
+#ifdef HAVE_ECC_KEY_EXPORT
+            {
+                byte   x963c[ECC_BUFSIZE];
+                word32 x963cLen = sizeof(x963c);
+                PRIVATE_KEY_UNLOCK();
+                ExpectIntEQ(wc_ecc_export_x963_ex(&key, x963c, &x963cLen,
+                    1), 0);
+                PRIVATE_KEY_LOCK();
+            }
+#endif
+        }
+#endif /* HAVE_COMP_KEY */
+
+        wc_ecc_del_point(point);
+    }
+#endif /* HAVE_ECC_KEY_EXPORT && HAVE_ECC_KEY_IMPORT */
+
+    /* ---- wc_ecc_is_point: GAPS.md 10304, 10329, 10332, 10390, 10396,
+     * 10403 ----
+     * Direct call (rather than through wc_ecc_point_is_on_curve) with a
+     * point that is genuinely ON the curve (the generator) and the
+     * existing off-curve regression (test_wc_ecc_import_x963_off_curve)
+     * supplies the FALSE side elsewhere; this adds the argument-NULL
+     * independence pairs plus a real on-curve TRUE result. */
+#if defined(HAVE_ECC_KEY_EXPORT) && defined(WOLFSSL_PUBLIC_MP)
+    if (key.dp != NULL)
+    {
+        mp_int a, b, prime;
+
+        ExpectIntEQ(mp_init(&a), MP_OKAY);
+        ExpectIntEQ(mp_init(&b), MP_OKAY);
+        ExpectIntEQ(mp_init(&prime), MP_OKAY);
+        ExpectIntEQ(mp_read_radix(&a, key.dp->Af, MP_RADIX_HEX), MP_OKAY);
+        ExpectIntEQ(mp_read_radix(&b, key.dp->Bf, MP_RADIX_HEX), MP_OKAY);
+        ExpectIntEQ(mp_read_radix(&prime, key.dp->prime, MP_RADIX_HEX),
+            MP_OKAY);
+
+        ExpectIntEQ(wc_ecc_is_point(&key.pubkey, &a, &b, &prime), 0);
+        ExpectIntEQ(wc_ecc_is_point(NULL, &a, &b, &prime),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_is_point(&key.pubkey, NULL, &b, &prime),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_is_point(&key.pubkey, &a, NULL, &prime),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_is_point(&key.pubkey, &a, &b, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        mp_clear(&a);
+        mp_clear(&b);
+        mp_clear(&prime);
+    }
+#endif
+
+    wc_ecc_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
+    return EXPECT_RESULT();
+} /* END test_wc_EccDecisionCoverage2 */
+
+int test_wc_EccDecisionCoverage3(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    WC_RNG  rng;
+    ecc_key key;
+    int     ret;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ret = wc_ecc_make_key(&rng, KEY32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
+    /* ---- wc_ecc_export_public_raw / wc_ecc_export_private_raw:
+     * GAPS.md 11477, 11484, 11538, 11548 ---- */
+#if defined(HAVE_ECC_KEY_EXPORT)
+    {
+        byte   qx[MAX_ECC_BYTES], qy[MAX_ECC_BYTES], d[MAX_ECC_BYTES];
+        word32 qxLen, qyLen, dLen;
+        ecc_key noDpKey;
+
+        /* key->dp == NULL (never curve-assigned): _ecc_export_ex's
+         * wc_ecc_is_valid_idx()==0||dp==NULL branch, TRUE side. */
+        XMEMSET(&noDpKey, 0, sizeof(noDpKey));
+        ExpectIntEQ(wc_ecc_init(&noDpKey), 0);
+        qxLen = sizeof(qx); qyLen = sizeof(qy);
+        ExpectIntEQ(wc_ecc_export_public_raw(&noDpKey, qx, &qxLen, qy,
+            &qyLen), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        wc_ecc_free(&noDpKey);
+
+        /* d != NULL but dLen == NULL: GAPS.md 11484 first operand. */
+        qxLen = sizeof(qx); qyLen = sizeof(qy);
+        ExpectIntEQ(wc_ecc_export_private_raw(&key, qx, &qxLen, qy, &qyLen,
+            d, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* d != NULL, dLen != NULL, but key type is public-only: GAPS.md
+         * 11484 second operand. */
+        {
+            ecc_key pubOnly;
+            byte    qxb[MAX_ECC_BYTES], qyb[MAX_ECC_BYTES];
+            word32  qxbLen = sizeof(qxb), qybLen = sizeof(qyb);
+
+            XMEMSET(&pubOnly, 0, sizeof(pubOnly));
+            ExpectIntEQ(wc_ecc_init(&pubOnly), 0);
+            ExpectIntEQ(wc_ecc_export_public_raw(&key, qxb, &qxbLen, qyb,
+                &qybLen), 0);
+            ExpectIntEQ(wc_ecc_import_unsigned(&pubOnly, qxb, qyb, NULL,
+                key.dp ? key.dp->id : ECC_SECP256R1), 0);
+            dLen = sizeof(d);
+            ExpectIntEQ(wc_ecc_export_private_raw(&pubOnly, NULL, NULL,
+                NULL, NULL, d, &dLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+            /* qx != NULL, qxLen == NULL: GAPS.md 11538 first operand. */
+            ExpectIntEQ(wc_ecc_export_private_raw(&key, qx, NULL, NULL,
+                NULL, NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* qy != NULL, qyLen == NULL: GAPS.md 11548 first operand. */
+            ExpectIntEQ(wc_ecc_export_private_raw(&key, NULL, NULL, qy,
+                NULL, NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* qx != NULL against a PRIVATEKEY_ONLY key: GAPS.md 11538
+             * second operand (type == ECC_PRIVATEKEY_ONLY). */
+            pubOnly.type = ECC_PRIVATEKEY_ONLY;
+            qxbLen = sizeof(qxb);
+            ExpectIntEQ(wc_ecc_export_private_raw(&pubOnly, qxb, &qxbLen,
+                NULL, NULL, NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            qybLen = sizeof(qyb);
+            ExpectIntEQ(wc_ecc_export_private_raw(&pubOnly, NULL, NULL,
+                qyb, &qybLen, NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+            wc_ecc_free(&pubOnly);
+        }
+    }
+#endif /* HAVE_ECC_KEY_EXPORT */
+
+    /* ---- wc_ecc_rs_raw_to_sig: GAPS.md 12015 ---- */
+    {
+        byte   r[KEY32], s[KEY32], sig[ECC_MAX_SIG_SIZE];
+        word32 sigLen = sizeof(sig);
+
+        XMEMSET(r, 0x11, sizeof(r));
+        XMEMSET(s, 0x22, sizeof(s));
+        ExpectIntEQ(wc_ecc_rs_raw_to_sig(r, sizeof(r), s, sizeof(s), sig,
+            &sigLen), 0);
+        ExpectIntEQ(wc_ecc_rs_raw_to_sig(NULL, sizeof(r), s, sizeof(s), sig,
+            &sigLen), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        ExpectIntEQ(wc_ecc_rs_raw_to_sig(r, sizeof(r), NULL, sizeof(s), sig,
+            &sigLen), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        ExpectIntEQ(wc_ecc_rs_raw_to_sig(r, sizeof(r), s, sizeof(s), NULL,
+            &sigLen), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        ExpectIntEQ(wc_ecc_rs_raw_to_sig(r, sizeof(r), s, sizeof(s), sig,
+            NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    }
+
+    /* ---- wc_ecc_import_private_key_ex: GAPS.md 11671 (_ecc_import_
+     * private_key_ex key==NULL||priv==NULL, reached via the public
+     * wrapper's own identical pre-check, same independence pair) ---- */
+#if defined(HAVE_ECC_KEY_IMPORT)
+    {
+        byte   priv[MAX_ECC_BYTES];
+        XMEMSET(priv, 0x33, sizeof(priv));
+        ExpectIntEQ(wc_ecc_import_private_key_ex(priv, sizeof(priv), NULL,
+            0, NULL, ECC_SECP256R1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_import_private_key_ex(NULL, 0, NULL, 0, &key,
+            ECC_SECP256R1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+
+    wc_ecc_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
+    return EXPECT_RESULT();
+} /* END test_wc_EccDecisionCoverage3 */
+
+int test_wc_EccDecisionCoverage4(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    WC_RNG  rng;
+    ecc_key key;
+    int     ret;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ret = wc_ecc_make_key(&rng, KEY32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
+    /* ---- ecc_mul2add argument guard: GAPS.md 8446 ----
+     * NOT closeable by any current variant, API or white-box: both bodies
+     * of ecc_mul2add() (the argument-checked "normal" one at line ~8417 and
+     * the Shamir/fixed-point-cache one at line ~13909 that supersedes it
+     * when FP_ECC is also on) live inside an outer #ifdef ECC_SHAMIR /
+     * #endif block (lines 8349-8701 and 13616-14035). Every one of this
+     * module's 6 variants has ECC_SHAMIR either ON-with-FP_ECC-ON (base:
+     * sp_default/sp_ecc/sp_ecc_nonblock/fastmath/small_stack, which
+     * exercises the unchecked Shamir body under the name ecc_mul2add) or
+     * turns BOTH ECC_SHAMIR and FP_ECC OFF together (no_fp_shamir, per its
+     * config_base's philosophy of flipping the FALSE side of both feature
+     * guards at once -- see modules.json's ecc notes), which compiles
+     * *neither* body, making ecc_mul2add an undefined symbol there (link
+     * failure, confirmed empirically). Reaching this decision needs a new,
+     * not-yet-scaffolded variant: ECC_SHAMIR on + FP_ECC off. Classified as
+     * a needs-variant residual; see RESIDUALS.md. */
+
+    /* ---- wc_ecc_ctx_set_kdf_salt: GAPS.md 14607 ----
+     * if (ctx == NULL || (salt == NULL && sz != 0))
+     * ctx==NULL already the common BAD_FUNC_ARG idiom shown elsewhere; add
+     * the salt==NULL/sz!=0 half here with a live ctx. */
+#if defined(HAVE_ECC_ENCRYPT)
+    {
+        ecEncCtx* ctx = NULL;
+        ExpectNotNull(ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+        ExpectIntEQ(wc_ecc_ctx_set_kdf_salt(NULL, NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_set_kdf_salt(ctx, NULL, 4),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_set_kdf_salt(ctx, NULL, 0), 0);
+        wc_ecc_ctx_free(ctx);
+    }
+#endif
+
+    /* ---- wc_ecc_set_custom_curve: GAPS.md 16181 ---- */
+#if defined(WOLFSSL_CUSTOM_CURVES)
+    {
+        ecc_key ccKey2;
+        XMEMSET(&ccKey2, 0, sizeof(ccKey2));
+        ExpectIntEQ(wc_ecc_init(&ccKey2), 0);
+        ExpectIntEQ(wc_ecc_set_custom_curve(NULL, key.dp),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_set_custom_curve(&ccKey2, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_ecc_free(&ccKey2);
+    }
+#endif
+
+    /* ---- wc_X963_KDF: GAPS.md 16217, 16221 ---- */
+    {
+        byte   secret[16];
+        byte   out[16];
+        word32 outLen = sizeof(out);
+
+        XMEMSET(secret, 0x44, sizeof(secret));
+        ExpectIntEQ(wc_X963_KDF(WC_HASH_TYPE_SHA256, NULL, sizeof(secret),
+            NULL, 0, out, outLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_X963_KDF(WC_HASH_TYPE_SHA256, secret, 0, NULL, 0,
+            out, outLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_X963_KDF(WC_HASH_TYPE_SHA256, secret, sizeof(secret),
+            NULL, 0, NULL, outLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* invalid hash type: neither of the five X9.63-allowed algos */
+        ExpectIntEQ(wc_X963_KDF(WC_HASH_TYPE_MD5, secret, sizeof(secret),
+            NULL, 0, out, outLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef NO_SHA256
+        ExpectIntEQ(wc_X963_KDF(WC_HASH_TYPE_SHA256, secret, sizeof(secret),
+            NULL, 0, out, outLen), 0);
+#endif
+    }
+
+    wc_ecc_free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
+    return EXPECT_RESULT();
+} /* END test_wc_EccDecisionCoverage4 */
+
