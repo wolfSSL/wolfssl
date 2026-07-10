@@ -170,7 +170,7 @@ int test_wc_SignatureGetSize_rsa(void)
 int test_wc_falcon_sign_verify(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_FALCON) && defined(HAVE_LIBOQS)
+#ifdef WC_FALCON_HAVE_NATIVE_SIGN
     falcon_key key;
     WC_RNG rng;
     byte sig[FALCON_LEVEL1_SIG_SIZE];
@@ -184,14 +184,9 @@ int test_wc_falcon_sign_verify(void)
     ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    /* Use the embedded benchmark key rather than generating one with a
-     * direct OQS_SIG_keypair() call: that call draws from liboqs'
-     * randombytes callback, which wolfSSL points at its default liboqs RNG.
-     * Any earlier wolfCrypt_Init/Cleanup cycle in this suite leaves that RNG
-     * freed (wolfSSL_liboqsClose() does not reset liboqs_init, so re-Init
-     * never re-creates it) and the callback then abort()s. The wolfSSL API
-     * paths below hand OUR rng to liboqs instead, so they do not depend on
-     * that state. */
+    /* Use the embedded benchmark key rather than generating one: this is a
+     * wrapper-level smoke test (the native suite lives in test_falcon.c), so
+     * a fixed key keeps it fast and deterministic. */
     ExpectIntEQ(wc_Falcon_PrivateKeyDecode(bench_falcon_level1_key, &idx,
         &key, (word32)sizeof_bench_falcon_level1_key), 0);
 
