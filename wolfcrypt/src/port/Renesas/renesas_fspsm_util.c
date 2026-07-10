@@ -798,6 +798,8 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                     enc->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap,
                                                     DYNAMIC_TYPE_CIPHER);
                     if (enc->aes == NULL) {
+                        XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
+                        XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);
                         wc_fspsm_hw_unlock();
                         return MEMORY_E;
                     }
@@ -807,6 +809,10 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                                             (sizeof(FSPSM_AES_WKEY),
                                             ssl->heap, DYNAMIC_TYPE_AES);
                 if (enc->aes->ctx.wrapped_key == NULL) {
+                    XFREE(enc->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+                    enc->aes = NULL;
+                    XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
+                    XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);
                     wc_fspsm_hw_unlock();
                     return MEMORY_E;
                 }
@@ -822,6 +828,8 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                             XFREE(enc->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
                             enc->aes = NULL;
                         }
+                        XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
+                        XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);
                         wc_fspsm_hw_unlock();
                         return MEMORY_E;
                     }
@@ -831,6 +839,16 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                                             (sizeof(FSPSM_AES_WKEY),
                                             ssl->heap, DYNAMIC_TYPE_AES);
                     if (dec->aes->ctx.wrapped_key == NULL) {
+                        if (enc) {
+                            XFREE(enc->aes->ctx.wrapped_key, ssl->heap,
+                                                        DYNAMIC_TYPE_AES);
+                            XFREE(enc->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+                            enc->aes = NULL;
+                        }
+                        XFREE(dec->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+                        dec->aes = NULL;
+                        XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
+                        XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);
                         wc_fspsm_hw_unlock();
                         return MEMORY_E;
                     }
