@@ -56,16 +56,29 @@ L_SHA3_transform_base_r:
 	.quad	0x8000000080008081,0x8000000000008080
 	.quad	0x0000000080000001,0x8000000080008008
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	BlockSha3_base
 .type	BlockSha3_base,@function
 .align	16
 BlockSha3_base:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	BlockSha3_base, .-BlockSha3_base
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.BlockSha3_base) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	BlockSha3_base
+.type	BlockSha3_base,@function
+.align	3
+BlockSha3_base:
+	.quad	.L.BlockSha3_base,.TOC.@tocbase,0
+	.size	BlockSha3_base,24
+.text
+.align	16
+.L.BlockSha3_base:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_BlockSha3_base
@@ -330,7 +343,11 @@ L_SHA3_transform_base_begin:
 	addi	1, 1, 0x98
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	BlockSha3_base,.-BlockSha3_base
+#else
+	.size	.L.BlockSha3_base,.-.L.BlockSha3_base
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #ifdef WOLFSSL_PPC64_ASM_POWER8
 #ifndef __APPLE__
@@ -362,16 +379,29 @@ L_SHA3_transform_power8_r:
 	.machine	"push"
 	.machine	"power8"
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	BlockSha3_power8
 .type	BlockSha3_power8,@function
 .align	16
 BlockSha3_power8:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	BlockSha3_power8, .-BlockSha3_power8
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.BlockSha3_power8) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	BlockSha3_power8
+.type	BlockSha3_power8,@function
+.align	3
+BlockSha3_power8:
+	.quad	.L.BlockSha3_power8,.TOC.@tocbase,0
+	.size	BlockSha3_power8,24
+.text
+.align	16
+.L.BlockSha3_power8:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_BlockSha3_power8
@@ -731,7 +761,11 @@ L_SHA3_transform_power8_begin:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	BlockSha3_power8,.-BlockSha3_power8
+#else
+	.size	.L.BlockSha3_power8,.-.L.BlockSha3_power8
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #if (defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM)) && defined(WOLFSSL_SHA3_PPC64_BLOCKS_N)
@@ -791,16 +825,29 @@ L_SHA3_blocksx2_power8_r:
 	.machine	"push"
 	.machine	"power8"
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	sha3_blocksx2_power8
 .type	sha3_blocksx2_power8,@function
 .align	16
 sha3_blocksx2_power8:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	sha3_blocksx2_power8, .-sha3_blocksx2_power8
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.sha3_blocksx2_power8) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	sha3_blocksx2_power8
+.type	sha3_blocksx2_power8,@function
+.align	3
+sha3_blocksx2_power8:
+	.quad	.L.sha3_blocksx2_power8,.TOC.@tocbase,0
+	.size	sha3_blocksx2_power8,24
+.text
+.align	16
+.L.sha3_blocksx2_power8:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx2_power8
@@ -1163,7 +1210,11 @@ L_SHA3_blocksx2_power8_begin:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	sha3_blocksx2_power8,.-sha3_blocksx2_power8
+#else
+	.size	.L.sha3_blocksx2_power8,.-.L.sha3_blocksx2_power8
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #ifndef __APPLE__
@@ -1222,16 +1273,29 @@ L_SHA3_blocksx3_power8_r:
 	.machine	"push"
 	.machine	"power8"
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	sha3_blocksx3_power8
 .type	sha3_blocksx3_power8,@function
 .align	16
 sha3_blocksx3_power8:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	sha3_blocksx3_power8, .-sha3_blocksx3_power8
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.sha3_blocksx3_power8) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	sha3_blocksx3_power8
+.type	sha3_blocksx3_power8,@function
+.align	3
+sha3_blocksx3_power8:
+	.quad	.L.sha3_blocksx3_power8,.TOC.@tocbase,0
+	.size	sha3_blocksx3_power8,24
+.text
+.align	16
+.L.sha3_blocksx3_power8:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx3_power8
@@ -1836,7 +1900,11 @@ L_SHA3_blocksx3_power8_begin:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	sha3_blocksx3_power8,.-sha3_blocksx3_power8
+#else
+	.size	.L.sha3_blocksx3_power8,.-.L.sha3_blocksx3_power8
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* (WOLFSSL_HAVE_MLKEM || HAVE_DILITHIUM) && WOLFSSL_SHA3_PPC64_BLOCKS_N */

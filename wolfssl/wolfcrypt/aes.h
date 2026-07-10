@@ -1179,6 +1179,36 @@ WOLFSSL_LOCAL void AES_XTS_encrypt(const byte* in, byte* out, word32 sz,
 WOLFSSL_LOCAL void AES_XTS_decrypt(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 #endif
+
+#if defined(WOLFSSL_PPC64_ASM_CRYPTO)
+/* POWER8+ vector-crypto (vcipher family) variants, selected at run time when
+ * the CPU reports VEC_CRYPTO support (see aes.c). */
+WOLFSSL_LOCAL void AES_set_encrypt_key_crypto(const unsigned char* key,
+    word32 len, unsigned char* ks);
+WOLFSSL_LOCAL void AES_invert_key_crypto(unsigned char* ks, word32 rounds);
+WOLFSSL_LOCAL void AES_ECB_encrypt_crypto(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr);
+WOLFSSL_LOCAL void AES_ECB_decrypt_crypto(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr);
+WOLFSSL_LOCAL void AES_CBC_encrypt_crypto(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* iv);
+WOLFSSL_LOCAL void AES_CBC_decrypt_crypto(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* iv);
+WOLFSSL_LOCAL void AES_CTR_encrypt_crypto(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* ctr);
+WOLFSSL_LOCAL void AES_GCM_encrypt_crypto(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* ctr);
+#if defined(WOLFSSL_AES_XTS)
+WOLFSSL_LOCAL void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz,
+    const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz,
+    const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#endif
+#endif /* WOLFSSL_PPC64_ASM_CRYPTO */
 #endif /* WOLFSSL_PPC64_ASM */
 
 #if defined(WOLFSSL_PPC32_ASM)

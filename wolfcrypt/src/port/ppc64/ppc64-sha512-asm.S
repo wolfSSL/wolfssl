@@ -84,16 +84,29 @@ L_SHA512_transform_len_k:
 	.quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 	.quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	Transform_Sha512_Len
 .type	Transform_Sha512_Len,@function
 .align	16
 Transform_Sha512_Len:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	Transform_Sha512_Len, .-Transform_Sha512_Len
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.Transform_Sha512_Len) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	Transform_Sha512_Len
+.type	Transform_Sha512_Len,@function
+.align	3
+Transform_Sha512_Len:
+	.quad	.L.Transform_Sha512_Len,.TOC.@tocbase,0
+	.size	Transform_Sha512_Len,24
+.text
+.align	16
+.L.Transform_Sha512_Len:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len
@@ -138,6 +151,40 @@ _Transform_Sha512_Len:
 	# Start of loop processing a block
 L_SHA512_transform_len_begin:
 	# Load W - 128 bytes
+#ifdef __LITTLE_ENDIAN__
+	li	0, 0
+	ldbrx	16, 4, 0
+	li	0, 8
+	ldbrx	17, 4, 0
+	li	0, 16
+	ldbrx	18, 4, 0
+	li	0, 24
+	ldbrx	19, 4, 0
+	li	0, 32
+	ldbrx	20, 4, 0
+	li	0, 40
+	ldbrx	21, 4, 0
+	li	0, 48
+	ldbrx	22, 4, 0
+	li	0, 56
+	ldbrx	23, 4, 0
+	li	0, 0x40
+	ldbrx	24, 4, 0
+	li	0, 0x48
+	ldbrx	25, 4, 0
+	li	0, 0x50
+	ldbrx	26, 4, 0
+	li	0, 0x58
+	ldbrx	27, 4, 0
+	li	0, 0x60
+	ldbrx	28, 4, 0
+	li	0, 0x68
+	ldbrx	29, 4, 0
+	li	0, 0x70
+	ldbrx	30, 4, 0
+	li	0, 0x78
+	ldbrx	31, 4, 0
+#else
 	ld	16, 0(4)
 	ld	17, 8(4)
 	ld	18, 16(4)
@@ -154,6 +201,7 @@ L_SHA512_transform_len_begin:
 	ld	29, 104(4)
 	ld	30, 112(4)
 	ld	31, 120(4)
+#endif /* __LITTLE_ENDIAN__ */
 	# Start of 80 rounds
 	# Round 0
 	rotrdi	0, 11, 14
@@ -3169,6 +3217,40 @@ L_SHA512_transform_len_begin:
 	# Start of loop processing a block
 L_SHA512_transform_len_begin:
 	# Load W - 128 bytes
+#ifdef __LITTLE_ENDIAN__
+	li	0, 0
+	ldbrx	16, 4, 0
+	li	0, 8
+	ldbrx	17, 4, 0
+	li	0, 16
+	ldbrx	18, 4, 0
+	li	0, 24
+	ldbrx	19, 4, 0
+	li	0, 32
+	ldbrx	20, 4, 0
+	li	0, 40
+	ldbrx	21, 4, 0
+	li	0, 48
+	ldbrx	22, 4, 0
+	li	0, 56
+	ldbrx	23, 4, 0
+	li	0, 0x40
+	ldbrx	24, 4, 0
+	li	0, 0x48
+	ldbrx	25, 4, 0
+	li	0, 0x50
+	ldbrx	26, 4, 0
+	li	0, 0x58
+	ldbrx	27, 4, 0
+	li	0, 0x60
+	ldbrx	28, 4, 0
+	li	0, 0x68
+	ldbrx	29, 4, 0
+	li	0, 0x70
+	ldbrx	30, 4, 0
+	li	0, 0x78
+	ldbrx	31, 4, 0
+#else
 	ld	16, 0(4)
 	ld	17, 8(4)
 	ld	18, 16(4)
@@ -3185,6 +3267,7 @@ L_SHA512_transform_len_begin:
 	ld	29, 104(4)
 	ld	30, 112(4)
 	ld	31, 120(4)
+#endif /* __LITTLE_ENDIAN__ */
 	li	0, 5
 	mtctr	0
 	# Start of 80 rounds
@@ -3952,7 +4035,11 @@ L_SHA512_transform_len_after_blk_15:
 	addi	1, 1, 0x98
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
+#else
+	.size	.L.Transform_Sha512_Len,.-.L.Transform_Sha512_Len
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #ifdef WOLFSSL_PPC64_ASM_CRYPTO
 #ifndef __APPLE__
@@ -4013,16 +4100,29 @@ L_SHA512_crypto_k:
 	.machine	"push"
 	.machine	"power8"
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	Transform_Sha512_Len_crypto
 .type	Transform_Sha512_Len_crypto,@function
 .align	16
 Transform_Sha512_Len_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	Transform_Sha512_Len_crypto, .-Transform_Sha512_Len_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.Transform_Sha512_Len_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	Transform_Sha512_Len_crypto
+.type	Transform_Sha512_Len_crypto,@function
+.align	3
+Transform_Sha512_Len_crypto:
+	.quad	.L.Transform_Sha512_Len_crypto,.TOC.@tocbase,0
+	.size	Transform_Sha512_Len_crypto,24
+.text
+.align	16
+.L.Transform_Sha512_Len_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len_crypto
@@ -5832,7 +5932,11 @@ L_SHA512_crypto_begin:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
+#else
+	.size	.L.Transform_Sha512_Len_crypto,.-.L.Transform_Sha512_Len_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* WOLFSSL_PPC64_ASM_CRYPTO */

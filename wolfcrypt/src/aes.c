@@ -673,17 +673,16 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #define AESNI_ALIGN 16
     #endif
 
-    /* note that all write access to these static variables must be idempotent,
-     * as arranged by Check_CPU_support_AES(), else they will be susceptible to
-     * data races.
-     */
-    static int checkedAESNI = 0;
-    static int haveAESNI  = 0;
-    static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
+    /* Accessed with the wolfSSL atomic APIs so the one-time detection is free of
+     * data races.  Writes are also idempotent (all callers compute the same
+     * value), so a benign concurrent double-write is harmless. */
+    static wolfSSL_Atomic_Uint checkedAESNI = WOLFSSL_ATOMIC_INITIALIZER(0);
+    static wolfSSL_Atomic_Uint haveAESNI = WOLFSSL_ATOMIC_INITIALIZER(0);
+    static cpuid_flags_atomic_t intel_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
     static WARN_UNUSED_RESULT int Check_CPU_support_AES(void)
     {
-        cpuid_get_flags_ex(&intel_flags);
+        cpuid_get_flags_atomic(&intel_flags);
 
         return IS_INTEL_AESNI(intel_flags) != 0;
     }
@@ -1087,11 +1086,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #elif defined(WOLFSSL_ARMASM)
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
 static void Check_CPU_support_HwCrypto(Aes* aes)
 {
-    cpuid_get_flags_ex(&cpuid_flags);
+    cpuid_get_flags_atomic(&cpuid_flags);
     aes->use_aes_hw_crypto = IS_AARCH64_AES(cpuid_flags);
 #ifdef HAVE_AESGCM
     aes->use_pmull_hw_crypto = IS_AARCH64_PMULL(cpuid_flags);
@@ -1165,6 +1164,83 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #endif /* HAVE_AES_DECRYPT && WOLFSSL_AES_DIRECT */
 
 #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
+
+#if defined(WOLFSSL_PPC64_ASM) && defined(WOLFSSL_PPC64_ASM_CRYPTO)
+/* POWER8+ has vector AES (vcipher/vncipher...) instructions.  When built in,
+ * select the "_crypto" implementations at run time if the CPU supports them.
+ *
+ * A run-time flag with direct calls is used rather than a function pointer: an
+ * indirect call would require an ELFv1 function descriptor, whereas direct
+ * calls work under both the ELFv1 and ELFv2 ABIs.  The dispatch is expressed as
+ * self-referential macros - the base name inside each macro is not re-expanded
+ * (C99 6.10.3.4), so it names the real base function.  In a PPC build the ARM
+ * branches that also call these names are #if'd out, so only the live PPC call
+ * sites are redirected. */
+
+/* Resolved dispatch decision (0 = base, 1 = vector-crypto), accessed with the
+ * wolfSSL atomic APIs so the one-time detection is free of data races.  The
+ * master cpuid flags read by cpuid_get_flags() are themselves atomic; the write
+ * here is idempotent so a benign concurrent double-write is harmless. */
+static wolfSSL_Atomic_Uint aes_ppc64_use_crypto = WOLFSSL_ATOMIC_INITIALIZER(0);
+
+/* True when the CPU supports the vector-crypto instructions. */
+#define AES_PPC64_USE_CRYPTO()   (WOLFSSL_ATOMIC_LOAD(aes_ppc64_use_crypto) != 0)
+
+/* Check and set the decision together (as Check_CPU_support_AES/HwCrypto do);
+ * called from the key-setup path before any AES_*_crypto use. */
+static void Aes_SetCrypto(void)
+{
+    WOLFSSL_ATOMIC_STORE(aes_ppc64_use_crypto,
+        (unsigned int)(IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0));
+}
+
+#define AES_set_encrypt_key(key, len, ks)                                     \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_set_encrypt_key_crypto((key), (len), (ks)) :                      \
+        AES_set_encrypt_key((key), (len), (ks)))
+#define AES_invert_key(ks, rounds)                                            \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_invert_key_crypto((ks), (rounds)) :                              \
+        AES_invert_key((ks), (rounds)))
+#define AES_ECB_encrypt(in, out, len, ks, nr)                                 \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_ECB_encrypt_crypto((in), (out), (len), (ks), (nr)) :              \
+        AES_ECB_encrypt((in), (out), (len), (ks), (nr)))
+#define AES_ECB_decrypt(in, out, len, ks, nr)                                 \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_ECB_decrypt_crypto((in), (out), (len), (ks), (nr)) :              \
+        AES_ECB_decrypt((in), (out), (len), (ks), (nr)))
+#define AES_CBC_encrypt(in, out, len, ks, nr, iv)                             \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_CBC_encrypt_crypto((in), (out), (len), (ks), (nr), (iv)) :        \
+        AES_CBC_encrypt((in), (out), (len), (ks), (nr), (iv)))
+#define AES_CBC_decrypt(in, out, len, ks, nr, iv)                             \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_CBC_decrypt_crypto((in), (out), (len), (ks), (nr), (iv)) :        \
+        AES_CBC_decrypt((in), (out), (len), (ks), (nr), (iv)))
+#define AES_CTR_encrypt(in, out, len, ks, nr, ctr)                            \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_CTR_encrypt_crypto((in), (out), (len), (ks), (nr), (ctr)) :       \
+        AES_CTR_encrypt((in), (out), (len), (ks), (nr), (ctr)))
+#define AES_GCM_encrypt(in, out, len, ks, nr, ctr)                            \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_GCM_encrypt_crypto((in), (out), (len), (ks), (nr), (ctr)) :       \
+        AES_GCM_encrypt((in), (out), (len), (ks), (nr), (ctr)))
+#if defined(WOLFSSL_AES_XTS)
+#define AES_XTS_encrypt(in, out, sz, i, key, key2, tmp, nr)                   \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_XTS_encrypt_crypto((in), (out), (sz), (i), (key), (key2), (tmp),  \
+            (nr)) :                                                           \
+        AES_XTS_encrypt((in), (out), (sz), (i), (key), (key2), (tmp), (nr)))
+#define AES_XTS_decrypt(in, out, sz, i, key, key2, tmp, nr)                   \
+    (AES_PPC64_USE_CRYPTO() ?                                               \
+        AES_XTS_decrypt_crypto((in), (out), (sz), (i), (key), (key2), (tmp),  \
+            (nr)) :                                                           \
+        AES_XTS_decrypt((in), (out), (sz), (i), (key), (key2), (tmp), (nr)))
+#endif /* WOLFSSL_AES_XTS */
+#else
+#define Aes_SetCrypto()                 WC_DO_NOTHING
+#endif /* WOLFSSL_PPC64_ASM && WOLFSSL_PPC64_ASM_CRYPTO */
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM) || \
     defined(WOLFSSL_AESGCM_STREAM) || defined(HAVE_AESGCM)
@@ -4887,6 +4963,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         aes->keylen = (int)keylen;
         aes->rounds = (keylen/4) + 6;
 
+        /* Determine base vs vector-crypto before the (dispatched) key setup so
+         * the schedule matches the mode functions that later consume it. */
+        Aes_SetCrypto();
         AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
 
     #ifdef HAVE_AES_DECRYPT
@@ -5569,11 +5648,11 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         * function correctly with default build settings.
         */
 
-        if (checkedAESNI == 0) {
-            haveAESNI  = Check_CPU_support_AES();
-            checkedAESNI = 1;
+        if (WOLFSSL_ATOMIC_LOAD(checkedAESNI) == 0) {
+            WOLFSSL_ATOMIC_STORE(haveAESNI, Check_CPU_support_AES());
+            WOLFSSL_ATOMIC_STORE(checkedAESNI, 1);
         }
-        if (haveAESNI
+        if (WOLFSSL_ATOMIC_LOAD(haveAESNI)
 #if defined(WC_FLAG_DONT_USE_VECTOR_OPS) && !defined(WC_C_DYNAMIC_FALLBACK)
             && (aes->use_aesni != WC_FLAG_DONT_USE_VECTOR_OPS)
 #endif
@@ -18804,7 +18883,7 @@ static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
 static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
 {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-    cpuid_get_flags_ex(&cpuid_flags);
+    cpuid_get_flags_atomic(&cpuid_flags);
     if (IS_AARCH64_PMULL(cpuid_flags)) {
         return &AES_GCMSIV_polyval_pmull;
     }
@@ -18823,7 +18902,7 @@ static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
  * AES-NI gates the base path (matching wolfSSL's AES-GCM). */
 static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
 {
-    cpuid_get_flags_ex(&intel_flags);
+    cpuid_get_flags_atomic(&intel_flags);
     if (!IS_INTEL_AESNI(intel_flags)) {
         return NULL;
     }
@@ -18868,7 +18947,7 @@ static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
 static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
 {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-    cpuid_get_flags_ex(&cpuid_flags);
+    cpuid_get_flags_atomic(&cpuid_flags);
     if (IS_AARCH64_AES(cpuid_flags)) {
         return &AES_GCMSIV_ctr_aarch64;
     }
@@ -18886,7 +18965,7 @@ static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
  * the base; AVX1/VAES/AVX512 are progressively wider pipelines. */
 static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
 {
-    cpuid_get_flags_ex(&intel_flags);
+    cpuid_get_flags_atomic(&intel_flags);
     if (!IS_INTEL_AESNI(intel_flags)) {
         return NULL;
     }

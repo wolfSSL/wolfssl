@@ -194,16 +194,29 @@ L_AES_PPC64_te:
         * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_invert_key
 .type	AES_invert_key,@function
 .align	16
 AES_invert_key:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_invert_key, .-AES_invert_key
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_invert_key) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_invert_key
+.type	AES_invert_key,@function
+.align	3
+AES_invert_key:
+	.quad	.L.AES_invert_key,.TOC.@tocbase,0
+	.size	AES_invert_key,24
+.text
+.align	16
+.L.AES_invert_key:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_invert_key
@@ -220,7 +233,10 @@ _AES_invert_key:
 	addi	5, 5, L_AES_PPC64_te@toc@l
 	addis	6, 2, L_AES_PPC64_td@toc@ha
 	addi	6, 6, L_AES_PPC64_td@toc@l
+#ifdef __LITTLE_ENDIAN__
+#else
 	addi	5, 5, 3
+#endif /* __LITTLE_ENDIAN__ */
 	sldi	16, 4, 4
 	add	16, 16, 3
 	ld	7, 0(3)
@@ -258,10 +274,17 @@ L_AES_invert_key_loop:
 	addi	0, 4, -1
 	mtctr	0
 L_AES_invert_key_mix_loop:
+#ifdef __LITTLE_ENDIAN__
+	lwz	7, 0(3)
+	lwz	8, 4(3)
+	lwz	9, 8(3)
+	lwz	10, 12(3)
+#else
 	lwz	8, 0(3)
 	lwz	7, 4(3)
 	lwz	10, 8(3)
 	lwz	9, 12(3)
+#endif /* __LITTLE_ENDIAN__ */
 	rlwinm	11, 7, 2, 22, 29
 	rlwinm	12, 7, 26, 22, 29
 	rlwinm	14, 7, 18, 22, 29
@@ -284,7 +307,11 @@ L_AES_invert_key_mix_loop:
 	xor	14, 14, 11
 	xor	14, 14, 12
 	xor	14, 14, 15
+#ifdef __LITTLE_ENDIAN__
+	stw	14, 0(3)
+#else
 	stw	14, 4(3)
+#endif /* __LITTLE_ENDIAN__ */
 	rlwinm	11, 8, 2, 22, 29
 	rlwinm	12, 8, 26, 22, 29
 	rlwinm	14, 8, 18, 22, 29
@@ -307,7 +334,11 @@ L_AES_invert_key_mix_loop:
 	xor	14, 14, 11
 	xor	14, 14, 12
 	xor	14, 14, 15
+#ifdef __LITTLE_ENDIAN__
+	stw	14, 4(3)
+#else
 	stw	14, 0(3)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	3, 3, 8
 	rlwinm	11, 9, 2, 22, 29
 	rlwinm	12, 9, 26, 22, 29
@@ -331,7 +362,11 @@ L_AES_invert_key_mix_loop:
 	xor	14, 14, 11
 	xor	14, 14, 12
 	xor	14, 14, 15
+#ifdef __LITTLE_ENDIAN__
+	stw	14, 0(3)
+#else
 	stw	14, 4(3)
+#endif /* __LITTLE_ENDIAN__ */
 	rlwinm	11, 10, 2, 22, 29
 	rlwinm	12, 10, 26, 22, 29
 	rlwinm	14, 10, 18, 22, 29
@@ -354,7 +389,11 @@ L_AES_invert_key_mix_loop:
 	xor	14, 14, 11
 	xor	14, 14, 12
 	xor	14, 14, 15
+#ifdef __LITTLE_ENDIAN__
+	stw	14, 4(3)
+#else
 	stw	14, 0(3)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	3, 3, 8
 	bdnz	L_AES_invert_key_mix_loop
 	ld	0, 24(1)
@@ -365,7 +404,11 @@ L_AES_invert_key_mix_loop:
 	addi	1, 1, 32
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_invert_key,.-AES_invert_key
+#else
+	.size	.L.AES_invert_key,.-.L.AES_invert_key
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_DECRYPT */
 #ifndef __APPLE__
@@ -386,16 +429,29 @@ L_AES_PPC64_rcon:
 	.long	0x10000000,0x20000000,0x40000000,0x80000000
 	.long	0x1b000000,0x36000000
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_set_encrypt_key
 .type	AES_set_encrypt_key,@function
 .align	16
 AES_set_encrypt_key:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_set_encrypt_key, .-AES_set_encrypt_key
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_set_encrypt_key) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_set_encrypt_key
+.type	AES_set_encrypt_key,@function
+.align	3
+AES_set_encrypt_key:
+	.quad	.L.AES_set_encrypt_key,.TOC.@tocbase,0
+	.size	AES_set_encrypt_key,24
+.text
+.align	16
+.L.AES_set_encrypt_key:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_set_encrypt_key
@@ -411,15 +467,28 @@ _AES_set_encrypt_key:
 	addi	6, 6, L_AES_PPC64_te@toc@l
 	addis	7, 2, L_AES_PPC64_rcon@toc@ha
 	addi	7, 7, L_AES_PPC64_rcon@toc@l
+#ifdef __LITTLE_ENDIAN__
+#else
 	addi	6, 6, 3
+#endif /* __LITTLE_ENDIAN__ */
 	cmplwi	4, 0x80
 	beq	L_AES_set_encrypt_key_start_128
 	cmplwi	4, 0xc0
 	beq	L_AES_set_encrypt_key_start_192
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 0, 3
+	li	8, 8
+	ldbrx	10, 8, 3
+	li	8, 16
+	ldbrx	11, 8, 3
+	li	8, 24
+	ldbrx	12, 8, 3
+#else
 	ld	9, 0(3)
 	ld	10, 8(3)
 	ld	11, 16(3)
 	ld	12, 24(3)
+#endif /* __LITTLE_ENDIAN__ */
 	rldicr	9, 9, 32, 63
 	rldicr	10, 10, 32, 63
 	rldicr	11, 11, 32, 63
@@ -443,10 +512,17 @@ L_AES_set_encrypt_key_loop_256:
 	rlwimi	0, 9, 8, 16, 23
 	rlwimi	0, 10, 16, 8, 15
 	rlwimi	0, 11, 24, 0, 7
+#ifdef __LITTLE_ENDIAN__
+	lwz	9, 0(5)
+	lwz	10, 4(5)
+	lwz	11, 8(5)
+	lwz	12, 12(5)
+#else
 	lwz	10, 0(5)
 	lwz	9, 4(5)
 	lwz	12, 8(5)
 	lwz	11, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	xor	9, 9, 0
 	lwz	0, 0(7)
@@ -455,10 +531,17 @@ L_AES_set_encrypt_key_loop_256:
 	xor	10, 10, 9
 	xor	11, 11, 10
 	xor	12, 12, 11
+#ifdef __LITTLE_ENDIAN__
+	stw	9, 16(5)
+	stw	10, 20(5)
+	stw	11, 24(5)
+	stw	12, 28(5)
+#else
 	stw	10, 16(5)
 	stw	9, 20(5)
 	stw	12, 24(5)
 	stw	11, 28(5)
+#endif /* __LITTLE_ENDIAN__ */
 	rlwinm	9, 12, 26, 22, 29
 	rlwinm	10, 12, 18, 22, 29
 	rlwinm	11, 12, 10, 22, 29
@@ -470,19 +553,33 @@ L_AES_set_encrypt_key_loop_256:
 	rlwimi	0, 9, 8, 16, 23
 	rlwimi	0, 10, 16, 8, 15
 	rlwimi	0, 11, 24, 0, 7
+#ifdef __LITTLE_ENDIAN__
+	lwz	9, 0(5)
+	lwz	10, 4(5)
+	lwz	11, 8(5)
+	lwz	12, 12(5)
+#else
 	lwz	10, 0(5)
 	lwz	9, 4(5)
 	lwz	12, 8(5)
 	lwz	11, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	xor	9, 9, 0
 	xor	10, 10, 9
 	xor	11, 11, 10
 	xor	12, 12, 11
+#ifdef __LITTLE_ENDIAN__
+	stw	9, 16(5)
+	stw	10, 20(5)
+	stw	11, 24(5)
+	stw	12, 28(5)
+#else
 	stw	10, 16(5)
 	stw	9, 20(5)
 	stw	12, 24(5)
 	stw	11, 28(5)
+#endif /* __LITTLE_ENDIAN__ */
 	bdnz	L_AES_set_encrypt_key_loop_256
 	rlwinm	9, 12, 2, 22, 29
 	rlwinm	10, 12, 26, 22, 29
@@ -495,10 +592,17 @@ L_AES_set_encrypt_key_loop_256:
 	rlwimi	0, 9, 8, 16, 23
 	rlwimi	0, 10, 16, 8, 15
 	rlwimi	0, 11, 24, 0, 7
+#ifdef __LITTLE_ENDIAN__
+	lwz	9, 0(5)
+	lwz	10, 4(5)
+	lwz	11, 8(5)
+	lwz	12, 12(5)
+#else
 	lwz	10, 0(5)
 	lwz	9, 4(5)
 	lwz	12, 8(5)
 	lwz	11, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	xor	9, 9, 0
 	lwz	0, 0(7)
@@ -507,15 +611,30 @@ L_AES_set_encrypt_key_loop_256:
 	xor	10, 10, 9
 	xor	11, 11, 10
 	xor	12, 12, 11
+#ifdef __LITTLE_ENDIAN__
+	stw	10, 16(5)
+	stw	9, 20(5)
+	stw	12, 24(5)
+	stw	11, 28(5)
+#else
 	stw	9, 16(5)
 	stw	10, 20(5)
 	stw	11, 24(5)
 	stw	12, 28(5)
+#endif /* __LITTLE_ENDIAN__ */
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_192:
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 0, 3
+	li	8, 8
+	ldbrx	14, 8, 3
+	li	8, 16
+	ldbrx	15, 8, 3
+#else
 	ld	12, 0(3)
 	ld	14, 8(3)
 	ld	15, 16(3)
+#endif /* __LITTLE_ENDIAN__ */
 	rldicr	12, 12, 32, 63
 	rldicr	14, 14, 32, 63
 	rldicr	15, 15, 32, 63
@@ -537,12 +656,21 @@ L_AES_set_encrypt_key_loop_192:
 	rlwimi	0, 9, 8, 16, 23
 	rlwimi	0, 10, 16, 8, 15
 	rlwimi	0, 11, 24, 0, 7
+#ifdef __LITTLE_ENDIAN__
+	lwz	9, 0(5)
+	lwz	10, 4(5)
+	lwz	11, 8(5)
+	lwz	12, 12(5)
+	lwz	14, 16(5)
+	lwz	15, 20(5)
+#else
 	lwz	10, 0(5)
 	lwz	9, 4(5)
 	lwz	12, 8(5)
 	lwz	11, 12(5)
 	lwz	15, 16(5)
 	lwz	14, 20(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 24
 	xor	9, 9, 0
 	lwz	0, 0(7)
@@ -553,12 +681,21 @@ L_AES_set_encrypt_key_loop_192:
 	xor	12, 12, 11
 	xor	14, 14, 12
 	xor	15, 15, 14
+#ifdef __LITTLE_ENDIAN__
+	stw	9, 0(5)
+	stw	10, 4(5)
+	stw	11, 8(5)
+	stw	12, 12(5)
+	stw	14, 16(5)
+	stw	15, 20(5)
+#else
 	stw	10, 0(5)
 	stw	9, 4(5)
 	stw	12, 8(5)
 	stw	11, 12(5)
 	stw	15, 16(5)
 	stw	14, 20(5)
+#endif /* __LITTLE_ENDIAN__ */
 	bdnz	L_AES_set_encrypt_key_loop_192
 	rlwinm	9, 15, 2, 22, 29
 	rlwinm	10, 15, 26, 22, 29
@@ -571,12 +708,21 @@ L_AES_set_encrypt_key_loop_192:
 	rlwimi	0, 9, 8, 16, 23
 	rlwimi	0, 10, 16, 8, 15
 	rlwimi	0, 11, 24, 0, 7
+#ifdef __LITTLE_ENDIAN__
+	lwz	9, 0(5)
+	lwz	10, 4(5)
+	lwz	11, 8(5)
+	lwz	12, 12(5)
+	lwz	14, 16(5)
+	lwz	15, 20(5)
+#else
 	lwz	10, 0(5)
 	lwz	9, 4(5)
 	lwz	12, 8(5)
 	lwz	11, 12(5)
 	lwz	15, 16(5)
 	lwz	14, 20(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 24
 	xor	9, 9, 0
 	lwz	0, 0(7)
@@ -585,15 +731,27 @@ L_AES_set_encrypt_key_loop_192:
 	xor	10, 10, 9
 	xor	11, 11, 10
 	xor	12, 12, 11
+#ifdef __LITTLE_ENDIAN__
+	stw	10, 0(5)
+	stw	9, 4(5)
+	stw	12, 8(5)
+	stw	11, 12(5)
+#else
 	stw	9, 0(5)
 	stw	10, 4(5)
 	stw	11, 8(5)
 	stw	12, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_128:
-	li	8, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 0, 3
+	li	8, 8
+	ldbrx	12, 8, 3
+#else
 	ld	11, 0(3)
 	ld	12, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	rldicr	11, 11, 32, 63
 	rldicr	12, 12, 32, 63
 	std	11, 0(5)
@@ -613,10 +771,17 @@ L_AES_set_encrypt_key_loop_128:
 	rlwimi	0, 9, 8, 16, 23
 	rlwimi	0, 10, 16, 8, 15
 	rlwimi	0, 11, 24, 0, 7
+#ifdef __LITTLE_ENDIAN__
+	lwz	9, 0(5)
+	lwz	10, 4(5)
+	lwz	11, 8(5)
+	lwz	12, 12(5)
+#else
 	lwz	10, 0(5)
 	lwz	9, 4(5)
 	lwz	12, 8(5)
 	lwz	11, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	xor	9, 9, 0
 	lwz	0, 0(7)
@@ -625,10 +790,17 @@ L_AES_set_encrypt_key_loop_128:
 	xor	10, 10, 9
 	xor	11, 11, 10
 	xor	12, 12, 11
+#ifdef __LITTLE_ENDIAN__
+	stw	9, 0(5)
+	stw	10, 4(5)
+	stw	11, 8(5)
+	stw	12, 12(5)
+#else
 	stw	10, 0(5)
 	stw	9, 4(5)
 	stw	12, 8(5)
 	stw	11, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	bdnz	L_AES_set_encrypt_key_loop_128
 	rlwinm	9, 12, 2, 22, 29
 	rlwinm	10, 12, 26, 22, 29
@@ -641,10 +813,17 @@ L_AES_set_encrypt_key_loop_128:
 	rlwimi	0, 9, 8, 16, 23
 	rlwimi	0, 10, 16, 8, 15
 	rlwimi	0, 11, 24, 0, 7
+#ifdef __LITTLE_ENDIAN__
+	lwz	9, 0(5)
+	lwz	10, 4(5)
+	lwz	11, 8(5)
+	lwz	12, 12(5)
+#else
 	lwz	10, 0(5)
 	lwz	9, 4(5)
 	lwz	12, 8(5)
 	lwz	11, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	xor	9, 9, 0
 	lwz	0, 0(7)
@@ -653,10 +832,17 @@ L_AES_set_encrypt_key_loop_128:
 	xor	10, 10, 9
 	xor	11, 11, 10
 	xor	12, 12, 11
+#ifdef __LITTLE_ENDIAN__
+	stw	10, 0(5)
+	stw	9, 4(5)
+	stw	12, 8(5)
+	stw	11, 12(5)
+#else
 	stw	9, 0(5)
 	stw	10, 4(5)
 	stw	11, 8(5)
 	stw	12, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 L_AES_set_encrypt_key_end:
 	ld	0, 16(1)
 	mtlr	0
@@ -665,7 +851,11 @@ L_AES_set_encrypt_key_end:
 	addi	1, 1, 24
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_set_encrypt_key,.-AES_set_encrypt_key
+#else
+	.size	.L.AES_set_encrypt_key,.-.L.AES_set_encrypt_key
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
@@ -941,16 +1131,29 @@ L_AES_PPC64_te4_0:
     defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AES_ECB)
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_encrypt
 .type	AES_ECB_encrypt,@function
 .align	16
 AES_ECB_encrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_ECB_encrypt, .-AES_ECB_encrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_ECB_encrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_ECB_encrypt
+.type	AES_ECB_encrypt,@function
+.align	3
+AES_ECB_encrypt:
+	.quad	.L.AES_ECB_encrypt,.TOC.@tocbase,0
+	.size	AES_ECB_encrypt,24
+.text
+.align	16
+.L.AES_ECB_encrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt
@@ -979,8 +1182,14 @@ _AES_ECB_encrypt:
 	addi	11, 8, 0xc00
 L_AES_ECB_encrypt_loop_block_128:
 	addi	25, 6, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 0, 3
+	li	21, 8
+	ldbrx	14, 21, 3
+#else
 	ld	12, 0(3)
 	ld	14, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	17, 0(25)
 	ld	18, 8(25)
 	addi	25, 25, 16
@@ -1276,8 +1485,14 @@ L_AES_ECB_encrypt_loop_nr:
 	#   XOR in Key Schedule
 	xor	12, 12, 17
 	xor	14, 14, 18
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	12, 0, 4
+	li	21, 8
+	stdbrx	14, 21, 4
+#else
 	std	12, 0(4)
 	std	14, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	3, 3, 16
 	addi	4, 4, 16
 	addic.	5, 5, -16
@@ -1299,22 +1514,39 @@ L_AES_ECB_encrypt_loop_nr:
 	addi	1, 1, 0x68
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_ECB_encrypt,.-AES_ECB_encrypt
+#else
+	.size	.L.AES_ECB_encrypt,.-.L.AES_ECB_encrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
         * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
 #ifdef HAVE_AES_CBC
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_encrypt
 .type	AES_CBC_encrypt,@function
 .align	16
 AES_CBC_encrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_CBC_encrypt, .-AES_CBC_encrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_CBC_encrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_CBC_encrypt
+.type	AES_CBC_encrypt,@function
+.align	3
+AES_CBC_encrypt:
+	.quad	.L.AES_CBC_encrypt,.TOC.@tocbase,0
+	.size	AES_CBC_encrypt,24
+.text
+.align	16
+.L.AES_CBC_encrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt
@@ -1339,15 +1571,27 @@ _AES_CBC_encrypt:
 	std	26, 96(1)
 	addis	9, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	9, 9, L_AES_PPC64_te4_0@toc@l
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	14, 0, 8
+	li	22, 8
+	ldbrx	15, 22, 8
+#else
 	ld	14, 0(8)
 	ld	15, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	10, 9, 0x400
 	addi	11, 9, 0x800
 	addi	12, 9, 0xc00
 L_AES_CBC_encrypt_loop_block:
 	addi	26, 6, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	18, 0, 3
+	li	22, 8
+	ldbrx	19, 22, 3
+#else
 	ld	18, 0(3)
 	ld	19, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 18
 	xor	15, 15, 19
 	ld	18, 0(26)
@@ -1645,14 +1889,26 @@ L_AES_CBC_encrypt_loop_nr:
 	#   XOR in Key Schedule
 	xor	14, 14, 18
 	xor	15, 15, 19
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	14, 0, 4
+	li	22, 8
+	stdbrx	15, 22, 4
+#else
 	std	14, 0(4)
 	std	15, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	3, 3, 16
 	addi	4, 4, 16
 	addic.	5, 5, -16
 	bne	L_AES_CBC_encrypt_loop_block
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	14, 0, 8
+	li	22, 8
+	stdbrx	15, 22, 8
+#else
 	std	14, 0(8)
 	std	15, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	0, 104(1)
 	mtlr	0
 	ld	14, 0(1)
@@ -1671,21 +1927,38 @@ L_AES_CBC_encrypt_loop_nr:
 	addi	1, 1, 0x70
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_CBC_encrypt,.-AES_CBC_encrypt
+#else
+	.size	.L.AES_CBC_encrypt,.-.L.AES_CBC_encrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CTR_encrypt
 .type	AES_CTR_encrypt,@function
 .align	16
 AES_CTR_encrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_CTR_encrypt, .-AES_CTR_encrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_CTR_encrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_CTR_encrypt
+.type	AES_CTR_encrypt,@function
+.align	3
+AES_CTR_encrypt:
+	.quad	.L.AES_CTR_encrypt,.TOC.@tocbase,0
+	.size	AES_CTR_encrypt,24
+.text
+.align	16
+.L.AES_CTR_encrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt
@@ -1712,8 +1985,14 @@ _AES_CTR_encrypt:
 	std	28, 112(1)
 	addis	9, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	9, 9, L_AES_PPC64_te4_0@toc@l
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	22, 0, 8
+	li	24, 8
+	ldbrx	23, 24, 8
+#else
 	ld	22, 0(8)
 	ld	23, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	10, 9, 0x400
 	addi	11, 9, 0x800
 	addi	12, 9, 0xc00
@@ -2014,20 +2293,38 @@ L_AES_CTR_encrypt_loop_nr:
 	#   XOR in Key Schedule
 	xor	14, 14, 18
 	xor	15, 15, 19
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	18, 0, 3
+	li	24, 8
+	ldbrx	19, 24, 3
+#else
 	ld	18, 0(3)
 	ld	19, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 18
 	xor	15, 15, 19
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	14, 0, 4
+	li	24, 8
+	stdbrx	15, 24, 4
+#else
 	std	14, 0(4)
 	std	15, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addic	23, 23, 1
 	addze	22, 22
 	addi	3, 3, 16
 	addi	4, 4, 16
 	addic.	5, 5, -16
 	bne	L_AES_CTR_encrypt_loop_block_128
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	22, 0, 8
+	li	24, 8
+	stdbrx	23, 24, 8
+#else
 	std	22, 0(8)
 	std	23, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	0, 120(1)
 	mtlr	0
 	ld	14, 0(1)
@@ -2048,21 +2345,38 @@ L_AES_CTR_encrypt_loop_nr:
 	addi	1, 1, 0x80
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
+#else
+	.size	.L.AES_CTR_encrypt,.-.L.AES_CTR_encrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AESGCM
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_GCM_encrypt
 .type	AES_GCM_encrypt,@function
 .align	16
 AES_GCM_encrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_GCM_encrypt, .-AES_GCM_encrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_GCM_encrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_GCM_encrypt
+.type	AES_GCM_encrypt,@function
+.align	3
+AES_GCM_encrypt:
+	.quad	.L.AES_GCM_encrypt,.TOC.@tocbase,0
+	.size	AES_GCM_encrypt,24
+.text
+.align	16
+.L.AES_GCM_encrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt
@@ -2089,8 +2403,14 @@ _AES_GCM_encrypt:
 	std	28, 112(1)
 	addis	9, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	9, 9, L_AES_PPC64_te4_0@toc@l
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	26, 0, 8
+	li	22, 8
+	ldbrx	27, 22, 8
+#else
 	ld	26, 0(8)
 	ld	27, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	10, 9, 0x400
 	addi	11, 9, 0x800
 	addi	12, 9, 0xc00
@@ -2393,18 +2713,36 @@ L_AES_GCM_encrypt_loop_nr:
 	#   XOR in Key Schedule
 	xor	14, 14, 18
 	xor	15, 15, 19
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	18, 0, 3
+	li	22, 8
+	ldbrx	19, 22, 3
+#else
 	ld	18, 0(3)
 	ld	19, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	3, 3, 16
 	addic.	5, 5, -16
 	xor	14, 14, 18
 	xor	15, 15, 19
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	14, 0, 4
+	li	22, 8
+	stdbrx	15, 22, 4
+#else
 	std	14, 0(4)
 	std	15, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	bne	L_AES_GCM_encrypt_loop_block
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	26, 0, 8
+	li	22, 8
+	stdbrx	27, 22, 8
+#else
 	std	26, 0(8)
 	std	27, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	0, 120(1)
 	mtlr	0
 	ld	14, 0(1)
@@ -2425,21 +2763,38 @@ L_AES_GCM_encrypt_loop_nr:
 	addi	1, 1, 0x80
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
+#else
+	.size	.L.AES_GCM_encrypt,.-.L.AES_GCM_encrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* HAVE_AESGCM */
 #ifdef WOLFSSL_AES_XTS
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_encrypt
 .type	AES_XTS_encrypt,@function
 .align	16
 AES_XTS_encrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_XTS_encrypt, .-AES_XTS_encrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_XTS_encrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_XTS_encrypt
+.type	AES_XTS_encrypt,@function
+.align	3
+AES_XTS_encrypt:
+	.quad	.L.AES_XTS_encrypt,.TOC.@tocbase,0
+	.size	AES_XTS_encrypt,24
+.text
+.align	16
+.L.AES_XTS_encrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt
@@ -2470,8 +2825,14 @@ _AES_XTS_encrypt:
 	addi	12, 11, 0x400
 	addi	14, 11, 0x800
 	addi	15, 11, 0xc00
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	28, 0, 6
+	li	24, 8
+	ldbrx	29, 24, 6
+#else
 	ld	28, 0(6)
 	ld	29, 8(6)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	20, 0(8)
 	ld	21, 8(8)
 	addi	8, 8, 16
@@ -2767,12 +3128,24 @@ L_AES_XTS_encrypt_loop_nr_tweak:
 	#   XOR in Key Schedule
 	xor	28, 28, 20
 	xor	29, 29, 21
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	28, 0, 9
+	li	24, 8
+	stdbrx	29, 24, 9
+#else
 	std	28, 0(9)
 	std	29, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 L_AES_XTS_encrypt_loop_block:
 	addi	8, 7, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	16, 0, 3
+	li	24, 8
+	ldbrx	17, 24, 3
+#else
 	ld	16, 0(3)
 	ld	17, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	20, 0(8)
 	ld	21, 8(8)
 	addi	8, 8, 16
@@ -3073,10 +3446,21 @@ L_AES_XTS_encrypt_loop_nr:
 	xor	16, 16, 28
 	xor	17, 17, 29
 	li	19, 8
+#ifdef __LITTLE_ENDIAN__
+	ld	28, 0(9)
+	ld	29, 8(9)
+#else
 	ldbrx	28, 0, 9
-	ldbrx	29, 9, 19
+	ldbrx	29, 19, 9
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	16, 0, 4
+	li	24, 8
+	stdbrx	17, 24, 4
+#else
 	std	16, 0(4)
 	std	17, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	24, 29, 63
 	srdi	25, 28, 63
 	sldi	29, 29, 1
@@ -3084,10 +3468,21 @@ L_AES_XTS_encrypt_loop_nr:
 	sldi	28, 28, 1
 	xor	29, 29, 25
 	xor	28, 28, 24
+#ifdef __LITTLE_ENDIAN__
+	std	28, 0(9)
+	std	29, 8(9)
+#else
 	stdbrx	28, 0, 9
-	stdbrx	29, 9, 19
+	stdbrx	29, 19, 9
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	28, 0, 9
+	li	24, 8
+	ldbrx	29, 24, 9
+#else
 	ld	28, 0(9)
 	ld	29, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, -16
 	addi	3, 3, 16
 	addi	4, 4, 16
@@ -3097,11 +3492,23 @@ L_AES_XTS_encrypt_loop_nr:
 	beq	L_AES_XTS_encrypt_done_data
 	addi	8, 7, 0
 	addi	4, 4, -16
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	16, 0, 4
+	li	24, 8
+	ldbrx	17, 24, 4
+#else
 	ld	16, 0(4)
 	ld	17, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	16, 0, 9
+	li	24, 8
+	stdbrx	17, 24, 9
+#else
 	std	16, 0(9)
 	std	17, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	20, 5, 0
 L_AES_XTS_encrypt_start_byte:
 	lbz	24, 0(9)
@@ -3116,8 +3523,14 @@ L_AES_XTS_encrypt_start_byte:
 	subf	4, 5, 4
 	subf	9, 5, 9
 	addi	4, 4, -16
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	16, 0, 9
+	li	24, 8
+	ldbrx	17, 24, 9
+#else
 	ld	16, 0(9)
 	ld	17, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	20, 0(8)
 	ld	21, 8(8)
 	addi	8, 8, 16
@@ -3417,8 +3830,14 @@ L_AES_XTS_encrypt_loop_nr_partial:
 	xor	17, 17, 21
 	xor	16, 16, 28
 	xor	17, 17, 29
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	16, 0, 4
+	li	24, 8
+	stdbrx	17, 24, 4
+#else
 	std	16, 0(4)
 	std	17, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 L_AES_XTS_encrypt_done_data:
 	ld	0, 128(1)
 	mtlr	0
@@ -3441,7 +3860,11 @@ L_AES_XTS_encrypt_done_data:
 	addi	1, 1, 0x88
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_XTS_encrypt,.-AES_XTS_encrypt
+#else
+	.size	.L.AES_XTS_encrypt,.-.L.AES_XTS_encrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AES_XTS */
 #ifdef HAVE_AES_DECRYPT
@@ -3495,16 +3918,29 @@ L_AES_PPC64_td4:
 	.byte	0xe1,0x69,0x14,0x63,0x55,0x21,0x0c,0x7d
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_decrypt
 .type	AES_ECB_decrypt,@function
 .align	16
 AES_ECB_decrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_ECB_decrypt, .-AES_ECB_decrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_ECB_decrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_ECB_decrypt
+.type	AES_ECB_decrypt,@function
+.align	3
+AES_ECB_decrypt:
+	.quad	.L.AES_ECB_decrypt,.TOC.@tocbase,0
+	.size	AES_ECB_decrypt,24
+.text
+.align	16
+.L.AES_ECB_decrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt
@@ -3530,8 +3966,14 @@ _AES_ECB_decrypt:
 	addi	9, 9, L_AES_PPC64_td4@toc@l
 L_AES_ECB_decrypt_loop_block:
 	addi	23, 6, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 0, 3
+	li	19, 8
+	ldbrx	11, 19, 3
+#else
 	ld	10, 0(3)
 	ld	11, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	15, 0(23)
 	ld	16, 8(23)
 	addi	23, 23, 16
@@ -3829,8 +4271,14 @@ L_AES_ECB_decrypt_loop_nr:
 	#   XOR in Key Schedule
 	xor	10, 10, 15
 	xor	11, 11, 16
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	10, 0, 4
+	li	19, 8
+	stdbrx	11, 19, 4
+#else
 	std	10, 0(4)
 	std	11, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addic.	5, 5, -16
 	addi	3, 3, 16
 	addi	4, 4, 16
@@ -3850,21 +4298,38 @@ L_AES_ECB_decrypt_loop_nr:
 	addi	1, 1, 0x58
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_ECB_decrypt,.-AES_ECB_decrypt
+#else
+	.size	.L.AES_ECB_decrypt,.-.L.AES_ECB_decrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
 #ifdef HAVE_AES_CBC
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_decrypt
 .type	AES_CBC_decrypt,@function
 .align	16
 AES_CBC_decrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_CBC_decrypt, .-AES_CBC_decrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_CBC_decrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_CBC_decrypt
+.type	AES_CBC_decrypt,@function
+.align	3
+AES_CBC_decrypt:
+	.quad	.L.AES_CBC_decrypt,.TOC.@tocbase,0
+	.size	AES_CBC_decrypt,24
+.text
+.align	16
+.L.AES_CBC_decrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt
@@ -3893,12 +4358,24 @@ _AES_CBC_decrypt:
 	addi	10, 10, L_AES_PPC64_td4@toc@l
 	addis	9, 2, L_AES_PPC64_td@toc@ha
 	addi	9, 9, L_AES_PPC64_td@toc@l
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	24, 0, 8
+	li	20, 8
+	ldbrx	25, 20, 8
+#else
 	ld	24, 0(8)
 	ld	25, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 L_AES_CBC_decrypt_loop_block:
 	addi	28, 6, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	26, 0, 3
+	li	20, 8
+	ldbrx	27, 20, 3
+#else
 	ld	26, 0(3)
 	ld	27, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	16, 0(28)
 	ld	17, 8(28)
 	addi	28, 28, 16
@@ -4198,15 +4675,27 @@ L_AES_CBC_decrypt_loop_nr_even:
 	xor	12, 12, 17
 	xor	11, 11, 24
 	xor	12, 12, 25
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	11, 0, 4
+	li	20, 8
+	stdbrx	12, 20, 4
+#else
 	std	11, 0(4)
 	std	12, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addic.	5, 5, -16
 	addi	3, 3, 16
 	addi	4, 4, 16
 	beq	L_AES_CBC_decrypt_end_dec_odd
 	addi	28, 6, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	24, 0, 3
+	li	20, 8
+	ldbrx	25, 20, 3
+#else
 	ld	24, 0(3)
 	ld	25, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	16, 0(28)
 	ld	17, 8(28)
 	addi	28, 28, 16
@@ -4506,18 +4995,36 @@ L_AES_CBC_decrypt_loop_nr_odd:
 	xor	12, 12, 17
 	xor	11, 11, 26
 	xor	12, 12, 27
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	11, 0, 4
+	li	20, 8
+	stdbrx	12, 20, 4
+#else
 	std	11, 0(4)
 	std	12, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	addic.	5, 5, -16
 	addi	3, 3, 16
 	addi	4, 4, 16
 	bne	L_AES_CBC_decrypt_loop_block
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	24, 0, 8
+	li	20, 8
+	stdbrx	25, 20, 8
+#else
 	std	24, 0(8)
 	std	25, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 	b	L_AES_CBC_decrypt_end_dec
 L_AES_CBC_decrypt_end_dec_odd:
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	26, 0, 8
+	li	20, 8
+	stdbrx	27, 20, 8
+#else
 	std	26, 0(8)
 	std	27, 8(8)
+#endif /* __LITTLE_ENDIAN__ */
 L_AES_CBC_decrypt_end_dec:
 	ld	0, 120(1)
 	mtlr	0
@@ -4539,23 +5046,40 @@ L_AES_CBC_decrypt_end_dec:
 	addi	1, 1, 0x80
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
+#else
+	.size	.L.AES_CBC_decrypt,.-.L.AES_CBC_decrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_CBC */
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
         * HAVE_AES_ECB */
 #ifdef WOLFSSL_AES_XTS
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_decrypt
 .type	AES_XTS_decrypt,@function
 .align	16
 AES_XTS_decrypt:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_XTS_decrypt, .-AES_XTS_decrypt
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_XTS_decrypt) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_XTS_decrypt
+.type	AES_XTS_decrypt,@function
+.align	3
+AES_XTS_decrypt:
+	.quad	.L.AES_XTS_decrypt,.TOC.@tocbase,0
+	.size	AES_XTS_decrypt,24
+.text
+.align	16
+.L.AES_XTS_decrypt:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt
@@ -4590,8 +5114,14 @@ _AES_XTS_decrypt:
 	addi	18, 18, 15
 	andi.   18, 18, 16
 	subf	5, 18, 5
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	26, 0, 6
+	li	22, 8
+	ldbrx	27, 22, 6
+#else
 	ld	26, 0(6)
 	ld	27, 8(6)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	18, 0(8)
 	ld	19, 8(8)
 	addi	8, 8, 16
@@ -4887,8 +5417,14 @@ L_AES_XTS_decrypt_loop_nr_tweak:
 	#   XOR in Key Schedule
 	xor	26, 26, 18
 	xor	27, 27, 19
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	26, 0, 9
+	li	22, 8
+	stdbrx	27, 22, 9
+#else
 	std	26, 0(9)
 	std	27, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	addis	11, 2, L_AES_PPC64_td@toc@ha
 	addi	11, 11, L_AES_PPC64_td@toc@l
 	addis	12, 2, L_AES_PPC64_td4@toc@ha
@@ -4897,8 +5433,14 @@ L_AES_XTS_decrypt_loop_nr_tweak:
 	blt	L_AES_XTS_decrypt_start_partail
 L_AES_XTS_decrypt_loop_block:
 	addi	8, 7, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	14, 0, 3
+	li	22, 8
+	ldbrx	15, 22, 3
+#else
 	ld	14, 0(3)
 	ld	15, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	18, 0(8)
 	ld	19, 8(8)
 	addi	8, 8, 16
@@ -5201,10 +5743,21 @@ L_AES_XTS_decrypt_loop_nr:
 	xor	14, 14, 26
 	xor	15, 15, 27
 	li	17, 8
+#ifdef __LITTLE_ENDIAN__
+	ld	26, 0(9)
+	ld	27, 8(9)
+#else
 	ldbrx	26, 0, 9
-	ldbrx	27, 9, 17
+	ldbrx	27, 17, 9
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	14, 0, 4
+	li	22, 8
+	stdbrx	15, 22, 4
+#else
 	std	14, 0(4)
 	std	15, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	22, 27, 63
 	srdi	23, 26, 63
 	sldi	27, 27, 1
@@ -5212,10 +5765,21 @@ L_AES_XTS_decrypt_loop_nr:
 	sldi	26, 26, 1
 	xor	27, 27, 23
 	xor	26, 26, 22
+#ifdef __LITTLE_ENDIAN__
+	std	26, 0(9)
+	std	27, 8(9)
+#else
 	stdbrx	26, 0, 9
-	stdbrx	27, 9, 17
+	stdbrx	27, 17, 9
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	26, 0, 9
+	li	22, 8
+	ldbrx	27, 22, 9
+#else
 	ld	26, 0(9)
 	ld	27, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, -16
 	addi	3, 3, 16
 	addi	4, 4, 16
@@ -5225,8 +5789,13 @@ L_AES_XTS_decrypt_loop_nr:
 	beq	L_AES_XTS_decrypt_done_data
 L_AES_XTS_decrypt_start_partail:
 	li	17, 8
+#ifdef __LITTLE_ENDIAN__
+	ld	28, 0(9)
+	ld	29, 8(9)
+#else
 	ldbrx	28, 0, 9
-	ldbrx	29, 9, 17
+	ldbrx	29, 17, 9
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	22, 29, 63
 	srdi	23, 28, 63
 	sldi	29, 29, 1
@@ -5234,13 +5803,30 @@ L_AES_XTS_decrypt_start_partail:
 	sldi	28, 28, 1
 	xor	29, 29, 23
 	xor	28, 28, 22
+#ifdef __LITTLE_ENDIAN__
+	std	28, 0(9)
+	std	29, 8(9)
+#else
 	stdbrx	28, 0, 9
-	stdbrx	29, 9, 17
+	stdbrx	29, 17, 9
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	28, 0, 9
+	li	22, 8
+	ldbrx	29, 22, 9
+#else
 	ld	28, 0(9)
 	ld	29, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	8, 7, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	14, 0, 3
+	li	22, 8
+	ldbrx	15, 22, 3
+#else
 	ld	14, 0(3)
 	ld	15, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	3, 3, 16
 	ld	18, 0(8)
 	ld	19, 8(8)
@@ -5543,8 +6129,14 @@ L_AES_XTS_decrypt_loop_nr_partial_1:
 	xor	15, 15, 19
 	xor	14, 14, 28
 	xor	15, 15, 29
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	14, 0, 9
+	li	22, 8
+	stdbrx	15, 22, 9
+#else
 	std	14, 0(9)
 	std	15, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	4, 4, 16
 	addi	18, 5, 0
 L_AES_XTS_decrypt_start_byte:
@@ -5561,8 +6153,14 @@ L_AES_XTS_decrypt_start_byte:
 	subf	9, 5, 9
 	addi	4, 4, -16
 	addi	8, 7, 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	14, 0, 9
+	li	22, 8
+	ldbrx	15, 22, 9
+#else
 	ld	14, 0(9)
 	ld	15, 8(9)
+#endif /* __LITTLE_ENDIAN__ */
 	ld	18, 0(8)
 	ld	19, 8(8)
 	addi	8, 8, 16
@@ -5864,8 +6462,14 @@ L_AES_XTS_decrypt_loop_nr_partial_2:
 	xor	15, 15, 19
 	xor	14, 14, 26
 	xor	15, 15, 27
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	14, 0, 4
+	li	22, 8
+	stdbrx	15, 22, 4
+#else
 	std	14, 0(4)
 	std	15, 8(4)
+#endif /* __LITTLE_ENDIAN__ */
 L_AES_XTS_decrypt_done_data:
 	ld	0, 128(1)
 	mtlr	0
@@ -5888,7 +6492,11 @@ L_AES_XTS_decrypt_done_data:
 	addi	1, 1, 0x88
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_XTS_decrypt,.-AES_XTS_decrypt
+#else
+	.size	.L.AES_XTS_decrypt,.-.L.AES_XTS_decrypt
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AES_XTS */
 #endif /* HAVE_AES_DECRYPT */
@@ -5917,16 +6525,29 @@ L_GCM_gmult_len_r:
 	.long	0x0e100000,0x0fd20000,0x0d940000,0x0c560000
 	.long	0x09180000,0x08da0000,0x0a9c0000,0x0b5e0000
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	GCM_gmult_len
 .type	GCM_gmult_len,@function
 .align	16
 GCM_gmult_len:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	GCM_gmult_len, .-GCM_gmult_len
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.GCM_gmult_len) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	GCM_gmult_len
+.type	GCM_gmult_len,@function
+.align	3
+GCM_gmult_len:
+	.quad	.L.GCM_gmult_len,.TOC.@tocbase,0
+	.size	GCM_gmult_len,24
+.text
+.align	16
+.L.GCM_gmult_len:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
@@ -5957,21 +6578,51 @@ _GCM_gmult_len:
 	addi	22, 21, 8
 	addi	8, 7, 0x40
 L_GCM_gmult_len_start_block:
+#ifdef __LITTLE_ENDIAN__
+	ld	18, 0(3)
+	ld	19, 8(3)
+#else
 	ldbrx	18, 0, 3
 	ldbrx	19, 25, 3
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	9, 0(5)
+	ld	10, 8(5)
+#else
 	ldbrx	9, 0, 5
 	ldbrx	10, 25, 5
+#endif /* __LITTLE_ENDIAN__ */
 	xor	18, 18, 9
 	xor	19, 19, 10
 	rldicr	0, 19, 32, 63
 	# Byte 15
 	rlwinm	23, 0, 12, 24, 27
 	rlwinm	24, 0, 8, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	14, 23, 4
+#else
 	ldx	14, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	15, 23, 20
+#else
 	ldx	15, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -5990,13 +6641,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 14
 	rlwinm	23, 0, 20, 24, 27
 	rlwinm	24, 0, 16, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6015,13 +6686,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 13
 	rlwinm	23, 0, 28, 24, 27
 	rlwinm	24, 0, 24, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6040,13 +6731,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 12
 	rlwinm	23, 0, 4, 24, 27
 	rlwinm	24, 0, 0, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6065,13 +6776,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 11
 	rlwinm	23, 19, 12, 24, 27
 	rlwinm	24, 19, 8, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6090,13 +6821,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 10
 	rlwinm	23, 19, 20, 24, 27
 	rlwinm	24, 19, 16, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6115,13 +6866,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 9
 	rlwinm	23, 19, 28, 24, 27
 	rlwinm	24, 19, 24, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6140,13 +6911,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 8
 	rlwinm	23, 19, 4, 24, 27
 	rlwinm	24, 19, 0, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6166,13 +6957,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 7
 	rlwinm	23, 0, 12, 24, 27
 	rlwinm	24, 0, 8, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6191,13 +7002,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 6
 	rlwinm	23, 0, 20, 24, 27
 	rlwinm	24, 0, 16, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6216,13 +7047,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 5
 	rlwinm	23, 0, 28, 24, 27
 	rlwinm	24, 0, 24, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6241,13 +7092,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 4
 	rlwinm	23, 0, 4, 24, 27
 	rlwinm	24, 0, 0, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6266,13 +7137,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 3
 	rlwinm	23, 18, 12, 24, 27
 	rlwinm	24, 18, 8, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6291,13 +7182,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 2
 	rlwinm	23, 18, 20, 24, 27
 	rlwinm	24, 18, 16, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6316,13 +7227,33 @@ L_GCM_gmult_len_start_block:
 	# Byte 1
 	rlwinm	23, 18, 28, 24, 27
 	rlwinm	24, 18, 24, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 21
+#else
 	ldx	11, 24, 21
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 22
+#else
 	ldx	12, 24, 22
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 24, 20
+#else
 	ldx	10, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	16, 15, 60, 60
 	rldic	17, 15, 2, 58
 	srdi	15, 15, 8
@@ -6341,10 +7272,26 @@ L_GCM_gmult_len_start_block:
 	# Byte 0
 	rlwinm	23, 18, 4, 24, 27
 	rlwinm	24, 18, 0, 24, 27
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	9, 23, 4
+#else
 	ldx	9, 23, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 23, 20
+#else
 	ldx	10, 23, 20
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 24, 4
+#else
 	ldx	11, 24, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 24, 20
+#else
 	ldx	12, 24, 20
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 9
 	xor	15, 15, 10
 	rldic	16, 15, 2, 58
@@ -6358,8 +7305,13 @@ L_GCM_gmult_len_start_block:
 	xor	18, 14, 9
 	addi	5, 5, 16
 	addic.	6, 6, -16
+#ifdef __LITTLE_ENDIAN__
+	stdbrx	18, 0, 3
+	stdbrx	19, 25, 3
+#else
 	std	18, 0(3)
 	std	19, 8(3)
+#endif /* __LITTLE_ENDIAN__ */
 	bne	L_GCM_gmult_len_start_block
 	ld	0, 96(1)
 	mtlr	0
@@ -6378,7 +7330,11 @@ L_GCM_gmult_len_start_block:
 	addi	1, 1, 0x68
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	GCM_gmult_len,.-GCM_gmult_len
+#else
+	.size	.L.GCM_gmult_len,.-.L.GCM_gmult_len
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* GCM_TABLE_4BIT */
 #ifdef GCM_TABLE
@@ -6461,16 +7417,29 @@ L_GCM_gmult_len_r:
 	.byte	0xf0,0xbb,0x32,0xba,0x74,0xb8,0xb6,0xb9
 	.byte	0xf8,0xbc,0x3a,0xbd,0x7c,0xbf,0xbe,0xbe
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	GCM_gmult_len
 .type	GCM_gmult_len,@function
 .align	16
 GCM_gmult_len:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	GCM_gmult_len, .-GCM_gmult_len
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.GCM_gmult_len) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	GCM_gmult_len
+.type	GCM_gmult_len,@function
+.align	3
+GCM_gmult_len:
+	.quad	.L.GCM_gmult_len,.TOC.@tocbase,0
+	.size	GCM_gmult_len,24
+.text
+.align	16
+.L.GCM_gmult_len:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
@@ -6491,30 +7460,60 @@ _GCM_gmult_len:
 	addi	0, 4, 8
 	li	17, 8
 L_GCM_gmult_len_start_block:
+#ifdef __LITTLE_ENDIAN__
+	ld	8, 0(3)
+	ld	9, 8(3)
+#else
 	ldbrx	8, 0, 3
 	ldbrx	9, 17, 3
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	10, 0(5)
+	ld	11, 8(5)
+#else
 	ldbrx	10, 0, 5
 	ldbrx	11, 17, 5
+#endif /* __LITTLE_ENDIAN__ */
 	xor	8, 8, 10
 	xor	9, 9, 11
 	rldicr	19, 9, 32, 63
 	rldicr	18, 8, 32, 63
 	rlwinm	16, 19, 12, 20, 27
 	# Byte 15
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	12, 16, 4
+#else
 	ldx	12, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	14, 16, 0
+#else
 	ldx	14, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	rldicl	11, 12, 8, 56
 	rldicl	15, 14, 9, 55
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 19, 20, 20, 27
 	xor	12, 12, 10
 	# Byte 14
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6522,13 +7521,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 19, 28, 20, 27
 	xor	12, 12, 10
 	# Byte 13
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6536,13 +7547,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 19, 4, 20, 27
 	xor	12, 12, 10
 	# Byte 12
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6550,13 +7573,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 9, 12, 20, 27
 	xor	12, 12, 10
 	# Byte 11
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6564,13 +7599,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 9, 20, 20, 27
 	xor	12, 12, 10
 	# Byte 10
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6578,13 +7625,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 9, 28, 20, 27
 	xor	12, 12, 10
 	# Byte 9
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6592,13 +7651,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 9, 4, 20, 27
 	xor	12, 12, 10
 	# Byte 8
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6606,13 +7677,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 18, 12, 20, 27
 	xor	12, 12, 10
 	# Byte 7
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6620,13 +7703,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 18, 20, 20, 27
 	xor	12, 12, 10
 	# Byte 6
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6634,13 +7729,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 18, 28, 20, 27
 	xor	12, 12, 10
 	# Byte 5
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6648,13 +7755,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 18, 4, 20, 27
 	xor	12, 12, 10
 	# Byte 4
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6662,13 +7781,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 8, 12, 20, 27
 	xor	12, 12, 10
 	# Byte 3
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6676,13 +7807,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 8, 20, 20, 27
 	xor	12, 12, 10
 	# Byte 2
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6690,13 +7833,25 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 8, 28, 20, 27
 	xor	12, 12, 10
 	# Byte 1
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	xor	12, 12, 10
 	xor	14, 14, 11
 	rldicl	11, 12, 8, 56
@@ -6704,19 +7859,36 @@ L_GCM_gmult_len_start_block:
 	sldi	14, 14, 8
 	andi.   15, 15, 510
 	sldi	12, 12, 8
+#ifdef __LITTLE_ENDIAN__
+	lhbrx	10, 15, 7
+#else
 	lhzx	10, 15, 7
+#endif /* __LITTLE_ENDIAN__ */
 	xor	14, 14, 11
 	rlwinm	16, 8, 4, 20, 27
 	xor	12, 12, 10
 	# Byte 0
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	10, 16, 4
+#else
 	ldx	10, 16, 4
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	ldbrx	11, 16, 0
+#else
 	ldx	11, 16, 0
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	addic.	6, 6, -16
 	xor	8, 12, 10
 	xor	9, 14, 11
+#ifdef __LITTLE_ENDIAN__
+	std	8, 0(3)
+	std	9, 8(3)
+#else
 	stdbrx	8, 0, 3
 	stdbrx	9, 17, 3
+#endif /* __LITTLE_ENDIAN__ */
 	bne	L_GCM_gmult_len_start_block
 	ld	0, 48(1)
 	mtlr	0
@@ -6729,7 +7901,11 @@ L_GCM_gmult_len_start_block:
 	addi	1, 1, 56
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	GCM_gmult_len,.-GCM_gmult_len
+#else
+	.size	.L.GCM_gmult_len,.-.L.GCM_gmult_len
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 #endif /* GCM_TABLE */
 #endif /* HAVE_AESGCM */
@@ -6797,6 +7973,22 @@ L_AES_PPC64_crypto_rcon:
 	.long	0x01000000,0x02000000,0x04000000,0x08000000
 	.long	0x10000000,0x20000000,0x40000000,0x80000000
 	.long	0x1b000000,0x36000000
+#ifndef __APPLE__
+	.text
+	.type	L_AES_PPC64_crypto_bswap, %object
+	.size	L_AES_PPC64_crypto_bswap, 16
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_PPC64_crypto_bswap:
+	.byte	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
+	.byte	0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
 #if defined(WOLFSSL_AES_COUNTER) && defined(HAVE_AESGCM)
 #ifndef __APPLE__
 	.text
@@ -6812,34 +8004,53 @@ L_AES_PPC64_crypto_rcon:
 	.p2align	3
 #endif /* __APPLE__ */
 L_AES_PPC64_crypto_one:
-	.long	0x00000000,0x00000000,0x00000000,0x00000001
+	.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
 #endif /* defined(WOLFSSL_AES_COUNTER) && defined(HAVE_AESGCM) */
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_set_encrypt_key_crypto
 .type	AES_set_encrypt_key_crypto,@function
 .align	16
 AES_set_encrypt_key_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_set_encrypt_key_crypto, .-AES_set_encrypt_key_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_set_encrypt_key_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_set_encrypt_key_crypto
+.type	AES_set_encrypt_key_crypto,@function
+.align	3
+AES_set_encrypt_key_crypto:
+	.quad	.L.AES_set_encrypt_key_crypto,.TOC.@tocbase,0
+	.size	AES_set_encrypt_key_crypto,24
+.text
+.align	16
+.L.AES_set_encrypt_key_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_set_encrypt_key_crypto
 .p2align	4
 _AES_set_encrypt_key_crypto:
 #endif /* __APPLE__ */
-	stdu	1, -40(1)
+	stdu	1, -48(1)
 	mflr	0
-	std	0, 32(1)
+	std	0, 40(1)
 	std	14, 0(1)
 	std	15, 8(1)
 	std	16, 16(1)
 	std	17, 24(1)
+	std	18, 32(1)
 	addis	14, 2, L_AES_PPC64_crypto_sbox@toc@ha
 	addi	14, 14, L_AES_PPC64_crypto_sbox@toc@l
 	addis	15, 2, L_AES_PPC64_crypto_rcon@toc@ha
@@ -6848,6 +8059,23 @@ _AES_set_encrypt_key_crypto:
 	beq	L_AES_set_encrypt_key_crypto_128
 	cmplwi	4, 0xc0
 	beq	L_AES_set_encrypt_key_crypto_192
+#ifdef __LITTLE_ENDIAN__
+	lwbrx	0, 0, 3
+	li	18, 4
+	lwbrx	6, 18, 3
+	li	18, 8
+	lwbrx	7, 18, 3
+	li	18, 12
+	lwbrx	8, 18, 3
+	li	18, 16
+	lwbrx	9, 18, 3
+	li	18, 20
+	lwbrx	10, 18, 3
+	li	18, 24
+	lwbrx	11, 18, 3
+	li	18, 28
+	lwbrx	12, 18, 3
+#else
 	lwz	0, 0(3)
 	lwz	6, 4(3)
 	lwz	7, 8(3)
@@ -6856,6 +8084,17 @@ _AES_set_encrypt_key_crypto:
 	lwz	10, 20(3)
 	lwz	11, 24(3)
 	lwz	12, 28(3)
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+	stw	10, 16(5)
+	stw	9, 20(5)
+	stw	12, 24(5)
+	stw	11, 28(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
@@ -6864,6 +8103,7 @@ _AES_set_encrypt_key_crypto:
 	stw	10, 20(5)
 	stw	11, 24(5)
 	stw	12, 28(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 32
 	li	17, 6
 	mtctr	17
@@ -6887,10 +8127,17 @@ L_AES_set_encrypt_key_crypto_loop_256:
 	xor	6, 6, 0
 	xor	7, 7, 6
 	xor	8, 8, 7
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
 	stw	8, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	rlwinm	17, 8, 8, 24, 31
 	lbzx	17, 14, 17
@@ -6908,10 +8155,17 @@ L_AES_set_encrypt_key_crypto_loop_256:
 	xor	10, 10, 9
 	xor	11, 11, 10
 	xor	12, 12, 11
+#ifdef __LITTLE_ENDIAN__
+	stw	10, 0(5)
+	stw	9, 4(5)
+	stw	12, 8(5)
+	stw	11, 12(5)
+#else
 	stw	9, 0(5)
 	stw	10, 4(5)
 	stw	11, 8(5)
 	stw	12, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	bdnz	L_AES_set_encrypt_key_crypto_loop_256
 	rlwinm	17, 12, 16, 24, 31
@@ -6933,25 +8187,55 @@ L_AES_set_encrypt_key_crypto_loop_256:
 	xor	6, 6, 0
 	xor	7, 7, 6
 	xor	8, 8, 7
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
 	stw	8, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	b	L_AES_set_encrypt_key_crypto_end
 L_AES_set_encrypt_key_crypto_192:
+#ifdef __LITTLE_ENDIAN__
+	lwbrx	0, 0, 3
+	li	18, 4
+	lwbrx	6, 18, 3
+	li	18, 8
+	lwbrx	7, 18, 3
+	li	18, 12
+	lwbrx	8, 18, 3
+	li	18, 16
+	lwbrx	9, 18, 3
+	li	18, 20
+	lwbrx	10, 18, 3
+#else
 	lwz	0, 0(3)
 	lwz	6, 4(3)
 	lwz	7, 8(3)
 	lwz	8, 12(3)
 	lwz	9, 16(3)
 	lwz	10, 20(3)
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+	stw	10, 16(5)
+	stw	9, 20(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
 	stw	8, 12(5)
 	stw	9, 16(5)
 	stw	10, 20(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 24
 	li	17, 7
 	mtctr	17
@@ -6975,14 +8259,26 @@ L_AES_set_encrypt_key_crypto_loop_192:
 	xor	6, 6, 0
 	xor	7, 7, 6
 	xor	8, 8, 7
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
 	stw	8, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	xor	9, 9, 8
 	xor	10, 10, 9
+#ifdef __LITTLE_ENDIAN__
+	stw	10, 16(5)
+	stw	9, 20(5)
+#else
 	stw	9, 16(5)
 	stw	10, 20(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 24
 	bdnz	L_AES_set_encrypt_key_crypto_loop_192
 	rlwinm	17, 10, 16, 24, 31
@@ -7004,20 +8300,44 @@ L_AES_set_encrypt_key_crypto_loop_192:
 	xor	6, 6, 0
 	xor	7, 7, 6
 	xor	8, 8, 7
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
 	stw	8, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	b	L_AES_set_encrypt_key_crypto_end
 L_AES_set_encrypt_key_crypto_128:
+#ifdef __LITTLE_ENDIAN__
+	lwbrx	0, 0, 3
+	li	18, 4
+	lwbrx	6, 18, 3
+	li	18, 8
+	lwbrx	7, 18, 3
+	li	18, 12
+	lwbrx	8, 18, 3
+#else
 	lwz	0, 0(3)
 	lwz	6, 4(3)
 	lwz	7, 8(3)
 	lwz	8, 12(3)
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
 	stw	8, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	li	17, 10
 	mtctr	17
@@ -7041,38 +8361,67 @@ L_AES_set_encrypt_key_crypto_loop_128:
 	xor	6, 6, 0
 	xor	7, 7, 6
 	xor	8, 8, 7
+#ifdef __LITTLE_ENDIAN__
+	stw	6, 0(5)
+	stw	0, 4(5)
+	stw	8, 8(5)
+	stw	7, 12(5)
+#else
 	stw	0, 0(5)
 	stw	6, 4(5)
 	stw	7, 8(5)
 	stw	8, 12(5)
+#endif /* __LITTLE_ENDIAN__ */
 	addi	5, 5, 16
 	bdnz	L_AES_set_encrypt_key_crypto_loop_128
 L_AES_set_encrypt_key_crypto_end:
-	ld	0, 32(1)
+	ld	0, 40(1)
 	mtlr	0
 	ld	14, 0(1)
 	ld	15, 8(1)
 	ld	16, 16(1)
 	ld	17, 24(1)
-	addi	1, 1, 40
+	ld	18, 32(1)
+	addi	1, 1, 48
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_set_encrypt_key_crypto,.-AES_set_encrypt_key_crypto
+#else
+	.size	.L.AES_set_encrypt_key_crypto,.-.L.AES_set_encrypt_key_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_invert_key_crypto
 .type	AES_invert_key_crypto,@function
 .align	16
 AES_invert_key_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_invert_key_crypto, .-AES_invert_key_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_invert_key_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_invert_key_crypto
+.type	AES_invert_key_crypto,@function
+.align	3
+AES_invert_key_crypto:
+	.quad	.L.AES_invert_key_crypto,.TOC.@tocbase,0
+	.size	AES_invert_key_crypto,24
+.text
+.align	16
+.L.AES_invert_key_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_invert_key_crypto
@@ -7104,38 +8453,66 @@ L_AES_invert_key_crypto_loop:
 	addi	1, 1, 8
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_invert_key_crypto,.-AES_invert_key_crypto
+#else
+	.size	.L.AES_invert_key_crypto,.-.L.AES_invert_key_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_encrypt_crypto
 .type	AES_ECB_encrypt_crypto,@function
 .align	16
 AES_ECB_encrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_ECB_encrypt_crypto, .-AES_ECB_encrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_ECB_encrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_ECB_encrypt_crypto
+.type	AES_ECB_encrypt_crypto,@function
+.align	3
+AES_ECB_encrypt_crypto:
+	.quad	.L.AES_ECB_encrypt_crypto,.TOC.@tocbase,0
+	.size	AES_ECB_encrypt_crypto,24
+.text
+.align	16
+.L.AES_ECB_encrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_crypto
 .p2align	4
 _AES_ECB_encrypt_crypto:
 #endif /* __APPLE__ */
-	subi	1, 1, 48
+	subi	1, 1, 0x40
 	li	0, 0
 	stxvd2x	52, 1, 0
 	li	0, 16
 	stxvd2x	53, 1, 0
 	li	0, 32
 	stxvd2x	54, 1, 0
+	li	0, 48
+	stxvd2x	55, 1, 0
 	stdu	1, -8(1)
 	mflr	0
 	std	0, 0(1)
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	8, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	8, 8, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	55, 0, 8
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
 	cmplwi	7, 10
 	beq	L_AES_ECB_encrypt_crypto_128
 	cmplwi	7, 12
@@ -7174,21 +8551,77 @@ _AES_ECB_encrypt_crypto:
 	cmpdi	5, 0x80
 	blt	L_AES_ECB_encrypt_crypto_256_blk4
 L_AES_ECB_encrypt_crypto_256_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7310,21 +8743,77 @@ L_AES_ECB_encrypt_crypto_256_blk8:
 	vcipherlast	20, 20, 14
 	vcipherlast	21, 21, 14
 	vcipherlast	22, 22, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -7332,13 +8821,41 @@ L_AES_ECB_encrypt_crypto_256_blk8:
 L_AES_ECB_encrypt_crypto_256_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_ECB_encrypt_crypto_256_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7400,21 +8917,63 @@ L_AES_ECB_encrypt_crypto_256_blk4:
 	vcipherlast	16, 16, 14
 	vcipherlast	17, 17, 14
 	vcipherlast	18, 18, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_ECB_encrypt_crypto_256_blk2:
 	cmpdi	5, 32
 	blt	L_AES_ECB_encrypt_crypto_256_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7446,15 +9005,36 @@ L_AES_ECB_encrypt_crypto_256_blk2:
 	vcipher	16, 16, 13
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_ECB_encrypt_crypto_256_blk1:
 	cmpdi	5, 16
 	blt	L_AES_ECB_encrypt_crypto_256_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -7471,7 +9051,14 @@ L_AES_ECB_encrypt_crypto_256_blk1:
 	vcipher	15, 15, 12
 	vcipher	15, 15, 13
 	vcipherlast	15, 15, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_ECB_encrypt_crypto_256_done:
@@ -7507,21 +9094,77 @@ L_AES_ECB_encrypt_crypto_192:
 	cmpdi	5, 0x80
 	blt	L_AES_ECB_encrypt_crypto_192_blk4
 L_AES_ECB_encrypt_crypto_192_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7627,21 +9270,77 @@ L_AES_ECB_encrypt_crypto_192_blk8:
 	vcipherlast	20, 20, 12
 	vcipherlast	21, 21, 12
 	vcipherlast	22, 22, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -7649,13 +9348,41 @@ L_AES_ECB_encrypt_crypto_192_blk8:
 L_AES_ECB_encrypt_crypto_192_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_ECB_encrypt_crypto_192_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7709,21 +9436,63 @@ L_AES_ECB_encrypt_crypto_192_blk4:
 	vcipherlast	16, 16, 12
 	vcipherlast	17, 17, 12
 	vcipherlast	18, 18, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_ECB_encrypt_crypto_192_blk2:
 	cmpdi	5, 32
 	blt	L_AES_ECB_encrypt_crypto_192_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7751,15 +9520,36 @@ L_AES_ECB_encrypt_crypto_192_blk2:
 	vcipher	16, 16, 11
 	vcipherlast	15, 15, 12
 	vcipherlast	16, 16, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_ECB_encrypt_crypto_192_blk1:
 	cmpdi	5, 16
 	blt	L_AES_ECB_encrypt_crypto_192_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -7774,7 +9564,14 @@ L_AES_ECB_encrypt_crypto_192_blk1:
 	vcipher	15, 15, 10
 	vcipher	15, 15, 11
 	vcipherlast	15, 15, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_ECB_encrypt_crypto_192_done:
@@ -7806,21 +9603,77 @@ L_AES_ECB_encrypt_crypto_128:
 	cmpdi	5, 0x80
 	blt	L_AES_ECB_encrypt_crypto_128_blk4
 L_AES_ECB_encrypt_crypto_128_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7910,21 +9763,77 @@ L_AES_ECB_encrypt_crypto_128_blk8:
 	vcipherlast	20, 20, 10
 	vcipherlast	21, 21, 10
 	vcipherlast	22, 22, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -7932,13 +9841,41 @@ L_AES_ECB_encrypt_crypto_128_blk8:
 L_AES_ECB_encrypt_crypto_128_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_ECB_encrypt_crypto_128_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -7984,21 +9921,63 @@ L_AES_ECB_encrypt_crypto_128_blk4:
 	vcipherlast	16, 16, 10
 	vcipherlast	17, 17, 10
 	vcipherlast	18, 18, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_ECB_encrypt_crypto_128_blk2:
 	cmpdi	5, 32
 	blt	L_AES_ECB_encrypt_crypto_128_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8022,15 +10001,36 @@ L_AES_ECB_encrypt_crypto_128_blk2:
 	vcipher	16, 16, 9
 	vcipherlast	15, 15, 10
 	vcipherlast	16, 16, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_ECB_encrypt_crypto_128_blk1:
 	cmpdi	5, 16
 	blt	L_AES_ECB_encrypt_crypto_128_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -8043,7 +10043,14 @@ L_AES_ECB_encrypt_crypto_128_blk1:
 	vcipher	15, 15, 8
 	vcipher	15, 15, 9
 	vcipherlast	15, 15, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_ECB_encrypt_crypto_128_done:
@@ -8057,42 +10064,72 @@ L_AES_ECB_encrypt_crypto_alldone:
 	lxvd2x	53, 1, 0
 	li	0, 32
 	lxvd2x	54, 1, 0
-	addi	1, 1, 48
+	li	0, 48
+	lxvd2x	55, 1, 0
+	addi	1, 1, 0x40
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_ECB_encrypt_crypto,.-AES_ECB_encrypt_crypto
+#else
+	.size	.L.AES_ECB_encrypt_crypto,.-.L.AES_ECB_encrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #ifdef HAVE_AES_DECRYPT
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_ECB_decrypt_crypto
 .type	AES_ECB_decrypt_crypto,@function
 .align	16
 AES_ECB_decrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_ECB_decrypt_crypto, .-AES_ECB_decrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_ECB_decrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_ECB_decrypt_crypto
+.type	AES_ECB_decrypt_crypto,@function
+.align	3
+AES_ECB_decrypt_crypto:
+	.quad	.L.AES_ECB_decrypt_crypto,.TOC.@tocbase,0
+	.size	AES_ECB_decrypt_crypto,24
+.text
+.align	16
+.L.AES_ECB_decrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_crypto
 .p2align	4
 _AES_ECB_decrypt_crypto:
 #endif /* __APPLE__ */
-	subi	1, 1, 48
+	subi	1, 1, 0x40
 	li	0, 0
 	stxvd2x	52, 1, 0
 	li	0, 16
 	stxvd2x	53, 1, 0
 	li	0, 32
 	stxvd2x	54, 1, 0
+	li	0, 48
+	stxvd2x	55, 1, 0
 	stdu	1, -8(1)
 	mflr	0
 	std	0, 0(1)
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	8, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	8, 8, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	55, 0, 8
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
 	cmplwi	7, 10
 	beq	L_AES_ECB_decrypt_crypto_128
 	cmplwi	7, 12
@@ -8131,21 +10168,77 @@ _AES_ECB_decrypt_crypto:
 	cmpdi	5, 0x80
 	blt	L_AES_ECB_decrypt_crypto_256_blk4
 L_AES_ECB_decrypt_crypto_256_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8267,21 +10360,77 @@ L_AES_ECB_decrypt_crypto_256_blk8:
 	vncipherlast	20, 20, 14
 	vncipherlast	21, 21, 14
 	vncipherlast	22, 22, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -8289,13 +10438,41 @@ L_AES_ECB_decrypt_crypto_256_blk8:
 L_AES_ECB_decrypt_crypto_256_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_ECB_decrypt_crypto_256_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8357,21 +10534,63 @@ L_AES_ECB_decrypt_crypto_256_blk4:
 	vncipherlast	16, 16, 14
 	vncipherlast	17, 17, 14
 	vncipherlast	18, 18, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_ECB_decrypt_crypto_256_blk2:
 	cmpdi	5, 32
 	blt	L_AES_ECB_decrypt_crypto_256_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8403,15 +10622,36 @@ L_AES_ECB_decrypt_crypto_256_blk2:
 	vncipher	16, 16, 13
 	vncipherlast	15, 15, 14
 	vncipherlast	16, 16, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_ECB_decrypt_crypto_256_blk1:
 	cmpdi	5, 16
 	blt	L_AES_ECB_decrypt_crypto_256_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vncipher	15, 15, 1
@@ -8428,7 +10668,14 @@ L_AES_ECB_decrypt_crypto_256_blk1:
 	vncipher	15, 15, 12
 	vncipher	15, 15, 13
 	vncipherlast	15, 15, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_ECB_decrypt_crypto_256_done:
@@ -8464,21 +10711,77 @@ L_AES_ECB_decrypt_crypto_192:
 	cmpdi	5, 0x80
 	blt	L_AES_ECB_decrypt_crypto_192_blk4
 L_AES_ECB_decrypt_crypto_192_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8584,21 +10887,77 @@ L_AES_ECB_decrypt_crypto_192_blk8:
 	vncipherlast	20, 20, 12
 	vncipherlast	21, 21, 12
 	vncipherlast	22, 22, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -8606,13 +10965,41 @@ L_AES_ECB_decrypt_crypto_192_blk8:
 L_AES_ECB_decrypt_crypto_192_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_ECB_decrypt_crypto_192_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8666,21 +11053,63 @@ L_AES_ECB_decrypt_crypto_192_blk4:
 	vncipherlast	16, 16, 12
 	vncipherlast	17, 17, 12
 	vncipherlast	18, 18, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_ECB_decrypt_crypto_192_blk2:
 	cmpdi	5, 32
 	blt	L_AES_ECB_decrypt_crypto_192_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8708,15 +11137,36 @@ L_AES_ECB_decrypt_crypto_192_blk2:
 	vncipher	16, 16, 11
 	vncipherlast	15, 15, 12
 	vncipherlast	16, 16, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_ECB_decrypt_crypto_192_blk1:
 	cmpdi	5, 16
 	blt	L_AES_ECB_decrypt_crypto_192_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vncipher	15, 15, 1
@@ -8731,7 +11181,14 @@ L_AES_ECB_decrypt_crypto_192_blk1:
 	vncipher	15, 15, 10
 	vncipher	15, 15, 11
 	vncipherlast	15, 15, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_ECB_decrypt_crypto_192_done:
@@ -8763,21 +11220,77 @@ L_AES_ECB_decrypt_crypto_128:
 	cmpdi	5, 0x80
 	blt	L_AES_ECB_decrypt_crypto_128_blk4
 L_AES_ECB_decrypt_crypto_128_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8867,21 +11380,77 @@ L_AES_ECB_decrypt_crypto_128_blk8:
 	vncipherlast	20, 20, 10
 	vncipherlast	21, 21, 10
 	vncipherlast	22, 22, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -8889,13 +11458,41 @@ L_AES_ECB_decrypt_crypto_128_blk8:
 L_AES_ECB_decrypt_crypto_128_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_ECB_decrypt_crypto_128_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8941,21 +11538,63 @@ L_AES_ECB_decrypt_crypto_128_blk4:
 	vncipherlast	16, 16, 10
 	vncipherlast	17, 17, 10
 	vncipherlast	18, 18, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_ECB_decrypt_crypto_128_blk2:
 	cmpdi	5, 32
 	blt	L_AES_ECB_decrypt_crypto_128_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -8979,15 +11618,36 @@ L_AES_ECB_decrypt_crypto_128_blk2:
 	vncipher	16, 16, 9
 	vncipherlast	15, 15, 10
 	vncipherlast	16, 16, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_ECB_decrypt_crypto_128_blk1:
 	cmpdi	5, 16
 	blt	L_AES_ECB_decrypt_crypto_128_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vncipher	15, 15, 1
@@ -9000,7 +11660,14 @@ L_AES_ECB_decrypt_crypto_128_blk1:
 	vncipher	15, 15, 8
 	vncipher	15, 15, 9
 	vncipherlast	15, 15, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 23
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_ECB_decrypt_crypto_128_done:
@@ -9014,27 +11681,50 @@ L_AES_ECB_decrypt_crypto_alldone:
 	lxvd2x	53, 1, 0
 	li	0, 32
 	lxvd2x	54, 1, 0
-	addi	1, 1, 48
+	li	0, 48
+	lxvd2x	55, 1, 0
+	addi	1, 1, 0x40
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_ECB_decrypt_crypto,.-AES_ECB_decrypt_crypto
+#else
+	.size	.L.AES_ECB_decrypt_crypto,.-.L.AES_ECB_decrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AES_CBC
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_encrypt_crypto
 .type	AES_CBC_encrypt_crypto,@function
 .align	16
 AES_CBC_encrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_CBC_encrypt_crypto, .-AES_CBC_encrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_CBC_encrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_CBC_encrypt_crypto
+.type	AES_CBC_encrypt_crypto,@function
+.align	3
+AES_CBC_encrypt_crypto:
+	.quad	.L.AES_CBC_encrypt_crypto,.TOC.@tocbase,0
+	.size	AES_CBC_encrypt_crypto,24
+.text
+.align	16
+.L.AES_CBC_encrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_crypto
@@ -9044,7 +11734,19 @@ _AES_CBC_encrypt_crypto:
 	stdu	1, -8(1)
 	mflr	0
 	std	0, 0(1)
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	9, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	9, 9, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	49, 0, 9
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 8
+#else
 	lxvd2x	47, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 17
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	cmplwi	7, 10
 	beq	L_AES_CBC_encrypt_crypto_128
 	cmplwi	7, 12
@@ -9081,7 +11783,14 @@ _AES_CBC_encrypt_crypto:
 	lxvd2x	46, 0, 9
 	addi	9, 9, 16
 L_AES_CBC_encrypt_crypto_256_block:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 17
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vxor	15, 15, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -9098,7 +11807,16 @@ L_AES_CBC_encrypt_crypto_256_block:
 	vcipher	15, 15, 12
 	vcipher	15, 15, 13
 	vcipherlast	15, 15, 14
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 15, 15, 17
+	stxvd2x	48, 0, 4
+#else
 	stxvd2x	47, 0, 4
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	addi	4, 4, 16
 	addic.	5, 5, -16
@@ -9133,7 +11851,14 @@ L_AES_CBC_encrypt_crypto_192:
 	lxvd2x	44, 0, 9
 	addi	9, 9, 16
 L_AES_CBC_encrypt_crypto_192_block:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 17
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vxor	15, 15, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -9148,7 +11873,16 @@ L_AES_CBC_encrypt_crypto_192_block:
 	vcipher	15, 15, 10
 	vcipher	15, 15, 11
 	vcipherlast	15, 15, 12
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 15, 15, 17
+	stxvd2x	48, 0, 4
+#else
 	stxvd2x	47, 0, 4
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	addi	4, 4, 16
 	addic.	5, 5, -16
@@ -9179,7 +11913,14 @@ L_AES_CBC_encrypt_crypto_128:
 	lxvd2x	42, 0, 9
 	addi	9, 9, 16
 L_AES_CBC_encrypt_crypto_128_block:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 17
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vxor	15, 15, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -9192,35 +11933,72 @@ L_AES_CBC_encrypt_crypto_128_block:
 	vcipher	15, 15, 8
 	vcipher	15, 15, 9
 	vcipherlast	15, 15, 10
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 15, 15, 17
+	stxvd2x	48, 0, 4
+#else
 	stxvd2x	47, 0, 4
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	addi	4, 4, 16
 	addic.	5, 5, -16
 	bne	L_AES_CBC_encrypt_crypto_128_block
 L_AES_CBC_encrypt_crypto_alldone:
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 17
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 8
+#endif /* __POWER9_VECTOR__ */
 	ld	0, 0(1)
 	mtlr	0
 	addi	1, 1, 8
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_CBC_encrypt_crypto,.-AES_CBC_encrypt_crypto
+#else
+	.size	.L.AES_CBC_encrypt_crypto,.-.L.AES_CBC_encrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #ifdef HAVE_AES_DECRYPT
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CBC_decrypt_crypto
 .type	AES_CBC_decrypt_crypto,@function
 .align	16
 AES_CBC_decrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_CBC_decrypt_crypto, .-AES_CBC_decrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_CBC_decrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_CBC_decrypt_crypto
+.type	AES_CBC_decrypt_crypto,@function
+.align	3
+AES_CBC_decrypt_crypto:
+	.quad	.L.AES_CBC_decrypt_crypto,.TOC.@tocbase,0
+	.size	AES_CBC_decrypt_crypto,24
+.text
+.align	16
+.L.AES_CBC_decrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_crypto
@@ -9255,12 +12033,52 @@ _AES_CBC_decrypt_crypto:
 	stdu	1, -8(1)
 	mflr	0
 	std	0, 0(1)
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	9, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	9, 9, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	45, 0, 9
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 8
+#else
 	lxvd2x	63, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	cmplwi	7, 10
 	beq	L_AES_CBC_decrypt_crypto_128
 	cmplwi	7, 12
 	beq	L_AES_CBC_decrypt_crypto_192
 	addi	9, 6, 0
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	lxvd2x	32, 0, 9
+	addi	9, 9, 16
+	lxvd2x	33, 0, 9
+	addi	9, 9, 16
+	lxvd2x	34, 0, 9
+	addi	9, 9, 16
+	lxvd2x	35, 0, 9
+	addi	9, 9, 16
+	lxvd2x	36, 0, 9
+	addi	9, 9, 16
+	lxvd2x	37, 0, 9
+	addi	9, 9, 16
+	lxvd2x	38, 0, 9
+	addi	9, 9, 16
+	lxvd2x	39, 0, 9
+	addi	9, 9, 16
+	lxvd2x	40, 0, 9
+	addi	9, 9, 16
+	lxvd2x	41, 0, 9
+	addi	9, 9, 16
+	lxvd2x	42, 0, 9
+	addi	9, 9, 16
+	lxvd2x	43, 0, 9
+	addi	9, 9, 16
+	lxvd2x	44, 0, 9
+	addi	9, 9, 16
+#else
 	lxvd2x	32, 0, 9
 	addi	9, 9, 16
 	lxvd2x	33, 0, 9
@@ -9291,31 +12109,88 @@ _AES_CBC_decrypt_crypto:
 	addi	9, 9, 16
 	lxvd2x	46, 0, 9
 	addi	9, 9, 16
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	cmpdi	5, 0x80
 	blt	L_AES_CBC_decrypt_crypto_256_blk4
 L_AES_CBC_decrypt_crypto_256_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	25, 17, 17 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	26, 18, 18 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	27, 19, 19 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	28, 20, 20 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	29, 21, 21 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	30, 22, 22 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9422,6 +12297,18 @@ L_AES_CBC_decrypt_crypto_256_blk8:
 	vncipher	20, 20, 12
 	vncipher	21, 21, 12
 	vncipher	22, 22, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xd0
+	lxvd2x	46, 9, 6
+	vncipher	15, 15, 14
+	vncipher	16, 16, 14
+	vncipher	17, 17, 14
+	vncipher	18, 18, 14
+	vncipher	19, 19, 14
+	vncipher	20, 20, 14
+	vncipher	21, 21, 14
+	vncipher	22, 22, 14
+#else
 	vncipher	15, 15, 13
 	vncipher	16, 16, 13
 	vncipher	17, 17, 13
@@ -9430,6 +12317,10 @@ L_AES_CBC_decrypt_crypto_256_blk8:
 	vncipher	20, 20, 13
 	vncipher	21, 21, 13
 	vncipher	22, 22, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xe0
+	lxvd2x	46, 9, 6
 	vncipherlast	15, 15, 14
 	vncipherlast	16, 16, 14
 	vncipherlast	17, 17, 14
@@ -9438,6 +12329,16 @@ L_AES_CBC_decrypt_crypto_256_blk8:
 	vncipherlast	20, 20, 14
 	vncipherlast	21, 21, 14
 	vncipherlast	22, 22, 14
+#else
+	vncipherlast	15, 15, 14
+	vncipherlast	16, 16, 14
+	vncipherlast	17, 17, 14
+	vncipherlast	18, 18, 14
+	vncipherlast	19, 19, 14
+	vncipherlast	20, 20, 14
+	vncipherlast	21, 21, 14
+	vncipherlast	22, 22, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 31
 	vxor	16, 16, 23
 	vxor	17, 17, 24
@@ -9447,21 +12348,77 @@ L_AES_CBC_decrypt_crypto_256_blk8:
 	vxor	21, 21, 28
 	vxor	22, 22, 29
 	vor	31, 30, 30 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -9469,16 +12426,44 @@ L_AES_CBC_decrypt_crypto_256_blk8:
 L_AES_CBC_decrypt_crypto_256_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_CBC_decrypt_crypto_256_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	25, 17, 17 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	26, 18, 18 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9533,35 +12518,95 @@ L_AES_CBC_decrypt_crypto_256_blk4:
 	vncipher	16, 16, 12
 	vncipher	17, 17, 12
 	vncipher	18, 18, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xd0
+	lxvd2x	46, 9, 6
+	vncipher	15, 15, 14
+	vncipher	16, 16, 14
+	vncipher	17, 17, 14
+	vncipher	18, 18, 14
+#else
 	vncipher	15, 15, 13
 	vncipher	16, 16, 13
 	vncipher	17, 17, 13
 	vncipher	18, 18, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xe0
+	lxvd2x	46, 9, 6
 	vncipherlast	15, 15, 14
 	vncipherlast	16, 16, 14
 	vncipherlast	17, 17, 14
 	vncipherlast	18, 18, 14
+#else
+	vncipherlast	15, 15, 14
+	vncipherlast	16, 16, 14
+	vncipherlast	17, 17, 14
+	vncipherlast	18, 18, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 31
 	vxor	16, 16, 23
 	vxor	17, 17, 24
 	vxor	18, 18, 25
 	vor	31, 26, 26 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_CBC_decrypt_crypto_256_blk2:
 	cmpdi	5, 32
 	blt	L_AES_CBC_decrypt_crypto_256_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9590,22 +12635,57 @@ L_AES_CBC_decrypt_crypto_256_blk2:
 	vncipher	16, 16, 11
 	vncipher	15, 15, 12
 	vncipher	16, 16, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xd0
+	lxvd2x	46, 9, 6
+	vncipher	15, 15, 14
+	vncipher	16, 16, 14
+#else
 	vncipher	15, 15, 13
 	vncipher	16, 16, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xe0
+	lxvd2x	46, 9, 6
 	vncipherlast	15, 15, 14
 	vncipherlast	16, 16, 14
+#else
+	vncipherlast	15, 15, 14
+	vncipherlast	16, 16, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 31
 	vxor	16, 16, 23
 	vor	31, 24, 24 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_CBC_decrypt_crypto_256_blk1:
 	cmpdi	5, 16
 	blt	L_AES_CBC_decrypt_crypto_256_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9621,11 +12701,30 @@ L_AES_CBC_decrypt_crypto_256_blk1:
 	vncipher	15, 15, 10
 	vncipher	15, 15, 11
 	vncipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xd0
+	lxvd2x	46, 9, 6
+	vncipher	15, 15, 14
+#else
 	vncipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	9, 0xe0
+	lxvd2x	46, 9, 6
 	vncipherlast	15, 15, 14
+#else
+	vncipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 31
 	vor	31, 23, 23 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_CBC_decrypt_crypto_256_done:
@@ -9661,28 +12760,84 @@ L_AES_CBC_decrypt_crypto_192:
 	cmpdi	5, 0x80
 	blt	L_AES_CBC_decrypt_crypto_192_blk4
 L_AES_CBC_decrypt_crypto_192_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	25, 17, 17 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	26, 18, 18 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	27, 19, 19 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	28, 20, 20 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	29, 21, 21 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	30, 22, 22 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9798,21 +12953,77 @@ L_AES_CBC_decrypt_crypto_192_blk8:
 	vxor	21, 21, 28
 	vxor	22, 22, 29
 	vor	31, 30, 30 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -9820,16 +13031,44 @@ L_AES_CBC_decrypt_crypto_192_blk8:
 L_AES_CBC_decrypt_crypto_192_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_CBC_decrypt_crypto_192_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	25, 17, 17 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	26, 18, 18 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9889,22 +13128,64 @@ L_AES_CBC_decrypt_crypto_192_blk4:
 	vxor	17, 17, 24
 	vxor	18, 18, 25
 	vor	31, 26, 26 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_CBC_decrypt_crypto_192_blk2:
 	cmpdi	5, 32
 	blt	L_AES_CBC_decrypt_crypto_192_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9936,15 +13217,36 @@ L_AES_CBC_decrypt_crypto_192_blk2:
 	vxor	15, 15, 31
 	vxor	16, 16, 23
 	vor	31, 24, 24 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_CBC_decrypt_crypto_192_blk1:
 	cmpdi	5, 16
 	blt	L_AES_CBC_decrypt_crypto_192_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -9962,7 +13264,14 @@ L_AES_CBC_decrypt_crypto_192_blk1:
 	vncipherlast	15, 15, 12
 	vxor	15, 15, 31
 	vor	31, 23, 23 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_CBC_decrypt_crypto_192_done:
@@ -9994,28 +13303,84 @@ L_AES_CBC_decrypt_crypto_128:
 	cmpdi	5, 0x80
 	blt	L_AES_CBC_decrypt_crypto_128_blk4
 L_AES_CBC_decrypt_crypto_128_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	25, 17, 17 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	26, 18, 18 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	27, 19, 19 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	28, 20, 20 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	29, 21, 21 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	30, 22, 22 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -10115,21 +13480,77 @@ L_AES_CBC_decrypt_crypto_128_blk8:
 	vxor	21, 21, 28
 	vxor	22, 22, 29
 	vor	31, 30, 30 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -10137,16 +13558,44 @@ L_AES_CBC_decrypt_crypto_128_blk8:
 L_AES_CBC_decrypt_crypto_128_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_CBC_decrypt_crypto_128_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	25, 17, 17 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	26, 18, 18 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -10198,22 +13647,64 @@ L_AES_CBC_decrypt_crypto_128_blk4:
 	vxor	17, 17, 24
 	vxor	18, 18, 25
 	vor	31, 26, 26 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_CBC_decrypt_crypto_128_blk2:
 	cmpdi	5, 32
 	blt	L_AES_CBC_decrypt_crypto_128_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	24, 16, 16 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -10241,15 +13732,36 @@ L_AES_CBC_decrypt_crypto_128_blk2:
 	vxor	15, 15, 31
 	vxor	16, 16, 23
 	vor	31, 24, 24 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_CBC_decrypt_crypto_128_blk1:
 	cmpdi	5, 16
 	blt	L_AES_CBC_decrypt_crypto_128_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	23, 15, 15 /* codespell:ignore vor */
 	addi	3, 3, 16
 	vxor	15, 15, 0
@@ -10265,12 +13777,26 @@ L_AES_CBC_decrypt_crypto_128_blk1:
 	vncipherlast	15, 15, 10
 	vxor	15, 15, 31
 	vor	31, 23, 23 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_CBC_decrypt_crypto_128_done:
 L_AES_CBC_decrypt_crypto_alldone:
+#ifdef __POWER9_VECTOR__
+	stxvb16x	63, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	63, 0, 8
+#endif /* __POWER9_VECTOR__ */
 	ld	0, 0(1)
 	mtlr	0
 	addi	1, 1, 8
@@ -10301,25 +13827,46 @@ L_AES_CBC_decrypt_crypto_alldone:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_CBC_decrypt_crypto,.-AES_CBC_decrypt_crypto
+#else
+	.size	.L.AES_CBC_decrypt_crypto,.-.L.AES_CBC_decrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_CTR_encrypt_crypto
 .type	AES_CTR_encrypt_crypto,@function
 .align	16
 AES_CTR_encrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_CTR_encrypt_crypto, .-AES_CTR_encrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_CTR_encrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_CTR_encrypt_crypto
+.type	AES_CTR_encrypt_crypto,@function
+.align	3
+AES_CTR_encrypt_crypto:
+	.quad	.L.AES_CTR_encrypt_crypto,.TOC.@tocbase,0
+	.size	AES_CTR_encrypt_crypto,24
+.text
+.align	16
+.L.AES_CTR_encrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_crypto
@@ -10354,14 +13901,54 @@ _AES_CTR_encrypt_crypto:
 	stdu	1, -8(1)
 	mflr	0
 	std	0, 0(1)
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	10, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	10, 10, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	45, 0, 10
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
 	addis	9, 2, L_AES_PPC64_crypto_one@toc@ha
 	addi	9, 9, L_AES_PPC64_crypto_one@toc@l
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	cmplwi	7, 10
 	beq	L_AES_CTR_encrypt_crypto_128
 	cmplwi	7, 12
 	beq	L_AES_CTR_encrypt_crypto_192
 	addi	10, 6, 0
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	lxvd2x	32, 0, 10
+	addi	10, 10, 16
+	lxvd2x	33, 0, 10
+	addi	10, 10, 16
+	lxvd2x	34, 0, 10
+	addi	10, 10, 16
+	lxvd2x	35, 0, 10
+	addi	10, 10, 16
+	lxvd2x	36, 0, 10
+	addi	10, 10, 16
+	lxvd2x	37, 0, 10
+	addi	10, 10, 16
+	lxvd2x	38, 0, 10
+	addi	10, 10, 16
+	lxvd2x	39, 0, 10
+	addi	10, 10, 16
+	lxvd2x	40, 0, 10
+	addi	10, 10, 16
+	lxvd2x	41, 0, 10
+	addi	10, 10, 16
+	lxvd2x	42, 0, 10
+	addi	10, 10, 16
+	lxvd2x	43, 0, 10
+	addi	10, 10, 16
+	lxvd2x	44, 0, 10
+	addi	10, 10, 16
+#else
 	lxvd2x	32, 0, 10
 	addi	10, 10, 16
 	lxvd2x	33, 0, 10
@@ -10392,10 +13979,18 @@ _AES_CTR_encrypt_crypto:
 	addi	10, 10, 16
 	lxvd2x	46, 0, 10
 	addi	10, 10, 16
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	cmpdi	5, 0x80
 	blt	L_AES_CTR_encrypt_crypto_256_blk4
 L_AES_CTR_encrypt_crypto_256_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	17, 16, 31
@@ -10405,22 +14000,85 @@ L_AES_CTR_encrypt_crypto_256_blk8:
 	vadduqm	21, 20, 31
 	vadduqm	22, 21, 31
 	vadduqm	23, 22, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 3
+#else
 	lxvd2x	59, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 3
+#else
 	lxvd2x	60, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 3
+#else
 	lxvd2x	61, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 3
+#else
 	lxvd2x	62, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -10526,6 +14184,18 @@ L_AES_CTR_encrypt_crypto_256_blk8:
 	vcipher	20, 20, 12
 	vcipher	21, 21, 12
 	vcipher	22, 22, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+	vcipher	17, 17, 14
+	vcipher	18, 18, 14
+	vcipher	19, 19, 14
+	vcipher	20, 20, 14
+	vcipher	21, 21, 14
+	vcipher	22, 22, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
 	vcipher	17, 17, 13
@@ -10534,6 +14204,10 @@ L_AES_CTR_encrypt_crypto_256_blk8:
 	vcipher	20, 20, 13
 	vcipher	21, 21, 13
 	vcipher	22, 22, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
 	vcipherlast	17, 17, 14
@@ -10542,6 +14216,16 @@ L_AES_CTR_encrypt_crypto_256_blk8:
 	vcipherlast	20, 20, 14
 	vcipherlast	21, 21, 14
 	vcipherlast	22, 22, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+	vcipherlast	17, 17, 14
+	vcipherlast	18, 18, 14
+	vcipherlast	19, 19, 14
+	vcipherlast	20, 20, 14
+	vcipherlast	21, 21, 14
+	vcipherlast	22, 22, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
@@ -10550,21 +14234,77 @@ L_AES_CTR_encrypt_crypto_256_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -10572,20 +14312,62 @@ L_AES_CTR_encrypt_crypto_256_blk8:
 L_AES_CTR_encrypt_crypto_256_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_CTR_encrypt_crypto_256_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	17, 16, 31
 	vadduqm	18, 17, 31
 	vadduqm	23, 18, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -10639,38 +14421,112 @@ L_AES_CTR_encrypt_crypto_256_blk4:
 	vcipher	16, 16, 12
 	vcipher	17, 17, 12
 	vcipher	18, 18, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+	vcipher	17, 17, 14
+	vcipher	18, 18, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
 	vcipher	17, 17, 13
 	vcipher	18, 18, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
 	vcipherlast	17, 17, 14
 	vcipherlast	18, 18, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+	vcipherlast	17, 17, 14
+	vcipherlast	18, 18, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_CTR_encrypt_crypto_256_blk2:
 	cmpdi	5, 32
 	blt	L_AES_CTR_encrypt_crypto_256_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	23, 16, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -10698,25 +14554,74 @@ L_AES_CTR_encrypt_crypto_256_blk2:
 	vcipher	16, 16, 11
 	vcipher	15, 15, 12
 	vcipher	16, 16, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_CTR_encrypt_crypto_256_blk1:
 	cmpdi	5, 16
 	blt	L_AES_CTR_encrypt_crypto_256_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	23, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -10731,10 +14636,29 @@ L_AES_CTR_encrypt_crypto_256_blk1:
 	vcipher	15, 15, 10
 	vcipher	15, 15, 11
 	vcipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+#else
 	vcipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
+#else
+	vcipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_CTR_encrypt_crypto_256_done:
@@ -10770,7 +14694,14 @@ L_AES_CTR_encrypt_crypto_192:
 	cmpdi	5, 0x80
 	blt	L_AES_CTR_encrypt_crypto_192_blk4
 L_AES_CTR_encrypt_crypto_192_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	17, 16, 31
@@ -10780,22 +14711,85 @@ L_AES_CTR_encrypt_crypto_192_blk8:
 	vadduqm	21, 20, 31
 	vadduqm	22, 21, 31
 	vadduqm	23, 22, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 3
+#else
 	lxvd2x	59, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 3
+#else
 	lxvd2x	60, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 3
+#else
 	lxvd2x	61, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 3
+#else
 	lxvd2x	62, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -10909,21 +14903,77 @@ L_AES_CTR_encrypt_crypto_192_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -10931,20 +14981,62 @@ L_AES_CTR_encrypt_crypto_192_blk8:
 L_AES_CTR_encrypt_crypto_192_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_CTR_encrypt_crypto_192_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	17, 16, 31
 	vadduqm	18, 17, 31
 	vadduqm	23, 18, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11002,26 +15094,82 @@ L_AES_CTR_encrypt_crypto_192_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_CTR_encrypt_crypto_192_blk2:
 	cmpdi	5, 32
 	blt	L_AES_CTR_encrypt_crypto_192_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	23, 16, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11051,19 +15199,54 @@ L_AES_CTR_encrypt_crypto_192_blk2:
 	vcipherlast	16, 16, 12
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_CTR_encrypt_crypto_192_blk1:
 	cmpdi	5, 16
 	blt	L_AES_CTR_encrypt_crypto_192_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	23, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -11079,7 +15262,14 @@ L_AES_CTR_encrypt_crypto_192_blk1:
 	vcipher	15, 15, 11
 	vcipherlast	15, 15, 12
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_CTR_encrypt_crypto_192_done:
@@ -11111,7 +15301,14 @@ L_AES_CTR_encrypt_crypto_128:
 	cmpdi	5, 0x80
 	blt	L_AES_CTR_encrypt_crypto_128_blk4
 L_AES_CTR_encrypt_crypto_128_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	17, 16, 31
@@ -11121,22 +15318,85 @@ L_AES_CTR_encrypt_crypto_128_blk8:
 	vadduqm	21, 20, 31
 	vadduqm	22, 21, 31
 	vadduqm	23, 22, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 3
+#else
 	lxvd2x	59, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 3
+#else
 	lxvd2x	60, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 3
+#else
 	lxvd2x	61, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 3
+#else
 	lxvd2x	62, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11234,21 +15494,77 @@ L_AES_CTR_encrypt_crypto_128_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -11256,20 +15572,62 @@ L_AES_CTR_encrypt_crypto_128_blk8:
 L_AES_CTR_encrypt_crypto_128_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_CTR_encrypt_crypto_128_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	17, 16, 31
 	vadduqm	18, 17, 31
 	vadduqm	23, 18, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11319,26 +15677,82 @@ L_AES_CTR_encrypt_crypto_128_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_CTR_encrypt_crypto_128_blk2:
 	cmpdi	5, 32
 	blt	L_AES_CTR_encrypt_crypto_128_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	16, 15, 31
 	vadduqm	23, 16, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11364,19 +15778,54 @@ L_AES_CTR_encrypt_crypto_128_blk2:
 	vcipherlast	16, 16, 10
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_CTR_encrypt_crypto_128_blk1:
 	cmpdi	5, 16
 	blt	L_AES_CTR_encrypt_crypto_128_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vor	15, 23, 23 /* codespell:ignore vor */
 	vadduqm	23, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -11390,7 +15839,14 @@ L_AES_CTR_encrypt_crypto_128_blk1:
 	vcipher	15, 15, 9
 	vcipherlast	15, 15, 10
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_CTR_encrypt_crypto_128_done:
@@ -11425,24 +15881,45 @@ L_AES_CTR_encrypt_crypto_alldone:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_CTR_encrypt_crypto,.-AES_CTR_encrypt_crypto
+#else
+	.size	.L.AES_CTR_encrypt_crypto,.-.L.AES_CTR_encrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AESGCM
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_GCM_encrypt_crypto
 .type	AES_GCM_encrypt_crypto,@function
 .align	16
 AES_GCM_encrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_GCM_encrypt_crypto, .-AES_GCM_encrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_GCM_encrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_GCM_encrypt_crypto
+.type	AES_GCM_encrypt_crypto,@function
+.align	3
+AES_GCM_encrypt_crypto:
+	.quad	.L.AES_GCM_encrypt_crypto,.TOC.@tocbase,0
+	.size	AES_GCM_encrypt_crypto,24
+.text
+.align	16
+.L.AES_GCM_encrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_crypto
@@ -11477,14 +15954,54 @@ _AES_GCM_encrypt_crypto:
 	stdu	1, -8(1)
 	mflr	0
 	std	0, 0(1)
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	10, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	10, 10, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	45, 0, 10
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
 	addis	9, 2, L_AES_PPC64_crypto_one@toc@ha
 	addi	9, 9, L_AES_PPC64_crypto_one@toc@l
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	cmplwi	7, 10
 	beq	L_AES_GCM_encrypt_crypto_128
 	cmplwi	7, 12
 	beq	L_AES_GCM_encrypt_crypto_192
 	addi	10, 6, 0
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	lxvd2x	32, 0, 10
+	addi	10, 10, 16
+	lxvd2x	33, 0, 10
+	addi	10, 10, 16
+	lxvd2x	34, 0, 10
+	addi	10, 10, 16
+	lxvd2x	35, 0, 10
+	addi	10, 10, 16
+	lxvd2x	36, 0, 10
+	addi	10, 10, 16
+	lxvd2x	37, 0, 10
+	addi	10, 10, 16
+	lxvd2x	38, 0, 10
+	addi	10, 10, 16
+	lxvd2x	39, 0, 10
+	addi	10, 10, 16
+	lxvd2x	40, 0, 10
+	addi	10, 10, 16
+	lxvd2x	41, 0, 10
+	addi	10, 10, 16
+	lxvd2x	42, 0, 10
+	addi	10, 10, 16
+	lxvd2x	43, 0, 10
+	addi	10, 10, 16
+	lxvd2x	44, 0, 10
+	addi	10, 10, 16
+#else
 	lxvd2x	32, 0, 10
 	addi	10, 10, 16
 	lxvd2x	33, 0, 10
@@ -11515,10 +16032,18 @@ _AES_GCM_encrypt_crypto:
 	addi	10, 10, 16
 	lxvd2x	46, 0, 10
 	addi	10, 10, 16
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	cmpdi	5, 0x80
 	blt	L_AES_GCM_encrypt_crypto_256_blk4
 L_AES_GCM_encrypt_crypto_256_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vadduwm	17, 16, 31
@@ -11528,22 +16053,85 @@ L_AES_GCM_encrypt_crypto_256_blk8:
 	vadduwm	21, 20, 31
 	vadduwm	22, 21, 31
 	vor	23, 22, 22 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 3
+#else
 	lxvd2x	59, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 3
+#else
 	lxvd2x	60, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 3
+#else
 	lxvd2x	61, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 3
+#else
 	lxvd2x	62, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11649,6 +16237,18 @@ L_AES_GCM_encrypt_crypto_256_blk8:
 	vcipher	20, 20, 12
 	vcipher	21, 21, 12
 	vcipher	22, 22, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+	vcipher	17, 17, 14
+	vcipher	18, 18, 14
+	vcipher	19, 19, 14
+	vcipher	20, 20, 14
+	vcipher	21, 21, 14
+	vcipher	22, 22, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
 	vcipher	17, 17, 13
@@ -11657,6 +16257,10 @@ L_AES_GCM_encrypt_crypto_256_blk8:
 	vcipher	20, 20, 13
 	vcipher	21, 21, 13
 	vcipher	22, 22, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
 	vcipherlast	17, 17, 14
@@ -11665,6 +16269,16 @@ L_AES_GCM_encrypt_crypto_256_blk8:
 	vcipherlast	20, 20, 14
 	vcipherlast	21, 21, 14
 	vcipherlast	22, 22, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+	vcipherlast	17, 17, 14
+	vcipherlast	18, 18, 14
+	vcipherlast	19, 19, 14
+	vcipherlast	20, 20, 14
+	vcipherlast	21, 21, 14
+	vcipherlast	22, 22, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
@@ -11673,21 +16287,77 @@ L_AES_GCM_encrypt_crypto_256_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -11695,20 +16365,62 @@ L_AES_GCM_encrypt_crypto_256_blk8:
 L_AES_GCM_encrypt_crypto_256_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_GCM_encrypt_crypto_256_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vadduwm	17, 16, 31
 	vadduwm	18, 17, 31
 	vor	23, 18, 18 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11762,38 +16474,112 @@ L_AES_GCM_encrypt_crypto_256_blk4:
 	vcipher	16, 16, 12
 	vcipher	17, 17, 12
 	vcipher	18, 18, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+	vcipher	17, 17, 14
+	vcipher	18, 18, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
 	vcipher	17, 17, 13
 	vcipher	18, 18, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
 	vcipherlast	17, 17, 14
 	vcipherlast	18, 18, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+	vcipherlast	17, 17, 14
+	vcipherlast	18, 18, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_GCM_encrypt_crypto_256_blk2:
 	cmpdi	5, 32
 	blt	L_AES_GCM_encrypt_crypto_256_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vor	23, 16, 16 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -11821,25 +16607,74 @@ L_AES_GCM_encrypt_crypto_256_blk2:
 	vcipher	16, 16, 11
 	vcipher	15, 15, 12
 	vcipher	16, 16, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_GCM_encrypt_crypto_256_blk1:
 	cmpdi	5, 16
 	blt	L_AES_GCM_encrypt_crypto_256_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vor	23, 15, 15 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -11854,10 +16689,29 @@ L_AES_GCM_encrypt_crypto_256_blk1:
 	vcipher	15, 15, 10
 	vcipher	15, 15, 11
 	vcipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xd0
+	lxvd2x	46, 10, 6
+	vcipher	15, 15, 14
+#else
 	vcipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	10, 0xe0
+	lxvd2x	46, 10, 6
 	vcipherlast	15, 15, 14
+#else
+	vcipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_GCM_encrypt_crypto_256_done:
@@ -11893,7 +16747,14 @@ L_AES_GCM_encrypt_crypto_192:
 	cmpdi	5, 0x80
 	blt	L_AES_GCM_encrypt_crypto_192_blk4
 L_AES_GCM_encrypt_crypto_192_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vadduwm	17, 16, 31
@@ -11903,22 +16764,85 @@ L_AES_GCM_encrypt_crypto_192_blk8:
 	vadduwm	21, 20, 31
 	vadduwm	22, 21, 31
 	vor	23, 22, 22 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 3
+#else
 	lxvd2x	59, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 3
+#else
 	lxvd2x	60, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 3
+#else
 	lxvd2x	61, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 3
+#else
 	lxvd2x	62, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -12032,21 +16956,77 @@ L_AES_GCM_encrypt_crypto_192_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -12054,20 +17034,62 @@ L_AES_GCM_encrypt_crypto_192_blk8:
 L_AES_GCM_encrypt_crypto_192_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_GCM_encrypt_crypto_192_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vadduwm	17, 16, 31
 	vadduwm	18, 17, 31
 	vor	23, 18, 18 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -12125,26 +17147,82 @@ L_AES_GCM_encrypt_crypto_192_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_GCM_encrypt_crypto_192_blk2:
 	cmpdi	5, 32
 	blt	L_AES_GCM_encrypt_crypto_192_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vor	23, 16, 16 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -12174,19 +17252,54 @@ L_AES_GCM_encrypt_crypto_192_blk2:
 	vcipherlast	16, 16, 12
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_GCM_encrypt_crypto_192_blk1:
 	cmpdi	5, 16
 	blt	L_AES_GCM_encrypt_crypto_192_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vor	23, 15, 15 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -12202,7 +17315,14 @@ L_AES_GCM_encrypt_crypto_192_blk1:
 	vcipher	15, 15, 11
 	vcipherlast	15, 15, 12
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_GCM_encrypt_crypto_192_done:
@@ -12234,7 +17354,14 @@ L_AES_GCM_encrypt_crypto_128:
 	cmpdi	5, 0x80
 	blt	L_AES_GCM_encrypt_crypto_128_blk4
 L_AES_GCM_encrypt_crypto_128_blk8:
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vadduwm	17, 16, 31
@@ -12244,22 +17371,85 @@ L_AES_GCM_encrypt_crypto_128_blk8:
 	vadduwm	21, 20, 31
 	vadduwm	22, 21, 31
 	vor	23, 22, 22 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 3
+#else
 	lxvd2x	59, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 3
+#else
 	lxvd2x	60, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 3
+#else
 	lxvd2x	61, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 3
+#else
 	lxvd2x	62, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -12357,21 +17547,77 @@ L_AES_GCM_encrypt_crypto_128_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -12379,20 +17625,62 @@ L_AES_GCM_encrypt_crypto_128_blk8:
 L_AES_GCM_encrypt_crypto_128_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_GCM_encrypt_crypto_128_blk2
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vadduwm	17, 16, 31
 	vadduwm	18, 17, 31
 	vor	23, 18, 18 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 3
+#else
 	lxvd2x	57, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 3
+#else
 	lxvd2x	58, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -12442,26 +17730,82 @@ L_AES_GCM_encrypt_crypto_128_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_GCM_encrypt_crypto_128_blk2:
 	cmpdi	5, 32
 	blt	L_AES_GCM_encrypt_crypto_128_blk1
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vadduwm	16, 15, 31
 	vor	23, 16, 16 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 3
+#else
 	lxvd2x	56, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vxor	16, 16, 0
@@ -12487,19 +17831,54 @@ L_AES_GCM_encrypt_crypto_128_blk2:
 	vcipherlast	16, 16, 10
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_GCM_encrypt_crypto_128_blk1:
 	cmpdi	5, 16
 	blt	L_AES_GCM_encrypt_crypto_128_done
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 8
+#else
 	lxvd2x	55, 0, 8
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	vadduwm	15, 23, 31
 	vor	23, 15, 15 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 8
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	55, 0, 8
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	55, 0, 3
+#else
 	lxvd2x	55, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	23, 23, 23, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 0
 	vcipher	15, 15, 1
@@ -12513,7 +17892,14 @@ L_AES_GCM_encrypt_crypto_128_blk1:
 	vcipher	15, 15, 9
 	vcipherlast	15, 15, 10
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_GCM_encrypt_crypto_128_done:
@@ -12548,24 +17934,45 @@ L_AES_GCM_encrypt_crypto_alldone:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_GCM_encrypt_crypto,.-AES_GCM_encrypt_crypto
+#else
+	.size	.L.AES_GCM_encrypt_crypto,.-.L.AES_GCM_encrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* HAVE_AESGCM */
 #ifdef WOLFSSL_AES_XTS
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_encrypt_crypto
 .type	AES_XTS_encrypt_crypto,@function
 .align	16
 AES_XTS_encrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_XTS_encrypt_crypto, .-AES_XTS_encrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_XTS_encrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_XTS_encrypt_crypto
+.type	AES_XTS_encrypt_crypto,@function
+.align	3
+AES_XTS_encrypt_crypto:
+	.quad	.L.AES_XTS_encrypt_crypto,.TOC.@tocbase,0
+	.size	AES_XTS_encrypt_crypto,24
+.text
+.align	16
+.L.AES_XTS_encrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_crypto
@@ -12605,12 +18012,52 @@ _AES_XTS_encrypt_crypto:
 	std	16, 16(1)
 	std	17, 24(1)
 	li	12, 8
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	11, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	11, 11, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	45, 0, 11
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 6
+#else
 	lxvd2x	63, 0, 6
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	cmplwi	10, 10
 	beq	L_AES_XTS_encrypt_crypto_128
 	cmplwi	10, 12
 	beq	L_AES_XTS_encrypt_crypto_192
 	addi	11, 8, 0
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	lxvd2x	32, 0, 11
+	addi	11, 11, 16
+	lxvd2x	33, 0, 11
+	addi	11, 11, 16
+	lxvd2x	34, 0, 11
+	addi	11, 11, 16
+	lxvd2x	35, 0, 11
+	addi	11, 11, 16
+	lxvd2x	36, 0, 11
+	addi	11, 11, 16
+	lxvd2x	37, 0, 11
+	addi	11, 11, 16
+	lxvd2x	38, 0, 11
+	addi	11, 11, 16
+	lxvd2x	39, 0, 11
+	addi	11, 11, 16
+	lxvd2x	40, 0, 11
+	addi	11, 11, 16
+	lxvd2x	41, 0, 11
+	addi	11, 11, 16
+	lxvd2x	42, 0, 11
+	addi	11, 11, 16
+	lxvd2x	43, 0, 11
+	addi	11, 11, 16
+	lxvd2x	44, 0, 11
+	addi	11, 11, 16
+#else
 	lxvd2x	32, 0, 11
 	addi	11, 11, 16
 	lxvd2x	33, 0, 11
@@ -12641,6 +18088,7 @@ _AES_XTS_encrypt_crypto:
 	addi	11, 11, 16
 	lxvd2x	46, 0, 11
 	addi	11, 11, 16
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	31, 31, 0
 	vcipher	31, 31, 1
 	vcipher	31, 31, 2
@@ -12654,9 +18102,49 @@ _AES_XTS_encrypt_crypto:
 	vcipher	31, 31, 10
 	vcipher	31, 31, 11
 	vcipher	31, 31, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 8
+	vcipher	31, 31, 14
+#else
 	vcipher	31, 31, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 8
 	vcipherlast	31, 31, 14
+#else
+	vcipherlast	31, 31, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	addi	11, 7, 0
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	lxvd2x	32, 0, 11
+	addi	11, 11, 16
+	lxvd2x	33, 0, 11
+	addi	11, 11, 16
+	lxvd2x	34, 0, 11
+	addi	11, 11, 16
+	lxvd2x	35, 0, 11
+	addi	11, 11, 16
+	lxvd2x	36, 0, 11
+	addi	11, 11, 16
+	lxvd2x	37, 0, 11
+	addi	11, 11, 16
+	lxvd2x	38, 0, 11
+	addi	11, 11, 16
+	lxvd2x	39, 0, 11
+	addi	11, 11, 16
+	lxvd2x	40, 0, 11
+	addi	11, 11, 16
+	lxvd2x	41, 0, 11
+	addi	11, 11, 16
+	lxvd2x	42, 0, 11
+	addi	11, 11, 16
+	lxvd2x	43, 0, 11
+	addi	11, 11, 16
+	lxvd2x	44, 0, 11
+	addi	11, 11, 16
+#else
 	lxvd2x	32, 0, 11
 	addi	11, 11, 16
 	lxvd2x	33, 0, 11
@@ -12687,13 +18175,28 @@ _AES_XTS_encrypt_crypto:
 	addi	11, 11, 16
 	lxvd2x	46, 0, 11
 	addi	11, 11, 16
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	cmpdi	5, 0x80
 	blt	L_AES_XTS_encrypt_crypto_256_blk4
 L_AES_XTS_encrypt_crypto_256_blk8:
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12701,12 +18204,38 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12714,12 +18243,38 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12727,12 +18282,38 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12740,12 +18321,38 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 9
+#else
 	lxvd2x	59, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	59, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 27, 27, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	59, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12753,12 +18360,38 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 9
+#else
 	lxvd2x	60, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	60, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 28, 28, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	60, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12766,12 +18399,38 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 9
+#else
 	lxvd2x	61, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	61, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 29, 29, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	61, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12779,12 +18438,38 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 9
+#else
 	lxvd2x	62, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	62, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 30, 30, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	62, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12792,24 +18477,92 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -12923,6 +18676,18 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	vcipher	20, 20, 12
 	vcipher	21, 21, 12
 	vcipher	22, 22, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+	vcipher	17, 17, 14
+	vcipher	18, 18, 14
+	vcipher	19, 19, 14
+	vcipher	20, 20, 14
+	vcipher	21, 21, 14
+	vcipher	22, 22, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
 	vcipher	17, 17, 13
@@ -12931,6 +18696,10 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	vcipher	20, 20, 13
 	vcipher	21, 21, 13
 	vcipher	22, 22, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
 	vcipherlast	17, 17, 14
@@ -12939,6 +18708,16 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	vcipherlast	20, 20, 14
 	vcipherlast	21, 21, 14
 	vcipherlast	22, 22, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+	vcipherlast	17, 17, 14
+	vcipherlast	18, 18, 14
+	vcipherlast	19, 19, 14
+	vcipherlast	20, 20, 14
+	vcipherlast	21, 21, 14
+	vcipherlast	22, 22, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
@@ -12947,21 +18726,77 @@ L_AES_XTS_encrypt_crypto_256_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -12970,9 +18805,23 @@ L_AES_XTS_encrypt_crypto_256_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_XTS_encrypt_crypto_256_blk2
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12980,12 +18829,38 @@ L_AES_XTS_encrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -12993,12 +18868,38 @@ L_AES_XTS_encrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13006,12 +18907,38 @@ L_AES_XTS_encrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13019,16 +18946,56 @@ L_AES_XTS_encrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -13086,34 +19053,94 @@ L_AES_XTS_encrypt_crypto_256_blk4:
 	vcipher	16, 16, 12
 	vcipher	17, 17, 12
 	vcipher	18, 18, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+	vcipher	17, 17, 14
+	vcipher	18, 18, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
 	vcipher	17, 17, 13
 	vcipher	18, 18, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
 	vcipherlast	17, 17, 14
 	vcipherlast	18, 18, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+	vcipherlast	17, 17, 14
+	vcipherlast	18, 18, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_XTS_encrypt_crypto_256_blk2:
 	cmpdi	5, 32
 	blt	L_AES_XTS_encrypt_crypto_256_blk1
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13121,12 +19148,38 @@ L_AES_XTS_encrypt_crypto_256_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13134,12 +19187,38 @@ L_AES_XTS_encrypt_crypto_256_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -13169,24 +19248,66 @@ L_AES_XTS_encrypt_crypto_256_blk2:
 	vcipher	16, 16, 11
 	vcipher	15, 15, 12
 	vcipher	16, 16, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vcipher	15, 15, 14
+	vcipher	16, 16, 14
+#else
 	vcipher	15, 15, 13
 	vcipher	16, 16, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vcipherlast	15, 15, 14
 	vcipherlast	16, 16, 14
+#else
+	vcipherlast	15, 15, 14
+	vcipherlast	16, 16, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_XTS_encrypt_crypto_256_blk1:
 	cmpdi	5, 16
 	blt	L_AES_XTS_encrypt_crypto_256_done
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13194,10 +19315,29 @@ L_AES_XTS_encrypt_crypto_256_blk1:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	15, 15, 0
@@ -13213,13 +19353,112 @@ L_AES_XTS_encrypt_crypto_256_blk1:
 	vcipher	15, 15, 10
 	vcipher	15, 15, 11
 	vcipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vcipher	15, 15, 14
+#else
 	vcipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vcipherlast	15, 15, 14
+#else
+	vcipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_XTS_encrypt_crypto_256_done:
+	cmpdi	5, 0
+	beq	L_AES_XTS_encrypt_crypto_256_nopart
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 4
+#else
+	lxvd2x	48, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	48, 0, 9
+#endif /* __POWER9_VECTOR__ */
+	addi	4, 4, 16
+	addi	14, 5, 0
+L_AES_XTS_encrypt_crypto_256_byte:
+	lbz	15, 0(9)
+	lbz	16, 0(3)
+	addi	3, 3, 1
+	stb	15, 0(4)
+	addi	4, 4, 1
+	stb	16, 0(9)
+	addi	9, 9, 1
+	addic.	14, 14, -1
+	bne	L_AES_XTS_encrypt_crypto_256_byte
+	subf	4, 5, 4
+	subf	9, 5, 9
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 9
+#else
+	lxvd2x	47, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	vxor	15, 15, 31
+	vxor	15, 15, 0
+	vcipher	15, 15, 1
+	vcipher	15, 15, 2
+	vcipher	15, 15, 3
+	vcipher	15, 15, 4
+	vcipher	15, 15, 5
+	vcipher	15, 15, 6
+	vcipher	15, 15, 7
+	vcipher	15, 15, 8
+	vcipher	15, 15, 9
+	vcipher	15, 15, 10
+	vcipher	15, 15, 11
+	vcipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vcipher	15, 15, 14
+#else
+	vcipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
+	vcipherlast	15, 15, 14
+#else
+	vcipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+	vxor	15, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
+L_AES_XTS_encrypt_crypto_256_nopart:
 	b	L_AES_XTS_encrypt_crypto_alldone
 L_AES_XTS_encrypt_crypto_192:
 	addi	11, 8, 0
@@ -13293,9 +19532,23 @@ L_AES_XTS_encrypt_crypto_192:
 	blt	L_AES_XTS_encrypt_crypto_192_blk4
 L_AES_XTS_encrypt_crypto_192_blk8:
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13303,12 +19556,38 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13316,12 +19595,38 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13329,12 +19634,38 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13342,12 +19673,38 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 9
+#else
 	lxvd2x	59, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	59, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 27, 27, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	59, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13355,12 +19712,38 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 9
+#else
 	lxvd2x	60, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	60, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 28, 28, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	60, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13368,12 +19751,38 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 9
+#else
 	lxvd2x	61, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	61, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 29, 29, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	61, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13381,12 +19790,38 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 9
+#else
 	lxvd2x	62, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	62, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 30, 30, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	62, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13394,24 +19829,92 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -13533,21 +20036,77 @@ L_AES_XTS_encrypt_crypto_192_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -13556,9 +20115,23 @@ L_AES_XTS_encrypt_crypto_192_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_XTS_encrypt_crypto_192_blk2
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13566,12 +20139,38 @@ L_AES_XTS_encrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13579,12 +20178,38 @@ L_AES_XTS_encrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13592,12 +20217,38 @@ L_AES_XTS_encrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13605,16 +20256,56 @@ L_AES_XTS_encrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -13676,22 +20367,64 @@ L_AES_XTS_encrypt_crypto_192_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_XTS_encrypt_crypto_192_blk2:
 	cmpdi	5, 32
 	blt	L_AES_XTS_encrypt_crypto_192_blk1
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13699,12 +20432,38 @@ L_AES_XTS_encrypt_crypto_192_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13712,12 +20471,38 @@ L_AES_XTS_encrypt_crypto_192_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -13749,18 +20534,46 @@ L_AES_XTS_encrypt_crypto_192_blk2:
 	vcipherlast	16, 16, 12
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_XTS_encrypt_crypto_192_blk1:
 	cmpdi	5, 16
 	blt	L_AES_XTS_encrypt_crypto_192_done
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13768,10 +20581,29 @@ L_AES_XTS_encrypt_crypto_192_blk1:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	15, 15, 0
@@ -13788,10 +20620,83 @@ L_AES_XTS_encrypt_crypto_192_blk1:
 	vcipher	15, 15, 11
 	vcipherlast	15, 15, 12
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_XTS_encrypt_crypto_192_done:
+	cmpdi	5, 0
+	beq	L_AES_XTS_encrypt_crypto_192_nopart
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 4
+#else
+	lxvd2x	48, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	48, 0, 9
+#endif /* __POWER9_VECTOR__ */
+	addi	4, 4, 16
+	addi	14, 5, 0
+L_AES_XTS_encrypt_crypto_192_byte:
+	lbz	15, 0(9)
+	lbz	16, 0(3)
+	addi	3, 3, 1
+	stb	15, 0(4)
+	addi	4, 4, 1
+	stb	16, 0(9)
+	addi	9, 9, 1
+	addic.	14, 14, -1
+	bne	L_AES_XTS_encrypt_crypto_192_byte
+	subf	4, 5, 4
+	subf	9, 5, 9
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 9
+#else
+	lxvd2x	47, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	vxor	15, 15, 31
+	vxor	15, 15, 0
+	vcipher	15, 15, 1
+	vcipher	15, 15, 2
+	vcipher	15, 15, 3
+	vcipher	15, 15, 4
+	vcipher	15, 15, 5
+	vcipher	15, 15, 6
+	vcipher	15, 15, 7
+	vcipher	15, 15, 8
+	vcipher	15, 15, 9
+	vcipher	15, 15, 10
+	vcipher	15, 15, 11
+	vcipherlast	15, 15, 12
+	vxor	15, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
+L_AES_XTS_encrypt_crypto_192_nopart:
 	b	L_AES_XTS_encrypt_crypto_alldone
 L_AES_XTS_encrypt_crypto_128:
 	addi	11, 8, 0
@@ -13855,9 +20760,23 @@ L_AES_XTS_encrypt_crypto_128:
 	blt	L_AES_XTS_encrypt_crypto_128_blk4
 L_AES_XTS_encrypt_crypto_128_blk8:
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13865,12 +20784,38 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13878,12 +20823,38 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13891,12 +20862,38 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13904,12 +20901,38 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 9
+#else
 	lxvd2x	59, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	59, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 27, 27, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	59, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13917,12 +20940,38 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 9
+#else
 	lxvd2x	60, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	60, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 28, 28, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	60, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13930,12 +20979,38 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 9
+#else
 	lxvd2x	61, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	61, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 29, 29, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	61, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13943,12 +21018,38 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 9
+#else
 	lxvd2x	62, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	62, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 30, 30, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	62, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -13956,24 +21057,92 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -14079,21 +21248,77 @@ L_AES_XTS_encrypt_crypto_128_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -14102,9 +21327,23 @@ L_AES_XTS_encrypt_crypto_128_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_XTS_encrypt_crypto_128_blk2
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14112,12 +21351,38 @@ L_AES_XTS_encrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14125,12 +21390,38 @@ L_AES_XTS_encrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14138,12 +21429,38 @@ L_AES_XTS_encrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14151,16 +21468,56 @@ L_AES_XTS_encrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -14214,22 +21571,64 @@ L_AES_XTS_encrypt_crypto_128_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_XTS_encrypt_crypto_128_blk2:
 	cmpdi	5, 32
 	blt	L_AES_XTS_encrypt_crypto_128_blk1
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14237,12 +21636,38 @@ L_AES_XTS_encrypt_crypto_128_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14250,12 +21675,38 @@ L_AES_XTS_encrypt_crypto_128_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -14283,18 +21734,46 @@ L_AES_XTS_encrypt_crypto_128_blk2:
 	vcipherlast	16, 16, 10
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_XTS_encrypt_crypto_128_blk1:
 	cmpdi	5, 16
 	blt	L_AES_XTS_encrypt_crypto_128_done
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14302,10 +21781,29 @@ L_AES_XTS_encrypt_crypto_128_blk1:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	15, 15, 0
@@ -14320,10 +21818,81 @@ L_AES_XTS_encrypt_crypto_128_blk1:
 	vcipher	15, 15, 9
 	vcipherlast	15, 15, 10
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_XTS_encrypt_crypto_128_done:
+	cmpdi	5, 0
+	beq	L_AES_XTS_encrypt_crypto_128_nopart
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 4
+#else
+	lxvd2x	48, 0, 4
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	48, 0, 9
+#endif /* __POWER9_VECTOR__ */
+	addi	4, 4, 16
+	addi	14, 5, 0
+L_AES_XTS_encrypt_crypto_128_byte:
+	lbz	15, 0(9)
+	lbz	16, 0(3)
+	addi	3, 3, 1
+	stb	15, 0(4)
+	addi	4, 4, 1
+	stb	16, 0(9)
+	addi	9, 9, 1
+	addic.	14, 14, -1
+	bne	L_AES_XTS_encrypt_crypto_128_byte
+	subf	4, 5, 4
+	subf	9, 5, 9
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 9
+#else
+	lxvd2x	47, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	vxor	15, 15, 31
+	vxor	15, 15, 0
+	vcipher	15, 15, 1
+	vcipher	15, 15, 2
+	vcipher	15, 15, 3
+	vcipher	15, 15, 4
+	vcipher	15, 15, 5
+	vcipher	15, 15, 6
+	vcipher	15, 15, 7
+	vcipher	15, 15, 8
+	vcipher	15, 15, 9
+	vcipherlast	15, 15, 10
+	vxor	15, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
+L_AES_XTS_encrypt_crypto_128_nopart:
 L_AES_XTS_encrypt_crypto_alldone:
 	ld	0, 32(1)
 	mtlr	0
@@ -14359,23 +21928,44 @@ L_AES_XTS_encrypt_crypto_alldone:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_XTS_encrypt_crypto,.-AES_XTS_encrypt_crypto
+#else
+	.size	.L.AES_XTS_encrypt_crypto,.-.L.AES_XTS_encrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #ifdef HAVE_AES_DECRYPT
 	.machine	"push"
+#ifdef __POWER9_VECTOR__
+	.machine	"power9"
+#else
 	.machine	"power8"
+#endif /* __POWER9_VECTOR__ */
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	AES_XTS_decrypt_crypto
 .type	AES_XTS_decrypt_crypto,@function
 .align	16
 AES_XTS_decrypt_crypto:
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 0:	addis	2, 12, .TOC.-0b@ha
 	addi	2, 2, .TOC.-0b@l
 	.localentry	AES_XTS_decrypt_crypto, .-AES_XTS_decrypt_crypto
-#endif
+#else
+	/* Power ELF V1 ABI: emit a function descriptor in .opd that
+	 * points at the code (.L.AES_XTS_decrypt_crypto) and the TOC base. */
+.section	.opd,"aw",@progbits
+.globl	AES_XTS_decrypt_crypto
+.type	AES_XTS_decrypt_crypto,@function
+.align	3
+AES_XTS_decrypt_crypto:
+	.quad	.L.AES_XTS_decrypt_crypto,.TOC.@tocbase,0
+	.size	AES_XTS_decrypt_crypto,24
+.text
+.align	16
+.L.AES_XTS_decrypt_crypto:
+#endif /* _CALL_ELF == 2 */
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_crypto
@@ -14415,12 +22005,52 @@ _AES_XTS_decrypt_crypto:
 	std	16, 16(1)
 	std	17, 24(1)
 	li	12, 8
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+	addis	11, 2, L_AES_PPC64_crypto_bswap@toc@ha
+	addi	11, 11, L_AES_PPC64_crypto_bswap@toc@l
+	lxvd2x	45, 0, 11
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 6
+#else
 	lxvd2x	63, 0, 6
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	cmplwi	10, 10
 	beq	L_AES_XTS_decrypt_crypto_128
 	cmplwi	10, 12
 	beq	L_AES_XTS_decrypt_crypto_192
 	addi	11, 8, 0
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	lxvd2x	32, 0, 11
+	addi	11, 11, 16
+	lxvd2x	33, 0, 11
+	addi	11, 11, 16
+	lxvd2x	34, 0, 11
+	addi	11, 11, 16
+	lxvd2x	35, 0, 11
+	addi	11, 11, 16
+	lxvd2x	36, 0, 11
+	addi	11, 11, 16
+	lxvd2x	37, 0, 11
+	addi	11, 11, 16
+	lxvd2x	38, 0, 11
+	addi	11, 11, 16
+	lxvd2x	39, 0, 11
+	addi	11, 11, 16
+	lxvd2x	40, 0, 11
+	addi	11, 11, 16
+	lxvd2x	41, 0, 11
+	addi	11, 11, 16
+	lxvd2x	42, 0, 11
+	addi	11, 11, 16
+	lxvd2x	43, 0, 11
+	addi	11, 11, 16
+	lxvd2x	44, 0, 11
+	addi	11, 11, 16
+#else
 	lxvd2x	32, 0, 11
 	addi	11, 11, 16
 	lxvd2x	33, 0, 11
@@ -14451,6 +22081,7 @@ _AES_XTS_decrypt_crypto:
 	addi	11, 11, 16
 	lxvd2x	46, 0, 11
 	addi	11, 11, 16
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	31, 31, 0
 	vcipher	31, 31, 1
 	vcipher	31, 31, 2
@@ -14464,9 +22095,49 @@ _AES_XTS_decrypt_crypto:
 	vcipher	31, 31, 10
 	vcipher	31, 31, 11
 	vcipher	31, 31, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 8
+	vcipher	31, 31, 14
+#else
 	vcipher	31, 31, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 8
 	vcipherlast	31, 31, 14
+#else
+	vcipherlast	31, 31, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	addi	11, 7, 0
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	lxvd2x	32, 0, 11
+	addi	11, 11, 16
+	lxvd2x	33, 0, 11
+	addi	11, 11, 16
+	lxvd2x	34, 0, 11
+	addi	11, 11, 16
+	lxvd2x	35, 0, 11
+	addi	11, 11, 16
+	lxvd2x	36, 0, 11
+	addi	11, 11, 16
+	lxvd2x	37, 0, 11
+	addi	11, 11, 16
+	lxvd2x	38, 0, 11
+	addi	11, 11, 16
+	lxvd2x	39, 0, 11
+	addi	11, 11, 16
+	lxvd2x	40, 0, 11
+	addi	11, 11, 16
+	lxvd2x	41, 0, 11
+	addi	11, 11, 16
+	lxvd2x	42, 0, 11
+	addi	11, 11, 16
+	lxvd2x	43, 0, 11
+	addi	11, 11, 16
+	lxvd2x	44, 0, 11
+	addi	11, 11, 16
+#else
 	lxvd2x	32, 0, 11
 	addi	11, 11, 16
 	lxvd2x	33, 0, 11
@@ -14497,13 +22168,32 @@ _AES_XTS_decrypt_crypto:
 	addi	11, 11, 16
 	lxvd2x	46, 0, 11
 	addi	11, 11, 16
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+	andi.   14, 5, 15
+	addi	14, 14, 15
+	andi.   14, 14, 16
+	subf	5, 14, 5
 	cmpdi	5, 0x80
 	blt	L_AES_XTS_decrypt_crypto_256_blk4
 L_AES_XTS_decrypt_crypto_256_blk8:
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14511,12 +22201,38 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14524,12 +22240,38 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14537,12 +22279,38 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14550,12 +22318,38 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 9
+#else
 	lxvd2x	59, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	59, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 27, 27, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	59, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14563,12 +22357,38 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 9
+#else
 	lxvd2x	60, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	60, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 28, 28, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	60, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14576,12 +22396,38 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 9
+#else
 	lxvd2x	61, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	61, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 29, 29, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	61, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14589,12 +22435,38 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 9
+#else
 	lxvd2x	62, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	62, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 30, 30, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	62, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14602,24 +22474,92 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -14733,6 +22673,18 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	vncipher	20, 20, 12
 	vncipher	21, 21, 12
 	vncipher	22, 22, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vncipher	15, 15, 14
+	vncipher	16, 16, 14
+	vncipher	17, 17, 14
+	vncipher	18, 18, 14
+	vncipher	19, 19, 14
+	vncipher	20, 20, 14
+	vncipher	21, 21, 14
+	vncipher	22, 22, 14
+#else
 	vncipher	15, 15, 13
 	vncipher	16, 16, 13
 	vncipher	17, 17, 13
@@ -14741,6 +22693,10 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	vncipher	20, 20, 13
 	vncipher	21, 21, 13
 	vncipher	22, 22, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vncipherlast	15, 15, 14
 	vncipherlast	16, 16, 14
 	vncipherlast	17, 17, 14
@@ -14749,6 +22705,16 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	vncipherlast	20, 20, 14
 	vncipherlast	21, 21, 14
 	vncipherlast	22, 22, 14
+#else
+	vncipherlast	15, 15, 14
+	vncipherlast	16, 16, 14
+	vncipherlast	17, 17, 14
+	vncipherlast	18, 18, 14
+	vncipherlast	19, 19, 14
+	vncipherlast	20, 20, 14
+	vncipherlast	21, 21, 14
+	vncipherlast	22, 22, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
@@ -14757,21 +22723,77 @@ L_AES_XTS_decrypt_crypto_256_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -14780,9 +22802,23 @@ L_AES_XTS_decrypt_crypto_256_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_XTS_decrypt_crypto_256_blk2
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14790,12 +22826,38 @@ L_AES_XTS_decrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14803,12 +22865,38 @@ L_AES_XTS_decrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14816,12 +22904,38 @@ L_AES_XTS_decrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14829,16 +22943,56 @@ L_AES_XTS_decrypt_crypto_256_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -14896,34 +23050,94 @@ L_AES_XTS_decrypt_crypto_256_blk4:
 	vncipher	16, 16, 12
 	vncipher	17, 17, 12
 	vncipher	18, 18, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vncipher	15, 15, 14
+	vncipher	16, 16, 14
+	vncipher	17, 17, 14
+	vncipher	18, 18, 14
+#else
 	vncipher	15, 15, 13
 	vncipher	16, 16, 13
 	vncipher	17, 17, 13
 	vncipher	18, 18, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vncipherlast	15, 15, 14
 	vncipherlast	16, 16, 14
 	vncipherlast	17, 17, 14
 	vncipherlast	18, 18, 14
+#else
+	vncipherlast	15, 15, 14
+	vncipherlast	16, 16, 14
+	vncipherlast	17, 17, 14
+	vncipherlast	18, 18, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_XTS_decrypt_crypto_256_blk2:
 	cmpdi	5, 32
 	blt	L_AES_XTS_decrypt_crypto_256_blk1
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14931,12 +23145,38 @@ L_AES_XTS_decrypt_crypto_256_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -14944,12 +23184,38 @@ L_AES_XTS_decrypt_crypto_256_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -14979,24 +23245,66 @@ L_AES_XTS_decrypt_crypto_256_blk2:
 	vncipher	16, 16, 11
 	vncipher	15, 15, 12
 	vncipher	16, 16, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vncipher	15, 15, 14
+	vncipher	16, 16, 14
+#else
 	vncipher	15, 15, 13
 	vncipher	16, 16, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vncipherlast	15, 15, 14
 	vncipherlast	16, 16, 14
+#else
+	vncipherlast	15, 15, 14
+	vncipherlast	16, 16, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_XTS_decrypt_crypto_256_blk1:
 	cmpdi	5, 16
 	blt	L_AES_XTS_decrypt_crypto_256_done
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15004,10 +23312,29 @@ L_AES_XTS_decrypt_crypto_256_blk1:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	15, 15, 0
@@ -15023,13 +23350,180 @@ L_AES_XTS_decrypt_crypto_256_blk1:
 	vncipher	15, 15, 10
 	vncipher	15, 15, 11
 	vncipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vncipher	15, 15, 14
+#else
 	vncipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
 	vncipherlast	15, 15, 14
+#else
+	vncipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_XTS_decrypt_crypto_256_done:
+	cmpdi	5, 0
+	beq	L_AES_XTS_decrypt_crypto_256_nopart
+#ifdef __POWER9_VECTOR__
+	stxvb16x	63, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 31, 31, 13
+	stxvd2x	49, 0, 9
+#else
+	stxvd2x	63, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
+	ldbrx	14, 0, 9
+	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+	sradi	16, 15, 63
+	srdi	17, 14, 63
+	andi.	16, 16, 0x87
+	sldi	15, 15, 1
+	sldi	14, 14, 1
+	xor	15, 15, 17
+	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
+	stdbrx	14, 0, 9
+	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 9
+#else
+	lxvd2x	48, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
+	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	addi	3, 3, 16
+	vxor	15, 15, 16
+	vxor	15, 15, 0
+	vncipher	15, 15, 1
+	vncipher	15, 15, 2
+	vncipher	15, 15, 3
+	vncipher	15, 15, 4
+	vncipher	15, 15, 5
+	vncipher	15, 15, 6
+	vncipher	15, 15, 7
+	vncipher	15, 15, 8
+	vncipher	15, 15, 9
+	vncipher	15, 15, 10
+	vncipher	15, 15, 11
+	vncipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vncipher	15, 15, 14
+#else
+	vncipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
+	vncipherlast	15, 15, 14
+#else
+	vncipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+	vxor	15, 15, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 9
+#endif /* __POWER9_VECTOR__ */
+	addi	4, 4, 16
+	addi	14, 5, 0
+L_AES_XTS_decrypt_crypto_256_byte:
+	lbz	15, 0(9)
+	lbz	16, 0(3)
+	addi	3, 3, 1
+	stb	15, 0(4)
+	addi	4, 4, 1
+	stb	16, 0(9)
+	addi	9, 9, 1
+	addic.	14, 14, -1
+	bne	L_AES_XTS_decrypt_crypto_256_byte
+	subf	4, 5, 4
+	subf	9, 5, 9
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 9
+#else
+	lxvd2x	47, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	vxor	15, 15, 31
+	vxor	15, 15, 0
+	vncipher	15, 15, 1
+	vncipher	15, 15, 2
+	vncipher	15, 15, 3
+	vncipher	15, 15, 4
+	vncipher	15, 15, 5
+	vncipher	15, 15, 6
+	vncipher	15, 15, 7
+	vncipher	15, 15, 8
+	vncipher	15, 15, 9
+	vncipher	15, 15, 10
+	vncipher	15, 15, 11
+	vncipher	15, 15, 12
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xd0
+	lxvd2x	46, 11, 7
+	vncipher	15, 15, 14
+#else
+	vncipher	15, 15, 13
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+	li	11, 0xe0
+	lxvd2x	46, 11, 7
+	vncipherlast	15, 15, 14
+#else
+	vncipherlast	15, 15, 14
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+	vxor	15, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
+L_AES_XTS_decrypt_crypto_256_nopart:
 	b	L_AES_XTS_decrypt_crypto_alldone
 L_AES_XTS_decrypt_crypto_192:
 	addi	11, 8, 0
@@ -15099,13 +23593,31 @@ L_AES_XTS_decrypt_crypto_192:
 	addi	11, 11, 16
 	lxvd2x	44, 0, 11
 	addi	11, 11, 16
+	andi.   14, 5, 15
+	addi	14, 14, 15
+	andi.   14, 14, 16
+	subf	5, 14, 5
 	cmpdi	5, 0x80
 	blt	L_AES_XTS_decrypt_crypto_192_blk4
 L_AES_XTS_decrypt_crypto_192_blk8:
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15113,12 +23625,38 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15126,12 +23664,38 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15139,12 +23703,38 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15152,12 +23742,38 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 9
+#else
 	lxvd2x	59, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	59, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 27, 27, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	59, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15165,12 +23781,38 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 9
+#else
 	lxvd2x	60, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	60, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 28, 28, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	60, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15178,12 +23820,38 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 9
+#else
 	lxvd2x	61, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	61, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 29, 29, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	61, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15191,12 +23859,38 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 9
+#else
 	lxvd2x	62, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	62, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 30, 30, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	62, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15204,24 +23898,92 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -15343,21 +24105,77 @@ L_AES_XTS_decrypt_crypto_192_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -15366,9 +24184,23 @@ L_AES_XTS_decrypt_crypto_192_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_XTS_decrypt_crypto_192_blk2
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15376,12 +24208,38 @@ L_AES_XTS_decrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15389,12 +24247,38 @@ L_AES_XTS_decrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15402,12 +24286,38 @@ L_AES_XTS_decrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15415,16 +24325,56 @@ L_AES_XTS_decrypt_crypto_192_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -15486,22 +24436,64 @@ L_AES_XTS_decrypt_crypto_192_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_XTS_decrypt_crypto_192_blk2:
 	cmpdi	5, 32
 	blt	L_AES_XTS_decrypt_crypto_192_blk1
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15509,12 +24501,38 @@ L_AES_XTS_decrypt_crypto_192_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15522,12 +24540,38 @@ L_AES_XTS_decrypt_crypto_192_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -15559,18 +24603,46 @@ L_AES_XTS_decrypt_crypto_192_blk2:
 	vncipherlast	16, 16, 12
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_XTS_decrypt_crypto_192_blk1:
 	cmpdi	5, 16
 	blt	L_AES_XTS_decrypt_crypto_192_done
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15578,10 +24650,29 @@ L_AES_XTS_decrypt_crypto_192_blk1:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	15, 15, 0
@@ -15598,10 +24689,137 @@ L_AES_XTS_decrypt_crypto_192_blk1:
 	vncipher	15, 15, 11
 	vncipherlast	15, 15, 12
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_XTS_decrypt_crypto_192_done:
+	cmpdi	5, 0
+	beq	L_AES_XTS_decrypt_crypto_192_nopart
+#ifdef __POWER9_VECTOR__
+	stxvb16x	63, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 31, 31, 13
+	stxvd2x	49, 0, 9
+#else
+	stxvd2x	63, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
+	ldbrx	14, 0, 9
+	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+	sradi	16, 15, 63
+	srdi	17, 14, 63
+	andi.	16, 16, 0x87
+	sldi	15, 15, 1
+	sldi	14, 14, 1
+	xor	15, 15, 17
+	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
+	stdbrx	14, 0, 9
+	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 9
+#else
+	lxvd2x	48, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
+	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	addi	3, 3, 16
+	vxor	15, 15, 16
+	vxor	15, 15, 0
+	vncipher	15, 15, 1
+	vncipher	15, 15, 2
+	vncipher	15, 15, 3
+	vncipher	15, 15, 4
+	vncipher	15, 15, 5
+	vncipher	15, 15, 6
+	vncipher	15, 15, 7
+	vncipher	15, 15, 8
+	vncipher	15, 15, 9
+	vncipher	15, 15, 10
+	vncipher	15, 15, 11
+	vncipherlast	15, 15, 12
+	vxor	15, 15, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 9
+#endif /* __POWER9_VECTOR__ */
+	addi	4, 4, 16
+	addi	14, 5, 0
+L_AES_XTS_decrypt_crypto_192_byte:
+	lbz	15, 0(9)
+	lbz	16, 0(3)
+	addi	3, 3, 1
+	stb	15, 0(4)
+	addi	4, 4, 1
+	stb	16, 0(9)
+	addi	9, 9, 1
+	addic.	14, 14, -1
+	bne	L_AES_XTS_decrypt_crypto_192_byte
+	subf	4, 5, 4
+	subf	9, 5, 9
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 9
+#else
+	lxvd2x	47, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	vxor	15, 15, 31
+	vxor	15, 15, 0
+	vncipher	15, 15, 1
+	vncipher	15, 15, 2
+	vncipher	15, 15, 3
+	vncipher	15, 15, 4
+	vncipher	15, 15, 5
+	vncipher	15, 15, 6
+	vncipher	15, 15, 7
+	vncipher	15, 15, 8
+	vncipher	15, 15, 9
+	vncipher	15, 15, 10
+	vncipher	15, 15, 11
+	vncipherlast	15, 15, 12
+	vxor	15, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
+L_AES_XTS_decrypt_crypto_192_nopart:
 	b	L_AES_XTS_decrypt_crypto_alldone
 L_AES_XTS_decrypt_crypto_128:
 	addi	11, 8, 0
@@ -15661,13 +24879,31 @@ L_AES_XTS_decrypt_crypto_128:
 	addi	11, 11, 16
 	lxvd2x	42, 0, 11
 	addi	11, 11, 16
+	andi.   14, 5, 15
+	addi	14, 14, 15
+	andi.   14, 14, 16
+	subf	5, 14, 5
 	cmpdi	5, 0x80
 	blt	L_AES_XTS_decrypt_crypto_128_blk4
 L_AES_XTS_decrypt_crypto_128_blk8:
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15675,12 +24911,38 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15688,12 +24950,38 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15701,12 +24989,38 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15714,12 +25028,38 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	59, 0, 9
+#else
 	lxvd2x	59, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	27, 27, 27, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	59, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 27, 27, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	59, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15727,12 +25067,38 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	60, 0, 9
+#else
 	lxvd2x	60, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	28, 28, 28, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	60, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 28, 28, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	60, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15740,12 +25106,38 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	61, 0, 9
+#else
 	lxvd2x	61, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	29, 29, 29, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	61, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 29, 29, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	61, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15753,12 +25145,38 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	62, 0, 9
+#else
 	lxvd2x	62, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	30, 30, 30, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	62, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 30, 30, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	62, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15766,24 +25184,92 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	51, 0, 3
+#else
 	lxvd2x	51, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	52, 0, 3
+#else
 	lxvd2x	52, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	53, 0, 3
+#else
 	lxvd2x	53, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	54, 0, 3
+#else
 	lxvd2x	54, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -15889,21 +25375,77 @@ L_AES_XTS_decrypt_crypto_128_blk8:
 	vxor	20, 20, 28
 	vxor	21, 21, 29
 	vxor	22, 22, 30
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	51, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	19, 19, 19, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	51, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	52, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	20, 20, 20, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	52, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	53, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	21, 21, 21, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	53, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	54, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	22, 22, 22, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	54, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -128
 	cmpdi	5, 0x80
@@ -15912,9 +25454,23 @@ L_AES_XTS_decrypt_crypto_128_blk4:
 	cmpdi	5, 0x40
 	blt	L_AES_XTS_decrypt_crypto_128_blk2
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15922,12 +25478,38 @@ L_AES_XTS_decrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15935,12 +25517,38 @@ L_AES_XTS_decrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	57, 0, 9
+#else
 	lxvd2x	57, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	25, 25, 25, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	57, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 25, 25, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	57, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15948,12 +25556,38 @@ L_AES_XTS_decrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	58, 0, 9
+#else
 	lxvd2x	58, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	26, 26, 26, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	58, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 26, 26, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	58, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -15961,16 +25595,56 @@ L_AES_XTS_decrypt_crypto_128_blk4:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	49, 0, 3
+#else
 	lxvd2x	49, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	50, 0, 3
+#else
 	lxvd2x	50, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -16024,22 +25698,64 @@ L_AES_XTS_decrypt_crypto_128_blk4:
 	vxor	16, 16, 24
 	vxor	17, 17, 25
 	vxor	18, 18, 26
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	49, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 17, 17, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	49, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	50, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	18, 18, 18, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	50, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -64
 L_AES_XTS_decrypt_crypto_128_blk2:
 	cmpdi	5, 32
 	blt	L_AES_XTS_decrypt_crypto_128_blk1
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -16047,12 +25763,38 @@ L_AES_XTS_decrypt_crypto_128_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	56, 0, 9
+#else
 	lxvd2x	56, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	24, 24, 24, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	56, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 24, 24, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	56, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -16060,12 +25802,38 @@ L_AES_XTS_decrypt_crypto_128_blk2:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 3
+#else
 	lxvd2x	48, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	16, 16, 24
@@ -16093,18 +25861,46 @@ L_AES_XTS_decrypt_crypto_128_blk2:
 	vncipherlast	16, 16, 10
 	vxor	15, 15, 23
 	vxor	16, 16, 24
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	48, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	48, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -32
 L_AES_XTS_decrypt_crypto_128_blk1:
 	cmpdi	5, 16
 	blt	L_AES_XTS_decrypt_crypto_128_done
 	vor	23, 31, 31 /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+	stxvb16x	55, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 23, 23, 13
+	stxvd2x	47, 0, 9
+#else
 	stxvd2x	55, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
 	ldbrx	14, 0, 9
 	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
 	sradi	16, 15, 63
 	srdi	17, 14, 63
 	andi.	16, 16, 0x87
@@ -16112,10 +25908,29 @@ L_AES_XTS_decrypt_crypto_128_blk1:
 	sldi	14, 14, 1
 	xor	15, 15, 17
 	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
 	stdbrx	14, 0, 9
 	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	63, 0, 9
+#else
 	lxvd2x	63, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	31, 31, 31, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
 	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
 	addi	3, 3, 16
 	vxor	15, 15, 23
 	vxor	15, 15, 0
@@ -16130,10 +25945,133 @@ L_AES_XTS_decrypt_crypto_128_blk1:
 	vncipher	15, 15, 9
 	vncipherlast	15, 15, 10
 	vxor	15, 15, 23
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
 	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
 	addi	4, 4, 16
 	addi	5, 5, -16
 L_AES_XTS_decrypt_crypto_128_done:
+	cmpdi	5, 0
+	beq	L_AES_XTS_decrypt_crypto_128_nopart
+#ifdef __POWER9_VECTOR__
+	stxvb16x	63, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	17, 31, 31, 13
+	stxvd2x	49, 0, 9
+#else
+	stxvd2x	63, 0, 9
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+	ld	14, 0(9)
+	ld	15, 8(9)
+#else
+	ldbrx	14, 0, 9
+	ldbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+	sradi	16, 15, 63
+	srdi	17, 14, 63
+	andi.	16, 16, 0x87
+	sldi	15, 15, 1
+	sldi	14, 14, 1
+	xor	15, 15, 17
+	xor	14, 14, 16
+#ifdef __LITTLE_ENDIAN__
+	std	14, 0(9)
+	std	15, 8(9)
+#else
+	stdbrx	14, 0, 9
+	stdbrx	15, 9, 12
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	48, 0, 9
+#else
+	lxvd2x	48, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	16, 16, 16, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 3
+#else
+	lxvd2x	47, 0, 3
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	addi	3, 3, 16
+	vxor	15, 15, 16
+	vxor	15, 15, 0
+	vncipher	15, 15, 1
+	vncipher	15, 15, 2
+	vncipher	15, 15, 3
+	vncipher	15, 15, 4
+	vncipher	15, 15, 5
+	vncipher	15, 15, 6
+	vncipher	15, 15, 7
+	vncipher	15, 15, 8
+	vncipher	15, 15, 9
+	vncipherlast	15, 15, 10
+	vxor	15, 15, 16
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 9
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 9
+#endif /* __POWER9_VECTOR__ */
+	addi	4, 4, 16
+	addi	14, 5, 0
+L_AES_XTS_decrypt_crypto_128_byte:
+	lbz	15, 0(9)
+	lbz	16, 0(3)
+	addi	3, 3, 1
+	stb	15, 0(4)
+	addi	4, 4, 1
+	stb	16, 0(9)
+	addi	9, 9, 1
+	addic.	14, 14, -1
+	bne	L_AES_XTS_decrypt_crypto_128_byte
+	subf	4, 5, 4
+	subf	9, 5, 9
+	addi	4, 4, -16
+#ifdef __POWER9_VECTOR__
+	lxvb16x	47, 0, 9
+#else
+	lxvd2x	47, 0, 9
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+	vxor	15, 15, 31
+	vxor	15, 15, 0
+	vncipher	15, 15, 1
+	vncipher	15, 15, 2
+	vncipher	15, 15, 3
+	vncipher	15, 15, 4
+	vncipher	15, 15, 5
+	vncipher	15, 15, 6
+	vncipher	15, 15, 7
+	vncipher	15, 15, 8
+	vncipher	15, 15, 9
+	vncipherlast	15, 15, 10
+	vxor	15, 15, 31
+#ifdef __POWER9_VECTOR__
+	stxvb16x	47, 0, 4
+#else
+#ifdef __LITTLE_ENDIAN__
+	vperm	15, 15, 15, 13
+#endif /* __LITTLE_ENDIAN__ */
+	stxvd2x	47, 0, 4
+#endif /* __POWER9_VECTOR__ */
+L_AES_XTS_decrypt_crypto_128_nopart:
 L_AES_XTS_decrypt_crypto_alldone:
 	ld	0, 32(1)
 	mtlr	0
@@ -16169,7 +26107,11 @@ L_AES_XTS_decrypt_crypto_alldone:
 	addi	1, 1, 0xc0
 	blr
 #ifndef __APPLE__
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	.size	AES_XTS_decrypt_crypto,.-AES_XTS_decrypt_crypto
+#else
+	.size	.L.AES_XTS_decrypt_crypto,.-.L.AES_XTS_decrypt_crypto
+#endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
 	.machine	"pop"
 #endif /* HAVE_AES_DECRYPT */

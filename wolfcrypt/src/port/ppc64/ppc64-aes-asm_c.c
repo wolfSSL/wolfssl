@@ -211,7 +211,10 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
     __asm__ __volatile__ (
         "mr      5, %[L_AES_PPC64_te]\n\t"
         "mr      6, %[L_AES_PPC64_td]\n\t"
+#ifdef __LITTLE_ENDIAN__
+#else
         "addi    5, 5, 3\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sldi    16, %[rounds], 4\n\t"
         "add     16, 16, %[ks]\n\t"
         "ld      7, 0(%[ks])\n\t"
@@ -251,10 +254,17 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "mtctr   0\n\t"
         "\n"
     "L_AES_invert_key_mix_loop_%=: \n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     7, 0(%[ks])\n\t"
+        "lwz     8, 4(%[ks])\n\t"
+        "lwz     9, 8(%[ks])\n\t"
+        "lwz     10, 12(%[ks])\n\t"
+#else
         "lwz     8, 0(%[ks])\n\t"
         "lwz     7, 4(%[ks])\n\t"
         "lwz     10, 8(%[ks])\n\t"
         "lwz     9, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rlwinm  11, 7, 2, 22, 29\n\t"
         "rlwinm  12, 7, 26, 22, 29\n\t"
         "rlwinm  14, 7, 18, 22, 29\n\t"
@@ -277,7 +287,11 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "xor     14, 14, 11\n\t"
         "xor     14, 14, 12\n\t"
         "xor     14, 14, 15\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     14, 0(%[ks])\n\t"
+#else
         "stw     14, 4(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rlwinm  11, 8, 2, 22, 29\n\t"
         "rlwinm  12, 8, 26, 22, 29\n\t"
         "rlwinm  14, 8, 18, 22, 29\n\t"
@@ -300,7 +314,11 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "xor     14, 14, 11\n\t"
         "xor     14, 14, 12\n\t"
         "xor     14, 14, 15\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     14, 4(%[ks])\n\t"
+#else
         "stw     14, 0(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 8\n\t"
         "rlwinm  11, 9, 2, 22, 29\n\t"
         "rlwinm  12, 9, 26, 22, 29\n\t"
@@ -324,7 +342,11 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "xor     14, 14, 11\n\t"
         "xor     14, 14, 12\n\t"
         "xor     14, 14, 15\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     14, 0(%[ks])\n\t"
+#else
         "stw     14, 4(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rlwinm  11, 10, 2, 22, 29\n\t"
         "rlwinm  12, 10, 26, 22, 29\n\t"
         "rlwinm  14, 10, 18, 22, 29\n\t"
@@ -347,7 +369,11 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "xor     14, 14, 11\n\t"
         "xor     14, 14, 12\n\t"
         "xor     14, 14, 15\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     14, 4(%[ks])\n\t"
+#else
         "stw     14, 0(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 8\n\t"
         "bdnz    L_AES_invert_key_mix_loop_%=\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -399,15 +425,28 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
     __asm__ __volatile__ (
         "mr      6, %[L_AES_PPC64_te]\n\t"
         "mr      7, %[L_AES_PPC64_rcon]\n\t"
+#ifdef __LITTLE_ENDIAN__
+#else
         "addi    6, 6, 3\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "cmplwi  %[len], 0x80\n\t"
         "beq     L_AES_set_encrypt_key_start_128_%=\n\t"
         "cmplwi  %[len], 0xc0\n\t"
         "beq     L_AES_set_encrypt_key_start_192_%=\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 0, %[key]\n\t"
+        "li      8, 8\n\t"
+        "ldbrx   10, 8, %[key]\n\t"
+        "li      8, 16\n\t"
+        "ldbrx   11, 8, %[key]\n\t"
+        "li      8, 24\n\t"
+        "ldbrx   12, 8, %[key]\n\t"
+#else
         "ld      9, 0(%[key])\n\t"
         "ld      10, 8(%[key])\n\t"
         "ld      11, 16(%[key])\n\t"
         "ld      12, 24(%[key])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicr  9, 9, 32, 63\n\t"
         "rldicr  10, 10, 32, 63\n\t"
         "rldicr  11, 11, 32, 63\n\t"
@@ -432,10 +471,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "rlwimi  0, 9, 8, 16, 23\n\t"
         "rlwimi  0, 10, 16, 8, 15\n\t"
         "rlwimi  0, 11, 24, 0, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     9, 0(%[ks])\n\t"
+        "lwz     10, 4(%[ks])\n\t"
+        "lwz     11, 8(%[ks])\n\t"
+        "lwz     12, 12(%[ks])\n\t"
+#else
         "lwz     10, 0(%[ks])\n\t"
         "lwz     9, 4(%[ks])\n\t"
         "lwz     12, 8(%[ks])\n\t"
         "lwz     11, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "xor     9, 9, 0\n\t"
         "lwz     0, 0(7)\n\t"
@@ -444,10 +490,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "xor     10, 10, 9\n\t"
         "xor     11, 11, 10\n\t"
         "xor     12, 12, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     9, 16(%[ks])\n\t"
+        "stw     10, 20(%[ks])\n\t"
+        "stw     11, 24(%[ks])\n\t"
+        "stw     12, 28(%[ks])\n\t"
+#else
         "stw     10, 16(%[ks])\n\t"
         "stw     9, 20(%[ks])\n\t"
         "stw     12, 24(%[ks])\n\t"
         "stw     11, 28(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rlwinm  9, 12, 26, 22, 29\n\t"
         "rlwinm  10, 12, 18, 22, 29\n\t"
         "rlwinm  11, 12, 10, 22, 29\n\t"
@@ -459,19 +512,33 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "rlwimi  0, 9, 8, 16, 23\n\t"
         "rlwimi  0, 10, 16, 8, 15\n\t"
         "rlwimi  0, 11, 24, 0, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     9, 0(%[ks])\n\t"
+        "lwz     10, 4(%[ks])\n\t"
+        "lwz     11, 8(%[ks])\n\t"
+        "lwz     12, 12(%[ks])\n\t"
+#else
         "lwz     10, 0(%[ks])\n\t"
         "lwz     9, 4(%[ks])\n\t"
         "lwz     12, 8(%[ks])\n\t"
         "lwz     11, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "xor     9, 9, 0\n\t"
         "xor     10, 10, 9\n\t"
         "xor     11, 11, 10\n\t"
         "xor     12, 12, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     9, 16(%[ks])\n\t"
+        "stw     10, 20(%[ks])\n\t"
+        "stw     11, 24(%[ks])\n\t"
+        "stw     12, 28(%[ks])\n\t"
+#else
         "stw     10, 16(%[ks])\n\t"
         "stw     9, 20(%[ks])\n\t"
         "stw     12, 24(%[ks])\n\t"
         "stw     11, 28(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "bdnz    L_AES_set_encrypt_key_loop_256_%=\n\t"
         "rlwinm  9, 12, 2, 22, 29\n\t"
         "rlwinm  10, 12, 26, 22, 29\n\t"
@@ -484,10 +551,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "rlwimi  0, 9, 8, 16, 23\n\t"
         "rlwimi  0, 10, 16, 8, 15\n\t"
         "rlwimi  0, 11, 24, 0, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     9, 0(%[ks])\n\t"
+        "lwz     10, 4(%[ks])\n\t"
+        "lwz     11, 8(%[ks])\n\t"
+        "lwz     12, 12(%[ks])\n\t"
+#else
         "lwz     10, 0(%[ks])\n\t"
         "lwz     9, 4(%[ks])\n\t"
         "lwz     12, 8(%[ks])\n\t"
         "lwz     11, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "xor     9, 9, 0\n\t"
         "lwz     0, 0(7)\n\t"
@@ -496,16 +570,31 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "xor     10, 10, 9\n\t"
         "xor     11, 11, 10\n\t"
         "xor     12, 12, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     10, 16(%[ks])\n\t"
+        "stw     9, 20(%[ks])\n\t"
+        "stw     12, 24(%[ks])\n\t"
+        "stw     11, 28(%[ks])\n\t"
+#else
         "stw     9, 16(%[ks])\n\t"
         "stw     10, 20(%[ks])\n\t"
         "stw     11, 24(%[ks])\n\t"
         "stw     12, 28(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "b       L_AES_set_encrypt_key_end_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_start_192_%=: \n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 0, %[key]\n\t"
+        "li      8, 8\n\t"
+        "ldbrx   14, 8, %[key]\n\t"
+        "li      8, 16\n\t"
+        "ldbrx   15, 8, %[key]\n\t"
+#else
         "ld      12, 0(%[key])\n\t"
         "ld      14, 8(%[key])\n\t"
         "ld      15, 16(%[key])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicr  12, 12, 32, 63\n\t"
         "rldicr  14, 14, 32, 63\n\t"
         "rldicr  15, 15, 32, 63\n\t"
@@ -528,12 +617,21 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "rlwimi  0, 9, 8, 16, 23\n\t"
         "rlwimi  0, 10, 16, 8, 15\n\t"
         "rlwimi  0, 11, 24, 0, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     9, 0(%[ks])\n\t"
+        "lwz     10, 4(%[ks])\n\t"
+        "lwz     11, 8(%[ks])\n\t"
+        "lwz     12, 12(%[ks])\n\t"
+        "lwz     14, 16(%[ks])\n\t"
+        "lwz     15, 20(%[ks])\n\t"
+#else
         "lwz     10, 0(%[ks])\n\t"
         "lwz     9, 4(%[ks])\n\t"
         "lwz     12, 8(%[ks])\n\t"
         "lwz     11, 12(%[ks])\n\t"
         "lwz     15, 16(%[ks])\n\t"
         "lwz     14, 20(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 24\n\t"
         "xor     9, 9, 0\n\t"
         "lwz     0, 0(7)\n\t"
@@ -544,12 +642,21 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "xor     12, 12, 11\n\t"
         "xor     14, 14, 12\n\t"
         "xor     15, 15, 14\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     9, 0(%[ks])\n\t"
+        "stw     10, 4(%[ks])\n\t"
+        "stw     11, 8(%[ks])\n\t"
+        "stw     12, 12(%[ks])\n\t"
+        "stw     14, 16(%[ks])\n\t"
+        "stw     15, 20(%[ks])\n\t"
+#else
         "stw     10, 0(%[ks])\n\t"
         "stw     9, 4(%[ks])\n\t"
         "stw     12, 8(%[ks])\n\t"
         "stw     11, 12(%[ks])\n\t"
         "stw     15, 16(%[ks])\n\t"
         "stw     14, 20(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "bdnz    L_AES_set_encrypt_key_loop_192_%=\n\t"
         "rlwinm  9, 15, 2, 22, 29\n\t"
         "rlwinm  10, 15, 26, 22, 29\n\t"
@@ -562,12 +669,21 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "rlwimi  0, 9, 8, 16, 23\n\t"
         "rlwimi  0, 10, 16, 8, 15\n\t"
         "rlwimi  0, 11, 24, 0, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     9, 0(%[ks])\n\t"
+        "lwz     10, 4(%[ks])\n\t"
+        "lwz     11, 8(%[ks])\n\t"
+        "lwz     12, 12(%[ks])\n\t"
+        "lwz     14, 16(%[ks])\n\t"
+        "lwz     15, 20(%[ks])\n\t"
+#else
         "lwz     10, 0(%[ks])\n\t"
         "lwz     9, 4(%[ks])\n\t"
         "lwz     12, 8(%[ks])\n\t"
         "lwz     11, 12(%[ks])\n\t"
         "lwz     15, 16(%[ks])\n\t"
         "lwz     14, 20(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 24\n\t"
         "xor     9, 9, 0\n\t"
         "lwz     0, 0(7)\n\t"
@@ -576,16 +692,28 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "xor     10, 10, 9\n\t"
         "xor     11, 11, 10\n\t"
         "xor     12, 12, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     10, 0(%[ks])\n\t"
+        "stw     9, 4(%[ks])\n\t"
+        "stw     12, 8(%[ks])\n\t"
+        "stw     11, 12(%[ks])\n\t"
+#else
         "stw     9, 0(%[ks])\n\t"
         "stw     10, 4(%[ks])\n\t"
         "stw     11, 8(%[ks])\n\t"
         "stw     12, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "b       L_AES_set_encrypt_key_end_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_start_128_%=: \n\t"
-        "li      8, 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 0, %[key]\n\t"
+        "li      8, 8\n\t"
+        "ldbrx   12, 8, %[key]\n\t"
+#else
         "ld      11, 0(%[key])\n\t"
         "ld      12, 8(%[key])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicr  11, 11, 32, 63\n\t"
         "rldicr  12, 12, 32, 63\n\t"
         "std     11, 0(%[ks])\n\t"
@@ -606,10 +734,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "rlwimi  0, 9, 8, 16, 23\n\t"
         "rlwimi  0, 10, 16, 8, 15\n\t"
         "rlwimi  0, 11, 24, 0, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     9, 0(%[ks])\n\t"
+        "lwz     10, 4(%[ks])\n\t"
+        "lwz     11, 8(%[ks])\n\t"
+        "lwz     12, 12(%[ks])\n\t"
+#else
         "lwz     10, 0(%[ks])\n\t"
         "lwz     9, 4(%[ks])\n\t"
         "lwz     12, 8(%[ks])\n\t"
         "lwz     11, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "xor     9, 9, 0\n\t"
         "lwz     0, 0(7)\n\t"
@@ -618,10 +753,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "xor     10, 10, 9\n\t"
         "xor     11, 11, 10\n\t"
         "xor     12, 12, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     9, 0(%[ks])\n\t"
+        "stw     10, 4(%[ks])\n\t"
+        "stw     11, 8(%[ks])\n\t"
+        "stw     12, 12(%[ks])\n\t"
+#else
         "stw     10, 0(%[ks])\n\t"
         "stw     9, 4(%[ks])\n\t"
         "stw     12, 8(%[ks])\n\t"
         "stw     11, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "bdnz    L_AES_set_encrypt_key_loop_128_%=\n\t"
         "rlwinm  9, 12, 2, 22, 29\n\t"
         "rlwinm  10, 12, 26, 22, 29\n\t"
@@ -634,10 +776,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "rlwimi  0, 9, 8, 16, 23\n\t"
         "rlwimi  0, 10, 16, 8, 15\n\t"
         "rlwimi  0, 11, 24, 0, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwz     9, 0(%[ks])\n\t"
+        "lwz     10, 4(%[ks])\n\t"
+        "lwz     11, 8(%[ks])\n\t"
+        "lwz     12, 12(%[ks])\n\t"
+#else
         "lwz     10, 0(%[ks])\n\t"
         "lwz     9, 4(%[ks])\n\t"
         "lwz     12, 8(%[ks])\n\t"
         "lwz     11, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "xor     9, 9, 0\n\t"
         "lwz     0, 0(7)\n\t"
@@ -646,10 +795,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "xor     10, 10, 9\n\t"
         "xor     11, 11, 10\n\t"
         "xor     12, 12, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     10, 0(%[ks])\n\t"
+        "stw     9, 4(%[ks])\n\t"
+        "stw     12, 8(%[ks])\n\t"
+        "stw     11, 12(%[ks])\n\t"
+#else
         "stw     9, 0(%[ks])\n\t"
         "stw     10, 4(%[ks])\n\t"
         "stw     11, 8(%[ks])\n\t"
         "stw     12, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "\n"
     "L_AES_set_encrypt_key_end_%=: \n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -960,8 +1116,14 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
         "\n"
     "L_AES_ECB_encrypt_loop_block_128_%=: \n\t"
         "addi    25, %[ks], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 0, %[in]\n\t"
+        "li      21, 8\n\t"
+        "ldbrx   14, 21, %[in]\n\t"
+#else
         "ld      12, 0(%[in])\n\t"
         "ld      14, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      17, 0(25)\n\t"
         "ld      18, 8(25)\n\t"
         "addi    25, 25, 16\n\t"
@@ -1258,8 +1420,14 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
         /*   XOR in Key Schedule */
         "xor     12, 12, 17\n\t"
         "xor     14, 14, 18\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  12, 0, %[out]\n\t"
+        "li      21, 8\n\t"
+        "stdbrx  14, 21, %[out]\n\t"
+#else
         "std     12, 0(%[out])\n\t"
         "std     14, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
@@ -1309,16 +1477,28 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
 
     __asm__ __volatile__ (
         "mr      9, %[L_AES_PPC64_te4_0]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   14, 0, %[iv]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   15, 22, %[iv]\n\t"
+#else
         "ld      14, 0(%[iv])\n\t"
         "ld      15, 8(%[iv])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    10, 9, 0x400\n\t"
         "addi    11, 9, 0x800\n\t"
         "addi    12, 9, 0xc00\n\t"
         "\n"
     "L_AES_CBC_encrypt_loop_block_%=: \n\t"
         "addi    26, %[ks], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   18, 0, %[in]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   19, 22, %[in]\n\t"
+#else
         "ld      18, 0(%[in])\n\t"
         "ld      19, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 18\n\t"
         "xor     15, 15, 19\n\t"
         "ld      18, 0(26)\n\t"
@@ -1617,14 +1797,26 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
         /*   XOR in Key Schedule */
         "xor     14, 14, 18\n\t"
         "xor     15, 15, 19\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  14, 0, %[out]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  15, 22, %[out]\n\t"
+#else
         "std     14, 0(%[out])\n\t"
         "std     15, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
         "bne     L_AES_CBC_encrypt_loop_block_%=\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  14, 0, %[iv]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  15, 22, %[iv]\n\t"
+#else
         "std     14, 0(%[iv])\n\t"
         "std     15, 8(%[iv])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
@@ -1671,8 +1863,14 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
 
     __asm__ __volatile__ (
         "mr      9, %[L_AES_PPC64_te4_0]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   22, 0, %[ctr]\n\t"
+        "li      24, 8\n\t"
+        "ldbrx   23, 24, %[ctr]\n\t"
+#else
         "ld      22, 0(%[ctr])\n\t"
         "ld      23, 8(%[ctr])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    10, 9, 0x400\n\t"
         "addi    11, 9, 0x800\n\t"
         "addi    12, 9, 0xc00\n\t"
@@ -1975,20 +2173,38 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
         /*   XOR in Key Schedule */
         "xor     14, 14, 18\n\t"
         "xor     15, 15, 19\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   18, 0, %[in]\n\t"
+        "li      24, 8\n\t"
+        "ldbrx   19, 24, %[in]\n\t"
+#else
         "ld      18, 0(%[in])\n\t"
         "ld      19, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 18\n\t"
         "xor     15, 15, 19\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  14, 0, %[out]\n\t"
+        "li      24, 8\n\t"
+        "stdbrx  15, 24, %[out]\n\t"
+#else
         "std     14, 0(%[out])\n\t"
         "std     15, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addic   23, 23, 1\n\t"
         "addze   22, 22\n\t"
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
         "bne     L_AES_CTR_encrypt_loop_block_128_%=\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  22, 0, %[ctr]\n\t"
+        "li      24, 8\n\t"
+        "stdbrx  23, 24, %[ctr]\n\t"
+#else
         "std     22, 0(%[ctr])\n\t"
         "std     23, 8(%[ctr])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
@@ -2035,8 +2251,14 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
 
     __asm__ __volatile__ (
         "mr      9, %[L_AES_PPC64_te4_0]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   26, 0, %[ctr]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   27, 22, %[ctr]\n\t"
+#else
         "ld      26, 0(%[ctr])\n\t"
         "ld      27, 8(%[ctr])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    10, 9, 0x400\n\t"
         "addi    11, 9, 0x800\n\t"
         "addi    12, 9, 0xc00\n\t"
@@ -2341,18 +2563,36 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
         /*   XOR in Key Schedule */
         "xor     14, 14, 18\n\t"
         "xor     15, 15, 19\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   18, 0, %[in]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   19, 22, %[in]\n\t"
+#else
         "ld      18, 0(%[in])\n\t"
         "ld      19, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[in], %[in], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
         "xor     14, 14, 18\n\t"
         "xor     15, 15, 19\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  14, 0, %[out]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  15, 22, %[out]\n\t"
+#else
         "std     14, 0(%[out])\n\t"
         "std     15, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[out], %[out], 16\n\t"
         "bne     L_AES_GCM_encrypt_loop_block_%=\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  26, 0, %[ctr]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  27, 22, %[ctr]\n\t"
+#else
         "std     26, 0(%[ctr])\n\t"
         "std     27, 8(%[ctr])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
@@ -2402,8 +2642,14 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    12, 11, 0x400\n\t"
         "addi    14, 11, 0x800\n\t"
         "addi    15, 11, 0xc00\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   28, 0, %[i]\n\t"
+        "li      24, 8\n\t"
+        "ldbrx   29, 24, %[i]\n\t"
+#else
         "ld      28, 0(%[i])\n\t"
         "ld      29, 8(%[i])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      20, 0(%[key2])\n\t"
         "ld      21, 8(%[key2])\n\t"
         "addi    %[key2], %[key2], 16\n\t"
@@ -2700,13 +2946,25 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         /*   XOR in Key Schedule */
         "xor     28, 28, 20\n\t"
         "xor     29, 29, 21\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  28, 0, %[tmp]\n\t"
+        "li      24, 8\n\t"
+        "stdbrx  29, 24, %[tmp]\n\t"
+#else
         "std     28, 0(%[tmp])\n\t"
         "std     29, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "\n"
     "L_AES_XTS_encrypt_loop_block_%=: \n\t"
         "addi    %[key2], %[key], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   16, 0, %[in]\n\t"
+        "li      24, 8\n\t"
+        "ldbrx   17, 24, %[in]\n\t"
+#else
         "ld      16, 0(%[in])\n\t"
         "ld      17, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      20, 0(%[key2])\n\t"
         "ld      21, 8(%[key2])\n\t"
         "addi    %[key2], %[key2], 16\n\t"
@@ -3008,10 +3266,21 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "xor     16, 16, 28\n\t"
         "xor     17, 17, 29\n\t"
         "li      19, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ld      28, 0(%[tmp])\n\t"
+        "ld      29, 8(%[tmp])\n\t"
+#else
         "ldbrx   28, 0, %[tmp]\n\t"
-        "ldbrx   29, %[tmp], 19\n\t"
+        "ldbrx   29, 19, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  16, 0, %[out]\n\t"
+        "li      24, 8\n\t"
+        "stdbrx  17, 24, %[out]\n\t"
+#else
         "std     16, 0(%[out])\n\t"
         "std     17, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   24, 29, 63\n\t"
         "srdi    25, 28, 63\n\t"
         "sldi    29, 29, 1\n\t"
@@ -3019,10 +3288,21 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    28, 28, 1\n\t"
         "xor     29, 29, 25\n\t"
         "xor     28, 28, 24\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     28, 0(%[tmp])\n\t"
+        "std     29, 8(%[tmp])\n\t"
+#else
         "stdbrx  28, 0, %[tmp]\n\t"
-        "stdbrx  29, %[tmp], 19\n\t"
+        "stdbrx  29, 19, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   28, 0, %[tmp]\n\t"
+        "li      24, 8\n\t"
+        "ldbrx   29, 24, %[tmp]\n\t"
+#else
         "ld      28, 0(%[tmp])\n\t"
         "ld      29, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[sz], %[sz], -16\n\t"
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
@@ -3032,11 +3312,23 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "beq     L_AES_XTS_encrypt_done_data_%=\n\t"
         "addi    %[key2], %[key], 0\n\t"
         "addi    %[out], %[out], -16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   16, 0, %[out]\n\t"
+        "li      24, 8\n\t"
+        "ldbrx   17, 24, %[out]\n\t"
+#else
         "ld      16, 0(%[out])\n\t"
         "ld      17, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  16, 0, %[tmp]\n\t"
+        "li      24, 8\n\t"
+        "stdbrx  17, 24, %[tmp]\n\t"
+#else
         "std     16, 0(%[tmp])\n\t"
         "std     17, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    20, %[sz], 0\n\t"
         "\n"
     "L_AES_XTS_encrypt_start_byte_%=: \n\t"
@@ -3052,8 +3344,14 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "subf    %[out], %[sz], %[out]\n\t"
         "subf    %[tmp], %[sz], %[tmp]\n\t"
         "addi    %[out], %[out], -16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   16, 0, %[tmp]\n\t"
+        "li      24, 8\n\t"
+        "ldbrx   17, 24, %[tmp]\n\t"
+#else
         "ld      16, 0(%[tmp])\n\t"
         "ld      17, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      20, 0(%[key2])\n\t"
         "ld      21, 8(%[key2])\n\t"
         "addi    %[key2], %[key2], 16\n\t"
@@ -3354,8 +3652,14 @@ void AES_XTS_encrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "xor     17, 17, 21\n\t"
         "xor     16, 16, 28\n\t"
         "xor     17, 17, 29\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  16, 0, %[out]\n\t"
+        "li      24, 8\n\t"
+        "stdbrx  17, 24, %[out]\n\t"
+#else
         "std     16, 0(%[out])\n\t"
         "std     17, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "\n"
     "L_AES_XTS_encrypt_done_data_%=: \n\t"
         "addi    1, 1, 0x88\n\t"
@@ -3447,8 +3751,14 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
         "\n"
     "L_AES_ECB_decrypt_loop_block_%=: \n\t"
         "addi    23, %[ks], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 0, %[in]\n\t"
+        "li      19, 8\n\t"
+        "ldbrx   11, 19, %[in]\n\t"
+#else
         "ld      10, 0(%[in])\n\t"
         "ld      11, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      15, 0(23)\n\t"
         "ld      16, 8(23)\n\t"
         "addi    23, 23, 16\n\t"
@@ -3747,8 +4057,14 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
         /*   XOR in Key Schedule */
         "xor     10, 10, 15\n\t"
         "xor     11, 11, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  10, 0, %[out]\n\t"
+        "li      19, 8\n\t"
+        "stdbrx  11, 19, %[out]\n\t"
+#else
         "std     10, 0(%[out])\n\t"
         "std     11, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addic.  %[len], %[len], -16\n\t"
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
@@ -3801,13 +4117,25 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
     __asm__ __volatile__ (
         "mr      10, %[L_AES_PPC64_td4]\n\t"
         "mr      9, %[L_AES_PPC64_td]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   24, 0, %[iv]\n\t"
+        "li      20, 8\n\t"
+        "ldbrx   25, 20, %[iv]\n\t"
+#else
         "ld      24, 0(%[iv])\n\t"
         "ld      25, 8(%[iv])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "\n"
     "L_AES_CBC_decrypt_loop_block_%=: \n\t"
         "addi    28, %[ks], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   26, 0, %[in]\n\t"
+        "li      20, 8\n\t"
+        "ldbrx   27, 20, %[in]\n\t"
+#else
         "ld      26, 0(%[in])\n\t"
         "ld      27, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      16, 0(28)\n\t"
         "ld      17, 8(28)\n\t"
         "addi    28, 28, 16\n\t"
@@ -4108,15 +4436,27 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
         "xor     12, 12, 17\n\t"
         "xor     11, 11, 24\n\t"
         "xor     12, 12, 25\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  11, 0, %[out]\n\t"
+        "li      20, 8\n\t"
+        "stdbrx  12, 20, %[out]\n\t"
+#else
         "std     11, 0(%[out])\n\t"
         "std     12, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addic.  %[len], %[len], -16\n\t"
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "beq     L_AES_CBC_decrypt_end_dec_odd_%=\n\t"
         "addi    28, %[ks], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   24, 0, %[in]\n\t"
+        "li      20, 8\n\t"
+        "ldbrx   25, 20, %[in]\n\t"
+#else
         "ld      24, 0(%[in])\n\t"
         "ld      25, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      16, 0(28)\n\t"
         "ld      17, 8(28)\n\t"
         "addi    28, 28, 16\n\t"
@@ -4417,19 +4757,37 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
         "xor     12, 12, 17\n\t"
         "xor     11, 11, 26\n\t"
         "xor     12, 12, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  11, 0, %[out]\n\t"
+        "li      20, 8\n\t"
+        "stdbrx  12, 20, %[out]\n\t"
+#else
         "std     11, 0(%[out])\n\t"
         "std     12, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addic.  %[len], %[len], -16\n\t"
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "bne     L_AES_CBC_decrypt_loop_block_%=\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  24, 0, %[iv]\n\t"
+        "li      20, 8\n\t"
+        "stdbrx  25, 20, %[iv]\n\t"
+#else
         "std     24, 0(%[iv])\n\t"
         "std     25, 8(%[iv])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "b       L_AES_CBC_decrypt_end_dec_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_end_dec_odd_%=: \n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  26, 0, %[iv]\n\t"
+        "li      20, 8\n\t"
+        "stdbrx  27, 20, %[iv]\n\t"
+#else
         "std     26, 0(%[iv])\n\t"
         "std     27, 8(%[iv])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "\n"
     "L_AES_CBC_decrypt_end_dec_%=: \n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4492,8 +4850,14 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    18, 18, 15\n\t"
         "andi.   18, 18, 16\n\t"
         "subf    %[sz], 18, %[sz]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   26, 0, %[i]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   27, 22, %[i]\n\t"
+#else
         "ld      26, 0(%[i])\n\t"
         "ld      27, 8(%[i])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      18, 0(%[key2])\n\t"
         "ld      19, 8(%[key2])\n\t"
         "addi    %[key2], %[key2], 16\n\t"
@@ -4790,8 +5154,14 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         /*   XOR in Key Schedule */
         "xor     26, 26, 18\n\t"
         "xor     27, 27, 19\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  26, 0, %[tmp]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  27, 22, %[tmp]\n\t"
+#else
         "std     26, 0(%[tmp])\n\t"
         "std     27, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "mr      11, %[L_AES_PPC64_td]\n\t"
         "mr      12, %[L_AES_PPC64_td4]\n\t"
         "cmpdi   %[sz], 16\n\t"
@@ -4799,8 +5169,14 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "\n"
     "L_AES_XTS_decrypt_loop_block_%=: \n\t"
         "addi    %[key2], %[key], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   14, 0, %[in]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   15, 22, %[in]\n\t"
+#else
         "ld      14, 0(%[in])\n\t"
         "ld      15, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      18, 0(%[key2])\n\t"
         "ld      19, 8(%[key2])\n\t"
         "addi    %[key2], %[key2], 16\n\t"
@@ -5104,10 +5480,21 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "xor     14, 14, 26\n\t"
         "xor     15, 15, 27\n\t"
         "li      17, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ld      26, 0(%[tmp])\n\t"
+        "ld      27, 8(%[tmp])\n\t"
+#else
         "ldbrx   26, 0, %[tmp]\n\t"
-        "ldbrx   27, %[tmp], 17\n\t"
+        "ldbrx   27, 17, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  14, 0, %[out]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  15, 22, %[out]\n\t"
+#else
         "std     14, 0(%[out])\n\t"
         "std     15, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   22, 27, 63\n\t"
         "srdi    23, 26, 63\n\t"
         "sldi    27, 27, 1\n\t"
@@ -5115,10 +5502,21 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    26, 26, 1\n\t"
         "xor     27, 27, 23\n\t"
         "xor     26, 26, 22\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     26, 0(%[tmp])\n\t"
+        "std     27, 8(%[tmp])\n\t"
+#else
         "stdbrx  26, 0, %[tmp]\n\t"
-        "stdbrx  27, %[tmp], 17\n\t"
+        "stdbrx  27, 17, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   26, 0, %[tmp]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   27, 22, %[tmp]\n\t"
+#else
         "ld      26, 0(%[tmp])\n\t"
         "ld      27, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[sz], %[sz], -16\n\t"
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
@@ -5129,8 +5527,13 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "\n"
     "L_AES_XTS_decrypt_start_partail_%=: \n\t"
         "li      17, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ld      28, 0(%[tmp])\n\t"
+        "ld      29, 8(%[tmp])\n\t"
+#else
         "ldbrx   28, 0, %[tmp]\n\t"
-        "ldbrx   29, %[tmp], 17\n\t"
+        "ldbrx   29, 17, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   22, 29, 63\n\t"
         "srdi    23, 28, 63\n\t"
         "sldi    29, 29, 1\n\t"
@@ -5138,13 +5541,30 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    28, 28, 1\n\t"
         "xor     29, 29, 23\n\t"
         "xor     28, 28, 22\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     28, 0(%[tmp])\n\t"
+        "std     29, 8(%[tmp])\n\t"
+#else
         "stdbrx  28, 0, %[tmp]\n\t"
-        "stdbrx  29, %[tmp], 17\n\t"
+        "stdbrx  29, 17, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   28, 0, %[tmp]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   29, 22, %[tmp]\n\t"
+#else
         "ld      28, 0(%[tmp])\n\t"
         "ld      29, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[key2], %[key], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   14, 0, %[in]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   15, 22, %[in]\n\t"
+#else
         "ld      14, 0(%[in])\n\t"
         "ld      15, 8(%[in])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[in], %[in], 16\n\t"
         "ld      18, 0(%[key2])\n\t"
         "ld      19, 8(%[key2])\n\t"
@@ -5448,8 +5868,14 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "xor     15, 15, 19\n\t"
         "xor     14, 14, 28\n\t"
         "xor     15, 15, 29\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  14, 0, %[tmp]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  15, 22, %[tmp]\n\t"
+#else
         "std     14, 0(%[tmp])\n\t"
         "std     15, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    18, %[sz], 0\n\t"
         "\n"
@@ -5467,8 +5893,14 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "subf    %[tmp], %[sz], %[tmp]\n\t"
         "addi    %[out], %[out], -16\n\t"
         "addi    %[key2], %[key], 0\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   14, 0, %[tmp]\n\t"
+        "li      22, 8\n\t"
+        "ldbrx   15, 22, %[tmp]\n\t"
+#else
         "ld      14, 0(%[tmp])\n\t"
         "ld      15, 8(%[tmp])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "ld      18, 0(%[key2])\n\t"
         "ld      19, 8(%[key2])\n\t"
         "addi    %[key2], %[key2], 16\n\t"
@@ -5771,8 +6203,14 @@ void AES_XTS_decrypt(const byte* in, byte* out, word32 sz, const byte* i,
         "xor     15, 15, 19\n\t"
         "xor     14, 14, 26\n\t"
         "xor     15, 15, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  14, 0, %[out]\n\t"
+        "li      22, 8\n\t"
+        "stdbrx  15, 22, %[out]\n\t"
+#else
         "std     14, 0(%[out])\n\t"
         "std     15, 8(%[out])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "\n"
     "L_AES_XTS_decrypt_done_data_%=: \n\t"
         "addi    1, 1, 0x88\n\t"
@@ -5845,21 +6283,51 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "addi    8, 7, 0x40\n\t"
         "\n"
     "L_GCM_gmult_len_start_block_%=: \n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ld      18, 0(%[x])\n\t"
+        "ld      19, 8(%[x])\n\t"
+#else
         "ldbrx   18, 0, %[x]\n\t"
         "ldbrx   19, 25, %[x]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      9, 0(%[data])\n\t"
+        "ld      10, 8(%[data])\n\t"
+#else
         "ldbrx   9, 0, %[data]\n\t"
         "ldbrx   10, 25, %[data]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     18, 18, 9\n\t"
         "xor     19, 19, 10\n\t"
         "rldicr  0, 19, 32, 63\n\t"
         /* Byte 15 */
         "rlwinm  23, 0, 12, 24, 27\n\t"
         "rlwinm  24, 0, 8, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   14, 23, %[m]\n\t"
+#else
         "ldx     14, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   15, 23, 20\n\t"
+#else
         "ldx     15, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -5878,13 +6346,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 14 */
         "rlwinm  23, 0, 20, 24, 27\n\t"
         "rlwinm  24, 0, 16, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -5903,13 +6391,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 13 */
         "rlwinm  23, 0, 28, 24, 27\n\t"
         "rlwinm  24, 0, 24, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -5928,13 +6436,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 12 */
         "rlwinm  23, 0, 4, 24, 27\n\t"
         "rlwinm  24, 0, 0, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -5953,13 +6481,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 11 */
         "rlwinm  23, 19, 12, 24, 27\n\t"
         "rlwinm  24, 19, 8, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -5978,13 +6526,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 10 */
         "rlwinm  23, 19, 20, 24, 27\n\t"
         "rlwinm  24, 19, 16, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6003,13 +6571,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 9 */
         "rlwinm  23, 19, 28, 24, 27\n\t"
         "rlwinm  24, 19, 24, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6028,13 +6616,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 8 */
         "rlwinm  23, 19, 4, 24, 27\n\t"
         "rlwinm  24, 19, 0, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6054,13 +6662,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 7 */
         "rlwinm  23, 0, 12, 24, 27\n\t"
         "rlwinm  24, 0, 8, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6079,13 +6707,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 6 */
         "rlwinm  23, 0, 20, 24, 27\n\t"
         "rlwinm  24, 0, 16, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6104,13 +6752,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 5 */
         "rlwinm  23, 0, 28, 24, 27\n\t"
         "rlwinm  24, 0, 24, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6129,13 +6797,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 4 */
         "rlwinm  23, 0, 4, 24, 27\n\t"
         "rlwinm  24, 0, 0, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6154,13 +6842,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 3 */
         "rlwinm  23, 18, 12, 24, 27\n\t"
         "rlwinm  24, 18, 8, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6179,13 +6887,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 2 */
         "rlwinm  23, 18, 20, 24, 27\n\t"
         "rlwinm  24, 18, 16, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6204,13 +6932,33 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 1 */
         "rlwinm  23, 18, 28, 24, 27\n\t"
         "rlwinm  24, 18, 24, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, 21\n\t"
+#else
         "ldx     11, 24, 21\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 22\n\t"
+#else
         "ldx     12, 24, 22\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 24, 20\n\t"
+#else
         "ldx     10, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  16, 15, 60, 60\n\t"
         "rldic   17, 15, 2, 58\n\t"
         "srdi    15, 15, 8\n\t"
@@ -6229,10 +6977,26 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         /* Byte 0 */
         "rlwinm  23, 18, 4, 24, 27\n\t"
         "rlwinm  24, 18, 0, 24, 27\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   9, 23, %[m]\n\t"
+#else
         "ldx     9, 23, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 23, 20\n\t"
+#else
         "ldx     10, 23, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 24, %[m]\n\t"
+#else
         "ldx     11, 24, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 24, 20\n\t"
+#else
         "ldx     12, 24, 20\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 9\n\t"
         "xor     15, 15, 10\n\t"
         "rldic   16, 15, 2, 58\n\t"
@@ -6246,8 +7010,13 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "xor     18, 14, 9\n\t"
         "addi    %[data], %[data], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stdbrx  18, 0, %[x]\n\t"
+        "stdbrx  19, 25, %[x]\n\t"
+#else
         "std     18, 0(%[x])\n\t"
         "std     19, 8(%[x])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "bne     L_GCM_gmult_len_start_block_%=\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
@@ -6361,30 +7130,60 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "li      17, 8\n\t"
         "\n"
     "L_GCM_gmult_len_start_block_%=: \n\t"
+#ifdef __LITTLE_ENDIAN__
+        "ld      8, 0(%[x])\n\t"
+        "ld      9, 8(%[x])\n\t"
+#else
         "ldbrx   8, 0, %[x]\n\t"
         "ldbrx   9, 17, %[x]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      10, 0(%[data])\n\t"
+        "ld      11, 8(%[data])\n\t"
+#else
         "ldbrx   10, 0, %[data]\n\t"
         "ldbrx   11, 17, %[data]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     8, 8, 10\n\t"
         "xor     9, 9, 11\n\t"
         "rldicr  19, 9, 32, 63\n\t"
         "rldicr  18, 8, 32, 63\n\t"
         "rlwinm  16, 19, 12, 20, 27\n\t"
         /* Byte 15 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   12, 16, %[m]\n\t"
+#else
         "ldx     12, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   14, 16, 0\n\t"
+#else
         "ldx     14, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "rldicl  11, 12, 8, 56\n\t"
         "rldicl  15, 14, 9, 55\n\t"
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 19, 20, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 14 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6392,13 +7191,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 19, 28, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 13 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6406,13 +7217,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 19, 4, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 12 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6420,13 +7243,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 9, 12, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 11 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6434,13 +7269,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 9, 20, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 10 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6448,13 +7295,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 9, 28, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 9 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6462,13 +7321,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 9, 4, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 8 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6476,13 +7347,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 18, 12, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 7 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6490,13 +7373,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 18, 20, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 6 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6504,13 +7399,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 18, 28, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 5 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6518,13 +7425,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 18, 4, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 4 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6532,13 +7451,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 8, 12, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 3 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6546,13 +7477,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 8, 20, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 2 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6560,13 +7503,25 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 8, 28, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 1 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     12, 12, 10\n\t"
         "xor     14, 14, 11\n\t"
         "rldicl  11, 12, 8, 56\n\t"
@@ -6574,19 +7529,36 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "sldi    14, 14, 8\n\t"
         "andi.   15, 15, 510\n\t"
         "sldi    12, 12, 8\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lhbrx   10, 15, 7\n\t"
+#else
         "lhzx    10, 15, 7\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     14, 14, 11\n\t"
         "rlwinm  16, 8, 4, 20, 27\n\t"
         "xor     12, 12, 10\n\t"
         /* Byte 0 */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   10, 16, %[m]\n\t"
+#else
         "ldx     10, 16, %[m]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "ldbrx   11, 16, 0\n\t"
+#else
         "ldx     11, 16, 0\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[data], %[data], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
         "xor     8, 12, 10\n\t"
         "xor     9, 14, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     8, 0(%[x])\n\t"
+        "std     9, 8(%[x])\n\t"
+#else
         "stdbrx  8, 0, %[x]\n\t"
         "stdbrx  9, 17, %[x]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "bne     L_GCM_gmult_len_start_block_%=\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
@@ -6648,13 +7620,23 @@ static const word32 L_AES_PPC64_crypto_rcon[] = {
     0x1b000000, 0x36000000
 };
 
+static const byte L_AES_PPC64_crypto_bswap[] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+};
+
 #if defined(WOLFSSL_AES_COUNTER) && defined(HAVE_AESGCM)
-static const word32 L_AES_PPC64_crypto_one[] = {
-    0x00000000, 0x00000000, 0x00000000, 0x00000001,
+static const byte L_AES_PPC64_crypto_one[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
 };
 
 #endif /* defined(WOLFSSL_AES_COUNTER) && defined(HAVE_AESGCM) */
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
     unsigned char* ks);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6686,6 +7668,23 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "beq     L_AES_set_encrypt_key_crypto_128_%=\n\t"
         "cmplwi  %[len], 0xc0\n\t"
         "beq     L_AES_set_encrypt_key_crypto_192_%=\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwbrx   0, 0, %[key]\n\t"
+        "li      18, 4\n\t"
+        "lwbrx   6, 18, %[key]\n\t"
+        "li      18, 8\n\t"
+        "lwbrx   7, 18, %[key]\n\t"
+        "li      18, 12\n\t"
+        "lwbrx   8, 18, %[key]\n\t"
+        "li      18, 16\n\t"
+        "lwbrx   9, 18, %[key]\n\t"
+        "li      18, 20\n\t"
+        "lwbrx   10, 18, %[key]\n\t"
+        "li      18, 24\n\t"
+        "lwbrx   11, 18, %[key]\n\t"
+        "li      18, 28\n\t"
+        "lwbrx   12, 18, %[key]\n\t"
+#else
         "lwz     0, 0(%[key])\n\t"
         "lwz     6, 4(%[key])\n\t"
         "lwz     7, 8(%[key])\n\t"
@@ -6694,6 +7693,17 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "lwz     10, 20(%[key])\n\t"
         "lwz     11, 24(%[key])\n\t"
         "lwz     12, 28(%[key])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+        "stw     10, 16(%[ks])\n\t"
+        "stw     9, 20(%[ks])\n\t"
+        "stw     12, 24(%[ks])\n\t"
+        "stw     11, 28(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
@@ -6702,6 +7712,7 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "stw     10, 20(%[ks])\n\t"
         "stw     11, 24(%[ks])\n\t"
         "stw     12, 28(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 32\n\t"
         "li      17, 6\n\t"
         "mtctr   17\n\t"
@@ -6726,10 +7737,17 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "xor     6, 6, 0\n\t"
         "xor     7, 7, 6\n\t"
         "xor     8, 8, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
         "stw     8, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "rlwinm  17, 8, 8, 24, 31\n\t"
         "lbzx    17, 14, 17\n\t"
@@ -6747,10 +7765,17 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "xor     10, 10, 9\n\t"
         "xor     11, 11, 10\n\t"
         "xor     12, 12, 11\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     10, 0(%[ks])\n\t"
+        "stw     9, 4(%[ks])\n\t"
+        "stw     12, 8(%[ks])\n\t"
+        "stw     11, 12(%[ks])\n\t"
+#else
         "stw     9, 0(%[ks])\n\t"
         "stw     10, 4(%[ks])\n\t"
         "stw     11, 8(%[ks])\n\t"
         "stw     12, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "bdnz    L_AES_set_encrypt_key_crypto_loop_256_%=\n\t"
         "rlwinm  17, 12, 16, 24, 31\n\t"
@@ -6772,26 +7797,56 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "xor     6, 6, 0\n\t"
         "xor     7, 7, 6\n\t"
         "xor     8, 8, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
         "stw     8, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "b       L_AES_set_encrypt_key_crypto_end_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_crypto_192_%=: \n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwbrx   0, 0, %[key]\n\t"
+        "li      18, 4\n\t"
+        "lwbrx   6, 18, %[key]\n\t"
+        "li      18, 8\n\t"
+        "lwbrx   7, 18, %[key]\n\t"
+        "li      18, 12\n\t"
+        "lwbrx   8, 18, %[key]\n\t"
+        "li      18, 16\n\t"
+        "lwbrx   9, 18, %[key]\n\t"
+        "li      18, 20\n\t"
+        "lwbrx   10, 18, %[key]\n\t"
+#else
         "lwz     0, 0(%[key])\n\t"
         "lwz     6, 4(%[key])\n\t"
         "lwz     7, 8(%[key])\n\t"
         "lwz     8, 12(%[key])\n\t"
         "lwz     9, 16(%[key])\n\t"
         "lwz     10, 20(%[key])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+        "stw     10, 16(%[ks])\n\t"
+        "stw     9, 20(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
         "stw     8, 12(%[ks])\n\t"
         "stw     9, 16(%[ks])\n\t"
         "stw     10, 20(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 24\n\t"
         "li      17, 7\n\t"
         "mtctr   17\n\t"
@@ -6816,14 +7871,26 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "xor     6, 6, 0\n\t"
         "xor     7, 7, 6\n\t"
         "xor     8, 8, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
         "stw     8, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "xor     9, 9, 8\n\t"
         "xor     10, 10, 9\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     10, 16(%[ks])\n\t"
+        "stw     9, 20(%[ks])\n\t"
+#else
         "stw     9, 16(%[ks])\n\t"
         "stw     10, 20(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 24\n\t"
         "bdnz    L_AES_set_encrypt_key_crypto_loop_192_%=\n\t"
         "rlwinm  17, 10, 16, 24, 31\n\t"
@@ -6845,21 +7912,45 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "xor     6, 6, 0\n\t"
         "xor     7, 7, 6\n\t"
         "xor     8, 8, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
         "stw     8, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "b       L_AES_set_encrypt_key_crypto_end_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_crypto_128_%=: \n\t"
+#ifdef __LITTLE_ENDIAN__
+        "lwbrx   0, 0, %[key]\n\t"
+        "li      18, 4\n\t"
+        "lwbrx   6, 18, %[key]\n\t"
+        "li      18, 8\n\t"
+        "lwbrx   7, 18, %[key]\n\t"
+        "li      18, 12\n\t"
+        "lwbrx   8, 18, %[key]\n\t"
+#else
         "lwz     0, 0(%[key])\n\t"
         "lwz     6, 4(%[key])\n\t"
         "lwz     7, 8(%[key])\n\t"
         "lwz     8, 12(%[key])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
         "stw     8, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "li      17, 10\n\t"
         "mtctr   17\n\t"
@@ -6884,10 +7975,17 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
         "xor     6, 6, 0\n\t"
         "xor     7, 7, 6\n\t"
         "xor     8, 8, 7\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "stw     6, 0(%[ks])\n\t"
+        "stw     0, 4(%[ks])\n\t"
+        "stw     8, 8(%[ks])\n\t"
+        "stw     7, 12(%[ks])\n\t"
+#else
         "stw     0, 0(%[ks])\n\t"
         "stw     6, 4(%[ks])\n\t"
         "stw     7, 8(%[ks])\n\t"
         "stw     8, 12(%[ks])\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "addi    %[ks], %[ks], 16\n\t"
         "bdnz    L_AES_set_encrypt_key_crypto_loop_128_%=\n\t"
         "\n"
@@ -6898,19 +7996,23 @@ void AES_set_encrypt_key_crypto(const unsigned char* key, word32 len,
           [L_AES_PPC64_crypto_rcon] "+r" (L_AES_PPC64_crypto_rcon_c)
         :
         : "memory", "cc", "0", "8", "9", "10", "11", "12", "14", "15", "16",
-            "17"
+            "17", "18"
 #else
         :
         : [key] "r" (key), [len] "r" (len), [ks] "r" (ks),
           [L_AES_PPC64_crypto_sbox] "r" (L_AES_PPC64_crypto_sbox_c),
           [L_AES_PPC64_crypto_rcon] "r" (L_AES_PPC64_crypto_rcon_c)
         : "memory", "cc", "0", "6", "7", "8", "9", "10", "11", "12", "14", "15",
-            "16", "17"
+            "16", "17", "18"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
 }
 
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_invert_key_crypto(unsigned char* ks, word32 rounds);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_invert_key_crypto(unsigned char* ks_p, word32 rounds_p)
@@ -6954,7 +8056,11 @@ void AES_invert_key_crypto(unsigned char* ks, word32 rounds)
     );
 }
 
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
     word32 len, const unsigned char* ks, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6971,9 +8077,18 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
     register word32 len asm ("5") = (word32)len_p;
     register const unsigned char* ks asm ("6") = (const unsigned char*)ks_p;
     register int nr asm ("7") = (int)nr_p;
+    register byte* L_AES_PPC64_crypto_bswap_c asm ("8") =
+        (byte*)&L_AES_PPC64_crypto_bswap;
+#else
+    register byte* L_AES_PPC64_crypto_bswap_c =
+        (byte*)&L_AES_PPC64_crypto_bswap;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      8, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  55, 0, 8\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_ECB_encrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
@@ -7013,21 +8128,77 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_ECB_encrypt_crypto_256_blk4_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_256_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7149,21 +8320,77 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     20, 20, 14\n\t"
         "vcipherlast     21, 21, 14\n\t"
         "vcipherlast     22, 22, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -7172,13 +8399,41 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_encrypt_crypto_256_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_ECB_encrypt_crypto_256_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7240,22 +8495,64 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     16, 16, 14\n\t"
         "vcipherlast     17, 17, 14\n\t"
         "vcipherlast     18, 18, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_256_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_ECB_encrypt_crypto_256_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7287,16 +8584,37 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 16, 16, 13\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_256_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_ECB_encrypt_crypto_256_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -7313,7 +8631,14 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 12\n\t"
         "vcipher 15, 15, 13\n\t"
         "vcipherlast     15, 15, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -7352,21 +8677,77 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_ECB_encrypt_crypto_192_blk4_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_192_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7472,21 +8853,77 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     20, 20, 12\n\t"
         "vcipherlast     21, 21, 12\n\t"
         "vcipherlast     22, 22, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -7495,13 +8932,41 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_encrypt_crypto_192_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_ECB_encrypt_crypto_192_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7555,22 +9020,64 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     16, 16, 12\n\t"
         "vcipherlast     17, 17, 12\n\t"
         "vcipherlast     18, 18, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_192_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_ECB_encrypt_crypto_192_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7598,16 +9105,37 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 16, 16, 11\n\t"
         "vcipherlast     15, 15, 12\n\t"
         "vcipherlast     16, 16, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_192_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_ECB_encrypt_crypto_192_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -7622,7 +9150,14 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 10\n\t"
         "vcipher 15, 15, 11\n\t"
         "vcipherlast     15, 15, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -7657,21 +9192,77 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_ECB_encrypt_crypto_128_blk4_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_128_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7761,21 +9352,77 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     20, 20, 10\n\t"
         "vcipherlast     21, 21, 10\n\t"
         "vcipherlast     22, 22, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -7784,13 +9431,41 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_encrypt_crypto_128_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_ECB_encrypt_crypto_128_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7836,22 +9511,64 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     16, 16, 10\n\t"
         "vcipherlast     17, 17, 10\n\t"
         "vcipherlast     18, 18, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_128_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_ECB_encrypt_crypto_128_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -7875,16 +9592,37 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 16, 16, 9\n\t"
         "vcipherlast     15, 15, 10\n\t"
         "vcipherlast     16, 16, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_ECB_encrypt_crypto_128_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_ECB_encrypt_crypto_128_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -7897,7 +9635,14 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 8\n\t"
         "vcipher 15, 15, 9\n\t"
         "vcipherlast     15, 15, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -7906,24 +9651,30 @@ void AES_ECB_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_encrypt_crypto_alldone_%=: \n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
-          [nr] "+r" (nr)
+          [nr] "+r" (nr),
+          [L_AES_PPC64_crypto_bswap] "+r" (L_AES_PPC64_crypto_bswap_c)
         :
-        : "memory", "cc", "0", "8", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22"
+        : "memory", "cc", "0", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23"
 #else
         :
         : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr)
+          [nr] "r" (nr),
+          [L_AES_PPC64_crypto_bswap] "r" (L_AES_PPC64_crypto_bswap_c)
         : "memory", "cc", "0", "8", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
             "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22"
+            "v17", "v18", "v19", "v20", "v21", "v22", "v23"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
 }
 
 #ifdef HAVE_AES_DECRYPT
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
     word32 len, const unsigned char* ks, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7940,9 +9691,18 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
     register word32 len asm ("5") = (word32)len_p;
     register const unsigned char* ks asm ("6") = (const unsigned char*)ks_p;
     register int nr asm ("7") = (int)nr_p;
+    register byte* L_AES_PPC64_crypto_bswap_c asm ("8") =
+        (byte*)&L_AES_PPC64_crypto_bswap;
+#else
+    register byte* L_AES_PPC64_crypto_bswap_c =
+        (byte*)&L_AES_PPC64_crypto_bswap;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      8, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  55, 0, 8\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_ECB_decrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
@@ -7982,21 +9742,77 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_ECB_decrypt_crypto_256_blk4_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_256_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8118,21 +9934,77 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    20, 20, 14\n\t"
         "vncipherlast    21, 21, 14\n\t"
         "vncipherlast    22, 22, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -8141,13 +10013,41 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_decrypt_crypto_256_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_ECB_decrypt_crypto_256_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8209,22 +10109,64 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    16, 16, 14\n\t"
         "vncipherlast    17, 17, 14\n\t"
         "vncipherlast    18, 18, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_256_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_ECB_decrypt_crypto_256_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8256,16 +10198,37 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        16, 16, 13\n\t"
         "vncipherlast    15, 15, 14\n\t"
         "vncipherlast    16, 16, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_256_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_ECB_decrypt_crypto_256_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vncipher        15, 15, 1\n\t"
@@ -8282,7 +10245,14 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        15, 15, 12\n\t"
         "vncipher        15, 15, 13\n\t"
         "vncipherlast    15, 15, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -8321,21 +10291,77 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_ECB_decrypt_crypto_192_blk4_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_192_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8441,21 +10467,77 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    20, 20, 12\n\t"
         "vncipherlast    21, 21, 12\n\t"
         "vncipherlast    22, 22, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -8464,13 +10546,41 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_decrypt_crypto_192_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_ECB_decrypt_crypto_192_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8524,22 +10634,64 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    16, 16, 12\n\t"
         "vncipherlast    17, 17, 12\n\t"
         "vncipherlast    18, 18, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_192_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_ECB_decrypt_crypto_192_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8567,16 +10719,37 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        16, 16, 11\n\t"
         "vncipherlast    15, 15, 12\n\t"
         "vncipherlast    16, 16, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_192_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_ECB_decrypt_crypto_192_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vncipher        15, 15, 1\n\t"
@@ -8591,7 +10764,14 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        15, 15, 10\n\t"
         "vncipher        15, 15, 11\n\t"
         "vncipherlast    15, 15, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -8626,21 +10806,77 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_ECB_decrypt_crypto_128_blk4_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_128_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8730,21 +10966,77 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    20, 20, 10\n\t"
         "vncipherlast    21, 21, 10\n\t"
         "vncipherlast    22, 22, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -8753,13 +11045,41 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_decrypt_crypto_128_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_ECB_decrypt_crypto_128_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8805,22 +11125,64 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    16, 16, 10\n\t"
         "vncipherlast    17, 17, 10\n\t"
         "vncipherlast    18, 18, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_128_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_ECB_decrypt_crypto_128_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -8844,16 +11206,37 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        16, 16, 9\n\t"
         "vncipherlast    15, 15, 10\n\t"
         "vncipherlast    16, 16, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_ECB_decrypt_crypto_128_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_ECB_decrypt_crypto_128_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vncipher        15, 15, 1\n\t"
@@ -8866,7 +11249,14 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        15, 15, 8\n\t"
         "vncipher        15, 15, 9\n\t"
         "vncipherlast    15, 15, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 23\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -8875,25 +11265,31 @@ void AES_ECB_decrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_ECB_decrypt_crypto_alldone_%=: \n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
-          [nr] "+r" (nr)
+          [nr] "+r" (nr),
+          [L_AES_PPC64_crypto_bswap] "+r" (L_AES_PPC64_crypto_bswap_c)
         :
-        : "memory", "cc", "0", "8", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22"
+        : "memory", "cc", "0", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23"
 #else
         :
         : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr)
+          [nr] "r" (nr),
+          [L_AES_PPC64_crypto_bswap] "r" (L_AES_PPC64_crypto_bswap_c)
         : "memory", "cc", "0", "8", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
             "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22"
+            "v17", "v18", "v19", "v20", "v21", "v22", "v23"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
 }
 
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AES_CBC
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -8912,10 +11308,26 @@ void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
     register const unsigned char* ks asm ("6") = (const unsigned char*)ks_p;
     register int nr asm ("7") = (int)nr_p;
     register unsigned char* iv asm ("8") = (unsigned char*)iv_p;
+    register byte* L_AES_PPC64_crypto_bswap_c asm ("9") =
+        (byte*)&L_AES_PPC64_crypto_bswap;
+#else
+    register byte* L_AES_PPC64_crypto_bswap_c =
+        (byte*)&L_AES_PPC64_crypto_bswap;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      9, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  49, 0, 9\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[iv]\n\t"
+#else
         "lxvd2x  47, 0, %[iv]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 17\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_CBC_encrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
@@ -8953,7 +11365,14 @@ void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "addi    9, 9, 16\n\t"
         "\n"
     "L_AES_CBC_encrypt_crypto_256_block_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 17\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vxor    15, 15, 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -8970,7 +11389,16 @@ void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 12\n\t"
         "vcipher 15, 15, 13\n\t"
         "vcipherlast     15, 15, 14\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 15, 15, 17\n\t"
+        "stxvd2x 48, 0, %[out]\n\t"
+#else
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
@@ -9007,7 +11435,14 @@ void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "addi    9, 9, 16\n\t"
         "\n"
     "L_AES_CBC_encrypt_crypto_192_block_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 17\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vxor    15, 15, 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -9022,7 +11457,16 @@ void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 10\n\t"
         "vcipher 15, 15, 11\n\t"
         "vcipherlast     15, 15, 12\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 15, 15, 17\n\t"
+        "stxvd2x 48, 0, %[out]\n\t"
+#else
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
@@ -9055,7 +11499,14 @@ void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "addi    9, 9, 16\n\t"
         "\n"
     "L_AES_CBC_encrypt_crypto_128_block_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 17\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vxor    15, 15, 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -9068,32 +11519,55 @@ void AES_CBC_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 8\n\t"
         "vcipher 15, 15, 9\n\t"
         "vcipherlast     15, 15, 10\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 15, 15, 17\n\t"
+        "stxvd2x 48, 0, %[out]\n\t"
+#else
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "addi    %[out], %[out], 16\n\t"
         "addic.  %[len], %[len], -16\n\t"
         "bne     L_AES_CBC_encrypt_crypto_128_block_%=\n\t"
         "\n"
     "L_AES_CBC_encrypt_crypto_alldone_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[iv]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 17\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[iv]\n\t"
+#endif /* __POWER9_VECTOR__ */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
-          [nr] "+r" (nr), [iv] "+r" (iv)
+          [nr] "+r" (nr), [iv] "+r" (iv),
+          [L_AES_PPC64_crypto_bswap] "+r" (L_AES_PPC64_crypto_bswap_c)
         :
-        : "memory", "cc", "0", "9", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16"
+        : "memory", "cc", "0", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17"
 #else
         :
         : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [iv] "r" (iv)
+          [nr] "r" (nr), [iv] "r" (iv),
+          [L_AES_PPC64_crypto_bswap] "r" (L_AES_PPC64_crypto_bswap_c)
         : "memory", "cc", "0", "9", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16"
+            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
+            "v17"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
 }
 
 #ifdef HAVE_AES_DECRYPT
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -9112,15 +11586,59 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
     register const unsigned char* ks asm ("6") = (const unsigned char*)ks_p;
     register int nr asm ("7") = (int)nr_p;
     register unsigned char* iv asm ("8") = (unsigned char*)iv_p;
+    register byte* L_AES_PPC64_crypto_bswap_c asm ("9") =
+        (byte*)&L_AES_PPC64_crypto_bswap;
+#else
+    register byte* L_AES_PPC64_crypto_bswap_c =
+        (byte*)&L_AES_PPC64_crypto_bswap;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      9, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  45, 0, 9\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[iv]\n\t"
+#else
         "lxvd2x  63, 0, %[iv]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_CBC_decrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
         "beq     L_AES_CBC_decrypt_crypto_192_%=\n\t"
         "addi    9, %[ks], 0\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "lxvd2x  32, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  33, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  34, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  35, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  36, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  37, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  38, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  39, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  40, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  41, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  42, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  43, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+        "lxvd2x  44, 0, 9\n\t"
+        "addi    9, 9, 16\n\t"
+#else
         "lxvd2x  32, 0, 9\n\t"
         "addi    9, 9, 16\n\t"
         "lxvd2x  33, 0, 9\n\t"
@@ -9151,32 +11669,89 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "addi    9, 9, 16\n\t"
         "lxvd2x  46, 0, 9\n\t"
         "addi    9, 9, 16\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "cmpdi   %[len], 0x80\n\t"
         "blt     L_AES_CBC_decrypt_crypto_256_blk4_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_256_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     25, 17, 17\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     26, 18, 18\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     27, 19, 19\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     28, 20, 20\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     29, 21, 21\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     30, 22, 22\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9283,6 +11858,18 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        20, 20, 12\n\t"
         "vncipher        21, 21, 12\n\t"
         "vncipher        22, 22, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xd0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
+        "vncipher        15, 15, 14\n\t"
+        "vncipher        16, 16, 14\n\t"
+        "vncipher        17, 17, 14\n\t"
+        "vncipher        18, 18, 14\n\t"
+        "vncipher        19, 19, 14\n\t"
+        "vncipher        20, 20, 14\n\t"
+        "vncipher        21, 21, 14\n\t"
+        "vncipher        22, 22, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
         "vncipher        16, 16, 13\n\t"
         "vncipher        17, 17, 13\n\t"
@@ -9291,6 +11878,10 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        20, 20, 13\n\t"
         "vncipher        21, 21, 13\n\t"
         "vncipher        22, 22, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xe0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
         "vncipherlast    15, 15, 14\n\t"
         "vncipherlast    16, 16, 14\n\t"
         "vncipherlast    17, 17, 14\n\t"
@@ -9299,6 +11890,16 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    20, 20, 14\n\t"
         "vncipherlast    21, 21, 14\n\t"
         "vncipherlast    22, 22, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+        "vncipherlast    16, 16, 14\n\t"
+        "vncipherlast    17, 17, 14\n\t"
+        "vncipherlast    18, 18, 14\n\t"
+        "vncipherlast    19, 19, 14\n\t"
+        "vncipherlast    20, 20, 14\n\t"
+        "vncipherlast    21, 21, 14\n\t"
+        "vncipherlast    22, 22, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 31\n\t"
         "vxor    16, 16, 23\n\t"
         "vxor    17, 17, 24\n\t"
@@ -9308,21 +11909,77 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    21, 21, 28\n\t"
         "vxor    22, 22, 29\n\t"
         "vor     31, 30, 30\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -9331,16 +11988,44 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_CBC_decrypt_crypto_256_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_CBC_decrypt_crypto_256_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     25, 17, 17\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     26, 18, 18\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9395,36 +12080,96 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        16, 16, 12\n\t"
         "vncipher        17, 17, 12\n\t"
         "vncipher        18, 18, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xd0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
+        "vncipher        15, 15, 14\n\t"
+        "vncipher        16, 16, 14\n\t"
+        "vncipher        17, 17, 14\n\t"
+        "vncipher        18, 18, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
         "vncipher        16, 16, 13\n\t"
         "vncipher        17, 17, 13\n\t"
         "vncipher        18, 18, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xe0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
         "vncipherlast    15, 15, 14\n\t"
         "vncipherlast    16, 16, 14\n\t"
         "vncipherlast    17, 17, 14\n\t"
         "vncipherlast    18, 18, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+        "vncipherlast    16, 16, 14\n\t"
+        "vncipherlast    17, 17, 14\n\t"
+        "vncipherlast    18, 18, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 31\n\t"
         "vxor    16, 16, 23\n\t"
         "vxor    17, 17, 24\n\t"
         "vxor    18, 18, 25\n\t"
         "vor     31, 26, 26\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_256_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_CBC_decrypt_crypto_256_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9453,23 +12198,58 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        16, 16, 11\n\t"
         "vncipher        15, 15, 12\n\t"
         "vncipher        16, 16, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xd0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
+        "vncipher        15, 15, 14\n\t"
+        "vncipher        16, 16, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
         "vncipher        16, 16, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xe0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
         "vncipherlast    15, 15, 14\n\t"
         "vncipherlast    16, 16, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+        "vncipherlast    16, 16, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 31\n\t"
         "vxor    16, 16, 23\n\t"
         "vor     31, 24, 24\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_256_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_CBC_decrypt_crypto_256_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9485,11 +12265,30 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipher        15, 15, 10\n\t"
         "vncipher        15, 15, 11\n\t"
         "vncipher        15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xd0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
+        "vncipher        15, 15, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      9, 0xe0\n\t"
+        "lxvd2x  46, 9, %[ks]\n\t"
         "vncipherlast    15, 15, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 31\n\t"
         "vor     31, 23, 23\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -9528,28 +12327,84 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_CBC_decrypt_crypto_192_blk4_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_192_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     25, 17, 17\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     26, 18, 18\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     27, 19, 19\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     28, 20, 20\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     29, 21, 21\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     30, 22, 22\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9665,21 +12520,77 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    21, 21, 28\n\t"
         "vxor    22, 22, 29\n\t"
         "vor     31, 30, 30\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -9688,16 +12599,44 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_CBC_decrypt_crypto_192_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_CBC_decrypt_crypto_192_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     25, 17, 17\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     26, 18, 18\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9757,23 +12696,65 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    17, 17, 24\n\t"
         "vxor    18, 18, 25\n\t"
         "vor     31, 26, 26\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_192_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_CBC_decrypt_crypto_192_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9805,16 +12786,37 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    15, 15, 31\n\t"
         "vxor    16, 16, 23\n\t"
         "vor     31, 24, 24\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_192_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_CBC_decrypt_crypto_192_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9832,7 +12834,14 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    15, 15, 12\n\t"
         "vxor    15, 15, 31\n\t"
         "vor     31, 23, 23\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -9867,28 +12876,84 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_CBC_decrypt_crypto_128_blk4_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_128_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     25, 17, 17\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     26, 18, 18\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     27, 19, 19\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     28, 20, 20\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     29, 21, 21\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     30, 22, 22\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -9988,21 +13053,77 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    21, 21, 28\n\t"
         "vxor    22, 22, 29\n\t"
         "vor     31, 30, 30\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -10011,16 +13132,44 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_CBC_decrypt_crypto_128_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_CBC_decrypt_crypto_128_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     25, 17, 17\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     26, 18, 18\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -10072,23 +13221,65 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    17, 17, 24\n\t"
         "vxor    18, 18, 25\n\t"
         "vor     31, 26, 26\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_128_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_CBC_decrypt_crypto_128_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     24, 16, 16\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -10116,16 +13307,37 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    15, 15, 31\n\t"
         "vxor    16, 16, 23\n\t"
         "vor     31, 24, 24\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_128_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_CBC_decrypt_crypto_128_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
@@ -10141,26 +13353,42 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
         "vncipherlast    15, 15, 10\n\t"
         "vxor    15, 15, 31\n\t"
         "vor     31, 23, 23\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_128_done_%=: \n\t"
         "\n"
     "L_AES_CBC_decrypt_crypto_alldone_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        63, 0, %[iv]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 63, 0, %[iv]\n\t"
+#endif /* __POWER9_VECTOR__ */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
-          [nr] "+r" (nr), [iv] "+r" (iv)
+          [nr] "+r" (nr), [iv] "+r" (iv),
+          [L_AES_PPC64_crypto_bswap] "+r" (L_AES_PPC64_crypto_bswap_c)
         :
-        : "memory", "cc", "0", "9", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
-            "v26", "v27", "v28", "v29", "v30", "v31"
+        : "memory", "cc", "0", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28", "v29", "v30", "v31"
 #else
         :
         : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
-          [nr] "r" (nr), [iv] "r" (iv)
+          [nr] "r" (nr), [iv] "r" (iv),
+          [L_AES_PPC64_crypto_bswap] "r" (L_AES_PPC64_crypto_bswap_c)
         : "memory", "cc", "0", "9", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
             "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
             "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
@@ -10172,7 +13400,11 @@ void AES_CBC_decrypt_crypto(const unsigned char* in, unsigned char* out,
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -10191,21 +13423,63 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
     register const unsigned char* ks asm ("6") = (const unsigned char*)ks_p;
     register int nr asm ("7") = (int)nr_p;
     register unsigned char* ctr asm ("8") = (unsigned char*)ctr_p;
-    register word32* L_AES_PPC64_crypto_one_c asm ("9") =
-        (word32*)&L_AES_PPC64_crypto_one;
+    register byte* L_AES_PPC64_crypto_one_c asm ("9") =
+        (byte*)&L_AES_PPC64_crypto_one;
+    register byte* L_AES_PPC64_crypto_bswap_c asm ("10") =
+        (byte*)&L_AES_PPC64_crypto_bswap;
 #else
-    register word32* L_AES_PPC64_crypto_one_c =
-        (word32*)&L_AES_PPC64_crypto_one;
+    register byte* L_AES_PPC64_crypto_one_c = (byte*)&L_AES_PPC64_crypto_one;
+    register byte* L_AES_PPC64_crypto_bswap_c =
+        (byte*)&L_AES_PPC64_crypto_bswap;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      10, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  45, 0, 10\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
         "mr      9, %[L_AES_PPC64_crypto_one]\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, 9\n\t"
+#else
         "lxvd2x  63, 0, 9\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_CTR_encrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
         "beq     L_AES_CTR_encrypt_crypto_192_%=\n\t"
         "addi    10, %[ks], 0\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "lxvd2x  32, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  33, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  34, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  35, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  36, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  37, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  38, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  39, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  40, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  41, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  42, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  43, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  44, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+#else
         "lxvd2x  32, 0, 10\n\t"
         "addi    10, 10, 16\n\t"
         "lxvd2x  33, 0, 10\n\t"
@@ -10236,11 +13510,19 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "addi    10, 10, 16\n\t"
         "lxvd2x  46, 0, 10\n\t"
         "addi    10, 10, 16\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "cmpdi   %[len], 0x80\n\t"
         "blt     L_AES_CTR_encrypt_crypto_256_blk4_%=\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_256_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 17, 16, 31\n\t"
@@ -10250,22 +13532,85 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vadduqm 21, 20, 31\n\t"
         "vadduqm 22, 21, 31\n\t"
         "vadduqm 23, 22, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[in]\n\t"
+#else
         "lxvd2x  59, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[in]\n\t"
+#else
         "lxvd2x  60, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[in]\n\t"
+#else
         "lxvd2x  61, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[in]\n\t"
+#else
         "lxvd2x  62, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -10371,6 +13716,18 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 20, 20, 12\n\t"
         "vcipher 21, 21, 12\n\t"
         "vcipher 22, 22, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+        "vcipher 17, 17, 14\n\t"
+        "vcipher 18, 18, 14\n\t"
+        "vcipher 19, 19, 14\n\t"
+        "vcipher 20, 20, 14\n\t"
+        "vcipher 21, 21, 14\n\t"
+        "vcipher 22, 22, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
         "vcipher 17, 17, 13\n\t"
@@ -10379,6 +13736,10 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 20, 20, 13\n\t"
         "vcipher 21, 21, 13\n\t"
         "vcipher 22, 22, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
         "vcipherlast     17, 17, 14\n\t"
@@ -10387,6 +13748,16 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     20, 20, 14\n\t"
         "vcipherlast     21, 21, 14\n\t"
         "vcipherlast     22, 22, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+        "vcipherlast     17, 17, 14\n\t"
+        "vcipherlast     18, 18, 14\n\t"
+        "vcipherlast     19, 19, 14\n\t"
+        "vcipherlast     20, 20, 14\n\t"
+        "vcipherlast     21, 21, 14\n\t"
+        "vcipherlast     22, 22, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
@@ -10395,21 +13766,77 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -10418,20 +13845,62 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_CTR_encrypt_crypto_256_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_CTR_encrypt_crypto_256_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 17, 16, 31\n\t"
         "vadduqm 18, 17, 31\n\t"
         "vadduqm 23, 18, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -10485,39 +13954,113 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 16, 16, 12\n\t"
         "vcipher 17, 17, 12\n\t"
         "vcipher 18, 18, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+        "vcipher 17, 17, 14\n\t"
+        "vcipher 18, 18, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
         "vcipher 17, 17, 13\n\t"
         "vcipher 18, 18, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
         "vcipherlast     17, 17, 14\n\t"
         "vcipherlast     18, 18, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+        "vcipherlast     17, 17, 14\n\t"
+        "vcipherlast     18, 18, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_256_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_CTR_encrypt_crypto_256_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 23, 16, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -10545,26 +14088,75 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 16, 16, 11\n\t"
         "vcipher 15, 15, 12\n\t"
         "vcipher 16, 16, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_256_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_CTR_encrypt_crypto_256_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 23, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -10579,10 +14171,29 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 10\n\t"
         "vcipher 15, 15, 11\n\t"
         "vcipher 15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -10621,7 +14232,14 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_CTR_encrypt_crypto_192_blk4_%=\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_192_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 17, 16, 31\n\t"
@@ -10631,22 +14249,85 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vadduqm 21, 20, 31\n\t"
         "vadduqm 22, 21, 31\n\t"
         "vadduqm 23, 22, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[in]\n\t"
+#else
         "lxvd2x  59, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[in]\n\t"
+#else
         "lxvd2x  60, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[in]\n\t"
+#else
         "lxvd2x  61, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[in]\n\t"
+#else
         "lxvd2x  62, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -10760,21 +14441,77 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -10783,20 +14520,62 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_CTR_encrypt_crypto_192_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_CTR_encrypt_crypto_192_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 17, 16, 31\n\t"
         "vadduqm 18, 17, 31\n\t"
         "vadduqm 23, 18, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -10854,27 +14633,83 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_192_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_CTR_encrypt_crypto_192_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 23, 16, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -10904,20 +14739,55 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     16, 16, 12\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_192_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_CTR_encrypt_crypto_192_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 23, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -10933,7 +14803,14 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 11\n\t"
         "vcipherlast     15, 15, 12\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -10968,7 +14845,14 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_CTR_encrypt_crypto_128_blk4_%=\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_128_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 17, 16, 31\n\t"
@@ -10978,22 +14862,85 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vadduqm 21, 20, 31\n\t"
         "vadduqm 22, 21, 31\n\t"
         "vadduqm 23, 22, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[in]\n\t"
+#else
         "lxvd2x  59, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[in]\n\t"
+#else
         "lxvd2x  60, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[in]\n\t"
+#else
         "lxvd2x  61, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[in]\n\t"
+#else
         "lxvd2x  62, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11091,21 +15038,77 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -11114,20 +15117,62 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_CTR_encrypt_crypto_128_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_CTR_encrypt_crypto_128_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 17, 16, 31\n\t"
         "vadduqm 18, 17, 31\n\t"
         "vadduqm 23, 18, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11177,27 +15222,83 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_128_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_CTR_encrypt_crypto_128_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 16, 15, 31\n\t"
         "vadduqm 23, 16, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11223,20 +15324,55 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     16, 16, 10\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_CTR_encrypt_crypto_128_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_CTR_encrypt_crypto_128_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vor     15, 23, 23\n\t" /* codespell:ignore vor */
         "vadduqm 23, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -11250,7 +15386,14 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 9\n\t"
         "vcipherlast     15, 15, 10\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -11260,17 +15403,19 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
-          [L_AES_PPC64_crypto_one] "+r" (L_AES_PPC64_crypto_one_c)
+          [L_AES_PPC64_crypto_one] "+r" (L_AES_PPC64_crypto_one_c),
+          [L_AES_PPC64_crypto_bswap] "+r" (L_AES_PPC64_crypto_bswap_c)
         :
-        : "memory", "cc", "0", "10", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
-            "v26", "v27", "v28", "v29", "v30", "v31"
+        : "memory", "cc", "0", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28", "v29", "v30", "v31"
 #else
         :
         : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
           [nr] "r" (nr), [ctr] "r" (ctr),
-          [L_AES_PPC64_crypto_one] "r" (L_AES_PPC64_crypto_one_c)
+          [L_AES_PPC64_crypto_one] "r" (L_AES_PPC64_crypto_one_c),
+          [L_AES_PPC64_crypto_bswap] "r" (L_AES_PPC64_crypto_bswap_c)
         : "memory", "cc", "0", "9", "10", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
             "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
@@ -11281,7 +15426,11 @@ void AES_CTR_encrypt_crypto(const unsigned char* in, unsigned char* out,
 
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AESGCM
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11300,21 +15449,59 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
     register const unsigned char* ks asm ("6") = (const unsigned char*)ks_p;
     register int nr asm ("7") = (int)nr_p;
     register unsigned char* ctr asm ("8") = (unsigned char*)ctr_p;
-    register word32* L_AES_PPC64_crypto_one_c asm ("9") =
-        (word32*)&L_AES_PPC64_crypto_one;
+    register byte* L_AES_PPC64_crypto_one_c asm ("9") =
+        (byte*)&L_AES_PPC64_crypto_one;
 #else
-    register word32* L_AES_PPC64_crypto_one_c =
-        (word32*)&L_AES_PPC64_crypto_one;
+    register byte* L_AES_PPC64_crypto_one_c = (byte*)&L_AES_PPC64_crypto_one;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      10, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  45, 0, 10\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
         "mr      9, %[L_AES_PPC64_crypto_one]\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, 9\n\t"
+#else
         "lxvd2x  63, 0, 9\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_GCM_encrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
         "beq     L_AES_GCM_encrypt_crypto_192_%=\n\t"
         "addi    10, %[ks], 0\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "lxvd2x  32, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  33, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  34, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  35, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  36, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  37, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  38, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  39, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  40, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  41, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  42, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  43, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+        "lxvd2x  44, 0, 10\n\t"
+        "addi    10, 10, 16\n\t"
+#else
         "lxvd2x  32, 0, 10\n\t"
         "addi    10, 10, 16\n\t"
         "lxvd2x  33, 0, 10\n\t"
@@ -11345,11 +15532,19 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "addi    10, 10, 16\n\t"
         "lxvd2x  46, 0, 10\n\t"
         "addi    10, 10, 16\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "cmpdi   %[len], 0x80\n\t"
         "blt     L_AES_GCM_encrypt_crypto_256_blk4_%=\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_256_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vadduwm 17, 16, 31\n\t"
@@ -11359,22 +15554,85 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vadduwm 21, 20, 31\n\t"
         "vadduwm 22, 21, 31\n\t"
         "vor     23, 22, 22\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[in]\n\t"
+#else
         "lxvd2x  59, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[in]\n\t"
+#else
         "lxvd2x  60, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[in]\n\t"
+#else
         "lxvd2x  61, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[in]\n\t"
+#else
         "lxvd2x  62, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11480,6 +15738,18 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 20, 20, 12\n\t"
         "vcipher 21, 21, 12\n\t"
         "vcipher 22, 22, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+        "vcipher 17, 17, 14\n\t"
+        "vcipher 18, 18, 14\n\t"
+        "vcipher 19, 19, 14\n\t"
+        "vcipher 20, 20, 14\n\t"
+        "vcipher 21, 21, 14\n\t"
+        "vcipher 22, 22, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
         "vcipher 17, 17, 13\n\t"
@@ -11488,6 +15758,10 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 20, 20, 13\n\t"
         "vcipher 21, 21, 13\n\t"
         "vcipher 22, 22, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
         "vcipherlast     17, 17, 14\n\t"
@@ -11496,6 +15770,16 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     20, 20, 14\n\t"
         "vcipherlast     21, 21, 14\n\t"
         "vcipherlast     22, 22, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+        "vcipherlast     17, 17, 14\n\t"
+        "vcipherlast     18, 18, 14\n\t"
+        "vcipherlast     19, 19, 14\n\t"
+        "vcipherlast     20, 20, 14\n\t"
+        "vcipherlast     21, 21, 14\n\t"
+        "vcipherlast     22, 22, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
@@ -11504,21 +15788,77 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -11527,20 +15867,62 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_GCM_encrypt_crypto_256_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_GCM_encrypt_crypto_256_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vadduwm 17, 16, 31\n\t"
         "vadduwm 18, 17, 31\n\t"
         "vor     23, 18, 18\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11594,39 +15976,113 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 16, 16, 12\n\t"
         "vcipher 17, 17, 12\n\t"
         "vcipher 18, 18, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+        "vcipher 17, 17, 14\n\t"
+        "vcipher 18, 18, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
         "vcipher 17, 17, 13\n\t"
         "vcipher 18, 18, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
         "vcipherlast     17, 17, 14\n\t"
         "vcipherlast     18, 18, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+        "vcipherlast     17, 17, 14\n\t"
+        "vcipherlast     18, 18, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_256_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_GCM_encrypt_crypto_256_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vor     23, 16, 16\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11654,26 +16110,75 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 16, 16, 11\n\t"
         "vcipher 15, 15, 12\n\t"
         "vcipher 16, 16, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_256_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_GCM_encrypt_crypto_256_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -11688,10 +16193,29 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 10\n\t"
         "vcipher 15, 15, 11\n\t"
         "vcipher 15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xd0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
+        "vcipher 15, 15, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      10, 0xe0\n\t"
+        "lxvd2x  46, 10, %[ks]\n\t"
         "vcipherlast     15, 15, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -11730,7 +16254,14 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_GCM_encrypt_crypto_192_blk4_%=\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_192_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vadduwm 17, 16, 31\n\t"
@@ -11740,22 +16271,85 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vadduwm 21, 20, 31\n\t"
         "vadduwm 22, 21, 31\n\t"
         "vor     23, 22, 22\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[in]\n\t"
+#else
         "lxvd2x  59, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[in]\n\t"
+#else
         "lxvd2x  60, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[in]\n\t"
+#else
         "lxvd2x  61, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[in]\n\t"
+#else
         "lxvd2x  62, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11869,21 +16463,77 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -11892,20 +16542,62 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_GCM_encrypt_crypto_192_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_GCM_encrypt_crypto_192_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vadduwm 17, 16, 31\n\t"
         "vadduwm 18, 17, 31\n\t"
         "vor     23, 18, 18\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -11963,27 +16655,83 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_192_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_GCM_encrypt_crypto_192_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vor     23, 16, 16\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -12013,20 +16761,55 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     16, 16, 12\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_192_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_GCM_encrypt_crypto_192_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -12042,7 +16825,14 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 11\n\t"
         "vcipherlast     15, 15, 12\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -12077,7 +16867,14 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "blt     L_AES_GCM_encrypt_crypto_128_blk4_%=\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_128_blk8_%=: \n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vadduwm 17, 16, 31\n\t"
@@ -12087,22 +16884,85 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vadduwm 21, 20, 31\n\t"
         "vadduwm 22, 21, 31\n\t"
         "vor     23, 22, 22\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[in]\n\t"
+#else
         "lxvd2x  59, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[in]\n\t"
+#else
         "lxvd2x  60, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[in]\n\t"
+#else
         "lxvd2x  61, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[in]\n\t"
+#else
         "lxvd2x  62, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -12200,21 +17060,77 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -128\n\t"
         "cmpdi   %[len], 0x80\n\t"
@@ -12223,20 +17139,62 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
     "L_AES_GCM_encrypt_crypto_128_blk4_%=: \n\t"
         "cmpdi   %[len], 0x40\n\t"
         "blt     L_AES_GCM_encrypt_crypto_128_blk2_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vadduwm 17, 16, 31\n\t"
         "vadduwm 18, 17, 31\n\t"
         "vor     23, 18, 18\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[in]\n\t"
+#else
         "lxvd2x  57, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[in]\n\t"
+#else
         "lxvd2x  58, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -12286,27 +17244,83 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -64\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_128_blk2_%=: \n\t"
         "cmpdi   %[len], 32\n\t"
         "blt     L_AES_GCM_encrypt_crypto_128_blk1_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vadduwm 16, 15, 31\n\t"
         "vor     23, 16, 16\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[in]\n\t"
+#else
         "lxvd2x  56, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vxor    16, 16, 0\n\t"
@@ -12332,20 +17346,55 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipherlast     16, 16, 10\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -32\n\t"
         "\n"
     "L_AES_GCM_encrypt_crypto_128_blk1_%=: \n\t"
         "cmpdi   %[len], 16\n\t"
         "blt     L_AES_GCM_encrypt_crypto_128_done_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[ctr]\n\t"
+#else
         "lxvd2x  55, 0, %[ctr]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "vadduwm 15, 23, 31\n\t"
         "vor     23, 15, 15\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[ctr]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 55, 0, %[ctr]\n\t"
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 55, 0, %[in]\n\t"
+#else
         "lxvd2x  55, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   23, 23, 23, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 0\n\t"
         "vcipher 15, 15, 1\n\t"
@@ -12359,7 +17408,14 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
         "vcipher 15, 15, 9\n\t"
         "vcipherlast     15, 15, 10\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[len], %[len], -16\n\t"
         "\n"
@@ -12390,7 +17446,11 @@ void AES_GCM_encrypt_crypto(const unsigned char* in, unsigned char* out,
 
 #endif /* HAVE_AESGCM */
 #ifdef WOLFSSL_AES_XTS
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
     byte* key, byte* key2, byte* tmp, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -12415,12 +17475,51 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
     __asm__ __volatile__ (
         "subi    1, 1, 40\n\t"
         "li      12, 8\n\t"
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      11, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  45, 0, 11\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[i]\n\t"
+#else
         "lxvd2x  63, 0, %[i]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_XTS_encrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
         "beq     L_AES_XTS_encrypt_crypto_192_%=\n\t"
         "addi    11, %[key2], 0\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "lxvd2x  32, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  33, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  34, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  35, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  36, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  37, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  38, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  39, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  40, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  41, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  42, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  43, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  44, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+#else
         "lxvd2x  32, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
         "lxvd2x  33, 0, 11\n\t"
@@ -12451,6 +17550,7 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    11, 11, 16\n\t"
         "lxvd2x  46, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    31, 31, 0\n\t"
         "vcipher 31, 31, 1\n\t"
         "vcipher 31, 31, 2\n\t"
@@ -12464,9 +17564,49 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 31, 31, 10\n\t"
         "vcipher 31, 31, 11\n\t"
         "vcipher 31, 31, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key2]\n\t"
+        "vcipher 31, 31, 14\n\t"
+#else
         "vcipher 31, 31, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key2]\n\t"
         "vcipherlast     31, 31, 14\n\t"
+#else
+        "vcipherlast     31, 31, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "addi    11, %[key], 0\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "lxvd2x  32, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  33, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  34, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  35, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  36, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  37, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  38, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  39, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  40, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  41, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  42, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  43, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  44, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+#else
         "lxvd2x  32, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
         "lxvd2x  33, 0, 11\n\t"
@@ -12497,14 +17637,29 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    11, 11, 16\n\t"
         "lxvd2x  46, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "cmpdi   %[sz], 0x80\n\t"
         "blt     L_AES_XTS_encrypt_crypto_256_blk4_%=\n\t"
         "\n"
     "L_AES_XTS_encrypt_crypto_256_blk8_%=: \n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12512,12 +17667,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12525,12 +17706,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12538,12 +17745,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12551,12 +17784,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[tmp]\n\t"
+#else
         "lxvd2x  59, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        59, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 27, 27, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 59, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12564,12 +17823,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[tmp]\n\t"
+#else
         "lxvd2x  60, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        60, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 28, 28, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 60, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12577,12 +17862,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[tmp]\n\t"
+#else
         "lxvd2x  61, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        61, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 29, 29, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 61, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12590,12 +17901,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[tmp]\n\t"
+#else
         "lxvd2x  62, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        62, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 30, 30, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 62, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12603,24 +17940,92 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -12734,6 +18139,18 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 20, 20, 12\n\t"
         "vcipher 21, 21, 12\n\t"
         "vcipher 22, 22, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+        "vcipher 17, 17, 14\n\t"
+        "vcipher 18, 18, 14\n\t"
+        "vcipher 19, 19, 14\n\t"
+        "vcipher 20, 20, 14\n\t"
+        "vcipher 21, 21, 14\n\t"
+        "vcipher 22, 22, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
         "vcipher 17, 17, 13\n\t"
@@ -12742,6 +18159,10 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 20, 20, 13\n\t"
         "vcipher 21, 21, 13\n\t"
         "vcipher 22, 22, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
         "vcipherlast     17, 17, 14\n\t"
@@ -12750,6 +18171,16 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipherlast     20, 20, 14\n\t"
         "vcipherlast     21, 21, 14\n\t"
         "vcipherlast     22, 22, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+        "vcipherlast     17, 17, 14\n\t"
+        "vcipherlast     18, 18, 14\n\t"
+        "vcipherlast     19, 19, 14\n\t"
+        "vcipherlast     20, 20, 14\n\t"
+        "vcipherlast     21, 21, 14\n\t"
+        "vcipherlast     22, 22, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
@@ -12758,21 +18189,77 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -128\n\t"
         "cmpdi   %[sz], 0x80\n\t"
@@ -12782,9 +18269,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 0x40\n\t"
         "blt     L_AES_XTS_encrypt_crypto_256_blk2_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12792,12 +18293,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12805,12 +18332,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12818,12 +18371,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12831,16 +18410,56 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -12898,25 +18517,71 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 16, 16, 12\n\t"
         "vcipher 17, 17, 12\n\t"
         "vcipher 18, 18, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+        "vcipher 17, 17, 14\n\t"
+        "vcipher 18, 18, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
         "vcipher 17, 17, 13\n\t"
         "vcipher 18, 18, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
         "vcipherlast     17, 17, 14\n\t"
         "vcipherlast     18, 18, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+        "vcipherlast     17, 17, 14\n\t"
+        "vcipherlast     18, 18, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -64\n\t"
         "\n"
@@ -12924,9 +18589,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 32\n\t"
         "blt     L_AES_XTS_encrypt_crypto_256_blk1_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12934,12 +18613,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -12947,12 +18652,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -12982,15 +18713,43 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 16, 16, 11\n\t"
         "vcipher 15, 15, 12\n\t"
         "vcipher 16, 16, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vcipher 15, 15, 14\n\t"
+        "vcipher 16, 16, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
         "vcipher 16, 16, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vcipherlast     15, 15, 14\n\t"
         "vcipherlast     16, 16, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+        "vcipherlast     16, 16, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -32\n\t"
         "\n"
@@ -12998,9 +18757,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 16\n\t"
         "blt     L_AES_XTS_encrypt_crypto_256_done_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13008,10 +18781,29 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    15, 15, 0\n\t"
@@ -13027,14 +18819,115 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 15, 15, 10\n\t"
         "vcipher 15, 15, 11\n\t"
         "vcipher 15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vcipher 15, 15, 14\n\t"
+#else
         "vcipher 15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vcipherlast     15, 15, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -16\n\t"
         "\n"
     "L_AES_XTS_encrypt_crypto_256_done_%=: \n\t"
+        "cmpdi   %[sz], 0\n\t"
+        "beq     L_AES_XTS_encrypt_crypto_256_nopart_%=\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[out]\n\t"
+#else
+        "lxvd2x  48, 0, %[out]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 48, 0, %[tmp]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[out], %[out], 16\n\t"
+        "addi    14, %[sz], 0\n\t"
+        "\n"
+    "L_AES_XTS_encrypt_crypto_256_byte_%=: \n\t"
+        "lbz     15, 0(%[tmp])\n\t"
+        "lbz     16, 0(%[in])\n\t"
+        "addi    %[in], %[in], 1\n\t"
+        "stb     15, 0(%[out])\n\t"
+        "addi    %[out], %[out], 1\n\t"
+        "stb     16, 0(%[tmp])\n\t"
+        "addi    %[tmp], %[tmp], 1\n\t"
+        "addic.  14, 14, -1\n\t"
+        "bne     L_AES_XTS_encrypt_crypto_256_byte_%=\n\t"
+        "subf    %[out], %[sz], %[out]\n\t"
+        "subf    %[tmp], %[sz], %[tmp]\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  47, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "vxor    15, 15, 31\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vcipher 15, 15, 1\n\t"
+        "vcipher 15, 15, 2\n\t"
+        "vcipher 15, 15, 3\n\t"
+        "vcipher 15, 15, 4\n\t"
+        "vcipher 15, 15, 5\n\t"
+        "vcipher 15, 15, 6\n\t"
+        "vcipher 15, 15, 7\n\t"
+        "vcipher 15, 15, 8\n\t"
+        "vcipher 15, 15, 9\n\t"
+        "vcipher 15, 15, 10\n\t"
+        "vcipher 15, 15, 11\n\t"
+        "vcipher 15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vcipher 15, 15, 14\n\t"
+#else
+        "vcipher 15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vcipherlast     15, 15, 14\n\t"
+#else
+        "vcipherlast     15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+        "vxor    15, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "\n"
+    "L_AES_XTS_encrypt_crypto_256_nopart_%=: \n\t"
         "b       L_AES_XTS_encrypt_crypto_alldone_%=\n\t"
         "\n"
     "L_AES_XTS_encrypt_crypto_192_%=: \n\t"
@@ -13110,9 +19003,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "\n"
     "L_AES_XTS_encrypt_crypto_192_blk8_%=: \n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13120,12 +19027,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13133,12 +19066,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13146,12 +19105,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13159,12 +19144,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[tmp]\n\t"
+#else
         "lxvd2x  59, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        59, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 27, 27, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 59, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13172,12 +19183,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[tmp]\n\t"
+#else
         "lxvd2x  60, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        60, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 28, 28, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 60, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13185,12 +19222,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[tmp]\n\t"
+#else
         "lxvd2x  61, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        61, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 29, 29, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 61, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13198,12 +19261,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[tmp]\n\t"
+#else
         "lxvd2x  62, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        62, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 30, 30, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 62, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13211,24 +19300,92 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -13350,21 +19507,77 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -128\n\t"
         "cmpdi   %[sz], 0x80\n\t"
@@ -13374,9 +19587,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 0x40\n\t"
         "blt     L_AES_XTS_encrypt_crypto_192_blk2_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13384,12 +19611,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13397,12 +19650,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13410,12 +19689,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13423,16 +19728,56 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -13494,13 +19839,41 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -64\n\t"
         "\n"
@@ -13508,9 +19881,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 32\n\t"
         "blt     L_AES_XTS_encrypt_crypto_192_blk1_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13518,12 +19905,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13531,12 +19944,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -13568,9 +20007,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipherlast     16, 16, 12\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -32\n\t"
         "\n"
@@ -13578,9 +20031,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 16\n\t"
         "blt     L_AES_XTS_encrypt_crypto_192_done_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13588,10 +20055,29 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    15, 15, 0\n\t"
@@ -13608,11 +20094,86 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 15, 15, 11\n\t"
         "vcipherlast     15, 15, 12\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -16\n\t"
         "\n"
     "L_AES_XTS_encrypt_crypto_192_done_%=: \n\t"
+        "cmpdi   %[sz], 0\n\t"
+        "beq     L_AES_XTS_encrypt_crypto_192_nopart_%=\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[out]\n\t"
+#else
+        "lxvd2x  48, 0, %[out]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 48, 0, %[tmp]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[out], %[out], 16\n\t"
+        "addi    14, %[sz], 0\n\t"
+        "\n"
+    "L_AES_XTS_encrypt_crypto_192_byte_%=: \n\t"
+        "lbz     15, 0(%[tmp])\n\t"
+        "lbz     16, 0(%[in])\n\t"
+        "addi    %[in], %[in], 1\n\t"
+        "stb     15, 0(%[out])\n\t"
+        "addi    %[out], %[out], 1\n\t"
+        "stb     16, 0(%[tmp])\n\t"
+        "addi    %[tmp], %[tmp], 1\n\t"
+        "addic.  14, 14, -1\n\t"
+        "bne     L_AES_XTS_encrypt_crypto_192_byte_%=\n\t"
+        "subf    %[out], %[sz], %[out]\n\t"
+        "subf    %[tmp], %[sz], %[tmp]\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  47, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "vxor    15, 15, 31\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vcipher 15, 15, 1\n\t"
+        "vcipher 15, 15, 2\n\t"
+        "vcipher 15, 15, 3\n\t"
+        "vcipher 15, 15, 4\n\t"
+        "vcipher 15, 15, 5\n\t"
+        "vcipher 15, 15, 6\n\t"
+        "vcipher 15, 15, 7\n\t"
+        "vcipher 15, 15, 8\n\t"
+        "vcipher 15, 15, 9\n\t"
+        "vcipher 15, 15, 10\n\t"
+        "vcipher 15, 15, 11\n\t"
+        "vcipherlast     15, 15, 12\n\t"
+        "vxor    15, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "\n"
+    "L_AES_XTS_encrypt_crypto_192_nopart_%=: \n\t"
         "b       L_AES_XTS_encrypt_crypto_alldone_%=\n\t"
         "\n"
     "L_AES_XTS_encrypt_crypto_128_%=: \n\t"
@@ -13678,9 +20239,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "\n"
     "L_AES_XTS_encrypt_crypto_128_blk8_%=: \n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13688,12 +20263,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13701,12 +20302,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13714,12 +20341,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13727,12 +20380,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[tmp]\n\t"
+#else
         "lxvd2x  59, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        59, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 27, 27, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 59, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13740,12 +20419,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[tmp]\n\t"
+#else
         "lxvd2x  60, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        60, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 28, 28, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 60, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13753,12 +20458,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[tmp]\n\t"
+#else
         "lxvd2x  61, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        61, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 29, 29, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 61, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13766,12 +20497,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[tmp]\n\t"
+#else
         "lxvd2x  62, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        62, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 30, 30, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 62, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13779,24 +20536,92 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -13902,21 +20727,77 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -128\n\t"
         "cmpdi   %[sz], 0x80\n\t"
@@ -13926,9 +20807,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 0x40\n\t"
         "blt     L_AES_XTS_encrypt_crypto_128_blk2_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13936,12 +20831,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13949,12 +20870,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13962,12 +20909,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -13975,16 +20948,56 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -14038,13 +21051,41 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -64\n\t"
         "\n"
@@ -14052,9 +21093,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 32\n\t"
         "blt     L_AES_XTS_encrypt_crypto_128_blk1_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14062,12 +21117,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14075,12 +21156,38 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -14108,9 +21215,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipherlast     16, 16, 10\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -32\n\t"
         "\n"
@@ -14118,9 +21239,23 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 16\n\t"
         "blt     L_AES_XTS_encrypt_crypto_128_done_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14128,10 +21263,29 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    15, 15, 0\n\t"
@@ -14146,11 +21300,84 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 15, 15, 9\n\t"
         "vcipherlast     15, 15, 10\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -16\n\t"
         "\n"
     "L_AES_XTS_encrypt_crypto_128_done_%=: \n\t"
+        "cmpdi   %[sz], 0\n\t"
+        "beq     L_AES_XTS_encrypt_crypto_128_nopart_%=\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[out]\n\t"
+#else
+        "lxvd2x  48, 0, %[out]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 48, 0, %[tmp]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[out], %[out], 16\n\t"
+        "addi    14, %[sz], 0\n\t"
+        "\n"
+    "L_AES_XTS_encrypt_crypto_128_byte_%=: \n\t"
+        "lbz     15, 0(%[tmp])\n\t"
+        "lbz     16, 0(%[in])\n\t"
+        "addi    %[in], %[in], 1\n\t"
+        "stb     15, 0(%[out])\n\t"
+        "addi    %[out], %[out], 1\n\t"
+        "stb     16, 0(%[tmp])\n\t"
+        "addi    %[tmp], %[tmp], 1\n\t"
+        "addic.  14, 14, -1\n\t"
+        "bne     L_AES_XTS_encrypt_crypto_128_byte_%=\n\t"
+        "subf    %[out], %[sz], %[out]\n\t"
+        "subf    %[tmp], %[sz], %[tmp]\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  47, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "vxor    15, 15, 31\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vcipher 15, 15, 1\n\t"
+        "vcipher 15, 15, 2\n\t"
+        "vcipher 15, 15, 3\n\t"
+        "vcipher 15, 15, 4\n\t"
+        "vcipher 15, 15, 5\n\t"
+        "vcipher 15, 15, 6\n\t"
+        "vcipher 15, 15, 7\n\t"
+        "vcipher 15, 15, 8\n\t"
+        "vcipher 15, 15, 9\n\t"
+        "vcipherlast     15, 15, 10\n\t"
+        "vxor    15, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "\n"
+    "L_AES_XTS_encrypt_crypto_128_nopart_%=: \n\t"
         "\n"
     "L_AES_XTS_encrypt_crypto_alldone_%=: \n\t"
         "addi    1, 1, 40\n\t"
@@ -14178,7 +21405,11 @@ void AES_XTS_encrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
 }
 
 #ifdef HAVE_AES_DECRYPT
+#ifdef __POWER9_VECTOR__
+__attribute__((target("cpu=power9")))
+#else
 __attribute__((target("cpu=power8")))
+#endif /* __POWER9_VECTOR__ */
 void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
     byte* key, byte* key2, byte* tmp, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14203,12 +21434,51 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
     __asm__ __volatile__ (
         "subi    1, 1, 40\n\t"
         "li      12, 8\n\t"
+#if !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__)
+        "mr      11, %[L_AES_PPC64_crypto_bswap]\n\t"
+        "lxvd2x  45, 0, 11\n\t"
+#endif /* !defined(__POWER9_VECTOR__) && defined(__LITTLE_ENDIAN__) */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[i]\n\t"
+#else
         "lxvd2x  63, 0, %[i]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "cmplwi  %[nr], 10\n\t"
         "beq     L_AES_XTS_decrypt_crypto_128_%=\n\t"
         "cmplwi  %[nr], 12\n\t"
         "beq     L_AES_XTS_decrypt_crypto_192_%=\n\t"
         "addi    11, %[key2], 0\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "lxvd2x  32, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  33, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  34, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  35, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  36, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  37, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  38, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  39, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  40, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  41, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  42, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  43, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  44, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+#else
         "lxvd2x  32, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
         "lxvd2x  33, 0, 11\n\t"
@@ -14239,6 +21509,7 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    11, 11, 16\n\t"
         "lxvd2x  46, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    31, 31, 0\n\t"
         "vcipher 31, 31, 1\n\t"
         "vcipher 31, 31, 2\n\t"
@@ -14252,9 +21523,49 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vcipher 31, 31, 10\n\t"
         "vcipher 31, 31, 11\n\t"
         "vcipher 31, 31, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key2]\n\t"
+        "vcipher 31, 31, 14\n\t"
+#else
         "vcipher 31, 31, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key2]\n\t"
         "vcipherlast     31, 31, 14\n\t"
+#else
+        "vcipherlast     31, 31, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "addi    11, %[key], 0\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "lxvd2x  32, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  33, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  34, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  35, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  36, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  37, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  38, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  39, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  40, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  41, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  42, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  43, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+        "lxvd2x  44, 0, 11\n\t"
+        "addi    11, 11, 16\n\t"
+#else
         "lxvd2x  32, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
         "lxvd2x  33, 0, 11\n\t"
@@ -14285,14 +21596,33 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    11, 11, 16\n\t"
         "lxvd2x  46, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+        "andi.   14, %[sz], 15\n\t"
+        "addi    14, 14, 15\n\t"
+        "andi.   14, 14, 16\n\t"
+        "subf    %[sz], 14, %[sz]\n\t"
         "cmpdi   %[sz], 0x80\n\t"
         "blt     L_AES_XTS_decrypt_crypto_256_blk4_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_256_blk8_%=: \n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14300,12 +21630,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14313,12 +21669,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14326,12 +21708,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14339,12 +21747,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[tmp]\n\t"
+#else
         "lxvd2x  59, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        59, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 27, 27, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 59, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14352,12 +21786,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[tmp]\n\t"
+#else
         "lxvd2x  60, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        60, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 28, 28, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 60, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14365,12 +21825,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[tmp]\n\t"
+#else
         "lxvd2x  61, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        61, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 29, 29, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 61, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14378,12 +21864,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[tmp]\n\t"
+#else
         "lxvd2x  62, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        62, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 30, 30, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 62, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14391,24 +21903,92 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -14522,6 +22102,18 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipher        20, 20, 12\n\t"
         "vncipher        21, 21, 12\n\t"
         "vncipher        22, 22, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipher        15, 15, 14\n\t"
+        "vncipher        16, 16, 14\n\t"
+        "vncipher        17, 17, 14\n\t"
+        "vncipher        18, 18, 14\n\t"
+        "vncipher        19, 19, 14\n\t"
+        "vncipher        20, 20, 14\n\t"
+        "vncipher        21, 21, 14\n\t"
+        "vncipher        22, 22, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
         "vncipher        16, 16, 13\n\t"
         "vncipher        17, 17, 13\n\t"
@@ -14530,6 +22122,10 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipher        20, 20, 13\n\t"
         "vncipher        21, 21, 13\n\t"
         "vncipher        22, 22, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vncipherlast    15, 15, 14\n\t"
         "vncipherlast    16, 16, 14\n\t"
         "vncipherlast    17, 17, 14\n\t"
@@ -14538,6 +22134,16 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipherlast    20, 20, 14\n\t"
         "vncipherlast    21, 21, 14\n\t"
         "vncipherlast    22, 22, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+        "vncipherlast    16, 16, 14\n\t"
+        "vncipherlast    17, 17, 14\n\t"
+        "vncipherlast    18, 18, 14\n\t"
+        "vncipherlast    19, 19, 14\n\t"
+        "vncipherlast    20, 20, 14\n\t"
+        "vncipherlast    21, 21, 14\n\t"
+        "vncipherlast    22, 22, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
@@ -14546,21 +22152,77 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -128\n\t"
         "cmpdi   %[sz], 0x80\n\t"
@@ -14570,9 +22232,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 0x40\n\t"
         "blt     L_AES_XTS_decrypt_crypto_256_blk2_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14580,12 +22256,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14593,12 +22295,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14606,12 +22334,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14619,16 +22373,56 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -14686,25 +22480,71 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipher        16, 16, 12\n\t"
         "vncipher        17, 17, 12\n\t"
         "vncipher        18, 18, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipher        15, 15, 14\n\t"
+        "vncipher        16, 16, 14\n\t"
+        "vncipher        17, 17, 14\n\t"
+        "vncipher        18, 18, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
         "vncipher        16, 16, 13\n\t"
         "vncipher        17, 17, 13\n\t"
         "vncipher        18, 18, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vncipherlast    15, 15, 14\n\t"
         "vncipherlast    16, 16, 14\n\t"
         "vncipherlast    17, 17, 14\n\t"
         "vncipherlast    18, 18, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+        "vncipherlast    16, 16, 14\n\t"
+        "vncipherlast    17, 17, 14\n\t"
+        "vncipherlast    18, 18, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -64\n\t"
         "\n"
@@ -14712,9 +22552,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 32\n\t"
         "blt     L_AES_XTS_decrypt_crypto_256_blk1_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14722,12 +22576,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14735,12 +22615,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -14770,15 +22676,43 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipher        16, 16, 11\n\t"
         "vncipher        15, 15, 12\n\t"
         "vncipher        16, 16, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipher        15, 15, 14\n\t"
+        "vncipher        16, 16, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
         "vncipher        16, 16, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vncipherlast    15, 15, 14\n\t"
         "vncipherlast    16, 16, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+        "vncipherlast    16, 16, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -32\n\t"
         "\n"
@@ -14786,9 +22720,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 16\n\t"
         "blt     L_AES_XTS_decrypt_crypto_256_done_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14796,10 +22744,29 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    15, 15, 0\n\t"
@@ -14815,14 +22782,183 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipher        15, 15, 10\n\t"
         "vncipher        15, 15, 11\n\t"
         "vncipher        15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipher        15, 15, 14\n\t"
+#else
         "vncipher        15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
         "vncipherlast    15, 15, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -16\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_256_done_%=: \n\t"
+        "cmpdi   %[sz], 0\n\t"
+        "beq     L_AES_XTS_decrypt_crypto_256_nopart_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        63, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 31, 31, 13\n\t"
+        "stxvd2x 49, 0, %[tmp]\n\t"
+#else
+        "stxvd2x 63, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
+        "ldbrx   14, 0, %[tmp]\n\t"
+        "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "sradi   16, 15, 63\n\t"
+        "srdi    17, 14, 63\n\t"
+        "andi.   16, 16, 0x87\n\t"
+        "sldi    15, 15, 1\n\t"
+        "sldi    14, 14, 1\n\t"
+        "xor     15, 15, 17\n\t"
+        "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
+        "stdbrx  14, 0, %[tmp]\n\t"
+        "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  48, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
+        "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[in], %[in], 16\n\t"
+        "vxor    15, 15, 16\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vncipher        15, 15, 1\n\t"
+        "vncipher        15, 15, 2\n\t"
+        "vncipher        15, 15, 3\n\t"
+        "vncipher        15, 15, 4\n\t"
+        "vncipher        15, 15, 5\n\t"
+        "vncipher        15, 15, 6\n\t"
+        "vncipher        15, 15, 7\n\t"
+        "vncipher        15, 15, 8\n\t"
+        "vncipher        15, 15, 9\n\t"
+        "vncipher        15, 15, 10\n\t"
+        "vncipher        15, 15, 11\n\t"
+        "vncipher        15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipher        15, 15, 14\n\t"
+#else
+        "vncipher        15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipherlast    15, 15, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+        "vxor    15, 15, 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[out], %[out], 16\n\t"
+        "addi    14, %[sz], 0\n\t"
+        "\n"
+    "L_AES_XTS_decrypt_crypto_256_byte_%=: \n\t"
+        "lbz     15, 0(%[tmp])\n\t"
+        "lbz     16, 0(%[in])\n\t"
+        "addi    %[in], %[in], 1\n\t"
+        "stb     15, 0(%[out])\n\t"
+        "addi    %[out], %[out], 1\n\t"
+        "stb     16, 0(%[tmp])\n\t"
+        "addi    %[tmp], %[tmp], 1\n\t"
+        "addic.  14, 14, -1\n\t"
+        "bne     L_AES_XTS_decrypt_crypto_256_byte_%=\n\t"
+        "subf    %[out], %[sz], %[out]\n\t"
+        "subf    %[tmp], %[sz], %[tmp]\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  47, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "vxor    15, 15, 31\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vncipher        15, 15, 1\n\t"
+        "vncipher        15, 15, 2\n\t"
+        "vncipher        15, 15, 3\n\t"
+        "vncipher        15, 15, 4\n\t"
+        "vncipher        15, 15, 5\n\t"
+        "vncipher        15, 15, 6\n\t"
+        "vncipher        15, 15, 7\n\t"
+        "vncipher        15, 15, 8\n\t"
+        "vncipher        15, 15, 9\n\t"
+        "vncipher        15, 15, 10\n\t"
+        "vncipher        15, 15, 11\n\t"
+        "vncipher        15, 15, 12\n\t"
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xd0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipher        15, 15, 14\n\t"
+#else
+        "vncipher        15, 15, 13\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+#if defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__)
+        "li      11, 0xe0\n\t"
+        "lxvd2x  46, 11, %[key]\n\t"
+        "vncipherlast    15, 15, 14\n\t"
+#else
+        "vncipherlast    15, 15, 14\n\t"
+#endif /* defined(__LITTLE_ENDIAN__) && !defined(__POWER9_VECTOR__) */
+        "vxor    15, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "\n"
+    "L_AES_XTS_decrypt_crypto_256_nopart_%=: \n\t"
         "b       L_AES_XTS_decrypt_crypto_alldone_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_192_%=: \n\t"
@@ -14893,14 +23029,32 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    11, 11, 16\n\t"
         "lxvd2x  44, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
+        "andi.   14, %[sz], 15\n\t"
+        "addi    14, 14, 15\n\t"
+        "andi.   14, 14, 16\n\t"
+        "subf    %[sz], 14, %[sz]\n\t"
         "cmpdi   %[sz], 0x80\n\t"
         "blt     L_AES_XTS_decrypt_crypto_192_blk4_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_192_blk8_%=: \n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14908,12 +23062,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14921,12 +23101,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14934,12 +23140,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14947,12 +23179,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[tmp]\n\t"
+#else
         "lxvd2x  59, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        59, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 27, 27, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 59, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14960,12 +23218,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[tmp]\n\t"
+#else
         "lxvd2x  60, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        60, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 28, 28, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 60, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14973,12 +23257,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[tmp]\n\t"
+#else
         "lxvd2x  61, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        61, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 29, 29, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 61, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14986,12 +23296,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[tmp]\n\t"
+#else
         "lxvd2x  62, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        62, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 30, 30, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 62, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -14999,24 +23335,92 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -15138,21 +23542,77 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -128\n\t"
         "cmpdi   %[sz], 0x80\n\t"
@@ -15162,9 +23622,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 0x40\n\t"
         "blt     L_AES_XTS_decrypt_crypto_192_blk2_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15172,12 +23646,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15185,12 +23685,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15198,12 +23724,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15211,16 +23763,56 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -15282,13 +23874,41 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -64\n\t"
         "\n"
@@ -15296,9 +23916,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 32\n\t"
         "blt     L_AES_XTS_decrypt_crypto_192_blk1_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15306,12 +23940,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15319,12 +23979,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -15356,9 +24042,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipherlast    16, 16, 12\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -32\n\t"
         "\n"
@@ -15366,9 +24066,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 16\n\t"
         "blt     L_AES_XTS_decrypt_crypto_192_done_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15376,10 +24090,29 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    15, 15, 0\n\t"
@@ -15396,11 +24129,140 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipher        15, 15, 11\n\t"
         "vncipherlast    15, 15, 12\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -16\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_192_done_%=: \n\t"
+        "cmpdi   %[sz], 0\n\t"
+        "beq     L_AES_XTS_decrypt_crypto_192_nopart_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        63, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 31, 31, 13\n\t"
+        "stxvd2x 49, 0, %[tmp]\n\t"
+#else
+        "stxvd2x 63, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
+        "ldbrx   14, 0, %[tmp]\n\t"
+        "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "sradi   16, 15, 63\n\t"
+        "srdi    17, 14, 63\n\t"
+        "andi.   16, 16, 0x87\n\t"
+        "sldi    15, 15, 1\n\t"
+        "sldi    14, 14, 1\n\t"
+        "xor     15, 15, 17\n\t"
+        "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
+        "stdbrx  14, 0, %[tmp]\n\t"
+        "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  48, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
+        "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[in], %[in], 16\n\t"
+        "vxor    15, 15, 16\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vncipher        15, 15, 1\n\t"
+        "vncipher        15, 15, 2\n\t"
+        "vncipher        15, 15, 3\n\t"
+        "vncipher        15, 15, 4\n\t"
+        "vncipher        15, 15, 5\n\t"
+        "vncipher        15, 15, 6\n\t"
+        "vncipher        15, 15, 7\n\t"
+        "vncipher        15, 15, 8\n\t"
+        "vncipher        15, 15, 9\n\t"
+        "vncipher        15, 15, 10\n\t"
+        "vncipher        15, 15, 11\n\t"
+        "vncipherlast    15, 15, 12\n\t"
+        "vxor    15, 15, 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[out], %[out], 16\n\t"
+        "addi    14, %[sz], 0\n\t"
+        "\n"
+    "L_AES_XTS_decrypt_crypto_192_byte_%=: \n\t"
+        "lbz     15, 0(%[tmp])\n\t"
+        "lbz     16, 0(%[in])\n\t"
+        "addi    %[in], %[in], 1\n\t"
+        "stb     15, 0(%[out])\n\t"
+        "addi    %[out], %[out], 1\n\t"
+        "stb     16, 0(%[tmp])\n\t"
+        "addi    %[tmp], %[tmp], 1\n\t"
+        "addic.  14, 14, -1\n\t"
+        "bne     L_AES_XTS_decrypt_crypto_192_byte_%=\n\t"
+        "subf    %[out], %[sz], %[out]\n\t"
+        "subf    %[tmp], %[sz], %[tmp]\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  47, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "vxor    15, 15, 31\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vncipher        15, 15, 1\n\t"
+        "vncipher        15, 15, 2\n\t"
+        "vncipher        15, 15, 3\n\t"
+        "vncipher        15, 15, 4\n\t"
+        "vncipher        15, 15, 5\n\t"
+        "vncipher        15, 15, 6\n\t"
+        "vncipher        15, 15, 7\n\t"
+        "vncipher        15, 15, 8\n\t"
+        "vncipher        15, 15, 9\n\t"
+        "vncipher        15, 15, 10\n\t"
+        "vncipher        15, 15, 11\n\t"
+        "vncipherlast    15, 15, 12\n\t"
+        "vxor    15, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "\n"
+    "L_AES_XTS_decrypt_crypto_192_nopart_%=: \n\t"
         "b       L_AES_XTS_decrypt_crypto_alldone_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_128_%=: \n\t"
@@ -15461,14 +24323,32 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "addi    11, 11, 16\n\t"
         "lxvd2x  42, 0, 11\n\t"
         "addi    11, 11, 16\n\t"
+        "andi.   14, %[sz], 15\n\t"
+        "addi    14, 14, 15\n\t"
+        "andi.   14, 14, 16\n\t"
+        "subf    %[sz], 14, %[sz]\n\t"
         "cmpdi   %[sz], 0x80\n\t"
         "blt     L_AES_XTS_decrypt_crypto_128_blk4_%=\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_128_blk8_%=: \n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15476,12 +24356,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15489,12 +24395,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15502,12 +24434,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15515,12 +24473,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 59, 0, %[tmp]\n\t"
+#else
         "lxvd2x  59, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   27, 27, 27, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        59, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 27, 27, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 59, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15528,12 +24512,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 60, 0, %[tmp]\n\t"
+#else
         "lxvd2x  60, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   28, 28, 28, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        60, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 28, 28, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 60, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15541,12 +24551,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 61, 0, %[tmp]\n\t"
+#else
         "lxvd2x  61, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   29, 29, 29, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        61, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 29, 29, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 61, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15554,12 +24590,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 62, 0, %[tmp]\n\t"
+#else
         "lxvd2x  62, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   30, 30, 30, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        62, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 30, 30, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 62, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15567,24 +24629,92 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 51, 0, %[in]\n\t"
+#else
         "lxvd2x  51, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 52, 0, %[in]\n\t"
+#else
         "lxvd2x  52, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 53, 0, %[in]\n\t"
+#else
         "lxvd2x  53, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 54, 0, %[in]\n\t"
+#else
         "lxvd2x  54, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -15690,21 +24820,77 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    20, 20, 28\n\t"
         "vxor    21, 21, 29\n\t"
         "vxor    22, 22, 30\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        51, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   19, 19, 19, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 51, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        52, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   20, 20, 20, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 52, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        53, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   21, 21, 21, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 53, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        54, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   22, 22, 22, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 54, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -128\n\t"
         "cmpdi   %[sz], 0x80\n\t"
@@ -15714,9 +24900,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 0x40\n\t"
         "blt     L_AES_XTS_decrypt_crypto_128_blk2_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15724,12 +24924,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15737,12 +24963,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 57, 0, %[tmp]\n\t"
+#else
         "lxvd2x  57, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   25, 25, 25, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        57, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 25, 25, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 57, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15750,12 +25002,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 58, 0, %[tmp]\n\t"
+#else
         "lxvd2x  58, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   26, 26, 26, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        58, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 26, 26, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 58, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15763,16 +25041,56 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 49, 0, %[in]\n\t"
+#else
         "lxvd2x  49, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 50, 0, %[in]\n\t"
+#else
         "lxvd2x  50, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -15826,13 +25144,41 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vxor    16, 16, 24\n\t"
         "vxor    17, 17, 25\n\t"
         "vxor    18, 18, 26\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        49, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 17, 17, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 49, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        50, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   18, 18, 18, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 50, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -64\n\t"
         "\n"
@@ -15840,9 +25186,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 32\n\t"
         "blt     L_AES_XTS_decrypt_crypto_128_blk1_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15850,12 +25210,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 56, 0, %[tmp]\n\t"
+#else
         "lxvd2x  56, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   24, 24, 24, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        56, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 24, 24, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 56, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15863,12 +25249,38 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[in]\n\t"
+#else
         "lxvd2x  48, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
@@ -15896,9 +25308,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipherlast    16, 16, 10\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    16, 16, 24\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        48, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 48, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -32\n\t"
         "\n"
@@ -15906,9 +25332,23 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "cmpdi   %[sz], 16\n\t"
         "blt     L_AES_XTS_decrypt_crypto_128_done_%=\n\t"
         "vor     23, 31, 31\n\t" /* codespell:ignore vor */
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        55, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 23, 23, 13\n\t"
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#else
         "stxvd2x 55, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
         "ldbrx   14, 0, %[tmp]\n\t"
         "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "sradi   16, 15, 63\n\t"
         "srdi    17, 14, 63\n\t"
         "andi.   16, 16, 0x87\n\t"
@@ -15916,10 +25356,29 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "sldi    14, 14, 1\n\t"
         "xor     15, 15, 17\n\t"
         "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
         "stdbrx  14, 0, %[tmp]\n\t"
         "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 63, 0, %[tmp]\n\t"
+#else
         "lxvd2x  63, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   31, 31, 31, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
         "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
         "addi    %[in], %[in], 16\n\t"
         "vxor    15, 15, 23\n\t"
         "vxor    15, 15, 0\n\t"
@@ -15934,11 +25393,136 @@ void AES_XTS_decrypt_crypto(const byte* in, byte* out, word32 sz, const byte* i,
         "vncipher        15, 15, 9\n\t"
         "vncipherlast    15, 15, 10\n\t"
         "vxor    15, 15, 23\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
         "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
         "addi    %[out], %[out], 16\n\t"
         "addi    %[sz], %[sz], -16\n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_128_done_%=: \n\t"
+        "cmpdi   %[sz], 0\n\t"
+        "beq     L_AES_XTS_decrypt_crypto_128_nopart_%=\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        63, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   17, 31, 31, 13\n\t"
+        "stxvd2x 49, 0, %[tmp]\n\t"
+#else
+        "stxvd2x 63, 0, %[tmp]\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __LITTLE_ENDIAN__
+        "ld      14, 0(%[tmp])\n\t"
+        "ld      15, 8(%[tmp])\n\t"
+#else
+        "ldbrx   14, 0, %[tmp]\n\t"
+        "ldbrx   15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "sradi   16, 15, 63\n\t"
+        "srdi    17, 14, 63\n\t"
+        "andi.   16, 16, 0x87\n\t"
+        "sldi    15, 15, 1\n\t"
+        "sldi    14, 14, 1\n\t"
+        "xor     15, 15, 17\n\t"
+        "xor     14, 14, 16\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "std     14, 0(%[tmp])\n\t"
+        "std     15, 8(%[tmp])\n\t"
+#else
+        "stdbrx  14, 0, %[tmp]\n\t"
+        "stdbrx  15, %[tmp], 12\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 48, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  48, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   16, 16, 16, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[in]\n\t"
+#else
+        "lxvd2x  47, 0, %[in]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[in], %[in], 16\n\t"
+        "vxor    15, 15, 16\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vncipher        15, 15, 1\n\t"
+        "vncipher        15, 15, 2\n\t"
+        "vncipher        15, 15, 3\n\t"
+        "vncipher        15, 15, 4\n\t"
+        "vncipher        15, 15, 5\n\t"
+        "vncipher        15, 15, 6\n\t"
+        "vncipher        15, 15, 7\n\t"
+        "vncipher        15, 15, 8\n\t"
+        "vncipher        15, 15, 9\n\t"
+        "vncipherlast    15, 15, 10\n\t"
+        "vxor    15, 15, 16\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[tmp]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[tmp]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "addi    %[out], %[out], 16\n\t"
+        "addi    14, %[sz], 0\n\t"
+        "\n"
+    "L_AES_XTS_decrypt_crypto_128_byte_%=: \n\t"
+        "lbz     15, 0(%[tmp])\n\t"
+        "lbz     16, 0(%[in])\n\t"
+        "addi    %[in], %[in], 1\n\t"
+        "stb     15, 0(%[out])\n\t"
+        "addi    %[out], %[out], 1\n\t"
+        "stb     16, 0(%[tmp])\n\t"
+        "addi    %[tmp], %[tmp], 1\n\t"
+        "addic.  14, 14, -1\n\t"
+        "bne     L_AES_XTS_decrypt_crypto_128_byte_%=\n\t"
+        "subf    %[out], %[sz], %[out]\n\t"
+        "subf    %[tmp], %[sz], %[tmp]\n\t"
+        "addi    %[out], %[out], -16\n\t"
+#ifdef __POWER9_VECTOR__
+        "lxvb16x 47, 0, %[tmp]\n\t"
+#else
+        "lxvd2x  47, 0, %[tmp]\n\t"
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+#endif /* __POWER9_VECTOR__ */
+        "vxor    15, 15, 31\n\t"
+        "vxor    15, 15, 0\n\t"
+        "vncipher        15, 15, 1\n\t"
+        "vncipher        15, 15, 2\n\t"
+        "vncipher        15, 15, 3\n\t"
+        "vncipher        15, 15, 4\n\t"
+        "vncipher        15, 15, 5\n\t"
+        "vncipher        15, 15, 6\n\t"
+        "vncipher        15, 15, 7\n\t"
+        "vncipher        15, 15, 8\n\t"
+        "vncipher        15, 15, 9\n\t"
+        "vncipherlast    15, 15, 10\n\t"
+        "vxor    15, 15, 31\n\t"
+#ifdef __POWER9_VECTOR__
+        "stxvb16x        47, 0, %[out]\n\t"
+#else
+#ifdef __LITTLE_ENDIAN__
+        "vperm   15, 15, 15, 13\n\t"
+#endif /* __LITTLE_ENDIAN__ */
+        "stxvd2x 47, 0, %[out]\n\t"
+#endif /* __POWER9_VECTOR__ */
+        "\n"
+    "L_AES_XTS_decrypt_crypto_128_nopart_%=: \n\t"
         "\n"
     "L_AES_XTS_decrypt_crypto_alldone_%=: \n\t"
         "addi    1, 1, 40\n\t"
