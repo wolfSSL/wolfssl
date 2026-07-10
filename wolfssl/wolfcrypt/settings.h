@@ -4754,6 +4754,57 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define OPENSSL_EXTRA_X509_SMALL
 #endif /* OPENSSL_EXTRA */
 
+/* X.509 verify-only profile. Define WOLFSSL_X509_PEM (or a gen add-back) to keep
+ * PEM parsing, else WOLFSSL_NO_PEM below also disables PEM-to-DER trust anchors. */
+#ifdef WOLFSSL_X509_VERIFY_ONLY
+    #if !defined(WOLFSSL_X509_PEM) && !defined(WOLFSSL_NO_PEM) && \
+        !defined(WOLFSSL_X509_CERT_GEN) && !defined(WOLFSSL_X509_KEY_GEN)
+        #define WOLFSSL_NO_PEM
+    #endif
+    #if !defined(WOLFSSL_X509_CERT_GEN)
+        #undef WOLFSSL_CERT_GEN
+    #endif
+    #if !defined(WOLFSSL_X509_KEY_GEN)
+        #undef WOLFSSL_KEY_GEN
+    #endif
+#endif
+
+/* TINY gates live only in the template decoder; asn_orig.c would silently
+ * ignore the profile. */
+#if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_ASN_TEMPLATE)
+    #error "WOLFSSL_X509_TINY requires WOLFSSL_ASN_TEMPLATE"
+#endif
+
+/* TINY name-constraint enforcement needs the SAN forms it checks to be parsed;
+ * force those SAN add-backs on so enforcement is never silently partial. */
+#if defined(WOLFSSL_X509_TINY) && defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS)
+    #ifndef WOLFSSL_X509_TINY_SAN_EMAIL
+        #define WOLFSSL_X509_TINY_SAN_EMAIL
+    #endif
+    #ifndef WOLFSSL_X509_TINY_SAN_IP
+        #define WOLFSSL_X509_TINY_SAN_IP
+    #endif
+    #ifndef WOLFSSL_X509_TINY_SAN_DIR
+        #define WOLFSSL_X509_TINY_SAN_DIR
+    #endif
+    #ifndef WOLFSSL_X509_TINY_SAN_RID
+        #define WOLFSSL_X509_TINY_SAN_RID
+    #endif
+#endif
+
+/* Revocation consumers need the locator extensions parsed, else they fail open
+ * (OCSP would assume CERT_GOOD) or silently lose CDP auto-fetch. */
+#if defined(WOLFSSL_X509_TINY) && defined(HAVE_OCSP)
+    #ifndef WOLFSSL_X509_TINY_AIA
+        #define WOLFSSL_X509_TINY_AIA
+    #endif
+#endif
+#if defined(WOLFSSL_X509_TINY) && defined(HAVE_CRL_IO)
+    #ifndef WOLFSSL_X509_TINY_CRL_DP
+        #define WOLFSSL_X509_TINY_CRL_DP
+    #endif
+#endif
+
 /* support for converting DER to PEM */
 #if (defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DER_TO_PEM)) || \
     defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA)

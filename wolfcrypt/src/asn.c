@@ -156,6 +156,12 @@ ASN Options:
  * WOLFSSL_ALLOW_CRIT_AKID:  Allow critical Auth Key Identifier
  * WOLFSSL_ALLOW_CRIT_SKID:  Allow critical Subject Key Identifier
  * WC_ASN_UNKNOWN_EXT_CB:    Callback for unknown extensions
+ * WOLFSSL_X509_VERIFY_ONLY: Verify-only profile. Drops cert/key generation and
+    forces WOLFSSL_NO_PEM unless a gen add-back (WOLFSSL_X509_CERT_GEN /
+    WOLFSSL_X509_KEY_GEN) or WOLFSSL_X509_PEM is set.
+ * WOLFSSL_X509_TINY:        Minimal-extension profile. Compiles out optional
+    X.509 extension decoders behind per-feature WOLFSSL_X509_TINY_<F> add-back
+    macros. Requires WOLFSSL_ASN_TEMPLATE (enforced with #error).
  * WC_ASN_NO_HEAP:           Zero-allocation cert parse: reference key/alt-name
     data in the source DER instead of heap copies, so the source buffer must
     outlive the DecodedCert. Auto-defined when WOLFSSL_NO_MALLOC and
@@ -4503,9 +4509,14 @@ static int GetSignature(DecodedCert* cert);
 static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz, byte absentParams);
 #ifndef NO_CERTS
 static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert);
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_CRL_DP)
 static int DecodeCrlDist(const byte* input, word32 sz, DecodedCert* cert);
+#endif
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AIA)
 static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert);
-#ifndef IGNORE_NAME_CONSTRAINTS
+#endif
+#if !defined(IGNORE_NAME_CONSTRAINTS) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
 static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
                          word32 limit, byte* hasUnsupported, void* heap);
 static int DecodeNameConstraints(const byte* input, word32 sz, DecodedCert* cert);
@@ -19344,6 +19355,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         }
     }
 #ifndef IGNORE_NAME_CONSTRAINTS
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SAN_DIR)
     /* GeneralName choice: directoryName */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
         int strLen;
@@ -19363,6 +19375,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_SAN_DIR */
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SAN_EMAIL)
     /* GeneralName choice: rfc822Name */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
         ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert),
@@ -19372,6 +19386,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_SAN_EMAIL */
     /* GeneralName choice: uniformResourceIdentifier */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
         WOLFSSL_MSG("\tPutting URI into list but not using");
@@ -19446,6 +19461,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      *     surface the raw octets as OCTET_STRING already (see the
      *     ASN_IP_TYPE case under WOLFSSL_GEN_IPADD in src/x509.c).
      */
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SAN_IP)
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
         ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert),
                 (const char*)(input + idx), len, ASN_IP_TYPE,
@@ -19454,6 +19470,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_SAN_IP */
     /* GeneralName choice: registeredID
      *
      * Always parse registeredID into cert->altNames so
@@ -19479,6 +19496,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      *   - X509_print_name_entry: emits "Registered ID:<unavailable>"
      *     when ridString is not generated, instead of failing the
      *     whole print operation. */
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SAN_RID)
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
         ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert),
                 (const char*)(input + idx), len, ASN_RID_TYPE,
@@ -19487,6 +19505,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_SAN_RID */
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #ifndef IGNORE_NAME_CONSTRAINTS
     /* GeneralName choice: otherName.
@@ -19776,6 +19795,7 @@ static int DecodeBasicCaConstraintInternal(const byte* input, int sz,
 }
 
 
+#ifndef WOLFSSL_X509_TINY
 static int DecodePolicyConstraints(const byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -19829,6 +19849,7 @@ static int DecodePolicyConstraints(const byte* input, int sz, DecodedCert* cert)
 
     return 0;
 }
+#endif /* !WOLFSSL_X509_TINY */
 
 
 /* Context-Specific value for: DistributionPoint.distributionPoint
@@ -19841,7 +19862,8 @@ static int DecodePolicyConstraints(const byte* input, int sz, DecodedCert* cert)
  * From RFC3280 SS4.2.1.7, GeneralName */
 #define GENERALNAME_URI     (ASN_CONTEXT_SPECIFIC | 6)
 
-#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_CRL_DP))
 /* ASN.1 template for CRL distribution points.
  * X.509: RFC 5280, 4.2.1.13 - CRL Distribution Points.
  */
@@ -19892,6 +19914,7 @@ enum {
  * @return  BUFFER_E when data in buffer is too small.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_CRL_DP)
 static int DecodeCrlDist(const byte* input, word32 sz, DecodedCert* cert)
 {
     DECL_ASNGETDATA(dataASN, crlDistASN_Length);
@@ -19949,8 +19972,10 @@ static int DecodeCrlDist(const byte* input, word32 sz, DecodedCert* cert)
     FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_CRL_DP */
 #endif /* WOLFSSL_ASN_TEMPLATE */
-#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AIA))
 /* ASN.1 template for the access description.
  * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
  */
@@ -19987,6 +20012,7 @@ enum {
  * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AIA)
 static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -20055,6 +20081,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
 
     return ret;
 }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_AIA */
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -20195,6 +20222,7 @@ int DecodeAuthKeyId(const byte* input, word32 sz, const byte **extAuthKeyId,
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
  */
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AKI)
 static int DecodeAuthKeyIdInternal(const byte* input, word32 sz,
                                    DecodedCert* cert)
 {
@@ -20252,6 +20280,7 @@ static int DecodeAuthKeyIdInternal(const byte* input, word32 sz,
 
     return ret;
 }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_AKI */
 
 /* Decode subject key id extension.
  *
@@ -20296,6 +20325,7 @@ int DecodeSubjKeyId(const byte* input, word32 sz, const byte **extSubjKeyId,
  *          invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SKI)
 static int DecodeSubjKeyIdInternal(const byte* input, word32 sz,
                                    DecodedCert* cert)
 {
@@ -20319,6 +20349,7 @@ static int DecodeSubjKeyIdInternal(const byte* input, word32 sz,
 
     return ret;
 }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_SKI */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for KeyUsage.
@@ -20599,6 +20630,7 @@ static int DecodeExtKeyUsageInternal(const byte* input, word32 sz,
 
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
 
+#ifndef WOLFSSL_X509_TINY
 static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -20618,11 +20650,13 @@ static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
 
     return 0;
 }
+#endif /* !WOLFSSL_X509_TINY (DecodeNsCertType) */
 #endif
 
 
 #ifndef IGNORE_NAME_CONSTRAINTS
-#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
 /* ASN.1 template for GeneralSubtree.
  * X.509: RFC 5280, 4.2.1.10 - Name Constraints.
  */
@@ -20646,7 +20680,8 @@ enum {
 #define subTreeASN_Length (sizeof(subTreeASN) / sizeof(ASNItem))
 #endif
 
-#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
 /* Decode the Subtree's GeneralName.
  *
  * @param [in]      input  Buffer holding data.
@@ -20734,7 +20769,8 @@ static int DecodeSubtreeGeneralName(const byte* input, word32 sz, byte tag,
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  ASN_PARSE_E when SEQUENCE is not found as expected.
  */
-#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
 /* Decode a sub-tree of name constraints.
  *
  * @param [out]     hasUnsupported  Set to 1 when an entry with a GeneralName
@@ -20827,7 +20863,8 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
-#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
 /* ASN.1 template for NameConstraints.
  * X.509: RFC 5280, 4.2.1.10 - Name Constraints.
  */
@@ -20861,6 +20898,7 @@ enum {
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS)
 static int DecodeNameConstraints(const byte* input, word32 sz,
     DecodedCert* cert)
 {
@@ -20905,6 +20943,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
 
     return ret;
 }
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_NAME_CONSTRAINTS */
 #endif /* WOLFSSL_ASN_TEMPLATE */
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
@@ -21474,6 +21513,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
     int ret = 0;
     word32 idx = 0;
 
+    (void)idx; /* unused when optional extension cases are gated out (X509_TINY) */
     if (isUnknownExt != NULL)
         *isUnknownExt = 0;
 
@@ -21487,6 +21527,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
             }
             break;
 
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_CRL_DP)
         /* CRL Distribution point. */
         case CRL_DIST_OID:
             VERIFY_AND_SET_OID(cert->extCRLdistSet);
@@ -21495,7 +21536,9 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                 ret = ASN_PARSE_E;
             }
             break;
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_CRL_DP */
 
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AIA)
         /* Authority information access. */
         case AUTH_INFO_OID:
             VERIFY_AND_SET_OID(cert->extAuthInfoSet);
@@ -21516,6 +21559,15 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                 ret = ASN_PARSE_E;
             }
             break;
+#elif defined(WOLFSSL_X509_TINY)
+        /* Stripped: reject critical even under ALLOW_CRIT_AIA - can't honor an
+         * undecoded extension (RFC 5280 4.2.2.1). No SET_OID, bit means decoded. */
+        case AUTH_INFO_OID:
+            if (critical) {
+                ret = ASN_CRIT_EXT_E;
+            }
+            break;
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_AIA */
 
         /* Subject alternative name. */
         case ALT_NAMES_OID:
@@ -21524,6 +21576,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
             ret = DecodeAltNames(input, length, cert);
             break;
 
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AKI)
         /* Authority Key Identifier. */
         case AUTH_KEY_OID:
             VERIFY_AND_SET_OID(cert->extAuthKeyIdSet);
@@ -21544,7 +21597,17 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                 ret = ASN_PARSE_E;
             }
             break;
+#elif defined(WOLFSSL_X509_TINY)
+        /* Stripped: reject critical even under ALLOW_CRIT_AKID - can't honor an
+         * undecoded extension (RFC 5280 4.2.1.1). No SET_OID, bit means decoded. */
+        case AUTH_KEY_OID:
+            if (critical) {
+                ret = ASN_CRIT_EXT_E;
+            }
+            break;
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_AKI */
 
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SKI)
         /* Subject Key Identifier. */
         case SUBJ_KEY_OID:
             VERIFY_AND_SET_OID(cert->extSubjKeyIdSet);
@@ -21566,7 +21629,17 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                 ret = ASN_PARSE_E;
             }
             break;
+#elif defined(WOLFSSL_X509_TINY)
+        /* Stripped: reject critical even under ALLOW_CRIT_SKID - can't honor an
+         * undecoded extension (RFC 5280 4.2.1.2). No SET_OID, bit means decoded. */
+        case SUBJ_KEY_OID:
+            if (critical) {
+                ret = ASN_CRIT_EXT_E;
+            }
+            break;
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_SKI */
 
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_POLICIES)
         /* Certificate policies. */
         case CERT_POLICY_OID:
         #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
@@ -21593,6 +21666,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
             #endif
         #endif
             break;
+#endif /* !WOLFSSL_X509_TINY || WOLFSSL_X509_TINY_POLICIES */
 
         /* Key usage. */
         case KEY_USAGE_OID:
@@ -21612,7 +21686,9 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
             }
             break;
 
-        #ifndef IGNORE_NAME_CONSTRAINTS
+        #if !defined(IGNORE_NAME_CONSTRAINTS) && \
+            (!defined(WOLFSSL_X509_TINY) || \
+             defined(WOLFSSL_X509_TINY_NAME_CONSTRAINTS))
         /* Name constraints. */
         case NAME_CONS_OID:
         #ifndef WOLFSSL_NO_ASN_STRICT
@@ -21631,22 +21707,29 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                 ret = ASN_PARSE_E;
             }
             break;
-        #endif /* IGNORE_NAME_CONSTRAINTS */
+        #elif !defined(IGNORE_NAME_CONSTRAINTS)
+        /* TINY can't enforce name constraints; fail closed rather than ignore. */
+        case NAME_CONS_OID:
+            WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
+            ret = ASN_NAME_INVALID_E;
+            break;
+        #endif /* NAME_CONS_OID (name constraints / TINY) */
 
+        #ifndef WOLFSSL_X509_TINY
         /* Inhibit anyPolicy. */
         case INHIBIT_ANY_OID:
             VERIFY_AND_SET_OID(cert->inhibitAnyOidSet);
             WOLFSSL_MSG("Inhibit anyPolicy extension not supported yet.");
             break;
 
-   #ifndef IGNORE_NETSCAPE_CERT_TYPE
+        #ifndef IGNORE_NETSCAPE_CERT_TYPE
         /* Netscape's certificate type. */
         case NETSCAPE_CT_OID:
             if (DecodeNsCertType(input, (int)length, cert) < 0)
                 ret = ASN_PARSE_E;
             break;
-    #endif
-    #ifdef HAVE_OCSP
+        #endif
+        #ifdef HAVE_OCSP
         /* OCSP no check. */
         case OCSP_NOCHECK_OID:
             VERIFY_AND_SET_OID(cert->ocspNoCheckSet);
@@ -21655,13 +21738,14 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                 ret = ASN_PARSE_E;
             }
             break;
-    #endif
+        #endif
         case POLICY_CONST_OID:
             VERIFY_AND_SET_OID(cert->extPolicyConstSet);
             cert->extPolicyConstCrit = critical ? 1 : 0;
             if (DecodePolicyConstraints(&input[idx], (int)length, cert) < 0)
                 return ASN_PARSE_E;
             break;
+        #endif /* !WOLFSSL_X509_TINY (inhibitAny/netscape/ocsp/policyConst) */
     #ifdef WOLFSSL_SUBJ_DIR_ATTR
         case SUBJ_DIR_ATTR_OID:
             VERIFY_AND_SET_OID(cert->extSubjDirAttrSet);
@@ -21707,7 +21791,9 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         default:
             if (isUnknownExt != NULL)
                 *isUnknownExt = 1;
-        #ifndef WOLFSSL_NO_ASN_STRICT
+        /* TINY reaches default: for stripped extensions too, so reject a
+         * critical one even under NO_ASN_STRICT to stay fail-closed. */
+        #if !defined(WOLFSSL_NO_ASN_STRICT) || defined(WOLFSSL_X509_TINY)
             /* While it is a failure to not support critical extensions,
              * still parse the certificate ignoring the unsupported
              * extension to allow caller to accept it with the verify
