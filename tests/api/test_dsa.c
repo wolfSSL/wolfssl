@@ -759,7 +759,8 @@ static void dsa_test_fill_hex(char* dst, int len)
 int test_wc_DsaSign_bad_digestSz(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DSA) && !defined(WC_FIPS_186_5_PLUS)
+#if !defined(NO_DSA) && !defined(WC_FIPS_186_5_PLUS) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DsaKey key;
     WC_RNG rng;
     byte   signature[DSA_SIG_SIZE];

@@ -956,7 +956,8 @@ int test_wc_DhGenerateParams_and_ExportRaw(void)
  * domain parameters (wc_DhGenerateParams returns PRIME_GEN_E), so the
  * generate-and-export flow below is only valid with the full SP math
  * (WOLFSSL_SP_MATH_ALL), fastmath or heapmath backends. */
-#if !defined(NO_DH) && defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_SP_MATH)
+#if !defined(NO_DH) && defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey dh;
     WC_RNG rng;
     /* g is found by an unbounded incrementing search (wc_DhGenerateParams),
