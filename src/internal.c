@@ -32855,10 +32855,19 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                 return BUFFER_ERROR;
 
 #ifdef WOLFSSL_DTLS
-            if (cookieSz <= MAX_COOKIE_LEN) {
-                XMEMCPY(ssl->arrays->cookie, input + *inOutIdx, cookieSz);
-                ssl->arrays->cookieSz = cookieSz;
-            }
+            /* RFC 6347 allows a cookie of up to 255 bytes
+             * (opaque cookie<0..2^8-1>). If the peer's cookie doesn't fit
+             * in our configured buffer (MAX_COOKIE_LEN, adjustable via
+             * WOLFSSL_COOKIE_LEN), fail explicitly instead of silently
+             * dropping it - a silently-dropped cookie is never echoed
+             * back in the retransmitted ClientHello, causing the
+             * handshake to fail later in a way that gives no indication
+             * of the real cause. */
+            if (cookieSz > MAX_COOKIE_LEN)
+                return BUFFER_ERROR;
+
+            XMEMCPY(ssl->arrays->cookie, input + *inOutIdx, cookieSz);
+            ssl->arrays->cookieSz = cookieSz;
 #endif
             *inOutIdx += cookieSz;
         }
