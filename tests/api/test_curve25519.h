@@ -39,6 +39,13 @@ int test_wc_curve25519_import_private_raw_ex(void);
 int test_wc_curve25519_import_private(void);
 int test_wc_curve25519_priv_clamp_check(void);
 int test_wc_Curve25519KeyToDer_oneasymkey_version(void);
+int test_wc_curve25519_make_priv_argchecks(void);
+int test_wc_curve25519_import_public_ex_argchecks(void);
+int test_wc_curve25519_check_public_le(void);
+int test_wc_curve25519_check_public_be(void);
+int test_wc_curve25519_generic_argchecks(void);
+int test_wc_curve25519_set_rng_argcheck(void);
+int test_wc_curve25519_nonblock(void);
 
 #define TEST_CURVE25519_DECLS                                                  \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_init),                    \
@@ -55,6 +62,13 @@ int test_wc_Curve25519KeyToDer_oneasymkey_version(void);
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_import_private_raw_ex),   \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_import_private),          \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_priv_clamp_check),        \
-    TEST_DECL_GROUP("curve25519", test_wc_Curve25519KeyToDer_oneasymkey_version)
+    TEST_DECL_GROUP("curve25519", test_wc_Curve25519KeyToDer_oneasymkey_version), \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_make_priv_argchecks),     \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_import_public_ex_argchecks), \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_check_public_le),        \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_check_public_be),        \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_generic_argchecks),      \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_set_rng_argcheck),       \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_nonblock)
 
 #endif /* WOLFCRYPT_TEST_CURVE25519_H */
