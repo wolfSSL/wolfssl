@@ -4592,7 +4592,7 @@ typedef struct Sch13Args {
     word32 length;
 #if defined(HAVE_ECH)
     int clientRandomOffset;
-    int preXLength;
+    word32 preXLength;
     word32 expandedInnerLen;
     WOLFSSL_ECH* ech;
 #endif
@@ -4786,6 +4786,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #if defined(HAVE_ECH)
     if (!ssl->options.disableECH) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        void* hostName = NULL;
+        word16 nameLen;
         if (echX == NULL)
             return WOLFSSL_FATAL_ERROR;
 
@@ -4813,7 +4815,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
             /* set the type to inner */
             args->ech->type = ECH_TYPE_INNER;
-            args->preXLength = (int)args->length;
+            args->preXLength = args->length;
 
             /* get expanded inner size (used for transcript) */
             ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
@@ -4843,8 +4845,13 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                 return ret;
 
             /* calculate padding (RFC 9849, section 6.1.3) */
-            if (args->ech->privateName != NULL) {
-                word16 nameLen = (word16)XSTRLEN(args->ech->privateName);
+            nameLen = TLSX_SNI_GetRequest(ssl->extensions,
+                WOLFSSL_SNI_HOST_NAME, &hostName, 1);
+            if (nameLen == 0 && ssl->ctx != NULL)
+                nameLen = TLSX_SNI_GetRequest(ssl->ctx->extensions,
+                    WOLFSSL_SNI_HOST_NAME, &hostName, 1);
+
+            if (nameLen != 0) {
                 if (nameLen > args->ech->echConfig->maxNameLen)
                     args->ech->paddingLen = 0;
                 else
@@ -4852,6 +4859,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                         (word16)args->ech->echConfig->maxNameLen - nameLen;
             }
             else {
+                /* maxNameLen + length of the SNI extension */
                 args->ech->paddingLen = args->ech->echConfig->maxNameLen + 9;
             }
 
@@ -4866,7 +4874,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                 return BUFFER_E;
 
             /* restore the length to pre-ClientHelloInner computations */
-            args->length = (word32)args->preXLength;
+            args->length = args->preXLength;
         }
     }
 #endif
@@ -5305,6 +5313,13 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
 
         ssl->hsHashes = tmpHashes;
     }
+
+    /* Skip only when the HRR signals ECH acceptance
+     * -> CH2 still needs ech->extensions for inner/outer extension swap
+     *    during write */
+    if (ret == 0 &&
+            (msgType != hello_retry_request || !ssl->options.echAccepted))
+        ret = TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
 
     return ret;
 }
@@ -5889,6 +5904,10 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* server rejected ECH, fall back to outer */
             Free_HS_Hashes(ssl->hsHashesEch, ssl->heap);
             ssl->hsHashesEch = NULL;
+            /* EchCheckAcceptance is bypassed, so replace extensions now */
+            ret = TLSX_EchReplaceExtensions(ssl, 0);
+            if (ret != 0)
+                return ret;
         }
         else {
             /* account for hrr extension instead of server random */
@@ -7742,28 +7761,13 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #if defined(HAVE_ECH)
+    /* ECH accept/reject reconciliation is done at the end of TLSX_Parse. On
+     * acceptance the inner hello was decrypted, so jump to exit and let the
+     * caller re-invoke with the inner hello. */
     if (!ssl->options.echProcessingInner && echX != NULL &&
-            ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
-        if (((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
-            /* Client sent real ECH and inner hello was decrypted, jump to
-             * exit so the caller can re-invoke with the inner hello */
-            goto exit_dch;
-        }
-        else {
-            /* If ECH was accepted in ClientHello1 then ClientHello2 MUST
-             * contain an ECH extension */
-            if (ssl->options.serverState ==
-                    SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
-                    ssl->options.echAccepted) {
-                WOLFSSL_MSG("Client did not send an EncryptedClientHello "
-                            "extension");
-                ERROR_OUT(INCOMPLETE_DATA, exit_dch);
-            }
-            /* Server has ECH but client did not send ECH. Clear the
-             * response flag so the empty ECH extension is not written
-             * in EncryptedExtensions. */
-            echX->resp = 0;
-        }
+            ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE &&
+            ((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
+        goto exit_dch;
     }
 #endif
 
@@ -13943,18 +13947,12 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 *inOutIdx = echInOutIdx;
                 /* call again with the inner hello */
                 if (ret == 0) {
-                    if (((WOLFSSL_ECH*)echX->data)->sniState == ECH_OUTER_SNI) {
-                        ((WOLFSSL_ECH*)echX->data)->sniState = ECH_INNER_SNI;
-                    }
-
                     ssl->options.echProcessingInner = 1;
                     ret = DoTls13ClientHello(ssl,
                         ((WOLFSSL_ECH*)echX->data)->innerClientHello,
                         &echInOutIdx,
                         ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
                     ssl->options.echProcessingInner = 0;
-
-                    ((WOLFSSL_ECH*)echX->data)->sniState = ECH_SNI_DONE;
                 }
                 if (ret == 0 && ((WOLFSSL_ECH*)echX->data)->state !=
                         ECH_PARSED_INTERNAL) {
