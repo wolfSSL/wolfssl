@@ -2506,7 +2506,8 @@ int test_wc_EccDecisionCoverage3(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     WC_RNG  rng;
     ecc_key key;
     int     ret;
