@@ -2277,12 +2277,17 @@ int wolfSSL_CryptHwMutexLock(void)
 }
 int wolfSSL_CryptHwMutexUnLock(void)
 {
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if (wcCryptHwMutexInit) {
         return wc_UnLockMutex(&wcCryptHwMutex);
     }
     else {
         return BAD_MUTEX_E;
     }
+#else
+    /* statically initialized (no runtime init flag) -- always valid to unlock */
+    return wc_UnLockMutex(&wcCryptHwMutex);
+#endif
 }
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
 
