@@ -30,6 +30,12 @@ int test_mp_get_rand_digit(void);
 int test_mp_cond_copy(void);
 int test_mp_rand(void);
 int test_wc_export_int(void);
+int test_wc_SpIntSizeDecisionCoverage(void);
+int test_wc_SpIntShiftDecisionCoverage(void);
+int test_wc_SpIntDigitArithDecisionCoverage(void);
+int test_wc_SpIntArithDecisionCoverage(void);
+int test_wc_SpIntConvDecisionCoverage(void);
+int test_wc_SpIntExptGcdDecisionCoverage(void);
 
 #define TEST_WOLFMATH_DECLS                             \
     TEST_DECL_GROUP("wolfmath", test_mp_get_digit_count),  \
@@ -37,6 +43,12 @@ int test_wc_export_int(void);
     TEST_DECL_GROUP("wolfmath", test_mp_get_rand_digit),   \
     TEST_DECL_GROUP("wolfmath", test_mp_cond_copy),     \
     TEST_DECL_GROUP("wolfmath", test_mp_rand),          \
-    TEST_DECL_GROUP("wolfmath", test_wc_export_int)
+    TEST_DECL_GROUP("wolfmath", test_wc_export_int),    \
+    TEST_DECL_GROUP("wolfmath", test_wc_SpIntSizeDecisionCoverage),      \
+    TEST_DECL_GROUP("wolfmath", test_wc_SpIntShiftDecisionCoverage),     \
+    TEST_DECL_GROUP("wolfmath", test_wc_SpIntDigitArithDecisionCoverage),\
+    TEST_DECL_GROUP("wolfmath", test_wc_SpIntArithDecisionCoverage),     \
+    TEST_DECL_GROUP("wolfmath", test_wc_SpIntConvDecisionCoverage),      \
+    TEST_DECL_GROUP("wolfmath", test_wc_SpIntExptGcdDecisionCoverage)
 
 #endif /* WOLFCRYPT_TEST_WOLFMATH_H */
