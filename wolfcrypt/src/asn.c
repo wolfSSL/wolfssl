@@ -32950,8 +32950,9 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *outLen,
         ret = BAD_FUNC_ARG;
     }
 
-    /* Check key has parameters when encoding curve. */
-    if ((ret == 0) && curveIn && (key->dp == NULL)) {
+    /* Check key has parameters: key->dp->size is dereferenced below regardless
+     * of curveIn. */
+    if ((ret == 0) && (key->dp == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0)
