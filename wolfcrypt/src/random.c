@@ -2234,7 +2234,7 @@ int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
     return _InitRng(rng, nonce, nonceSz, heap, devId);
 }
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 static int PollAndReSeed(WC_RNG* rng)
 {
     int ret   = DRBG_NEED_RESEED;
