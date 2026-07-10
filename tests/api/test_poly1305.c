@@ -113,6 +113,17 @@ int test_wc_Poly1305UpdateFinal(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Poly1305Final(&ctx, NULL),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ctx valid, m == NULL, bytes > 0: independence pair closing the inner
+     * (m == NULL && bytes > 0) AND's 2nd operand (bytes > 0) with m == NULL
+     * held true, and the outer OR's ctx==NULL operand held false. */
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Poly1305Update(&ctx, NULL, sizeof(msg)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* ctx valid, m == NULL, bytes == 0: valid no-op call. Independence pair
+     * for the inner AND's 1st operand (m == NULL) held true while bytes > 0
+     * flips to false -- the whole AND (and so the OR) goes false. */
+    ExpectIntEQ(wc_Poly1305Update(&ctx, NULL, 0), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Poly1305UpdateFinal */
@@ -184,6 +195,11 @@ int test_wc_Poly1305_MAC(void)
     ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 1,
                                  input, sizeof(input), tag, sizeof(tag)),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* addSz == 0: the additional-data block is skipped entirely (additional
+     * may legitimately be NULL here too). */
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Poly1305_MAC(&ctx, NULL, 0,
+                                 input, sizeof(input), tag, sizeof(tag)), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Poly1305_MAC */
@@ -254,6 +270,16 @@ int test_wc_Poly1305_PadEncodeSizes(void)
     /* Pad lenToPad == 0 is a no-op */
     ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, sizeof(key)), 0);
     ExpectIntEQ(wc_Poly1305_Pad(&ctx, 0), 0);
+
+    /* Pad lenToPad already a multiple of WC_POLY1305_PAD_SZ (16): distinct
+     * from lenToPad==0 above -- this takes the lenToPad != 0 branch but
+     * computes paddingLen == 0 ((-(int)lenToPad) & 15 == 0), the FALSE side
+     * of the (paddingLen > 0) decision. (paddingLen < WC_POLY1305_PAD_SZ is
+     * structurally always true whenever paddingLen > 0 is true -- the mod-16
+     * formula bounds paddingLen to 0..15 -- so that operand's FALSE side is
+     * an unsatisfiable residual; see campaign RESIDUALS notes.) */
+    ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_Poly1305_Pad(&ctx, 16), 0);
 
     /* Bad args */
     ExpectIntEQ(wc_Poly1305_Pad(NULL, 1),

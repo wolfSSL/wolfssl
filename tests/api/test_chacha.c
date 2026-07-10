@@ -61,6 +61,26 @@ int test_wc_Chacha_SetKey(void)
     /* Test bad args. */
     ExpectIntEQ(wc_Chacha_SetIV(NULL, cipher, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* ctx valid, inIv NULL: independence pair for the SetIV OR's 2nd arg. */
+    ExpectIntEQ(wc_Chacha_SetIV(&ctx, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ctx valid, key NULL: independence pair for the SetKey OR's 2nd arg. */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, NULL, keySz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* half-length key (16 bytes / tau constant) is also valid. */
+    ExpectIntEQ(wc_Chacha_SetKey(&ctx, key, CHACHA_MAX_KEY_SZ / 2), 0);
+
+    /* misaligned key pointer: exercises the (wc_ptr_t)key % 4 realignment
+     * decision in wc_Chacha_SetKey when XSTREAM_ALIGN is forced on (the
+     * xstream_align campaign variant). settings.h compiles XSTREAM_ALIGN out
+     * by default on x86_64/i386/ia64 (NO_XSTREAM_ALIGN), so this call is a
+     * harmless no-op realignment-free copy on every other build. */
+    {
+        byte keybuf[CHACHA_MAX_KEY_SZ + 1];
+        XMEMCPY(keybuf + 1, key, sizeof(key));
+        ExpectIntEQ(wc_Chacha_SetKey(&ctx, keybuf + 1, keySz), 0);
+    }
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Chacha_SetKey */
@@ -179,9 +199,25 @@ int test_wc_Chacha_Process(void)
     }
 #endif
 
-    /* Test bad args. */
+    /* Test bad args: independence pairs for each operand of the 3-way OR. */
     ExpectIntEQ(wc_Chacha_Process(NULL, cipher, (byte*)input, (word32)inlen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Chacha_Process(&enc, cipher, NULL, (word32)inlen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Chacha_Process(&enc, NULL, (byte*)input, (word32)inlen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* msglen==0 with a pending leftover keystream block: independence pair
+     * for the (msglen > 0 && ctx->left > 0) decision's first operand, held
+     * with ctx->left > 0 (the other operand) true. Deliberately NOT under
+     * the USE_INTEL_CHACHA_SPEEDUP-exclude guard above: portable C and the
+     * intel-speedup dispatch each carry their own copy of this decision at
+     * a different line, and this call is variant-agnostic so it closes
+     * whichever one a given build compiled. */
+    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, keySz), 0);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, cipher, 0), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, cipher, (byte*)input, 1), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, cipher, (byte*)input, 0), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Chacha_Process */
@@ -617,3 +653,53 @@ int test_wc_Chacha_UnalignedBuffers(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Chacha_UnalignedBuffers */
+
+/*
+ * Testing wc_XChacha_SetKey(). Exercises the XChaCha20 24-byte-nonce setup
+ * (wc_HChacha_block, the two internal wc_Chacha_SetIV calls) and its
+ * nonceSz argument check.
+ */
+int test_wc_Chacha_XChachaSetKey(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHACHA) && defined(HAVE_XCHACHA)
+    ChaCha enc, dec;
+    static const byte key[CHACHA_MAX_KEY_SZ] = {
+        0x00,0x01,0x02,0x03, 0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b, 0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13, 0x14,0x15,0x16,0x17,
+        0x18,0x19,0x1a,0x1b, 0x1c,0x1d,0x1e,0x1f
+    };
+    static const byte nonce[XCHACHA_NONCE_BYTES] = {
+        0x00,0x01,0x02,0x03, 0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b, 0x0c,0x0d,0x0e,0x0f,
+        0x10,0x11,0x12,0x13, 0x14,0x15,0x16,0x17
+    };
+    static const byte plain[32] = { 0 };
+    byte cipher[sizeof(plain)];
+    byte roundtrip[sizeof(plain)];
+
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(&dec, 0, sizeof(dec));
+
+    /* Valid 24-byte nonce round trip. */
+    ExpectIntEQ(wc_XChacha_SetKey(&enc, key, sizeof(key), nonce,
+        sizeof(nonce), 0), 0);
+    ExpectIntEQ(wc_XChacha_SetKey(&dec, key, sizeof(key), nonce,
+        sizeof(nonce), 0), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, cipher, plain, sizeof(plain)), 0);
+    ExpectIntEQ(wc_Chacha_Process(&dec, roundtrip, cipher, sizeof(plain)), 0);
+    ExpectBufEQ(roundtrip, plain, sizeof(plain));
+
+    /* Bad nonceSz: independence pair for the nonceSz != XCHACHA_NONCE_BYTES
+     * decision (single-condition, but still needs both outcomes for branch
+     * coverage). */
+    ExpectIntEQ(wc_XChacha_SetKey(&enc, key, sizeof(key), nonce,
+        sizeof(nonce) - 1, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Bad keySz propagates the wc_Chacha_SetKey() failure through. */
+    ExpectIntEQ(wc_XChacha_SetKey(&enc, key, 18, nonce, sizeof(nonce), 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Chacha_XChachaSetKey */
