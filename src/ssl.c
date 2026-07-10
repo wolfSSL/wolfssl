@@ -7961,7 +7961,13 @@ void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx)
     {
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         WOLFSSL_ENTER("wolfSSL_set_verify_depth");
-        ssl->options.verifyDepth = (byte)depth;
+        /* Reject out-of-range depths; valid range is 0 to MAX_CHAIN_DEPTH. */
+        if ((ssl == NULL) || (depth < 0) || (depth > MAX_CHAIN_DEPTH)) {
+            WOLFSSL_MSG("Bad depth argument, too large or less than 0");
+        }
+        else {
+            ssl->options.verifyDepth = (byte)depth;
+        }
     #endif
     }
 
