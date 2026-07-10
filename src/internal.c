@@ -15355,7 +15355,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         if (args->certIdx == 0) {
             FreeX509(&ssl->peerCert);
             InitX509(&ssl->peerCert, 0, ssl->heap);
-            if (CopyDecodedToX509(&ssl->peerCert, args->dCert) == 0)
+            if (CopyDecodedToX509(&ssl->peerCert, args->dCert) != 0)
                 WOLFSSL_MSG("Unable to copy to ssl->peerCert");
             store->current_cert = &ssl->peerCert; /* use existing X509 */
         }
