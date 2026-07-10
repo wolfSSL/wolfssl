@@ -42556,8 +42556,18 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         /* Update AAD with index. */
         aad[WOLFSSL_TICKET_NAME_SZ - 1] |= keyIdx;
 
+#ifndef SINGLE_THREADED
+        /* Hold the lock over the key/expiry read so a concurrent regen can't swap the key mid-decrypt. */
+        if (wc_LockMutex(&keyCtx->mutex) != 0) {
+            WOLFSSL_MSG("Couldn't lock key context mutex");
+            return WOLFSSL_TICKET_RET_REJECT;
+        }
+#endif
         /* Check expirary */
         if (keyCtx->expirary[keyIdx] <= LowResTimer()) {
+#ifndef SINGLE_THREADED
+            wc_UnLockMutex(&keyCtx->mutex);
+#endif
             return WOLFSSL_TICKET_RET_REJECT;
         }
 
@@ -42565,6 +42575,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         ret = TicketEncDec(keyCtx->key[keyIdx], WOLFSSL_TICKET_KEY_SZ, iv, aad,
                            aadSz, ticket, inLen, ticket, outLen, mac, ssl->heap,
                            0);
+#ifndef SINGLE_THREADED
+        wc_UnLockMutex(&keyCtx->mutex);
+#endif
         if (ret != 0) {
             return WOLFSSL_TICKET_RET_REJECT;
         }
