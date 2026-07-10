@@ -1089,6 +1089,11 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
         return BAD_FUNC_ARG;
     }
 
+    if (*privSz > DH_MAX_SIZE) {
+        WOLFSSL_MSG("DH private key size exceeds DH_MAX_SIZE");
+        return BAD_FUNC_ARG;
+    }
+
     qSz = mp_unsigned_bin_size(&key->q);
     pSz = mp_unsigned_bin_size(&key->p);
 
@@ -1205,6 +1210,12 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
     int ret = 0;
     word32 sz = 0;
 
+    /* reject primes below the minimum allowed size */
+    if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+        WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+        return WC_KEY_SIZE_E;
+    }
+
 #ifndef WOLFSSL_NO_DH186
     if (mp_iszero(&key->q) == MP_NO) {
 
@@ -1281,6 +1292,12 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     mp_int y[1];
 #endif
 #endif
+
+    /* reject primes below the minimum allowed size */
+    if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+        WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+        return WC_KEY_SIZE_E;
+    }
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
@@ -1668,6 +1685,9 @@ int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
     int ret = 0;
     word32 i;
 
+    if (prime == NULL || pub == NULL)
+        return BAD_FUNC_ARG;
+
     for (i = 0; i < pubSz && pub[i] == 0; i++) {
     }
     pubSz -= i;
@@ -1761,11 +1781,8 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
 
     if (ret == 0) {
         if (mp_iszero(q) == MP_NO) {
-            /* priv (x) shouldn't be greater than q - 1 */
-            if (ret == 0) {
-                if (mp_copy(&key->q, q) != MP_OKAY)
-                    ret = MP_INIT_E;
-            }
+            /* priv (x) shouldn't be greater than q - 1.
+               q already set above; don't overwrite with key->q */
             if (ret == 0) {
                 if (mp_sub_d(q, 1, q) != MP_OKAY)
                     ret = MP_SUB_E;
@@ -1984,6 +2001,12 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     mp_int z[1];
 #endif
 #endif
+
+    /* reject primes below the minimum allowed size */
+    if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+        WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+        return WC_KEY_SIZE_E;
+    }
 
 #ifdef WOLFSSL_VALIDATE_FFC_IMPORT
     if (wc_DhCheckPrivKey(key, priv, privSz) != 0) {

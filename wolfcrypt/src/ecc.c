@@ -6139,8 +6139,10 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* bits2octets on h1 */
     if (ret == 0) {
-        /* right shift by bits in hash minus bits in order */
-        mp_rshb(&z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
+        /* right shift by bits in hash minus bits in order; explicit no-op
+         * when the hash has more bits than the order */
+        if ((hashSz * WOLFSSL_BIT_SIZE) > (word32)qbits)
+            mp_rshb(&z1, (int)((hashSz * WOLFSSL_BIT_SIZE) - (word32)qbits));
         XMEMSET(h1, 0, WC_MAX_DIGEST_SIZE);
 
         /* mod reduce by order using conditional subtract */
@@ -6205,10 +6207,12 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = mp_read_unsigned_bin(k, V, VSz);
             }
 
-            if ((ret == 0) && ((int)(VSz * WOLFSSL_BIT_SIZE) != qbits)) {
+            if ((ret == 0) && ((VSz * WOLFSSL_BIT_SIZE) > (word32)qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
-                 *  k = bits2int(T) in section 3.2 h.3 */
-                mp_rshb(k, (VSz * WOLFSSL_BIT_SIZE) - qbits);
+                 *  k = bits2int(T) in section 3.2 h.3; guard with > so the
+                 *  unsigned subtraction cannot wrap when the order has more
+                 *  bits than the hash. */
+                mp_rshb(k, (int)((VSz * WOLFSSL_BIT_SIZE) - (word32)qbits));
             }
 
             /* 3.2 step h.3 the key should be smaller than the order of base
@@ -8790,14 +8794,22 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY) {
     #ifdef HAVE_COMP_KEY
         /* adjust inLen if compressed */
-        if (compressed)
-            inLen = inLen*2 + 1;  /* used uncompressed len */
+        if (compressed) {
+            /* a compressed coordinate cannot exceed MAX_ECC_BYTES; bound it
+             * before doubling so inLen*2 + 1 cannot overflow word32. */
+            if (inLen > MAX_ECC_BYTES)
+                err = BAD_FUNC_ARG;
+            else
+                inLen = inLen*2 + 1;  /* used uncompressed len */
+        }
     #endif
 
         /* determine key size */
-        keysize = (inLen>>1);
-        err = wc_ecc_set_curve(key, keysize, curve_id);
-        key->type = ECC_PUBLICKEY;
+        if (err == MP_OKAY) {
+            keysize = (inLen>>1);
+            err = wc_ecc_set_curve(key, keysize, curve_id);
+            key->type = ECC_PUBLICKEY;
+        }
     }
 
     /* read data */
