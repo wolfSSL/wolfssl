@@ -2374,6 +2374,8 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
             }
         }
         else {
+            wolfSSL_X509_free(x509);
+            x509 = NULL;
             goto error;
         }
         found = 1;
