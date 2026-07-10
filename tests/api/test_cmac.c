@@ -611,7 +611,11 @@ int test_wc_AesCmacVerifyExDecisionCoverage(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesCmacVerifyExDecisionCoverage */
 
-#ifdef WOLF_CRYPTO_CB
+/* Match test_wc_AesCmacVerify_CryptoCb_LenMismatch's guard: the callback
+ * dereferences wc_CryptoInfo's cmac member (WOLFSSL_CMAC only) and uses the
+ * Cmac type / wc_AesCmacGenerate_ex, so WOLF_CRYPTO_CB alone is not enough. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_128)
 #define TEST_CMAC_CRYPTOCB_DEVID 0x434d4143 /* "CMAC" */
 
 /* Toggled by the test function below: when set, the callback fails
@@ -655,7 +659,7 @@ static int test_cmac_cryptocb_badlen_cb(int cbDevId, wc_CryptoInfo* info,
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
-#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_CMAC && !NO_AES && WOLFSSL_AES_128 */
 
 /*
  * MC/DC: wc_AesCmacVerify_ex()'s (ret == 0 && aSz != checkSz) guard. In

@@ -1017,6 +1017,8 @@ int test_wc_DsaExportKeyRaw_individual_args(void)
      * compilers, but the source is a plain && so MC/DC still needs this
      * combination demonstrated with x forced non-zero and y forced zero. */
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    /* free the RNG from the previous block before re-initializing it */
+    wc_FreeRng(&rng);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_MakeDsaParameters(&rng, 1024, &key), 0);
     ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);
@@ -1027,6 +1029,8 @@ int test_wc_DsaExportKeyRaw_individual_args(void)
 
     /* only x is zero (y non-zero) */
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    /* free the RNG from the previous block before re-initializing it */
+    wc_FreeRng(&rng);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_MakeDsaParameters(&rng, 1024, &key), 0);
     ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);

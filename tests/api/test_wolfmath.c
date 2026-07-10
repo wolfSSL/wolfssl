@@ -873,6 +873,9 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
     ExpectIntEQ(sp_set(&a, 20), 0);
     ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, &m), WC_NO_ERR_TRACE(MP_VAL));
 
+    /* sp_gcd is only compiled when !NO_RSA && WOLFSSL_KEY_GEN (its definition
+     * guard in sp_int.c, narrower than the prototype's || in sp_int.h). */
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     /* sp_gcd: NULL args; a or b too big (>= SP_INT_DIGITS, skipped: needs
      * an operand at the compile limit, documented residual); undersized
      * dest; both zero (undefined); a zero, b nonzero (gcd = b); normal;
@@ -931,6 +934,7 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
     sp_setneg(&b);
     ExpectIntEQ(sp_gcd(&a, &b, &r), WC_NO_ERR_TRACE(MP_VAL)); /* b negative */
 #endif
+#endif /* !NO_RSA && WOLFSSL_KEY_GEN (sp_gcd) */
 
     /* sp_prime_is_prime / sp_prime_is_prime_ex: trials out of range;
      * a == 1 shortcut; a even (composite, single-digit fast path). */
