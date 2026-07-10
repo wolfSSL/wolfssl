@@ -951,7 +951,11 @@ int test_wc_DhCheckKeyPair(void)
 int test_wc_DhGenerateParams_and_ExportRaw(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && defined(WOLFSSL_KEY_GEN)
+/* Excludes bare WOLFSSL_SP_MATH: its reduced backend cannot generate DH
+ * domain parameters (wc_DhGenerateParams returns PRIME_GEN_E), so the
+ * generate-and-export flow below is only valid with the full SP math
+ * (WOLFSSL_SP_MATH_ALL), fastmath or heapmath backends. */
+#if !defined(NO_DH) && defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_SP_MATH)
     DhKey dh;
     WC_RNG rng;
     /* g is found by an unbounded incrementing search (wc_DhGenerateParams),
