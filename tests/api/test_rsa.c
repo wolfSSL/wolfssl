@@ -1610,18 +1610,11 @@ int test_wc_RsaDecisionCoverage(void)
 
     /* ---- wc_MakeRsaKey size check: RsaSizeCheck (rsa.c line ~5153) ----
      * size < RSA_MIN_SIZE and size > RSA_MAX_SIZE both reject; the valid-size
-     * (all-false) side came from the MAKE_RSA_KEY above.
-     * Skipped under WOLFSSL_CHECK_MEM_ZERO: on the early size-check failure
-     * wc_MakeRsaKey runs mp_memzero_check() over its not-yet-initialized local
-     * temporaries, which over-scans the stack and false-positives on the
-     * still-registered (legitimately non-zero) key->d of the key made above.
-     * The decision itself is covered in every non-instrumented build. */
-#ifndef WOLFSSL_CHECK_MEM_ZERO
+     * (all-false) side came from the MAKE_RSA_KEY above. */
     ExpectIntEQ(wc_MakeRsaKey(&key, RSA_MIN_SIZE - 1, WC_RSA_EXPONENT, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeRsaKey(&key, RSA_MAX_SIZE + 1, WC_RSA_EXPONENT, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
 
     /* ---- wc_CheckProbablePrime_ex argument checks (rsa.c ~5286/~5293) ---- */
     {
