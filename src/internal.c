@@ -12867,6 +12867,8 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
     }
 
+    ForceZero(md5_result, WC_MD5_DIGEST_SIZE);
+
     WC_FREE_VAR_EX(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
