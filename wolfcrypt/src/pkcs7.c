@@ -6727,6 +6727,17 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
                     /* grow content buffer */
                     contBufSz = pkcs7->stream->accumContSz;
+                    /* Reject before the word32 add wraps and yields a tiny alloc for an oversized copy. */
+                    if (pkcs7->stream->expected >
+                            WOLFSSL_PKCS7_MAX_STREAM_ALLOC -
+                            pkcs7->stream->accumContSz) {
+                        WOLFSSL_MSG("PKCS7 accumulated content size too large");
+                        if (tempBuf != NULL) {
+                            XFREE(tempBuf, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                        }
+                        ret = BUFFER_E;
+                        break;
+                    }
                     pkcs7->stream->accumContSz += pkcs7->stream->expected;
 
                     pkcs7->stream->content =
