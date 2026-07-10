@@ -22048,6 +22048,12 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         case INHIBIT_ANY_OID:
             VERIFY_AND_SET_OID(cert->inhibitAnyOidSet);
             WOLFSSL_MSG("Inhibit anyPolicy extension not supported yet.");
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            if (critical) {
+                WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
+                ret = ASN_CRIT_EXT_E;
+            }
+        #endif
             break;
 
         #ifndef IGNORE_NETSCAPE_CERT_TYPE
@@ -22072,6 +22078,12 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
             cert->extPolicyConstCrit = critical ? 1 : 0;
             if (DecodePolicyConstraints(&input[idx], (int)length, cert) < 0)
                 return ASN_PARSE_E;
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            if (critical) {
+                WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
+                ret = ASN_CRIT_EXT_E;
+            }
+        #endif
             break;
         #endif /* !WOLFSSL_X509_TINY (inhibitAny/netscape/ocsp/policyConst) */
     #ifdef WOLFSSL_SUBJ_DIR_ATTR
