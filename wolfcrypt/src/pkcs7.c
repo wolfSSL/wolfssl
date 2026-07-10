@@ -7641,8 +7641,10 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                         WOLFSSL_MSG("certificate set found");
 
-                        /* adjust cert length */
-                        length += (int)(localIdx - certIdx);
+                        if (!WC_SAFE_SUM_SIGNED(int, length,
+                                    (int)(localIdx - certIdx), length)) {
+                            ret = ASN_PARSE_E;
+                        }
                         idx = certIdx;
                     }
                 }
