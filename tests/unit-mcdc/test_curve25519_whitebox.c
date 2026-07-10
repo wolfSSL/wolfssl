@@ -8,10 +8,10 @@
  * each open with a "key == NULL || rng == NULL" (or just "key == NULL")
  * guard and a "ret == 0 && key->nb_ctx->state == 0" guard. Every public
  * caller (wc_curve25519_make_key()) validates key/rng non-NULL itself
- * *before* ever reaching these statics (and only calls them when
+ * *before* ever reaching these static helpers (and only calls them when
  * key->nb_ctx != NULL, so the "ret==0" half of the second guard is always
  * true on entry), so the guards' otherwise-unreachable halves can only be
- * shown by calling the statics directly. This translation unit reaches
+ * shown by calling the static helpers directly. This translation unit reaches
  * them by compiling curve25519.c directly (#include) and calling the
  * helpers with both halves of each MC/DC independence pair.
  *

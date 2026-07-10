@@ -35,7 +35,7 @@
  *
  * On a capable host cpuid reports AVX2, so the runtime always takes the AVX2
  * branch: the "cached", BMI, and non-fast-path conditions are unreachable from
- * tests/api. This TU #includes sha3.c so those statics are in scope and drives
+ * tests/api. This TU #includes sha3.c so those static items are in scope and drives
  * InitSha3 / Update with cpuid_flags and the block pointers forced.
  *
  * (The identical "cached" decision in the __aarch64__ dispatch, line ~759, is

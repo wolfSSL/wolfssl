@@ -2167,6 +2167,7 @@ int test_wc_EccDecisionCoverage(void)
      * if (ret == 0 && id != NULL && len != 0) -> copy branch
      * Exercise: len<0, len>MAX, id==NULL (len!=0 skipped), len==0 (id!=NULL
      * skipped), and the true/true "copy" case. */
+    #ifdef WOLF_PRIVATE_KEY_ID
     {
         ecc_key idKey;
         unsigned char idbuf[4] = { 1, 2, 3, 4 };
@@ -2195,10 +2196,12 @@ int test_wc_EccDecisionCoverage(void)
             INVALID_DEVID), 0);
         wc_ecc_free(&idKey);
     }
+    #endif
 
     /* ---- wc_ecc_init_label: GAPS.md 6503, 6507 ----
      * if (key == NULL || label == NULL)
      * if (labelLen == 0 || labelLen > ECC_MAX_LABEL_LEN) */
+    #ifdef WOLF_PRIVATE_KEY_ID
     {
         ecc_key lblKey;
         char longLabel[ECC_MAX_LABEL_LEN + 2];
@@ -2222,6 +2225,7 @@ int test_wc_EccDecisionCoverage(void)
         ExpectIntEQ(wc_ecc_init_label(&lblKey, "x", NULL, INVALID_DEVID), 0);
         wc_ecc_free(&lblKey);
     }
+    #endif
 
 #if defined(HAVE_ECC_SIGN) && !defined(NO_ASN)
     /* ---- wc_ecc_sign_hash / wc_ecc_sign_hash_ex: GAPS.md 6909, 7443 ----
@@ -2693,6 +2697,7 @@ int test_wc_EccDecisionCoverage4(void)
 #endif
 
     /* ---- wc_X963_KDF: GAPS.md 16217, 16221 ---- */
+    #ifdef HAVE_X963_KDF
     {
         byte   secret[16];
         byte   out[16];
@@ -2713,6 +2718,7 @@ int test_wc_EccDecisionCoverage4(void)
             NULL, 0, out, outLen), 0);
 #endif
     }
+    #endif
 
     wc_ecc_free(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -2722,4 +2728,3 @@ int test_wc_EccDecisionCoverage4(void)
 #endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
     return EXPECT_RESULT();
 } /* END test_wc_EccDecisionCoverage4 */
-

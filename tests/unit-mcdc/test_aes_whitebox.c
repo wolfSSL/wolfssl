@@ -481,7 +481,7 @@ static void wb_aarch64_hwcrypto_dispatch(void)
  *
  * Every public wc_AesGcm* entry point rejects a NULL data pointer paired
  * with a non-zero size before these AARCH64 helpers run, so the NULL halves
- * are unreachable from tests/api. Calling the statics directly (bypassing
+ * are unreachable from tests/api. Calling the static helpers directly (bypassing
  * the use_aes_hw_crypto/use_pmull_hw_crypto dispatch entirely, exactly as
  * the AES-NI section above bypasses use_aesni) reaches both halves safely:
  * a NULL pointer with a non-zero size short-circuits its guard before any

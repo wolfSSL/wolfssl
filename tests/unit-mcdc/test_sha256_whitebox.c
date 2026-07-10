@@ -38,7 +38,7 @@
  * to each of {none, AVX1, AVX2, SHA}, showing every condition's independence
  * pair.
  *
- * Two statics must be driven together. intel_flags is the DECISION input.
+ * Two static items must be driven together. intel_flags is the DECISION input.
  * The transform is invoked through separate function pointers
  * (Transform_Sha256_p, Transform_Sha256_Len_p); the multi-block Len pointer,
  * when non-NULL (the host's AVX path), handles byte-reversal internally and

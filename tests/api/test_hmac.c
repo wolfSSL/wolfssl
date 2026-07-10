@@ -910,14 +910,17 @@ int test_wc_HmacInit_Id(void)
 
     /* id == NULL, len valid: skips the copy, still succeeds. */
     ExpectIntEQ(wc_HmacInit_Id(&hmac, NULL, 16, NULL, INVALID_DEVID), 0);
+    wc_HmacFree(&hmac);
 
     /* len == 0, id != NULL: skips the copy (len != 0 false), succeeds. */
     ExpectIntEQ(wc_HmacInit_Id(&hmac, id, 0, NULL, INVALID_DEVID), 0);
+    wc_HmacFree(&hmac);
 
     /* Baseline: valid id and len, every guard false, copy performed. */
     ExpectIntEQ(wc_HmacInit_Id(&hmac, id, 16, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(hmac.idLen, 16);
     ExpectIntEQ(XMEMCMP(hmac.id, id, 16), 0);
+    wc_HmacFree(&hmac);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_HmacInit_Id */
@@ -956,6 +959,7 @@ int test_wc_HmacInit_Label(void)
     ExpectIntEQ(wc_HmacInit_Label(&hmac, "test-label", NULL, INVALID_DEVID),
         0);
     ExpectIntEQ(hmac.labelLen, (int)XSTRLEN("test-label"));
+    wc_HmacFree(&hmac);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_HmacInit_Label */
@@ -1039,4 +1043,3 @@ int test_wc_HKDF_NullKeyEdgeCases(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_HKDF_NullKeyEdgeCases */
-
