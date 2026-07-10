@@ -10089,6 +10089,11 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
             WOLFSSL_MSG("GenPqcKey memory error");
             ret = MEMORY_E;
         }
+        else {
+            /* Zero so an unconditional wc_MlKemKey_Free is safe even if Init is
+             * skipped on an id2type failure. */
+            XMEMSET(kem, 0, sizeof(MlKemKey));
+        }
         if (ret == 0) {
             ret = mlkem_id2type(keyShareEntry->group, &type);
         }
