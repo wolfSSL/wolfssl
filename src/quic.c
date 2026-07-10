@@ -1284,6 +1284,11 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf");
 
+    if (secretlen > INT_MAX || saltlen > INT_MAX || infolen > INT_MAX) {
+        ret = WOLFSSL_FAILURE;
+        goto cleanup;
+    }
+
     pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
