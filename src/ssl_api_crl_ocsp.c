@@ -395,6 +395,9 @@ int wolfSSL_get_ocsp_producedDate(
     size_t producedDate_space,
     int *producedDateFormat)
 {
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
     if ((ssl->ocspProducedDateFormat != ASN_UTC_TIME) &&
         (ssl->ocspProducedDateFormat != ASN_GENERALIZED_TIME))
         return BAD_FUNC_ARG;
@@ -414,6 +417,9 @@ int wolfSSL_get_ocsp_producedDate(
 
 int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {
     int idx = 0;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
 
     if ((ssl->ocspProducedDateFormat != ASN_UTC_TIME) &&
         (ssl->ocspProducedDateFormat != ASN_GENERALIZED_TIME))
