@@ -13494,6 +13494,14 @@ static int TLSX_ClientCertificateType_Parse(WOLFSSL* ssl, const byte* input,
     else if (msgType == server_hello || msgType == encrypted_extensions) {
         /* parse it in client side */
         if (length == 1) {
+            /* Reject a server-selected type the client did not offer. */
+            if (!IsCertTypeListed(*input,
+                    ssl->options.rpkState.sending_ClientCertTypeCnt,
+                    ssl->options.rpkState.sending_ClientCertTypes)) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+                return INVALID_PARAMETER;
+            }
             ssl->options.rpkState.received_ClientCertTypeCnt  = 1;
             ssl->options.rpkState.received_ClientCertTypes[0] = *input;
         }
@@ -13693,6 +13701,15 @@ static int TLSX_ServerCertificateType_Parse(WOLFSSL* ssl, const byte* input,
         /* in client side */
         if (length != 1)                     /* length slould be 1 */
             return BUFFER_E;
+
+        /* Reject a server-selected type the client did not offer. */
+        if (!IsCertTypeListed(*input,
+                ssl->options.rpkState.sending_ServerCertTypeCnt,
+                ssl->options.rpkState.sending_ServerCertTypes)) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
 
         ssl->options.rpkState.received_ServerCertTypeCnt  = 1;
         ssl->options.rpkState.received_ServerCertTypes[0] = *input;
