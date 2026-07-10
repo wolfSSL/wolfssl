@@ -1159,7 +1159,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
             return NULL;
         dataAlloced = 1;
 
-        len = wolfSSL_BIO_read(bio, (char *)data, (int)flen);
+        len = wolfSSL_BIO_read(bio, (char *)data, (int)fcur);
     }
 #endif
     else
