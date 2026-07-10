@@ -33,6 +33,22 @@
 #include <tests/api/api.h>
 #include <tests/api/test_dh.h>
 
+/* A sane, fixed private/public/agree buffer size for the tests below,
+ * comfortably covering the largest enabled FFDHE named group (FFDHE-4096,
+ * 512-byte p). NOT the library's own DH_MAX_SIZE: under WOLFSSL_SP_MATH_ALL,
+ * DH_MAX_SIZE expands to WC_BITS_FULL_BYTES(SP_INT_BITS), and
+ * WC_BITS_FULL_BYTES(x) is defined as (WC_BITS_TO_BYTES(x) << 3) - i.e. it
+ * returns SP_INT_BITS itself (rounded up to a byte multiple), NOT
+ * SP_INT_BITS/8 as its name suggests. With this campaign's SP_INT_BITS 4096,
+ * DH_MAX_SIZE is therefore 4096 (bytes!), not the 512 a caller would
+ * reasonably expect. Passing that value as *privSz (a requested private-key
+ * size, not just a buffer capacity) to wc_DhGenerateKeyPair overflows the
+ * fixed-capacity internal mp_int in GeneratePrivateDh186 (MP_VAL). The
+ * canonical wolfcrypt/test/test.c dh_test() uses a plain byte[256] for the
+ * same reason. Reported as a library macro-naming/semantics finding; not
+ * fixed here (out of scope for this test-only change). */
+#define TEST_DH_BUF_SIZE 512
+
 /*
  * Testing wc_DhPublicKeyDecode
  */
@@ -214,6 +230,840 @@ int test_wc_DhAgree_subgroup_check(void)
     wc_FreeDhKey(&key);
     wc_FreeRng(&rng);
 #endif /* !NO_DH && !defined(WOLFSSL_SP_MATH) && !HAVE_SELFTEST && etc... */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhSetKey() / wc_DhSetKey_ex() / wc_DhSetCheckKey() bad args and
+ * the untrusted-prime-check path: a known FFDHE prime short-circuits the
+ * primality test (XMEMCMP fast-path in _DhSetKey), a trusted key skips the
+ * primality test entirely, and an untrusted, non-table prime goes through
+ * the generic mp_prime_is_prime(_ex) check and is rejected.
+ */
+int test_wc_DhSetKey(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    WC_RNG rng;
+    const DhParams* params = NULL;
+    byte g[] = { 0x02 };
+    byte notPrime[] = { 0x04 }; /* even -> not prime, tiny -> fast reject */
+
+    XMEMSET(&key, 0, sizeof(DhKey));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(params = wc_Dh_ffdhe2048_Get());
+
+    /* bad args: wc_DhSetKey */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    if (params != NULL) {
+        ExpectIntEQ(wc_DhSetKey(NULL, params->p, params->p_len, params->g,
+            params->g_len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhSetKey(&key, NULL, params->p_len, params->g,
+            params->g_len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, 0, params->g,
+            params->g_len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, NULL,
+            params->g_len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
+            0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+    wc_FreeDhKey(&key);
+
+    if (params != NULL) {
+        /* valid: known FFDHE prime, short-circuits the primality test */
+        ExpectIntEQ(wc_InitDhKey(&key), 0);
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
+            params->g_len), 0);
+        wc_FreeDhKey(&key);
+
+        /* valid: wc_DhSetKey_ex with an explicit q (untrusted path; still
+         * matches the known FFDHE prime, so the fast-path memcmp - not an
+         * actual primality search - sets isPrime). */
+        ExpectIntEQ(wc_InitDhKey(&key), 0);
+    #ifdef HAVE_FFDHE_Q
+        ExpectIntEQ(wc_DhSetKey_ex(&key, params->p, params->p_len,
+            params->g, params->g_len, params->q, params->q_len), 0);
+    #else
+        ExpectIntEQ(wc_DhSetKey_ex(&key, params->p, params->p_len,
+            params->g, params->g_len, NULL, 0), 0);
+    #endif
+        wc_FreeDhKey(&key);
+    }
+
+    /* wc_DhSetCheckKey: trusted=1 skips the primality test entirely, so a
+     * non-prime p is accepted. */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetCheckKey(&key, notPrime, sizeof(notPrime), g,
+        sizeof(g), NULL, 0, 1, NULL), 0);
+    wc_FreeDhKey(&key);
+
+    /* wc_DhSetCheckKey: untrusted, non-FFDHE-table p forces the generic
+     * mp_prime_is_prime_ex(rng) / mp_prime_is_prime(NULL) path; the value
+     * is even (not prime) so both are rejected without a costly search. */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetCheckKey(&key, notPrime, sizeof(notPrime), g,
+        sizeof(g), NULL, 0, 0, &rng), WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
+    wc_FreeDhKey(&key);
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetCheckKey(&key, notPrime, sizeof(notPrime), g,
+        sizeof(g), NULL, 0, 0, NULL), WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
+    wc_FreeDhKey(&key);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhSetNamedKey(), wc_DhGetNamedKeyParamSize(),
+ * wc_DhCopyNamedKey() and wc_DhCmpNamedKey().
+ */
+int test_wc_DhSetNamedKey_and_helpers(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    const DhParams* p2048 = NULL;
+    word32 pSz = 0, gSz = 0, qSz = 0;
+    byte pOut[TEST_DH_BUF_SIZE];
+    byte gOut[TEST_DH_BUF_SIZE];
+    byte qOut[TEST_DH_BUF_SIZE];
+
+    ExpectNotNull(p2048 = wc_Dh_ffdhe2048_Get());
+
+    /* wc_DhSetNamedKey: unknown name -> default case leaves p/g NULL,
+     * _DhSetKey then rejects with BAD_FUNC_ARG (p==NULL). */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, 9999), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_FreeDhKey(&key);
+
+    /* valid named groups: exercise each HAVE_FFDHE_* case arm. */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
+    wc_FreeDhKey(&key);
+#ifdef HAVE_FFDHE_3072
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_3072), 0);
+    wc_FreeDhKey(&key);
+#endif
+#ifdef HAVE_FFDHE_4096
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_4096), 0);
+    wc_FreeDhKey(&key);
+#endif
+
+    /* wc_DhGetNamedKeyParamSize: NULL out pointers (each skipped
+     * independently), unknown name (all sizes stay 0), valid name. */
+    ExpectIntEQ(wc_DhGetNamedKeyParamSize(WC_FFDHE_2048, &pSz, &gSz, &qSz),
+        0);
+    ExpectIntEQ(pSz, p2048 != NULL ? p2048->p_len : 0);
+    ExpectIntEQ(wc_DhGetNamedKeyParamSize(WC_FFDHE_2048, NULL, &gSz, &qSz),
+        0);
+    ExpectIntEQ(wc_DhGetNamedKeyParamSize(WC_FFDHE_2048, &pSz, NULL, &qSz),
+        0);
+    ExpectIntEQ(wc_DhGetNamedKeyParamSize(WC_FFDHE_2048, &pSz, &gSz, NULL),
+        0);
+    pSz = 1234; gSz = 1234; qSz = 1234;
+    ExpectIntEQ(wc_DhGetNamedKeyParamSize(9999, &pSz, &gSz, &qSz), 0);
+    ExpectIntEQ(pSz, 0);
+    ExpectIntEQ(gSz, 0);
+    ExpectIntEQ(qSz, 0);
+
+    /* wc_DhCopyNamedKey: NULL output buffers (each skipped independently
+     * both for the copy and the size-out); unknown name (pC/gC/qC stay
+     * NULL, only the *Sz outs are touched, left at 0). */
+    if (p2048 != NULL) {
+        XMEMSET(pOut, 0, sizeof(pOut));
+        XMEMSET(gOut, 0, sizeof(gOut));
+        XMEMSET(qOut, 0, sizeof(qOut));
+        pSz = sizeof(pOut); gSz = sizeof(gOut); qSz = sizeof(qOut);
+        ExpectIntEQ(wc_DhCopyNamedKey(WC_FFDHE_2048, pOut, &pSz, gOut, &gSz,
+            qOut, &qSz), 0);
+        ExpectIntEQ(pSz, p2048->p_len);
+        ExpectIntEQ(XMEMCMP(pOut, p2048->p, pSz), 0);
+        ExpectIntEQ(XMEMCMP(gOut, p2048->g, gSz), 0);
+    }
+    ExpectIntEQ(wc_DhCopyNamedKey(WC_FFDHE_2048, NULL, NULL, NULL, NULL,
+        NULL, NULL), 0);
+    pSz = 999; gSz = 999; qSz = 999;
+    ExpectIntEQ(wc_DhCopyNamedKey(9999, pOut, &pSz, gOut, &gSz, qOut, &qSz),
+        0);
+    ExpectIntEQ(pSz, 0);
+    ExpectIntEQ(gSz, 0);
+    ExpectIntEQ(qSz, 0);
+
+    /* wc_DhCmpNamedKey: goodName false (unknown name -> cmp stays 0);
+     * goodName true with a full p/g/q match (cmp=1); mismatched p, g and q
+     * in turn (cmp=0 each time); matching p/g with noQ=1 and a corrupted q
+     * (q ignored -> cmp=1). DhParams has no q/q_len member at all unless
+     * HAVE_FFDHE_Q, so every p2048->q/q_len use below is guarded; without
+     * HAVE_FFDHE_Q, noQ=1 with a NULL/0 q exercises the same p/g compare
+     * logic (the q-compare operand of the cmp expression is skipped either
+     * way when noQ is true). */
+    if (p2048 != NULL) {
+#ifdef HAVE_FFDHE_Q
+        ExpectIntEQ(wc_DhCmpNamedKey(9999, 0, p2048->p, p2048->p_len,
+            p2048->g, p2048->g_len, p2048->q, p2048->q_len), 0);
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 0, p2048->p,
+            p2048->p_len, p2048->g, p2048->g_len, p2048->q, p2048->q_len),
+            1);
+
+        XMEMCPY(pOut, p2048->p, p2048->p_len);
+        pOut[0] ^= 0x01;
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 0, pOut, p2048->p_len,
+            p2048->g, p2048->g_len, p2048->q, p2048->q_len), 0);
+
+        XMEMCPY(gOut, p2048->g, p2048->g_len);
+        gOut[0] ^= 0x01;
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 0, p2048->p,
+            p2048->p_len, gOut, p2048->g_len, p2048->q, p2048->q_len), 0);
+
+        XMEMCPY(qOut, p2048->q, p2048->q_len);
+        qOut[0] ^= 0x01;
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 0, p2048->p,
+            p2048->p_len, p2048->g, p2048->g_len, qOut, p2048->q_len), 0);
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 1, p2048->p,
+            p2048->p_len, p2048->g, p2048->g_len, qOut, p2048->q_len), 1);
+#else
+        ExpectIntEQ(wc_DhCmpNamedKey(9999, 1, p2048->p, p2048->p_len,
+            p2048->g, p2048->g_len, NULL, 0), 0);
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 1, p2048->p,
+            p2048->p_len, p2048->g, p2048->g_len, NULL, 0), 1);
+
+        XMEMCPY(pOut, p2048->p, p2048->p_len);
+        pOut[0] ^= 0x01;
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 1, pOut, p2048->p_len,
+            p2048->g, p2048->g_len, NULL, 0), 0);
+
+        XMEMCPY(gOut, p2048->g, p2048->g_len);
+        gOut[0] ^= 0x01;
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 1, p2048->p,
+            p2048->p_len, gOut, p2048->g_len, NULL, 0), 0);
+#endif
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhGenerateKeyPair() / wc_DhGeneratePublic() bad args.
+ */
+int test_wc_DhGenerateKeyPair_bad_args(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    WC_RNG rng;
+    byte priv[TEST_DH_BUF_SIZE];
+    byte pub[TEST_DH_BUF_SIZE];
+    word32 privSz = sizeof(priv), pubSz = sizeof(pub);
+
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
+
+    ExpectIntEQ(wc_DhGenerateKeyPair(NULL, &rng, priv, &privSz, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, NULL, priv, &privSz, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, NULL, &privSz, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, NULL, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, NULL,
+        &pubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_DhGeneratePublic(NULL, priv, 1, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGeneratePublic(&key, NULL, 1, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGeneratePublic(&key, priv, 0, pub, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGeneratePublic(&key, priv, 1, NULL, &pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGeneratePublic(&key, priv, 1, pub, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_FreeDhKey(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Full key-generation + agreement round trip across every enabled FFDHE
+ * named group. Exercises GeneratePrivateDh186 (q known from the named
+ * group), GeneratePublicDh's SP-accelerated dispatch (2048/3072/4096, when
+ * WOLFSSL_HAVE_SP_DH is compiled in) and its generic mp_exptmod fallback,
+ * and the wc_DhAgree_Sync body (peer-key validation, SP dispatch, generic
+ * fallback, and the constant-time fold-back via wc_DhAgree_ct).
+ */
+int test_wc_DhGenerateKeyPair_and_Agree(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH)
+    DhKey aliceKey, bobKey;
+    WC_RNG rng;
+    byte alicePriv[TEST_DH_BUF_SIZE], alicePub[TEST_DH_BUF_SIZE];
+    byte bobPriv[TEST_DH_BUF_SIZE], bobPub[TEST_DH_BUF_SIZE];
+    byte aliceAgree[TEST_DH_BUF_SIZE], bobAgree[TEST_DH_BUF_SIZE];
+    word32 alicePrivSz, alicePubSz, bobPrivSz, bobPubSz;
+    word32 aliceAgreeSz, bobAgreeSz;
+    static const int groups[] = {
+    #ifdef HAVE_FFDHE_2048
+        WC_FFDHE_2048,
+    #endif
+    #ifdef HAVE_FFDHE_3072
+        WC_FFDHE_3072,
+    #endif
+    #ifdef HAVE_FFDHE_4096
+        WC_FFDHE_4096,
+    #endif
+        0 /* keep the array non-empty when no HAVE_FFDHE_* is enabled */
+    };
+    size_t i;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < sizeof(groups) / sizeof(groups[0]) - 1; i++) {
+        XMEMSET(&aliceKey, 0, sizeof(aliceKey));
+        XMEMSET(&bobKey, 0, sizeof(bobKey));
+        ExpectIntEQ(wc_InitDhKey(&aliceKey), 0);
+        ExpectIntEQ(wc_InitDhKey(&bobKey), 0);
+        ExpectIntEQ(wc_DhSetNamedKey(&aliceKey, groups[i]), 0);
+        ExpectIntEQ(wc_DhSetNamedKey(&bobKey, groups[i]), 0);
+
+        alicePrivSz = sizeof(alicePriv);
+        alicePubSz = sizeof(alicePub);
+        ExpectIntEQ(wc_DhGenerateKeyPair(&aliceKey, &rng, alicePriv,
+            &alicePrivSz, alicePub, &alicePubSz), 0);
+
+        bobPrivSz = sizeof(bobPriv);
+        bobPubSz = sizeof(bobPub);
+        ExpectIntEQ(wc_DhGenerateKeyPair(&bobKey, &rng, bobPriv, &bobPrivSz,
+            bobPub, &bobPubSz), 0);
+
+        aliceAgreeSz = sizeof(aliceAgree);
+        ExpectIntEQ(wc_DhAgree(&aliceKey, aliceAgree, &aliceAgreeSz,
+            alicePriv, alicePrivSz, bobPub, bobPubSz), 0);
+        bobAgreeSz = sizeof(bobAgree);
+        ExpectIntEQ(wc_DhAgree(&bobKey, bobAgree, &bobAgreeSz, bobPriv,
+            bobPrivSz, alicePub, alicePubSz), 0);
+        ExpectIntEQ(aliceAgreeSz, bobAgreeSz);
+        ExpectIntEQ(XMEMCMP(aliceAgree, bobAgree, aliceAgreeSz), 0);
+
+        /* wc_DhAgree bad args (all-valid baseline is the call above) */
+        ExpectIntEQ(wc_DhAgree(NULL, aliceAgree, &aliceAgreeSz, alicePriv,
+            alicePrivSz, bobPub, bobPubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree(&aliceKey, NULL, &aliceAgreeSz, alicePriv,
+            alicePrivSz, bobPub, bobPubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree(&aliceKey, aliceAgree, NULL, alicePriv,
+            alicePrivSz, bobPub, bobPubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree(&aliceKey, aliceAgree, &aliceAgreeSz, NULL,
+            alicePrivSz, bobPub, bobPubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree(&aliceKey, aliceAgree, &aliceAgreeSz,
+            alicePriv, alicePrivSz, NULL, bobPubSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* constant-time variant of the same exchange, plus its own bad
+         * args and the too-small-buffer BUFFER_E path. */
+        aliceAgreeSz = sizeof(aliceAgree);
+        ExpectIntEQ(wc_DhAgree_ct(&aliceKey, aliceAgree, &aliceAgreeSz,
+            alicePriv, alicePrivSz, bobPub, bobPubSz), 0);
+        ExpectIntEQ(wc_DhAgree_ct(NULL, aliceAgree, &aliceAgreeSz,
+            alicePriv, alicePrivSz, bobPub, bobPubSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree_ct(&aliceKey, NULL, &aliceAgreeSz, alicePriv,
+            alicePrivSz, bobPub, bobPubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree_ct(&aliceKey, aliceAgree, NULL, alicePriv,
+            alicePrivSz, bobPub, bobPubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree_ct(&aliceKey, aliceAgree, &aliceAgreeSz, NULL,
+            alicePrivSz, bobPub, bobPubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_DhAgree_ct(&aliceKey, aliceAgree, &aliceAgreeSz,
+            alicePriv, alicePrivSz, NULL, bobPubSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        aliceAgreeSz = 1;
+        ExpectIntEQ(wc_DhAgree_ct(&aliceKey, aliceAgree, &aliceAgreeSz,
+            alicePriv, alicePrivSz, bobPub, bobPubSz),
+            WC_NO_ERR_TRACE(BUFFER_E));
+
+        wc_FreeDhKey(&aliceKey);
+        wc_FreeDhKey(&bobKey);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * WC_DH_NONBLOCK: drives the incremental sp_DhExp_*_nb state machine in
+ * wc_DhAgree_Sync (both the cached-pubkey-validation branch and the nb
+ * dispatch itself), pairing with the default (key->nb == NULL) path
+ * exercised by every other test in this file.
+ */
+int test_wc_DhAgree_nonblock(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(WC_DH_NONBLOCK) && defined(HAVE_FFDHE_2048)
+    DhKey aliceKey, bobKey;
+    WC_RNG rng;
+    DhNb nb;
+    byte alicePriv[TEST_DH_BUF_SIZE], alicePub[TEST_DH_BUF_SIZE];
+    byte bobPriv[TEST_DH_BUF_SIZE], bobPub[TEST_DH_BUF_SIZE];
+    byte agree[TEST_DH_BUF_SIZE];
+    word32 alicePrivSz = sizeof(alicePriv), alicePubSz = sizeof(alicePub);
+    word32 bobPrivSz = sizeof(bobPriv), bobPubSz = sizeof(bobPub);
+    word32 agreeSz;
+    int ret;
+    int rounds;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitDhKey(&aliceKey), 0);
+    ExpectIntEQ(wc_InitDhKey(&bobKey), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&aliceKey, WC_FFDHE_2048), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&bobKey, WC_FFDHE_2048), 0);
+
+    ExpectIntEQ(wc_DhGenerateKeyPair(&aliceKey, &rng, alicePriv,
+        &alicePrivSz, alicePub, &alicePubSz), 0);
+    ExpectIntEQ(wc_DhGenerateKeyPair(&bobKey, &rng, bobPriv, &bobPrivSz,
+        bobPub, &bobPubSz), 0);
+
+    XMEMSET(&nb, 0, sizeof(nb));
+    ExpectIntEQ(wc_DhSetNonBlock(&aliceKey, &nb), 0);
+    ExpectIntEQ(wc_DhSetNonBlock(NULL, &nb), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* first op: key->nb->pubKeyValidated starts unset, so the peer-key
+     * validation runs and caches its result. */
+    ret = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    for (rounds = 0; ret == WC_NO_ERR_TRACE(MP_WOULDBLOCK) && rounds < 200000;
+            rounds++) {
+        agreeSz = sizeof(agree);
+        ret = wc_DhAgree(&aliceKey, agree, &agreeSz, alicePriv, alicePrivSz,
+            bobPub, bobPubSz);
+    }
+    ExpectIntEQ(ret, 0);
+
+    /* second op on the same nb-attached key: pubKeyValidated was cleared
+     * after the first op completed, so this re-enters the same validation
+     * + dispatch path a second time. */
+    ret = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    for (rounds = 0; ret == WC_NO_ERR_TRACE(MP_WOULDBLOCK) && rounds < 200000;
+            rounds++) {
+        agreeSz = sizeof(agree);
+        ret = wc_DhAgree(&aliceKey, agree, &agreeSz, alicePriv, alicePrivSz,
+            bobPub, bobPubSz);
+    }
+    ExpectIntEQ(ret, 0);
+
+    /* disable non-blocking mode (nb == NULL) */
+    ExpectIntEQ(wc_DhSetNonBlock(&aliceKey, NULL), 0);
+    agreeSz = sizeof(agree);
+    ExpectIntEQ(wc_DhAgree(&aliceKey, agree, &agreeSz, alicePriv,
+        alicePrivSz, bobPub, bobPubSz), 0);
+
+    wc_FreeDhKey(&aliceKey);
+    wc_FreeDhKey(&bobKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhImportKeyPair() / wc_DhExportKeyPair() (WOLFSSL_DH_EXTRA).
+ */
+int test_wc_DhImportExportKeyPair(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    WC_RNG rng;
+    byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
+    word32 privSz = sizeof(priv), pubSz = sizeof(pub);
+    byte privOut[TEST_DH_BUF_SIZE], pubOut[TEST_DH_BUF_SIZE];
+    word32 privOutSz, pubOutSz;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz),
+        0);
+    wc_FreeDhKey(&key);
+
+    /* bad args */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhImportKeyPair(NULL, priv, privSz, pub, pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* neither priv nor pub supplied -> BAD_FUNC_ARG */
+    ExpectIntEQ(wc_DhImportKeyPair(&key, NULL, 0, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* priv only */
+    ExpectIntEQ(wc_DhImportKeyPair(&key, priv, privSz, NULL, 0), 0);
+    wc_FreeDhKey(&key);
+
+    /* pub only */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhImportKeyPair(&key, NULL, 0, pub, pubSz), 0);
+    wc_FreeDhKey(&key);
+
+    /* both */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhImportKeyPair(&key, priv, privSz, pub, pubSz), 0);
+
+    /* export bad args */
+    privOutSz = sizeof(privOut);
+    pubOutSz = sizeof(pubOut);
+    ExpectIntEQ(wc_DhExportKeyPair(NULL, privOut, &privOutSz, pubOut,
+        &pubOutSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhExportKeyPair(&key, privOut, NULL, pubOut, &pubOutSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhExportKeyPair(&key, privOut, &privOutSz, pubOut, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* valid: neither priv nor pub requested (guard is all-false) */
+    ExpectIntEQ(wc_DhExportKeyPair(&key, NULL, NULL, NULL, NULL), 0);
+
+    /* valid: full export */
+    privOutSz = sizeof(privOut);
+    pubOutSz = sizeof(pubOut);
+    ExpectIntEQ(wc_DhExportKeyPair(&key, privOut, &privOutSz, pubOut,
+        &pubOutSz), 0);
+    ExpectIntEQ(XMEMCMP(privOut, priv, privOutSz), 0);
+    ExpectIntEQ(XMEMCMP(pubOut, pub, pubOutSz), 0);
+
+    /* buffer too small, priv then pub */
+    privOutSz = 1;
+    ExpectIntEQ(wc_DhExportKeyPair(&key, privOut, &privOutSz, NULL, NULL),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    pubOutSz = 1;
+    ExpectIntEQ(wc_DhExportKeyPair(&key, NULL, NULL, pubOut, &pubOutSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    wc_FreeDhKey(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhCheckPubKey() / wc_DhCheckPubKey_ex() (the file-static
+ * _ffc_validate_public_key, reached only through these two thin wrappers).
+ */
+int test_wc_DhCheckPubKey(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    WC_RNG rng;
+    const DhParams* params = NULL;
+    byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
+    word32 privSz = sizeof(priv), pubSz = sizeof(pub);
+    byte tiny[1] = { 0x01 };
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(params = wc_Dh_ffdhe2048_Get());
+
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz),
+        0);
+
+    /* bad args */
+    ExpectIntEQ(wc_DhCheckPubKey(NULL, pub, pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckPubKey(&key, NULL, pubSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckPubKey_ex(NULL, pub, pubSz, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckPubKey_ex(&key, NULL, pubSz, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* valid: uses key->q (named group, q known) */
+    ExpectIntEQ(wc_DhCheckPubKey(&key, pub, pubSz), 0);
+    if (params != NULL) {
+        /* valid: explicit prime (q) override */
+    #ifdef HAVE_FFDHE_Q
+        ExpectIntEQ(wc_DhCheckPubKey_ex(&key, pub, pubSz, params->q,
+            params->q_len), 0);
+    #endif
+
+        /* invalid: pub >= p - 1 (use p itself, definitely out of range) */
+        ExpectIntEQ(wc_DhCheckPubKey(&key, params->p, params->p_len),
+            WC_NO_ERR_TRACE(MP_CMP_E));
+    }
+
+    /* invalid: pub < 2 */
+    ExpectIntEQ(wc_DhCheckPubKey(&key, tiny, sizeof(tiny)),
+        WC_NO_ERR_TRACE(MP_CMP_E));
+
+    wc_FreeDhKey(&key);
+
+    if (params != NULL) {
+        /* key with no q known: the order-q subgroup check is skipped
+         * entirely (prime==NULL && mp_iszero(&key->q)==MP_NO is false). */
+        ExpectIntEQ(wc_InitDhKey(&key), 0);
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
+            params->g_len), 0);
+        ExpectIntEQ(wc_DhCheckPubKey(&key, pub, pubSz), 0);
+        wc_FreeDhKey(&key);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhCheckPrivKey() / wc_DhCheckPrivKey_ex().
+ */
+int test_wc_DhCheckPrivKey(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    WC_RNG rng;
+    const DhParams* params = NULL;
+    byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
+    word32 privSz = sizeof(priv), pubSz = sizeof(pub);
+    byte zero[1] = { 0x00 };
+    byte big[TEST_DH_BUF_SIZE];
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(params = wc_Dh_ffdhe2048_Get());
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz),
+        0);
+
+    /* bad args */
+    ExpectIntEQ(wc_DhCheckPrivKey(NULL, priv, privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckPrivKey(&key, NULL, privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckPrivKey_ex(NULL, priv, privSz, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckPrivKey_ex(&key, NULL, privSz, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* valid: key->q known */
+    ExpectIntEQ(wc_DhCheckPrivKey(&key, priv, privSz), 0);
+    /* invalid: priv == 0 */
+    ExpectIntEQ(wc_DhCheckPrivKey(&key, zero, sizeof(zero)),
+        WC_NO_ERR_TRACE(MP_CMP_E));
+
+    if (params != NULL) {
+    #ifdef HAVE_FFDHE_Q
+        /* valid: explicit prime (q) override */
+        ExpectIntEQ(wc_DhCheckPrivKey_ex(&key, priv, privSz, params->q,
+            params->q_len), 0);
+
+        /* invalid: priv > q - 1 (use q itself as priv, too big by 1) */
+        XMEMSET(big, 0, sizeof(big));
+        XMEMCPY(big, params->q, params->q_len);
+        ExpectIntEQ(wc_DhCheckPrivKey(&key, big, params->q_len),
+            WC_NO_ERR_TRACE(DH_CHECK_PRIV_E));
+    #endif
+    }
+
+    wc_FreeDhKey(&key);
+
+    if (params != NULL) {
+        /* key with no q known: only the priv==0 sanity check applies. */
+        ExpectIntEQ(wc_InitDhKey(&key), 0);
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
+            params->g_len), 0);
+        ExpectIntEQ(wc_DhCheckPrivKey(&key, priv, privSz), 0);
+        wc_FreeDhKey(&key);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhCheckKeyPair() (the file-static _ffc_pairwise_consistency_
+ * test) and the WOLFSSL_VALIDATE_DH_KEYGEN generate-time equivalent.
+ */
+int test_wc_DhCheckKeyPair(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    WC_RNG rng;
+    byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
+    word32 privSz = sizeof(priv), pubSz = sizeof(pub);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz),
+        0);
+
+    /* bad args */
+    ExpectIntEQ(wc_DhCheckKeyPair(NULL, pub, pubSz, priv, privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckKeyPair(&key, NULL, pubSz, priv, privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhCheckKeyPair(&key, pub, pubSz, NULL, privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* valid pair */
+    ExpectIntEQ(wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz), 0);
+
+    /* mismatched pair: corrupt the public key */
+    pub[pubSz - 1] ^= 0x01;
+    ExpectIntEQ(wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz),
+        WC_NO_ERR_TRACE(MP_CMP_E));
+
+    wc_FreeDhKey(&key);
+
+    /* wc_DhGenerateKeyPair / wc_DhGeneratePublic with
+     * WOLFSSL_VALIDATE_DH_KEYGEN on: exercises _ffc_validate_public_key +
+     * _ffc_pairwise_consistency_test from the generate path itself. */
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
+    privSz = sizeof(priv); pubSz = sizeof(pub);
+    ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub,
+        &pubSz), 0);
+    wc_FreeDhKey(&key);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Testing wc_DhGenerateParams() and wc_DhExportParamsRaw() (WOLFSSL_KEY_GEN).
+ */
+int test_wc_DhGenerateParams_and_ExportRaw(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && defined(WOLFSSL_KEY_GEN)
+    DhKey dh;
+    WC_RNG rng;
+    /* g is found by an unbounded incrementing search (wc_DhGenerateParams),
+     * so size its buffer the same as p/q rather than assuming it stays
+     * small. */
+    byte pOut[TEST_DH_BUF_SIZE], qOut[TEST_DH_BUF_SIZE];
+    byte gOut[TEST_DH_BUF_SIZE];
+    word32 pSz, qSz, gSz;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitDhKey(&dh), 0);
+
+    /* bad args */
+    ExpectIntEQ(wc_DhGenerateParams(NULL, 1024, &dh),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, &dh), 0);
+
+    /* bad args */
+    pSz = sizeof(pOut); qSz = sizeof(qOut); gSz = sizeof(gOut);
+    ExpectIntEQ(wc_DhExportParamsRaw(NULL, pOut, &pSz, qOut, &qSz, gOut,
+        &gSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, NULL, qOut, &qSz, gOut,
+        &gSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, &pSz, qOut, NULL, gOut,
+        &gSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, &pSz, qOut, &qSz, gOut,
+        NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* length-only query (all three buffer pointers NULL) */
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, NULL, &pSz, NULL, &qSz, NULL,
+        &gSz), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+
+    /* mixed NULL (some but not all buffers NULL) -> BAD_FUNC_ARG */
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, &pSz, NULL, &qSz, gOut,
+        &gSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* buffer too small for each of p/q/g in turn. 0 (rather than a small
+     * fixed literal) guarantees BUFFER_E regardless of the actual byte
+     * length wc_DhGenerateParams happened to produce for p/q/g (g in
+     * particular is found by an unbounded incrementing search, so its
+     * length is not fixed). */
+    pSz = 0; qSz = sizeof(qOut); gSz = sizeof(gOut);
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, &pSz, qOut, &qSz, gOut,
+        &gSz), WC_NO_ERR_TRACE(BUFFER_E));
+    pSz = sizeof(pOut); qSz = 0; gSz = sizeof(gOut);
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, &pSz, qOut, &qSz, gOut,
+        &gSz), WC_NO_ERR_TRACE(BUFFER_E));
+    pSz = sizeof(pOut); qSz = sizeof(qOut); gSz = 0;
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, &pSz, qOut, &qSz, gOut,
+        &gSz), WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* full valid export */
+    pSz = sizeof(pOut); qSz = sizeof(qOut); gSz = sizeof(gOut);
+    ExpectIntEQ(wc_DhExportParamsRaw(&dh, pOut, &pSz, qOut, &qSz, gOut,
+        &gSz), 0);
+
+    wc_FreeDhKey(&dh);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * WOLFSSL_NO_DH186 axis coverage for CheckDhLN: a real FFDHE prime (so the
+ * untrusted primality check fast-paths via the table memcmp, no expensive
+ * search) paired with synthetic q sizes drives CheckDhLN's
+ * "divLen==224 || divLen==256" MC/DC pair, plus the all-false rejection.
+ * Compiled out entirely under WOLFSSL_NO_DH186 (CheckDhLN does not exist).
+ */
+int test_wc_DhGenerateKeyPair_CheckDhLN(void)
+{
+    EXPECT_DECLS;
+/* WOLFSSL_VALIDATE_DH_KEYGEN is excluded: the synthetic q values below are
+ * chosen only to hit CheckDhLN's bit-length arithmetic, not to be the real
+ * subgroup order of the FFDHE-2048 (p, g) pair, so the pairwise-consistency
+ * / public-key subgroup check that WOLFSSL_VALIDATE_DH_KEYGEN adds to
+ * wc_DhGeneratePublic would (correctly) reject the generated key. */
+#if !defined(NO_DH) && !defined(WOLFSSL_NO_DH186) && \
+    !defined(WOLFSSL_VALIDATE_DH_KEYGEN) && \
+    defined(HAVE_PUBLIC_FFDHE) && defined(HAVE_FFDHE_2048)
+    DhKey key;
+    WC_RNG rng;
+    const DhParams* params = NULL;
+    byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
+    word32 privSz, pubSz;
+    byte q224[28];
+    byte qBad[25];
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(params = wc_Dh_ffdhe2048_Get());
+    XMEMSET(q224, 0x01, sizeof(q224));
+    XMEMSET(qBad, 0x01, sizeof(qBad));
+
+    if (params != NULL) {
+        /* real FFDHE-2048 prime + synthetic 224-bit q:
+         * CheckDhLN(2048, 224) -> divLen==224 true, divLen==256 false. */
+        ExpectIntEQ(wc_InitDhKey(&key), 0);
+        ExpectIntEQ(wc_DhSetCheckKey(&key, params->p, params->p_len,
+            params->g, params->g_len, q224, sizeof(q224), 0, &rng), 0);
+        privSz = sizeof(priv); pubSz = sizeof(pub);
+        ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub,
+            &pubSz), 0);
+        wc_FreeDhKey(&key);
+
+        /* same prime, q whose bit length is neither 224 nor 256:
+         * CheckDhLN rejects (-1) -> BAD_FUNC_ARG (both operands false). */
+        ExpectIntEQ(wc_InitDhKey(&key), 0);
+        ExpectIntEQ(wc_DhSetCheckKey(&key, params->p, params->p_len,
+            params->g, params->g_len, qBad, sizeof(qBad), 0, &rng), 0);
+        privSz = sizeof(priv); pubSz = sizeof(pub);
+        ExpectIntEQ(wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub,
+            &pubSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_FreeDhKey(&key);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
     return EXPECT_RESULT();
 }
 
