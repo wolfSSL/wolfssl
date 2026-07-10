@@ -426,9 +426,11 @@ int test_wc_DsaImportParamsRawCheck(void)
     /* null param pointers */
     ExpectIntEQ(wc_DsaImportParamsRawCheck(&key, NULL, NULL, NULL, trusted,
         NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* illegal p length */
+    /* illegal p length: the checked path now preserves the specific
+     * primality failure from p validation instead of overwriting it with
+     * BAD_FUNC_ARG during the later (L,N) size check. */
     ExpectIntEQ(wc_DsaImportParamsRawCheck(&key, invalidP, q, g, trusted, NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
     /* illegal q length */
     ExpectIntEQ(wc_DsaImportParamsRawCheck(&key, p, invalidQ, g, trusted, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -731,4 +733,3 @@ int test_wc_DsaCheckPubKey(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_DsaCheckPubKey */
-
