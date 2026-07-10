@@ -5402,6 +5402,23 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_SE050 */
     int err;
 
+#if !defined(WOLFSSL_CRYPTOCELL) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    /* Zero the stack temporaries so the mp_memzero_check() in the 'out'
+     * cleanup is safe even when an early argument/size check leaves via
+     * 'goto out' before these are mp_init'd - an uninitialized mp_int's size
+     * field would otherwise make the check scan an arbitrary stack range.
+     * Done here, after all declarations, to satisfy C89. */
+    XMEMSET(&p_buf, 0, sizeof(p_buf));
+    XMEMSET(&q_buf, 0, sizeof(q_buf));
+    XMEMSET(&tmp1_buf, 0, sizeof(tmp1_buf));
+    XMEMSET(&tmp2_buf, 0, sizeof(tmp2_buf));
+    XMEMSET(&tmp3_buf, 0, sizeof(tmp3_buf));
+#endif
+
     if (key == NULL || rng == NULL) {
         err = BAD_FUNC_ARG;
         goto out;

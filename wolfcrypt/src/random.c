@@ -2234,7 +2234,7 @@ int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
     return _InitRng(rng, nonce, nonceSz, heap, devId);
 }
 
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 static int PollAndReSeed(WC_RNG* rng)
 {
     int ret   = DRBG_NEED_RESEED;
@@ -5519,7 +5519,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret = 0;
 
-        if (os == NULL) {
+        /* Validate output before any entropy backend dereferences it: some
+         * (e.g. glibc's vDSO getrandom()) fault on a NULL buffer rather than
+         * returning an error. Mirrors wc_RNG_GenerateBlock's NULL check. */
+        if (os == NULL || output == NULL) {
             return BAD_FUNC_ARG;
         }
 

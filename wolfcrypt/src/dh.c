@@ -1013,6 +1013,13 @@ int wc_FreeDhKey(DhKey* key)
     #ifdef WOLFSSL_KCAPI_DH
         KcapiDh_Free(key);
     #endif
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Deregister any mem-zero entries covering this key (e.g. key->priv
+         * registered by wc_DhImportKeyPair) now that its fields are zeroed.
+         * Mirrors wc_FreeRsaKey(); mp_forcezero() alone does not remove the
+         * registration, so without this the entry leaks into later checks. */
+        wc_MemZero_Check(key, sizeof(*key));
+    #endif
     }
     return 0;
 }
