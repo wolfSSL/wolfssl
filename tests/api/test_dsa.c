@@ -734,6 +734,7 @@ int test_wc_DsaCheckPubKey(void)
     return EXPECT_RESULT();
 } /* END test_wc_DsaCheckPubKey */
 
+#ifndef NO_DSA
 /* Fill dst (a NUL-terminated hex-digit buffer of len+1 bytes) with a
  * synthetic hex string representing an len/2-byte-long value with the top
  * nibble forced to 0xf (top bit set, so the value is exactly 4*len bits
@@ -748,6 +749,7 @@ static void dsa_test_fill_hex(char* dst, int len)
         dst[i] = '1';
     dst[len] = '\0';
 }
+#endif
 
 /*
  * Testing wc_DsaSign_ex() / wc_DsaVerify_ex() digestSz bad-argument checks

@@ -1567,7 +1567,8 @@ int test_wc_RsaDecisionCoverage(void)
 #endif /* !HAVE_FIPS && !WC_NO_RSA_OAEP && !NO_SHA256 */
 
     /* ---- wc_RsaFunction: 7-condition argument-check (rsa.c line ~3542) ----
-     * key/in/inLen/out/outLen/*outLen/type each independently reject. The
+     * key, in, inLen, out, outLen, outLen pointer, and type each
+     * independently reject. The
      * all-false side is produced by every real encrypt/decrypt; these supply
      * the single-true half of each condition's MC/DC pair. */
     {

@@ -830,7 +830,6 @@ int test_wc_DhCheckPrivKey(void)
     byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
     word32 privSz = sizeof(priv), pubSz = sizeof(pub);
     byte zero[1] = { 0x00 };
-    byte big[TEST_DH_BUF_SIZE];
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(params = wc_Dh_ffdhe2048_Get());
@@ -857,6 +856,8 @@ int test_wc_DhCheckPrivKey(void)
 
     if (params != NULL) {
     #ifdef HAVE_FFDHE_Q
+        byte big[TEST_DH_BUF_SIZE];
+
         /* valid: explicit prime (q) override */
         ExpectIntEQ(wc_DhCheckPrivKey_ex(&key, priv, privSz, params->q,
             params->q_len), 0);
@@ -1066,4 +1067,3 @@ int test_wc_DhGenerateKeyPair_CheckDhLN(void)
 #endif
     return EXPECT_RESULT();
 }
-
