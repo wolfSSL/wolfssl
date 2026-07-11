@@ -15292,10 +15292,17 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     byte*        encIv = NULL;
     byte*        macKey = NULL;
+    /* devId to hand the DEM AES/HMAC primitives; ecc_key only carries a devId
+     * field with PLUTON_CRYPTO_ECC or WOLF_CRYPTO_CB, so default to INVALID. */
+    int          eciesDevId = INVALID_DEVID;
 
     if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
                            outSz  == NULL)
         return BAD_FUNC_ARG;
+
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    eciesDevId = privKey->devId;
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -15544,7 +15551,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Aes aes[1];
             #endif
-                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                ret = wc_AesInit(aes, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, encIv,
                                                                 AES_ENCRYPTION);
@@ -15585,7 +15592,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 XMEMSET(ctr_iv + WOLFSSL_ECIES_GEN_IV_SIZE, 0,
                     WC_AES_BLOCK_SIZE - WOLFSSL_ECIES_GEN_IV_SIZE);
 
-                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                ret = wc_AesInit(aes, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, ctr_iv,
                                                                 AES_ENCRYPTION);
@@ -15619,7 +15626,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Aes aes[1];
             #endif
-                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                ret = wc_AesInit(aes, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     ret = wc_AesGcmSetKey(aes, encKey, (word32)encKeySz);
                     if (ret == 0) {
@@ -15662,7 +15669,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Hmac hmac[1];
             #endif
-                ret = wc_HmacInit(hmac, privKey->heap, privKey->devId);
+                ret = wc_HmacInit(hmac, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     ret = wc_HmacSetKey(hmac, WC_SHA256, macKey,
                                                          WC_SHA256_DIGEST_SIZE);
@@ -15772,6 +15779,9 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     byte*        encKey = NULL;
     const byte*  encIv = NULL;
     byte*        macKey = NULL;
+    /* devId to hand the DEM AES/HMAC primitives; ecc_key only carries a devId
+     * field with PLUTON_CRYPTO_ECC or WOLF_CRYPTO_CB, so default to INVALID. */
+    int          eciesDevId = INVALID_DEVID;
 
 
     if (privKey == NULL || msg == NULL || out == NULL || outSz  == NULL)
@@ -15779,6 +15789,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #ifdef WOLFSSL_ECIES_OLD
     if (pubKey == NULL)
         return BAD_FUNC_ARG;
+#endif
+
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    eciesDevId = privKey->devId;
 #endif
 
 #ifdef WOLF_CRYPTO_CB
@@ -16050,7 +16064,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Hmac hmac[1];
             #endif
-                ret = wc_HmacInit(hmac, privKey->heap, privKey->devId);
+                ret = wc_HmacInit(hmac, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     ret = wc_HmacSetKey(hmac, WC_SHA256, macKey,
                                                          WC_SHA256_DIGEST_SIZE);
@@ -16100,7 +16114,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Aes aes[1];
             #endif
-                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                ret = wc_AesInit(aes, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, encIv,
                                                                 AES_DECRYPTION);
@@ -16132,7 +16146,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
              #else
                 Aes aes[1];
              #endif
-                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                ret = wc_AesInit(aes, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     byte ctr_iv[WC_AES_BLOCK_SIZE];
                     /* Make a 16 byte IV from the bytes passed in. */
@@ -16169,7 +16183,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #else
                 Aes aes[1];
             #endif
-                ret = wc_AesInit(aes, privKey->heap, privKey->devId);
+                ret = wc_AesInit(aes, privKey->heap, eciesDevId);
                 if (ret == 0) {
                     ret = wc_AesGcmSetKey(aes, encKey, (word32)encKeySz);
                     if (ret == 0) {
