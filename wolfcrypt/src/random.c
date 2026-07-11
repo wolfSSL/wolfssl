@@ -367,16 +367,17 @@ static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg);
  * calls cannot bypass the mutual-exclusion guard and disable both DRBG types.
  * _InitRng also holds the mutex while reading the flags to get a consistent
  * snapshot, and returns BAD_STATE_E if both are somehow disabled. */
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 #ifndef NO_SHA256
 #ifdef WOLFSSL_NO_SHA256_DRBG
 static int sha256DrbgDisabled = 1;
 #else
 static int sha256DrbgDisabled = 0;
-#endif
-#endif
+#endif /* WOLFSSL_NO_SHA256_DRBG */
+#endif /* !NO_SHA256 */
 #ifdef WOLFSSL_DRBG_SHA512
 static int sha512DrbgDisabled = 0;
-#endif
+#endif /* WOLFSSL_DRBG_SHA512 */
 
 #ifndef SINGLE_THREADED
 static wolfSSL_Mutex drbgStateMutex
@@ -432,6 +433,8 @@ static int UnlockDrbgState(void)
     return 0;
 #endif
 }
+
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
                                   int devId);
@@ -1669,7 +1672,6 @@ int wc_Sha256Drbg_Disable(void) { return NOT_COMPILED_IN; }
 int wc_Sha256Drbg_Enable(void) { return 0; }
 int wc_Sha256Drbg_IsDisabled(void) { return 1; } /* always disabled */
 #endif /* !NO_SHA256 */
-#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 #ifdef WOLFSSL_DRBG_SHA512
 int wc_Sha512Drbg_Disable(void)
@@ -1708,7 +1710,7 @@ int wc_Sha512Drbg_IsDisabled(void)
     return val;
 }
 #endif /* WOLFSSL_DRBG_SHA512 */
-
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 #endif /* HAVE_HASHDRBG */
 /* End NIST DRBG Code */
 
@@ -1764,20 +1766,20 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #ifdef WOLFSSL_SMALL_STACK_CACHE
     rng->drbg_scratch = NULL;
     #endif
-#endif
+#endif /* !NO_SHA256 */
 #ifdef WOLFSSL_DRBG_SHA512
     rng->drbg512 = NULL;
     #ifdef WOLFSSL_SMALL_STACK_CACHE
     rng->drbg512_scratch = NULL;
     rng->health_check_scratch_512 = NULL;
     #endif
-#endif
+#endif /* WOLFSSL_DRBG_SHA512 */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     rng->newSeed_buf = NULL;
-#ifndef NO_SHA256
+    #ifndef NO_SHA256
     rng->health_check_scratch = NULL;
-#endif
-#endif
+    #endif /* !NO_SHA256 */
+#endif /* WOLFSSL_SMALL_STACK_CACHE */
     rng->status = DRBG_NOT_INIT;
 
     /* Select DRBG type: prefer SHA-512 unless disabled or not compiled.
@@ -1786,16 +1788,16 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     ret = LockDrbgState();
     if (ret != 0)
         return ret;
-#ifdef WOLFSSL_DRBG_SHA512
+    #ifdef WOLFSSL_DRBG_SHA512
     if (!sha512DrbgDisabled)
         rng->drbgType = WC_DRBG_SHA512;
     else
-#endif
-#ifndef NO_SHA256
+    #endif /* WOLFSSL_DRBG_SHA512 */
+    #ifndef NO_SHA256
     if (!sha256DrbgDisabled)
         rng->drbgType = WC_DRBG_SHA256;
     else
-#endif
+    #endif /* !NO_SHA256 */
     {
         UnlockDrbgState();
         return BAD_STATE_E; /* no DRBG available */
@@ -1803,8 +1805,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     UnlockDrbgState();
 #else
     rng->drbgType = WC_DRBG_SHA256;
-#endif
-#endif
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
+#endif /* HAVE_HASHDRBG */
 
 #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND) || \
     defined(HAVE_AMD_RDSEED)
@@ -3289,7 +3291,8 @@ int wc_RNG_HealthTest_SHA512(int reseed,
 
 #endif /* WOLFSSL_DRBG_SHA512 */
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 /* Extended SHA-256 Hash_DRBG health test per SP 800-90A.
  * Supports flexible output sizes, prediction resistance, personalization
  * strings, and additional input.
@@ -3387,7 +3390,7 @@ exit_sha256_ex:
 
     return ret;
 }
-#endif /* !NO_SHA256 */
+#endif /* !NO_SHA256 && !HAVE_SELFTEST && FIPS v7+ */
 
 
 #ifdef WOLFSSL_DRBG_SHA512
