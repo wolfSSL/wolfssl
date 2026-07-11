@@ -83,6 +83,13 @@
 #if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
+
+    /* Keep ML-KEM inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name, between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$na")
+        #pragma const_seg(".fipsB$na")
+    #endif
 #endif
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
@@ -696,49 +703,8 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         ret = wc_MlKemKey_MakeKeyWithRandom(key, rand, sizeof(rand));
     }
 
-#ifdef HAVE_FIPS
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
-     * Section 7.10.3.3: encapsulate with ek, decapsulate with dk,
-     * verify shared secrets match. */
-    if (ret == 0) {
-        WC_DECLARE_VAR(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
-            key->heap);
-        byte pct_ss1[WC_ML_KEM_SS_SZ];
-        byte pct_ss2[WC_ML_KEM_SS_SZ];
-        word32 ctSz = 0;
-
-        WC_ALLOC_VAR_EX(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
-            key->heap, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
-
-        if (ret == 0)
-            ret = wc_MlKemKey_CipherTextSize(key, &ctSz);
-
-        if (ret == 0)
-            ret = wc_MlKemKey_Encapsulate(key, pct_ct, pct_ss1, rng);
-
-        if (ret == 0)
-            ret = wc_MlKemKey_Decapsulate(key, pct_ss2, pct_ct, ctSz);
-
-        if (ret == 0) {
-            if (XMEMCMP(pct_ss1, pct_ss2, WC_ML_KEM_SS_SZ) != 0)
-                ret = ML_KEM_PCT_E;
-        }
-
-        ForceZero(pct_ss1, sizeof(pct_ss1));
-        ForceZero(pct_ss2, sizeof(pct_ss2));
-        if (WC_VAR_OK(pct_ct))
-            ForceZero(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
-
-        WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
-         * must be rendered unusable.  Zeroize the generated key material so
-         * a caller that ignores the return value cannot use it. */
-        if (ret != 0) {
-            wc_MlKemKey_Free(key);
-        }
-    }
-#endif /* HAVE_FIPS */
+    /* PCT (FIPS 140-3 IG 10.3.A 1.B) is performed in
+     * wc_MlKemKey_MakeKeyWithRandom(), called above. */
 
     /* Ensure seeds are zeroized. */
     ForceZero((void*)rand, (word32)sizeof(rand));
@@ -987,8 +953,63 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     ForceZero(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
 #endif
 
-    /* Note: PCT is performed in wc_MlKemKey_MakeKey() which calls this
-     * function and has the RNG parameter needed for encapsulation. */
+#ifdef HAVE_FIPS
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A 1.B and
+     * ISO/IEC 19790:2012 Section 7.10.3.3: encapsulate with the generated
+     * encapsulation key (ek), decapsulate with the matching decapsulation
+     * key (dk), and verify the recovered shared secret matches.  This is a
+     * deterministic key-gen path with no caller RNG, so the PCT uses
+     * wc_MlKemKey_EncapsulateWithRandom() with a fixed 32-byte `m` (FIPS 203
+     * Algorithm 17 input); `m` need not be unpredictable for a PCT roundtrip.
+     */
+    if (ret == 0) {
+        WC_DECLARE_VAR(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
+            key->heap);
+        byte pct_ss1[WC_ML_KEM_SS_SZ];
+        byte pct_ss2[WC_ML_KEM_SS_SZ];
+        word32 pct_ctSz = 0;
+        /* Fixed test pattern for the FIPS 203 Alg 17 `m` input; the value is
+         * arbitrary - a PCT roundtrip does not require unpredictability. */
+        static const byte pct_m[WC_ML_KEM_ENC_RAND_SZ] = {
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB
+        };
+
+        WC_ALLOC_VAR_EX(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
+            key->heap, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
+
+        if (ret == 0)
+            ret = wc_MlKemKey_CipherTextSize(key, &pct_ctSz);
+
+        if (ret == 0)
+            ret = wc_MlKemKey_EncapsulateWithRandom(key, pct_ct, pct_ss1,
+                pct_m, (int)sizeof(pct_m));
+
+        if (ret == 0)
+            ret = wc_MlKemKey_Decapsulate(key, pct_ss2, pct_ct, pct_ctSz);
+
+        if (ret == 0) {
+            if (XMEMCMP(pct_ss1, pct_ss2, WC_ML_KEM_SS_SZ) != 0)
+                ret = ML_KEM_PCT_E;
+        }
+
+        ForceZero(pct_ss1, sizeof(pct_ss1));
+        ForceZero(pct_ss2, sizeof(pct_ss2));
+        if (WC_VAR_OK(pct_ct))
+            ForceZero(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+
+        WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
+         * must be rendered unusable.  Zeroize the generated key material so
+         * a caller that ignores the return value cannot use it. */
+        if (ret != 0) {
+            wc_MlKemKey_Free(key);
+        }
+    }
+#endif /* HAVE_FIPS */
 
     return ret;
 }

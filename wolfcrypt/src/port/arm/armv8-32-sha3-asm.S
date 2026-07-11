@@ -27,6 +27,12 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
+/* Honor WC_SHA3_NO_ASM as sha3.c does: suppress this NEON BlockSha3 so it
+ * doesn't multiply-define against sha3.c's C BlockSha3 on arm32. */
+#ifdef WC_SHA3_NO_ASM
+    #undef WOLFSSL_ARMASM
+#endif
+
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE

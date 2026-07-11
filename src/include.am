@@ -111,7 +111,11 @@ endif
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -273,7 +277,11 @@ endif BUILD_PPC32_ASM
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -609,7 +617,11 @@ endif BUILD_PPC32_ASM
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -996,7 +1008,11 @@ if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_x86_64_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -1952,7 +1968,11 @@ if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_x86_64_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S

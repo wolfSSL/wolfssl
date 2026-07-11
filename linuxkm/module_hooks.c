@@ -527,7 +527,9 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #endif /* WC_LINUXKM_RDSEED_IN_GLUE_LAYER */
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+    /* arch-generic vector save/restore (kernel_fpu_* x86, kernel_neon_* ARM) */
     #include "linuxkm/x86_vector_register_glue.c"
 #endif
 
@@ -1514,7 +1516,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
     wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
@@ -2043,7 +2046,9 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     int ret;
     int argc;
     const char *argv[3];
-    char code_buf[5];
+    /* Textual sysfs error code + NUL, plus headroom.  Fits the v7.0.0 5-char
+     * codes (e.g. ML_KEM_PCT_E) that the old [5] rejected. */
+    char code_buf[8];
     size_t corrected_count;
     int i;
 
@@ -2059,7 +2064,7 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
         corrected_count = count - 1;
     else
         corrected_count = count;
-    if ((corrected_count < 1) || (corrected_count > 4))
+    if ((corrected_count < 1) || (corrected_count > (sizeof(code_buf) - 1)))
         return -EINVAL;
     XMEMCPY(code_buf, buf, corrected_count);
     code_buf[corrected_count] = 0;

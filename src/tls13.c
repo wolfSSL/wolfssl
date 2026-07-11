@@ -4046,7 +4046,10 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
         }
     }
 
-    /* extract clientRandomInner with a key of all zeros */
+    /* extract clientRandomInner with a key of all zeros.
+     * TLS 1.3 MUST use raw wc_HKDF_Extract/wc_Tls13_HKDF_Expand_Label, never
+     * composite wc_HKDF(): wc_HKDF_fips is not gated on FIPS_CAST_KDF_TLS13,
+     * so a TLS 1.3 caller of it would bypass that CAST gate. */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
     #if !defined(HAVE_FIPS) || \

@@ -784,6 +784,20 @@ void BlockSha3(word64* s)
 }
 #endif
 
+/* 32-bit ARM BlockSha3 is NEON asm; a Linux kernel module must enable NEON
+ * around it (SAVE/RESTORE_VECTOR_REGISTERS), else the vpush faults. */
+#if !defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_ARMASM) && \
+    !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2) && \
+    !defined(WOLFSSL_ARMASM_NO_NEON)
+    #define WC_SHA3_NEON_SVR_BEGIN() do { \
+        int _svr_ret = SAVE_VECTOR_REGISTERS2(); \
+        if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA3_NEON_SVR_END()   RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA3_NEON_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA3_NEON_SVR_END()   WC_DO_NOTHING
+#endif
+
 /* Update the SHA-3 hash state with message data.
  *
  * sha3  wc_Sha3 object holding state.
@@ -864,7 +878,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         #ifdef SHA3_FUNC_PTR
             (*sha3_block)(sha3->s);
         #else
+            WC_SHA3_NEON_SVR_BEGIN();
             BlockSha3(sha3->s);
+            WC_SHA3_NEON_SVR_END();
         #endif
             sha3->i = 0;
         }
@@ -900,7 +916,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     #ifdef SHA3_FUNC_PTR
         (*sha3_block)(sha3->s);
     #else
+        WC_SHA3_NEON_SVR_BEGIN();
         BlockSha3(sha3->s);
+        WC_SHA3_NEON_SVR_END();
     #endif
         len -= p * 8U;
         data += p * 8U;
@@ -996,7 +1014,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     #ifdef SHA3_FUNC_PTR
         (*sha3_block)(sha3->s);
     #else
+        WC_SHA3_NEON_SVR_BEGIN();
         BlockSha3(sha3->s);
+        WC_SHA3_NEON_SVR_END();
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)(hash + j), sha3->s, rate);
@@ -1008,7 +1028,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     #ifdef SHA3_FUNC_PTR
         (*sha3_block)(sha3->s);
     #else
+        WC_SHA3_NEON_SVR_BEGIN();
         BlockSha3(sha3->s);
+        WC_SHA3_NEON_SVR_END();
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64(sha3->s, sha3->s, rate);

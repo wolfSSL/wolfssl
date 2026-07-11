@@ -137,7 +137,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
                 esp_start_heap = esp_this_heap;                              \
             }                                                                \
             ESP_LOGI(ESPIDF_TAG, "%s #%d; Heap free: %d",                    \
-                                ((b) ? (b) : ""),  /* breadcumb string */    \
+                                ((b) ? (b) : ""),  /* breadcrumb string */    \
                                 ((i) ? (i) : 0),   /* index */               \
                                  esp_this_heap);
 
@@ -56813,6 +56813,126 @@ out:
 #endif
     return ret;
 }
+
+#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+/* Negative test: HashML-DSA must reject a pre-hash whose collision resistance
+ * is below the parameter set's claimed security strength (FIPS 204 sec. 5.4,
+ * Table 4: approved PH per level).  Asserts sigGen and sigVer both reject. */
+static wc_test_ret_t mldsa_hash_paramset_rejection_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    int           i;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    dilithium_key* key = NULL;
+    byte*          sig = NULL;
+#else
+    dilithium_key  key[1];
+    byte           sig[DILITHIUM_MAX_SIG_SIZE];
+#endif
+    word32         sigLen;
+    int            verified;
+
+    /* Fixed-content digests; sizes match each digest length so the length
+     * check does not short-circuit before the hash-vs-paramSet gate. */
+    static const byte hash32[32] = {  /* SHA-256 digest size */
+        0xBA,0x78,0x16,0xBF,0x8F,0x01,0xCF,0xEA,
+        0x41,0x41,0x40,0xDE,0x5D,0xAE,0x22,0x23,
+        0xB0,0x03,0x61,0xA3,0x96,0x17,0x7A,0x9C,
+        0xB4,0x10,0xFF,0x61,0xF2,0x00,0x15,0xAD
+    };
+    static const byte hash48[48] = {  /* SHA-384 digest size */
+        0xCB,0x00,0x75,0x3F,0x45,0xA3,0x5E,0x8B,
+        0xB5,0xA0,0x3D,0x69,0x9A,0xC6,0x50,0x07,
+        0x27,0x2C,0x32,0xAB,0x0E,0xDE,0xD1,0x63,
+        0x1A,0x8B,0x60,0x5A,0x43,0xFF,0x5B,0xED,
+        0x80,0x86,0x07,0x2B,0xA1,0xE7,0xCC,0x23,
+        0x58,0xBA,0xEC,0xA1,0x34,0xC8,0x25,0xA7
+    };
+
+    struct {
+        int         level;
+        int         hashAlg;
+        const byte* hash;
+        word32      hashLen;
+    } forbidden[] = {
+        /* ML-DSA-65 needs >=192-bit collision strength; SHA-256 = 128-bit. */
+        { WC_ML_DSA_65, WC_HASH_TYPE_SHA256, hash32, 32 },
+        /* ML-DSA-87 needs >=256-bit collision strength; SHA-384 = 192-bit. */
+        { WC_ML_DSA_87, WC_HASH_TYPE_SHA384, hash48, 48 }
+    };
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (sig == NULL)) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, neg_out);
+    }
+#endif
+    XMEMSET(sig, 0, DILITHIUM_MAX_SIG_SIZE);
+
+    for (i = 0; i < (int)(sizeof(forbidden) / sizeof(forbidden[0])); i++) {
+    #ifdef WOLFSSL_NO_ML_DSA_65
+        if (forbidden[i].level == WC_ML_DSA_65) continue;
+    #endif
+    #ifdef WOLFSSL_NO_ML_DSA_87
+        if (forbidden[i].level == WC_ML_DSA_87) continue;
+    #endif
+
+        ret = wc_dilithium_init_ex(key, NULL, devId);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), neg_out);
+        }
+        ret = wc_dilithium_set_level(key, (byte)forbidden[i].level);
+        if (ret != 0) {
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), neg_out);
+        }
+        ret = wc_dilithium_make_key(key, rng);
+        if (ret != 0) {
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), neg_out);
+        }
+
+        sigLen = (word32)wc_dilithium_sig_size(key);
+
+        /* sigGen with disallowed PH must be REJECTED. */
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_dilithium_sign_ctx_hash(NULL, 0, forbidden[i].hashAlg,
+            forbidden[i].hash, forbidden[i].hashLen, sig, &sigLen, key, rng);
+        PRIVATE_KEY_LOCK();
+        if (ret == 0) {
+            /* Module accepted a disallowed pre-hash. */
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_NC, neg_out);
+        }
+
+        /* sigVer with disallowed PH must ALSO be REJECTED. */
+        verified = -1;
+        sigLen = (word32)wc_dilithium_sig_size(key);
+        ret = wc_dilithium_verify_ctx_hash(sig, sigLen, NULL, 0,
+            forbidden[i].hashAlg, forbidden[i].hash, forbidden[i].hashLen,
+            &verified, key);
+        if (ret == 0) {
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_NC, neg_out);
+        }
+
+        wc_dilithium_free(key);
+        ret = 0;
+    }
+
+neg_out:
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (sig != NULL) XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key != NULL) XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
+}
+#endif /* !WOLFSSL_DILITHIUM_NO_SIGN && !WOLFSSL_DILITHIUM_NO_VERIFY */
+
 #endif
 
 #if defined(WC_MLDSA_CACHE_MATRIX_A) && \
@@ -57257,6 +57377,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
     }
 #endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
         * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
+
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    (!defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87))
+    /* FIPS 204 sec. 5.4 -- HashML-DSA must reject pre-hashes weaker than
+     * the parameter set's security level. */
+    ret = mldsa_hash_paramset_rejection_test(&rng);
+    if (ret != 0) {
+        ERROR_OUT(ret, out);
+    }
+#endif
 
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
@@ -58703,29 +58835,16 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    /* HashSLH-DSA takes the caller's pre-hashed digest as input. */
+    /* HashSLH-DSA takes the caller's pre-hashed digest as input.  SHAKE-256 is
+     * approved for all SLH-DSA-{128,192,256} variants (FIPS 205 sec. 10.2.2
+     * Table 9), so use it unconditionally for the positive round-trip. */
     {
-#ifdef WOLFSSL_SLHDSA_SHA2
-        enum wc_HashType phType = SLHDSA_IS_SHA2(param) ?
-            WC_HASH_TYPE_SHA256 : WC_HASH_TYPE_SHAKE256;
-#else
         enum wc_HashType phType = WC_HASH_TYPE_SHAKE256;
-#endif
         byte digest[WC_SHA3_512_DIGEST_SIZE];
-        word32 digestLen;
+        word32 digestLen = WC_SHA3_512_DIGEST_SIZE;
 
-#ifdef WOLFSSL_SLHDSA_SHA2
-        if (phType == WC_HASH_TYPE_SHA256) {
-            ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
-            digestLen = WC_SHA256_DIGEST_SIZE;
-        }
-        else
-#endif
-        {
-            ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
-                WC_SHA3_512_DIGEST_SIZE);
-            digestLen = WC_SHA3_512_DIGEST_SIZE;
-        }
+        ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
+            WC_SHA3_512_DIGEST_SIZE);
         if (ret != 0) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
@@ -58744,9 +58863,11 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    /* Additional pre-hash test: SHA-384 exercises a different OID path */
+    /* Additional pre-hash test: SHA-384 exercises a different OID path.  Skip
+     * for SLH-DSA-256 -- SHA-384 (192-bit collision) is below its 256-bit
+     * security level (FIPS 205 sec. 10.2.2 Table 9). */
 #ifdef WOLFSSL_SHA384
-    {
+    if (key->params->n != WC_SLHDSA_N_256) {
         byte digest384[WC_SHA384_DIGEST_SIZE];
 
         ret = wc_Sha384Hash(msg, (word32)sizeof(msg), digest384);
@@ -58805,6 +58926,85 @@ out:
     WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
+}
+
+/* Negative test: HashSLH-DSA must reject a pre-hash whose collision resistance
+ * is below the parameter set's claimed security strength (FIPS 205 sec.
+ * 10.2.2, Table 9: approved PH per level).  Asserts sigGen and sigVer both
+ * reject. */
+static wc_test_ret_t slhdsa_hash_paramset_rejection_test(enum SlhDsaParam param)
+{
+    int    ret = 0;
+    WC_RNG rng;
+    SlhDsaKey key[1];
+    byte   sig[WC_SLHDSA_MAX_SIG_LEN];
+    word32 sigLen;
+    static const byte msg[] = {
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
+        0x72,0x6c,0x64,0x21
+    };
+    byte   ctx[1];
+    /* SHA-256 (128-bit collision) is approved only for 128-bit paramSets, so
+     * any 192/256-bit paramSet must reject it. */
+    enum wc_HashType badHash = WC_HASH_TYPE_SHA256;
+
+    XMEMSET(&key, 0, sizeof(key));
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0) return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SlhDsaKey_Init(key, param, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_SlhDsaKey_MakeKey(key, &rng);
+    if (ret != 0) {
+        wc_SlhDsaKey_Free(key);
+        wc_FreeRng(&rng);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Only enforce on paramSets above 128-bit security; SHA-256 is approved
+     * for 128-bit so wouldn't be a rejection target there. */
+    if (key->params->n == WC_SLHDSA_N_128) {
+        wc_SlhDsaKey_Free(key);
+        wc_FreeRng(&rng);
+        return 0;
+    }
+
+    /* sigGen with too-weak PH must be REJECTED. */
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_SlhDsaKey_SignHash(key, ctx, 0, msg, (word32)sizeof(msg),
+        badHash, sig, &sigLen, &rng);
+    PRIVATE_KEY_LOCK();
+    if (ret == 0) {
+        /* Module accepted a disallowed pre-hash. */
+        wc_SlhDsaKey_Free(key);
+        wc_FreeRng(&rng);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* sigVer with too-weak PH must ALSO be REJECTED. */
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    XMEMSET(sig, 0, sigLen);
+    ret = wc_SlhDsaKey_VerifyHash(key, ctx, 0, msg, (word32)sizeof(msg),
+        badHash, sig, sigLen);
+    if (ret == 0) {
+        wc_SlhDsaKey_Free(key);
+        wc_FreeRng(&rng);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    wc_SlhDsaKey_Free(key);
+    wc_FreeRng(&rng);
+    return 0;
 }
 #endif
 
@@ -60795,6 +60995,39 @@ wc_test_ret_t slhdsa_test(void)
     ret = slhdsa_test_param(SLHDSA_SHA2_256F);
     if (ret != 0) {
         wc_test_render_error_message("SLHDSA_SHA2_256F", 0);
+        goto out;
+    }
+#endif
+
+    /* FIPS 205 sec. 10.2.2 -- HashSLH-DSA must reject pre-hashes below the
+     * paramSet's security level.  Use any available 192/256-bit paramSet;
+     * 128-bit paramSets allow SHA-256 so are not useful targets here. */
+#ifdef WOLFSSL_SLHDSA_PARAM_192S
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHAKE192S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHAKE192S (hash-paramset reject)",
+            0);
+        goto out;
+    }
+#elif defined(WOLFSSL_SLHDSA_PARAM_256S)
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHAKE256S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHAKE256S (hash-paramset reject)",
+            0);
+        goto out;
+    }
+#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHA2_192S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHA2_192S (hash-paramset reject)",
+            0);
+        goto out;
+    }
+#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHA2_256S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHA2_256S (hash-paramset reject)",
+            0);
         goto out;
     }
 #endif

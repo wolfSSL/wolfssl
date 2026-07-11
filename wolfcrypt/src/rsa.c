@@ -5155,9 +5155,9 @@ static WC_INLINE int RsaSizeCheck(int size)
     }
 
 #ifdef HAVE_FIPS
-    /* Key size requirements for CAVP */
+    /* Approved RSA key sizes per FIPS 186-5 sec 5.1 and SP 800-131Ar2 sec 4
+     * Table 2 - 2048, 3072, 4096 only (1024 disallowed since 2014-01-01). */
     switch (size) {
-        case 1024:
         case 2048:
         case 3072:
         case 4096:
@@ -5433,6 +5433,16 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = BAD_FUNC_ARG;
         goto out;
     }
+
+#ifdef HAVE_FIPS
+    /* FIPS 186-5 sec 5.2: 2^16 + 1 <= e < 2^256, e odd.  e is a long
+     * (<= 64 bits) so the upper bound holds structurally; enforce the 65537
+     * lower bound explicitly. */
+    if (e < 65537L) {
+        err = BAD_FUNC_ARG;
+        goto out;
+    }
+#endif
 
 #if defined(WOLFSSL_CRYPTOCELL)
     err = cc310_RSA_GenerateKeyPair(key, size, e);

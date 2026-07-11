@@ -41,6 +41,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep LMS inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name. */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$ne")
+        #pragma const_seg(".fipsB$ne")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
 #ifdef NO_INLINE
@@ -2319,7 +2328,9 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
     byte* left = dp + LMS_D_LEN;
     byte* temp = left + params->hash_len;
     WC_DECLARE_VAR(stack, byte, (LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN, 0);
-    byte* sp;
+    /* Init to NULL: sp is set and used only on the ret==0 path; 32-bit ARM
+     * gcc reports a false-positive -Wmaybe-uninitialized without this. */
+    byte* sp = NULL;
     word32 max_cb = (word32)1 << params->cacheBits;
     word32 i;
 

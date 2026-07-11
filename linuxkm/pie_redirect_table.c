@@ -53,8 +53,10 @@ const struct wolfssl_linuxkm_pie_redirect_table
     return &wolfssl_linuxkm_pie_redirect_table;
 }
 
-/* placeholder implementations for missing functions. */
-#if defined(CONFIG_MIPS)
+/* placeholder implementations for missing functions.
+ * ARM/ARM64 need these like MIPS: gcc auto-emits memcpy/memset libcalls that
+ * the in-core integrity check forbids as undefined symbols. */
+#if defined(CONFIG_MIPS) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
     #undef memcpy
     void *memcpy(void *dest, const void *src, size_t n) {
         char *dest_i = (char *)dest;
@@ -74,3 +76,62 @@ const struct wolfssl_linuxkm_pie_redirect_table
         return dest;
     }
 #endif
+
+#if defined(CONFIG_ARM)
+    /* 32-bit ARM has no HW divide and the PIE FIPS container cannot reference
+     * the kernel's EABI helpers.  *idivmod returns quot in r0, rem in r1. */
+    unsigned int __aeabi_uidiv(unsigned int n, unsigned int d);
+    unsigned int __aeabi_uidiv(unsigned int n, unsigned int d) {
+        unsigned int q = 0, r = 0;
+        int i;
+        if (d == 0)
+            return ~0u;
+        for (i = 31; i >= 0; i--) {
+            r = (r << 1) | ((n >> i) & 1u);
+            if (r >= d) {
+                r -= d;
+                q |= (1u << i);
+            }
+        }
+        return q;
+    }
+
+    unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d);
+    unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d) {
+        unsigned int q = 0, r = 0;
+        int i;
+        if (d == 0)
+            return (unsigned long long)n << 32; /* quot=0, rem=n */
+        for (i = 31; i >= 0; i--) {
+            r = (r << 1) | ((n >> i) & 1u);
+            if (r >= d) {
+                r -= d;
+                q |= (1u << i);
+            }
+        }
+        return ((unsigned long long)r << 32) | q;
+    }
+
+    int __aeabi_idiv(int n, int d);
+    int __aeabi_idiv(int n, int d) {
+        int neg = (n < 0) ^ (d < 0);
+        unsigned int un = (n < 0) ? (unsigned int)(-(long)n) : (unsigned int)n;
+        unsigned int ud = (d < 0) ? (unsigned int)(-(long)d) : (unsigned int)d;
+        unsigned int uq = __aeabi_uidiv(un, ud);
+        return neg ? -(int)uq : (int)uq;
+    }
+
+    unsigned long long __aeabi_idivmod(int n, int d);
+    unsigned long long __aeabi_idivmod(int n, int d) {
+        int nneg = (n < 0);
+        int qneg = (n < 0) ^ (d < 0);
+        unsigned int un = nneg ? (unsigned int)(-(long)n) : (unsigned int)n;
+        unsigned int ud = (d < 0) ? (unsigned int)(-(long)d) : (unsigned int)d;
+        unsigned long long um = __aeabi_uidivmod(un, ud);
+        unsigned int uq = (unsigned int)um;
+        unsigned int ur = (unsigned int)(um >> 32);
+        int q = qneg ? -(int)uq : (int)uq;
+        int r = nneg ? -(int)ur : (int)ur;
+        return ((unsigned long long)(unsigned int)r << 32) | (unsigned int)q;
+    }
+#endif /* CONFIG_ARM */
