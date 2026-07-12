@@ -302,8 +302,8 @@ static int swdev_ed25519_check_key(wc_CryptoInfo* info)
         if (ret == 0) {
             ret = wc_ed25519_import_public_ex(info->pk.ed25519checkkey.pubKey,
                 info->pk.ed25519checkkey.pubKeySz, pubOnly, 0);
-            wc_ed25519_free(pubOnly);
         }
+        wc_ed25519_free(pubOnly);
         WC_FREE_VAR(pubOnly, key->heap);
         validatedFromWire = 1;
     }

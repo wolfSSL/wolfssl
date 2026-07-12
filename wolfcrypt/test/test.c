@@ -76255,7 +76255,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.curve25519.private_key->devId = devIdArg;
         }
     #endif /* HAVE_CURVE25519 */
-    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
+    #ifdef HAVE_ED25519
+        #ifdef HAVE_ED25519_MAKE_KEY
         if (info->pk.type == WC_PK_TYPE_ED25519_KEYGEN) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519kg.key->devId = INVALID_DEVID;
@@ -76275,8 +76276,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519kg.key->devId = devIdArg;
         }
+        else
+        #endif
         #ifdef HAVE_ED25519_SIGN
-        else if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
+        if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519sign.key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ED25519)
@@ -76298,9 +76301,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519sign.key->devId = devIdArg;
         }
+        else
         #endif
         #ifdef HAVE_ED25519_VERIFY
-        else if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
+        if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519verify.key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ED25519)
@@ -76323,8 +76327,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519verify.key->devId = devIdArg;
         }
+        else
         #endif
-        else if (info->pk.type == WC_PK_TYPE_ED25519_MAKE_PUB) {
+        #ifdef HAVE_ED25519_MAKE_KEY
+        if (info->pk.type == WC_PK_TYPE_ED25519_MAKE_PUB) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519makepub.key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ED25519)
@@ -76344,7 +76350,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519makepub.key->devId = devIdArg;
         }
-        else if (info->pk.type == WC_PK_TYPE_ED25519_CHECK_KEY) {
+        else
+        #endif
+        if (info->pk.type == WC_PK_TYPE_ED25519_CHECK_KEY) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519checkkey.key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ED25519)

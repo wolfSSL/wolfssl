@@ -37645,7 +37645,8 @@ TEST_CASE testCases[] = {
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_SHA512))
+     !defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_ED25519))
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb_registry),
 #endif
