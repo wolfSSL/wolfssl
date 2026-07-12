@@ -15250,6 +15250,44 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
     return 0;
 }
 
+/* Validate and advance the single-use REQ/RESP protocol state for an encrypt.
+ * A no-op for the default (non REQ/RESP) protocol.  Returns BAD_STATE_E if the
+ * ctx is not in the state that permits an encrypt. */
+static int ecc_ctx_encrypt_advance(ecEncCtx* ctx)
+{
+    if (ctx == NULL)
+        return 0;
+    if (ctx->protocol == REQ_RESP_SERVER) {
+        if (ctx->srvSt != ecSRV_RECV_REQ)
+            return BAD_STATE_E;
+        ctx->srvSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
+    }
+    else if (ctx->protocol == REQ_RESP_CLIENT) {
+        if (ctx->cliSt != ecCLI_SALT_SET)
+            return BAD_STATE_E;
+        ctx->cliSt = ecCLI_SENT_REQ; /* only do this once */
+    }
+    return 0;
+}
+
+/* Validate and advance the single-use REQ/RESP protocol state for a decrypt. */
+static int ecc_ctx_decrypt_advance(ecEncCtx* ctx)
+{
+    if (ctx == NULL)
+        return 0;
+    if (ctx->protocol == REQ_RESP_CLIENT) {
+        if (ctx->cliSt != ecCLI_SENT_REQ)
+            return BAD_STATE_E;
+        ctx->cliSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
+    }
+    else if (ctx->protocol == REQ_RESP_SERVER) {
+        if (ctx->srvSt != ecSRV_SALT_SET)
+            return BAD_STATE_E;
+        ctx->srvSt = ecSRV_RECV_REQ; /* only do this once */
+    }
+    return 0;
+}
+
 
 /* ecc encrypt with shared secret run through kdf
    ctx holds non default algos and inputs
@@ -15309,10 +15347,22 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (privKey->devId != INVALID_DEVID)
     #endif
     {
+        /* Snapshot single-use state so we can tell whether the callback handled
+         * it purely in hardware (state untouched) versus re-entered software
+         * (which advances the state itself, below). */
+        byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
+        byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
         ret = wc_CryptoCb_EciesEncrypt(privKey, pubKey, msg, msgSz, out, outSz,
                                        ctx, compressed);
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Pure-hardware service left the state alone; enforce single-use
+             * here so the ctx can't be reused (nonce reuse for static-nonce
+             * GCM).  A re-entrant software callback already advanced it. */
+            if (ret == 0 && ctx != NULL &&
+                    ctx->cliSt == cliStBefore && ctx->srvSt == srvStBefore)
+                ret = ecc_ctx_encrypt_advance(ctx);
             return ret;
+        }
         ret = 0; /* fall-through to software */
     }
 #endif
@@ -15350,18 +15400,13 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ctx->protocol == REQ_RESP_SERVER) {
         offset = keysLen;
         keysLen *= 2;
-
-        if (ctx->srvSt != ecSRV_RECV_REQ)
-            return BAD_STATE_E;
-
-        ctx->srvSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
     }
-    else if (ctx->protocol == REQ_RESP_CLIENT) {
-        if (ctx->cliSt != ecCLI_SALT_SET)
-            return BAD_STATE_E;
 
-        ctx->cliSt = ecCLI_SENT_REQ; /* only do this once */
-    }
+    /* Validate and advance the single-use state (also covers a re-entrant
+     * software CryptoCb call; the hardware path handles it before dispatch). */
+    ret = ecc_ctx_encrypt_advance(ctx);
+    if (ret != 0)
+        return ret;
 
     if (keysLen > ECC_BUFSIZE) /* keys size */
         return BUFFER_E;
@@ -15800,10 +15845,21 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (privKey->devId != INVALID_DEVID)
     #endif
     {
+        /* Snapshot single-use state so we can tell whether the callback handled
+         * it purely in hardware (state untouched) versus re-entered software
+         * (which advances the state itself, below). */
+        byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
+        byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
         ret = wc_CryptoCb_EciesDecrypt(privKey, pubKey, msg, msgSz, out, outSz,
                                        ctx);
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* Pure-hardware service left the state alone; enforce single-use
+             * here.  A re-entrant software callback already advanced it. */
+            if (ret == 0 && ctx != NULL &&
+                    ctx->cliSt == cliStBefore && ctx->srvSt == srvStBefore)
+                ret = ecc_ctx_decrypt_advance(ctx);
             return ret;
+        }
         ret = 0; /* fall-through to software */
     }
 #endif
@@ -15841,18 +15897,13 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ctx->protocol == REQ_RESP_CLIENT) {
         offset = keysLen;
         keysLen *= 2;
-
-        if (ctx->cliSt != ecCLI_SENT_REQ)
-            return BAD_STATE_E;
-
-        ctx->cliSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
     }
-    else if (ctx->protocol == REQ_RESP_SERVER) {
-        if (ctx->srvSt != ecSRV_SALT_SET)
-            return BAD_STATE_E;
 
-        ctx->srvSt = ecSRV_RECV_REQ; /* only do this once */
-    }
+    /* Validate and advance the single-use state (also covers a re-entrant
+     * software CryptoCb call; the hardware path handles it before dispatch). */
+    ret = ecc_ctx_decrypt_advance(ctx);
+    if (ret != 0)
+        return ret;
 
     if (keysLen > ECC_BUFSIZE) /* keys size */
         return BUFFER_E;

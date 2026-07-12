@@ -45328,6 +45328,18 @@ static int myEciesCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             if (cbCtx->mode == 0)
                 return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
             cbCtx->encryptInvoked = 1;
+            if (cbCtx->mode == 2) {
+                /* Simulate a device that produces output without re-entering
+                 * software, leaving the ecEncCtx state untouched.  Used to
+                 * prove the caller still enforces single-use on this path. */
+                word32 needed = info->pk.eciesencrypt.msgSz + 64;
+                if (info->pk.eciesencrypt.out == NULL ||
+                        *info->pk.eciesencrypt.outSz < needed)
+                    return WC_NO_ERR_TRACE(BUFFER_E);
+                XMEMSET(info->pk.eciesencrypt.out, 0, needed);
+                *info->pk.eciesencrypt.outSz = needed;
+                return 0;
+            }
             info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
             ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
                 info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
@@ -45457,6 +45469,69 @@ rt_done:
     return ret;
 }
 
+/* A callback that services ECIES purely in hardware never re-enters software,
+ * so the caller must advance the single-use REQ/RESP state itself.  Without that
+ * the same ctx could be reused, which is nonce reuse for the static-nonce GCM
+ * DEM.  Verify a second encrypt on the same ctx is rejected with BAD_STATE_E. */
+static wc_test_ret_t ecies_cryptocb_state_test(WC_RNG* rng, EciesCbCtx* cbCtx,
+    ecc_key* userA, ecc_key* userB)
+{
+    wc_test_ret_t ret = 0;
+    ecEncCtx*   cliCtx = NULL;
+    ecEncCtx*   srvCtx = NULL;
+    byte        out[256];
+    word32      outSz = sizeof(out);
+    byte        msg[16];
+    byte        cliSalt[EXCHANGE_SALT_SZ];
+    byte        srvSalt[EXCHANGE_SALT_SZ];
+    const byte* tmpSalt;
+    int         i;
+
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
+    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
+    if (cliCtx == NULL || srvCtx == NULL) {
+        ret = WC_TEST_RET_ENC_NC; goto st_done;
+    }
+
+    /* Salt exchange brings the client ctx to ecCLI_SALT_SET (encrypt-ready). */
+    tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
+    if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
+    XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx);
+    if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
+    XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ret = wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt);
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto st_done; }
+
+    cbCtx->mode = 2; /* pure hardware: succeed without touching ctx state */
+    cbCtx->encryptInvoked = 0;
+
+    /* First encrypt: serviced "in hardware". */
+    ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, cliCtx);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto st_done; }
+    if (cbCtx->encryptInvoked != 1) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
+
+    /* Second encrypt on the same ctx must be rejected: the hardware path must
+     * have advanced the single-use state. */
+    outSz = sizeof(out);
+    ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, cliCtx);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        ret = (ret == 0) ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret);
+        goto st_done;
+    }
+    ret = 0;
+
+st_done:
+    wc_ecc_ctx_free(cliCtx);
+    wc_ecc_ctx_free(srvCtx);
+    return ret;
+}
+
 /* Exercises the ECIES CryptoCb dispatch for every DEM cipher in the build, and
  * for each: pass with the callback servicing the op, and a pass verifying
  * software fallback on CRYPTOCB_UNAVAILABLE. */
@@ -45523,6 +45598,10 @@ static wc_test_ret_t ecc_encrypt_cryptocb_test(WC_RNG* rng)
                                            eciesCbModes[m], pass);
         }
     }
+
+    /* Single-use state must be enforced even for a pure-hardware callback. */
+    if (ret == 0)
+        ret = ecies_cryptocb_state_test(rng, &cbCtx, userA, userB);
 
 cb_done:
     if (userAInit)
