@@ -17064,6 +17064,10 @@ void benchmark_configure(word32 block_size)
     /* must be greater than 0 */
     if (block_size > 0) {
         numBlocks = (int)((word32)numBlocks * bench_size / block_size);
+        /* integer division can truncate to 0 for large block sizes; keep at
+         * least one block so the algorithm actually runs. */
+        if (numBlocks < 1)
+            numBlocks = 1;
         bench_size = block_size;
     }
 }
