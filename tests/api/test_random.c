@@ -997,7 +997,11 @@ int test_wc_RNG_HealthTest_SHA512_Ext(void)
     return EXPECT_RESULT();
 }
 
-#ifdef WC_RNG_SEED_CB
+/* Guard must match test_wc_RNG_SeedCb (the only user) exactly, else these
+ * static functions are unused -> -Werror=unused-function in FIPS/self-test builds
+ * that define WC_RNG_SEED_CB but compile the test itself out. */
+#if defined(WC_RNG_SEED_CB) && defined(HAVE_HASHDRBG) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 /* Varying (non-repeating) pattern so wc_RNG_TestSeed()'s RCT/APT continuous
  * checks (called from _InitRng()/PollAndReSeed() right after the callback
  * runs) do not reject it; a constant fill would legitimately fail those

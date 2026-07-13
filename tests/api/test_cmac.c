@@ -476,7 +476,11 @@ int test_wc_InitCmac_Label(void)
 int test_wc_AesCmacGenerateExDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
+/* wc_AesCmacGenerate_ex is absent from the frozen FIPS cmac.h (WCv4-stable,
+ * WCv5.0-RC12, ...), so exclude FIPS builds. cmac is NOT frozen under CAVP
+ * self-test, so no HAVE_SELFTEST clause is needed. */
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS)
     Cmac   cmac;
     byte   key[] = {
         0x64, 0x4c, 0xbf, 0x12, 0x85, 0x9d, 0xf0, 0x55,
@@ -551,7 +555,10 @@ int test_wc_AesCmacGenerateExDecisionCoverage(void)
 int test_wc_AesCmacVerifyExDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
+/* wc_AesCmacVerify_ex is absent from the frozen FIPS cmac.h; exclude FIPS
+ * (cmac is not frozen under CAVP self-test). */
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS)
     Cmac   cmac;
     byte   key[] = {
         0x64, 0x4c, 0xbf, 0x12, 0x85, 0x9d, 0xf0, 0x55,
@@ -618,7 +625,7 @@ int test_wc_AesCmacVerifyExDecisionCoverage(void)
  * dereferences wc_CryptoInfo's cmac member (WOLFSSL_CMAC only) and uses the
  * Cmac type / wc_AesCmacGenerate_ex, so WOLF_CRYPTO_CB alone is not enough. */
 #if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
-    defined(WOLFSSL_AES_128)
+    defined(WOLFSSL_AES_128) && !defined(HAVE_FIPS)
 #define TEST_CMAC_CRYPTOCB_DEVID 0x434d4143 /* "CMAC" */
 
 /* Toggled by the test function below: when set, the callback fails
@@ -676,7 +683,7 @@ int test_wc_AesCmacVerify_CryptoCb_LenMismatch(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
-    defined(WOLF_CRYPTO_CB)
+    defined(WOLF_CRYPTO_CB) && !defined(HAVE_FIPS)
     Cmac   cmac;
     byte   key[] = {
         0x64, 0x4c, 0xbf, 0x12, 0x85, 0x9d, 0xf0, 0x55,
