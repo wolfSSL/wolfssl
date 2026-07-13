@@ -1570,7 +1570,10 @@ int test_wc_RsaDecisionCoverage(void)
      * key, in, inLen, out, outLen, outLen pointer, and type each
      * independently reject. The
      * all-false side is produced by every real encrypt/decrypt; these supply
-     * the single-true half of each condition's MC/DC pair. */
+     * the single-true half of each condition's MC/DC pair.
+     * wc_RsaFunction is not exported by the FIPS module (undefined reference
+     * at link time on the FIPS legs), so exclude it under HAVE_FIPS. */
+#if !defined(HAVE_FIPS)
     {
         word32 rawOutLen = cipherLen;
         word32 rawZeroLen = 0;
@@ -1593,6 +1596,7 @@ int test_wc_RsaDecisionCoverage(void)
         ExpectIntEQ(wc_RsaFunction(cipher, cipherLen, plain, &rawOutLen,
             RSA_PUBLIC_DECRYPT, NULL, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
+#endif /* !HAVE_FIPS - wc_RsaFunction not exported by the FIPS module */
 
     /* ---- wc_RsaDirect: in/outSz/key argument-check (rsa.c line ~3304) ----
      * Compiled because the base enables WC_RSA_NO_PADDING. */
