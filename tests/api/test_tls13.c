@@ -6351,6 +6351,145 @@ int test_tls13_warning_alert_is_fatal(void)
      return EXPECT_RESULT();
  }
 
+/* Regression test for a malformed HelloRetryRequest sent to a downgrade capable
+ * (TLS 1.2 and TLS 1.3) client. Both crafted messages bear the HelloRetryRequest
+ * sentinel Random but omit supported_versions, which an HRR MUST carry, so the
+ * client must reject them with illegal_parameter (RFC 8446 Sec. 4.1.4/4.2)
+ * rather than downgrading to TLS 1.2 and losing the HRR context:
+ *   1. has-extensions form: carries a server_name extension (recognized but not
+ *      permitted in an HRR). Before the fix the downgrade reparsed it as a plain
+ *      server_hello, where server_name is allowed, and the client wrongly sent
+ *      unsupported_extension (when SNI is compiled in). The fix rejects it in
+ *      the version-negotiation step, so the assertions hold regardless of SNI.
+ *   2. no-extensions form: no extensions field at all. Before the fix this
+ *      downgraded silently, treating the sentinel Random as a normal
+ *      ServerHello.Random.
+ */
+int test_tls13_hrr_recognized_ext_downgrade(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    /* HelloRetryRequest bearing the sentinel Random and TLS_AES_128_GCM_SHA256,
+     * with NO supported_versions extension and a zero-length server_name
+     * extension (type 0x0000).
+     *   extensions length: 4  (0x00,0x04)
+     *   handshake body length: 44  (0x00,0x00,0x2c)
+     *   record body length: 48  (0x00,0x30)
+     */
+    static const unsigned char hrr_sni_no_sv[] = {
+        /* TLS record header: handshake, TLS 1.2 compat, len=48 */
+        0x16, 0x03, 0x03, 0x00, 0x30,
+        /* Handshake header: ServerHello, len=44 */
+        0x02, 0x00, 0x00, 0x2c,
+        /* legacy_version: TLS 1.2 */
+        0x03, 0x03,
+        /* HelloRetryRequest magic random */
+        0xcf, 0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11,
+        0xbe, 0x1d, 0x8c, 0x02, 0x1e, 0x65, 0xb8, 0x91,
+        0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e,
+        0x07, 0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c,
+        /* session ID length: 0 */
+        0x00,
+        /* cipher suite: TLS_AES_128_GCM_SHA256 */
+        0x13, 0x01,
+        /* compression: null */
+        0x00,
+        /* extensions length: 4 */
+        0x00, 0x04,
+        /* server_name extension type 0x0000, zero-length value */
+        0x00, 0x00, 0x00, 0x00
+    };
+    /* HelloRetryRequest bearing the sentinel Random with NO extensions field.
+     *   handshake body length: 38  (0x00,0x00,0x26)
+     *   record body length: 42  (0x00,0x2a)
+     */
+    static const unsigned char hrr_no_ext[] = {
+        /* TLS record header: handshake, TLS 1.2 compat, len=42 */
+        0x16, 0x03, 0x03, 0x00, 0x2a,
+        /* Handshake header: ServerHello, len=38 */
+        0x02, 0x00, 0x00, 0x26,
+        /* legacy_version: TLS 1.2 */
+        0x03, 0x03,
+        /* HelloRetryRequest magic random */
+        0xcf, 0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11,
+        0xbe, 0x1d, 0x8c, 0x02, 0x1e, 0x65, 0xb8, 0x91,
+        0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e,
+        0x07, 0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c,
+        /* session ID length: 0 */
+        0x00,
+        /* cipher suite: TLS_AES_128_GCM_SHA256 */
+        0x13, 0x01,
+        /* compression: null */
+        0x00
+    };
+
+    /* Scenario 1: HelloRetryRequest with a not-permitted server_name extension
+     * and no supported_versions. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+
+    /* Client allows both TLS 1.2 and TLS 1.3 so the missing supported_versions
+     * would otherwise trigger a downgrade. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfSSLv23_client_method, NULL), 0);
+
+    /* Inject the crafted HelloRetryRequest before the client starts the
+     * handshake. wolfSSL_connect sends the ClientHello then reads this. */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+        (const char *)hrr_sni_no_sv, sizeof(hrr_sni_no_sv)), 0);
+
+    /* Handshake must fail with EXT_NOT_ALLOWED (server_name is not permitted in
+     * a HelloRetryRequest), not UNSUPPORTED_EXTENSION. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+        WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    /* RFC 8446 Sec. 4.2: the client MUST abort with illegal_parameter (47),
+     * not unsupported_extension (110). */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+    /* Scenario 2: HelloRetryRequest sentinel with no extensions field at all.
+     * Must also be rejected with illegal_parameter rather than downgraded. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfSSLv23_client_method, NULL), 0);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+        (const char *)hrr_no_ext, sizeof(hrr_no_ext)), 0);
+
+    /* No offending extension is present here, so the client reports the message
+     * as an invalid HRR; the wire alert is still illegal_parameter. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfSSL_set1_sigalgs_list() is honored in TLS 1.3
  */
 int test_tls13_cert_req_sigalgs(void)
