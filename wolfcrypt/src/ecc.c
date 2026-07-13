@@ -15278,7 +15278,7 @@ static int ecc_ctx_decrypt_advance(ecEncCtx* ctx)
     if (ctx->protocol == REQ_RESP_CLIENT) {
         if (ctx->cliSt != ecCLI_SENT_REQ)
             return BAD_STATE_E;
-        ctx->cliSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
+        ctx->cliSt = ecCLI_BAD_STATE; /* we're done no more ops allowed */
     }
     else if (ctx->protocol == REQ_RESP_SERVER) {
         if (ctx->srvSt != ecSRV_SALT_SET)
