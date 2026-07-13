@@ -3390,7 +3390,7 @@ exit_sha256_ex:
 
     return ret;
 }
-#endif /* !NO_SHA256 && !HAVE_SELFTEST && FIPS v7+ */
+#endif /* !NO_SHA256 && !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 
 #ifdef WOLFSSL_DRBG_SHA512
