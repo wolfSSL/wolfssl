@@ -170,13 +170,13 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     paramTo->flags = WOLFSSL_USE_CHECK_TIME;
     paramFrom->check_time = 22;
     ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
-    ExpectIntEQ(paramTo->check_time, 11);
+    ExpectTrue(paramTo->check_time == 11);
     ExpectIntEQ(paramTo->flags & WOLFSSL_USE_CHECK_TIME,
         WOLFSSL_USE_CHECK_TIME);
 
     paramTo->inherit_flags = X509_VP_FLAG_OVERWRITE;
     ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
-    ExpectIntEQ(paramTo->check_time, 22);
+    ExpectTrue(paramTo->check_time == 22);
     ExpectIntEQ(paramTo->flags & WOLFSSL_USE_CHECK_TIME, 0);
 
     /* test for incorrect parameters */
