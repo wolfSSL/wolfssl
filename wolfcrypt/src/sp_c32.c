@@ -232,9 +232,38 @@ sp_uint64 __muldi3(sp_uint64 a, sp_uint64 b)
     #endif
 #endif
 
-#ifdef NEED_ADDR_MASK
+#if defined(NEED_ADDR_MASK) && !defined(WC_NO_PTR_INT_CAST)
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
+#endif
+#if defined(WC_NO_PTR_INT_CAST) && \
+    (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && \
+    !defined(WC_NO_CACHE_RESISTANT) && \
+    (defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+static void sp_cond_copy_digits(const sp_digit* src, int cond, sp_digit* dst,
+                                word32 n)
+{
+    sp_digit mask = (sp_digit)0 - (sp_digit)(cond & 1);
+    word32 i;
+    for (i = 0; i < n; i++) {
+        dst[i] ^= (dst[i] ^ src[i]) & mask;
+    }
+}
+#endif
+#if defined(WC_NO_PTR_INT_CAST) && \
+    defined(WOLFSSL_SP_SMALL) && defined(WOLFSSL_HAVE_SP_ECC) && \
+    (!defined(WOLFSSL_SP_NO_256) || defined(WOLFSSL_SP_384) || \
+     defined(WOLFSSL_SP_521) || defined(WOLFSSL_SP_1024))
+static void sp_cond_copy_bytes(const void* src, int cond, void* dst, size_t sz)
+{
+    byte mask = (byte)(0 - (cond & 1));
+    const byte *s = (const byte*)src;
+    byte *d = (byte*)dst;
+    size_t i;
+    for (i = 0; i < sz; i++) {
+        d[i] ^= (d[i] ^ s[i]) & mask;
+    }
+}
 #endif
 
 #if defined(WOLFSSL_SP_NONBLOCK) && (!defined(WOLFSSL_SP_NO_MALLOC) || \
@@ -2349,13 +2378,23 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_36(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 36 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 36 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 36 * 2);
+#endif
             sp_2048_mont_sqr_36(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 36 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 36 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 36 * 2);
+#endif
         }
 
         sp_2048_mont_reduce_36(t[0], m, mp);
@@ -2425,13 +2464,23 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_36(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 36 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 36 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 36 * 2);
+#endif
             sp_2048_mont_sqr_36(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 36 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 36 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 36 * 2);
+#endif
         }
 
         sp_2048_mont_reduce_36(t[0], m, mp);
@@ -3387,13 +3436,23 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_72(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 72 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 72 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 72 * 2);
+#endif
             sp_2048_mont_sqr_72(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 72 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 72 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 72 * 2);
+#endif
         }
 
         sp_2048_mont_reduce_72(t[0], m, mp);
@@ -3463,13 +3522,23 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a,
 
             sp_2048_mont_mul_72(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 72 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 72 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 72 * 2);
+#endif
             sp_2048_mont_sqr_72(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 72 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 72 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 72 * 2);
+#endif
         }
 
         sp_2048_mont_reduce_72(t[0], m, mp);
@@ -3714,9 +3783,14 @@ static int sp_2048_mod_exp_72_nb(sp_2048_mod_exp_72_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[0], ctx->y^1, ctx->t[2], 72 * 2);
+        sp_cond_copy_digits(ctx->t[1], ctx->y,   ctx->t[2], 72 * 2);
+#else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 72 * 2);
+#endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -3724,9 +3798,14 @@ static int sp_2048_mod_exp_72_nb(sp_2048_mod_exp_72_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[2], ctx->y^1, ctx->t[0], 72 * 2);
+        sp_cond_copy_digits(ctx->t[2], ctx->y,   ctx->t[1], 72 * 2);
+#else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 72 * 2);
+#endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -6333,13 +6412,23 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_53(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 53 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 53 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 53 * 2);
+#endif
             sp_3072_mont_sqr_53(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 53 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 53 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 53 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_53(t[0], m, mp);
@@ -6409,13 +6498,23 @@ static int sp_3072_mod_exp_53(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_53(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 53 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 53 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 53 * 2);
+#endif
             sp_3072_mont_sqr_53(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 53 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 53 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 53 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_53(t[0], m, mp);
@@ -7145,13 +7244,23 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_106(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 106 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 106 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 106 * 2);
+#endif
             sp_3072_mont_sqr_106(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 106 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 106 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 106 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_106(t[0], m, mp);
@@ -7221,13 +7330,23 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_106(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 106 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 106 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 106 * 2);
+#endif
             sp_3072_mont_sqr_106(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 106 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 106 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 106 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_106(t[0], m, mp);
@@ -7472,9 +7591,14 @@ static int sp_3072_mod_exp_106_nb(sp_3072_mod_exp_106_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[0], ctx->y^1, ctx->t[2], 106 * 2);
+        sp_cond_copy_digits(ctx->t[1], ctx->y,   ctx->t[2], 106 * 2);
+#else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 106 * 2);
+#endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -7482,9 +7606,14 @@ static int sp_3072_mod_exp_106_nb(sp_3072_mod_exp_106_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[2], ctx->y^1, ctx->t[0], 106 * 2);
+        sp_cond_copy_digits(ctx->t[2], ctx->y,   ctx->t[1], 106 * 2);
+#else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 106 * 2);
+#endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -10665,13 +10794,23 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_56(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 56 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 56 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 56 * 2);
+#endif
             sp_3072_mont_sqr_56(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 56 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 56 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 56 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_56(t[0], m, mp);
@@ -10741,13 +10880,23 @@ static int sp_3072_mod_exp_56(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_56(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 56 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 56 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 56 * 2);
+#endif
             sp_3072_mont_sqr_56(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 56 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 56 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 56 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_56(t[0], m, mp);
@@ -11559,13 +11708,23 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_112(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 112 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 112 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 112 * 2);
+#endif
             sp_3072_mont_sqr_112(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 112 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 112 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 112 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_112(t[0], m, mp);
@@ -11635,13 +11794,23 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a,
 
             sp_3072_mont_mul_112(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 112 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 112 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 112 * 2);
+#endif
             sp_3072_mont_sqr_112(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 112 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 112 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 112 * 2);
+#endif
         }
 
         sp_3072_mont_reduce_112(t[0], m, mp);
@@ -11886,9 +12055,14 @@ static int sp_3072_mod_exp_112_nb(sp_3072_mod_exp_112_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[0], ctx->y^1, ctx->t[2], 112 * 2);
+        sp_cond_copy_digits(ctx->t[1], ctx->y,   ctx->t[2], 112 * 2);
+#else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 112 * 2);
+#endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -11896,9 +12070,14 @@ static int sp_3072_mod_exp_112_nb(sp_3072_mod_exp_112_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[2], ctx->y^1, ctx->t[0], 112 * 2);
+        sp_cond_copy_digits(ctx->t[2], ctx->y,   ctx->t[1], 112 * 2);
+#else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 112 * 2);
+#endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -14177,13 +14356,23 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_71(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 71 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 71 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 71 * 2);
+#endif
             sp_4096_mont_sqr_71(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 71 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 71 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 71 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_71(t[0], m, mp);
@@ -14253,13 +14442,23 @@ static int sp_4096_mod_exp_71(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_71(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 71 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 71 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 71 * 2);
+#endif
             sp_4096_mont_sqr_71(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 71 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 71 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 71 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_71(t[0], m, mp);
@@ -14990,13 +15189,23 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_142(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 142 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 142 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 142 * 2);
+#endif
             sp_4096_mont_sqr_142(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 142 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 142 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 142 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_142(t[0], m, mp);
@@ -15066,13 +15275,23 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_142(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 142 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 142 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 142 * 2);
+#endif
             sp_4096_mont_sqr_142(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 142 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 142 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 142 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_142(t[0], m, mp);
@@ -15317,9 +15536,14 @@ static int sp_4096_mod_exp_142_nb(sp_4096_mod_exp_142_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[0], ctx->y^1, ctx->t[2], 142 * 2);
+        sp_cond_copy_digits(ctx->t[1], ctx->y,   ctx->t[2], 142 * 2);
+#else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 142 * 2);
+#endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -15327,9 +15551,14 @@ static int sp_4096_mod_exp_142_nb(sp_4096_mod_exp_142_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[2], ctx->y^1, ctx->t[0], 142 * 2);
+        sp_cond_copy_digits(ctx->t[2], ctx->y,   ctx->t[1], 142 * 2);
+#else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 142 * 2);
+#endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -18429,13 +18658,23 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_81(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 81 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 81 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 81 * 2);
+#endif
             sp_4096_mont_sqr_81(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 81 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 81 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 81 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_81(t[0], m, mp);
@@ -18505,13 +18744,23 @@ static int sp_4096_mod_exp_81(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_81(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 81 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 81 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 81 * 2);
+#endif
             sp_4096_mont_sqr_81(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 81 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 81 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 81 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_81(t[0], m, mp);
@@ -19310,13 +19559,23 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_162(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 162 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 162 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 162 * 2);
+#endif
             sp_4096_mont_sqr_162(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 162 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 162 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 162 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_162(t[0], m, mp);
@@ -19386,13 +19645,23 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a,
 
             sp_4096_mont_mul_162(t[y^1], t[0], t[1], m, mp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[0], y^1, t[2], 162 * 2);
+            sp_cond_copy_digits(t[1], y,   t[2], 162 * 2);
+#else
             XMEMCPY(t[2], (void*)(((size_t)t[0] & addr_mask[y^1]) +
                                   ((size_t)t[1] & addr_mask[y])),
                                   sizeof(*t[2]) * 162 * 2);
+#endif
             sp_4096_mont_sqr_162(t[2], t[2], m, mp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_digits(t[2], y^1, t[0], 162 * 2);
+            sp_cond_copy_digits(t[2], y,   t[1], 162 * 2);
+#else
             XMEMCPY((void*)(((size_t)t[0] & addr_mask[y^1]) +
                             ((size_t)t[1] & addr_mask[y])), t[2],
                             sizeof(*t[2]) * 162 * 2);
+#endif
         }
 
         sp_4096_mont_reduce_162(t[0], m, mp);
@@ -19637,9 +19906,14 @@ static int sp_4096_mod_exp_162_nb(sp_4096_mod_exp_162_ctx* ctx,
         ctx->state = 7;
         break;
     case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[0], ctx->y^1, ctx->t[2], 162 * 2);
+        sp_cond_copy_digits(ctx->t[1], ctx->y,   ctx->t[2], 162 * 2);
+#else
         XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                                    ((size_t)ctx->t[1] & addr_mask[ctx->y])),
                 sizeof(sp_digit) * 162 * 2);
+#endif
         ctx->state = 8;
         break;
     case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
@@ -19647,9 +19921,14 @@ static int sp_4096_mod_exp_162_nb(sp_4096_mod_exp_162_ctx* ctx,
         ctx->state = 9;
         break;
     case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+#ifdef WC_NO_PTR_INT_CAST
+        sp_cond_copy_digits(ctx->t[2], ctx->y^1, ctx->t[0], 162 * 2);
+        sp_cond_copy_digits(ctx->t[2], ctx->y,   ctx->t[1], 162 * 2);
+#else
         XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
                         ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
                 sizeof(sp_digit) * 162 * 2);
+#endif
         ctx->c--;
         ctx->state = 5;
         break;
@@ -22877,13 +23156,23 @@ static int sp_256_ecc_mulmod_9(sp_point_256* r, const sp_point_256* g,
 
             sp_256_proj_point_add_9(&t[y^1], &t[0], &t[1], tmp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[0], y^1, &t[2], sizeof(sp_point_256));
+            sp_cond_copy_bytes(&t[1], y,   &t[2], sizeof(sp_point_256));
+#else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_256));
+#endif
             sp_256_proj_point_dbl_9(&t[2], &t[2], tmp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[2], y^1, &t[0], sizeof(sp_point_256));
+            sp_cond_copy_bytes(&t[2], y,   &t[1], sizeof(sp_point_256));
+#else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_256));
+#endif
         }
 
         if (map != 0) {
@@ -22988,9 +23277,16 @@ static int sp_256_ecc_mulmod_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         err = sp_256_proj_point_add_9_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[0], ctx->y^1,
+                &ctx->t[2], sizeof(sp_point_256));
+            sp_cond_copy_bytes(&ctx->t[1], ctx->y,
+                &ctx->t[2], sizeof(sp_point_256));
+#else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_256));
+#endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -22999,9 +23295,16 @@ static int sp_256_ecc_mulmod_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         err = sp_256_proj_point_dbl_9_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y^1,
+                &ctx->t[0], sizeof(sp_point_256));
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y,
+                &ctx->t[1], sizeof(sp_point_256));
+#else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_256));
+#endif
             ctx->state = 4;
             ctx->c--;
         }
@@ -30187,13 +30490,23 @@ static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g,
 
             sp_384_proj_point_add_15(&t[y^1], &t[0], &t[1], tmp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[0], y^1, &t[2], sizeof(sp_point_384));
+            sp_cond_copy_bytes(&t[1], y,   &t[2], sizeof(sp_point_384));
+#else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_384));
+#endif
             sp_384_proj_point_dbl_15(&t[2], &t[2], tmp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[2], y^1, &t[0], sizeof(sp_point_384));
+            sp_cond_copy_bytes(&t[2], y,   &t[1], sizeof(sp_point_384));
+#else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_384));
+#endif
         }
 
         if (map != 0) {
@@ -30298,9 +30611,16 @@ static int sp_384_ecc_mulmod_15_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         err = sp_384_proj_point_add_15_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[0], ctx->y^1,
+                &ctx->t[2], sizeof(sp_point_384));
+            sp_cond_copy_bytes(&ctx->t[1], ctx->y,
+                &ctx->t[2], sizeof(sp_point_384));
+#else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_384));
+#endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -30309,9 +30629,16 @@ static int sp_384_ecc_mulmod_15_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         err = sp_384_proj_point_dbl_15_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y^1,
+                &ctx->t[0], sizeof(sp_point_384));
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y,
+                &ctx->t[1], sizeof(sp_point_384));
+#else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_384));
+#endif
             ctx->state = 4;
             ctx->c--;
         }
@@ -37559,13 +37886,23 @@ static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g,
 
             sp_521_proj_point_add_21(&t[y^1], &t[0], &t[1], tmp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[0], y^1, &t[2], sizeof(sp_point_521));
+            sp_cond_copy_bytes(&t[1], y,   &t[2], sizeof(sp_point_521));
+#else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_521));
+#endif
             sp_521_proj_point_dbl_21(&t[2], &t[2], tmp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[2], y^1, &t[0], sizeof(sp_point_521));
+            sp_cond_copy_bytes(&t[2], y,   &t[1], sizeof(sp_point_521));
+#else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_521));
+#endif
         }
 
         if (map != 0) {
@@ -37670,9 +38007,16 @@ static int sp_521_ecc_mulmod_21_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         err = sp_521_proj_point_add_21_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[0], ctx->y^1,
+                &ctx->t[2], sizeof(sp_point_521));
+            sp_cond_copy_bytes(&ctx->t[1], ctx->y,
+                &ctx->t[2], sizeof(sp_point_521));
+#else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_521));
+#endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -37681,9 +38025,16 @@ static int sp_521_ecc_mulmod_21_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         err = sp_521_proj_point_dbl_21_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y^1,
+                &ctx->t[0], sizeof(sp_point_521));
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y,
+                &ctx->t[1], sizeof(sp_point_521));
+#else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_521));
+#endif
             ctx->state = 4;
             ctx->c--;
         }
@@ -46202,13 +46553,23 @@ static int sp_1024_ecc_mulmod_42(sp_point_1024* r, const sp_point_1024* g,
 
             sp_1024_proj_point_add_42(&t[y^1], &t[0], &t[1], tmp);
 
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[0], y^1, &t[2], sizeof(sp_point_1024));
+            sp_cond_copy_bytes(&t[1], y,   &t[2], sizeof(sp_point_1024));
+#else
             XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
                                    ((size_t)&t[1] & addr_mask[y])),
                     sizeof(sp_point_1024));
+#endif
             sp_1024_proj_point_dbl_42(&t[2], &t[2], tmp);
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&t[2], y^1, &t[0], sizeof(sp_point_1024));
+            sp_cond_copy_bytes(&t[2], y,   &t[1], sizeof(sp_point_1024));
+#else
             XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
                             ((size_t)&t[1] & addr_mask[y])), &t[2],
                     sizeof(sp_point_1024));
+#endif
         }
 
         if (map != 0) {
@@ -46313,9 +46674,16 @@ static int sp_1024_ecc_mulmod_42_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         err = sp_1024_proj_point_add_42_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
             &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[0], ctx->y^1,
+                &ctx->t[2], sizeof(sp_point_1024));
+            sp_cond_copy_bytes(&ctx->t[1], ctx->y,
+                &ctx->t[2], sizeof(sp_point_1024));
+#else
             XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                                         ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
                     sizeof(sp_point_1024));
+#endif
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
             ctx->state = 6;
         }
@@ -46324,9 +46692,16 @@ static int sp_1024_ecc_mulmod_42_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         err = sp_1024_proj_point_dbl_42_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
             &ctx->t[2], ctx->tmp);
         if (err == MP_OKAY) {
+#ifdef WC_NO_PTR_INT_CAST
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y^1,
+                &ctx->t[0], sizeof(sp_point_1024));
+            sp_cond_copy_bytes(&ctx->t[2], ctx->y,
+                &ctx->t[1], sizeof(sp_point_1024));
+#else
             XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
                             ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
                     sizeof(sp_point_1024));
+#endif
             ctx->state = 4;
             ctx->c--;
         }
