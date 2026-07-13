@@ -3157,7 +3157,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("FLATTEN ALT NAMES test passed!\n");
 #endif
 
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) || defined(WOLFSSL_SWDEV))
     if ( (ret = curve25519_test()) != 0)
         TEST_FAIL("CURVE25519 test failed!\n", ret);
     else
@@ -76148,6 +76149,88 @@ exit_onlycb:
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+/* Exercise Curve25519 dispatch under CB_ONLY_CURVE25519: cb-handled then
+ * cb-delegated. */
+static wc_test_ret_t curve25519_onlycb_test(myCryptoDevCtx *ctx)
+{
+    wc_test_ret_t ret = 0;
+    curve25519_key key;
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT)
+    curve25519_key pubKey;
+    const byte priv[CURVE25519_KEYSIZE] = {1};
+    const byte pub[CURVE25519_KEYSIZE] = {9};
+    byte out[CURVE25519_KEYSIZE];
+    word32 outLen = (word32)sizeof(out);
+#endif
+    WC_RNG rng;
+
+    ret = wc_curve25519_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        wc_curve25519_free(&key);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* cb handles the op, expects 0(success) */
+    ctx->exampleVar = 99;
+    ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+    /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+    ctx->exampleVar = 1;
+    ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
+    if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    } else {
+        ret = 0;
+    }
+
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT)
+    ret = wc_curve25519_init_ex(&pubKey, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+    ret = wc_curve25519_import_private(priv, sizeof(priv), &key);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb_pub);
+    ret = wc_curve25519_import_public(pub, sizeof(pub), &pubKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb_pub);
+
+    /* cb handles the op, expects 0(success) */
+    ctx->exampleVar = 99;
+    ret = wc_curve25519_shared_secret(&key, &pubKey, out, &outLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb_pub);
+
+    /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+    ctx->exampleVar = 1;
+    ret = wc_curve25519_shared_secret(&key, &pubKey, out, &outLen);
+    if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb_pub);
+    } else {
+        ret = 0;
+    }
+
+exit_onlycb_pub:
+    wc_curve25519_free(&pubKey);
+#endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
+
+exit_onlycb:
+    wc_FreeRng(&rng);
+    wc_curve25519_free(&key);
+    (void)ctx;
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
+
 #if defined(HAVE_ECC) && !defined(WOLFSSL_NO_MALLOC) && \
     defined(HAVE_ECC_KEY_EXPORT)
 /* Serialize pub to X9.63 uncompressed (0x04 || X || Y) using the curve size
@@ -76543,6 +76626,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         if (info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN) {
             /* set devId to invalid, so software is used */
             info->pk.curve25519kg.key->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->pk.curve25519kg.key->devId = devIdArg;
+                return 0;
+            }
+            #endif
 
             ret = wc_curve25519_make_key(info->pk.curve25519kg.rng,
                 info->pk.curve25519kg.size, info->pk.curve25519kg.key);
@@ -76553,6 +76645,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         else if (info->pk.type == WC_PK_TYPE_CURVE25519) {
             /* set devId to invalid, so software is used */
             info->pk.curve25519.private_key->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->pk.curve25519.private_key->devId = devIdArg;
+                return 0;
+            }
+            #endif
 
             ret = wc_curve25519_shared_secret_ex(
                 info->pk.curve25519.private_key, info->pk.curve25519.public_key,
@@ -78860,9 +78961,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = ed25519_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) || defined(WOLFSSL_SWDEV))
     if (ret == 0)
         ret = curve25519_test();
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && !defined(WOLFSSL_SWDEV)
+    PRIVATE_KEY_UNLOCK();
+    if (ret == 0)
+        ret = curve25519_onlycb_test(&myCtx);
+    PRIVATE_KEY_LOCK();
 #endif
 #if !defined(NO_AES) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
     /* CB_ONLY_AES skips these (aes_onlycb_test covers that path). */
