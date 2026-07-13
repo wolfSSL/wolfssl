@@ -262,7 +262,6 @@ L_frodokem_sha3_x2_neon_begin
 	ret
 	ENDP
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
-; 	.arch_extension	sha3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	frodokem_sha3_x2_crypto
@@ -275,6 +274,7 @@ frodokem_sha3_x2_crypto PROC
 	stp	D14, D15, [x29, #64]
 	adrp	x1, L_sha3_aarch64_r
 	add	x1, x1, L_sha3_aarch64_r
+; .arch_extension sha3
 	ld4	{V0.D, V1.D, V2.D, V3.D}[0], [x0], #32
 	ld4	{V4.D, V5.D, V6.D, V7.D}[0], [x0], #32
 	ld4	{V8.D, V9.D, V10.D, V11.D}[0], [x0], #32

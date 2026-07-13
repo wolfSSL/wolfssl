@@ -336,6 +336,18 @@ my @slhdsa_shake_256f = (2, 16, 840, 1, 101, 3, 4, 3, 31);
 my @hss_lms = ( 1, 2, 840, 113549, 1, 9, 16, 3, 17 );
 my @xmss = ( 1, 3, 6, 1, 5, 5, 7, 6, 34 );
 my @xmssmt = ( 1, 3, 6, 1, 5, 5, 7, 6, 35 );
+# FrodoKEM / eFrodoKEM key OIDs (ISO/IEC 18033-2, arc 1.0.18033.2.2.7.x).
+# The old-scheme byte sums (434..441) collide with the SLH-DSA key OIDs, so an
+# add_sum offset gives them distinct old-scheme values (100434..100441); the new
+# XOR-hash scheme has no collision. Only 976/1344 are standardised (no 640).
+my @frodokem_976_shake  = ( 1, 0, 18033, 2, 2, 7, 1 );
+my @frodokem_1344_shake = ( 1, 0, 18033, 2, 2, 7, 2 );
+my @efrodokem_976_shake  = ( 1, 0, 18033, 2, 2, 7, 3 );
+my @efrodokem_1344_shake = ( 1, 0, 18033, 2, 2, 7, 4 );
+my @frodokem_976_aes  = ( 1, 0, 18033, 2, 2, 7, 5 );
+my @frodokem_1344_aes = ( 1, 0, 18033, 2, 2, 7, 6 );
+my @efrodokem_976_aes  = ( 1, 0, 18033, 2, 2, 7, 7 );
+my @efrodokem_1344_aes = ( 1, 0, 18033, 2, 2, 7, 8 );
 
 my @keys = (
     { name => "ANON",                 oid => \@anon            },
@@ -373,6 +385,14 @@ my @keys = (
     { name => "HSS_LMS",              oid => \@hss_lms         },
     { name => "XMSS",                 oid => \@xmss            },
     { name => "XMSSMT",               oid => \@xmssmt          },
+    { name => "FRODOKEM_976_SHAKE",   oid => \@frodokem_976_shake,   add_sum => 100000 },
+    { name => "FRODOKEM_1344_SHAKE",  oid => \@frodokem_1344_shake,  add_sum => 100000 },
+    { name => "EFRODOKEM_976_SHAKE",  oid => \@efrodokem_976_shake,  add_sum => 100000 },
+    { name => "EFRODOKEM_1344_SHAKE", oid => \@efrodokem_1344_shake, add_sum => 100000 },
+    { name => "FRODOKEM_976_AES",     oid => \@frodokem_976_aes,     add_sum => 100000 },
+    { name => "FRODOKEM_1344_AES",    oid => \@frodokem_1344_aes,    add_sum => 100000 },
+    { name => "EFRODOKEM_976_AES",    oid => \@efrodokem_976_aes,    add_sum => 100000 },
+    { name => "EFRODOKEM_1344_AES",   oid => \@efrodokem_1344_aes,   add_sum => 100000 },
 );
 
 print_sum_enum("Key", "k", \@keys);

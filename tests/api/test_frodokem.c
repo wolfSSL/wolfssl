@@ -32,6 +32,11 @@
     #include <wolfssl/wolfcrypt/wc_frodokem.h>
     #include <wolfssl/wolfcrypt/hash.h>
     #include <wolfssl/wolfcrypt/sha256.h>
+    #if defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC)
+        #include <wolfssl/wolfcrypt/asn_public.h>
+        #include <wolfssl/wolfcrypt/asn.h>
+        #include <wolfssl/wolfcrypt/ecc.h>
+    #endif
 #endif
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
@@ -735,10 +740,11 @@ static const FrodoKemKat frodokem_kats[] = {
     FKAT_640_AES FKAT_976_AES FKAT_1344_AES
     FKAT_E640_SHAKE FKAT_E976_SHAKE FKAT_E1344_SHAKE
     FKAT_E640_AES FKAT_E976_AES FKAT_E1344_AES
+    { 0 } /* sentinel so the array is never empty */
 };
 
 #define FRODOKEM_KAT_CNT \
-    ((int)(sizeof(frodokem_kats) / sizeof(frodokem_kats[0])))
+    ((int)(sizeof(frodokem_kats) / sizeof(frodokem_kats[0])) - 1)
 
 #endif /* !NO_SHA256 && !WOLFSSL_FRODOKEM_NO_MAKE_KEY */
 #endif /* WOLFSSL_HAVE_FRODOKEM */
@@ -830,6 +836,9 @@ int test_wc_frodokem_encapsulate_kats(void)
     }
 
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* key is freed at the bottom of each loop iteration; on the 0-iteration
+     * allocation-failure path it was never initialised, so only the backing
+     * memory is released here. */
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
@@ -876,6 +885,9 @@ int test_wc_frodokem_decapsulate_kats(void)
     }
 
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* key is freed at the bottom of each loop iteration; on the 0-iteration
+     * allocation-failure path it was never initialised, so only the backing
+     * memory is released here. */
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
@@ -927,6 +939,9 @@ int test_wc_frodokem_roundtrip(void)
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
     }
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* key is freed at the bottom of each loop iteration; on the 0-iteration
+     * allocation-failure path it was never initialised, so only the backing
+     * memory is released here. */
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
@@ -1014,6 +1029,9 @@ int test_wc_frodokem_encode_decode(void)
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(skBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pkBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* The three keys are freed at the bottom of each loop iteration; on the
+     * 0-iteration allocation-failure path they were never initialised, so only
+     * the backing memory is released here. */
     XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1101,6 +1119,9 @@ int test_wc_frodokem_decap_implicit_reject(void)
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
     }
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* key is freed at the bottom of each loop iteration; on the 0-iteration
+     * allocation-failure path it was never initialised, so only the backing
+     * memory is released here. */
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
@@ -1302,11 +1323,13 @@ int test_wc_frodokem_bad_args(void)
 #endif
     ExpectIntEQ(wc_FrodoKemKey_EncapsulateWithRandom(NULL, small, small,
         small, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* NULL ct / ss are rejected independently of key state. */
+    /* NULL ct / ss / rand are rejected independently of key state. */
     ExpectIntEQ(wc_FrodoKemKey_EncapsulateWithRandom(key, NULL, small,
         small, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_FrodoKemKey_EncapsulateWithRandom(key, small, NULL,
         small, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_EncapsulateWithRandom(key, small, small,
+        NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef WC_NO_RNG
     /* Encapsulate rejects a NULL rng in isolation (ct and ss valid). */
     ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, small, small, NULL),
@@ -1420,6 +1443,9 @@ int test_wc_frodokem_op_len_checks(void)
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
     }
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* key is freed at the bottom of each loop iteration; on the 0-iteration
+     * allocation-failure path it was never initialised, so only the backing
+     * memory is released here. */
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
@@ -1493,6 +1519,451 @@ int test_wc_frodokem_not_compiled_in(void)
     }
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ASN.1 round trip: encode the public key as a SubjectPublicKeyInfo and the
+ * private key as a PKCS#8 OneAsymmetricKey, decode each back into a fresh key
+ * object (auto-detecting the type from the OID) and confirm the decoded keys
+ * still produce matching shared secrets. The 640 parameter sets have no
+ * standardised OID, so their encoding must be rejected. */
+int test_wc_frodokem_asn1(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+    int i;
+    FrodoKemKey* key = NULL;
+    FrodoKemKey* key2 = NULL;
+    WC_RNG rng;
+    byte* der = NULL;
+    byte* ct = NULL;
+    byte ss[FRODOKEM_MAX_LENSEC];
+    byte ssDec[FRODOKEM_MAX_LENSEC];
+    int derLen = 0;
+    word32 idx = 0;
+    word32 ctLen = 0;
+    word32 ssLen = 0;
+    int rngInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    key = (FrodoKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    key2 = (FrodoKemKey*)XMALLOC(sizeof(*key2), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key2);
+    der = (byte*)XMALLOC(FRODOKEM_MAX_PRV_KEY_DER_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(der);
+    ct = (byte*)XMALLOC(FRODOKEM_MAX_CIPHER_TEXT_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(ct);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+
+    for (i = 0; (i < FRODOKEM_TYPE_CNT) && EXPECT_SUCCESS(); i++) {
+        int type = frodokem_types[i];
+
+        ExpectIntEQ(wc_FrodoKemKey_Init(key, type, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_FrodoKemKey_MakeKey(key, &rng), 0);
+        ExpectIntEQ(wc_FrodoKemKey_CipherTextSize(key, &ctLen), 0);
+        ExpectIntEQ(wc_FrodoKemKey_SharedSecretSize(key, &ssLen), 0);
+
+        if ((type & FRODOKEM_BASE_MASK) == WC_FRODOKEM_640) {
+            /* 640 has no standardised OID: encoding must be rejected. */
+            ExpectIntEQ(wc_FrodoKemKey_PublicKeyToDer(key, der,
+                FRODOKEM_MAX_PUB_KEY_DER_SIZE, 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_FrodoKemKey_PrivateKeyToDer(key, der,
+                FRODOKEM_MAX_PRV_KEY_DER_SIZE),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            wc_FrodoKemKey_Free(key);
+            continue;
+        }
+
+        /* Public key: SubjectPublicKeyInfo round trip (auto-detect type). */
+        ExpectIntGT((derLen = wc_FrodoKemKey_PublicKeyToDer(key, der,
+            FRODOKEM_MAX_PUB_KEY_DER_SIZE, 1)), 0);
+        XMEMSET(key2, 0, sizeof(*key2));
+        key2->devId = INVALID_DEVID;
+        idx = 0;
+        ExpectIntEQ(wc_FrodoKemKey_PublicKeyDecode(key2, der, (word32)derLen,
+            &idx), 0);
+        ExpectIntEQ(key2->type, type);
+        /* Encapsulate to the decoded public key; original decapsulates. */
+        ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key2, ct, ss, &rng), 0);
+        ExpectIntEQ(wc_FrodoKemKey_Decapsulate(key, ssDec, ct, ctLen), 0);
+        ExpectIntEQ(XMEMCMP(ss, ssDec, ssLen), 0);
+        wc_FrodoKemKey_Free(key2);
+
+        /* Private key: PKCS#8 round trip; decoded key can decapsulate. */
+        ExpectIntGT((derLen = wc_FrodoKemKey_PrivateKeyToDer(key, der,
+            FRODOKEM_MAX_PRV_KEY_DER_SIZE)), 0);
+        XMEMSET(key2, 0, sizeof(*key2));
+        key2->devId = INVALID_DEVID;
+        idx = 0;
+        ExpectIntEQ(wc_FrodoKemKey_PrivateKeyDecode(key2, der, (word32)derLen,
+            &idx), 0);
+        ExpectIntEQ(key2->type, type);
+        ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng), 0);
+        ExpectIntEQ(wc_FrodoKemKey_Decapsulate(key2, ssDec, ct, ctLen), 0);
+        ExpectIntEQ(XMEMCMP(ss, ssDec, ssLen), 0);
+        wc_FrodoKemKey_Free(key2);
+
+        /* Strict validation: decoding this key's DER into a key that was
+         * initialized as a DIFFERENT variant must be rejected. */
+        {
+            int j;
+            int other = -1;
+
+            for (j = 0; j < FRODOKEM_TYPE_CNT; j++) {
+                if ((frodokem_types[j] != type) &&
+                        ((frodokem_types[j] & FRODOKEM_BASE_MASK) !=
+                            WC_FRODOKEM_640)) {
+                    other = frodokem_types[j];
+                    break;
+                }
+            }
+            if (other != -1) {
+                ExpectIntGT((derLen = wc_FrodoKemKey_PublicKeyToDer(key, der,
+                    FRODOKEM_MAX_PUB_KEY_DER_SIZE, 1)), 0);
+                ExpectIntEQ(wc_FrodoKemKey_Init(key2, other, NULL,
+                    INVALID_DEVID), 0);
+                idx = 0;
+                ExpectIntNE(wc_FrodoKemKey_PublicKeyDecode(key2, der,
+                    (word32)derLen, &idx), 0);
+                wc_FrodoKemKey_Free(key2);
+            }
+        }
+
+        /* A truncated/corrupted DER must be rejected, not over-read. */
+        ExpectIntGT((derLen = wc_FrodoKemKey_PublicKeyToDer(key, der,
+            FRODOKEM_MAX_PUB_KEY_DER_SIZE, 1)), 0);
+        XMEMSET(key2, 0, sizeof(*key2));
+        key2->devId = INVALID_DEVID;
+        idx = 0;
+        ExpectIntNE(wc_FrodoKemKey_PublicKeyDecode(key2, der,
+            (word32)derLen / 2, &idx), 0);
+        wc_FrodoKemKey_Free(key2);
+
+        wc_FrodoKemKey_Free(key);
+    }
+
+    /* NULL-argument checks. */
+    idx = 0;
+    ExpectIntEQ(wc_FrodoKemKey_PublicKeyToDer(NULL, der, 16, 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_PrivateKeyToDer(NULL, der, 16),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_PublicKeyDecode(NULL, der, 16, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_PrivateKeyDecode(NULL, der, 16, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    if (rngInit) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Key-file I/O: a FrodoKEM key flows through the generic PUBLIC KEY / PKCS#8
+ * PRIVATE KEY PEM containers (DER->PEM->DER round trip), and wc_GetKeyOID
+ * recognizes a FrodoKEM private-key DER. */
+int test_wc_frodokem_key_pem(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
+    defined(WOLFSSL_DER_TO_PEM) && defined(WOLFSSL_PEM_TO_DER) && \
+    (defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
+    int i;
+    FrodoKemKey* key = NULL;
+    FrodoKemKey* key2 = NULL;
+    WC_RNG rng;
+    byte* der = NULL;
+    byte* der2 = NULL;
+    byte* pem = NULL;
+    int rngInit = 0;
+    int derLen;
+    int der2Len;
+    int pemLen;
+    word32 idx;
+    const word32 dersz = FRODOKEM_MAX_PRV_KEY_DER_SIZE;
+    const word32 pemsz = FRODOKEM_MAX_PRV_KEY_DER_SIZE * 2;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    key = (FrodoKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    key2 = (FrodoKemKey*)XMALLOC(sizeof(*key2), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key2);
+    der = (byte*)XMALLOC(dersz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(der);
+    der2 = (byte*)XMALLOC(dersz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(der2);
+    pem = (byte*)XMALLOC(pemsz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pem);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+
+    for (i = 0; (i < FRODOKEM_TYPE_CNT) && EXPECT_SUCCESS(); i++) {
+        int type = frodokem_types[i];
+
+        if ((type & FRODOKEM_BASE_MASK) == WC_FRODOKEM_640) {
+            continue;
+        }
+
+        ExpectIntEQ(wc_FrodoKemKey_Init(key, type, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_FrodoKemKey_MakeKey(key, &rng), 0);
+
+        /* Public key: DER -> PEM (PUBLIC KEY) -> DER -> decode. */
+        ExpectIntGT((derLen = wc_FrodoKemKey_PublicKeyToDer(key, der, dersz,
+            1)), 0);
+        ExpectIntGT((pemLen = wc_DerToPem(der, (word32)derLen, pem, pemsz,
+            PUBLICKEY_TYPE)), 0);
+        ExpectIntGT((der2Len = wc_PubKeyPemToDer(pem, pemLen, der2, dersz)), 0);
+        ExpectIntEQ(der2Len, derLen);
+        ExpectIntEQ(XMEMCMP(der, der2, (size_t)derLen), 0);
+        XMEMSET(key2, 0, sizeof(*key2));
+        key2->devId = INVALID_DEVID;
+        idx = 0;
+        ExpectIntEQ(wc_FrodoKemKey_PublicKeyDecode(key2, der2,
+            (word32)der2Len, &idx), 0);
+        ExpectIntEQ(key2->type, type);
+        wc_FrodoKemKey_Free(key2);
+
+        /* Private key: PKCS#8 PEM round trip. */
+        ExpectIntGT((derLen = wc_FrodoKemKey_PrivateKeyToDer(key, der,
+            dersz)), 0);
+        ExpectIntGT((pemLen = wc_DerToPem(der, (word32)derLen, pem, pemsz,
+            PKCS8_PRIVATEKEY_TYPE)), 0);
+        ExpectIntGT((der2Len = wc_KeyPemToDer(pem, pemLen, der2, dersz,
+            "")), 0);
+        XMEMSET(key2, 0, sizeof(*key2));
+        key2->devId = INVALID_DEVID;
+        idx = 0;
+        ExpectIntEQ(wc_FrodoKemKey_PrivateKeyDecode(key2, der2,
+            (word32)der2Len, &idx), 0);
+        ExpectIntEQ(key2->type, type);
+        wc_FrodoKemKey_Free(key2);
+
+        wc_FrodoKemKey_Free(key);
+    }
+
+    if (rngInit) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* X.509: build a certificate carrying a FrodoKEM subject public key (signed by
+ * an ECC issuer key, since a KEM cannot self-sign), then parse it back and
+ * confirm the FrodoKEM subject key is recognized. */
+int test_wc_frodokem_x509(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(HAVE_ECC) && \
+    defined(WOLFSSL_WC_FRODOKEM_976) && defined(WOLFSSL_FRODOKEM_SHAKE) && \
+    !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
+    FrodoKemKey* key = NULL;
+    ecc_key* caKey = NULL;
+    WC_RNG rng;
+    Cert* cert = NULL;
+    DecodedCert* dc = NULL;
+    byte* der = NULL;
+    int rngInit = 0;
+    int bodySz = 0;
+    int derSz = 0;
+    const word32 dersz = FRODOKEM_MAX_PUB_KEY_DER_SIZE + 4096;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    key = (FrodoKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    caKey = (ecc_key*)XMALLOC(sizeof(*caKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(caKey);
+    cert = (Cert*)XMALLOC(sizeof(*cert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(cert);
+    dc = (DecodedCert*)XMALLOC(sizeof(*dc), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(dc);
+    der = (byte*)XMALLOC(dersz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(der);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+
+    /* Subject FrodoKEM key pair and issuer ECC signing key. */
+    ExpectIntEQ(wc_FrodoKemKey_Init(key, WC_FRODOKEM_976_SHAKE, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_FrodoKemKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(wc_ecc_init(caKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, caKey), 0);
+
+    /* Build the certificate body carrying the FrodoKEM public key. */
+    ExpectIntEQ(wc_InitCert(cert), 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(cert->subject.country, "US", 3);
+        XMEMCPY(cert->subject.commonName, "FrodoKEM Test", 14);
+        cert->sigType = CTC_SHA256wECDSA;
+        cert->selfSigned = 1;
+    }
+    /* Subject Key Identifier derived from the FrodoKEM public key. */
+#ifdef WOLFSSL_CERT_EXT
+    ExpectIntEQ(wc_SetSubjectKeyIdFromPublicKey_ex(cert, FRODOKEM_TYPE, key),
+        0);
+#endif
+    ExpectIntGT((bodySz = wc_MakeCert_ex(cert, der, dersz, FRODOKEM_TYPE,
+        key, &rng)), 0);
+    /* Sign with the ECC issuer key (a KEM cannot produce signatures). */
+    ExpectIntGT((derSz = wc_SignCert(bodySz, CTC_SHA256wECDSA, der, dersz,
+        NULL, caKey, &rng)), 0);
+
+    /* Parse the certificate and confirm the FrodoKEM subject key. */
+    if (EXPECT_SUCCESS()) {
+        wc_InitDecodedCert(dc, der, (word32)derSz, NULL);
+        ExpectIntEQ(wc_ParseCert(dc, CERT_TYPE, NO_VERIFY, NULL), 0);
+        ExpectIntEQ((int)dc->keyOID, FRODOKEM_976_SHAKEk);
+        ExpectIntGT(dc->pubKeySize, 0);
+        wc_FreeDecodedCert(dc);
+    }
+
+    /* Certificate request (PKCS#10) carrying the FrodoKEM public key. A KEM
+     * cannot self-sign, so the request is signed with the ECC key. */
+#ifdef WOLFSSL_CERT_REQ
+    ExpectIntEQ(wc_InitCert(cert), 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(cert->subject.country, "US", 3);
+        XMEMCPY(cert->subject.commonName, "FrodoKEM CSR", 13);
+        cert->sigType = CTC_SHA256wECDSA;
+        cert->version = 0;   /* PKCS#10 (RFC 2986) requires version 0 */
+    }
+    ExpectIntGT((bodySz = wc_MakeCertReq_ex(cert, der, dersz, FRODOKEM_TYPE,
+        key)), 0);
+    ExpectIntGT((derSz = wc_SignCert(bodySz, CTC_SHA256wECDSA, der, dersz,
+        NULL, caKey, &rng)), 0);
+    if (EXPECT_SUCCESS()) {
+        wc_InitDecodedCert(dc, der, (word32)derSz, NULL);
+        ExpectIntEQ(wc_ParseCert(dc, CERTREQ_TYPE, NO_VERIFY, NULL), 0);
+        ExpectIntEQ((int)dc->keyOID, FRODOKEM_976_SHAKEk);
+        wc_FreeDecodedCert(dc);
+    }
+#endif
+
+    if (rngInit) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    wc_ecc_free(caKey);
+    wc_FrodoKemKey_Free(key);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(caKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Parse the committed FrodoKEM certificate and CSR fixtures from
+ * certs/frodokem/ and confirm the FrodoKEM subject key is recognized. */
+int test_wc_frodokem_cert_file(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_WC_FRODOKEM_976) && defined(WOLFSSL_WC_FRODOKEM_1344) && \
+    defined(WOLFSSL_FRODOKEM_SHAKE) && !defined(NO_FILESYSTEM)
+    static const struct {
+        const char* file;
+        int type;
+        int keySum;
+    } fixtures[] = {
+        { "./certs/frodokem/frodokem976-cert.der",  CERT_TYPE,
+          FRODOKEM_976_SHAKEk },
+        { "./certs/frodokem/frodokem976-req.der",   CERTREQ_TYPE,
+          FRODOKEM_976_SHAKEk },
+        { "./certs/frodokem/frodokem1344-cert.der", CERT_TYPE,
+          FRODOKEM_1344_SHAKEk },
+        { "./certs/frodokem/frodokem1344-req.der",  CERTREQ_TYPE,
+          FRODOKEM_1344_SHAKEk }
+    };
+    byte* buf = NULL;
+    DecodedCert* dc = NULL;
+    XFILE f;
+    size_t n;
+    int i;
+
+    buf = (byte*)XMALLOC(24000, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(buf);
+    dc = (DecodedCert*)XMALLOC(sizeof(*dc), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(dc);
+
+    for (i = 0; (i < (int)(sizeof(fixtures) / sizeof(fixtures[0]))) &&
+            EXPECT_SUCCESS(); i++) {
+        n = 0;
+        if ((f = XFOPEN(fixtures[i].file, "rb")) != XBADFILE) {
+            n = XFREAD(buf, 1, 24000, f);
+            XFCLOSE(f);
+        }
+        ExpectIntGT((int)n, 0);
+        if (EXPECT_SUCCESS()) {
+            wc_InitDecodedCert(dc, buf, (word32)n, NULL);
+            ExpectIntEQ(wc_ParseCert(dc, fixtures[i].type, NO_VERIFY, NULL), 0);
+            ExpectIntEQ((int)dc->keyOID, fixtures[i].keySum);
+            wc_FreeDecodedCert(dc);
+        }
+    }
+
+    XFREE(dc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify the committed FrodoKEM leaf certificates chain to the committed ECC
+ * issuer certificate (exercises the full parse + signature-verify path). */
+int test_wc_frodokem_cert_verify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_WC_FRODOKEM_976) && defined(WOLFSSL_WC_FRODOKEM_1344) && \
+    defined(WOLFSSL_FRODOKEM_SHAKE) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+        "./certs/frodokem/frodokem-ca-ecc-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm,
+        "./certs/frodokem/frodokem976-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm,
+        "./certs/frodokem/frodokem1344-cert.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerFree(cm);
 #endif
     return EXPECT_RESULT();
 }

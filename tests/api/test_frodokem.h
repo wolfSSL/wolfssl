@@ -36,6 +36,11 @@ int test_wc_frodokem_bad_args(void);
 int test_wc_frodokem_op_len_checks(void);
 int test_wc_frodokem_new_delete(void);
 int test_wc_frodokem_not_compiled_in(void);
+int test_wc_frodokem_asn1(void);
+int test_wc_frodokem_key_pem(void);
+int test_wc_frodokem_x509(void);
+int test_wc_frodokem_cert_file(void);
+int test_wc_frodokem_cert_verify(void);
 
 #define TEST_FRODOKEM_DECLS                                                 \
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_make_key_kats),            \
@@ -49,6 +54,11 @@ int test_wc_frodokem_not_compiled_in(void);
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_bad_args),                 \
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_op_len_checks),            \
     TEST_DECL_GROUP("frodokem", test_wc_frodokem_new_delete),               \
-    TEST_DECL_GROUP("frodokem", test_wc_frodokem_not_compiled_in)
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_not_compiled_in),          \
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_asn1),                     \
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_key_pem),                  \
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_x509),                     \
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_cert_file),                \
+    TEST_DECL_GROUP("frodokem", test_wc_frodokem_cert_verify)
 
 #endif /* WOLFCRYPT_TEST_FRODOKEM_H */

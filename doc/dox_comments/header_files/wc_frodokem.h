@@ -167,8 +167,9 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng);
     WC_FRODOKEM_640_MAKEKEY_RAND_SZ for FrodoKEM-640).
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key or rand is NULL, or len is not the
-    length required for the key's parameter set.
+    \return BAD_FUNC_ARG if key or rand is NULL.
+    \return BUFFER_E if len is not the length required for the key's
+    parameter set.
 
     \param [in,out] key An initialized FrodoKemKey to hold the generated
     key pair.
@@ -272,8 +273,9 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
     WC_FRODOKEM_640_ENC_RAND_SZ for FrodoKEM-640).
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key, ct, ss or rand is NULL, or len is not
-    the length required for the key's parameter set.
+    \return BAD_FUNC_ARG if key, ct, ss or rand is NULL.
+    \return BUFFER_E if len is not the length required for the key's
+    parameter set.
     \return BAD_STATE_E if key does not hold a public key.
 
     \param [in] key A FrodoKemKey holding a public key.
@@ -302,8 +304,9 @@ int wc_FrodoKemKey_EncapsulateWithRandom(FrodoKemKey* key,
 
     \return 0 on success (a shared secret is always produced for a
     correctly sized ciphertext).
-    \return BAD_FUNC_ARG if key, ss or ct is NULL, or len is not the
-    ciphertext size for the key's parameter set.
+    \return BAD_FUNC_ARG if key, ss or ct is NULL.
+    \return BUFFER_E if len is not the ciphertext size for the key's
+    parameter set.
     \return BAD_STATE_E if key does not hold a private key.
     \return MEMORY_E on allocation failure.
 

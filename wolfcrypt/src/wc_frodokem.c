@@ -40,6 +40,12 @@
 #include <wolfssl/wolfcrypt/wc_frodokem_mat.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/memory.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+#ifndef WOLFSSL_FRODOKEM_NO_ASN1
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -54,6 +60,11 @@
 #define FRODOKEM_DOMAIN_KEYGEN  0x5F
 /* Domain separator prepended to seedSE when generating encapsulation noise. */
 #define FRODOKEM_DOMAIN_ENCAPS  0x96
+
+/* The public key seedA || b is hashed as a single contiguous pkSize-byte block
+ * starting at key->seedA, so b must immediately follow seedA in the struct. */
+wc_static_assert(WC_OFFSETOF(FrodoKemKey, b) ==
+    WC_OFFSETOF(FrodoKemKey, seedA) + FRODOKEM_SEEDA_SZ);
 
 /******************************************************************************/
 /* Parameter sets.                                                            */
@@ -560,7 +571,12 @@ int wc_FrodoKemKey_PublicKeySize(const FrodoKemKey* key, word32* len)
 static void frodokem_wipe_shake(FrodoKemKey* key)
 {
     if (key != NULL) {
-        (void)wc_InitShake128(&key->shake, NULL, INVALID_DEVID);
+        /* Re-initialising resets the Keccak state, erasing any residual secret
+         * (k') left in it. If that fails, clear the state directly so no secret
+         * material is left behind. */
+        if (wc_InitShake128(&key->shake, NULL, INVALID_DEVID) != 0) {
+            ForceZero(&key->shake, sizeof(key->shake));
+        }
     }
 }
 
@@ -698,6 +714,7 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
 #ifndef WC_NO_RNG
     const FrodoKemParams* p = NULL;
     int randLen = 0;
+    int cbHandled = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte* rand = NULL;
 #else
@@ -717,9 +734,21 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
     if (ret == 0) {
         randLen = p->lenSec + p->lenSE + FRODOKEM_SEEDA_SZ;
     }
+#ifdef WOLF_CRYPTO_CB
+    /* Offload to a registered crypto callback when a device is set; fall
+     * through to the software path when the callback is unavailable. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+        ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_FRODOKEM,
+            key->type, key);
+        cbHandled = (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+        if (!cbHandled) {
+            ret = 0;
+        }
+    }
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     /* Keep the random data off the stack. */
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         rand = (byte*)XMALLOC((size_t)randLen, key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (rand == NULL) {
@@ -727,10 +756,10 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
         }
     }
 #endif
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         ret = wc_RNG_GenerateBlock(rng, rand, (word32)randLen);
     }
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         ret = wc_FrodoKemKey_MakeKeyWithRandom(key, rand, randLen);
     }
 
@@ -937,6 +966,7 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
 #ifndef WC_NO_RNG
     const FrodoKemParams* p = NULL;
     int randLen = 0;
+    int cbHandled = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte* rand = NULL;
 #else
@@ -956,9 +986,21 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
     if (ret == 0) {
         randLen = p->lenSec + p->lenSalt;
     }
+#ifdef WOLF_CRYPTO_CB
+    /* Offload to a registered crypto callback when a device is set; fall
+     * through to the software path when the callback is unavailable. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+        ret = wc_CryptoCb_PqcEncapsulate(ct, (word32)p->ctSize, ss,
+            (word32)p->lenSec, rng, WC_PQC_KEM_TYPE_FRODOKEM, key);
+        cbHandled = (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+        if (!cbHandled) {
+            ret = 0;
+        }
+    }
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     /* Keep the random data off the stack. */
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         rand = (byte*)XMALLOC((size_t)randLen, key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (rand == NULL) {
@@ -966,10 +1008,10 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
         }
     }
 #endif
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         ret = wc_RNG_GenerateBlock(rng, rand, (word32)randLen);
     }
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         ret = wc_FrodoKemKey_EncapsulateWithRandom(key, ct, ss, rand, randLen);
     }
 
@@ -1055,6 +1097,7 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
     word32 isEq;
     byte mask;
     size_t matSz = 0;
+    int cbHandled = 0;
 
     if ((key == NULL) || (ss == NULL) || (ct == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -1072,7 +1115,19 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         }
     }
 
-    if (ret == 0) {
+#ifdef WOLF_CRYPTO_CB
+    /* Offload to a registered crypto callback when a device is set; fall
+     * through to the software path when the callback is unavailable. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+        ret = wc_CryptoCb_PqcDecapsulate(ct, len, ss, (word32)p->lenSec,
+            WC_PQC_KEM_TYPE_FRODOKEM, key);
+        cbHandled = (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+        if (!cbHandled) {
+            ret = 0;
+        }
+    }
+#endif
+    if ((ret == 0) && !cbHandled) {
         n = p->n;
         heap = key->heap;
         c1 = ct;
@@ -1107,7 +1162,7 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         }
     }
 
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         /* B' = Unpack(c1, nbar, n) and C = Unpack(c2, nbar, nbar). */
         frodokem_unpack(bpIn, c1, FRODOKEM_NBAR * n, p->d);
         frodokem_unpack(cIn, c2, nn, p->d);
@@ -1127,18 +1182,18 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         ret = frodokem_gen_seedse_k(p, &key->shake, key->pkh, uSalt,
             seedSEk + 1);
     }
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         /* Generate and sample S' | E' | E'' from SHAKE(domain || seedSE'). The
          * three are contiguous from sp, so they form a single noise region. The
          * row scratch is free here, so use it as the SHAKE block scratch. */
         ret = frodokem_gen_noise(p, &key->shake, seedSEk, (byte*)row,
             sp, 2 * FRODOKEM_NBAR * n + FRODOKEM_NBAR_SQ, NULL, 0);
     }
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         /* B'' = S' * A + E', accumulated in place over E' in work. */
         ret = frodokem_mul_add_sa_plus_e(key, work, sp, row);
     }
-    if (ret == 0) {
+    if ((ret == 0) && !cbHandled) {
         /* Compare B' (bpIn) against B'' (work) before reusing work. */
         for (i = 0; i < FRODOKEM_NBAR * n; i++) {
             diff |= (word16)(bpIn[i] ^ work[i]);
@@ -1162,7 +1217,7 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
         /* kHat = k' if ciphertext valid, else s (implicit rejection). Selected
          * in place over k' (kPrime) in seedSEk. */
         for (i = 0; i < p->lenSec; i++) {
-            kPrime[i] = (byte)((kPrime[i] & mask) | (key->s[i] & (byte)~mask));
+            kPrime[i] = ctMaskSel(mask, kPrime[i], key->s[i]);
         }
 
         /* ss = SHAKE(c1 || c2 || salt || kHat, lensec). c1 || c2 || salt is
@@ -1435,5 +1490,317 @@ int wc_FrodoKemKey_DecodePrivateKey(FrodoKemKey* key, const unsigned char* in,
 
     return ret;
 }
+
+/******************************************************************************/
+/* ASN.1 (SubjectPublicKeyInfo / PKCS#8) key encoding and decoding.           */
+/******************************************************************************/
+
+#ifndef WOLFSSL_FRODOKEM_NO_ASN1
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) || defined(WC_ENABLE_ASYM_KEY_IMPORT)
+
+/* Map a FrodoKEM key type to its ISO/IEC 18033-2 key-OID sum. Only the 976 and
+ * 1344 parameter sets have standardised OIDs, so a 640 (or unknown) type has no
+ * ASN.1 encoding.
+ *
+ * @param  [in]   type    FrodoKEM key type (base | modifier bits).
+ * @param  [out]  oidSum  OID sum (FRODOKEM_*k / EFRODOKEM_*k).
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when the type has no standardised OID.
+ */
+static int frodokem_type_to_oid_sum(int type, int* oidSum)
+{
+    int ret = 0;
+
+    switch (type & (FRODOKEM_BASE_MASK | FRODOKEM_AES | FRODOKEM_EPHEMERAL)) {
+        case WC_FRODOKEM_976:
+            *oidSum = FRODOKEM_976_SHAKEk;
+            break;
+        case WC_FRODOKEM_976 | FRODOKEM_EPHEMERAL:
+            *oidSum = EFRODOKEM_976_SHAKEk;
+            break;
+        case WC_FRODOKEM_976 | FRODOKEM_AES:
+            *oidSum = FRODOKEM_976_AESk;
+            break;
+        case WC_FRODOKEM_976 | FRODOKEM_AES | FRODOKEM_EPHEMERAL:
+            *oidSum = EFRODOKEM_976_AESk;
+            break;
+        case WC_FRODOKEM_1344:
+            *oidSum = FRODOKEM_1344_SHAKEk;
+            break;
+        case WC_FRODOKEM_1344 | FRODOKEM_EPHEMERAL:
+            *oidSum = EFRODOKEM_1344_SHAKEk;
+            break;
+        case WC_FRODOKEM_1344 | FRODOKEM_AES:
+            *oidSum = FRODOKEM_1344_AESk;
+            break;
+        case WC_FRODOKEM_1344 | FRODOKEM_AES | FRODOKEM_EPHEMERAL:
+            *oidSum = EFRODOKEM_1344_AESk;
+            break;
+        default:
+            /* 640 (and any unknown type) has no standardised OID. */
+            ret = BAD_FUNC_ARG;
+            break;
+    }
+
+    return ret;
+}
+
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
+/* Map a decoded key-OID sum to a FrodoKEM key type.
+ *
+ * @param  [in]   oidSum  OID sum from the decoded AlgorithmIdentifier.
+ * @param  [out]  type    FrodoKEM key type.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when the OID is not a FrodoKEM key OID.
+ */
+static int frodokem_oid_sum_to_type(int oidSum, int* type)
+{
+    int ret = 0;
+
+    switch (oidSum) {
+        case FRODOKEM_976_SHAKEk:
+            *type = WC_FRODOKEM_976;
+            break;
+        case EFRODOKEM_976_SHAKEk:
+            *type = WC_FRODOKEM_976 | FRODOKEM_EPHEMERAL;
+            break;
+        case FRODOKEM_976_AESk:
+            *type = WC_FRODOKEM_976 | FRODOKEM_AES;
+            break;
+        case EFRODOKEM_976_AESk:
+            *type = WC_FRODOKEM_976 | FRODOKEM_AES | FRODOKEM_EPHEMERAL;
+            break;
+        case FRODOKEM_1344_SHAKEk:
+            *type = WC_FRODOKEM_1344;
+            break;
+        case EFRODOKEM_1344_SHAKEk:
+            *type = WC_FRODOKEM_1344 | FRODOKEM_EPHEMERAL;
+            break;
+        case FRODOKEM_1344_AESk:
+            *type = WC_FRODOKEM_1344 | FRODOKEM_AES;
+            break;
+        case EFRODOKEM_1344_AESk:
+            *type = WC_FRODOKEM_1344 | FRODOKEM_AES | FRODOKEM_EPHEMERAL;
+            break;
+        default:
+            ret = ASN_PARSE_E;
+            break;
+    }
+
+    return ret;
+}
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
+
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT || WC_ENABLE_ASYM_KEY_IMPORT */
+
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+/* Encode the FrodoKEM public key as a DER SubjectPublicKeyInfo.
+ *
+ * @param  [in]   key      FrodoKEM key object with public key set.
+ * @param  [out]  output   Buffer for the DER, or NULL to get the length.
+ * @param  [in]   len      Size of output buffer in bytes.
+ * @param  [in]   withAlg  Include the SubjectPublicKeyInfo wrapper (1) or emit
+ *                         only the raw public key bytes (0).
+ * @return  Length of the encoding in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL or the type has no OID.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int wc_FrodoKemKey_PublicKeyToDer(FrodoKemKey* key, byte* output, word32 len,
+    int withAlg)
+{
+    int ret = 0;
+    int oidSum = 0;
+    word32 pkSize = 0;
+    byte* rawPk = NULL;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        ret = frodokem_type_to_oid_sum(key->type, &oidSum);
+    }
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_PublicKeySize(key, &pkSize);
+    }
+    if (ret == 0) {
+        rawPk = (byte*)XMALLOC((size_t)pkSize, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (rawPk == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_EncodePublicKey(key, rawPk, pkSize);
+    }
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(rawPk, pkSize, output, len, oidSum, withAlg);
+    }
+
+    if (rawPk != NULL) {
+        XFREE(rawPk, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return ret;
+}
+
+/* Encode the FrodoKEM private key as a DER PKCS#8 OneAsymmetricKey.
+ *
+ * FrodoKEM's private key already embeds the public key, so no separate public
+ * key is appended (PKCS#8 version 1).
+ *
+ * @param  [in]   key     FrodoKEM key object with private key set.
+ * @param  [out]  output  Buffer for the DER, or NULL to get the length.
+ * @param  [in]   len     Size of output buffer in bytes.
+ * @return  Length of the encoding in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL or the type has no OID.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int wc_FrodoKemKey_PrivateKeyToDer(FrodoKemKey* key, byte* output, word32 len)
+{
+    int ret = 0;
+    int oidSum = 0;
+    word32 skSize = 0;
+    byte* rawSk = NULL;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        ret = frodokem_type_to_oid_sum(key->type, &oidSum);
+    }
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_PrivateKeySize(key, &skSize);
+    }
+    if (ret == 0) {
+        rawSk = (byte*)XMALLOC((size_t)skSize, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (rawSk == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_EncodePrivateKey(key, rawSk, skSize);
+    }
+    if (ret == 0) {
+        ret = SetAsymKeyDer(rawSk, skSize, NULL, 0, output, len, oidSum);
+    }
+
+    if (rawSk != NULL) {
+        /* rawSk held the private key (secret s and S^T). */
+        ForceZero(rawSk, skSize);
+        XFREE(rawSk, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return ret;
+}
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
+/* Decode a DER SubjectPublicKeyInfo into a FrodoKEM public key.
+ *
+ * When the key object already has a type set, the DER OID must match it;
+ * otherwise the type is taken from the OID and the object is initialized. For
+ * that auto-detect case the caller must zero the object first, and the new key
+ * inherits its key->heap and key->devId (so a zeroed object yields devId 0 -
+ * set key->devId to INVALID_DEVID first if software is required).
+ *
+ * @param  [in, out]  key       FrodoKEM key object.
+ * @param  [in]       input     DER buffer.
+ * @param  [in]       inSz      Size of DER buffer in bytes.
+ * @param  [in, out]  inOutIdx  On in, index into buffer; on out, index after.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a pointer is NULL.
+ * @return  ASN_PARSE_E when the DER or OID is invalid.
+ */
+int wc_FrodoKemKey_PublicKeyDecode(FrodoKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx)
+{
+    int ret = 0;
+    int keyType = ANONk;
+    const byte* pubKey = NULL;
+    word32 pubKeyLen = 0;
+
+    if ((key == NULL) || (input == NULL) || (inOutIdx == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* If already initialized, require the DER OID to match the key type. */
+    if ((ret == 0) && (key->params != NULL)) {
+        ret = frodokem_type_to_oid_sum(key->type, &keyType);
+    }
+    if (ret == 0) {
+        ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
+            &pubKeyLen, &keyType);
+    }
+    /* Not initialized: set up the object from the decoded OID. */
+    if ((ret == 0) && (key->params == NULL)) {
+        void* heap = key->heap;
+        int devId = key->devId;
+        int type = 0;
+        ret = frodokem_oid_sum_to_type(keyType, &type);
+        if (ret == 0) {
+            ret = wc_FrodoKemKey_Init(key, type, heap, devId);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_DecodePublicKey(key, pubKey, pubKeyLen);
+    }
+
+    return ret;
+}
+
+/* Decode a DER PKCS#8 OneAsymmetricKey into a FrodoKEM private key.
+ *
+ * Type auto-detection and the key->heap / key->devId inheritance behave as
+ * described for wc_FrodoKemKey_PublicKeyDecode.
+ *
+ * @param  [in, out]  key       FrodoKEM key object.
+ * @param  [in]       input     DER buffer.
+ * @param  [in]       inSz      Size of DER buffer in bytes.
+ * @param  [in, out]  inOutIdx  On in, index into buffer; on out, index after.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a pointer is NULL.
+ * @return  ASN_PARSE_E when the DER or OID is invalid.
+ */
+int wc_FrodoKemKey_PrivateKeyDecode(FrodoKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx)
+{
+    int ret = 0;
+    int keyType = ANONk;
+    const byte* privKey = NULL;
+    word32 privKeyLen = 0;
+    const byte* pubKey = NULL;
+    word32 pubKeyLen = 0;
+
+    if ((key == NULL) || (input == NULL) || (inOutIdx == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (key->params != NULL)) {
+        ret = frodokem_type_to_oid_sum(key->type, &keyType);
+    }
+    if (ret == 0) {
+        /* A KEM has no seed in the blob and, as FrodoKEM's private key already
+         * embeds the public key, no trailing public key either (so pubKeyLen
+         * comes back 0). The pubKey out-params must still be non-NULL. */
+        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, NULL, NULL, &privKey,
+            &privKeyLen, &pubKey, &pubKeyLen, &keyType);
+    }
+    if ((ret == 0) && (key->params == NULL)) {
+        void* heap = key->heap;
+        int devId = key->devId;
+        int type = 0;
+        ret = frodokem_oid_sum_to_type(keyType, &type);
+        if (ret == 0) {
+            ret = wc_FrodoKemKey_Init(key, type, heap, devId);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_FrodoKemKey_DecodePrivateKey(key, privKey, privKeyLen);
+    }
+
+    return ret;
+}
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
+
+#endif /* !WOLFSSL_FRODOKEM_NO_ASN1 */
 
 #endif /* WOLFSSL_HAVE_FRODOKEM */

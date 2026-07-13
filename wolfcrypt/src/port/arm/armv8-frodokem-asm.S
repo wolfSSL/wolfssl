@@ -294,7 +294,6 @@ L_frodokem_sha3_x2_neon_begin:
 	.size	frodokem_sha3_x2_neon,.-frodokem_sha3_x2_neon
 #endif /* __APPLE__ */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-	.arch_extension	sha3
 #ifndef __APPLE__
 .text
 .globl	frodokem_sha3_x2_crypto
@@ -319,6 +318,9 @@ _frodokem_sha3_x2_crypto:
 #else
 	adrp x1, L_sha3_aarch64_r@PAGE
 	add  x1, x1, L_sha3_aarch64_r@PAGEOFF
+#endif /* __APPLE__ */
+#ifdef __APPLE__
+.arch_extension sha3
 #endif /* __APPLE__ */
 	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	ld4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32

@@ -265,11 +265,13 @@ void frodokem_sha3_x2_neon(word64* state)
 }
 
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-    "	.arch_extension	sha3\n\t"
 void frodokem_sha3_x2_crypto(word64* state)
 {
     const word64* r = L_sha3_aarch64_r;
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
         "ld4	{v0.d, v1.d, v2.d, v3.d}[0], [%x[state]], #32\n\t"
         "ld4	{v4.d, v5.d, v6.d, v7.d}[0], [%x[state]], #32\n\t"
         "ld4	{v8.d, v9.d, v10.d, v11.d}[0], [%x[state]], #32\n\t"

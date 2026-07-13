@@ -2883,7 +2883,8 @@ enum cert_enums {
     SLH_DSA_SHAKE_256F_KEY   = 35,
     LMS_KEY                  = 36,
     XMSS_KEY                 = 37,
-    XMSSMT_KEY               = 38
+    XMSSMT_KEY               = 38,
+    FRODOKEM_KEY             = 39
 };
 
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
@@ -3347,7 +3348,8 @@ WOLFSSL_LOCAL int  wolfssl_local_MatchDnsNameConstraint(const char* name,
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
-    || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA))
+    || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) \
+    || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM))
 WOLFSSL_LOCAL int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx,
     word32 inSz, const byte** seed, word32* seedLen, const byte** privKey,
     word32* privKeyLen, const byte** pubKey, word32* pubKeyLen,

@@ -80,6 +80,9 @@
 #ifdef WOLFSSL_HAVE_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    #include <wolfssl/wolfcrypt/wc_frodokem.h>
+#endif
 #if defined(WOLFSSL_HAVE_MLDSA)
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
@@ -309,7 +312,7 @@ typedef struct wc_CryptoInfo {
                 byte         contextLen;
             } ed25519verify;
         #endif
-        #if defined(WOLFSSL_HAVE_MLKEM)
+        #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
             struct {
                 WC_RNG*     rng;
                 int         size;
@@ -830,7 +833,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcStatefulSigSigsLeft(int type, void* key,
     word32* sigsLeft);
 #endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
 
-#if defined(WOLFSSL_HAVE_MLKEM)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
 WOLFSSL_LOCAL int wc_CryptoCb_PqcKemGetDevId(int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_MakePqcKemKey(WC_RNG* rng, int type,
@@ -843,7 +846,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcEncapsulate(byte* ciphertext,
 WOLFSSL_LOCAL int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext,
     word32 ciphertextLen, byte* sharedSecret, word32 sharedSecretLen,
     int type, void* key);
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM || WOLFSSL_HAVE_FRODOKEM */
 
 #if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
     defined(WOLFSSL_HAVE_SLHDSA)

@@ -190,6 +190,16 @@
 /* Number of coefficients in the secret matrix S^T (nbar * n). */
 #define FRODOKEM_MAX_S_CNT      (FRODOKEM_NBAR * FRODOKEM_MAX_N)
 
+/* DER (SubjectPublicKeyInfo / PKCS#8) encoding overhead over the raw key. */
+#define FRODOKEM_ASN1_PUB_OVERHEAD  32
+#define FRODOKEM_ASN1_PRV_OVERHEAD  40
+/* Maximum DER-encoded key sizes over the enabled parameter sets. Callers may
+ * also pass a NULL output to the *ToDer functions to get the exact length. */
+#define FRODOKEM_MAX_PUB_KEY_DER_SIZE \
+    (FRODOKEM_MAX_PUBLIC_KEY_SIZE + FRODOKEM_ASN1_PUB_OVERHEAD)
+#define FRODOKEM_MAX_PRV_KEY_DER_SIZE \
+    (FRODOKEM_MAX_PRIVATE_KEY_SIZE + FRODOKEM_ASN1_PRV_OVERHEAD)
+
 
 enum {
     /* Base parameter sets. On their own these select the standard (salted)
@@ -317,6 +327,20 @@ WOLFSSL_API int wc_FrodoKemKey_EncodePrivateKey(FrodoKemKey* key,
 WOLFSSL_API int wc_FrodoKemKey_EncodePublicKey(FrodoKemKey* key,
     unsigned char* out, word32 len);
 
+#ifndef WOLFSSL_FRODOKEM_NO_ASN1
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+WOLFSSL_API int wc_FrodoKemKey_PublicKeyToDer(FrodoKemKey* key, byte* output,
+    word32 len, int withAlg);
+WOLFSSL_API int wc_FrodoKemKey_PrivateKeyToDer(FrodoKemKey* key, byte* output,
+    word32 len);
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
+WOLFSSL_API int wc_FrodoKemKey_PublicKeyDecode(FrodoKemKey* key,
+    const byte* input, word32 inSz, word32* inOutIdx);
+WOLFSSL_API int wc_FrodoKemKey_PrivateKeyDecode(FrodoKemKey* key,
+    const byte* input, word32 inSz, word32* inOutIdx);
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
+#endif /* !WOLFSSL_FRODOKEM_NO_ASN1 */
 
 
 #ifdef __cplusplus

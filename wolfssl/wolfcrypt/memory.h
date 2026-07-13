@@ -133,7 +133,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
 
     #ifndef LARGEST_MEM_BUCKET
         #ifndef SESSION_CERTS
-            #ifdef WOLFSSL_HAVE_MLDSA
+            #if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_FRODOKEM)
                 #define LARGEST_MEM_BUCKET 131072
             #else
                 #define LARGEST_MEM_BUCKET 16128
@@ -155,7 +155,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
 
     #ifndef WOLFMEM_BUCKETS
         #ifndef SESSION_CERTS
-            #ifdef WOLFSSL_HAVE_MLDSA
+            #if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_FRODOKEM)
                 /* default size of chunks of memory to separate into */
                 #define WOLFMEM_BUCKETS 64,128,256,512,1024,8192,32768,\
                                         65536,LARGEST_MEM_BUCKET
@@ -188,7 +188,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     #endif
 
     #ifndef WOLFMEM_DIST
-        #ifdef WOLFSSL_HAVE_MLDSA
+        #if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_FRODOKEM)
             #define WOLFMEM_DIST    30,10,8,15,8,10,8,5,1
         #elif defined(WOLFSSL_HAVE_MLKEM)
             #define WOLFMEM_DIST    49,10,6,14,5,6,14,1,1
