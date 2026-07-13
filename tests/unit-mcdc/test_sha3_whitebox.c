@@ -60,7 +60,7 @@
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
-#if !defined(WOLFSSL_NO_SHA3) && defined(WOLFSSL_SHA3) && \
+#if defined(WOLFSSL_SHA3) && \
     defined(USE_INTEL_SPEEDUP) && !defined(WC_C_DYNAMIC_FALLBACK)
 
 /* Run InitSha3 once with cpuid_flags/sha3_block forced, without hashing. The
@@ -177,7 +177,7 @@ static void wb_sha3_dispatch(void)
  * real (non-INITIALIZER) value and vary sha3_block, without hashing, so no
  * asm block ever executes.
  */
-#if !defined(WOLFSSL_NO_SHA3) && defined(WOLFSSL_SHA3) && \
+#if defined(WOLFSSL_SHA3) && \
     defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
     !defined(WC_C_DYNAMIC_FALLBACK)
 
@@ -225,7 +225,7 @@ static void wb_sha3_dispatch_aarch64(void)
 int main(void)
 {
     printf("sha3.c white-box MC/DC supplement\n");
-#if defined(WOLFSSL_NO_SHA3) || !defined(WOLFSSL_SHA3)
+#if !defined(WOLFSSL_SHA3)
     printf("  SHA-3 not enabled; nothing to exercise\n");
     return 0;
 #else

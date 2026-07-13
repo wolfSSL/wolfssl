@@ -78,7 +78,7 @@ static void wb_make_pub_nb(void)
 
     /* key == NULL: TRUE side. */
     ret = wc_curve25519_make_pub_nb(NULL);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("wc_curve25519_make_pub_nb(NULL) did not return "
                  "BAD_FUNC_ARG");
         wb_fail = 1;
@@ -96,7 +96,7 @@ static void wb_make_pub_nb(void)
         XMEMSET(&key, 0, sizeof(key));
         key.nb_ctx = NULL;
         ret = wc_curve25519_make_pub_nb(&key);
-        if (ret != BAD_FUNC_ARG) {
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             WB_NOTE("wc_curve25519_make_pub_nb(nb_ctx==NULL) did not "
                      "return BAD_FUNC_ARG");
             wb_fail = 1;
@@ -157,7 +157,7 @@ static void wb_make_key_nb(void)
     /* key == NULL: TRUE side (rng operand short-circuited, not evaluated
      * -- unique-cause MC/DC only requires this operand's own pair). */
     ret = wc_curve25519_make_key_nb(&rng, CURVE25519_KEYSIZE, NULL);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("wc_curve25519_make_key_nb(NULL key) did not return "
                  "BAD_FUNC_ARG");
         wb_fail = 1;
@@ -166,7 +166,7 @@ static void wb_make_key_nb(void)
     /* rng == NULL, key != NULL: second operand's TRUE side with the first
      * operand false. */
     ret = wc_curve25519_make_key_nb(NULL, CURVE25519_KEYSIZE, &key);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("wc_curve25519_make_key_nb(NULL rng) did not return "
                  "BAD_FUNC_ARG");
         wb_fail = 1;
@@ -176,7 +176,7 @@ static void wb_make_key_nb(void)
      * following "if (ret==0 && ...)" compound (first operand FALSE side). */
     key.nb_ctx = NULL;
     ret = wc_curve25519_make_key_nb(&rng, CURVE25519_KEYSIZE, &key);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("wc_curve25519_make_key_nb(nb_ctx==NULL) did not return "
                  "BAD_FUNC_ARG");
         wb_fail = 1;

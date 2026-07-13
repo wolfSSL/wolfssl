@@ -904,7 +904,10 @@ int test_wc_DhCheckKeyPair(void)
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey key;
     WC_RNG rng;
-    byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
+    /* zero-initialized: wc_DhGenerateKeyPair fills pub at runtime, but the
+     * later read-modify-write (pub[pubSz-1] ^= 0x01) reads as uninitialized
+     * to clang-tidy without this. */
+    byte priv[TEST_DH_BUF_SIZE] = {0}, pub[TEST_DH_BUF_SIZE] = {0};
     word32 privSz = sizeof(priv), pubSz = sizeof(pub);
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
