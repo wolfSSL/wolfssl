@@ -176,6 +176,13 @@ EXTRA_DIST += scripts/user_settings_asm.sh
 # ./configure && make sbom` fails for downstream consumers.
 EXTRA_DIST += scripts/gen-sbom
 
+# Canonical shared Automake SBOM recipe.  wolfSSL's own top-level Makefile.am
+# does not `include` this fragment (it drives gen-sbom directly against its
+# generated wolfssl/options.h), but the canonical copy lives here and is
+# shipped so downstream wolfSSL-stack products (wolfSSH, wolfEngine, wolfCLU,
+# ...) can vendor an identical copy and stay in sync.
+EXTRA_DIST += scripts/sbom.am
+
 # SBOM generator unit tests.  Shipped so downstream consumers building
 # from a release tarball can re-run the regression suite.
 EXTRA_DIST += scripts/test_gen_sbom.py
