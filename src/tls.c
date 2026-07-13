@@ -17105,6 +17105,90 @@ void TLSX_CustomExt_FreeAll(WOLFSSL_CustomExt* list, void* heap)
     }
 }
 
+/* Builds one custom extension via its add callback and appends it (type,
+ * length, data) to the buffer tracked by *pData / *pDataSz, recording the type
+ * in ssl->customExtSent. Runs the matching free callback for the add. Returns 0
+ * when the extension was appended or intentionally omitted, otherwise a
+ * negative error. */
+static int TLSX_CustomExt_AddOne(WOLFSSL* ssl, WOLFSSL_CustomExt* meth,
+        byte** pData, word32* pDataSz)
+{
+    const unsigned char* out = NULL;
+    size_t outlen = 0;
+    int al = unsupported_extension;
+    int addRet = 1; /* no add_cb => add a zero-length extension */
+    word32 need = 0;
+    byte* tmp = NULL;
+    word16* sent = NULL;
+    byte* data = *pData;
+    word32 dataSz = *pDataSz;
+    int ret = 0;
+
+    if (meth->add_cb != NULL) {
+        addRet = meth->add_cb(ssl, meth->ext_type, &out, &outlen, &al,
+                              meth->add_arg);
+    }
+
+    if (addRet < 0) {
+        /* Fatal: callback requested the connection be aborted. add_cb
+         * returned < 0, so free_cb is not run (skips free_ext). */
+        SendAlert(ssl, alert_fatal, (byte)al);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    if (addRet == 0)
+        return 0; /* extension omitted for this message */
+
+    if (out == NULL && outlen > 0) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (outlen > WOLFSSL_MAX_16BIT) {
+        ret = BUFFER_ERROR;
+    }
+    else {
+        need = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN + (word32)outlen;
+        if (dataSz + need > (word32)WOLFSSL_MAX_16BIT)
+            ret = BUFFER_ERROR;
+    }
+    if (ret != 0)
+        goto free_ext;
+
+    tmp = (byte*)XREALLOC(data, dataSz + need, ssl->heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = MEMORY_E;
+        goto free_ext;
+    }
+    data = tmp;
+
+    c16toa(meth->ext_type, data + dataSz);
+    dataSz += HELLO_EXT_TYPE_SZ;
+    c16toa((word16)outlen, data + dataSz);
+    dataSz += OPAQUE16_LEN;
+    if (outlen > 0) {
+        XMEMCPY(data + dataSz, out, outlen);
+        dataSz += (word32)outlen;
+    }
+
+    /* Record the type as sent so the server may legitimately echo it. */
+    sent = (word16*)XREALLOC(ssl->customExtSent,
+            (ssl->customExtSentCnt + 1) * (word32)sizeof(word16),
+            ssl->heap, DYNAMIC_TYPE_TLSX);
+    if (sent == NULL) {
+        ret = MEMORY_E;
+        goto free_ext;
+    }
+    ssl->customExtSent = sent;
+    ssl->customExtSent[ssl->customExtSentCnt++] = meth->ext_type;
+
+free_ext:
+    if (meth->free_cb != NULL)
+        meth->free_cb(ssl, meth->ext_type, out, meth->add_arg);
+
+    *pData = data;
+    *pDataSz = dataSz;
+    return ret;
+}
+
 /* Invokes the registered add callbacks and serializes the resulting custom
  * extensions for the ClientHello into ssl->customExtData. The total wire size
  * (type + length + data for each included extension) is returned in *pSz. The
@@ -17133,74 +17217,7 @@ WOLFSSL_TEST_VIS int TLSX_CustomExt_BuildRequest(WOLFSSL* ssl, word16* pSz)
 
     for (meth = ssl->ctx->customExt; meth != NULL && ret == 0;
             meth = meth->next) {
-        const unsigned char* out = NULL;
-        size_t outlen = 0;
-        int al = unsupported_extension;
-        int addRet = 1; /* no add_cb => add a zero-length extension */
-        word32 need = 0;
-        byte* tmp = NULL;
-        word16* sent = NULL;
-
-        if (meth->add_cb != NULL) {
-            addRet = meth->add_cb(ssl, meth->ext_type, &out, &outlen, &al,
-                                  meth->add_arg);
-        }
-
-        if (addRet < 0) {
-            /* Fatal: callback requested the connection be aborted. add_cb
-             * returned < 0, so free_cb is not run (skips free_ext). */
-            SendAlert(ssl, alert_fatal, (byte)al);
-            ret = WOLFSSL_FATAL_ERROR;
-            break;
-        }
-        if (addRet == 0)
-            continue; /* extension omitted for this message */
-
-        if (out == NULL && outlen > 0) {
-            ret = BAD_FUNC_ARG;
-        }
-        else if (outlen > WOLFSSL_MAX_16BIT) {
-            ret = BUFFER_ERROR;
-        }
-        else {
-            need = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN + (word32)outlen;
-            if (dataSz + need > (word32)WOLFSSL_MAX_16BIT)
-                ret = BUFFER_ERROR;
-        }
-        if (ret != 0)
-            goto free_ext;
-
-        tmp = (byte*)XREALLOC(data, dataSz + need, ssl->heap,
-                              DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmp == NULL) {
-            ret = MEMORY_E;
-            goto free_ext;
-        }
-        data = tmp;
-
-        c16toa(meth->ext_type, data + dataSz);
-        dataSz += HELLO_EXT_TYPE_SZ;
-        c16toa((word16)outlen, data + dataSz);
-        dataSz += OPAQUE16_LEN;
-        if (outlen > 0) {
-            XMEMCPY(data + dataSz, out, outlen);
-            dataSz += (word32)outlen;
-        }
-
-        /* Record the type as sent so the server may legitimately echo it. */
-        sent = (word16*)XREALLOC(ssl->customExtSent,
-                (ssl->customExtSentCnt + 1) * (word32)sizeof(word16),
-                ssl->heap, DYNAMIC_TYPE_TLSX);
-        if (sent == NULL) {
-            ret = MEMORY_E;
-            goto free_ext;
-        }
-        ssl->customExtSent = sent;
-        ssl->customExtSent[ssl->customExtSentCnt++] = meth->ext_type;
-
-free_ext:
-        if (meth->free_cb != NULL)
-            meth->free_cb(ssl, meth->ext_type, out, meth->add_arg);
+        ret = TLSX_CustomExt_AddOne(ssl, meth, &data, &dataSz);
     }
 
     if (ret != 0) {
