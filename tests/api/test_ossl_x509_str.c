@@ -2778,6 +2778,186 @@ int test_wolfSSL_X509_STORE_set_get_crl(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* Load a CRL from a PEM file and push it onto sk. */
+static int test_set0_crls_push_crl(STACK_OF(X509_CRL)* sk, const char* file)
+{
+    EXPECT_DECLS;
+    X509_CRL* crl = NULL;
+    XFILE fp = XBADFILE;
+
+    ExpectTrue((fp = XFOPEN(file, "rb")) != XBADFILE);
+    ExpectNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL**)NULL,
+        NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+    ExpectIntGT(sk_X509_CRL_push(sk, crl), 0);
+    if (EXPECT_RESULT() != TEST_SUCCESS)
+        X509_CRL_free(crl);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_X509_STORE_CTX_set0_crls(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* storeCtx = NULL;
+    X509* ca = NULL;
+    X509* cert = NULL;
+    X509* revoked = NULL;
+    STACK_OF(X509_CRL)* crls = NULL;
+    const char caCert[] = "./certs/ca-cert.pem";
+    const char srvCert[] = "./certs/server-cert.pem";
+    const char srvRevokedCert[] = "./certs/server-revoked-cert.pem";
+    const char crlPem[] = "./certs/crl/crl.pem";
+    const char crlRevoked[] = "./certs/crl/crl.revoked";
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCert,
+        SSL_FILETYPE_PEM));
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_set_flags(store,
+        X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL), SSL_SUCCESS);
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(srvCert,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(revoked = wolfSSL_X509_load_certificate_file(srvRevokedCert,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(storeCtx = X509_STORE_CTX_new());
+
+    ExpectNotNull(crls = sk_X509_CRL_new_null());
+    ExpectIntEQ(test_set0_crls_push_crl(crls, crlPem), TEST_SUCCESS);
+
+    /* No CRLs available. Verification has to fail. */
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL);
+
+    /* The CRL from the ctx satisfies the CRL check. */
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
+    X509_STORE_CTX_set0_crls(storeCtx, crls);
+    ExpectIntEQ(X509_verify_cert(storeCtx), SSL_SUCCESS);
+
+    /* X509_STORE_CTX_init clears the CRLs again. */
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL);
+
+    /* A revocation in any CRL of the stack is found. */
+    ExpectIntEQ(test_set0_crls_push_crl(crls, crlRevoked), TEST_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, revoked, NULL),
+        SSL_SUCCESS);
+    X509_STORE_CTX_set0_crls(storeCtx, crls);
+    ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+        WOLFSSL_X509_V_ERR_CERT_REVOKED);
+
+    /* The ctx does not own the CRL stack. Freeing it here must not lead to a
+     * double free when the ctx is freed. */
+    sk_X509_CRL_pop_free(crls, X509_CRL_free);
+    X509_STORE_CTX_free(storeCtx);
+    X509_STORE_free(store);
+    X509_free(revoked);
+    X509_free(cert);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
+    defined(HAVE_CRL) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+static STACK_OF(X509_CRL)* test_set0_crls_stack;
+static int test_set0_crls_preverify; /* preverify_ok seen at depth 0 */
+static int test_set0_crls_error;     /* error seen when preverify_ok == 0 */
+
+/* Mimics OpenVPN's cert_verify_callback. */
+static int test_set0_crls_cert_verify_cb(X509_STORE_CTX* ctx, void* arg)
+{
+    (void)arg;
+    X509_STORE_CTX_set0_crls(ctx, test_set0_crls_stack);
+    return X509_verify_cert(ctx);
+}
+
+/* Mimics OpenVPN's verify_callback. */
+static int test_set0_crls_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
+{
+    if (X509_STORE_CTX_get_error_depth(ctx) == 0)
+        test_set0_crls_preverify = preverify_ok;
+    if (!preverify_ok) {
+        test_set0_crls_error = X509_STORE_CTX_get_error(ctx);
+        return 0;
+    }
+    return 1;
+}
+
+static int test_set0_crls_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+
+    SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, test_set0_crls_verify_cb);
+    SSL_CTX_set_cert_verify_callback(ctx, test_set0_crls_cert_verify_cb, NULL);
+    ExpectNotNull(store = SSL_CTX_get_cert_store(ctx));
+    ExpectIntEQ(X509_STORE_set_flags(store,
+        X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL), SSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Mimics OpenVPN's CRL handling. OpenVPN keeps the CRLs in its own stack and
+ * passes them to each verification with X509_STORE_CTX_set0_crls from the
+ * cert verify callback. No CRLs are ever loaded into the store. */
+int test_wolfSSL_X509_STORE_CTX_set0_crls_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_ALL) && \
+    defined(HAVE_CRL) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+
+    /* The CRL stack covers the whole chain. The handshake succeeds and the
+     * verify callback sees the good result of the cert verify callback. */
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.ctx_ready = test_set0_crls_ctx_ready;
+    ExpectNotNull(test_set0_crls_stack = sk_X509_CRL_new_null());
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/crl.pem"), TEST_SUCCESS);
+    test_set0_crls_preverify = -1;
+    test_set0_crls_error = 0;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_set0_crls_preverify, 1);
+    sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
+    test_set0_crls_stack = NULL;
+
+    /* The server presents a revoked cert. The handshake has to fail. */
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.ctx_ready = test_set0_crls_ctx_ready;
+    server_cbs.certPemFile = "./certs/server-revoked-cert.pem";
+    server_cbs.keyPemFile = "./certs/server-revoked-key.pem";
+    ExpectNotNull(test_set0_crls_stack = sk_X509_CRL_new_null());
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/crl.pem"), TEST_SUCCESS);
+    ExpectIntEQ(test_set0_crls_push_crl(test_set0_crls_stack,
+        "./certs/crl/crl.revoked"), TEST_SUCCESS);
+    test_set0_crls_preverify = -1;
+    test_set0_crls_error = 0;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), -1001);
+    ExpectIntEQ(test_set0_crls_error, WOLFSSL_X509_V_ERR_CERT_REVOKED);
+    sk_X509_CRL_pop_free(test_set0_crls_stack, X509_CRL_free);
+    test_set0_crls_stack = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_CA_num(void)
 {
     EXPECT_DECLS;

@@ -15565,6 +15565,10 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Verify Cert callback overriding error!");
                         ret = 0;
+                        /* The app's cert verify callback replaces chain
+                         * verification in OpenSSL. Pass its good result on to
+                         * the following verify callbacks. */
+                        verify_ok = 1;
                     }
                 }
                 else {
