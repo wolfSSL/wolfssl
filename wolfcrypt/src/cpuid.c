@@ -88,30 +88,40 @@
     #define ECX 2
     #define EDX 3
 
-    static cpuid_flags_t cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit)
+    /* Return 1 when the CPU vendor string is "GenuineIntel". */
+    static int cpuid_is_intel(void)
     {
-        int got_intel_cpu = 0;
-        int got_amd_cpu = 0;
         unsigned int reg[5];
 
         XMEMSET(reg, '\0', sizeof(reg));
         cpuid(reg, 0, 0);
 
-        /* check for Intel cpu */
-        if (XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
-            XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
-            XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {
-            got_intel_cpu = 1;
-        }
+        return (XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
+                XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
+                XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0);
+    }
 
-        /* check for AMD cpu */
-        if (XMEMCMP((char *)&(reg[EBX]), "Auth", 4) == 0 &&
-            XMEMCMP((char *)&(reg[EDX]), "enti", 4) == 0 &&
-            XMEMCMP((char *)&(reg[ECX]), "cAMD", 4) == 0) {
-            got_amd_cpu = 1;
-        }
+    /* Return 1 when the CPU vendor string is "AuthenticAMD". */
+    static int cpuid_is_amd(void)
+    {
+        unsigned int reg[5];
 
-        if (got_intel_cpu || got_amd_cpu) {
+        XMEMSET(reg, '\0', sizeof(reg));
+        cpuid(reg, 0, 0);
+
+        return (XMEMCMP((char *)&(reg[EBX]), "Auth", 4) == 0 &&
+                XMEMCMP((char *)&(reg[EDX]), "enti", 4) == 0 &&
+                XMEMCMP((char *)&(reg[ECX]), "cAMD", 4) == 0);
+    }
+
+    static cpuid_flags_t cpuid_flag(word32 leaf, word32 sub, word32 num,
+        word32 bit)
+    {
+        /* Feature leaves are only queried on known Intel and AMD CPUs. */
+        if (cpuid_is_intel() || cpuid_is_amd()) {
+            unsigned int reg[5];
+
+            XMEMSET(reg, '\0', sizeof(reg));
             cpuid(reg, leaf, sub);
             return ((reg[num] >> bit) & 0x1);
         }
@@ -140,6 +150,8 @@
             if (cpuid_flag(7, 0, EBX, 29)) { new_cpuid_flags |= CPUID_SHA   ; }
             if (cpuid_flag(7, 0, ECX,  9)) { new_cpuid_flags |= CPUID_VAES  ; }
             if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
+            if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
+            if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }

@@ -138,6 +138,12 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sha384_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sha3_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  shake128_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  shake256_test(void);
+#ifdef WOLFSSL_KMAC
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  kmac_test(void);
+#endif
+#if defined(WOLFSSL_KMAC) || defined(WOLFSSL_CSHAKE)
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  cshake_test(void);
+#endif
 #ifdef WOLFSSL_SM3
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sm3_test(void);
 #endif

@@ -855,6 +855,9 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define BENCH_SM3                0x00020000
 #define BENCH_ASCON_HASH256      0x00040000
 #define BENCH_ASCON_AEAD128      0x00080000
+#define BENCH_CSHAKE128          0x00100000
+#define BENCH_CSHAKE256          0x00200000
+#define BENCH_CSHAKE             (BENCH_CSHAKE128 | BENCH_CSHAKE256)
 
 /* MAC algorithms. */
 #define BENCH_CMAC               0x00000001
@@ -869,6 +872,7 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
                                   BENCH_HMAC_SHA384 | BENCH_HMAC_SHA512)
 #define BENCH_PBKDF2             0x00000100
 #define BENCH_SIPHASH            0x00000200
+#define BENCH_KMAC               0x00000400
 
 /* KDF algorithms */
 #define BENCH_SRTP_KDF           0x00000001
@@ -1154,6 +1158,15 @@ static const bench_alg bench_digest_opt[] = {
     #ifdef WOLFSSL_SHAKE256
     { "-shake256",           BENCH_SHAKE256          },
     #endif
+    #if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+    { "-cshake",             BENCH_CSHAKE            },
+    #endif
+    #ifdef WOLFSSL_CSHAKE128
+    { "-cshake128",          BENCH_CSHAKE128         },
+    #endif
+    #ifdef WOLFSSL_CSHAKE256
+    { "-cshake256",          BENCH_CSHAKE256         },
+    #endif
 #endif
 #ifdef WOLFSSL_SM3
     { "-sm3",                BENCH_SM3               },
@@ -1205,6 +1218,9 @@ static const bench_alg bench_mac_opt[] = {
 #endif
     #ifdef WOLFSSL_SIPHASH
     { "-siphash",            BENCH_SIPHASH           },
+    #endif
+    #ifdef WOLFSSL_KMAC
+    { "-kmac",               BENCH_KMAC              },
     #endif
     { NULL, 0 }
 };
@@ -4241,6 +4257,11 @@ static void* benchmarks_do(void* args)
     #endif
     }
     #endif /* WOLFSSL_SHAKE256 */
+    #if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+    if (bench_all || (bench_digest_algs & BENCH_CSHAKE)) {
+        bench_cshake(0);
+    }
+    #endif
 #endif
 #ifdef WOLFSSL_SM3
     if (bench_all || (bench_digest_algs & BENCH_SM3)) {
@@ -4274,6 +4295,12 @@ static void* benchmarks_do(void* args)
     #ifdef BENCH_DEVID
         bench_cmac(1);
     #endif
+    }
+#endif
+#ifdef WOLFSSL_KMAC
+    if (bench_all || (bench_mac_algs & BENCH_KMAC)) {
+        /* KMAC is software-only (no device offload). */
+        bench_kmac(0);
     }
 #endif
 
@@ -9265,6 +9292,216 @@ exit:
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* WOLFSSL_SHAKE256 */
+
+#ifdef WOLFSSL_KMAC
+/* Benchmark one KMAC variant (is256 selects KMAC256 over KMAC128). */
+/* KMAC is a software-only construction (no device offload), so results are
+ * always reported as a software run. */
+static void bench_kmac_helper(int is256, const char* outMsg)
+{
+    wc_Kmac kmac;
+    byte    key[32];
+    byte    digest[32];
+    double  start;
+    int     ret = 0, i, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    XMEMSET(key, 0, sizeof(key));
+
+    bench_stats_prepare();
+
+    bench_stats_start(&count, &start);
+    do {
+#ifdef WOLFSSL_KMAC128
+        if (!is256) {
+            ret = wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 0,
+                HEAP_HINT, INVALID_DEVID);
+        }
+#endif
+#ifdef WOLFSSL_KMAC256
+        if (is256) {
+            ret = wc_InitKmac256(&kmac, key, (word32)sizeof(key), NULL, 0,
+                HEAP_HINT, INVALID_DEVID);
+        }
+#endif
+        if (ret != 0) {
+            printf("InitKmac failed, ret = %d\n", ret);
+            return;
+        }
+
+        for (i = 0; i < numBlocks; i++) {
+#ifdef WOLFSSL_KMAC128
+            if (!is256) {
+                ret = wc_Kmac128_Update(&kmac, bench_plain, bench_size);
+            }
+#endif
+#ifdef WOLFSSL_KMAC256
+            if (is256) {
+                ret = wc_Kmac256_Update(&kmac, bench_plain, bench_size);
+            }
+#endif
+            if (ret != 0) {
+                printf("KmacUpdate failed, ret = %d\n", ret);
+                /* Free zeroizes the key-derived state before bailing. */
+#ifdef WOLFSSL_KMAC128
+                if (!is256) {
+                    wc_Kmac128_Free(&kmac);
+                }
+#endif
+#ifdef WOLFSSL_KMAC256
+                if (is256) {
+                    wc_Kmac256_Free(&kmac);
+                }
+#endif
+                return;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+#ifdef WOLFSSL_KMAC128
+        if (!is256) {
+            ret = wc_Kmac128_Final(&kmac, digest, (word32)sizeof(digest));
+            /* Free zeroizes the key-derived state. */
+            wc_Kmac128_Free(&kmac);
+        }
+#endif
+#ifdef WOLFSSL_KMAC256
+        if (is256) {
+            ret = wc_Kmac256_Final(&kmac, digest, (word32)sizeof(digest));
+            wc_Kmac256_Free(&kmac);
+        }
+#endif
+        if (ret != 0) {
+            printf("KmacFinal failed, ret = %d\n", ret);
+            return;
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+    bench_stats_sym_finish(outMsg, 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+}
+
+void bench_kmac(int useDeviceID)
+{
+#ifdef WOLFSSL_KMAC128
+    bench_kmac_helper(0, "KMAC128");
+#endif
+#ifdef WOLFSSL_KMAC256
+    bench_kmac_helper(1, "KMAC256");
+#endif
+    (void)useDeviceID;
+}
+#endif /* WOLFSSL_KMAC */
+
+#if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+/* Benchmark one cSHAKE variant (is256 selects cSHAKE256 over cSHAKE128). */
+static void bench_cshake_helper(int is256, const char* outMsg)
+{
+    wc_Cshake cshake;
+    static const byte custom[15] = {
+        'E', 'm', 'a', 'i', 'l', ' ', 'S', 'i',
+        'g', 'n', 'a', 't', 'u', 'r', 'e'
+    };
+    byte   digest[32];
+    double start;
+    int    ret = 0, i, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    bench_stats_prepare();
+
+    bench_stats_start(&count, &start);
+    do {
+#ifdef WOLFSSL_CSHAKE128
+        if (!is256) {
+            ret = wc_InitCshake128(&cshake, NULL, 0, custom,
+                (word32)sizeof(custom), HEAP_HINT, INVALID_DEVID);
+        }
+#endif
+#ifdef WOLFSSL_CSHAKE256
+        if (is256) {
+            ret = wc_InitCshake256(&cshake, NULL, 0, custom,
+                (word32)sizeof(custom), HEAP_HINT, INVALID_DEVID);
+        }
+#endif
+        if (ret != 0) {
+            printf("InitCshake failed, ret = %d\n", ret);
+            return;
+        }
+
+        for (i = 0; i < numBlocks; i++) {
+#ifdef WOLFSSL_CSHAKE128
+            if (!is256) {
+                ret = wc_Cshake128_Update(&cshake, bench_plain, bench_size);
+            }
+#endif
+#ifdef WOLFSSL_CSHAKE256
+            if (is256) {
+                ret = wc_Cshake256_Update(&cshake, bench_plain, bench_size);
+            }
+#endif
+            if (ret != 0) {
+                printf("CshakeUpdate failed, ret = %d\n", ret);
+                /* Free zeroizes the absorbed state before bailing. */
+#ifdef WOLFSSL_CSHAKE128
+                if (!is256) {
+                    wc_Cshake128_Free(&cshake);
+                }
+#endif
+#ifdef WOLFSSL_CSHAKE256
+                if (is256) {
+                    wc_Cshake256_Free(&cshake);
+                }
+#endif
+                return;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+#ifdef WOLFSSL_CSHAKE128
+        if (!is256) {
+            ret = wc_Cshake128_Final(&cshake, digest, (word32)sizeof(digest));
+            wc_Cshake128_Free(&cshake);
+        }
+#endif
+#ifdef WOLFSSL_CSHAKE256
+        if (is256) {
+            ret = wc_Cshake256_Final(&cshake, digest, (word32)sizeof(digest));
+            wc_Cshake256_Free(&cshake);
+        }
+#endif
+        if (ret != 0) {
+            printf("CshakeFinal failed, ret = %d\n", ret);
+            return;
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+    bench_stats_sym_finish(outMsg, 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+}
+
+void bench_cshake(int useDeviceID)
+{
+#ifdef WOLFSSL_CSHAKE128
+    bench_cshake_helper(0, "CSHAKE128");
+#endif
+#ifdef WOLFSSL_CSHAKE256
+    bench_cshake_helper(1, "CSHAKE256");
+#endif
+    (void)useDeviceID;
+}
+#endif /* WOLFSSL_CSHAKE128 || WOLFSSL_CSHAKE256 */
 #endif
 
 #ifdef WOLFSSL_SM3

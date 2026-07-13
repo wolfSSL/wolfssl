@@ -1341,6 +1341,28 @@ add_option("WOLFSSL_SHAKE128"
     "Enable wolfSSL SHAKE128 support (default: enabled on x86_64/aarch64)"
     "no" "yes;no;small")
 
+# cSHAKE and KMAC (NIST SP 800-185), both built on SHAKE. KMAC is built on
+# cSHAKE, so enabling KMAC also enables cSHAKE; cSHAKE can be enabled on its own.
+add_option("WOLFSSL_CSHAKE"
+    "Enable wolfSSL cSHAKE support (default: disabled)"
+    "no" "yes;no")
+
+add_option("WOLFSSL_KMAC"
+    "Enable wolfSSL KMAC support (default: disabled)"
+    "no" "yes;no")
+
+# KMAC is built on cSHAKE - enabling KMAC enables cSHAKE.
+if(WOLFSSL_KMAC)
+    override_cache(WOLFSSL_CSHAKE "yes")
+endif()
+
+# cSHAKE (and thus KMAC) require SHA-3 and SHAKE. Force-enable them.
+if(WOLFSSL_CSHAKE)
+    override_cache(WOLFSSL_SHA3 "yes")
+    override_cache(WOLFSSL_SHAKE128 "yes")
+    override_cache(WOLFSSL_SHAKE256 "yes")
+endif()
+
 # SHA512
 add_option("WOLFSSL_SHA512"
     "Enable wolfSSL SHA-512 support (default: enabled)"
@@ -2051,6 +2073,21 @@ if(WOLFSSL_SHAKE128)
     endif()
 else()
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_SHAKE128")
+endif()
+
+# cSHAKE / KMAC
+if(WOLFSSL_CSHAKE)
+    if(NOT WOLFSSL_SHA3)
+        message(FATAL_ERROR "Must have SHA-3 enabled: --enable-sha3")
+    endif()
+    # SHA-3 (and hence SHAKE/cSHAKE/KMAC) is only emitted for non-32-bit builds;
+    # keep these in step so they are never defined without SHAKE.
+    if(NOT WOLFSSL_32BIT)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CSHAKE")
+        if(WOLFSSL_KMAC)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_KMAC")
+        endif()
+    endif()
 endif()
 
 # POLY1305

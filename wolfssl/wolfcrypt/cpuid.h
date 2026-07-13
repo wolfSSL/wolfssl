@@ -73,6 +73,10 @@ typedef word32 cpuid_flags_t;
     #define CPUID_SHA    0x0200   /* SHA-1 and SHA-256 instructions */
     #define CPUID_VAES   0x0400
     #define CPUID_AVX512 0x0800
+    #define CPUID_INTEL  0x1000   /* CPU vendor is GenuineIntel */
+    /* CPU vendor is AuthenticAMD.  Detected and exposed via IS_CPU_AMD() for
+     * future vendor-specific dispatch; no current caller relies on it. */
+    #define CPUID_AMD    0x2000
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -86,6 +90,8 @@ typedef word32 cpuid_flags_t;
     #define IS_INTEL_SHA(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA)
     #define IS_INTEL_VAES(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_VAES)
     #define IS_INTEL_AVX512(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512)
+    #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
+    #define IS_CPU_AMD(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AMD)
 
 #elif defined(HAVE_CPUID_AARCH64)
 

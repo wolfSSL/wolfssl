@@ -795,6 +795,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sha3_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  shake128_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  shake256_test(void);
+#ifdef WOLFSSL_KMAC
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  kmac_test(void);
+#endif
+#if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  cshake_test(void);
+#endif
 #ifdef WOLFSSL_SM3
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sm3_test(void);
 #endif
@@ -2540,6 +2546,20 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("SHAKE256 test failed!\n", ret);
     else
         TEST_PASS("SHAKE256 test passed!\n");
+#endif
+
+#ifdef WOLFSSL_KMAC
+    if ( (ret = kmac_test()) != 0)
+        TEST_FAIL("KMAC     test failed!\n", ret);
+    else
+        TEST_PASS("KMAC     test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+    if ( (ret = cshake_test()) != 0)
+        TEST_FAIL("cSHAKE   test failed!\n", ret);
+    else
+        TEST_PASS("cSHAKE   test passed!\n");
 #endif
 
 #ifdef WOLFSSL_SM3
@@ -8592,6 +8612,229 @@ out:
     return ret;
 }
 #endif
+
+#ifdef WOLFSSL_KMAC
+/* KMAC test vectors from NIST SP 800-185 sample data. */
+typedef struct kmacVector {
+    const byte* custom;
+    word32      customLen;
+    const byte* in;
+    word32      inLen;
+    const byte* out;
+    word32      outLen;
+} kmacVector;
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kmac_test(void)
+{
+    wc_test_ret_t ret = 0;
+    byte   hash[64];
+    int    i;
+
+    /* Key and messages shared across all NIST samples. */
+    static const byte key[32] = {
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+        0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+        0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f
+    };
+    static const byte msg4[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static byte msg200[200];
+    static const byte custom[] = {
+        'M','y',' ','T','a','g','g','e','d',' ',
+        'A','p','p','l','i','c','a','t','i','o','n'
+    };
+
+    (void)i;
+
+    for (i = 0; i < 200; i++)
+        msg200[i] = (byte)i;
+
+#ifdef WOLFSSL_KMAC128
+    {
+        static const byte exp1[32] = {
+            0xe5, 0x78, 0x0b, 0x0d, 0x3e, 0xa6, 0xf7, 0xd3,
+            0xa4, 0x29, 0xc5, 0x70, 0x6a, 0xa4, 0x3a, 0x00,
+            0xfa, 0xdb, 0xd7, 0xd4, 0x96, 0x28, 0x83, 0x9e,
+            0x31, 0x87, 0x24, 0x3f, 0x45, 0x6e, 0xe1, 0x4e
+        };
+        static const byte exp2[32] = {
+            0x3b, 0x1f, 0xba, 0x96, 0x3c, 0xd8, 0xb0, 0xb5,
+            0x9e, 0x8c, 0x1a, 0x6d, 0x71, 0x88, 0x8b, 0x71,
+            0x43, 0x65, 0x1a, 0xf8, 0xba, 0x0a, 0x70, 0x70,
+            0xc0, 0x97, 0x9e, 0x28, 0x11, 0x32, 0x4a, 0xa5
+        };
+        static const byte exp3[32] = {
+            0x1f, 0x5b, 0x4e, 0x6c, 0xca, 0x02, 0x20, 0x9e,
+            0x0d, 0xcb, 0x5c, 0xa6, 0x35, 0xb8, 0x9a, 0x15,
+            0xe2, 0x71, 0xec, 0xc7, 0x60, 0x07, 0x1d, 0xfd,
+            0x80, 0x5f, 0xaa, 0x38, 0xf9, 0x72, 0x92, 0x30
+        };
+        const kmacVector vec[3] = {
+            { NULL, 0, msg4, sizeof(msg4), exp1, sizeof(exp1) },
+            { custom, (word32)sizeof(custom), msg4, sizeof(msg4),
+              exp2, sizeof(exp2) },
+            { custom, (word32)sizeof(custom), msg200, sizeof(msg200),
+              exp3, sizeof(exp3) }
+        };
+
+        for (i = 0; i < 3; i++) {
+            wc_Kmac kmac;
+
+            /* One-shot API. */
+            ret = wc_Kmac128Hash(key, (word32)sizeof(key), vec[i].custom,
+                vec[i].customLen, vec[i].in, vec[i].inLen, hash, vec[i].outLen);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(i);
+            if (XMEMCMP(hash, vec[i].out, vec[i].outLen) != 0)
+                return WC_TEST_RET_ENC_I(i);
+
+            /* Streaming API with the message split across two updates. */
+            ret = wc_InitKmac128(&kmac, key, (word32)sizeof(key), vec[i].custom,
+                vec[i].customLen, HEAP_HINT, devId);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(i);
+            ret = wc_Kmac128_Update(&kmac, vec[i].in, vec[i].inLen / 2);
+            if (ret == 0) {
+                ret = wc_Kmac128_Update(&kmac, vec[i].in + vec[i].inLen / 2,
+                    vec[i].inLen - vec[i].inLen / 2);
+            }
+            if (ret == 0)
+                ret = wc_Kmac128_Final(&kmac, hash, vec[i].outLen);
+            wc_Kmac128_Free(&kmac);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(i);
+            if (XMEMCMP(hash, vec[i].out, vec[i].outLen) != 0)
+                return WC_TEST_RET_ENC_I(i);
+        }
+    }
+#endif /* WOLFSSL_KMAC128 */
+
+#ifdef WOLFSSL_KMAC256
+    {
+        static const byte exp4[64] = {
+            0x20, 0xc5, 0x70, 0xc3, 0x13, 0x46, 0xf7, 0x03,
+            0xc9, 0xac, 0x36, 0xc6, 0x1c, 0x03, 0xcb, 0x64,
+            0xc3, 0x97, 0x0d, 0x0c, 0xfc, 0x78, 0x7e, 0x9b,
+            0x79, 0x59, 0x9d, 0x27, 0x3a, 0x68, 0xd2, 0xf7,
+            0xf6, 0x9d, 0x4c, 0xc3, 0xde, 0x9d, 0x10, 0x4a,
+            0x35, 0x16, 0x89, 0xf2, 0x7c, 0xf6, 0xf5, 0x95,
+            0x1f, 0x01, 0x03, 0xf3, 0x3f, 0x4f, 0x24, 0x87,
+            0x10, 0x24, 0xd9, 0xc2, 0x77, 0x73, 0xa8, 0xdd
+        };
+        static const byte exp5[64] = {
+            0x75, 0x35, 0x8c, 0xf3, 0x9e, 0x41, 0x49, 0x4e,
+            0x94, 0x97, 0x07, 0x92, 0x7c, 0xee, 0x0a, 0xf2,
+            0x0a, 0x3f, 0xf5, 0x53, 0x90, 0x4c, 0x86, 0xb0,
+            0x8f, 0x21, 0xcc, 0x41, 0x4b, 0xcf, 0xd6, 0x91,
+            0x58, 0x9d, 0x27, 0xcf, 0x5e, 0x15, 0x36, 0x9c,
+            0xbb, 0xff, 0x8b, 0x9a, 0x4c, 0x2e, 0xb1, 0x78,
+            0x00, 0x85, 0x5d, 0x02, 0x35, 0xff, 0x63, 0x5d,
+            0xa8, 0x25, 0x33, 0xec, 0x6b, 0x75, 0x9b, 0x69
+        };
+        static const byte exp6[64] = {
+            0xb5, 0x86, 0x18, 0xf7, 0x1f, 0x92, 0xe1, 0xd5,
+            0x6c, 0x1b, 0x8c, 0x55, 0xdd, 0xd7, 0xcd, 0x18,
+            0x8b, 0x97, 0xb4, 0xca, 0x4d, 0x99, 0x83, 0x1e,
+            0xb2, 0x69, 0x9a, 0x83, 0x7d, 0xa2, 0xe4, 0xd9,
+            0x70, 0xfb, 0xac, 0xfd, 0xe5, 0x00, 0x33, 0xae,
+            0xa5, 0x85, 0xf1, 0xa2, 0x70, 0x85, 0x10, 0xc3,
+            0x2d, 0x07, 0x88, 0x08, 0x01, 0xbd, 0x18, 0x28,
+            0x98, 0xfe, 0x47, 0x68, 0x76, 0xfc, 0x89, 0x65
+        };
+        const kmacVector vec[3] = {
+            { custom, (word32)sizeof(custom), msg4, sizeof(msg4),
+              exp4, sizeof(exp4) },
+            { NULL, 0, msg200, sizeof(msg200), exp5, sizeof(exp5) },
+            { custom, (word32)sizeof(custom), msg200, sizeof(msg200),
+              exp6, sizeof(exp6) }
+        };
+
+        for (i = 0; i < 3; i++) {
+            wc_Kmac kmac;
+
+            ret = wc_Kmac256Hash(key, (word32)sizeof(key), vec[i].custom,
+                vec[i].customLen, vec[i].in, vec[i].inLen, hash, vec[i].outLen);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(i + 3);
+            if (XMEMCMP(hash, vec[i].out, vec[i].outLen) != 0)
+                return WC_TEST_RET_ENC_I(i + 3);
+
+            ret = wc_InitKmac256(&kmac, key, (word32)sizeof(key), vec[i].custom,
+                vec[i].customLen, HEAP_HINT, devId);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(i + 3);
+            ret = wc_Kmac256_Update(&kmac, vec[i].in, vec[i].inLen / 2);
+            if (ret == 0) {
+                ret = wc_Kmac256_Update(&kmac, vec[i].in + vec[i].inLen / 2,
+                    vec[i].inLen - vec[i].inLen / 2);
+            }
+            if (ret == 0)
+                ret = wc_Kmac256_Final(&kmac, hash, vec[i].outLen);
+            wc_Kmac256_Free(&kmac);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(i + 3);
+            if (XMEMCMP(hash, vec[i].out, vec[i].outLen) != 0)
+                return WC_TEST_RET_ENC_I(i + 3);
+        }
+    }
+#endif /* WOLFSSL_KMAC256 */
+
+    return ret;
+}
+#endif /* WOLFSSL_KMAC */
+
+#if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+/* cSHAKE test vectors from NIST SP 800-185 (N empty, S "Email Signature"). */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cshake_test(void)
+{
+    wc_test_ret_t ret = 0;
+    byte hash[64];
+    static const byte msg[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static const byte custom[15] = {
+        'E', 'm', 'a', 'i', 'l', ' ', 'S', 'i',
+        'g', 'n', 'a', 't', 'u', 'r', 'e'
+    };
+#ifdef WOLFSSL_CSHAKE128
+    static const byte exp128[32] = {
+        0xc1, 0xc3, 0x69, 0x25, 0xb6, 0x40, 0x9a, 0x04,
+        0xf1, 0xb5, 0x04, 0xfc, 0xbc, 0xa9, 0xd8, 0x2b,
+        0x40, 0x17, 0x27, 0x7c, 0xb5, 0xed, 0x2b, 0x20,
+        0x65, 0xfc, 0x1d, 0x38, 0x14, 0xd5, 0xaa, 0xf5
+    };
+#endif
+#ifdef WOLFSSL_CSHAKE256
+    static const byte exp256[64] = {
+        0xd0, 0x08, 0x82, 0x8e, 0x2b, 0x80, 0xac, 0x9d,
+        0x22, 0x18, 0xff, 0xee, 0x1d, 0x07, 0x0c, 0x48,
+        0xb8, 0xe4, 0xc8, 0x7b, 0xff, 0x32, 0xc9, 0x69,
+        0x9d, 0x5b, 0x68, 0x96, 0xee, 0xe0, 0xed, 0xd1,
+        0x64, 0x02, 0x0e, 0x2b, 0xe0, 0x56, 0x08, 0x58,
+        0xd9, 0xc0, 0x0c, 0x03, 0x7e, 0x34, 0xa9, 0x69,
+        0x37, 0xc5, 0x61, 0xa7, 0x4c, 0x41, 0x2b, 0xb4,
+        0xc7, 0x46, 0x46, 0x95, 0x27, 0x28, 0x1c, 0x8c
+    };
+#endif
+
+#ifdef WOLFSSL_CSHAKE128
+    ret = wc_Cshake128(NULL, 0, custom, (word32)sizeof(custom), msg,
+        (word32)sizeof(msg), hash, (word32)sizeof(exp128));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(hash, exp128, sizeof(exp128)) != 0)
+        return WC_TEST_RET_ENC_NC;
+#endif
+#ifdef WOLFSSL_CSHAKE256
+    ret = wc_Cshake256(NULL, 0, custom, (word32)sizeof(custom), msg,
+        (word32)sizeof(msg), hash, (word32)sizeof(exp256));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(hash, exp256, sizeof(exp256)) != 0)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_CSHAKE128 || WOLFSSL_CSHAKE256 */
 
 #ifdef WOLFSSL_SM3
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sm3_test(void)
@@ -78082,6 +78325,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_SHAKE256
     if (ret == 0)
         ret = shake256_test();
+#endif
+#ifdef WOLFSSL_KMAC
+    if (ret == 0)
+        ret = kmac_test();
+#endif
+#if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+    if (ret == 0)
+        ret = cshake_test();
 #endif
 #endif
 #endif

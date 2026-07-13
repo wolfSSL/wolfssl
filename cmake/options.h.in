@@ -359,6 +359,10 @@ extern "C" {
 #cmakedefine WOLFSSL_SHAKE128
 #undef WOLFSSL_SHAKE256
 #cmakedefine WOLFSSL_SHAKE256
+#undef WOLFSSL_CSHAKE
+#cmakedefine WOLFSSL_CSHAKE
+#undef WOLFSSL_KMAC
+#cmakedefine WOLFSSL_KMAC
 #undef WOLFSSL_SRTP
 #cmakedefine WOLFSSL_SRTP
 #undef WOLFSSL_SYS_CA_CERTS
