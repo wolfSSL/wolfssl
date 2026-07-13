@@ -794,7 +794,11 @@ int test_tls_hmac_size_overflow(void)
 int test_wc_HmacSizeByType(void)
 {
     EXPECT_DECLS;
-#ifndef NO_HMAC
+/* The FIPS/self-test hmac's wc_HmacSizeByType returns HMAC_KAT_FIPS_E for any
+ * type it doesn't accept (e.g. MD5 is not a FIPS HMAC type), and BAD_FUNC_ARG
+ * differs too, so the size/invalid-type assertions here only hold on the open
+ * builds the campaign actually measures. Exclude the frozen modules whole. */
+#if !defined(NO_HMAC) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 #ifndef NO_MD5
     ExpectIntEQ(wc_HmacSizeByType(WC_MD5), WC_MD5_DIGEST_SIZE);
 #endif
@@ -838,7 +842,7 @@ int test_wc_HmacSizeByType(void)
 #endif
     /* Invalid type: every operand false. */
     ExpectIntEQ(wc_HmacSizeByType(9999), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif /* !NO_HMAC */
+#endif /* !NO_HMAC && !HAVE_SELFTEST && !HAVE_FIPS */
     return EXPECT_RESULT();
 } /* END test_wc_HmacSizeByType */
 
