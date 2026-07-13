@@ -87,7 +87,7 @@ static void wb_ed25519_hash(void)
 
     /* key == NULL: operand 1 TRUE, others false. */
     ret = ed25519_hash(NULL, in, sizeof(in), hash);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("ed25519_hash(key==NULL) did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }
@@ -97,7 +97,7 @@ static void wb_ed25519_hash(void)
      * against the all-false baseline's in!=NULL, and against inLen==0
      * below for the inLen>0 half). */
     ret = ed25519_hash(&key, NULL, sizeof(in), hash);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("ed25519_hash(in==NULL,inLen>0) did not return "
                  "BAD_FUNC_ARG");
         wb_fail = 1;
@@ -114,7 +114,7 @@ static void wb_ed25519_hash(void)
 
     /* hash == NULL: operand 3 TRUE, others false. */
     ret = ed25519_hash(&key, in, sizeof(in), NULL);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("ed25519_hash(hash==NULL) did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }

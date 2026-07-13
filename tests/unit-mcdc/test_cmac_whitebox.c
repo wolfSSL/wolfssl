@@ -81,7 +81,7 @@ static void wb_cross_combos(void)
     ret = _InitCmac_common(&cmac, wb_key, sizeof(wb_key), WC_CMAC_AES, NULL,
         NULL, INVALID_DEVID, CMAC_AES_INIT_ID, wb_id, (int)sizeof(wb_id),
         wb_label);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("ID+label!=NULL did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }
@@ -104,7 +104,7 @@ static void wb_cross_combos(void)
     XMEMSET(&cmac, 0, sizeof(cmac));
     ret = _InitCmac_common(&cmac, wb_key, sizeof(wb_key), WC_CMAC_AES, NULL,
         NULL, INVALID_DEVID, CMAC_AES_INIT_LABEL, wb_id, 0, wb_label);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("LABEL+id!=NULL did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }
@@ -114,7 +114,7 @@ static void wb_cross_combos(void)
     XMEMSET(&cmac, 0, sizeof(cmac));
     ret = _InitCmac_common(&cmac, wb_key, sizeof(wb_key), WC_CMAC_AES, NULL,
         NULL, INVALID_DEVID, CMAC_AES_INIT_LABEL, NULL, 4, wb_label);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("LABEL+idLen!=0 did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }
@@ -137,7 +137,7 @@ static void wb_cross_combos(void)
     XMEMSET(&cmac, 0, sizeof(cmac));
     ret = _InitCmac_common(&cmac, wb_key, sizeof(wb_key), WC_CMAC_AES, NULL,
         NULL, INVALID_DEVID, CMAC_AES_INIT_PLAIN, wb_id, 0, NULL);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("PLAIN+id!=NULL did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }
@@ -146,7 +146,7 @@ static void wb_cross_combos(void)
     XMEMSET(&cmac, 0, sizeof(cmac));
     ret = _InitCmac_common(&cmac, wb_key, sizeof(wb_key), WC_CMAC_AES, NULL,
         NULL, INVALID_DEVID, CMAC_AES_INIT_PLAIN, NULL, 7, NULL);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("PLAIN+idLen!=0 did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }
@@ -156,7 +156,7 @@ static void wb_cross_combos(void)
     XMEMSET(&cmac, 0, sizeof(cmac));
     ret = _InitCmac_common(&cmac, wb_key, sizeof(wb_key), WC_CMAC_AES, NULL,
         NULL, INVALID_DEVID, CMAC_AES_INIT_PLAIN, NULL, 0, wb_label);
-    if (ret != BAD_FUNC_ARG) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         WB_NOTE("PLAIN+label!=NULL did not return BAD_FUNC_ARG");
         wb_fail = 1;
     }
