@@ -7437,9 +7437,9 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 xorbufout(out, in, ks, WC_AES_BLOCK_SIZE);
             }
             else {
-                /* The XTRANSFORM_AESCTRBLOCK macro discards this return; zero
-                 * the block so a failed HW ECB does not leave stale/prior
-                 * plaintext in the output. */
+                /* The CTR loop breaks on this non-zero return; zero the block
+                 * so a failed HW ECB does not leave stale/prior plaintext in
+                 * the output. */
                 ForceZero(out, WC_AES_BLOCK_SIZE);
             }
             ForceZero(ks, sizeof(ks));

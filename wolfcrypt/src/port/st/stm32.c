@@ -3729,6 +3729,21 @@ static int Stm32Dhuk_Cipher(struct wc_CryptoInfo* info)
         if (ret != 0) {
             return ret;
         }
+        /* CBC requires a non-zero, block-multiple length. Validate before the
+         * pre-decrypt last-block copy below so an invalid sz cannot read past
+         * the input buffer (mirrors the bare backend wc_Stm32_Aes_Cbc). */
+        if (info->cipher.aescbc.sz == 0 ||
+                (info->cipher.aescbc.sz % WC_AES_BLOCK_SIZE) != 0) {
+            return BAD_FUNC_ARG;
+        }
+        if (!info->cipher.enc) {
+            /* In-place decrypt overwrites the last ciphertext block, so
+             * capture it for the next chaining IV before the decrypt (mirrors
+             * the non-DHUK bare backend wc_Stm32_Aes_Cbc). */
+            XMEMCPY(info->cipher.aescbc.aes->tmp,
+                    info->cipher.aescbc.in + info->cipher.aescbc.sz
+                        - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+        }
         ret = Stm32Dhuk_Aes(NULL, WC_DHUK_MODE_CBC, info->cipher.enc,
                             info->cipher.aescbc.in, info->cipher.aescbc.sz,
                             info->cipher.aescbc.out,
@@ -3743,8 +3758,7 @@ static int Stm32Dhuk_Cipher(struct wc_CryptoInfo* info)
             }
             else {
                 XMEMCPY(info->cipher.aescbc.aes->reg,
-                        info->cipher.aescbc.in + info->cipher.aescbc.sz
-                            - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+                        info->cipher.aescbc.aes->tmp, WC_AES_BLOCK_SIZE);
             }
         }
         return ret;
