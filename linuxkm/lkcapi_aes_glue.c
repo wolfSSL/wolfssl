@@ -1505,6 +1505,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             byte ivOut[GCM_NONCE_MID_SZ];
             err = wc_AesGcmEncrypt_ex(aes_copy, out_text, in_text, req->cryptlen, ivOut, GCM_NONCE_MID_SZ, authTag,
                              tfm->authsize, assoc, assoclen);
+            ForceZero(ivOut, GCM_NONCE_MID_SZ);
         }
 
         if (unlikely(err)) {

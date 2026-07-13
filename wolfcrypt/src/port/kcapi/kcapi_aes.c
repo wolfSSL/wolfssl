@@ -428,7 +428,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             if (ret == -EBADMSG)
                 ret = AES_GCM_AUTH_E;
         }
-        else if (ret > outbuflen) {
+        else if ((word32)ret != sz + authInSz) {
             WOLFSSL_MSG("GcmDecrypt produced wrong output length");
             ret = BAD_FUNC_ARG;
         }
