@@ -7066,13 +7066,6 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
-/* Check that the Cookie data's integrity.
- *
- * ssl       SSL/TLS object.
- * cookie    The cookie data - hash and MAC.
- * cookieSz  The length of the cookie data in bytes.
- * returns Length of the hash on success, otherwise failure.
- */
 /* Compute the cookie integrity HMAC over the cookie data (and, for DTLS, the
  * peer address) using the given secret and compare it in constant time against
  * the MAC trailing the cookie.
@@ -7127,6 +7120,13 @@ static int TlsCheckCookieMac(const WOLFSSL* ssl, const byte* cookie,
     return 0;
 }
 
+/* Check that the Cookie data's integrity.
+ *
+ * ssl       SSL/TLS object.
+ * cookie    The cookie data - hash and MAC.
+ * cookieSz  The length of the cookie data in bytes.
+ * returns Length of the hash on success, otherwise failure.
+ */
 int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
 {
     int  ret;

@@ -8964,7 +8964,7 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     WOLFSSL* ssl = wolfSSL_new(ctx);
     const byte* oldSecret;
     word32 oldSecretSz; // size of oldSecret
-    …
+    ...
     if(wolfSSL_DTLS_SetCookieSecretSecondary(ssl, oldSecret, oldSecretSz) != 0){
     	// Code block for failure to set secondary DTLS cookie secret
     } else {
