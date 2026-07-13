@@ -3691,6 +3691,102 @@ int test_tls13_pha(void)
     return EXPECT_RESULT();
 }
 
+
+int test_tls13_ctx_busy_blocks_updates(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* Loads server cert/key on ctx_s and creates ssl_s, which takes a
+     * reference on ctx_s so its shared buffers are aliased. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* With ssl_s alive, changing the context cert/key must be refused. The
+     * file setters go through WS_RC and the buffer setter returns the code
+     * directly - both surface CTX_BUSY_E. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), CTX_BUSY_E);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), CTX_BUSY_E);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx_s, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), CTX_BUSY_E);
+
+    /* Freeing the session drops the last alias; updates are allowed again. */
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && !defined(NO_RSA)
+/* Try to reload the context certificate from within the SNI callback. The
+ * in-flight session aliases the context buffers, so the update must be refused
+ * with CTX_BUSY_E rather than freeing buffers still in use. */
+static int test_ctx_busy_sni_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
+    int* cbRet = (int*)arg;
+    (void)ad;
+    /* Feed the reload result back to the parent function below. */
+    *cbRet = wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE);
+    /* 0 means ack the servername and continue the handshake. */
+    return 0;
+}
+#endif
+
+int test_tls13_sni_cb_ctx_busy(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && !defined(NO_RSA)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* host = "example.com";
+    int cbRet = WOLFSSL_FATAL_ERROR;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Server tries to swap its context certificate when the SNI arrives. */
+    wolfSSL_CTX_set_servername_callback(ctx_s, test_ctx_busy_sni_cb);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &cbRet), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+        (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+
+    /* The reload is refused mid-handshake, so nothing is freed and the
+     * handshake still completes. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* The context is busy with this handshake, so the reload was rejected. */
+    ExpectIntEQ(cbRet, CTX_BUSY_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_SHA256)

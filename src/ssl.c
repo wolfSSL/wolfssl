@@ -12830,6 +12830,10 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             ret = WOLFSSL_FAILURE;
             break;
         }
+        if (wolfssl_ctx_resources_in_use(ctx)) {
+            ret = CTX_BUSY_E;
+            break;
+        }
         /* Clear certificate chain */
         FreeDer(&ctx->certChain);
         if (sk) {

@@ -29047,6 +29047,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case RPK_UNTRUSTED_E:
         return "RFC 7250 Raw Public Key not trusted";
+
+    case CTX_BUSY_E:
+        return "Context in use by active sessions, operation not allowed";
     }
 
     return "unknown error number";

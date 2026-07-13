@@ -1065,7 +1065,7 @@ int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx)
         if (ctx->ref.count > 1) {
             WOLFSSL_MSG("ctx object must have a ref count of 1 before "
                         "unloading intermediate certs");
-            ret = BAD_STATE_E;
+            ret = CTX_BUSY_E;
         }
         else {
             ret = wolfSSL_CertManagerUnloadIntermediateCerts(ctx->cm);

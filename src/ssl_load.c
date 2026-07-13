@@ -2377,6 +2377,35 @@ static int ProcessBufferResetSuites(WOLFSSL_CTX* ctx, WOLFSSL* ssl, int type)
                                    ((type) == ALT_PRIVATEKEY_TYPE))
 #endif
 
+/* Whether other objects still reference this context's shared buffers.
+ *
+ * Every WOLFSSL created from a context aliases the context's certificate, key
+ * and DH buffers and holds a reference on the context. A reference count above
+ * one therefore means such aliases exist, so those buffers must not be freed
+ * or replaced.
+ *
+ * @param [in] ctx  SSL context object.
+ * @return  1 when the context is in use by other objects.
+ * @return  0 otherwise.
+ */
+static int wolfssl_ctx_resources_in_use(WOLFSSL_CTX* ctx)
+{
+    int inUse = 0;
+
+    if (ctx != NULL) {
+        /* Block when the count can't be read so we never free a live alias. */
+        if (wolfSSL_RefWithMutexLock(&ctx->ref) != 0) {
+            inUse = 1;
+        }
+        else {
+            inUse = (ctx->ref.count > 1);
+            (void)wolfSSL_RefWithMutexUnlock(&ctx->ref);
+        }
+    }
+
+    return inUse;
+}
+
 /* Process a buffer of data.
  *
  * Data type is a private key or a certificate.
@@ -2434,6 +2463,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     /* Reject negative size - would wrap to huge word32. */
     if ((ret == 0) && (sz < 0)) {
         ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (ssl == NULL) &&
+            ((type == CERT_TYPE) || IS_PRIVKEY_TYPE(type)) &&
+            wolfssl_ctx_resources_in_use(ctx)) {
+        ret = CTX_BUSY_E;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3206,6 +3240,10 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_file");
 
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
+
     ret = ProcessFile(ctx, file, format, CERT_TYPE, NULL, 0, NULL,
         GET_VERIFY_SETTING_CTX(ctx));
 
@@ -3231,6 +3269,10 @@ int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_file");
 
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
+
     ret = ProcessFile(ctx, file, format, PRIVATEKEY_TYPE, NULL, 0, NULL,
         GET_VERIFY_SETTING_CTX(ctx));
 
@@ -3255,6 +3297,10 @@ int wolfSSL_CTX_use_AltPrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_file");
 
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
+
     ret = ProcessFile(ctx, file, format, ALT_PRIVATEKEY_TYPE, NULL, 0, NULL,
         GET_VERIFY_SETTING_CTX(ctx));
 
@@ -3278,6 +3324,10 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
 
     /* process up to MAX_CHAIN_DEPTH plus subject cert */
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file");
+
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
 
 #ifdef WOLFSSL_PEM_TO_DER
     ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CERT_TYPE, NULL, 1, NULL,
@@ -3308,6 +3358,10 @@ int wolfSSL_CTX_use_certificate_chain_file_format(WOLFSSL_CTX* ctx,
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file_format");
+
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
 
     ret = ProcessFile(ctx, file, format, CERT_TYPE, NULL, 1, NULL,
         GET_VERIFY_SETTING_CTX(ctx));
@@ -4211,6 +4265,9 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     if (ctx == NULL || id == NULL || sz < 0) {
         return 0;
     }
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
 
     /* Dispose of old private key and allocate and copy in id. */
     FreeDer(&ctx->privateKey);
@@ -4287,6 +4344,9 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     if (ctx == NULL || label == NULL) {
         return 0;
     }
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
 
     sz = (word32)XSTRLEN(label) + 1;
 
@@ -4329,6 +4389,9 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
 
     if ((ctx == NULL) || (id == NULL) || (sz < 0)) {
         ret = 0;
+    }
+    if ((ret == 1) && wolfssl_ctx_resources_in_use(ctx)) {
+        ret = CTX_BUSY_E;
     }
 
     if (ret == 1) {
@@ -4379,6 +4442,9 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 
     if ((ctx == NULL) || (label == NULL)) {
         ret = 0;
+    }
+    if ((ret == 1) && wolfssl_ctx_resources_in_use(ctx)) {
+        ret = CTX_BUSY_E;
     }
 
     if (ret == 1) {
@@ -4954,6 +5020,10 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
     int ret;
     DerBuffer* derBuffer = NULL;
 
+    if (wolfssl_ctx_resources_in_use(ctx)) {
+        return CTX_BUSY_E;
+    }
+
     /* Create a DER buffer from DER encoding. */
     ret = AllocCopyDer(&derBuffer, der, (word32)derSz, CERT_TYPE, ctx->heap);
     if (ret != 0) {
@@ -5062,6 +5132,9 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if ((ctx == NULL) || (x == NULL) || (x->derCert == NULL)) {
         WOLFSSL_MSG("Bad parameter");
         res = 0;
+    }
+    if ((res == 1) && wolfssl_ctx_resources_in_use(ctx)) {
+        res = CTX_BUSY_E;
     }
 
     if (res == 1) {
@@ -5305,6 +5378,9 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
     if ((ctx == NULL) || (pkey == NULL) || (pkey->pkey.ptr == NULL)) {
         ret = 0;
     }
+    if ((ret == 1) && wolfssl_ctx_resources_in_use(ctx)) {
+        ret = CTX_BUSY_E;
+    }
 
     if (ret == 1) {
         switch (pkey->type) {
@@ -5376,6 +5452,9 @@ int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX *ctx, int derSz,
     if ((ctx == NULL) || (der == NULL)) {
         ret = 0;
     }
+    if ((ret == 1) && wolfssl_ctx_resources_in_use(ctx)) {
+        ret = CTX_BUSY_E;
+    }
     /* Load DER encoded certificate into SSL context. */
     if ((ret == 1) && (wolfSSL_CTX_use_certificate_buffer(ctx, der, derSz,
             WOLFSSL_FILETYPE_ASN1) != 1)) {
@@ -5408,6 +5487,9 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
     if ((ctx == NULL) || (rsa == NULL)) {
         WOLFSSL_MSG("one or more inputs were NULL");
         ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 1) && wolfssl_ctx_resources_in_use(ctx)) {
+        ret = CTX_BUSY_E;
     }
 
     /* Get DER encoding size. */
@@ -5751,6 +5833,10 @@ static int wolfssl_ctx_set_tmp_dh(WOLFSSL_CTX* ctx, unsigned char* p, int pSz,
 
     if ((ctx == NULL) || (p == NULL) || (g == NULL))
         ret = BAD_FUNC_ARG;
+
+    if ((ret == 1) && wolfssl_ctx_resources_in_use(ctx)) {
+        ret = CTX_BUSY_E;
+    }
 
     /* Check the size of the prime meets the requirements of the SSL context. */
     if (ret == 1) {

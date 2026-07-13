@@ -3862,6 +3862,7 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX*        ctx;
+    WOLFSSL_CTX*        ctx2 = NULL;
     WOLFSSL*            ssl = NULL;
     const char *certChain[] = {
             "./certs/intermediate/client-int-cert.pem",
@@ -3875,7 +3876,10 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     WOLF_STACK_OF(X509)* chain = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* ssl uses a separate context so the CTX-level chain adds below run against
+     * a context with no active session aliasing its buffers. */
+    ExpectNotNull(ctx2 = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx2));
 
     ExpectNotNull(x509 = wolfSSL_X509_new());
     ExpectIntEQ(SSL_CTX_add1_chain_cert(ctx, x509), 0);
@@ -3940,6 +3944,7 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);
+    SSL_CTX_free(ctx2);
 #endif
     return EXPECT_RESULT();
 }
@@ -4007,6 +4012,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA) && \
     (!defined(NO_FILESYSTEM) || defined(USE_CERT_BUFFERS_2048))
     WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* ctx2 = NULL;
     WOLFSSL* ssl = NULL;
 #ifndef NO_FILESYSTEM
     const char* cert = svrCertFile;
@@ -4017,7 +4023,11 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 #endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* ssl uses a separate context so the context under test keeps a reference
+     * count of one - its loaders then exercise argument validation and real
+     * loads rather than being refused as CTX_BUSY_E. */
+    ExpectNotNull(ctx2 = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx2));
 
     /* Invalid parameters. */
 #ifndef NO_FILESYSTEM
@@ -4071,6 +4081,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx2);
 #ifndef NO_FILESYSTEM
     if (buf != NULL) {
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5093,14 +5104,24 @@ static int test_wolfSSL_SetTmpDH_file(void)
                 CERT_FILETYPE));
 #if defined(WOLFSSL_WPAS) && !defined(NO_DSA)
     if (EXPECT_SUCCESS()) {
-        if (ctx->minDhKeySz <= 128 /* bytes */) {
-            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
-                        CERT_FILETYPE));
+        /* Context DH parameters must be set before creating sessions; the one
+         * above has an active session, so it is refused. The success/size
+         * paths are exercised on a context with no session. */
+        WOLFSSL_CTX* ctxDh = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        ExpectNotNull(ctxDh);
+        ExpectIntEQ(CTX_BUSY_E, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
+                    CERT_FILETYPE));
+        if (ctxDh != NULL) {
+            if (ctxDh->minDhKeySz <= 128 /* bytes */) {
+                ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctxDh,
+                            dsaParamFile, CERT_FILETYPE));
+            }
+            else {
+                ExpectIntEQ(DH_KEY_SIZE_E, wolfSSL_CTX_SetTmpDH_file(ctxDh,
+                            dsaParamFile, CERT_FILETYPE));
+            }
         }
-        else {
-            ExpectIntEQ(DH_KEY_SIZE_E, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
-                       CERT_FILETYPE));
-        }
+        wolfSSL_CTX_free(ctxDh);
     }
 #endif
 
@@ -12779,23 +12800,35 @@ static int test_wolfSSL_private_keys(void)
     ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
 
-    /* test loading private key to the WOLFSSL_CTX */
-    ExpectIntEQ(SSL_CTX_use_PrivateKey_ASN1(0, ctx,
-                (unsigned char*)client_key_der_2048,
-                sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
-
-    #if !defined(NO_CHECK_PRIVATE_KEY)
-    /* Should mismatch now that a different private key loaded */
-    ExpectIntNE(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
+    /* Test loading private key to the WOLFSSL_CTX. Use a fresh context: the
+     * one above has an active session (ssl) aliasing its buffers, so changing
+     * its key is refused. */
+    {
+        WOLFSSL_CTX* ctx2 = NULL;
+    #ifndef NO_WOLFSSL_SERVER
+        ExpectNotNull(ctx2 = SSL_CTX_new(wolfSSLv23_server_method()));
+    #else
+        ExpectNotNull(ctx2 = SSL_CTX_new(wolfSSLv23_client_method()));
     #endif
+        ExpectTrue(SSL_CTX_use_certificate_file(ctx2, svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(SSL_CTX_use_PrivateKey_ASN1(0, ctx2,
+                    (unsigned char*)client_key_der_2048,
+                    sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
+        #if !defined(NO_CHECK_PRIVATE_KEY)
+        /* Should mismatch now that a different private key loaded */
+        ExpectIntNE(wolfSSL_CTX_check_private_key(ctx2), WOLFSSL_SUCCESS);
+        #endif
 
-    ExpectIntEQ(SSL_CTX_use_PrivateKey_ASN1(0, ctx,
-                (unsigned char*)server_key,
-                sizeof_server_key_der_2048), WOLFSSL_SUCCESS);
-    #if !defined(NO_CHECK_PRIVATE_KEY)
-    /* After loading back in DER format of original key, should match */
-    ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
-    #endif
+        ExpectIntEQ(SSL_CTX_use_PrivateKey_ASN1(0, ctx2,
+                    (unsigned char*)server_key,
+                    sizeof_server_key_der_2048), WOLFSSL_SUCCESS);
+        #if !defined(NO_CHECK_PRIVATE_KEY)
+        /* After loading back in DER format of original key, should match */
+        ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx2), WOLFSSL_SUCCESS);
+        #endif
+        SSL_CTX_free(ctx2);
+    }
 
     /* Invalid parameters. */
     ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
@@ -13049,6 +13082,7 @@ static int test_wolfSSL_tmp_dh(void)
     BIO*     bio = NULL;
     SSL*     ssl = NULL;
     SSL_CTX* ctx = NULL;
+    SSL_CTX* ctxDh = NULL;
 #ifndef NO_WOLFSSL_CLIENT
     SSL*     ssl_c = NULL;
     SSL_CTX* ctx_c = NULL;
@@ -13107,13 +13141,21 @@ static int test_wolfSSL_tmp_dh(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(NULL, p   , 0, g   , 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx , p   , 1, g   , 1),
+    /* Prime/size validation must run against a context with no active session;
+     * a busy one is refused with CTX_BUSY_E before the parameters are ever
+     * checked (asserted separately below). */
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctxDh = SSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctxDh = SSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, p   , 1, g   , 1),
         WC_NO_ERR_TRACE(DH_KEY_SIZE_E));
-    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx , buff, 6000, g   , 1),
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, buff, 6000, g   , 1),
         WC_NO_ERR_TRACE(DH_KEY_SIZE_E));
 #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
-    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx, bad_p, pSz, g, gSz),
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, bad_p, pSz, g, gSz),
         WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
 #endif
     ExpectIntEQ((int)wolfSSL_SetTmpDH(NULL, NULL, 0, NULL, 0),
@@ -13159,9 +13201,13 @@ static int test_wolfSSL_tmp_dh(void)
     DH_free(dh2);
     dh2 = NULL;
 
+    /* Setting DH parameters on the context is refused while it has an active
+     * session; check that, then exercise the success path on the fresh one. */
     ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz),
+        WC_NO_ERR_TRACE(CTX_BUSY_E));
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, p, pSz, g, gSz),
         WOLFSSL_SUCCESS);
-    ExpectIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)SSL_CTX_set_tmp_dh(ctxDh, dh), WOLFSSL_SUCCESS);
 #ifndef NO_WOLFSSL_SERVER
     ExpectIntEQ((int)SSL_set_tmp_dh(ssl, dh), WOLFSSL_SUCCESS);
 #else
@@ -13183,6 +13229,7 @@ static int test_wolfSSL_tmp_dh(void)
     }
 #endif
     SSL_CTX_free(ctx);
+    SSL_CTX_free(ctxDh);
 #endif
     return EXPECT_RESULT();
 }
@@ -34426,10 +34473,18 @@ static int test_write_dup(void)
                     methods[i].client_meth, methods[i].server_meth), 0);
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             if (methods[i].version == WOLFSSL_TLSV1_3) {
+                /* wolfSSL_write_dup() builds the duplicate from ctx_c, so the
+                 * client cert has to be on the context. Load it with no
+                 * session alive, then recreate the session. */
+                wolfSSL_free(ssl_c);
+                ssl_c = NULL;
                 ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
                         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
                 ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
                         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+                ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+                wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+                wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
                 ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
                         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
                 ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
@@ -34579,10 +34634,18 @@ static int test_write_dup_want_write(void)
                 methods[i].client_meth, methods[i].server_meth), 0);
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         if (methods[i].version == WOLFSSL_TLSV1_3) {
+            /* wolfSSL_write_dup() builds the duplicate from ctx_c, so the
+             * client cert has to be on the context. Load it with no session
+             * alive, then recreate the session. */
+            wolfSSL_free(ssl_c);
+            ssl_c = NULL;
             ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
             ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+            ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+            wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+            wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
             ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
             ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
@@ -34708,10 +34771,18 @@ static int test_write_dup_want_write_simul(void)
 
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                 methods[i].client_meth, methods[i].server_meth), 0);
+        /* wolfSSL_write_dup() builds the duplicate from ctx_c, so the client
+         * cert has to be on the context. Load it with no session alive, then
+         * recreate the session. */
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
         ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+        wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
         ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,

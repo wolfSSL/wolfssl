@@ -1027,6 +1027,8 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl,
     given using the “format” argument, file doesn’t exist, can’t be read,
     or is corrupted, an out of memory condition occurs, Base16 decoding
     fails on the file.
+    \return CTX_BUSY_E if any WOLFSSL session created from this context is
+    still active; see the note below.
 
     \param ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new()
@@ -1048,9 +1050,17 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl,
     ...
     \endcode
 
+    \note The context certificate is shared with every WOLFSSL session created
+    from it, so this function refuses to change it while any such session is
+    active and returns CTX_BUSY_E. Load the certificate before creating
+    sessions. To set a certificate for one connection, call
+    wolfSSL_use_certificate_file() on the WOLFSSL object, or switch the session
+    to a preconfigured context with wolfSSL_set_SSL_CTX().
+
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_use_certificate_file
     \sa wolfSSL_use_certificate_buffer
+    \sa wolfSSL_set_SSL_CTX
 */
 int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
                                      int format);
@@ -1077,6 +1087,8 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
     be read, or is corrupted. An out of memory condition occurs. Base16
     decoding fails on the file. The key file is encrypted but no password
     is provided.
+    \return CTX_BUSY_E if any WOLFSSL session created from this context is
+    still active; see the note below.
 
     \param ctx pointer to a WOLFSSL_CTX structure.
     \param file path to the private key file.
@@ -1096,11 +1108,19 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
     ...
     \endcode
 
+    \note The context private key is shared with every WOLFSSL session created
+    from it (the server signs with it), so this function refuses to change it
+    while any such session is active and returns CTX_BUSY_E. Load the key
+    before creating sessions. To set a key for one connection, call
+    wolfSSL_use_PrivateKey_file() on the WOLFSSL object, or switch the session
+    to a preconfigured context with wolfSSL_set_SSL_CTX().
+
     \sa wolfSSL_CTX_use_PrivateKey_buffer
     \sa wolfSSL_use_PrivateKey_file
     \sa wolfSSL_use_PrivateKey_buffer
     \sa wc_CryptoCb_RegisterDevice
     \sa wolfSSL_CTX_SetDevId
+    \sa wolfSSL_set_SSL_CTX
 */
 int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file, int format);
 
@@ -1543,9 +1563,15 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
     ...
     \endcode
 
+    \note This updates the WOLFSSL session's own buffers and does not touch the
+    shared WOLFSSL_CTX, so unlike wolfSSL_CTX_use_certificate_file() it is safe
+    to call while other sessions are active, including from the SNI (server
+    name) callback to set a certificate for the current connection.
+
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_certificate_file
     \sa wolfSSL_use_certificate_buffer
+    \sa wolfSSL_set_SSL_CTX
 */
 int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format);
 
@@ -1591,11 +1617,17 @@ int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format);
     ...
     \endcode
 
+    \note This updates the WOLFSSL session's own buffers and does not touch the
+    shared WOLFSSL_CTX, so unlike wolfSSL_CTX_use_PrivateKey_file() it is safe
+    to call while other sessions are active, including from the SNI (server
+    name) callback to set a private key for the current connection.
+
     \sa wolfSSL_CTX_use_PrivateKey_buffer
     \sa wolfSSL_CTX_use_PrivateKey_file
     \sa wolfSSL_use_PrivateKey_buffer
     \sa wc_CryptoCb_RegisterDevice
     \sa wolfSSL_SetDevId
+    \sa wolfSSL_set_SSL_CTX
 */
 int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format);
 
@@ -7707,6 +7739,9 @@ int  wolfSSL_SetTmpDH_file(WOLFSSL* ssl, const char* f, int format);
     than the value of the maxDhKeySz member of the WOLFSSL_CTX struct.
     \return MEMORY_E returned if the allocation of memory failed in this
     function or a subroutine.
+    \return CTX_BUSY_E returned if any WOLFSSL session created from this context
+    is still active; the shared DH parameters cannot be changed then. Set them
+    before creating sessions, or use wolfSSL_SetTmpDH() on the WOLFSSL object.
 
     \param ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new().
@@ -8237,7 +8272,8 @@ int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX* ctx);
     \return SSL_SUCCESS returned on successful execution of the function.
     \return BAD_FUNC_ARG returned if the WOLFSSL_CTX struct is NULL or there
     are otherwise unpermitted argument values passed in a subroutine.
-    \return BAD_STATE_E returned if the WOLFSSL_CTX has a reference count > 1.
+    \return CTX_BUSY_E returned if the WOLFSSL_CTX has a reference count > 1
+    (active sessions exist).
     \return BAD_MUTEX_E returned if there was a mutex error. The LockMutex()
     did not return 0.
 
