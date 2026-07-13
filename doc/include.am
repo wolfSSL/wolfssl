@@ -19,9 +19,7 @@ dox-html:
 
 dox: dox-html dox-pdf
 
-clean-local:
-	-rm -rf doc/build/
-	-rm -rf doc/html/
-	-rm -f doc/refman.pdf
-	-rm -f doc/doxygen_warnings
-	-rm -rf $(BOMSH_OMNIBORDIR)
+# NOTE: `clean-local` (doc build artefacts + the OmniBOR/advisory outputs) is
+# defined in the top-level Makefile.am.  automake permits a single clean-local,
+# and the OmniBOR/advisory products belong with the other top-level build
+# outputs, so all local-clean removals are consolidated there.

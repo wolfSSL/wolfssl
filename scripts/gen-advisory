@@ -200,6 +200,9 @@ def load_cve_record(path=None, cve_id=None):
                 return json.load(f)
         except (OSError, json.JSONDecodeError) as e:
             sys.exit(f"ERROR: cannot read CVE record {path!r}: {e}")
+    # Fetched from the CVE Services API (cveawg.mitre.org), the machine-
+    # readable endpoint MITRE serves the CVE 5.x JSON records from; cve.org is
+    # the human-facing catalogue for the same data.
     url = f'https://cveawg.mitre.org/api/cve/{cve_id}'
     try:
         with urllib.request.urlopen(url, timeout=30) as r:
@@ -261,6 +264,15 @@ def parse_record(record):
         if d.get('lang', '').lower().startswith('en'):
             description = d.get('value', '')
             break
+    # CSAF 2.0 requires /vulnerabilities[]/notes[]/text and the document
+    # summary note to be non-empty (schema minLength 1), and gen_csaf emits
+    # this description verbatim into both.  A record with no (non-empty)
+    # English description would therefore produce a document the strict CSAF
+    # gate rejects; fail loudly here rather than writing garbage, per this
+    # tool's fail-rather-than-emit-garbage contract.
+    if not description.strip():
+        sys.exit(f"ERROR: CVE record {cve_id} has no non-empty English "
+                 f"description (needed for the CSAF/CycloneDX note text)")
 
     # CSAF 2.0 carries a single `cwe` {id, name}; take the primary one.  The
     # name is resolved from the official CWE catalogue (CWE_NAMES) so it is the
@@ -353,7 +365,14 @@ def product_model(adv, ov):
         product = a['product']
         affected_ranges = []
         for v in a['versions']:
-            if v.get('status') == 'affected' or a['default_status'] == 'affected':
+            # Fall back to defaultStatus only when the entry carries no explicit
+            # status.  Using `or a['default_status'] == 'affected'` here would
+            # force EVERY entry into the vulnerable bucket when defaultStatus is
+            # "affected" -- including entries explicitly marked
+            # status="unaffected" (the CVE-5.x affected-by-default with
+            # unaffected/fixed exceptions pattern) -- emitting a fixed release
+            # as a known_affected range, the opposite of the truth.
+            if v.get('status', a['default_status']) == 'affected':
                 affected_ranges.append({
                     'label': _range_label(v),
                     'cpe': cpe_for(product, '*'),
@@ -811,8 +830,9 @@ def main():
                    help='Path to a CVE JSON 5.x record (repeatable). Overrides '
                         'the default --records-dir scan.')
     p.add_argument('--cve-id', action='append', default=[],
-                   help='Fetch a record from cve.org by id (repeatable). '
-                        'Overrides the default --records-dir scan.')
+                   help='Fetch a record by id from the CVE Services API '
+                        '(cveawg.mitre.org) (repeatable). Overrides the '
+                        'default --records-dir scan.')
     p.add_argument('--records-dir', default=str(DEFAULT_RECORDS_DIR),
                    help='Directory of CVE JSON 5.x records scanned when no '
                         f'--cve-record/--cve-id is given (default: '

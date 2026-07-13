@@ -282,6 +282,54 @@ class TestProductModel(unittest.TestCase):
         # not-affected FIPS with no fix => no_fix_planned, not none_available.
         self.assertEqual(fips['remediation_category'], 'no_fix_planned')
 
+    def test_default_status_affected_honours_explicit_unaffected(self):
+        # CVE-5.x "affected-by-default with unaffected/fixed exceptions": an
+        # entry explicitly marked status="unaffected" must NOT be emitted as a
+        # vulnerable range even when defaultStatus is "affected".  Guards the
+        # `v.get('status', default_status)` fallback (an earlier `or` form
+        # wrongly marked the fixed release as known_affected).
+        adv = {'affected': [{
+            'vendor': 'wolfSSL', 'product': 'wolfSSL',
+            'default_status': 'affected',
+            'versions': [
+                {'status': 'affected', 'version': '0', 'lessThan': '5.9.1'},
+                {'status': 'unaffected', 'version': '5.9.1'},
+            ],
+        }]}
+        prods = ga.product_model(adv, {'state': 'exploitable'})
+        labels = [r['label'] for r in prods[0]['affected_ranges']]
+        self.assertEqual(len(labels), 1)
+        self.assertEqual(labels, ['< 5.9.1'])
+        self.assertNotIn('5.9.1', labels)
+
+    def test_default_status_affected_covers_unspecified_entries(self):
+        # An entry with no explicit status DOES fall back to defaultStatus.
+        adv = {'affected': [{
+            'vendor': 'wolfSSL', 'product': 'wolfSSL',
+            'default_status': 'affected',
+            'versions': [{'version': '5.8.0'}],
+        }]}
+        prods = ga.product_model(adv, {'state': 'exploitable'})
+        self.assertEqual(len(prods[0]['affected_ranges']), 1)
+
+
+class TestBucketFor(unittest.TestCase):
+    def test_known_states_map_to_expected_buckets(self):
+        self.assertEqual(ga._bucket_for('exploitable'), 'known_affected')
+        self.assertEqual(ga._bucket_for('not_affected'), 'known_not_affected')
+        self.assertEqual(ga._bucket_for('in_triage'), 'under_investigation')
+
+    def test_unknown_state_hard_fails(self):
+        # A deliberately fail-loud sys.exit rather than silently defaulting an
+        # unrecognized determination to the worst case (known_affected).
+        with self.assertRaises(SystemExit):
+            ga._bucket_for('definitely_not_a_real_state')
+
+    def test_product_model_propagates_unknown_state_failure(self):
+        adv = _adv('CVE-2026-5501.json')
+        with self.assertRaises(SystemExit):
+            ga.product_model(adv, {'state': 'definitely_not_a_real_state'})
+
 
 class TestHedgeNote(unittest.TestCase):
     def test_renders_defines_and_default_off(self):

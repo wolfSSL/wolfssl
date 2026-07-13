@@ -205,6 +205,13 @@ jobs:
             --advisory-id wolfSSL-SA-5.9.1 \
             --csaf-out /tmp/adv/wolfSSL-SA-5.9.1.csaf.json
 
+      - name: csaf_validate.mjs runner self-test (exit-code contract)
+        # Pins the gate's own logic (summarize + 0/1/2 exit codes) so a
+        # csaf-validator-lib bump that changed the result shape cannot silently
+        # turn the conformance gate into a no-op that still exits 0.  Passes a
+        # known-good generated document to also assert the exit-0 path.
+        run: node scripts/test_csaf_validate.mjs /tmp/adv/CVE-2026-5501.csaf.json
+
       - name: CSAF strict schema + mandatory tests
         run: node scripts/csaf_validate.mjs /tmp/adv/*.csaf.json
 

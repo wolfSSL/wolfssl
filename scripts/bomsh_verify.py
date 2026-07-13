@@ -111,15 +111,22 @@ def _looks_like_blob_path(parts):
     """True iff `parts` is the canonical `<aa>/<rest>` shape Git uses
     for content-addressed blob fanout: exactly two components, the
     first of which is a 2-char lowercase-hex prefix and the second of
-    which is the remaining lowercase-hex of a sha1 digest (38 chars)
-    or sha256 digest (62 chars).  Anything else (`info/`, `pack/...`,
-    deeper nesting) is housekeeping and must NOT be gitoid-checked."""
+    which is the remaining 38 lowercase-hex chars of a sha1 digest.
+    Anything else (`info/`, `pack/...`, deeper nesting) is housekeeping
+    and must NOT be gitoid-checked.
+
+    sha1-only on purpose: check_object_store_integrity() hashes with
+    gitoid_sha1() and load_spdx_gitoids() rejects non-sha1 locators, so
+    the whole verifier is sha1-scoped.  Admitting a 62-char (sha256)
+    digest here would only let the integrity check compare it against an
+    sha1 hash and always report it corrupt; a real bomsh switch to
+    sha256 must update the hashing (and this length) in lockstep."""
     if len(parts) != 2:
         return False
     aa, rest = parts
     if len(aa) != 2 or not all(c in _HEX_CHARS for c in aa):
         return False
-    if len(rest) not in (38, 62):
+    if len(rest) != 38:
         return False
     return all(c in _HEX_CHARS for c in rest)
 

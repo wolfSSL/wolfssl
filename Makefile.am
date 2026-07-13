@@ -351,6 +351,18 @@ wolfssl-test-data.stamp:
 
 DISTCLEANFILES += wolfssl-test-data.stamp
 
+# Local clean: doc build artefacts plus the generated SBOM/advisory/OmniBOR
+# outputs.  Consolidated here (automake allows a single clean-local) so the
+# OmniBOR graph (omnibor/) and advisory documents (advisories/out/) are cleaned
+# alongside the other top-level build products rather than from doc/include.am.
+clean-local:
+	-rm -rf doc/build/
+	-rm -rf doc/html/
+	-rm -f doc/refman.pdf
+	-rm -f doc/doxygen_warnings
+	-rm -rf $(BOMSH_OMNIBORDIR)
+	-rm -rf $(ADVISORY_OUT_DIR)
+
 # Remove the symlinks created for out-of-tree builds.  Gated on
 # srcdir != builddir so an in-tree build never touches the real source files.
 distclean-local:
@@ -566,8 +578,8 @@ sbom:
 	    $(if $(SBOM_DOCUMENT_NAMESPACE),--document-namespace '$(SBOM_DOCUMENT_NAMESPACE)') \
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
-	    --dep-libz $(ENABLED_LIBZ) \
-	    --dep-liboqs $(ENABLED_LIBOQS) \
+	    --dep-libz "$(ENABLED_LIBZ)" \
+	    --dep-liboqs "$(ENABLED_LIBOQS)" \
 	    $(foreach dv,$(SBOM_DEP_VERSIONS),--dep-version '$(dv)') \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
 	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
@@ -701,6 +713,21 @@ bomsh:
 	    echo ""; \
 	    echo "ERROR: 'bomsh_create_bom.py' not found in PATH. Cannot process OmniBOR data."; \
 	    echo "       Install from: https://github.com/omnibor/bomsh"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	@if test -z "$(PYTHON3)"; then \
+	    echo ""; \
+	    echo "ERROR: 'python3' not found in PATH. Cannot generate SBOM."; \
+	    echo "       (make bomsh re-runs make sbom after the traced build.)"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	@if test -z "$(PYSPDXTOOLS)"; then \
+	    echo ""; \
+	    echo "ERROR: 'pyspdxtools' not found in PATH. Cannot validate SBOM."; \
+	    echo "       Install: pip install spdx-tools"; \
+	    echo "       (make bomsh re-runs make sbom after the traced build.)"; \
 	    echo ""; \
 	    exit 1; \
 	fi
