@@ -946,8 +946,10 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
     ExpectIntEQ(sp_gcd(&a, &b, &r), WC_NO_ERR_TRACE(MP_VAL));
     /* Same a > b shape, but r sized to cover b->used exactly: the second
      * clause's r->size < b->used half now goes false while a->used <
-     * b->used stays true, isolating that operand's independence pair. */
-    ExpectIntEQ(sp_init_size(&r, 2), 0);
+     * b->used stays true, isolating that operand's independence pair.
+     * Size r to b->used (not a hard-coded 2) so this holds regardless of
+     * SP_WORD_SIZE - at 32-bit words 2^70 occupies 3 digits, not 2. */
+    ExpectIntEQ(sp_init_size(&r, b.used), 0);
     ExpectIntEQ(sp_gcd(&a, &b, &r), 0);
     ExpectIntEQ(sp_init(&r), 0);
     ExpectIntEQ(sp_gcd(&a, &b, &r), 0);
