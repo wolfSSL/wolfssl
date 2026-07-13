@@ -4594,15 +4594,19 @@ static int test_wolfSSL_session_cache_api_direct(void)
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
+#ifndef NO_CLIENT_CACHE
     byte shortId[] = "server-id";
     byte longId[SERVER_ID_LEN + 8];
+#endif
 #ifdef OPENSSL_EXTRA
     /* Only read back via wolfSSL_CTX_get_session_cache_mode(), itself
      * OPENSSL_EXTRA-only; declare in the same scope to avoid -Wunused. */
     long mode = 0;
 #endif
 
+#ifndef NO_CLIENT_CACHE
     XMEMSET(longId, 0xA5, sizeof(longId));
+#endif
 
     ExpectIntEQ(wolfSSL_CTX_set_session_cache_mode(NULL,
         WOLFSSL_SESS_CACHE_OFF), WOLFSSL_FAILURE);
@@ -4610,8 +4614,10 @@ static int test_wolfSSL_session_cache_api_direct(void)
     ExpectIntEQ(wolfSSL_CTX_get_session_cache_mode(NULL), 0);
 #endif
     ExpectIntEQ(wolfSSL_set_session(NULL, NULL), WOLFSSL_FAILURE);
+#ifndef NO_CLIENT_CACHE
     ExpectIntEQ(wolfSSL_SetServerID(NULL, shortId, sizeof(shortId), 0),
         BAD_FUNC_ARG);
+#endif
 
 #ifndef NO_WOLFSSL_CLIENT
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -4665,10 +4671,10 @@ static int test_wolfSSL_session_cache_api_direct(void)
 #endif
 
     ExpectIntEQ(wolfSSL_set_session(ssl, NULL), WOLFSSL_FAILURE);
+#ifndef NO_CLIENT_CACHE
     ExpectIntEQ(wolfSSL_SetServerID(ssl, NULL, sizeof(shortId), 0),
         BAD_FUNC_ARG);
     ExpectIntEQ(wolfSSL_SetServerID(ssl, shortId, 0, 0), BAD_FUNC_ARG);
-#ifndef NO_CLIENT_CACHE
     ExpectIntEQ(wolfSSL_SetServerID(ssl, shortId, (int)sizeof(shortId), 1),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_SetServerID(ssl, longId, (int)sizeof(longId), 1),

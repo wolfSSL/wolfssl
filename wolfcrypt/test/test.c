@@ -26117,6 +26117,143 @@ static void initDefaultName(void)
 #endif /* WOLFSSL_CERT_EXT */
 #endif /* WOLFSSL_CERT_GEN */
 
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
+/* Exercise the public wc_SetDNSEntry() + wc_FlattenAltNames() pair: build an
+ * alt-name list and encode it into a GeneralNames SEQUENCE. The order entries
+ * land in depends on build config (OPENSSL_EXTRA appends, otherwise prepends),
+ * so presence checks are order-independent. Also exercise the
+ * wc_SetAltNamesFromList() convenience that encodes straight into a Cert. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t flattenAltNames_test(void)
+{
+    wc_test_ret_t ret = 0;
+    DNS_entry* list = NULL;
+    Cert* cert = NULL;
+    byte out[256];
+    int len;
+    /* dNSName "example.com" -> [2] IMPLICIT IA5String */
+    static const byte dnsTlv[] = {
+        0x82, 0x0B, 'e','x','a','m','p','l','e','.','c','o','m'
+    };
+    /* iPAddress 10.0.0.7 -> [7] IMPLICIT OCTET STRING */
+    static const byte ipTlv[] = { 0x87, 0x04, 0x0A, 0x00, 0x00, 0x07 };
+    static const byte ip[]    = { 0x0A, 0x00, 0x00, 0x07 };
+    const int innerSz = (int)sizeof(dnsTlv) + (int)sizeof(ipTlv); /* 19 */
+    const int expSz   = 2 + innerSz;                              /* 0x30,len + body */
+    int i, foundDns = 0, foundIp = 0;
+
+    WOLFSSL_ENTER("flattenAltNames_test");
+
+    /* A NULL list encodes to nothing. */
+    len = wc_FlattenAltNames(out, sizeof(out), NULL);
+    if (len != 0)
+        ret = WC_TEST_RET_ENC_EC(len);
+
+    if (ret == 0) {
+        ret = wc_SetDNSEntry(HEAP_HINT, "example.com", 11, ASN_DNS_TYPE, &list);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        ret = wc_SetDNSEntry(HEAP_HINT, (const char*)ip, (int)sizeof(ip),
+                             ASN_IP_TYPE, &list);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        len = wc_FlattenAltNames(out, sizeof(out), list);
+        if (len != expSz)
+            ret = WC_TEST_RET_ENC_EC(len);
+    }
+    if (ret == 0 && (out[0] != ASN_SEQUENCE + ASN_CONSTRUCTED ||
+                     out[1] != (byte)innerSz))
+        ret = WC_TEST_RET_ENC_NC;
+    /* Both GeneralName TLVs must be present, regardless of order. */
+    for (i = 0; ret == 0 && i + (int)sizeof(dnsTlv) <= len; i++) {
+        if (XMEMCMP(out + i, dnsTlv, sizeof(dnsTlv)) == 0)
+            foundDns = 1;
+    }
+    for (i = 0; ret == 0 && i + (int)sizeof(ipTlv) <= len; i++) {
+        if (XMEMCMP(out + i, ipTlv, sizeof(ipTlv)) == 0)
+            foundIp = 1;
+    }
+    if (ret == 0 && (!foundDns || !foundIp))
+        ret = WC_TEST_RET_ENC_NC;
+    /* NULL output is rejected. */
+    if (ret == 0) {
+        len = wc_FlattenAltNames(NULL, sizeof(out), list);
+        if (len != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(len);
+    }
+    /* Output one byte too small is rejected with BUFFER_E. */
+    if (ret == 0) {
+        len = wc_FlattenAltNames(out, (word32)expSz - 1, list);
+        if (len != WC_NO_ERR_TRACE(BUFFER_E))
+            ret = WC_TEST_RET_ENC_EC(len);
+    }
+
+    /* wc_SetAltNamesFromList() encodes the same list straight into a Cert and
+     * records the length; the result must match the standalone encoding. */
+    if (ret == 0) {
+        cert = (Cert*)XMALLOC(sizeof(Cert), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (cert == NULL)
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+    if (ret == 0) {
+        ret = wc_InitCert_ex(cert, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        ret = wc_SetAltNamesFromList(cert, list);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0 && (cert->altNamesSz != expSz ||
+                     XMEMCMP(cert->altNames, out, (size_t)expSz) != 0))
+        ret = WC_TEST_RET_ENC_NC;
+    /* NULL cert is rejected. */
+    if (ret == 0) {
+        int r = wc_SetAltNamesFromList(NULL, list);
+        if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_EC(r);
+    }
+    /* A NULL names list encodes to nothing: returns 0 and zeroes altNamesSz. */
+    if (ret == 0) {
+        cert->altNamesSz = 1; /* poison so we can see it get cleared */
+        if (wc_SetAltNamesFromList(cert, NULL) != 0 || cert->altNamesSz != 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* wc_SetDNSEntry() rejects invalid arguments at the public boundary. */
+    if (ret == 0) {
+        DNS_entry* badList = NULL;
+        /* NULL str */
+        if (wc_SetDNSEntry(HEAP_HINT, NULL, 1, ASN_DNS_TYPE, &badList)
+                != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_NC;
+        /* NULL entries */
+        else if (wc_SetDNSEntry(HEAP_HINT, "x", 1, ASN_DNS_TYPE, NULL)
+                != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_NC;
+        /* negative strLen */
+        else if (wc_SetDNSEntry(HEAP_HINT, "x", -1, ASN_DNS_TYPE, &badList)
+                != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ret = WC_TEST_RET_ENC_NC;
+        if (badList != NULL)
+            FreeAltNames(badList, HEAP_HINT);
+    }
+
+    XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    FreeAltNames(list, HEAP_HINT);
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES && WOLFSSL_ASN_TEMPLATE &&
+        * (WOLFSSL_TEST_CERT || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL ||
+        *  WOLFSSL_PUBLIC_ASN) */
+
 #ifndef NO_RSA
 
 /* Run an RSA async-capable operation: loops while the call returns
@@ -27110,143 +27247,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t decodedCertCache_test(void)
 }
 #endif /* defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) &&
           defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) */
-
-#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES) && \
-    defined(WOLFSSL_ASN_TEMPLATE) && \
-    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
-/* Exercise the public wc_SetDNSEntry() + wc_FlattenAltNames() pair: build an
- * alt-name list and encode it into a GeneralNames SEQUENCE. The order entries
- * land in depends on build config (OPENSSL_EXTRA appends, otherwise prepends),
- * so presence checks are order-independent. Also exercise the
- * wc_SetAltNamesFromList() convenience that encodes straight into a Cert. */
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t flattenAltNames_test(void)
-{
-    wc_test_ret_t ret = 0;
-    DNS_entry* list = NULL;
-    Cert* cert = NULL;
-    byte out[256];
-    int len;
-    /* dNSName "example.com" -> [2] IMPLICIT IA5String */
-    static const byte dnsTlv[] = {
-        0x82, 0x0B, 'e','x','a','m','p','l','e','.','c','o','m'
-    };
-    /* iPAddress 10.0.0.7 -> [7] IMPLICIT OCTET STRING */
-    static const byte ipTlv[] = { 0x87, 0x04, 0x0A, 0x00, 0x00, 0x07 };
-    static const byte ip[]    = { 0x0A, 0x00, 0x00, 0x07 };
-    const int innerSz = (int)sizeof(dnsTlv) + (int)sizeof(ipTlv); /* 19 */
-    const int expSz   = 2 + innerSz;                              /* 0x30,len + body */
-    int i, foundDns = 0, foundIp = 0;
-
-    WOLFSSL_ENTER("flattenAltNames_test");
-
-    /* A NULL list encodes to nothing. */
-    len = wc_FlattenAltNames(out, sizeof(out), NULL);
-    if (len != 0)
-        ret = WC_TEST_RET_ENC_EC(len);
-
-    if (ret == 0) {
-        ret = wc_SetDNSEntry(HEAP_HINT, "example.com", 11, ASN_DNS_TYPE, &list);
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
-    }
-    if (ret == 0) {
-        ret = wc_SetDNSEntry(HEAP_HINT, (const char*)ip, (int)sizeof(ip),
-                             ASN_IP_TYPE, &list);
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
-    }
-    if (ret == 0) {
-        len = wc_FlattenAltNames(out, sizeof(out), list);
-        if (len != expSz)
-            ret = WC_TEST_RET_ENC_EC(len);
-    }
-    if (ret == 0 && (out[0] != ASN_SEQUENCE + ASN_CONSTRUCTED ||
-                     out[1] != (byte)innerSz))
-        ret = WC_TEST_RET_ENC_NC;
-    /* Both GeneralName TLVs must be present, regardless of order. */
-    for (i = 0; ret == 0 && i + (int)sizeof(dnsTlv) <= len; i++) {
-        if (XMEMCMP(out + i, dnsTlv, sizeof(dnsTlv)) == 0)
-            foundDns = 1;
-    }
-    for (i = 0; ret == 0 && i + (int)sizeof(ipTlv) <= len; i++) {
-        if (XMEMCMP(out + i, ipTlv, sizeof(ipTlv)) == 0)
-            foundIp = 1;
-    }
-    if (ret == 0 && (!foundDns || !foundIp))
-        ret = WC_TEST_RET_ENC_NC;
-    /* NULL output is rejected. */
-    if (ret == 0) {
-        len = wc_FlattenAltNames(NULL, sizeof(out), list);
-        if (len != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_EC(len);
-    }
-    /* Output one byte too small is rejected with BUFFER_E. */
-    if (ret == 0) {
-        len = wc_FlattenAltNames(out, (word32)expSz - 1, list);
-        if (len != WC_NO_ERR_TRACE(BUFFER_E))
-            ret = WC_TEST_RET_ENC_EC(len);
-    }
-
-    /* wc_SetAltNamesFromList() encodes the same list straight into a Cert and
-     * records the length; the result must match the standalone encoding. */
-    if (ret == 0) {
-        cert = (Cert*)XMALLOC(sizeof(Cert), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (cert == NULL)
-            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
-    }
-    if (ret == 0) {
-        ret = wc_InitCert_ex(cert, HEAP_HINT, devId);
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
-    }
-    if (ret == 0) {
-        ret = wc_SetAltNamesFromList(cert, list);
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
-    }
-    if (ret == 0 && (cert->altNamesSz != expSz ||
-                     XMEMCMP(cert->altNames, out, (size_t)expSz) != 0))
-        ret = WC_TEST_RET_ENC_NC;
-    /* NULL cert is rejected. */
-    if (ret == 0) {
-        int r = wc_SetAltNamesFromList(NULL, list);
-        if (r != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_EC(r);
-    }
-    /* A NULL names list encodes to nothing: returns 0 and zeroes altNamesSz. */
-    if (ret == 0) {
-        cert->altNamesSz = 1; /* poison so we can see it get cleared */
-        if (wc_SetAltNamesFromList(cert, NULL) != 0 || cert->altNamesSz != 0)
-            ret = WC_TEST_RET_ENC_NC;
-    }
-
-    /* wc_SetDNSEntry() rejects invalid arguments at the public boundary. */
-    if (ret == 0) {
-        DNS_entry* badList = NULL;
-        /* NULL str */
-        if (wc_SetDNSEntry(HEAP_HINT, NULL, 1, ASN_DNS_TYPE, &badList)
-                != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_NC;
-        /* NULL entries */
-        else if (wc_SetDNSEntry(HEAP_HINT, "x", 1, ASN_DNS_TYPE, NULL)
-                != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_NC;
-        /* negative strLen */
-        else if (wc_SetDNSEntry(HEAP_HINT, "x", -1, ASN_DNS_TYPE, &badList)
-                != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            ret = WC_TEST_RET_ENC_NC;
-        if (badList != NULL)
-            FreeAltNames(badList, HEAP_HINT);
-    }
-
-    XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    FreeAltNames(list, HEAP_HINT);
-    return ret;
-}
-#endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES && WOLFSSL_ASN_TEMPLATE &&
-        * (WOLFSSL_TEST_CERT || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL ||
-        *  WOLFSSL_PUBLIC_ASN) */
 
 #define RSA_TEST_BYTES (RSA_MAX_SIZE / 8)
 
