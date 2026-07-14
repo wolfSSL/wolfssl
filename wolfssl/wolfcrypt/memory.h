@@ -335,6 +335,10 @@ WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
 #endif
 
+#ifndef WOLFSSL_NO_CONST_CMP
+WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length);
+#endif
+
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
 WOLFSSL_LOCAL int wc_debug_CipherLifecycleInit(void **CipherLifecycleTag,
                                                void *heap);
