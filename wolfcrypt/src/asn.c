@@ -24003,6 +24003,68 @@ static Signer* FindSignerByAkidOrName(void* cm, Signer* extraCAList,
 }
 #endif /* !IGNORE_NAME_CONSTRAINTS */
 
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+/* Build the PreTBS used to verify an alternative signature, allocating the
+ * buffer that holds it.
+ *
+ * The PreTBS omits the signature, the alternative signature and the
+ * alternative-signature extension, so the certificate size minus both
+ * signature values is a close estimate and is tried first: this runs on
+ * constrained targets where the allocation size matters. It is only an
+ * estimate, because wc_GeneratePreTBS re-encodes the TBSCertificate rather
+ * than copying it, and a canonical re-encode may add algorithm parameters or
+ * re-frame fields. If the estimate is short, retry once at a size the
+ * re-encode cannot exceed, since the PreTBS is a re-encode of a strict subset
+ * of the certificate.
+ *
+ * On success sets *derOut and returns the PreTBS length, which is > 0.
+ * Returns a negative error code on failure; *derOut is NULL in that case. */
+static int GeneratePreTBSBuffer(DecodedCert* cert, byte** derOut)
+{
+    int   ret;
+    byte* der;
+    word32 derSz;
+
+    *derOut = NULL;
+
+    /* Check each length on its own so the guard cannot wrap and the
+     * subtraction cannot underflow on a malformed certificate. */
+    if (cert->sigLength >= cert->maxIdx ||
+            (word32)cert->altSigValLen >= cert->maxIdx - cert->sigLength) {
+        return ASN_PARSE_E;
+    }
+    derSz = cert->maxIdx - cert->sigLength - (word32)cert->altSigValLen;
+
+    der = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_DCERT);
+    if (der == NULL) {
+        return MEMORY_E;
+    }
+
+    ret = wc_GeneratePreTBS(cert, der, (int)derSz);
+    if (ret <= 0) {
+        XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
+
+        derSz = cert->maxIdx + MAX_ALGO_SZ + MAX_SEQ_SZ + MAX_LENGTH_SZ;
+        der = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_DCERT);
+        if (der == NULL) {
+            return MEMORY_E;
+        }
+        ret = wc_GeneratePreTBS(cert, der, (int)derSz);
+    }
+
+    if (ret <= 0) {
+        /* wc_GeneratePreTBS reports an encoder failure as WOLFSSL_FAILURE,
+         * which is 0. Return an error so a PreTBS that was not produced can
+         * never skip the signature check and read as a verified signature. */
+        XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
+        return (ret == 0) ? ASN_PARSE_E : ret;
+    }
+
+    *derOut = der;
+    return ret;
+}
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                       Signer *extraCAList)
 {
@@ -24625,35 +24687,27 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             #ifdef WOLFSSL_DUAL_ALG_CERTS
                 if ((ret == 0) && cert->extAltSigAlgSet &&
                     cert->extAltSigValSet) {
-                #ifndef WOLFSSL_SMALL_STACK
-                    byte der[WC_MAX_CERT_VERIFY_SZ];
-                #else
-                    byte *der = (byte*)XMALLOC(WC_MAX_CERT_VERIFY_SZ, cert->heap,
-                                            DYNAMIC_TYPE_DCERT);
-                    if (der == NULL) {
-                        ret = MEMORY_E;
-                    } else
-                #endif /* ! WOLFSSL_SMALL_STACK */
-                    {
-                        ret = wc_GeneratePreTBS(cert, der, WC_MAX_CERT_VERIFY_SZ);
+                    word32 derSz;
+                    byte*  der;
 
-                        if (ret > 0) {
-                            ret = ConfirmSignature(&cert->sigCtx, der, ret,
-                                    cert->ca->sapkiDer, cert->ca->sapkiLen,
-                                    cert->ca->sapkiOID, cert->altSigValDer,
-                                    cert->altSigValLen, cert->altSigAlgOID,
-                                    NULL, 0, NULL);
-                        }
-                        WC_FREE_VAR_EX(der, cert->heap, DYNAMIC_TYPE_DCERT);
+                    ret = GeneratePreTBSBuffer(cert, &der);
+                    if (ret > 0) {
+                        derSz = (word32)ret;
+                        ret = ConfirmSignature(&cert->sigCtx, der, derSz,
+                                cert->ca->sapkiDer, cert->ca->sapkiLen,
+                                cert->ca->sapkiOID, cert->altSigValDer,
+                                cert->altSigValLen, cert->altSigAlgOID,
+                                NULL, 0, NULL);
+                        XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
+                    }
 
-                        if (ret != 0) {
-                            WOLFSSL_MSG("Confirm alternative signature failed");
-                            WOLFSSL_ERROR_VERBOSE(ret);
-                            return ret;
-                        }
-                        else {
-                            WOLFSSL_MSG("Alt signature has been verified!");
-                        }
+                    if (ret != 0) {
+                        WOLFSSL_MSG("Confirm alternative signature failed");
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                        return ret;
+                    }
+                    else {
+                        WOLFSSL_MSG("Alt signature has been verified!");
                     }
                 }
             #endif /* WOLFSSL_DUAL_ALG_CERTS */
@@ -24684,35 +24738,27 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         #ifdef WOLFSSL_DUAL_ALG_CERTS
             if ((ret == 0) && cert->extAltSigAlgSet &&
                 cert->extAltSigValSet) {
-            #ifndef WOLFSSL_SMALL_STACK
-                byte der[WC_MAX_CERT_VERIFY_SZ];
-            #else
-                byte *der = (byte*)XMALLOC(WC_MAX_CERT_VERIFY_SZ, cert->heap,
-                                        DYNAMIC_TYPE_DCERT);
-                if (der == NULL) {
-                    ret = MEMORY_E;
-                } else
-            #endif /* ! WOLFSSL_SMALL_STACK */
-                {
-                    ret = wc_GeneratePreTBS(cert, der, WC_MAX_CERT_VERIFY_SZ);
+                word32 derSz;
+                byte*  der;
 
-                    if (ret > 0) {
-                        ret = ConfirmSignature(&cert->sigCtx, der, ret,
-                                cert->sapkiDer, cert->sapkiLen,
-                                cert->sapkiOID, cert->altSigValDer,
-                                cert->altSigValLen, cert->altSigAlgOID,
-                                NULL, 0, NULL);
-                    }
-                    WC_FREE_VAR_EX(der, cert->heap, DYNAMIC_TYPE_DCERT);
+                ret = GeneratePreTBSBuffer(cert, &der);
+                if (ret > 0) {
+                    derSz = (word32)ret;
+                    ret = ConfirmSignature(&cert->sigCtx, der, derSz,
+                            cert->sapkiDer, cert->sapkiLen,
+                            cert->sapkiOID, cert->altSigValDer,
+                            cert->altSigValLen, cert->altSigAlgOID,
+                            NULL, 0, NULL);
+                    XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
+                }
 
-                    if (ret != 0) {
-                        WOLFSSL_MSG("Confirm alternative signature failed");
-                        WOLFSSL_ERROR_VERBOSE(ret);
-                        return ret;
-                    }
-                    else {
-                        WOLFSSL_MSG("Alt signature has been verified!");
-                    }
+                if (ret != 0) {
+                    WOLFSSL_MSG("Confirm alternative signature failed");
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                    return ret;
+                }
+                else {
+                    WOLFSSL_MSG("Alt signature has been verified!");
                 }
             }
         #endif /* WOLFSSL_DUAL_ALG_CERTS */

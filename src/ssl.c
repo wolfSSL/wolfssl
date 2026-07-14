@@ -4408,6 +4408,42 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         case mldsa_87_sa_algo:
             *sigAlgo = ML_DSA_87k;
             break;
+        case slhdsa_sha2_128s_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_128Sk;
+            break;
+        case slhdsa_sha2_128f_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_128Fk;
+            break;
+        case slhdsa_sha2_192s_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_192Sk;
+            break;
+        case slhdsa_sha2_192f_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_192Fk;
+            break;
+        case slhdsa_sha2_256s_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_256Sk;
+            break;
+        case slhdsa_sha2_256f_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_256Fk;
+            break;
+        case slhdsa_shake_128s_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_128Sk;
+            break;
+        case slhdsa_shake_128f_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_128Fk;
+            break;
+        case slhdsa_shake_192s_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_192Sk;
+            break;
+        case slhdsa_shake_192f_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_192Fk;
+            break;
+        case slhdsa_shake_256s_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_256Sk;
+            break;
+        case slhdsa_shake_256f_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_256Fk;
+            break;
         case sm2_sa_algo:
             *sigAlgo = SM2k;
             break;
@@ -5624,6 +5660,16 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.certYieldPending = 0;
 #endif
         ssl->recordSzOverhead = 0;
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+        /* Drop any half-sent streamed CertificateVerify. Left in place, the
+         * resume guard in SendTls13CertificateVerify would fire on the next
+         * handshake and re-send the previous one's signature. */
+        XFREE(ssl->buffers.certVerifyMsg.buffer, ssl->heap,
+              DYNAMIC_TYPE_TMP_BUFFER);
+        ssl->buffers.certVerifyMsg.buffer = NULL;
+        ssl->buffers.certVerifyMsg.length = 0;
+        ssl->fragOffset = 0;
+#endif
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;
         ssl->options.havePeerCert = 0;
@@ -8752,7 +8798,8 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.haveECC          = ctx->haveECC;
     ssl->options.haveStaticECC    = ctx->haveStaticECC;
     ssl->options.haveFalconSig    = ctx->haveFalconSig;
-    ssl->options.haveMlDsaSig = ctx->haveMlDsaSig;
+    ssl->options.haveMlDsaSig     = ctx->haveMlDsaSig;
+    ssl->options.haveSlhDsaSig    = ctx->haveSlhDsaSig;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
     ssl->buffers.altKey   = ctx->altPrivateKey;

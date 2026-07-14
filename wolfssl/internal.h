@@ -129,6 +129,9 @@
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 #ifdef HAVE_HKDF
     #include <wolfssl/wolfcrypt/kdf.h>
 #endif
@@ -1801,6 +1804,23 @@ enum Misc {
     MLDSA_87_SA_MAJOR = 0x09,
     MLDSA_87_SA_MINOR = 0x06,
 
+    /* These values for SLH-DSA correspond to the code points assigned in
+     * draft-reddy-tls-slhdsa (0x0911-0x091C) and match what oqs-provider uses.
+     * The major byte (0x09) is shared with ML-DSA. */
+    SLHDSA_SA_MAJOR             = 0x09,
+    SLHDSA_SHA2_128S_SA_MINOR   = 0x11,
+    SLHDSA_SHA2_128F_SA_MINOR   = 0x12,
+    SLHDSA_SHA2_192S_SA_MINOR   = 0x13,
+    SLHDSA_SHA2_192F_SA_MINOR   = 0x14,
+    SLHDSA_SHA2_256S_SA_MINOR   = 0x15,
+    SLHDSA_SHA2_256F_SA_MINOR   = 0x16,
+    SLHDSA_SHAKE_128S_SA_MINOR  = 0x17,
+    SLHDSA_SHAKE_128F_SA_MINOR  = 0x18,
+    SLHDSA_SHAKE_192S_SA_MINOR  = 0x19,
+    SLHDSA_SHAKE_192F_SA_MINOR  = 0x1A,
+    SLHDSA_SHAKE_256S_SA_MINOR  = 0x1B,
+    SLHDSA_SHAKE_256F_SA_MINOR  = 0x1C,
+
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
@@ -1901,7 +1921,8 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
 #if (defined(WOLFSSL_LEANPSK) || defined(WOLFSSL_LEANTLS)) && \
-    !defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA)
+    !defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_HAVE_SLHDSA)
     /* Lean builds keep the list small to minimize the memory footprint, unless
      * they are post-quantum builds: those want to inter-op with OQS's OpenSSL
      * that sends a lot more sigalgs, so they fall through to the larger default.
@@ -1980,13 +2001,43 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #define SESSIDX_IDX_MASK  0x0F
 #endif
 
+/* Size of the static per-certificate slot in a cached session's chain. This is
+ * embedded by value MAX_CHAIN_DEPTH times in every WOLFSSL_SESSION, so it is
+ * deliberately not sized from a post-quantum signature: a certificate too
+ * large for a slot is simply not recorded in the chain. Use
+ * MAX_CERT_WIRE_SZ for anything bounding a certificate on the wire. */
 #ifndef MAX_X509_SIZE
-    #if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
-        #define MAX_X509_SIZE   (8*1024) /* max static x509 buffer size; ML-DSA is big */
+    /* 9 KB holds the largest ML-DSA certificate (ML-DSA-87: 4627 byte signature
+     * plus 2592 byte public key, ~7.6 KB in practice) and an ML-DSA-44 dual
+     * algorithm certificate, which carries a second key and signature. Not
+     * derived from the enabled parameter set: the slot holds any certificate in
+     * a peer's chain, so tying it to the local ML-DSA level would make a
+     * level-restricted build silently drop certificates a full build kept. */
+    #if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+        defined(WOLFSSL_HAVE_SLHDSA)
+        #define MAX_X509_SIZE   (9*1024) /* max static x509 buffer size; ML-DSA is big */
     #elif defined(WOLFSSL_HAPROXY)
         #define MAX_X509_SIZE   3072 /* max static x509 buffer size */
     #else
         #define MAX_X509_SIZE   2048 /* max static x509 buffer size */
+    #endif
+#endif
+
+/* Largest single certificate that may appear in a handshake message. A
+ * post-quantum certificate's DER size is dominated by the issuer signature
+ * embedded in it, whose length depends on the parameter sets compiled in, plus
+ * headroom for the subject public key (largest is ML-DSA-87 at 2592 bytes) and
+ * the rest of the TBSCertificate. A leaf may be signed by a root of a larger
+ * parameter set, so the signature maximum is taken family-wide. */
+#ifndef MAX_CERT_WIRE_SZ
+    #if defined(WOLFSSL_HAVE_SLHDSA) && \
+        ((WC_SLHDSA_MAX_SIG_LEN + 4096) > MAX_X509_SIZE)
+        #define MAX_CERT_WIRE_SZ    (WC_SLHDSA_MAX_SIG_LEN + 4096)
+    #elif defined(WOLFSSL_HAVE_MLDSA) && \
+        ((MLDSA_MAX_SIG_SIZE + 4096) > MAX_X509_SIZE)
+        #define MAX_CERT_WIRE_SZ    (MLDSA_MAX_SIG_SIZE + 4096)
+    #else
+        #define MAX_CERT_WIRE_SZ    MAX_X509_SIZE
     #endif
 #endif
 
@@ -2011,12 +2062,34 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #define MAX_CERT_EXTENSIONS 1
 #endif
 
+/* Chain depth assumed when sizing the certificate message. Deliberately not
+ * MAX_CHAIN_DEPTH: that bounds how deep a chain may be verified, while this
+ * sizes a buffer an unauthenticated peer can make us allocate. Only reduced
+ * when a post-quantum certificate has inflated the per-certificate size, where
+ * the full verification depth would reserve hundreds of kilobytes and chains
+ * that deep are not realistic. Classic builds keep the historical depth, since
+ * the resulting buffer is small either way. Raise it for a deployment that
+ * presents deeper chains of post-quantum certificates. */
+#ifndef MAX_CERT_MSG_DEPTH
+    /* Trim only once a single certificate is large enough that the full
+     * verification depth would reserve an unreasonable amount for an
+     * unauthenticated peer. The threshold sits above any classic or ML-DSA
+     * certificate, so those builds keep the historical depth, and the test is
+     * on the size itself rather than on which macro produced it, so raising
+     * MAX_X509_SIZE cannot disengage the trim. */
+    #if (MAX_CERT_WIRE_SZ > (16*1024)) && (MAX_CHAIN_DEPTH > 5)
+        #define MAX_CERT_MSG_DEPTH 5
+    #else
+        #define MAX_CERT_MSG_DEPTH MAX_CHAIN_DEPTH
+    #endif
+#endif
+
 /* max size of a certificate message payload */
-/* assumes MAX_CHAIN_DEPTH number of certificates at 2kb per certificate */
+/* assumes MAX_CERT_MSG_DEPTH certificates of MAX_CERT_WIRE_SZ each */
 #ifndef MAX_CERTIFICATE_SZ
     #define MAX_CERTIFICATE_SZ \
                 (CERT_HEADER_SZ + \
-                (MAX_X509_SIZE + CERT_HEADER_SZ) * MAX_CHAIN_DEPTH)
+                (MAX_CERT_WIRE_SZ + CERT_HEADER_SZ) * MAX_CERT_MSG_DEPTH)
 #endif
 
 /* max size of a handshake message, currently set to the certificate */
@@ -2203,9 +2276,11 @@ WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL int  PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                    word32 hashSigAlgoSz, int matchSuites);
 #if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
+/* slhParam is the enum SlhDsaParam for DYNAMIC_TYPE_SLHDSA, whose parameter
+ * set cannot be derived from a device-side identifier. Pass -1 otherwise. */
 WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        int hsType, int label, int id,
-                                       void* heap, int devId);
+                                       void* heap, int devId, int slhParam);
 #endif
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
 WOLFSSL_LOCAL int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key,
@@ -4114,6 +4189,7 @@ struct WOLFSSL_CTX {
     byte        haveECDSAsig:1;   /* server cert signed w/ ECDSA */
     byte        haveFalconSig:1;  /* server cert signed w/ Falcon */
     byte        haveMlDsaSig:1;   /* server cert signed w/ ML-DSA */
+    byte        haveSlhDsaSig:1;  /* server cert signed w/ SLH-DSA */
     byte        haveStaticECC:1;  /* static server ECC private key */
     byte        partialWrite:1;   /* only one msg per write call */
     byte        autoRetry:1;      /* retry read/write on a WANT_{READ|WRITE} */
@@ -4268,7 +4344,8 @@ struct WOLFSSL_CTX {
     word16          eccTempKeySz;       /* in octets 20 - 66 */
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -4595,9 +4672,10 @@ enum KeyExchangeAlgorithm {
 #define SIG_FALCON      0x08
 #define SIG_MLDSA       0x10
 #define SIG_ANON        0x20
+#define SIG_SLHDSA      0x40
 /* SIG_ANON is omitted by default */
 #define SIG_ALL         (SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | \
-                         SIG_MLDSA)
+                         SIG_MLDSA | SIG_SLHDSA)
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
@@ -4617,6 +4695,18 @@ enum SignatureAlgorithm {
     sm2_sa_algo                  = 17,
     any_sa_algo                  = 18,
     ecc_brainpool_sa_algo        = 19,
+    slhdsa_sha2_128s_sa_algo     = 20,
+    slhdsa_sha2_128f_sa_algo     = 21,
+    slhdsa_sha2_192s_sa_algo     = 22,
+    slhdsa_sha2_192f_sa_algo     = 23,
+    slhdsa_sha2_256s_sa_algo     = 24,
+    slhdsa_sha2_256f_sa_algo     = 25,
+    slhdsa_shake_128s_sa_algo    = 26,
+    slhdsa_shake_128f_sa_algo    = 27,
+    slhdsa_shake_192s_sa_algo    = 28,
+    slhdsa_shake_192f_sa_algo    = 29,
+    slhdsa_shake_256s_sa_algo    = 30,
+    slhdsa_shake_256f_sa_algo    = 31,
     invalid_sa_algo              = 255
 };
 
@@ -5109,6 +5199,25 @@ typedef struct ThreadCrypt {
 
 #endif
 
+/* Streamed TLS 1.3 CertificateVerify send. When the CertificateVerify body
+ * (the signature) does not fit in a single record - a post-quantum signature
+ * such as SLH-DSA or ML-DSA, or any signature under a small
+ * max_fragment_length - it is generated once into a connection-level buffer and
+ * emitted one record at a time, so the output buffer never has to hold the
+ * whole signature. The assembled body must be held at the connection level
+ * (not on the stack) because these signatures are randomized: a non-blocking
+ * WANT_WRITE can return control mid-send, and the records already sent are
+ * bound into the transcript, so the resumed send must continue emitting the
+ * exact same signature - it cannot be regenerated. This is algorithm-neutral;
+ * it applies to any signature scheme whose CertificateVerify can exceed a
+ * record. It is not used with WOLFSSL_ASYNC_CRYPT, whose record-AEAD pends are
+ * handled by the existing in-place fragmented path. */
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    (defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_MLDSA) || \
+     defined(HAVE_FALCON))
+    #define WOLFSSL_TLS13_STREAM_CERT_VERIFY
+#endif
+
 /* buffers for struct WOLFSSL */
 typedef struct Buffers {
     bufferStatic    inputBuffer;
@@ -5191,6 +5300,13 @@ typedef struct Buffers {
         buffer peerRsaKey;                 /* we own for Rsa Verify Callbacks */
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+    /* Assembled TLS 1.3 CertificateVerify body (sig-alg | length | signature)
+     * held across records while it is streamed, so a non-blocking WANT_WRITE
+     * can resume the send without recomputing the signature. NULL when idle;
+     * freed by wolfSSL_ResourceFree. See WOLFSSL_TLS13_STREAM_CERT_VERIFY. */
+    buffer          certVerifyMsg;
+#endif
 } Buffers;
 
 /* sub-states for send/do key share (key exchange) */
@@ -5287,6 +5403,7 @@ struct Options {
     word16            haveStaticECC:1;    /* static server ECC private key */
     word16            haveFalconSig:1;    /* server Falcon signed cert */
     word16            haveMlDsaSig:1;     /* server ML-DSA signed cert */
+    word16            haveSlhDsaSig:1;    /* server SLH-DSA signed cert */
     word16            havePeerCert:1;     /* do we have peer's cert */
     word16            havePeerVerify:1;   /* and peer's cert verify */
     word16            usingPSK_cipher:1;  /* are using psk as cipher */
@@ -5695,7 +5812,8 @@ struct WOLFSSL_X509 {
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     word32       pkCurveOID;
 #endif
 #ifndef NO_CERTS
@@ -6425,7 +6543,8 @@ struct WOLFSSL {
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     word32          pkCurveOID;              /* curve Ecc_Sum     */
 #endif
 #ifdef HAVE_ED25519
@@ -6451,6 +6570,10 @@ struct WOLFSSL {
 #ifdef WOLFSSL_HAVE_MLDSA
     wc_MlDsaKey*    peerMlDsaKey;
     byte            peerMlDsaKeyPresent;
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    SlhDsaKey*      peerSlhDsaKey;
+    byte            peerSlhDsaKeyPresent;
 #endif
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */
@@ -7352,6 +7475,12 @@ WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 
 WOLFSSL_LOCAL void DecodeSigAlg(const byte* input, byte* hashAlgo,
         byte* hsType);
+#ifdef WOLFSSL_HAVE_SLHDSA
+WOLFSSL_LOCAL byte SlhDsaSigMinorToType(byte minor);
+WOLFSSL_LOCAL int SlhDsaTypeToParam(byte hsType);
+WOLFSSL_LOCAL int IsSlhDsaSigAlgo(byte hsType);
+WOLFSSL_LOCAL byte SlhDsaParamToType(int param);
+#endif
 WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
 
 #ifndef NO_CERTS

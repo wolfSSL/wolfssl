@@ -1152,6 +1152,16 @@ static int Dtls13SendFragmented(WOLFSSL* ssl, byte* message, word16 length,
 
     messageSize = length - rlHeaderLength - DTLS_HANDSHAKE_HEADER_SZ;
 
+    /* This copies the whole message body into a second full-size buffer,
+     * alongside the caller's output buffer that still holds the assembled
+     * message - a transient ~2x peak. For a large post-quantum
+     * CertificateVerify signature (SLH-DSA, ML-DSA) that body dominates RAM.
+     * A future optimization could have the caller assemble the body directly
+     * into this buffer (or sign into it) so the copy is avoided, cutting the
+     * peak toward ~1x. See the TLS 1.3 streamed CertificateVerify path
+     * (WOLFSSL_TLS13_STREAM_CERT_VERIFY) for the equivalent idea over TCP;
+     * note the retransmission copy (Dtls13RtxNewRecord) must remain regardless,
+     * so ~1x retained until ACK is the DTLS floor. */
     ssl->dtls13FragmentsBuffer.buffer =
         (byte*)XMALLOC(messageSize, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 

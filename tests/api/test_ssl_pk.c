@@ -420,7 +420,14 @@ int test_wolfSSL_get_signature_type_nid(void)
             anonymous_sa_algo, rsa_sa_algo, dsa_sa_algo, ecc_dsa_sa_algo,
             ecc_brainpool_sa_algo, rsa_pss_sa_algo, rsa_pss_pss_algo,
             falcon_level1_sa_algo, falcon_level5_sa_algo, mldsa_44_sa_algo,
-            mldsa_65_sa_algo, mldsa_87_sa_algo, sm2_sa_algo
+            mldsa_65_sa_algo, mldsa_87_sa_algo,
+            slhdsa_sha2_128s_sa_algo, slhdsa_sha2_128f_sa_algo,
+            slhdsa_sha2_192s_sa_algo, slhdsa_sha2_192f_sa_algo,
+            slhdsa_sha2_256s_sa_algo, slhdsa_sha2_256f_sa_algo,
+            slhdsa_shake_128s_sa_algo, slhdsa_shake_128f_sa_algo,
+            slhdsa_shake_192s_sa_algo, slhdsa_shake_192f_sa_algo,
+            slhdsa_shake_256s_sa_algo, slhdsa_shake_256f_sa_algo,
+            sm2_sa_algo
         };
         static const byte failAlgos[] = { invalid_sa_algo, any_sa_algo };
         size_t i;
