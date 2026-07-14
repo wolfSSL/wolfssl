@@ -367,6 +367,24 @@ int test_wc_falcon_import_export(void)
         ExpectIntEQ(res, 1);
         wc_falcon_free(&key2);
 
+        /* import_private_only with the legacy concat(priv,pub) layout must
+         * recover the public key on its own (pubKeySet), so a signature can be
+         * produced and verified from that single import with no separate
+         * public-key import. */
+        XMEMSET(&key2, 0, sizeof(key2));
+        ExpectIntEQ(wc_falcon_init(&key2), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key2, level), 0);
+        ExpectIntEQ(wc_falcon_import_private_only(prvpub, prvpubLen, &key2), 0);
+        ExpectIntEQ(wc_falcon_check_key(&key2), 0);
+        sigLen = FALCON_MAX_SIG_SIZE;
+        ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+            &key2, &rng), 0);
+        res = 0;
+        ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+            &res, &key2), 0);
+        ExpectIntEQ(res, 1);
+        wc_falcon_free(&key2);
+
         /* import_private_key with the concat layout recovers the public key. */
         XMEMSET(&key2, 0, sizeof(key2));
         ExpectIntEQ(wc_falcon_init(&key2), 0);

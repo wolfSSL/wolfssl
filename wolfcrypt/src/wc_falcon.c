@@ -19,11 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Native Falcon implementation for wolfCrypt.
- *
- * Phase 1: verification only (integer arithmetic, no floating point).
- * The signature/keygen paths and the floating-point primitive seam are added
- * in later phases. See wolfssl/wolfcrypt/falcon.h. */
+/* Native Falcon implementation for wolfCrypt: the keygen, sign and verify
+ * cores (falcon_native_*) behind the wc_falcon_* wrappers in falcon.c. Verify
+ * is integer-only; sign and keygen use the floating-point fpr FFT seam.
+ * See wolfssl/wolfcrypt/falcon.h. */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
@@ -44,6 +43,14 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+/* A completed sign attempt whose compressed signature overruns the level's
+ * fixed length is rejected and re-sampled with a fresh nonce. Over-length
+ * compression is rare (well under 1% per attempt), so this bound is only ever
+ * approached by a wedged RNG feeding constant nonces -- in which case the loop
+ * exits with BUFFER_E rather than spinning forever. Mirrors the named restart
+ * bound (FALCON_SIGN_MAX_RESTARTS) on the sign-tree loop in wc_falcon_sign.c. */
+#define FALCON_SIGN_MAX_ENCODE_RETRIES 32
 
 /* Squared L2-norm acceptance bounds, indexed by logn. Values from the Falcon
  * specification / reference implementation (l2bound table). */
@@ -821,7 +828,7 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
 
     /* Each attempt draws a fresh nonce and samples a signature; retry if the
      * compressed form does not fit the level's maximum length. */
-    for (attempt = 0; attempt < 32; attempt++) {
+    for (attempt = 0; attempt < FALCON_SIGN_MAX_ENCODE_RETRIES; attempt++) {
         ret = wc_RNG_GenerateBlock(rng, nonce, FALCON_NONCE_SIZE);
         if (ret != 0) {
             goto out;

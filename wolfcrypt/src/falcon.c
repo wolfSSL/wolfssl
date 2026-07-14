@@ -157,9 +157,9 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
  *  msgLen      [in]  Length of the message in bytes.
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  Falcon key to use to verify.
- *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
- *          BUFFER_E when sigLen is less than FALCON_LEVEL1_SIG_SIZE,
- *          0 otherwise.
+ *  returns BAD_FUNC_ARG when a parameter is NULL or the public key is not set,
+ *          BUFFER_E when sigLen is out of range for the key's level,
+ *          0 on a completed verification (inspect *res for the result).
  */
 int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* res, falcon_key* key)
