@@ -18047,7 +18047,8 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
          * CertificateRequest (server). Reject anything we did not offer. */
         if (msgType == certificate &&
             IsAtLeastTLSv1_3(ssl->version) &&
-            TLSX_Find(ssl->extensions, (TLSX_Type)type) == NULL) {
+            TLSX_Find(ssl->extensions, (TLSX_Type)type) == NULL &&
+            TLSX_Find(ssl->ctx->extensions, (TLSX_Type)type) == NULL) {
             WOLFSSL_MSG("Cert-msg extension not offered in CH/CR");
             SendAlert(ssl, alert_fatal, unsupported_extension);
             WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
