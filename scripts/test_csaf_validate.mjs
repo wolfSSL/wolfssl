@@ -57,10 +57,10 @@ try {
   }))
   check('non-conformant document exits 1', run([badDoc]).status === 1)
 
-  // 3) unparseable input -> non-zero (read/parse-failure path).
+  // 3) unparsable input -> non-zero (read/parse-failure path).
   const junk = join(tmp, 'junk.csaf.json')
   writeFileSync(junk, '{ not valid json')
-  check('unparseable document exits non-zero', run([junk]).status !== 0)
+  check('unparsable document exits non-zero', run([junk]).status !== 0)
 
   // 4) valid: a document that passes the gate -> exit 0 (only when provided).
   const validDoc = process.argv[2]
