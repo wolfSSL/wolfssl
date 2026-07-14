@@ -37,7 +37,8 @@ of the wolfSSL manual.
 ## SBOM / CRA Compliance
 
 wolfSSL provides a Software Bill of Materials (SBOM) for EU Cyber Resilience
-Act (CRA) compliance via `make sbom`. See `doc/SBOM.md` for details.
+Act (CRA) compliance via `make sbom` (autotools) or
+`cmake --build build --target sbom` (CMake). See `doc/SBOM.md` for details.
 
 ## Notes, Please Read
 

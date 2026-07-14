@@ -4802,9 +4802,15 @@ endif()
 #
 # Equivalent autotools targets: make sbom / make install-sbom / make uninstall-sbom
 
-find_program(WOLFSSL_SBOM_PYTHON3
-    NAMES python3
-    DOC   "Python 3 interpreter for SBOM generation (scripts/gen-sbom)")
+# FindPython3 handles interpreter discovery portably (Windows launchers,
+# virtualenvs) where a bare find_program(python3) misses; available since
+# CMake 3.12, below this project's 3.16 minimum.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    set(WOLFSSL_SBOM_PYTHON3 "${Python3_EXECUTABLE}")
+else()
+    set(WOLFSSL_SBOM_PYTHON3 "")
+endif()
 find_program(WOLFSSL_SBOM_PYSPDXTOOLS
     NAMES pyspdxtools
     DOC   "pyspdxtools SPDX validator for SBOM generation (pip install spdx-tools)")
@@ -4914,9 +4920,9 @@ else()
             "-DWOLFSSL_SBOM_SPDX=${WOLFSSL_SBOM_SPDX}"
             "-DWOLFSSL_SBOM_TV=${WOLFSSL_SBOM_TV}"
             "-DWOLFSSL_VERSION=${PROJECT_VERSION}"
-            "-DWOLFSSL_INSTALL_DOCDIR=${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+            "-DWOLFSSL_INSTALL_DOCDIR=${CMAKE_INSTALL_FULL_DOCDIR}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/install-sbom.cmake"
-        COMMENT "Installing wolfSSL SBOM to ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+        COMMENT "Installing wolfSSL SBOM to ${CMAKE_INSTALL_FULL_DOCDIR}"
         VERBATIM
     )
     # sbom must complete before install-sbom copies its outputs.
@@ -4929,10 +4935,10 @@ else()
     add_custom_target(uninstall-sbom
         COMMAND ${CMAKE_COMMAND}
             "-DWOLFSSL_VERSION=${PROJECT_VERSION}"
-            "-DWOLFSSL_INSTALL_DOCDIR=${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+            "-DWOLFSSL_INSTALL_DOCDIR=${CMAKE_INSTALL_FULL_DOCDIR}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/uninstall-sbom.cmake"
         COMMENT
-            "Uninstalling wolfSSL SBOM from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+            "Uninstalling wolfSSL SBOM from ${CMAKE_INSTALL_FULL_DOCDIR}"
         VERBATIM
     )
 

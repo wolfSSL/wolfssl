@@ -331,6 +331,11 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
       $ make
       $ make sbom
 
+    Or with CMake:
+
+      $ cmake -B build
+      $ cmake --build build --target sbom
+
     This produces three files in the build directory:
 
       wolfssl-<version>.cdx.json   CycloneDX 1.6 JSON
@@ -347,6 +352,12 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     To remove installed SBOM files:
 
       $ make uninstall-sbom
+
+    The CMake equivalents (installing to CMAKE_INSTALL_DOCDIR, honoring
+    DESTDIR):
+
+      $ cmake --build build --target install-sbom
+      $ cmake --build build --target uninstall-sbom
 
     The generated files are removed by make clean.
 
