@@ -15573,6 +15573,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
                 }
                 else {
                     verifyFail = 1;
+                    /* Pass the failure on to the following verify
+                     * callbacks. */
+                    verify_ok = 0;
                 }
             }
     #endif
