@@ -11319,8 +11319,10 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     ALIGN16 byte Tprime[WC_AES_BLOCK_SIZE];
     ALIGN16 byte EKY0[WC_AES_BLOCK_SIZE];
     volatile sword32 res;
+#ifndef WC_AES_GCM_DEC_AUTH_EARLY
     byte mask;
     word32 i;
+#endif
 
     if (ivSz == GCM_NONCE_MID_SZ) {
         /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */
@@ -11440,13 +11442,16 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
      */
     ret = (ret & ~res);
     ret |= (res & WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
-#endif
     /* Mask the output on auth failure instead of branching, to keep the tag
-     * compare constant time. res is all-ones on mismatch, zero on match. */
+     * compare constant time. res is all-ones on mismatch, zero on match. A
+     * single vectorizable pass is cheaper than folding the mask into the
+     * decrypt loop. Not needed for WC_AES_GCM_DEC_AUTH_EARLY: there the tag is
+     * checked before decryption, so out is never written on a mismatch. */
     mask = (byte)res;
     for (i = 0; i < sz; i++) {
         out[i] &= (byte)~mask;
     }
+#endif
     return ret;
 }
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
