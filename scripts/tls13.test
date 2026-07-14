@@ -129,7 +129,7 @@ timeout -s KILL 2m ./examples/server/server -v 4 -R "$ready_file" -p $port &
 server_pid=$!
 create_port
 timeout -s KILL 2m ./examples/client/client -v 4 -p $port | tee "$client_file"
-RESULT=$?
+RESULT=${PIPESTATUS[0]}
 remove_ready_file
 if [ $RESULT -ne 0 ]; then
     echo -e "\n\nTLS v1.3 not enabled"
