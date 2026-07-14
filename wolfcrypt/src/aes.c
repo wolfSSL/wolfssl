@@ -15592,6 +15592,12 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 #endif
 
+    /* Software/HW key schedule required from here on. */
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
+
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
 
@@ -15755,6 +15761,12 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         /* fall-through when unavailable */
     }
 #endif
+
+    /* Software/HW key schedule required from here on. */
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
 
     o = out;
     oSz = inSz;
