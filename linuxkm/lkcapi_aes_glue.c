@@ -1121,6 +1121,16 @@ static int km_AesGcmSetAuthsize_Rfc4106(struct crypto_aead *tfm, unsigned int au
 
 #ifdef WOLFSSL_AESGCM_STREAM
 
+/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
+ * check and error if the module entered degraded state during the loop.
+ */
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+    #undef wc_AesGcmDecryptUpdate
+    #undef wc_AesGcmEncryptUpdate
+    typeof(wc_AesGcmDecryptUpdate_fips) wc_AesGcmDecryptUpdate;
+    typeof(wc_AesGcmEncryptUpdate_fips) wc_AesGcmEncryptUpdate;
+#endif
+
 static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 {
     struct crypto_aead * tfm = NULL;
@@ -1339,6 +1349,11 @@ out:
 
     return err;
 }
+
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+    #define wc_AesGcmDecryptUpdate wc_AesGcmDecryptUpdate_fips
+    #define wc_AesGcmEncryptUpdate wc_AesGcmEncryptUpdate_fips
+#endif
 
 #else /* !WOLFSSL_AESGCM_STREAM */
 
@@ -2205,6 +2220,16 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
 
 /* see /usr/src/linux/drivers/md/dm-crypt.c */
 
+/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
+ * check and error if the module entered degraded state during the loop.
+ */
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+    #undef wc_AesXtsDecryptUpdate
+    #undef wc_AesXtsEncryptUpdate
+    typeof(wc_AesXtsDecryptUpdate_fips) wc_AesXtsDecryptUpdate;
+    typeof(wc_AesXtsEncryptUpdate_fips) wc_AesXtsEncryptUpdate;
+#endif
+
 static int km_AesXtsEncrypt(struct skcipher_request *req)
 {
     int                      err;
@@ -2506,6 +2531,11 @@ out:
 
     return err;
 }
+
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+    #define wc_AesXtsDecryptUpdate wc_AesXtsDecryptUpdate_fips
+    #define wc_AesXtsEncryptUpdate wc_AesXtsEncryptUpdate_fips
+#endif
 
 static struct skcipher_alg xtsAesAlg = {
     .base.cra_name          = WOLFKM_AESXTS_NAME,
