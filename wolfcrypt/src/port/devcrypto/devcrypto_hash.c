@@ -193,12 +193,11 @@ int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
     {
         int ret;
-        wc_Sha256 cpy;
-        XMEMSET(&cpy, 0, sizeof(cpy)); /* ZII */
+        wc_Sha256 cpy = {0};
         ret = wc_Sha256Copy(sha, &cpy);
 
-        if (ret == 0 &&
-        (ret = HashUpdate(&cpy, CRYPTO_SHA2_256, cpy.msg, cpy.used)) == 0) {
+        if (ret == 0 && (ret = HashUpdate(&cpy,
+                        CRYPTO_SHA2_256, cpy.msg, cpy.used)) == 0) {
             /* help static analysis tools out */
             XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
             ret = GetDigest(&cpy, CRYPTO_SHA2_256, hash);
@@ -226,25 +225,21 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
     wc_Sha256Free(dst);
     if ((ret = wc_InitSha256_ex(dst, src->heap, 0)) != 0) {
-        /* make sure that any attempts to free dst
-         * dont accidentally close an unopened fd */
-        dst->ctx.inited = 0;
-        dst->ctx.cfd = -1;
         return ret;
     }
     dst->len  = src->len;
     dst->used = src->used;
-    dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dst->msg == NULL) {
-        wc_Sha256Free(dst);
-        return MEMORY_E;
+    if (src->len > 0) {
+        dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dst->msg == NULL) {
+            wc_Sha256Free(dst);
+            return MEMORY_E;
+        }
+        XMEMCPY(dst->msg, src->msg, src->len);
     }
-    XMEMCPY(dst->msg, src->msg, src->len);
 
     return ret;
 #else
-    (void)src;
-    (void)dst;
     (void)ret;
 
     WOLFSSL_MSG("Compile with WOLFSSL_DEVCRYPTO_HASH_KEEP for this feature");

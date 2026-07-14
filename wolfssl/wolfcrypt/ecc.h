@@ -67,6 +67,11 @@
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#ifdef WOLFSSL_CAAM
+    /* for CAAM_ADDRESS, used by struct ecc_key below */
+    #include <wolfssl/wolfcrypt/port/caam/caam_type.h>
+#endif
+
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     #include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
 #endif
@@ -75,10 +80,6 @@
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
 
-
-#if defined(WOLFSSL_CAAM)
-    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
-#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -532,13 +533,8 @@ struct ecc_key {
 #endif
 
 #ifdef WOLFSSL_CAAM
-    #ifdef CAAM_ADDRESS
-        CAAM_ADDRESS blackKey;     /* address of key encrypted and in secure memory */
-        CAAM_ADDRESS securePubKey; /* address of public key in secure memory */
-    #else
-        word32 blackKey;     /* address of key encrypted and in secure memory */
-        word32 securePubKey; /* address of public key in secure memory */
-    #endif
+    CAAM_ADDRESS blackKey;     /* address of key encrypted and in secure memory */
+    CAAM_ADDRESS securePubKey; /* address of public key in secure memory */
     int    partNum; /* partition number*/
 #endif
 #ifdef WOLFSSL_SE050

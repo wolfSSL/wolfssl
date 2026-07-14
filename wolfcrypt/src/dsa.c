@@ -1128,7 +1128,7 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
     if (digest == NULL || sig == NULL || key == NULL || answer == NULL)
         return BAD_FUNC_ARG;
 
-    /* assign default value so we return 0 on error */
+    /* assign default value so verification is always failed on error */
     *answer = 0;
 
     /* Note the min allowed digestSz here is WC_SHA_DIGEST_SIZE, not

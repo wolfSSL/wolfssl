@@ -258,6 +258,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
 
+#if defined(WOLFSSL_CAAM)
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+
 #if defined(WOLFSSL_KCAPI_ECC)
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
 #endif

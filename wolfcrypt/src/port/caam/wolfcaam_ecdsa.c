@@ -339,7 +339,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
 
     /* private key */
     if (key->blackKey == CAAM_BLACK_KEY_SM) {
-        buf[idx].TheAddress = (CAAM_ADDRESS)key->blackKey;
+        buf[idx].TheAddress = key->blackKey;
         args[0] = CAAM_BLACK_KEY_SM; /* is a black key in sm */
         buf[idx].Length = keySz;
     }

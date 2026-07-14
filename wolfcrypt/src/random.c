@@ -380,10 +380,10 @@ static int sha512DrbgDisabled = 0;
 #endif /* WOLFSSL_DRBG_SHA512 */
 
 enum {
-    wc_DrbgState_Mutex_Uninited,
-    wc_DrbgState_Mutex_InitProgress,
-    wc_DrbgState_Mutex_FreeProgress,
-    wc_DrbgState_Mutex_Inited
+    WC_DRBG_MUTEX_UNINITED,
+    WC_DRBG_MUTEX_INITPROGRESS,
+    WC_DRBG_MUTEX_FREEPROGRESS,
+    WC_DRBG_MUTEX_INITED
 };
 
 #ifndef SINGLE_THREADED
@@ -392,9 +392,9 @@ static wolfSSL_Mutex drbgStateMutex
 #ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifdef WOLFSSL_ATOMIC_OPS
 static wolfSSL_Atomic_Int drbgStateMutex_inited =
-                    WOLFSSL_ATOMIC_INITIALIZER(wc_DrbgState_Mutex_Uninited);
+                    WOLFSSL_ATOMIC_INITIALIZER(WC_DRBG_MUTEX_UNINITED);
 #else
-static int drbgStateMutex_inited = 0;
+static volatile int drbgStateMutex_inited = 0;
 #endif
 #endif
 #endif /* !SINGLE_THREADED */
@@ -404,34 +404,45 @@ int wc_DrbgState_MutexInit(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
+    #if defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_THREAD_YIELD)
     /* State machine so the mutex isn't marked ready before it is. The CAS
      * winner initializes and publishes Inited; losers spin (via their own
      * 'expected', which the failed CAS updates) until they see Inited. */
     for (;;) {
-        int expected = wc_DrbgState_Mutex_Uninited;
+        WC_ATOMIC_INT_ARG expected = WC_DRBG_MUTEX_UNINITED;
         if (wolfSSL_Atomic_Int_CompareExchange(&drbgStateMutex_inited,
-                                &expected, wc_DrbgState_Mutex_InitProgress)) {
+                                &expected, WC_DRBG_MUTEX_INITPROGRESS)) {
             /* We own initialization (state moved Uninited -> InitProgress). */
             int ret = wc_InitMutex(&drbgStateMutex);
             if (ret != 0) {
                 /* Init failed; release ownership so another thread may retry. */
                 (void)wolfSSL_Atomic_Int_Exchange(&drbgStateMutex_inited,
-                        wc_DrbgState_Mutex_Uninited);
+                        WC_DRBG_MUTEX_UNINITED);
                 return ret;
             }
             /* Publish the fully initialized mutex. */
             (void)wolfSSL_Atomic_Int_Exchange(&drbgStateMutex_inited,
-                    wc_DrbgState_Mutex_Inited);
+                    WC_DRBG_MUTEX_INITED);
             return 0;
         }
         /* Spin until drbgStateMutex is inited */
-        if (expected == wc_DrbgState_Mutex_Inited) {
+        if (expected == WC_DRBG_MUTEX_INITED) {
             /* Mutex is fully initialized. */
             return 0;
         }
 
-        continue;
+        WOLFSSL_THREAD_YIELD();
     }
+    #else
+    if (drbgStateMutex_inited == WC_DRBG_MUTEX_UNINITED) {
+        int ret = wc_InitMutex(&drbgStateMutex);
+        if (ret != 0) {
+            return ret;
+        }
+        drbgStateMutex_inited = WC_DRBG_MUTEX_INITED;
+    }
+    #endif
+
 #endif
 #endif
     return 0;
@@ -441,13 +452,14 @@ int wc_DrbgState_MutexFree(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
+    #if defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_THREAD_YIELD)
     /* CAS the ready state (Inited -> FreeProgress) so exactly one caller frees.
      * Losers spin until it settles: Uninited returns success; Inited (a free
      * that failed and rolled back) lets a spinning thread retry. */
     for (;;) {
-        int expected = wc_DrbgState_Mutex_Inited;
+        WC_ATOMIC_INT_ARG expected = WC_DRBG_MUTEX_INITED;
         if (wolfSSL_Atomic_Int_CompareExchange(&drbgStateMutex_inited,
-                                &expected, wc_DrbgState_Mutex_FreeProgress)) {
+                                &expected, WC_DRBG_MUTEX_FREEPROGRESS)) {
             /* We own teardown (state moved Inited -> FreeProgress). */
             int ret = wc_FreeMutex(&drbgStateMutex);
             if (ret != 0) {
@@ -455,25 +467,31 @@ int wc_DrbgState_MutexFree(void)
                  * valid object, so restore the ready state rather than leaving
                  * the flag claiming it is uninitialized. */
                 (void)wolfSSL_Atomic_Int_Exchange(&drbgStateMutex_inited,
-                        wc_DrbgState_Mutex_Inited);
+                        WC_DRBG_MUTEX_INITED);
                 return ret;
             }
             /* Mark the mutex as no longer initialized. */
             (void)wolfSSL_Atomic_Int_Exchange(&drbgStateMutex_inited,
-                    wc_DrbgState_Mutex_Uninited);
+                    WC_DRBG_MUTEX_UNINITED);
             return 0;
         }
         /* CAS failed; 'expected' holds the observed state. */
-        if (expected == wc_DrbgState_Mutex_Uninited) {
+        if (expected == WC_DRBG_MUTEX_UNINITED) {
             /* Already freed or never initialized; nothing to do. */
             return 0;
         }
-        /* expected == InitProgress or FreeProgress: another thread is busy;
-         * spin until it settles. */
-        continue;
-    }
 
-    return 0;
+        WOLFSSL_THREAD_YIELD();
+    }
+    #else
+    if (drbgStateMutex_inited == WC_DRBG_MUTEX_INITED) {
+        int ret = wc_FreeMutex(&drbgStateMutex);
+        if (ret != 0) {
+            return ret;
+        }
+        drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
+    }
+    #endif
 #endif
 #endif
     return 0;
@@ -3791,6 +3809,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
             return ret;
         }
         writeUnalignedWord64(output, rndTmpLocal);
+        ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
     }
     if (sz == 0)
         return 0;
@@ -3872,6 +3891,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
             return ret;
         }
         writeUnalignedWord64(output, rndTmpLocal);
+        ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
     }
     if (sz == 0)
         return 0;
@@ -3882,6 +3902,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return ret;
 
     XMEMCPY(output, &rndTmp, sz);
+    ForceZero(&rndTmp, sizeof(rndTmp));
 
     return 0;
 }
