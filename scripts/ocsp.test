@@ -2,6 +2,12 @@
 
 # ocsp.test
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
 # Note, this script makes connection(s) to the public Internet.
 
 SCRIPT_DIR="$(dirname "$0")"
@@ -38,7 +44,7 @@ if [ "$OUTPUT" = "SNI is: ON" ]; then
     if [ $RESULT -eq 0 ]; then
         # client test against the server
         echo "./examples/client/client -X -C -h $server -p 443 -A \"$ca\" -g -o -N -v d -S $server"
-        ./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N -v d -S $server
+        timeout -s KILL 2m ./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N -v d -S $server
         GL_RESULT=$?
         [ $GL_RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed"
     else
@@ -63,7 +69,7 @@ fi
 if [ $RESULT -eq 0 ]; then
     # client test against the server
     echo "./examples/client/client -X -C -h $server -p 443 -A \"$ca\" -g -o -N"
-    ./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N
+    timeout -s KILL 2m ./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N
     GR_RESULT=$?
     [ $GR_RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed"
 else

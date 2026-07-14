@@ -9,6 +9,12 @@
 # Uses: examples/ocsp_responder/ocsp_responder as the OCSP responder
 #       openssl ocsp as the client
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
 if ! test -n "$WOLFSSL_OPENSSL_TEST"; then
     echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
     exit 77
@@ -91,6 +97,13 @@ cleanup() {
     exit_status=$?
     for p in $resp_pids; do
         kill $p 2>/dev/null
+        # Escalate to KILL so a wedged responder cannot hang this trap.
+        counter=0
+        while kill -0 $p 2>/dev/null && [ "$counter" -lt 50 ]; do
+            sleep 0.1
+            counter=$((counter + 1))
+        done
+        kill -s KILL $p 2>/dev/null
         wait $p 2>/dev/null
     done
     # Clean up log files
@@ -131,14 +144,20 @@ print_responder_logs() {
 
 get_first_free_port() {
     local ret="$1"
+    local scanned=0
     while :; do
         if [[ "$ret" -ge 65536 ]]; then
             ret=1024
         fi
-        if ! nc -z ${LOCALHOST_FOR_NC} "$ret"; then
+        if ! nc -w 1 -z ${LOCALHOST_FOR_NC} "$ret"; then
             break
         fi
         ret=$((ret+1))
+        scanned=$((scanned+1))
+        if [ "$scanned" -ge 100 ]; then
+            echo "ERROR: no free port found after scanning 100 ports" 1>&2
+            exit 1
+        fi
     done
     echo "$ret"
     return 0
@@ -180,7 +199,7 @@ query_ocsp() {
     printf "  TEST %2d: %-55s " "$tests_run" "$desc"
 
     local output
-    output=$($OPENSSL ocsp \
+    output=$(timeout -s KILL 2m $OPENSSL ocsp \
         -issuer "$issuer" \
         -cert "$cert" \
         -url "http://127.0.0.1:$_port/" \
@@ -395,7 +414,7 @@ echo "=== Negative tests: unsupported features ==="
 tests_run=$((tests_run+1))
 printf "  TEST %2d: %-55s " "$tests_run" "SHA-384 hash -> good"
 
-output=$($OPENSSL ocsp \
+output=$(timeout -s KILL 2m $OPENSSL ocsp \
     -sha384 \
     -issuer "$OCSP_DIR/intermediate1-ca-cert.pem" \
     -cert "$OCSP_DIR/server1-cert.pem" \
@@ -433,7 +452,7 @@ printf "  TEST %2d: %-55s " "$tests_run" "Authorized responder"
 
 # Query using OpenSSL - asks about intermediate1-ca which was issued by root-ca
 # Response will be signed by ocsp-responder-cert (authorized responder)
-output=$($OPENSSL ocsp \
+output=$(timeout -s KILL 2m $OPENSSL ocsp \
     -issuer "$OCSP_DIR/root-ca-cert.pem" \
     -cert "$OCSP_DIR/intermediate1-ca-cert.pem" \
     -url "http://127.0.0.1:$port5/" \
@@ -468,7 +487,7 @@ echo "=== Unknown certificate tests ==="
 tests_run=$((tests_run+1))
 printf "  TEST %2d: %-55s " "$tests_run" "Wrong issuer: server3 to responder 1 (wrong issuer)"
 
-output=$($OPENSSL ocsp \
+output=$(timeout -s KILL 2m $OPENSSL ocsp \
     -issuer "$OCSP_DIR/intermediate1-ca-cert.pem" \
     -cert "$OCSP_DIR/server3-cert.pem" \
     -url "http://127.0.0.1:$port1/" \
@@ -495,7 +514,7 @@ fi
 tests_run=$((tests_run+1))
 printf "  TEST %2d: %-55s " "$tests_run" "Wrong issuer: server1 to responder 2 (wrong issuer)"
 
-output=$($OPENSSL ocsp \
+output=$(timeout -s KILL 2m $OPENSSL ocsp \
     -issuer "$OCSP_DIR/intermediate2-ca-cert.pem" \
     -cert "$OCSP_DIR/server1-cert.pem" \
     -url "http://127.0.0.1:$port2/" \
@@ -528,7 +547,7 @@ tests_run=$((tests_run+1))
 printf "  TEST %2d: %-55s " "$tests_run" "Multiple requests (should return OCSP error)"
 
 # Using multiple -cert options creates one OCSP request with multiple certificate IDs
-output=$($OPENSSL ocsp \
+output=$(timeout -s KILL 2m $OPENSSL ocsp \
     -issuer "$OCSP_DIR/intermediate1-ca-cert.pem" \
     -cert "$OCSP_DIR/server1-cert.pem" \
     -cert "$OCSP_DIR/server2-cert.pem" \

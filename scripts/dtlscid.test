@@ -64,7 +64,7 @@ test_cid () {
     timeout -s KILL 2m $WOLFSSL_ROOT/examples/server/server -v4 -u --cid $SCID 1> $SERVER_FILE &
     SERVER_PID=$!
     sleep 0.2
-    $WOLFSSL_ROOT/examples/client/client -v4 -u --cid $CCID 1> $CLIENT_FILE
+    timeout -s KILL 2m $WOLFSSL_ROOT/examples/client/client -v4 -u --cid $CCID 1> $CLIENT_FILE
     wait $SERVER_PID
     SERVER_PID=
     grep "Sending CID is ${HEXSCID}" $CLIENT_FILE > /dev/null
