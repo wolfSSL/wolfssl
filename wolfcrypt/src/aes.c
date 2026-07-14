@@ -11319,6 +11319,8 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     ALIGN16 byte Tprime[WC_AES_BLOCK_SIZE];
     ALIGN16 byte EKY0[WC_AES_BLOCK_SIZE];
     volatile sword32 res;
+    byte mask;
+    word32 i;
 
     if (ivSz == GCM_NONCE_MID_SZ) {
         /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */
@@ -11439,8 +11441,11 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     ret = (ret & ~res);
     ret |= (res & WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
 #endif
-    if (ret != 0) {
-        ForceZero(out, sz);
+    /* Mask the output on auth failure instead of branching, to keep the tag
+     * compare constant time. res is all-ones on mismatch, zero on match. */
+    mask = (byte)res;
+    for (i = 0; i < sz; i++) {
+        out[i] &= (byte)~mask;
     }
     return ret;
 }
