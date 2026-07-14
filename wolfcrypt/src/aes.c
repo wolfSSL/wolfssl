@@ -671,16 +671,18 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #define AESNI_ALIGN 16
     #endif
 
-    /* Accessed with the wolfSSL atomic APIs so the one-time detection is free of
-     * data races.  Writes are also idempotent (all callers compute the same
-     * value), so a benign concurrent double-write is harmless. */
-    static wolfSSL_Atomic_Uint checkedAESNI = WOLFSSL_ATOMIC_INITIALIZER(0);
-    static wolfSSL_Atomic_Uint haveAESNI = WOLFSSL_ATOMIC_INITIALIZER(0);
-    static cpuid_flags_atomic_t intel_flags = WC_CPUID_ATOMIC_INITIALIZER;
+    /* Note that all write access to these static variables must be idempotent,
+     * as arranged by Check_CPU_support_AES(), else they will be susceptible to
+     * data races.  Don't use wolfSSL_Atomic_Uint here, to avoid atomic access
+     * overhead on subsequent calls.
+     */
+    static int checkedAESNI = 0;
+    static int haveAESNI = 0;
+    static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
 
     static WARN_UNUSED_RESULT int Check_CPU_support_AES(void)
     {
-        cpuid_get_flags_atomic(&intel_flags);
+        cpuid_get_flags_ex(&intel_flags);
 
         return IS_INTEL_AESNI(intel_flags) != 0;
     }
@@ -1084,11 +1086,12 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #elif defined(WOLFSSL_ARMASM)
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
+static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 
 static void Check_CPU_support_HwCrypto(Aes* aes)
 {
-    cpuid_get_flags_atomic(&cpuid_flags);
+    if (cpuid_flags == WC_CPUID_INITIALIZER)
+        cpuid_get_flags_ex(&cpuid_flags);
     aes->use_aes_hw_crypto = IS_AARCH64_AES(cpuid_flags);
 #ifdef HAVE_AESGCM
     aes->use_pmull_hw_crypto = IS_AARCH64_PMULL(cpuid_flags);
@@ -1175,21 +1178,22 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
  * branches that also call these names are #if'd out, so only the live PPC call
  * sites are redirected. */
 
-/* Resolved dispatch decision (0 = base, 1 = vector-crypto), accessed with the
- * wolfSSL atomic APIs so the one-time detection is free of data races.  The
- * master cpuid flags read by cpuid_get_flags() are themselves atomic; the write
- * here is idempotent so a benign concurrent double-write is harmless. */
-static wolfSSL_Atomic_Uint aes_ppc64_use_crypto = WOLFSSL_ATOMIC_INITIALIZER(0);
+/* Resolved dispatch decision (0 = base, 1 = vector-crypto).  The write here is
+ * idempotent so a benign concurrent double-write is harmless.  Avoid atomic for
+ * this, as for intel_flags above, to avoid unnecessary expensive reads. */
+static int aes_ppc64_use_crypto = 0;
 
 /* True when the CPU supports the vector-crypto instructions. */
-#define AES_PPC64_USE_CRYPTO()   (WOLFSSL_ATOMIC_LOAD(aes_ppc64_use_crypto) != 0)
+#define AES_PPC64_USE_CRYPTO()   (aes_ppc64_use_crypto != 0)
 
 /* Check and set the decision together (as Check_CPU_support_AES/HwCrypto do);
  * called from the key-setup path before any AES_*_crypto use. */
 static void Aes_SetCrypto(void)
 {
-    WOLFSSL_ATOMIC_STORE(aes_ppc64_use_crypto,
-        (unsigned int)(IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0));
+    static cpuid_flags_t cpu_flags = WC_CPUID_INITIALIZER;
+    if (cpu_flags == WC_CPUID_INITIALIZER)
+        cpuid_get_flags_ex(&cpu_flags);
+    aes_ppc64_use_crypto = (IS_PPC64_VEC_CRYPTO(cpu_flags) != 0);
 }
 
 #define AES_set_encrypt_key(key, len, ks)                                     \
@@ -5674,11 +5678,11 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         * function correctly with default build settings.
         */
 
-        if (WOLFSSL_ATOMIC_LOAD(checkedAESNI) == 0) {
-            WOLFSSL_ATOMIC_STORE(haveAESNI, Check_CPU_support_AES());
-            WOLFSSL_ATOMIC_STORE(checkedAESNI, 1);
+        if (checkedAESNI == 0) {
+            haveAESNI = Check_CPU_support_AES();
+            checkedAESNI = 1;
         }
-        if (WOLFSSL_ATOMIC_LOAD(haveAESNI)
+        if (haveAESNI
 #if defined(WC_FLAG_DONT_USE_VECTOR_OPS) && !defined(WC_C_DYNAMIC_FALLBACK)
             && (aes->use_aesni != WC_FLAG_DONT_USE_VECTOR_OPS)
 #endif
@@ -19464,7 +19468,7 @@ static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
 static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
 {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-    cpuid_get_flags_atomic(&cpuid_flags);
+    cpuid_get_flags_ex(&cpuid_flags);
     if (IS_AARCH64_PMULL(cpuid_flags)) {
         return &AES_GCMSIV_polyval_pmull;
     }
@@ -19483,7 +19487,7 @@ static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
  * AES-NI gates the base path (matching wolfSSL's AES-GCM). */
 static AesGcmSivPolyvalFn AesGcmSivPolyvalAsm(void)
 {
-    cpuid_get_flags_atomic(&intel_flags);
+    cpuid_get_flags_ex(&intel_flags);
     if (!IS_INTEL_AESNI(intel_flags)) {
         return NULL;
     }
@@ -19528,7 +19532,7 @@ static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
 static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
 {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-    cpuid_get_flags_atomic(&cpuid_flags);
+    cpuid_get_flags_ex(&cpuid_flags);
     if (IS_AARCH64_AES(cpuid_flags)) {
         return &AES_GCMSIV_ctr_aarch64;
     }
@@ -19546,7 +19550,7 @@ static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
  * the base; AVX1/VAES/AVX512 are progressively wider pipelines. */
 static AesGcmSivCtrFn AesGcmSivCtrAsm(void)
 {
-    cpuid_get_flags_atomic(&intel_flags);
+    cpuid_get_flags_ex(&intel_flags);
     if (!IS_INTEL_AESNI(intel_flags)) {
         return NULL;
     }
