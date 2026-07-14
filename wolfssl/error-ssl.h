@@ -255,8 +255,6 @@ enum wolfSSL_ErrorCodes {
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
 
-wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
-
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
     /* Legacy alias for code written against the pre-standardization
      * Dilithium name. Will be removed alongside the dilithium.h shim. */

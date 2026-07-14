@@ -32,6 +32,10 @@
 #include <wolfssl/debug-untrace-error-codes.h>
 #endif
 
+wc_static_assert((int)WC_LAST_E <= (int)WC_SPAN2_LAST_E);
+wc_static_assert((int)MIN_CODE_E <= (int)WC_LAST_E);
+wc_static_assert((int)MIN_CODE_E <= (int)WC_SPAN2_MIN_CODE_E);
+
 WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
@@ -620,6 +624,9 @@ const char* wc_GetErrorString(int error)
     case KEY_EXHAUSTED_E:
         return "Key no longer usable for operation";
 
+    case ML_KEM_KAT_FIPS_E:
+        return "wolfCrypt FIPS ML-KEM Known Answer Test Failure";
+
     case FIPS_INVALID_VER_E:
         return "Invalid FIPS version defined, check length";
 
@@ -643,6 +650,15 @@ const char* wc_GetErrorString(int error)
 
     case WC_KEY_MISMATCH_E:
         return "key values mismatch";
+
+    case ML_DSA_KAT_FIPS_E:
+        return "wolfCrypt FIPS ML-DSA Known Answer Test Failure";
+
+    case LMS_KAT_FIPS_E:
+        return "wolfCrypt FIPS LMS Known Answer Test Failure";
+
+    case XMSS_KAT_FIPS_E:
+        return "wolfCrypt FIPS XMSS Known Answer Test Failure";
 
     case DEADLOCK_AVERTED_E:
         return "Deadlock averted -- retry the call";
@@ -668,17 +684,26 @@ const char* wc_GetErrorString(int error)
     case ALREADY_E:
         return "Operation was redundant or preempted";
 
-    case ML_KEM_KAT_FIPS_E:
-        return "wolfCrypt FIPS ML-KEM Known Answer Test Failure";
+    case SEQ_OVERFLOW_E:
+        return "Sequence counter would overflow";
 
-    case ML_DSA_KAT_FIPS_E:
-        return "wolfCrypt FIPS ML-DSA Known Answer Test Failure";
+    case PUF_INIT_E:
+        return "PUF initialization failed";
 
-    case LMS_KAT_FIPS_E:
-        return "wolfCrypt FIPS LMS Known Answer Test Failure";
+    case PUF_READ_E:
+        return "PUF SRAM read failed";
 
-    case XMSS_KAT_FIPS_E:
-        return "wolfCrypt FIPS XMSS Known Answer Test Failure";
+    case PUF_ENROLL_E:
+        return "PUF enrollment failed";
+
+    case PUF_RECONSTRUCT_E:
+        return "PUF reconstruction failed";
+
+    case PUF_DERIVE_KEY_E:
+        return "PUF key derivation failed";
+
+    case PUF_IDENTITY_E:
+        return "PUF identity retrieval failed";
 
     case ML_KEM_PCT_E:
         return "wolfcrypt ML-KEM Pairwise Consistency Test Failure";
@@ -710,26 +735,8 @@ const char* wc_GetErrorString(int error)
     case AES_KW_KAT_FIPS_E:
         return "wolfCrypt FIPS AES Key Wrap Known Answer Test Failure";
 
-    case SEQ_OVERFLOW_E:
-        return "Sequence counter would overflow";
-
-    case PUF_INIT_E:
-        return "PUF initialization failed";
-
-    case PUF_READ_E:
-        return "PUF SRAM read failed";
-
-    case PUF_ENROLL_E:
-        return "PUF enrollment failed";
-
-    case PUF_RECONSTRUCT_E:
-        return "PUF reconstruction failed";
-
-    case PUF_DERIVE_KEY_E:
-        return "PUF key derivation failed";
-
-    case PUF_IDENTITY_E:
-        return "PUF identity retrieval failed";
+    case FIPS_WRONG_API_E:
+        return "Requested API is not allowed in FIPS mode";
 
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:

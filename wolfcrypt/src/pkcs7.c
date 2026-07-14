@@ -101,6 +101,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/wc_compat.h>
+
 /* direction for processing, encoding or decoding */
 typedef enum {
     WC_PKCS7_ENCODE,

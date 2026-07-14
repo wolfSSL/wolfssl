@@ -28447,6 +28447,8 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
 }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER || HAVE_MEMCACHED */
 
+wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+
 const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 {
 #ifdef NO_ERROR_STRINGS
@@ -42275,8 +42277,8 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other value when encryption/decryption fails.
  */
-static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
-                        byte* in, int inLen, byte* out, int* outLen, byte* tag,
+static int TicketEncDec(const byte* key, int keyLen, const byte* iv, const byte* aad, int aadSz,
+                        const byte* in, int inLen, byte* out, int* outLen, byte* tag,
                         void* heap, int enc)
 {
     int ret;
@@ -42293,7 +42295,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
             ret = wc_AesGcmSetKey(aes, key, keyLen);
         }
         if (ret == 0) {
-            ret = wc_AesGcmEncrypt(aes, in, out, inLen, iv, GCM_NONCE_MID_SZ,
+            ret = wc_AesGcmEncrypt(aes, out, in, inLen, iv, GCM_NONCE_MID_SZ,
                                    tag, WC_AES_BLOCK_SIZE, aad, aadSz);
         }
         wc_AesFree(aes);
@@ -42304,7 +42306,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
             ret = wc_AesGcmSetKey(aes, key, keyLen);
         }
         if (ret == 0) {
-            ret = wc_AesGcmDecrypt(aes, in, out, inLen, iv, GCM_NONCE_MID_SZ,
+            ret = wc_AesGcmDecrypt(aes, out, in, inLen, iv, GCM_NONCE_MID_SZ,
                                    tag, WC_AES_BLOCK_SIZE, aad, aadSz);
         }
         wc_AesFree(aes);

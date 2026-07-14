@@ -54,6 +54,8 @@
 #include <wolfssl/wolfcrypt/curve448.h>
 #endif
 
+#include <wolfssl/wolfcrypt/wc_compat.h>
+
 static const struct s_ent {
     const enum wc_HashType macType;
     const int nid;

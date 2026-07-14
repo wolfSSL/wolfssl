@@ -621,11 +621,19 @@ WOLFSSL_LOCAL int wc_local_AesGcmCheckTagSz(word32 authTagSz);
          word32 kup);
 #endif
  WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
- WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
-                                   const byte* in, word32 sz,
-                                   const byte* iv, word32 ivSz,
-                                   byte* authTag, word32 authTagSz,
-                                   const byte* authIn, word32 authInSz);
+#if defined(HAVE_FIPS) && !defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED)
+#ifndef _WC_BUILDING_AES_C
+ WC_DEPRECATED("wc_AesGcmEncrypt() is not approved for FIPS usage.")
+#endif
+ WOLFSSL_LOCAL
+#else
+ WOLFSSL_API
+#endif
+ int wc_AesGcmEncrypt(Aes* aes, byte* out,
+                      const byte* in, word32 sz,
+                      const byte* iv, word32 ivSz,
+                      byte* authTag, word32 authTagSz,
+                      const byte* authIn, word32 authInSz);
  WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,

@@ -31,8 +31,6 @@ the error status.
 #ifndef WOLF_CRYPT_ERROR_H
 #define WOLF_CRYPT_ERROR_H
 
-#include <wolfssl/wolfcrypt/types.h>
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -340,9 +338,10 @@ enum wolfCrypt_ErrorCodes {
                                   * so fips.c can report it as retired rather
                                   * than unknown. */
     AES_KW_KAT_FIPS_E   = -1024, /* AES Key Wrap KAT failure */
+    FIPS_WRONG_API_E    = -1025, /* Requested API is not allowed in FIPS mode */
 
-    WC_SPAN2_LAST_E     = -1024, /* Update to indicate last used error code */
-    WC_LAST_E           = -1024, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1025, /* Update to indicate last used error code */
+    WC_LAST_E           = -1025, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
@@ -353,10 +352,6 @@ enum wolfCrypt_ErrorCodes {
     /* add new companion error id strings for any new error codes
        wolfcrypt/src/error.c !!! */
 };
-
-wc_static_assert((int)WC_LAST_E <= (int)WC_SPAN2_LAST_E);
-wc_static_assert((int)MIN_CODE_E <= (int)WC_LAST_E);
-wc_static_assert((int)MIN_CODE_E <= (int)WC_SPAN2_MIN_CODE_E);
 
 #ifdef NO_ERROR_STRINGS
     #define wc_GetErrorString(error) "no support for error strings built in"
