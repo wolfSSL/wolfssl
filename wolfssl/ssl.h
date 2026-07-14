@@ -2187,6 +2187,7 @@ WOLFSSL_API int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio);
 WOLFSSL_API int wolfSSL_BIO_should_read(WOLFSSL_BIO *bio);
 WOLFSSL_API int wolfSSL_BIO_should_write(WOLFSSL_BIO *bio);
 
+WOLFSSL_API int wolfSSL_BIO_get_new_index(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char* name);
 WOLFSSL_API void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD* biom);
 WOLFSSL_API int wolfSSL_BIO_meth_set_write(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_write_cb biom_write);

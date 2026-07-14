@@ -1571,7 +1571,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_state_string_long           wolfSSL_state_string_long
 
 /* Must equal HANDSHAKE_DONE in the internal 'enum states'
- * (wolfssl/internal.h), returned by wolfSSL_get_state(); 16 today. */
+ * (wolfssl/internal.h), returned by wolfSSL_get_state(); enforced by a
+ * wc_static_assert in src/ssl.c. */
 #define WOLFSSL_TLS_ST_OK               16
 #define WOLFSSL_SSL_ST_OK               WOLFSSL_TLS_ST_OK
 #define TLS_ST_OK                       WOLFSSL_TLS_ST_OK
@@ -1771,9 +1772,12 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define ERR_R_BUF_LIB WOLFSSL_ERR_R_BUF_LIB
 #define BIO_TYPE_DESCRIPTOR WOLFSSL_BIO_TYPE_DESCRIPTOR
 #define BIO_TYPE_SOURCE_SINK WOLFSSL_BIO_TYPE_SOURCE_SINK
-#define BIO_get_app_data(bio) wolfSSL_BIO_get_data(bio)
+#define BIO_TYPE_START WOLFSSL_BIO_TYPE_START
+/* Like OpenSSL, back app_data with BIO ex_data slot 0 so it does not share
+ * storage with BIO_get_data()/BIO_set_data() (requires HAVE_EX_DATA). */
+#define BIO_get_app_data(bio) wolfSSL_BIO_get_ex_data((bio), 0)
 #define BIO_set_app_data(bio, data) \
-    wolfSSL_BIO_set_data((bio), (data))
+    wolfSSL_BIO_set_ex_data((bio), 0, (data))
 #define BIO_get_new_index wolfSSL_BIO_get_new_index
 #define BIO_meth_get_gets wolfSSL_BIO_meth_get_gets
 #define BIO_meth_get_puts wolfSSL_BIO_meth_get_puts
@@ -1782,9 +1786,6 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define BIO_meth_get_destroy wolfSSL_BIO_meth_get_destroy
 #define BIO_meth_get_callback_ctrl wolfSSL_BIO_meth_get_callback_ctrl
 #define BIO_meth_set_callback_ctrl wolfSSL_BIO_meth_set_callback_ctrl
-#ifndef BUILDING_WOLFSSL
-#define OBJ_find_sigid_algs wolfSSL_OBJ_find_sigid_algs
-#endif
 
 #ifdef HAVE_SESSION_TICKET
 #define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
