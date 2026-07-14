@@ -95,6 +95,7 @@ ready_files=""
 
 cleanup() {
     exit_status=$?
+    local counter
     for p in $resp_pids; do
         kill $p 2>/dev/null
         # Escalate to KILL so a wedged responder cannot hang this trap.
@@ -103,7 +104,9 @@ cleanup() {
             sleep 0.1
             counter=$((counter + 1))
         done
-        kill -s KILL $p 2>/dev/null
+        if kill -0 $p 2>/dev/null; then
+            kill -s KILL $p 2>/dev/null
+        fi
         wait $p 2>/dev/null
     done
     # Clean up log files
