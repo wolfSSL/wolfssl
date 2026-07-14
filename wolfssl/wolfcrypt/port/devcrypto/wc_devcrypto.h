@@ -38,7 +38,7 @@
 
 typedef struct WC_CRYPTODEV {
     int cfd;
-    word8 inited : 1;/* is this object initialized (1) or not (0) */
+    unsigned int inited : 1;/* is this object initialized (1) or not (0) */
     struct session_op sess;
 } WC_CRYPTODEV;
 

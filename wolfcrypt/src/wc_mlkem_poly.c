@@ -5110,7 +5110,7 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
  */
 static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
 {
-    word64 state[3 * 25];
+    word64 state[3 * 25] = {0};
 
     state[0*25 + 4] = 0x1f00 + 0 + o;
     state[1*25 + 4] = 0x1f00 + 1 + o;
@@ -5143,7 +5143,7 @@ static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
  */
 static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
-    word64 state[3 * 25];
+    word64 state[3 * 25] = {0};
 
     state[0*25 + 4] = 0x1f00 + 0 + o;
     state[1*25 + 4] = 0x1f00 + 1 + o;

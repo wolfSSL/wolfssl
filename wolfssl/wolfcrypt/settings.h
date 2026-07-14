@@ -3153,6 +3153,7 @@
 #endif
 
 #ifdef WOLFSSL_SECO_CAAM
+    #undef  WOLFSSL_CAAM
     #define WOLFSSL_CAAM
 
     #define WOLFSSL_HASH_KEEP
@@ -3160,6 +3161,7 @@
 #endif
 
 #ifdef WOLFSSL_IMXRT1170_CAAM
+    #undef  WOLFSSL_CAAM
     #define WOLFSSL_CAAM
 #endif
 

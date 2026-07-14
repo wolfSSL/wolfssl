@@ -418,7 +418,7 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
  #endif
     wc_fspsm_hw_lock();
 
-    if ((ret = Init(&handle)) == FSP_SUCCESS) {
+    if (Init(&handle) == FSP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
         if (ret == FSP_SUCCESS) {
             ret = Final(&handle, out, (uint32_t*)&sz);
@@ -433,6 +433,10 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
             }
         }
     }
+
+    if (ret != FSP_SUCCESS)
+        ret = WC_HW_E;
+
     wc_fspsm_hw_unlock();
 
 #elif defined(WOLFSSL_RENESAS_RSIP)

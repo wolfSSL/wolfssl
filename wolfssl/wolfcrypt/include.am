@@ -209,7 +209,8 @@ endif
 endif
 
 if BUILD_CAAM
-nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/wolfcaam.h \
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/caam_type.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_hash.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_rsa.h \
