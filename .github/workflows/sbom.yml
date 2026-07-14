@@ -5,7 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
-    branches: [ '*' ]
+    branches: [ '**' ]
 
 # Defence-in-depth: the workflow does no API writes (no `gh pr`, no
 # `git push`, no release upload), so the practical risk of the default

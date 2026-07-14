@@ -456,7 +456,9 @@ merge-clean:
 SBOM_CDX     = wolfssl-$(PACKAGE_VERSION).cdx.json
 SBOM_SPDX    = wolfssl-$(PACKAGE_VERSION).spdx.json
 SBOM_SPDX_TV = wolfssl-$(PACKAGE_VERSION).spdx
-sbomdir      = $(datadir)/doc/$(PACKAGE)
+# Use Automake's $(docdir) so a user's --docdir override is honoured (this
+# equals $(datadir)/doc/$(PACKAGE) by default).
+sbomdir      = $(docdir)
 
 # Shared-library / Mach-O basenames in priority order (versioned first).
 # Both `sbom:` and `bomsh:` glob for these under their own search prefixes;

@@ -49,6 +49,10 @@
 # gen-sbom is located at $(srcdir)/scripts/gen-sbom if vendored, else at
 # $(WOLFSSL_DIR)/scripts/gen-sbom.  python3, pyspdxtools and git come from
 # configure (AC_PATH_PROG); git is used only to derive SOURCE_DATE_EPOCH.
+#
+# NOTE: this fragment requires GNU make.  It uses GNU conditional assignment
+# (?=) and the GNU make functions $(wildcard), $(if), $(firstword) and
+# $(addprefix); under a non-GNU make the SBOM targets will not work.
 # ---------------------------------------------------------------------------
 
 SBOM_ARTIFACT ?= lib
@@ -61,7 +65,9 @@ SBOM_CONFIG_H ?= $(abs_builddir)/config.h
 SBOM_CDX     = $(SBOM_PKGNAME)-$(PACKAGE_VERSION).cdx.json
 SBOM_SPDX    = $(SBOM_PKGNAME)-$(PACKAGE_VERSION).spdx.json
 SBOM_SPDX_TV = $(SBOM_PKGNAME)-$(PACKAGE_VERSION).spdx
-sbomdir      = $(datadir)/doc/$(PACKAGE)
+# Use Automake's $(docdir) so a user's --docdir override is honoured (this
+# equals $(datadir)/doc/$(PACKAGE) by default).
+sbomdir      = $(docdir)
 
 # Prefer a vendored gen-sbom; fall back to an external wolfSSL source tree.
 # The fallback is $(wildcard)-guarded and only consulted when WOLFSSL_DIR is
@@ -153,7 +159,7 @@ sbom:
 	        dep_args="$$dep_args --dep-wolfssl yes"; \
 	        wv="$(SBOM_WOLFSSL_VERSION)"; \
 	        if test -z "$$wv" && test -f "$(WOLFSSL_DIR)/wolfssl/version.h"; then \
-	            wv=`sed -n 's/.*LIBWOLFSSL_VERSION_STRING[ \t]*"\([^"]*\)".*/\1/p' \
+	            wv=`sed -n 's/.*LIBWOLFSSL_VERSION_STRING[[:space:]]*"\([^"]*\)".*/\1/p' \
 	                "$(WOLFSSL_DIR)/wolfssl/version.h"`; \
 	        fi; \
 	        if test -n "$$wv"; then \
@@ -205,4 +211,8 @@ uninstall-sbom:
 	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX)
 	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX_TV)
 
+# SBOM install is intentionally opt-in (`make install-sbom`), so `make install`
+# does NOT place SBOM files.  uninstall-sbom is still chained into the standard
+# `make uninstall` via uninstall-hook so a prior `make install-sbom` is cleaned
+# up; it uses `rm -f`, so it is a harmless no-op when no SBOM was installed.
 uninstall-hook: uninstall-sbom
