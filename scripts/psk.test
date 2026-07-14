@@ -122,7 +122,12 @@ echo ""
 ###############################
 
 timeout -s KILL 2m ./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
-if [ $? -ne 0 ]; then
+pipe_rc=("${PIPESTATUS[@]}")
+if [ "${pipe_rc[0]}" -ge 124 ]; then
+    echo "client version probe timed out"
+    exit 1
+fi
+if [ "${pipe_rc[1]}" -ne 0 ]; then
     # Usual server / client. This use case is tested in
     # tests/unit.test and is used here for just checking if cipher suite
     # is available (one case for example is with disable-asn)
