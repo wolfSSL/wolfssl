@@ -3192,6 +3192,9 @@ static int wc_PKCS7_EncodeContentStreamHelper(wc_PKCS7* pkcs7, int cipherType,
                 ret = wc_HashUpdate(&esd->hash, esd->hashType,
                     contentData, (word32)contentDataSz);
             }
+            else {
+                ret = 0;
+            }
             break;
 
     #ifndef NO_AES
