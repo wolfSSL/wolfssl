@@ -1709,7 +1709,11 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
     }
 
     if (ret == 0) {
-        recordSz = WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA * 2;
+        /* TSIP only signs classic RSA/ECC CertificateVerify messages in
+         * hardware, never PQC. Size the record to the classic signature tier
+         * rather than WC_MAX_CERT_VERIFY_SZ, which balloons to ~50KB when
+         * SLH-DSA is enabled elsewhere in the build. */
+        recordSz = MAX_ENCODED_CLASSIC_SIG_SZ + MAX_MSG_EXTRA * 2;
         /* check for available size */
         ret = CheckAvailableSize(ssl, recordSz);
         recordSz = 0;

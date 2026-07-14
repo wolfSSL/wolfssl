@@ -1370,6 +1370,103 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_PARAM_128F) && \
+    defined(WOLFSSL_SLHDSA_PARAM_128S) && defined(WOLFSSL_TLS13)
+    /* SLH-DSA-SHAKE-128f entity (leaf) certificate used for the handshake
+     * signature in CertificateVerify. The leaf's ~17KB signature also exercises
+     * fragmented CertificateVerify send + reassembly. The leaf is signed by the
+     * SLH-DSA-SHAKE-128s root, so 128s must be enabled too for chain verify. */
+    XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-entity.conf",
+             sizeof(argv0[1]));
+    printf("starting TLSv13 SLH-DSA entity-cert CertificateVerify tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_PARAM_128S) && \
+    defined(WOLFSSL_TLS13)
+    /* SLH-DSA-SHAKE-128s entity (leaf) certificate used for the handshake
+     * signature in CertificateVerify, signed by the SLH-DSA-SHAKE-128s root.
+     * The leaf's ~7.8KB signature fits in a single record, exercising the
+     * single-record CertificateVerify path. */
+    XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-entity-128s.conf",
+             sizeof(argv0[1]));
+    printf("starting TLSv13 SLH-DSA entity-cert (128s single-record) tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F) && \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) && defined(WOLFSSL_TLS13)
+    /* SLH-DSA-SHA2-128f entity (leaf) certificate used for the handshake
+     * signature in CertificateVerify. The leaf's ~17KB signature also exercises
+     * fragmented CertificateVerify send + reassembly for the SHA2 family. The
+     * leaf is signed by the SLH-DSA-SHA2-128s root, so 128s must be enabled too
+     * for chain verify. */
+    XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-entity-sha2.conf",
+             sizeof(argv0[1]));
+    printf("starting TLSv13 SLH-DSA entity-cert (SHA2) CertificateVerify "
+           "tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) && defined(WOLFSSL_TLS13)
+    /* SLH-DSA-SHA2-128s entity (leaf) certificate used for the handshake
+     * signature in CertificateVerify, signed by the SLH-DSA-SHA2-128s root.
+     * The leaf's ~7.8KB signature fits in a single record, exercising the
+     * single-record CertificateVerify path for the SHA2 family. */
+    XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-entity-sha2-128s.conf",
+             sizeof(argv0[1]));
+    printf("starting TLSv13 SLH-DSA entity-cert (SHA2 128s single-record) "
+           "tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_PARAM_128F) && \
+    defined(WOLFSSL_SLHDSA_PARAM_128S) && defined(WOLFSSL_DTLS13)
+    /* DTLS 1.3 SLH-DSA-SHAKE-128f entity cert: exercises the DTLS
+     * CertificateVerify send path (Dtls13HandshakeSend) with a fragmented
+     * ~17KB SLH-DSA signature. */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-slhdsa-entity.conf",
+             sizeof(argv0[1]));
+    printf("starting DTLSv13 SLH-DSA entity-cert CertificateVerify tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_PARAM_128S) && \
+    defined(WOLFSSL_DTLS13)
+    /* DTLS 1.3 SLH-DSA-SHAKE-128s entity cert: single-record DTLS
+     * CertificateVerify path. */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-slhdsa-entity-128s.conf",
+             sizeof(argv0[1]));
+    printf("starting DTLSv13 SLH-DSA entity-cert (128s single-record) tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #if defined(HAVE_ECC) && defined(WOLFSSL_SHA512) && \
     (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
     /* add P-521 certificate cipher suite tests */

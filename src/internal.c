@@ -2355,6 +2355,11 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
         ssl->options.haveMlDsaSig  = 1; /* always on client side */
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
+#ifdef WOLFSSL_HAVE_SLHDSA
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        ssl->options.haveSlhDsaSig  = 1; /* always on client side */
+    }
+#endif /* WOLFSSL_HAVE_SLHDSA */
 
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
@@ -2779,6 +2784,11 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         ctx->haveMlDsaSig = 1;     /* always on client side */
                                        /* server can turn on by loading key */
 #endif /* WOLFSSL_HAVE_MLDSA */
+#ifdef WOLFSSL_HAVE_SLHDSA
+    if (method->side == WOLFSSL_CLIENT_END)
+        ctx->haveSlhDsaSig = 1;    /* always on client side */
+                                       /* server can turn on by loading key */
+#endif /* WOLFSSL_HAVE_SLHDSA */
 #ifdef HAVE_ECC
     if (method->side == WOLFSSL_CLIENT_END) {
         ctx->haveECDSAsig  = 1;        /* always on client side */
@@ -3480,6 +3490,92 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
         }
         else
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #ifdef WOLFSSL_HAVE_SLHDSA
+      #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        if (sigAlgo == slhdsa_sha2_128s_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHA2_128S_SA_MINOR);
+        }
+        else
+      #endif
+      #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+        if (sigAlgo == slhdsa_sha2_128f_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHA2_128F_SA_MINOR);
+        }
+        else
+      #endif
+      #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+        if (sigAlgo == slhdsa_sha2_192s_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHA2_192S_SA_MINOR);
+        }
+        else
+      #endif
+      #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F)
+        if (sigAlgo == slhdsa_sha2_192f_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHA2_192F_SA_MINOR);
+        }
+        else
+      #endif
+      #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+        if (sigAlgo == slhdsa_sha2_256s_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHA2_256S_SA_MINOR);
+        }
+        else
+      #endif
+      #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+        if (sigAlgo == slhdsa_sha2_256f_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHA2_256F_SA_MINOR);
+        }
+        else
+      #endif
+      #ifdef WOLFSSL_SLHDSA_PARAM_128S
+        if (sigAlgo == slhdsa_shake_128s_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHAKE_128S_SA_MINOR);
+        }
+        else
+      #endif
+      #ifdef WOLFSSL_SLHDSA_PARAM_128F
+        if (sigAlgo == slhdsa_shake_128f_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHAKE_128F_SA_MINOR);
+        }
+        else
+      #endif
+      #ifdef WOLFSSL_SLHDSA_PARAM_192S
+        if (sigAlgo == slhdsa_shake_192s_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHAKE_192S_SA_MINOR);
+        }
+        else
+      #endif
+      #ifdef WOLFSSL_SLHDSA_PARAM_192F
+        if (sigAlgo == slhdsa_shake_192f_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHAKE_192F_SA_MINOR);
+        }
+        else
+      #endif
+      #ifdef WOLFSSL_SLHDSA_PARAM_256S
+        if (sigAlgo == slhdsa_shake_256s_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHAKE_256S_SA_MINOR);
+        }
+        else
+      #endif
+      #ifdef WOLFSSL_SLHDSA_PARAM_256F
+        if (sigAlgo == slhdsa_shake_256f_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SLHDSA_SA_MAJOR, SLHDSA_SHAKE_256F_SA_MINOR);
+        }
+        else
+      #endif
+    #endif /* WOLFSSL_HAVE_SLHDSA */
 #ifdef WC_RSA_PSS
         if (sigAlgo == rsa_pss_sa_algo) {
             /* RSA PSS is sig then mac */
@@ -3594,6 +3690,60 @@ void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
             keySz, &idx);
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
+#ifdef WOLFSSL_HAVE_SLHDSA
+    /* Only advertise the parameter sets that are actually compiled in, so we
+     * never offer a scheme we cannot sign or verify. */
+    if (haveSig & SIG_SLHDSA) {
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_sha2_128s_sa_algo,
+            keySz, &idx);
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_sha2_128f_sa_algo,
+            keySz, &idx);
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_sha2_192s_sa_algo,
+            keySz, &idx);
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F)
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_sha2_192f_sa_algo,
+            keySz, &idx);
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_sha2_256s_sa_algo,
+            keySz, &idx);
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_sha2_256f_sa_algo,
+            keySz, &idx);
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128S
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_shake_128s_sa_algo,
+            keySz, &idx);
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128F
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_shake_128f_sa_algo,
+            keySz, &idx);
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192S
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_shake_192s_sa_algo,
+            keySz, &idx);
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192F
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_shake_192f_sa_algo,
+            keySz, &idx);
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256S
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_shake_256s_sa_algo,
+            keySz, &idx);
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256F
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, slhdsa_shake_256f_sa_algo,
+            keySz, &idx);
+    #endif
+    }
+#endif /* WOLFSSL_HAVE_SLHDSA */
     if (haveSig & SIG_RSA) {
     #ifdef WC_RSA_PSS
         if (tls1_2) {
@@ -4765,6 +4915,150 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) || \
     (!defined(NO_WOLFSSL_CLIENT) && (!defined(NO_DH) || defined(HAVE_ECC)))
 
+#ifdef WOLFSSL_HAVE_SLHDSA
+/* Map a TLS SLH-DSA signature-scheme minor byte (draft-reddy-tls-slhdsa) to
+ * the internal sa_algo. Returns invalid_sa_algo if unrecognized or the
+ * parameter family is not compiled in. */
+byte SlhDsaSigMinorToType(byte minor)
+{
+    switch (minor) {
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        case SLHDSA_SHA2_128S_SA_MINOR:  return slhdsa_sha2_128s_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+        case SLHDSA_SHA2_128F_SA_MINOR:  return slhdsa_sha2_128f_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+        case SLHDSA_SHA2_192S_SA_MINOR:  return slhdsa_sha2_192s_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F)
+        case SLHDSA_SHA2_192F_SA_MINOR:  return slhdsa_sha2_192f_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+        case SLHDSA_SHA2_256S_SA_MINOR:  return slhdsa_sha2_256s_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+        case SLHDSA_SHA2_256F_SA_MINOR:  return slhdsa_sha2_256f_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128S
+        case SLHDSA_SHAKE_128S_SA_MINOR: return slhdsa_shake_128s_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128F
+        case SLHDSA_SHAKE_128F_SA_MINOR: return slhdsa_shake_128f_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192S
+        case SLHDSA_SHAKE_192S_SA_MINOR: return slhdsa_shake_192s_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192F
+        case SLHDSA_SHAKE_192F_SA_MINOR: return slhdsa_shake_192f_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256S
+        case SLHDSA_SHAKE_256S_SA_MINOR: return slhdsa_shake_256s_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256F
+        case SLHDSA_SHAKE_256F_SA_MINOR: return slhdsa_shake_256f_sa_algo;
+    #endif
+        default:                         return (byte)invalid_sa_algo;
+    }
+}
+
+/* Map an internal SLH-DSA sa_algo to its enum SlhDsaParam value. Returns -1
+ * if hsType is not an SLH-DSA scheme. */
+int SlhDsaTypeToParam(byte hsType)
+{
+    switch (hsType) {
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        case slhdsa_sha2_128s_sa_algo:  return SLHDSA_SHA2_128S;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+        case slhdsa_sha2_128f_sa_algo:  return SLHDSA_SHA2_128F;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+        case slhdsa_sha2_192s_sa_algo:  return SLHDSA_SHA2_192S;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F)
+        case slhdsa_sha2_192f_sa_algo:  return SLHDSA_SHA2_192F;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+        case slhdsa_sha2_256s_sa_algo:  return SLHDSA_SHA2_256S;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+        case slhdsa_sha2_256f_sa_algo:  return SLHDSA_SHA2_256F;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128S
+        case slhdsa_shake_128s_sa_algo: return SLHDSA_SHAKE128S;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128F
+        case slhdsa_shake_128f_sa_algo: return SLHDSA_SHAKE128F;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192S
+        case slhdsa_shake_192s_sa_algo: return SLHDSA_SHAKE192S;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192F
+        case slhdsa_shake_192f_sa_algo: return SLHDSA_SHAKE192F;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256S
+        case slhdsa_shake_256s_sa_algo: return SLHDSA_SHAKE256S;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256F
+        case slhdsa_shake_256f_sa_algo: return SLHDSA_SHAKE256F;
+    #endif
+        default:                        return -1;
+    }
+}
+
+/* Is hsType any of the SLH-DSA signature schemes? */
+int IsSlhDsaSigAlgo(byte hsType)
+{
+    return SlhDsaTypeToParam(hsType) != -1;
+}
+
+/* Map an enum SlhDsaParam value to its internal SLH-DSA sa_algo. Returns
+ * invalid_sa_algo if the parameter set is not one of the TLS schemes. */
+byte SlhDsaParamToType(int param)
+{
+    switch (param) {
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        case SLHDSA_SHA2_128S:  return slhdsa_sha2_128s_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+        case SLHDSA_SHA2_128F:  return slhdsa_sha2_128f_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+        case SLHDSA_SHA2_192S:  return slhdsa_sha2_192s_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F)
+        case SLHDSA_SHA2_192F:  return slhdsa_sha2_192f_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+        case SLHDSA_SHA2_256S:  return slhdsa_sha2_256s_sa_algo;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+        case SLHDSA_SHA2_256F:  return slhdsa_sha2_256f_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128S
+        case SLHDSA_SHAKE128S:  return slhdsa_shake_128s_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128F
+        case SLHDSA_SHAKE128F:  return slhdsa_shake_128f_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192S
+        case SLHDSA_SHAKE192S:  return slhdsa_shake_192s_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192F
+        case SLHDSA_SHAKE192F:  return slhdsa_shake_192f_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256S
+        case SLHDSA_SHAKE256S:  return slhdsa_shake_256s_sa_algo;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256F
+        case SLHDSA_SHAKE256F:  return slhdsa_shake_256f_sa_algo;
+    #endif
+        default:                return (byte)invalid_sa_algo;
+    }
+}
+#endif /* WOLFSSL_HAVE_SLHDSA */
+
 /* Decode the signature algorithm.
  *
  * input     The encoded signature algorithm.
@@ -4773,6 +5067,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
  */
 void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 {
+#ifdef WOLFSSL_HAVE_SLHDSA
+    byte slhType;
+#endif
+
     *hsType = invalid_sa_algo;
     switch (input[0]) {
         case NEW_SA_MAJOR:
@@ -4848,22 +5146,37 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
             }
             break;
     #endif /* HAVE_FALCON */
-    #ifdef WOLFSSL_HAVE_MLDSA
+    #if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
+        /* ML-DSA and SLH-DSA share the same major byte (0x09); their minor
+         * bytes are disjoint (ML-DSA 0x04-0x06, SLH-DSA 0x11-0x1C). */
         case MLDSA_SA_MAJOR:
+        #ifdef WOLFSSL_HAVE_MLDSA
             if (input[1] == MLDSA_44_SA_MINOR) {
                 *hsType = mldsa_44_sa_algo;
                 *hashAlgo = sha256_mac;
+                break;
             }
             else if (input[1] == MLDSA_65_SA_MINOR) {
                 *hsType = mldsa_65_sa_algo;
                 *hashAlgo = sha384_mac;
+                break;
             }
             else if (input[1] == MLDSA_87_SA_MINOR) {
                 *hsType = mldsa_87_sa_algo;
                 *hashAlgo = sha512_mac;
+                break;
             }
+        #endif /* WOLFSSL_HAVE_MLDSA */
+        #ifdef WOLFSSL_HAVE_SLHDSA
+            slhType = SlhDsaSigMinorToType(input[1]);
+            if (slhType != (byte)invalid_sa_algo) {
+                *hsType = slhType;
+                /* Hash performed as part of sign/verify operation. */
+                *hashAlgo = sha512_mac;
+            }
+        #endif /* WOLFSSL_HAVE_SLHDSA */
             break;
-    #endif /* WOLFSSL_HAVE_MLDSA */
+    #endif /* WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
         default:
             *hashAlgo = input[0];
             *hsType   = input[1];
@@ -7373,7 +7686,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.haveECC          = ctx->haveECC;
     ssl->options.haveStaticECC    = ctx->haveStaticECC;
     ssl->options.haveFalconSig    = ctx->haveFalconSig;
-    ssl->options.haveMlDsaSig = ctx->haveMlDsaSig;
+    ssl->options.haveMlDsaSig     = ctx->haveMlDsaSig;
+    ssl->options.haveSlhDsaSig    = ctx->haveSlhDsaSig;
 
 #ifndef NO_PSK
     ssl->options.havePSK       = (word16)(ctx->havePSK);
@@ -8509,6 +8823,11 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
                 wc_MlDsaKey_Free((wc_MlDsaKey*)*pKey);
                 break;
         #endif /* WOLFSSL_HAVE_MLDSA */
+        #if defined(WOLFSSL_HAVE_SLHDSA)
+            case DYNAMIC_TYPE_SLHDSA:
+                wc_SlhDsaKey_Free((SlhDsaKey*)*pKey);
+                break;
+        #endif /* WOLFSSL_HAVE_SLHDSA */
         #ifndef NO_DH
             case DYNAMIC_TYPE_DH:
             #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
@@ -8617,6 +8936,11 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             sz = sizeof(wc_MlDsaKey);
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        case DYNAMIC_TYPE_SLHDSA:
+            sz = sizeof(SlhDsaKey);
+            break;
+    #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifndef NO_DH
         case DYNAMIC_TYPE_DH:
             sz = sizeof(DhKey);
@@ -8735,6 +9059,14 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             ret = 0;
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        case DYNAMIC_TYPE_SLHDSA:
+            /* SLH-DSA requires the parameter set at init; use an always-present
+             * placeholder here and re-init with the real one once known. */
+            ret = wc_SlhDsaKey_Init((SlhDsaKey*)*pKey, WC_SLHDSA_DEFAULT_PARAM,
+                                    ssl->heap, ssl->devId);
+            break;
+    #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifdef HAVE_CURVE448
         case DYNAMIC_TYPE_CURVE448:
             wc_curve448_init((curve448_key*)*pKey);
@@ -8781,7 +9113,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 #if (!defined(NO_CERTS) || !defined(WOLFSSL_NO_TLS12)) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
-     defined(HAVE_CURVE448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA))
+     defined(HAVE_CURVE448) || defined(HAVE_FALCON) || \
+     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA))
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
@@ -8839,6 +9172,14 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
             ret = wc_MlDsaKey_Init((wc_MlDsaKey*)pKey, NULL, INVALID_DEVID);
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        case DYNAMIC_TYPE_SLHDSA:
+            wc_SlhDsaKey_Free((SlhDsaKey*)pKey);
+            /* Re-init with placeholder param; caller re-inits with real one. */
+            ret = wc_SlhDsaKey_Init((SlhDsaKey*)pKey, WC_SLHDSA_DEFAULT_PARAM, NULL,
+                                    INVALID_DEVID);
+            break;
+    #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifndef NO_DH
         case DYNAMIC_TYPE_DH:
             wc_FreeDhKey((DhKey*)pKey);
@@ -9260,6 +9601,14 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+    /* Release any in-progress streamed CertificateVerify body (e.g. a
+     * connection torn down mid-send). */
+    XFREE(ssl->buffers.certVerifyMsg.buffer, ssl->heap,
+          DYNAMIC_TYPE_TMP_BUFFER);
+    ssl->buffers.certVerifyMsg.buffer = NULL;
+    ssl->buffers.certVerifyMsg.length = 0;
+#endif
 #ifdef WOLFSSL_DTLS
     FreeSSL_DtlsResources(ssl);
 #endif /* WOLFSSL_DTLS */
@@ -9284,6 +9633,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #if defined(WOLFSSL_HAVE_MLDSA)
     FreeKey(ssl, DYNAMIC_TYPE_MLDSA, (void**)&ssl->peerMlDsaKey);
     ssl->peerMlDsaKeyPresent = 0;
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    FreeKey(ssl, DYNAMIC_TYPE_SLHDSA, (void**)&ssl->peerSlhDsaKey);
+    ssl->peerSlhDsaKeyPresent = 0;
 #endif
 #if defined(HAVE_FALCON)
     FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
@@ -9515,6 +9868,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         FreeKey(ssl, DYNAMIC_TYPE_MLDSA, (void**)&ssl->peerMlDsaKey);
         ssl->peerMlDsaKeyPresent = 0;
 #endif /* WOLFSSL_HAVE_MLDSA */
+#if defined(WOLFSSL_HAVE_SLHDSA)
+        FreeKey(ssl, DYNAMIC_TYPE_SLHDSA, (void**)&ssl->peerSlhDsaKey);
+        ssl->peerSlhDsaKeyPresent = 0;
+#endif /* WOLFSSL_HAVE_SLHDSA */
     }
 
 #ifdef HAVE_ECC
@@ -17002,6 +17359,58 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
             break;
         }
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        case SLH_DSA_SHA2_128Sk:
+        case SLH_DSA_SHA2_128Fk:
+        case SLH_DSA_SHA2_192Sk:
+        case SLH_DSA_SHA2_192Fk:
+        case SLH_DSA_SHA2_256Sk:
+        case SLH_DSA_SHA2_256Fk:
+        case SLH_DSA_SHAKE_128Sk:
+        case SLH_DSA_SHAKE_128Fk:
+        case SLH_DSA_SHAKE_192Sk:
+        case SLH_DSA_SHAKE_192Fk:
+        case SLH_DSA_SHAKE_256Sk:
+        case SLH_DSA_SHAKE_256Fk:
+        {
+            int keyRet = 0;
+            int slhParam = wc_SlhDsaOidToParam(args->dCert->keyOID);
+            if (slhParam < 0) {
+                ret = PEER_KEY_ERROR;
+                break;
+            }
+
+            if (ssl->peerSlhDsaKey == NULL) {
+                /* alloc/init on demand */
+                keyRet = AllocKey(ssl, DYNAMIC_TYPE_SLHDSA,
+                                  (void**)&ssl->peerSlhDsaKey);
+            } else if (ssl->peerSlhDsaKeyPresent) {
+                keyRet = ReuseKey(ssl, DYNAMIC_TYPE_SLHDSA,
+                                  ssl->peerSlhDsaKey);
+                ssl->peerSlhDsaKeyPresent = 0;
+            }
+
+            if (keyRet == 0) {
+                /* AllocKey/ReuseKey used a placeholder parameter
+                 * set; re-init with the certificate's. */
+                wc_SlhDsaKey_Free(ssl->peerSlhDsaKey);
+                keyRet = wc_SlhDsaKey_Init(ssl->peerSlhDsaKey,
+                            (enum SlhDsaParam)slhParam, ssl->heap, ssl->devId);
+            }
+
+            if (keyRet != 0 ||
+                wc_SlhDsaKey_ImportPublic(ssl->peerSlhDsaKey,
+                                          args->dCert->publicKey,
+                                          args->dCert->pubKeySize)
+                != 0) {
+                ret = PEER_KEY_ERROR;
+            }
+            else {
+                ssl->peerSlhDsaKeyPresent = 1;
+            }
+            break;
+        }
+    #endif /* WOLFSSL_HAVE_SLHDSA */
         default:
             break;
     }
@@ -30655,6 +31064,9 @@ static int ParseCipherList(Suites* suites,
                 #ifdef WOLFSSL_HAVE_MLDSA
                     haveSig |= SIG_MLDSA;
                 #endif /* WOLFSSL_HAVE_MLDSA */
+                #ifdef WOLFSSL_HAVE_SLHDSA
+                    haveSig |= SIG_SLHDSA;
+                #endif /* WOLFSSL_HAVE_SLHDSA */
                 }
                 else
             #ifdef BUILD_TLS_SM4_GCM_SM3
@@ -30852,7 +31264,8 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
     int haveRSAsig       = 0;
     int haveECDSAsig     = 0;
     int haveFalconSig    = 0;
-    int haveMlDsaSig = 0;
+    int haveMlDsaSig     = 0;
+    int haveSlhDsaSig    = 0;
     int haveAnon         = 0;
     int tls1_3           = 0;
 
@@ -30927,6 +31340,9 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         #ifdef WOLFSSL_HAVE_MLDSA
             haveMlDsaSig = 1;
         #endif /* WOLFSSL_HAVE_MLDSA */
+        #ifdef WOLFSSL_HAVE_SLHDSA
+            haveSlhDsaSig = 1;
+        #endif /* WOLFSSL_HAVE_SLHDSA */
         }
         else
     #endif /* WOLFSSL_TLS13 */
@@ -30965,6 +31381,7 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         haveSig |= haveRSAsig ? SIG_RSA : 0;
         haveSig |= haveFalconSig ? SIG_FALCON : 0;
         haveSig |= haveMlDsaSig ? SIG_MLDSA : 0;
+        haveSig |= haveSlhDsaSig ? SIG_SLHDSA : 0;
         haveSig |= haveAnon ? SIG_ANON : 0;
         InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, tls1_3,
             keySz, &suites->hashSigAlgoSz);
@@ -32427,6 +32844,57 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
         }
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    #if !defined(NO_RSA) || defined(HAVE_ECC)
+        FreeKey(ssl, (int)*hsType, hsKey);
+    #endif
+
+    /* Unlike the ML-DSA block above, this matches only a concrete SLH-DSA
+     * algorithm, not keyType == 0. SLH-DSA key load always records the specific
+     * slhdsa_*_sa_algo in ssl->buffers.keyType (ProcessBufferTryDecodeSlhDsa),
+     * so keyType == 0 never denotes an SLH-DSA key here; the unknown-format
+     * (keyType == 0) probe is owned by the ML-DSA block. */
+    if (IsSlhDsaSigAlgo(keyType)) {
+        int slhParam = SlhDsaTypeToParam(keyType);
+
+        *hsType = DYNAMIC_TYPE_SLHDSA;
+        ret = AllocKey(ssl, (int)*hsType, hsKey);
+        if (ret != 0) {
+            goto exit_dpk;
+        }
+
+        /* AllocKey initialised the key with a placeholder parameter set;
+         * re-init with the parameter set matching the loaded key. */
+        wc_SlhDsaKey_Free((SlhDsaKey*)*hsKey);
+        ret = wc_SlhDsaKey_Init((SlhDsaKey*)*hsKey, (enum SlhDsaParam)slhParam,
+                                ssl->heap, ssl->devId);
+        if (ret != 0) {
+            goto exit_dpk;
+        }
+
+        WOLFSSL_MSG("Trying SLH-DSA private key");
+
+        /* Set start of data to beginning of buffer. */
+        idx = 0;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_SlhDsaKey_PrivateKeyDecode(key->buffer, &idx,
+                                            (SlhDsaKey*)*hsKey, key->length);
+        PRIVATE_KEY_LOCK();
+        if (ret == 0) {
+            int slhSigSz;
+            WOLFSSL_MSG("Using SLH-DSA private key");
+
+            /* Return the maximum signature length. */
+            slhSigSz = wc_SlhDsaKey_SigSize((SlhDsaKey*)*hsKey);
+            if (slhSigSz <= 0) {
+                ERROR_OUT(ALGO_ID_E, exit_dpk);
+            }
+            *sigLen = (word32)slhSigSz;
+
+            goto exit_dpk;
+        }
+    }
+#endif /* WOLFSSL_HAVE_SLHDSA */
 
     (void)idx;
     (void)keySzDecoded;
@@ -36219,7 +36687,12 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 return 0;  /* sent blank cert, can't verify */
             }
 
-            args->sendSz = WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
+            /* TLS 1.2 and earlier only ever produce a classic signature
+             * (RSA/ECC/EdDSA); PQC signatures are TLS 1.3 only and handled by
+             * SendTls13CertificateVerify. Size the record to the classic tier
+             * rather than WC_MAX_CERT_VERIFY_SZ, which balloons to ~50KB when
+             * SLH-DSA is enabled. Matches the ssl->buffers.sig sizing below. */
+            args->sendSz = MAX_ENCODED_CLASSIC_SIG_SZ + MAX_MSG_EXTRA;
             if (IsEncryptionOn(ssl, 1)) {
                 args->sendSz += MAX_MSG_EXTRA;
             }

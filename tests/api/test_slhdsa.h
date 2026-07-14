@@ -42,6 +42,7 @@ int test_wc_slhdsa_param_disabled(void);
 int test_wc_slhdsa_decoder_disabled_oid(void);
 int test_wc_SlhdsaDecisionCoverage(void);
 int test_wc_SlhdsaFeatureCoverage(void);
+int test_slhdsa_tls13_certverify_want_write(void);
 
 #define TEST_SLHDSA_DECLS                                                      \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa),                                 \
@@ -61,6 +62,7 @@ int test_wc_SlhdsaFeatureCoverage(void);
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_param_disabled),                  \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_decoder_disabled_oid),            \
     TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaDecisionCoverage),                 \
-    TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaFeatureCoverage)
+    TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaFeatureCoverage),                  \
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_tls13_certverify_want_write)
 
 #endif /* WOLFCRYPT_TEST_SLHDSA_H */

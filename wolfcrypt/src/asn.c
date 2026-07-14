@@ -24606,17 +24606,30 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             #ifdef WOLFSSL_DUAL_ALG_CERTS
                 if ((ret == 0) && cert->extAltSigAlgSet &&
                     cert->extAltSigValSet) {
-                #ifndef WOLFSSL_SMALL_STACK
-                    byte der[WC_MAX_CERT_VERIFY_SZ];
-                #else
-                    byte *der = (byte*)XMALLOC(WC_MAX_CERT_VERIFY_SZ, cert->heap,
-                                            DYNAMIC_TYPE_DCERT);
+                    word32 derSz;
+                    byte*  der;
+
+                    /* PreTBS upper bound = certificate size minus both
+                     * signatures. Validate each length independently so the
+                     * guard cannot wrap on the unsigned addition and the
+                     * subtraction below cannot underflow on a malformed
+                     * certificate. */
+                    if (cert->sigLength >= cert->maxIdx ||
+                            (word32)cert->altSigValLen >=
+                                cert->maxIdx - cert->sigLength) {
+                        ret = ASN_PARSE_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                        return ret;
+                    }
+                    derSz = cert->maxIdx - cert->sigLength -
+                            (word32)cert->altSigValLen;
+
+                    der = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_DCERT);
                     if (der == NULL) {
                         ret = MEMORY_E;
-                    } else
-                #endif /* ! WOLFSSL_SMALL_STACK */
-                    {
-                        ret = wc_GeneratePreTBS(cert, der, WC_MAX_CERT_VERIFY_SZ);
+                    }
+                    else {
+                        ret = wc_GeneratePreTBS(cert, der, (int)derSz);
 
                         if (ret > 0) {
                             ret = ConfirmSignature(&cert->sigCtx, der, ret,
@@ -24625,7 +24638,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                                     cert->altSigValLen, cert->altSigAlgOID,
                                     NULL, 0, NULL);
                         }
-                        WC_FREE_VAR_EX(der, cert->heap, DYNAMIC_TYPE_DCERT);
+                        XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
 
                         if (ret != 0) {
                             WOLFSSL_MSG("Confirm alternative signature failed");
@@ -24665,17 +24678,29 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         #ifdef WOLFSSL_DUAL_ALG_CERTS
             if ((ret == 0) && cert->extAltSigAlgSet &&
                 cert->extAltSigValSet) {
-            #ifndef WOLFSSL_SMALL_STACK
-                byte der[WC_MAX_CERT_VERIFY_SZ];
-            #else
-                byte *der = (byte*)XMALLOC(WC_MAX_CERT_VERIFY_SZ, cert->heap,
-                                        DYNAMIC_TYPE_DCERT);
+                word32 derSz;
+                byte*  der;
+
+                /* PreTBS upper bound = certificate size minus both signatures.
+                 * Validate each length independently so the guard cannot wrap on
+                 * the unsigned addition and the subtraction below cannot
+                 * underflow on a malformed certificate. */
+                if (cert->sigLength >= cert->maxIdx ||
+                        (word32)cert->altSigValLen >=
+                            cert->maxIdx - cert->sigLength) {
+                    ret = ASN_PARSE_E;
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                    return ret;
+                }
+                derSz = cert->maxIdx - cert->sigLength -
+                        (word32)cert->altSigValLen;
+
+                der = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_DCERT);
                 if (der == NULL) {
                     ret = MEMORY_E;
-                } else
-            #endif /* ! WOLFSSL_SMALL_STACK */
-                {
-                    ret = wc_GeneratePreTBS(cert, der, WC_MAX_CERT_VERIFY_SZ);
+                }
+                else {
+                    ret = wc_GeneratePreTBS(cert, der, (int)derSz);
 
                     if (ret > 0) {
                         ret = ConfirmSignature(&cert->sigCtx, der, ret,
@@ -24684,7 +24709,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                                 cert->altSigValLen, cert->altSigAlgOID,
                                 NULL, 0, NULL);
                     }
-                    WC_FREE_VAR_EX(der, cert->heap, DYNAMIC_TYPE_DCERT);
+                    XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
 
                     if (ret != 0) {
                         WOLFSSL_MSG("Confirm alternative signature failed");
