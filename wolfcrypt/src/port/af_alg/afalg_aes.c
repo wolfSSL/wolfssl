@@ -42,6 +42,16 @@
 
 static const char WC_TYPE_SYMKEY[] = "skcipher";
 
+#ifdef HAVE_AESGCM
+#ifdef WOLFSSL_AFALG_XILINX_AES
+    static const char WC_NAME_AESGCM[] = "xilinx-zynqmp-aes";
+    static const char* WC_TYPE_AEAD    = WC_TYPE_SYMKEY;
+#else
+    static const char WC_NAME_AESGCM[] = "gcm(aes)";
+    static const char WC_TYPE_AEAD[]   = "aead";
+#endif
+#endif
+
 static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, int aadSz)
 {
 #ifdef WOLFSSL_AFALG_XILINX_AES
@@ -88,12 +98,20 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
     (void)aadSz;
 #else
     aes->msg.msg_controllen = CMSG_SPACE(4);
-    if (aadSz > 0) {
-        aes->msg.msg_controllen += CMSG_SPACE(4);
-    }
     if (ivSz > 0) {
         aes->msg.msg_controllen += CMSG_SPACE((sizeof(struct af_alg_iv) + ivSz));
     }
+    /* Always reserve ASSOCLEN slot for AEAD (gcm(aes)). Value may be 0 on any
+     * given call.  skcipher paths (CBC etc.) simply won't use the 3rd cmsg. */
+    if ((aadSz > 0)
+#ifdef HAVE_AESGCM
+        || (strcmp(type, WC_TYPE_AEAD) == 0)
+#endif
+        )
+    {
+        aes->msg.msg_controllen += CMSG_SPACE(4);
+    }
+
 #endif
 
     if (wc_Afalg_SetOp(CMSG_FIRSTHDR(&(aes->msg)), aes->dir) < 0) {
@@ -174,6 +192,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         }
 #endif
 
+        if (aes->dir != AES_ENCRYPTION) {
+            return KEYUSAGE_E;
+        }
+
         if (aes->rdFd == WC_SOCK_NOTSET) {
             if ((ret = wc_AesSetup(aes, WC_TYPE_SYMKEY, WC_NAME_AESCBC,
                                 AES_IV_SIZE, 0)) != 0) {
@@ -237,6 +259,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 #else
             return BAD_FUNC_ARG;
 #endif
+        }
+
+        if (aes->dir != AES_DECRYPTION) {
+            return KEYUSAGE_E;
         }
 
         if (aes->rdFd == WC_SOCK_NOTSET) {
@@ -336,12 +362,20 @@ static int wc_Afalg_AesDirect(Aes* aes, byte* out, const byte* in, word32 sz)
 #if defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AFALG)
 int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
+    if (aes && (aes->dir != AES_ENCRYPTION)) {
+        return KEYUSAGE_E;
+    }
+
     return wc_Afalg_AesDirect(aes, out, in, WC_AES_BLOCK_SIZE);
 }
 
 
 int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
+    if (aes && (aes->dir != AES_DECRYPTION)) {
+        return KEYUSAGE_E;
+    }
+
     return wc_Afalg_AesDirect(aes, out, in, WC_AES_BLOCK_SIZE);
 }
 
@@ -378,6 +412,10 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
+            }
+
+            if (aes->dir != AES_ENCRYPTION) {
+                return KEYUSAGE_E;
             }
 
             /* consume any unused bytes left in aes->tmp */
@@ -478,15 +516,6 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
 #ifdef HAVE_AESGCM
 
-
-#ifdef WOLFSSL_AFALG_XILINX_AES
-    static const char WC_NAME_AESGCM[] = "xilinx-zynqmp-aes";
-    static const char* WC_TYPE_AEAD    = WC_TYPE_SYMKEY;
-#else
-    static const char WC_NAME_AESGCM[] = "gcm(aes)";
-    static const char WC_TYPE_AEAD[]   = "aead";
-#endif
-
 #ifndef WC_SYSTEM_AESGCM_IV
 /* size of IV allowed on system for AES-GCM */
 #define WC_SYSTEM_AESGCM_IV 12
@@ -526,6 +555,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
     aes->keylen = len;
     aes->rounds = len/4 + 6;
+    aes->dir = AES_ENCRYPTION;
 
     if (aes->rdFd > WC_SOCK_NOTSET) {
         (void)close(aes->rdFd);
@@ -573,7 +603,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte scratch[WC_AES_BLOCK_SIZE];
 
     /* argument checks */
-    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE ||
+        (sz > 0 && (in == NULL || out == NULL)) ||
+        authTag == NULL || (authInSz > 0 && authIn == NULL))
+    {
         return BAD_FUNC_ARG;
     }
 
@@ -696,13 +729,14 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         xorbuf(authTag, scratch, authTagSz);
     }
 #else
-    if (authInSz > 0) {
-        cmsg = CMSG_NXTHDR(msg, cmsg);
-        ret = wc_Afalg_SetAad(cmsg, authInSz);
-        if (ret < 0) {
-            WOLFSSL_MSG("Unable to set AAD size");
-            return ret;
-        }
+    /* Always set AAD length (even 0). This is required by the AF_ALG AEAD interface
+     * and prevents kernel state mismatch when switching between AAD and no-AAD
+     * operations on the same rdFd. */
+    cmsg = CMSG_NXTHDR(msg, cmsg);
+    ret = wc_Afalg_SetAad(cmsg, authInSz);
+    if (ret < 0) {
+        WOLFSSL_MSG("Unable to set AAD size");
+        return ret;
     }
 
     /* set data to be encrypted*/
@@ -901,12 +935,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
 #else
-    if (authInSz > 0) {
-        cmsg = CMSG_NXTHDR(msg, cmsg);
-        ret = wc_Afalg_SetAad(cmsg, authInSz);
-        if (ret < 0) {
-            return ret;
-        }
+    /* Always set AAD length (even 0). This is required by the AF_ALG AEAD interface
+     * and prevents kernel state mismatch when switching between AAD and no-AAD
+     * operations on the same rdFd. */
+
+    cmsg = CMSG_NXTHDR(msg, cmsg);
+    ret = wc_Afalg_SetAad(cmsg, authInSz);
+    if (ret < 0) {
+        return ret;
     }
 
     /* set data to be decrypted*/
@@ -955,12 +991,20 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef HAVE_AES_ECB
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    if (aes && (aes->dir != AES_ENCRYPTION)) {
+        return KEYUSAGE_E;
+    }
+
     return wc_Afalg_AesDirect(aes, out, in, sz);
 }
 
 
 int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    if (aes && (aes->dir != AES_DECRYPTION)) {
+        return KEYUSAGE_E;
+    }
+
     return wc_Afalg_AesDirect(aes, out, in, sz);
 }
 #endif /* HAVE_AES_ECB */

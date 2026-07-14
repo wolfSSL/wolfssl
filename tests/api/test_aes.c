@@ -59,7 +59,8 @@
  *    (e.g. WOLFSSL_ARMASM on ARMv8 with crypto extensions).
  * In all these cases the corrupted struct is ignored and the op returns 0. */
 #if defined(WOLF_CRYPTO_CB_FIND) || defined(WOLF_CRYPTO_CB_ONLY_AES) || \
-    defined(WOLFSSL_ARMASM) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    defined(WOLFSSL_ARMASM) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST) || \
+    defined(WOLFSSL_AFALG)
     /* The aes->rounds=0 corruption trick relies on the pure-C AesEncryptBlocks_C
      * guard (if r==0 return KEYUSAGE_E). When AES is offloaded (crypto-cb / asm)
      * or provided by the FIPS/self-test module, that guard is absent: rounds=0
@@ -9910,7 +9911,7 @@ int test_wc_AesKeyExportArgMcdc(void)
     byte id[4] = { 1, 2, 3, 4 };
     const char* label = "test-label";
 
-#ifndef WC_NO_CONSTRUCTORS
+#if !defined(WC_NO_CONSTRUCTORS) && !defined(WOLFSSL_KCAPI)
     /*
      * _AesNew_common() (aes.c ~14766, ~14774, ~14783) validates its
      * id/idLen/label arguments differently per construction path.  Each

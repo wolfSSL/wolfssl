@@ -1489,13 +1489,24 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         }
     }
     else {
-        err = wc_AesGcmEncrypt(aes_copy, out_text, in_text, req->cryptlen,
+        err = wc_AesGcmSetExtIV(aes_copy,
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
-                               rfc4106_p ? rfc4106_iv :
+                                     rfc4106_p ? rfc4106_iv :
 #endif
-                               sk_walk.iv, GCM_NONCE_MID_SZ,
-                               authTag, tfm->authsize,
-                               assoc, assoclen);
+                                     sk_walk.iv, GCM_NONCE_MID_SZ);
+        if (unlikely(err)) {
+            pr_err("%s: wc_AesGcmSetExtIV() failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+            err = -EINVAL;
+            goto out;
+        }
+
+        {
+            byte ivOut[GCM_NONCE_MID_SZ];
+            err = wc_AesGcmEncrypt_ex(aes_copy, out_text, in_text, req->cryptlen, ivOut, GCM_NONCE_MID_SZ, authTag,
+                             tfm->authsize, assoc, assoclen);
+            ForceZero(ivOut, GCM_NONCE_MID_SZ);
+        }
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncrypt failed: %d\n",
@@ -1503,7 +1514,6 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             err = -EINVAL;
             goto out;
         }
-
     }
 
     if (sg_buf) {
