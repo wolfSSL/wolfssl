@@ -349,14 +349,20 @@ fi
 
 get_first_free_port() {
     local ret="$1"
+    local scanned=0
     while :; do
         if [[ "$ret" -ge 65536 ]]; then
             ret=1024
         fi
-        if ! nc -z ${LOCALHOST_FOR_NC} "$ret"; then
+        if ! nc -w 1 -z ${LOCALHOST_FOR_NC} "$ret"; then
             break
         fi
         ret=$((ret+1))
+        scanned=$((scanned+1))
+        if [ "$scanned" -ge 100 ]; then
+            echo "ERROR: no free port found after scanning 100 ports" 1>&2
+            exit 1
+        fi
     done
     echo "$ret"
     return 0
@@ -408,10 +414,10 @@ printf '%s\n' "OCSP responder ports: $port1 $port2 $port3 $port4"
 printf '%s\n' "TLS server port: $port5"
 printf '%s\n' "-----------------------------------"
 # Use client connections to cleanly shutdown the servers
-./examples/client/client -p $port1
-./examples/client/client -p $port2
-./examples/client/client -p $port3
-./examples/client/client -p $port4
+timeout -s KILL 2m ./examples/client/client -p $port1
+timeout -s KILL 2m ./examples/client/client -p $port2
+timeout -s KILL 2m ./examples/client/client -p $port3
+timeout -s KILL 2m ./examples/client/client -p $port4
 create_new_cnf $port1 $port2 $port3 $port4
 
 # Start wolfSSL OCSP responders (CA signs responses directly)
@@ -467,7 +473,7 @@ if [ "$stapling_v1" == "yes" ]; then
                              -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
     printf '%s\n\n' "Test PASSED!"
@@ -481,7 +487,7 @@ if [ "$stapling_v1" == "yes" ]; then
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
     sleep 0.1
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
                       && exit 1
@@ -498,7 +504,7 @@ if [ "$stapling_v1" == "yes" ]; then
                                  -R $ready_file5 -p $port5 &
         server_pid5=$!
         wait_for_readyFile $ready_file5 $server_pid5 $port5
-        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+        timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                                  -p $port5
         RESULT=$?
         [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed" && exit 1
@@ -512,7 +518,7 @@ if [ "$stapling_v1" == "yes" ]; then
                                  -R $ready_file5 -p $port5 &
         server_pid5=$!
         wait_for_readyFile $ready_file5 $server_pid5 $port5
-        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
+        timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
                                  -p $port5
         RESULT=$?
         [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 4 failed" && exit 1
@@ -526,7 +532,7 @@ if [ "$stapling_v1" == "yes" ]; then
                                  -R $ready_file5 -p $port5 &
         server_pid5=$!
         wait_for_readyFile $ready_file5 $server_pid5 $port5
-        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+        timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                                  -p $port5
         RESULT=$?
         [ $RESULT -ne 1 ] && \
@@ -545,7 +551,7 @@ if [ "$stapling_v1" == "yes" ]; then
                                  -p $port5 &
         server_pid5=$!
         sleep 0.2
-        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
+        timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
                                  -W 1 -p $port5
         RESULT=$?
         [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS12 connection failed" && exit 1
@@ -561,7 +567,7 @@ if [ "$stapling_v1" == "yes" ]; then
                                  -p $port5 &
         server_pid5=$!
         sleep 0.2
-        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
+        timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
                                  -W 1 -p $port5
         RESULT=$?
         [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS13 connection failed" && exit 1
@@ -587,7 +593,7 @@ if [ "$stapling_v2" == "yes" ]; then
                              -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-1 failed" && exit 1
@@ -600,7 +606,7 @@ if [ "$stapling_v2" == "yes" ]; then
                              -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-2 failed" && exit 1
@@ -614,7 +620,7 @@ if [ "$stapling_v2" == "yes" ]; then
                              -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-3 succeeded $RESULT" && exit 1
@@ -627,7 +633,7 @@ if [ "$stapling_v2" == "yes" ]; then
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
                              -p $port5 &
     sleep 0.1
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-4 succeeded $RESULT" && exit 1
@@ -642,7 +648,7 @@ if [ "$stapling_v2" == "yes" ]; then
                              -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection V2-5 failed $RESULT" && exit 1
@@ -655,7 +661,7 @@ if [ "$stapling_v2" == "yes" ]; then
                              -p $port5 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection V2-6 succeeded $RESULT" && exit 1
@@ -671,7 +677,7 @@ if [ "$stapling_v2" == "yes" ]; then
                                      -p $port5 -u -v 3 &
             server_pid5=$!
             sleep 0.2
-            ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
+            timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
                                      -p $port5
             RESULT=$?
             [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS12 v2 connection failed" && exit 1
@@ -697,7 +703,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
                              -p $port5 -v 4 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection T13-1 failed" && exit 1
@@ -711,7 +717,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
                              -p $port5 -v 4 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection T13-2 succeeded $RESULT" && exit 1
@@ -726,7 +732,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
                              -p $port5 -v 4 &
     server_pid5=$!
     wait_for_readyFile $ready_file5 $server_pid5 $port5
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                              -p $port5
     RESULT=$?
     [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection T13-3 succeeded $RESULT" && exit 1
@@ -742,7 +748,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
                                  -p $port5 -u -v 4 &
         server_pid5=$!
         sleep 0.2
-        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -u -v 4 \
+        timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -u -v 4 \
                                  -p $port5
         RESULT=$?
         [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client DTLS13 connection failed" && exit 1
@@ -755,7 +761,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
                                  -p $port5 -v 4 &
         server_pid5=$!
         sleep 0.2
-        ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+        timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                                  -p $port5
         RESULT=$?
         [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client DTLS13 connection succeeded $RESULT" && exit 1

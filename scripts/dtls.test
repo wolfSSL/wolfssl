@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
 # This script can be run with several environment variables set dictating its
 # run. You can set the following to what you like:
 WOLFSSL_ROOT=${WOLFSSL_ROOT:-$(pwd)}
@@ -85,9 +91,9 @@ prepend() { # Usage: cmd 2>&1 | prepend "sometext "
 
 run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "<client args>"
     ((NUM_TESTS_RUN++))
-    echo "" | nc -u 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
-    echo "$1" | nc -u 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
-    echo "" | nc -u 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
+    echo "" | nc -u -w 1 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
+    echo "$1" | nc -u -w 1 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
+    echo "" | nc -u -w 1 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
     echo -e "\n${1}\n"
     stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $DTLS_VERSION $3 2>&1 | prepend "[server] " &
     sleep 0.2
