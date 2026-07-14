@@ -2363,10 +2363,6 @@ enum {
 */
 #ifdef STATIC_BUFFER_LEN
     /* user supplied option */
-    #if STATIC_BUFFER_LEN < 5 || STATIC_BUFFER_LEN > (RECORD_HEADER_SZ + \
-                          RECORD_SIZE + COMP_EXTRA + MTU_EXTRA + MAX_MSG_EXTRA))
-        #error Invalid static buffer length
-    #endif
 #elif defined(LARGE_STATIC_BUFFERS)
     #define STATIC_BUFFER_LEN (RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
              MTU_EXTRA + MAX_MSG_EXTRA)
@@ -2374,6 +2370,10 @@ enum {
     /* don't fragment memory from the record header */
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ
 #endif
+
+/* RECORD_HEADER_SZ is an enum constant, so the preprocessor can't check
+ * this bound. */
+wc_static_assert(STATIC_BUFFER_LEN >= RECORD_HEADER_SZ);
 
 typedef struct {
     ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
