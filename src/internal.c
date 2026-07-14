@@ -27258,11 +27258,6 @@ int SendCertificateStatus(WOLFSSL* ssl)
             else {
                 while (ret == 0 && i < MAX_CHAIN_DEPTH &&
                             NULL != (request = ssl->ctx->chainOcspRequest[i])) {
-                    if ((i + 1) >= MAX_CERT_EXTENSIONS) {
-                        ret = MAX_CERT_EXTENSIONS_ERR;
-                        break;
-                    }
-
                     request->ssl = ssl;
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
                                            request, &responses[++i], ssl->heap);
