@@ -2119,6 +2119,33 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     return WOLFSSL_SUCCESS;
 }
 
+#ifndef WOLFSSL_BIO_TYPE_START
+/* Matches WOLFSSL_BIO_TYPE_START in wolfssl/openssl/bio.h (OpenSSL's
+ * BIO_TYPE_START), which is only included with OPENSSL_EXTRA. */
+#define WOLFSSL_BIO_TYPE_START 128
+#endif
+
+/* Return a fresh type index for an application-defined BIO method, handed
+ * out monotonically starting after WOLFSSL_BIO_TYPE_START, like OpenSSL's
+ * BIO_get_new_index(). Note: not thread-safe; register custom BIO types
+ * from a single thread.
+ *
+ * Returns the new index, or WOLFSSL_FATAL_ERROR once the 0xff type-index
+ * space is exhausted.
+ */
+int wolfSSL_BIO_get_new_index(void)
+{
+    static int wolfssl_bio_type_index = WOLFSSL_BIO_TYPE_START;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_get_new_index");
+
+    if (wolfssl_bio_type_index >= 0xff) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return ++wolfssl_bio_type_index;
+}
+
 /* creates a new custom WOLFSSL_BIO_METHOD */
 WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
 {
