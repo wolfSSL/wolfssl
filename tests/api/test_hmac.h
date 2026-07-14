@@ -40,6 +40,12 @@ int test_wc_Sha384HmacSetKey(void);
 int test_wc_Sha384HmacUpdate(void);
 int test_wc_Sha384HmacFinal(void);
 int test_tls_hmac_size_overflow(void);
+int test_wc_HmacSizeByType(void);
+int test_wc_HmacCopy(void);
+int test_wc_HmacInit_Id(void);
+int test_wc_HmacInit_Label(void);
+int test_wc_HmacFree_CryptoCb(void);
+int test_wc_HKDF_NullKeyEdgeCases(void);
 
 #define TEST_HMAC_DECLS                                 \
     TEST_DECL_GROUP("hmac", test_wc_Md5HmacSetKey),     \
@@ -57,6 +63,12 @@ int test_tls_hmac_size_overflow(void);
     TEST_DECL_GROUP("hmac", test_wc_Sha384HmacSetKey),  \
     TEST_DECL_GROUP("hmac", test_wc_Sha384HmacUpdate),  \
     TEST_DECL_GROUP("hmac", test_wc_Sha384HmacFinal),   \
-    TEST_DECL_GROUP("hmac", test_tls_hmac_size_overflow)
+    TEST_DECL_GROUP("hmac", test_tls_hmac_size_overflow), \
+    TEST_DECL_GROUP("hmac", test_wc_HmacSizeByType),    \
+    TEST_DECL_GROUP("hmac", test_wc_HmacCopy),          \
+    TEST_DECL_GROUP("hmac", test_wc_HmacInit_Id),       \
+    TEST_DECL_GROUP("hmac", test_wc_HmacInit_Label),    \
+    TEST_DECL_GROUP("hmac", test_wc_HmacFree_CryptoCb), \
+    TEST_DECL_GROUP("hmac", test_wc_HKDF_NullKeyEdgeCases)
 
 #endif /* WOLFCRYPT_TEST_HMAC_H */

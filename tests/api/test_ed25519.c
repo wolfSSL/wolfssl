@@ -916,3 +916,476 @@ int test_wc_ed25519_reject_small_order_keys(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * MC/DC wave 1 - decision-targeted negative/edge paths for wolfcrypt/src/
+ * ed25519.c that the existing API tests above do not drive. Split into
+ * several smaller functions (rather than one large one), matching the
+ * lesson learned on the ecc.c MC/DC wave (a single large function tripped
+ * a stack-corrupting crash under -fcoverage-mcdc + -O0).
+ */
+
+/*
+ * Testing the Ed25519ctx/Ed25519ph sign+verify variants and the shared
+ * context==NULL-with-nonzero-contextLen / Ed25519ph length checks in
+ * wc_ed25519_sign_msg_ex and wc_ed25519_verify_msg_ex (called both via
+ * the ctx/ph wrappers and directly with type as an argument).
+ */
+int test_wc_ed25519_sign_verify_ctx_ph(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN) && \
+    defined(HAVE_ED25519_VERIFY)
+    WC_RNG      rng;
+    ed25519_key key;
+    byte        msg[] = "context-and-prehash coverage message";
+    byte        hash[64]; /* WC_SHA512_DIGEST_SIZE */
+    byte        ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    byte        sig[ED25519_SIG_SIZE];
+    word32      sigLen;
+    int         verify_ok;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(hash, 0x42, sizeof(hash));
+
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+
+    /* Ed25519ctx round trip: type==Ed25519ctx true side, real context. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
+        ctx, sizeof(ctx)), 0);
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519ctx_verify_msg(sig, sigLen, msg, sizeof(msg),
+        &verify_ok, &key, ctx, sizeof(ctx)), 0);
+    ExpectIntEQ(verify_ok, 1);
+
+    /* Ed25519ph round trip via hash and via full message, type==Ed25519ph
+     * true side, WC_SHA512_DIGEST_SIZE length check false side (equal). */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed25519ph_sign_hash(hash, sizeof(hash), sig, &sigLen,
+        &key, ctx, sizeof(ctx)), 0);
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519ph_verify_hash(sig, sigLen, hash, sizeof(hash),
+        &verify_ok, &key, ctx, sizeof(ctx)), 0);
+    ExpectIntEQ(verify_ok, 1);
+
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed25519ph_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
+        ctx, sizeof(ctx)), 0);
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519ph_verify_msg(sig, sigLen, msg, sizeof(msg),
+        &verify_ok, &key, ctx, sizeof(ctx)), 0);
+    ExpectIntEQ(verify_ok, 1);
+
+    /* Ed25519ph length check true side: wrong-size "hash" input. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed25519_sign_msg_ex(hash, sizeof(hash) - 1, sig, &sigLen,
+        &key, (byte)Ed25519ph, ctx, sizeof(ctx)),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519_verify_msg_ex(sig, sizeof(sig), hash,
+        sizeof(hash) - 1, &verify_ok, &key, (byte)Ed25519ph, ctx,
+        sizeof(ctx)), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    /* context==NULL && contextLen!=0 compound: TRUE side, direct low-level
+     * calls (the ctx/ph wrappers above always pass a real, non-NULL
+     * context, so this operand's TRUE side needs the _ex entry point). */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed25519_sign_msg_ex(msg, sizeof(msg), sig, &sigLen, &key,
+        (byte)Ed25519, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519_verify_msg_ex(sig, sizeof(sig), msg, sizeof(msg),
+        &verify_ok, &key, (byte)Ed25519, NULL, 5),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_sign_verify_ctx_ph */
+
+/*
+ * Testing wc_ed25519_verify_msg_init/_update/_final directly: NULL/size
+ * argument checks, the non-canonical-S high-bits rejection, and the
+ * S >= order boundary loop (both the "greater" and "equal" halves).
+ */
+int test_wc_ed25519_verify_streaming(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN) && \
+    defined(HAVE_ED25519_VERIFY) && defined(WOLFSSL_ED25519_STREAMING_VERIFY)
+    WC_RNG      rng;
+    ed25519_key key;
+    byte        msg[] = "streaming verify coverage message";
+    byte        sig[ED25519_SIG_SIZE];
+    word32      sigLen = sizeof(sig);
+    int         verify_ok;
+    /* ed25519 order in little endian (mirrors the file-static table). */
+    static const byte order[] = {
+        0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+        0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
+    };
+    byte badSig[ED25519_SIG_SIZE];
+    byte ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, sizeof(msg), sig, &sigLen, &key), 0);
+
+    /* Valid streaming round trip, message split across two update calls. */
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
+        NULL, 0), 0);
+    ExpectIntEQ(wc_ed25519_verify_msg_update(msg, 10, &key), 0);
+    ExpectIntEQ(wc_ed25519_verify_msg_update(msg + 10, sizeof(msg) - 10,
+        &key), 0);
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, &key),
+        0);
+    ExpectIntEQ(verify_ok, 1);
+
+    /* init: NULL args. */
+    ExpectIntEQ(wc_ed25519_verify_msg_init(NULL, sigLen, &key, (byte)Ed25519,
+        NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, NULL, (byte)Ed25519,
+        NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* init: sigLen wrong. */
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen - 1, &key,
+        (byte)Ed25519, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* init: non-canonical S (top 3 bits of sig[63] set). */
+    XMEMCPY(badSig, sig, sizeof(badSig));
+    badSig[ED25519_SIG_SIZE - 1] |= 0xE0;
+    ExpectIntEQ(wc_ed25519_verify_msg_init(badSig, sizeof(badSig), &key,
+        (byte)Ed25519, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* update: NULL msgSegment, then NULL key (independent operand). */
+    ExpectIntEQ(wc_ed25519_verify_msg_update(NULL, 4, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_verify_msg_update(msg, 4, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* init: context==NULL/contextLen!=0 compound, explicit both-sides
+     * pairing within this function (type left as plain Ed25519 so the
+     * context is never actually consumed by the hash math either way,
+     * isolating the argument-check decision itself). */
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
+        NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
+        ctx, sizeof(ctx)), 0);
+    ExpectIntEQ(wc_ed25519_verify_msg_update(msg, sizeof(msg), &key), 0);
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, &key),
+        0);
+    ExpectIntEQ(verify_ok, 1);
+
+    /* final: NULL args. */
+    verify_ok = 0;
+    ExpectIntEQ(wc_ed25519_verify_msg_final(NULL, sigLen, &verify_ok, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, NULL, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* final: sigLen wrong. */
+    ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen - 1, &verify_ok,
+        &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* S order-boundary loop lives in ed25519_verify_msg_final_with_sha
+     * (NOT init -- init only checks the top-3-bits non-canonical form),
+     * and runs before ed25519_hash_final() touches the sha state, so it
+     * can be reached by calling wc_ed25519_verify_msg_final() directly on
+     * a freshly-init'd key without a prior init/update pair.
+     *
+     * S == order exactly: the "not larger, not smaller, loop runs off the
+     * end" (i == -1) equal-all-bytes rejection. */
+    XMEMCPY(badSig, sig, sizeof(badSig));
+    XMEMCPY(badSig + (ED25519_SIG_SIZE / 2), order, sizeof(order));
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed25519_verify_msg_final(badSig, sizeof(badSig),
+        &verify_ok, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S > order: bump the top byte by one so the "bigger than order"
+     * branch of the boundary loop fires on the first (highest) byte. */
+    XMEMCPY(badSig, sig, sizeof(badSig));
+    XMEMCPY(badSig + (ED25519_SIG_SIZE / 2), order, sizeof(order));
+    badSig[ED25519_SIG_SIZE - 1] = (byte)(order[sizeof(order) - 1] + 1);
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed25519_verify_msg_final(badSig, sizeof(badSig),
+        &verify_ok, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* Legitimate structural pass-through (order/small-order/on-curve all
+     * OK) but a mismatching R half: reaches the real ConstantCompare
+     * rejection (GAPS: under WOLFSSL_CHECK_VER_FAULTS, the "ret==0"
+     * operand of the redundant post-verify compound needs its FALSE side,
+     * i.e. the primary comparison already having failed). */
+    XMEMCPY(badSig, sig, sizeof(badSig));
+    badSig[0] ^= 0xFF;
+    ExpectIntEQ(wc_ed25519_verify_msg_init(badSig, sizeof(badSig), &key,
+        (byte)Ed25519, NULL, 0), 0);
+    ExpectIntEQ(wc_ed25519_verify_msg_update(msg, sizeof(msg), &key), 0);
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed25519_verify_msg_final(badSig, sizeof(badSig),
+        &verify_ok, &key), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntEQ(verify_ok, 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_verify_streaming */
+
+/*
+ * Testing wc_ed25519_check_key edge cases: NULL key, pubKeySet==0,
+ * privKeySet-mismatch, and the no-private-key Y-range boundary decision
+ * (key->p[31]&0x7f==0x7f, the byte-loop, and the p[0]<0xed compound).
+ */
+int test_wc_ed25519_check_key_edgecases(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_KEY_EXPORT)
+    WC_RNG      rng;
+    ed25519_key key;
+    byte        pub[ED25519_PUB_KEY_SIZE];
+    word32      pubSz = sizeof(pub);
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    /* key == NULL. */
+    ExpectIntEQ(wc_ed25519_check_key(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* pubKeySet == 0. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed25519_free(&key);
+
+    /* privKeySet==1 path, public key mutated after generation so the
+     * make-and-compare mismatches. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    key.p[0] ^= 0xFF;
+    ExpectIntEQ(wc_ed25519_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&key);
+
+    /* No private key: Y-range boundary, "order or higher" (deterministic
+     * reject: top byte 0x7f, all mid bytes 0xff, low byte 0xff so the
+     * post-loop p[0]<0xed check is false -> stays PUBLIC_KEY_E without
+     * reaching ge_frombytes_negate_vartime). */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    XMEMSET(pub, 0xff, sizeof(pub));
+    pub[ED25519_PUB_KEY_SIZE - 1] = 0x7f;
+    XMEMCPY(key.p, pub, sizeof(pub));
+    key.pubKeySet = 1;
+    ExpectIntEQ(wc_ed25519_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed25519_free(&key);
+
+    /* No private key, Y-range boundary loop breaks early (a middle byte
+     * is not 0xff): first operand's false side, second never evaluated,
+     * ret reset to 0 by the break -- lands in ge_frombytes_negate_vartime
+     * on an arbitrary (not necessarily on-curve) point, so only the
+     * decision shape is asserted here, not a specific final verdict. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    XMEMSET(pub, 0xff, sizeof(pub));
+    pub[ED25519_PUB_KEY_SIZE - 1] = 0x7f;
+    pub[15] = 0x01;
+    XMEMCPY(key.p, pub, sizeof(pub));
+    key.pubKeySet = 1;
+    ExpectTrue((wc_ed25519_check_key(&key) == 0) ||
+        (wc_ed25519_check_key(&key) == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
+    wc_ed25519_free(&key);
+
+    /* No private key, Y-range boundary "order or higher" false side (the
+     * pass-through p[0]<0xed case, distinct from the p-1 small-order
+     * table entry at p[0]==0xec): again only the decision shape is
+     * asserted, not a specific final verdict. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    XMEMSET(pub, 0xff, sizeof(pub));
+    pub[ED25519_PUB_KEY_SIZE - 1] = 0x7f;
+    pub[0] = 0xeb;
+    XMEMCPY(key.p, pub, sizeof(pub));
+    key.pubKeySet = 1;
+    ExpectTrue((wc_ed25519_check_key(&key) == 0) ||
+        (wc_ed25519_check_key(&key) == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
+    wc_ed25519_free(&key);
+
+    (void)pubSz;
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_check_key_edgecases */
+
+/*
+ * Testing wc_ed25519_import_public_ex's three input-shape branches
+ * (compressed-prefix, plain-length, else BAD_FUNC_ARG) and
+ * wc_ed25519_import_private_key_ex's pub==NULL argument-derivation
+ * compound.
+ */
+int test_wc_ed25519_import_variants(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+    ed25519_key key;
+    byte        compressed[ED25519_PUB_KEY_SIZE + 1];
+
+    XMEMSET(compressed, 0, sizeof(compressed));
+    compressed[0] = 0x40;
+    XMEMSET(compressed + 1, 7, ED25519_PUB_KEY_SIZE);
+
+    /* compressed-prefix branch: in[0]==0x40 && inLen==PUB_KEY_SIZE+1. */
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_import_public_ex(compressed, sizeof(compressed),
+        &key, 1), 0);
+    ExpectIntEQ(XMEMCMP(key.p, compressed + 1, ED25519_PUB_KEY_SIZE), 0);
+    wc_ed25519_free(&key);
+
+    /* wrong length, not matching any of the three recognized shapes. */
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_import_public_ex(compressed, ED25519_PUB_KEY_SIZE
+        - 1, &key, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_ed25519_free(&key);
+
+    /* GAPS: in[0]==0x40 compound's second operand FALSE side (right
+     * prefix byte, wrong length) -- falls through to the plain
+     * inLen==PUB_KEY_SIZE branch since compressed[0]==0x40 is itself a
+     * valid arbitrary key byte there. */
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_import_public_ex(compressed, ED25519_PUB_KEY_SIZE,
+        &key, 1), 0);
+    ExpectIntEQ(XMEMCMP(key.p, compressed, ED25519_PUB_KEY_SIZE), 0);
+    wc_ed25519_free(&key);
+
+    /* GAPS: in[0]==0x04 compound's second operand FALSE side (right
+     * prefix byte, inLen not > 2*PUB_KEY_SIZE) -- same fallthrough. */
+    compressed[0] = 0x04;
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_import_public_ex(compressed, ED25519_PUB_KEY_SIZE,
+        &key, 1), 0);
+    ExpectIntEQ(XMEMCMP(key.p, compressed, ED25519_PUB_KEY_SIZE), 0);
+    wc_ed25519_free(&key);
+
+    /* wc_ed25519_import_private_only argument checks (GAPS: entirely
+     * untested elsewhere). */
+    {
+        ed25519_key privKey;
+        byte        privOnly[ED25519_KEY_SIZE];
+
+        XMEMSET(privOnly, 5, sizeof(privOnly));
+
+        ExpectIntEQ(wc_ed25519_import_private_only(NULL, sizeof(privOnly),
+            &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ed25519_init(&privKey), 0);
+        ExpectIntEQ(wc_ed25519_import_private_only(privOnly,
+            sizeof(privOnly), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ed25519_import_private_only(privOnly,
+            sizeof(privOnly) - 1, &privKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ed25519_import_private_only(privOnly,
+            sizeof(privOnly), &privKey), 0);
+        ExpectIntEQ(XMEMCMP(privKey.k, privOnly, sizeof(privOnly)), 0);
+        wc_ed25519_free(&privKey);
+    }
+
+#ifdef HAVE_ED25519_KEY_EXPORT
+    /* wc_ed25519_import_private_key_ex: pub==NULL branch. */
+    {
+        WC_RNG      rng;
+        ed25519_key fullKey;
+        byte        priv[ED25519_PRV_KEY_SIZE];
+        word32      privSz = sizeof(priv);
+
+        XMEMSET(&rng, 0, sizeof(WC_RNG));
+        ExpectIntEQ(wc_ed25519_init(&fullKey), 0);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &fullKey),
+            0);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ed25519_export_private(&fullKey, priv, &privSz), 0);
+        PRIVATE_KEY_LOCK();
+
+        /* pub==NULL && pubSz!=0: BAD_FUNC_ARG. */
+        ExpectIntEQ(wc_ed25519_init(&key), 0);
+        ExpectIntEQ(wc_ed25519_import_private_key_ex(priv, privSz, NULL, 4,
+            &key, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_ed25519_free(&key);
+
+        /* pub==NULL && privSz!=PRV_KEY_SIZE: BAD_FUNC_ARG. */
+        ExpectIntEQ(wc_ed25519_init(&key), 0);
+        ExpectIntEQ(wc_ed25519_import_private_key_ex(priv, ED25519_KEY_SIZE,
+            NULL, 0, &key, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_ed25519_free(&key);
+
+        /* pub==NULL, privSz==PRV_KEY_SIZE: derive pub from priv+32. */
+        ExpectIntEQ(wc_ed25519_init(&key), 0);
+        ExpectIntEQ(wc_ed25519_import_private_key_ex(priv, privSz, NULL, 0,
+            &key, 1), 0);
+        ExpectIntEQ(XMEMCMP(key.p, priv + ED25519_KEY_SIZE,
+            ED25519_PUB_KEY_SIZE), 0);
+        wc_ed25519_free(&key);
+
+        /* pub!=NULL but pubSz < PUB_KEY_SIZE: BAD_FUNC_ARG. */
+        ExpectIntEQ(wc_ed25519_init(&key), 0);
+        ExpectIntEQ(wc_ed25519_import_private_key_ex(priv, ED25519_KEY_SIZE,
+            priv + ED25519_KEY_SIZE, ED25519_PUB_KEY_SIZE - 1, &key, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_ed25519_free(&key);
+
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+        wc_ed25519_free(&fullKey);
+    }
+#endif /* HAVE_ED25519_KEY_EXPORT */
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_import_variants */
+
+/*
+ * Testing wc_ed25519_make_public's own argument-check compound (GAPS:
+ * exercised elsewhere only indirectly, through wc_ed25519_make_key, which
+ * never passes it a bad pubKey/pubKeySz).
+ */
+int test_wc_ed25519_make_public_argchecks(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
+    WC_RNG        rng;
+    ed25519_key   key;
+    unsigned char pubKey[ED25519_PUB_KEY_SIZE];
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+
+    /* key==NULL||pubKey==NULL||pubKeySz!=SIZE compound, each operand's
+     * TRUE side individually. */
+    ExpectIntEQ(wc_ed25519_make_public(NULL, pubKey, sizeof(pubKey)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_make_public(&key, NULL, sizeof(pubKey)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubKey, sizeof(pubKey) - 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* all-false: valid call, also completes the (ret==0 && !privKeySet)
+     * compound's first operand's FALSE side (ret already BAD_FUNC_ARG from
+     * the pubKey==NULL case above never reaches key->privKeySet). */
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubKey, sizeof(pubKey)), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_make_public_argchecks */
+

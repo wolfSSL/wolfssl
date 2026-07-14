@@ -626,13 +626,17 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     word32 blocksLen;
     byte* local;
 
-    if (sha == NULL || (data == NULL && len > 0)) {
+    if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
 
     if (data == NULL && len == 0) {
         /* valid, but do nothing */
         return 0;
+    }
+
+    if (data == NULL) {
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLF_CRYPTO_CB

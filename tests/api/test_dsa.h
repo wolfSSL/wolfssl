@@ -35,6 +35,10 @@ int test_wc_DsaImportParamsRawCheck(void);
 int test_wc_DsaExportParamsRaw(void);
 int test_wc_DsaExportKeyRaw(void);
 int test_wc_DsaCheckPubKey(void);
+int test_wc_DsaSign_bad_digestSz(void);
+int test_wc_DsaImportParamsRaw_individual_args(void);
+int test_wc_DsaExportParamsRaw_individual_args(void);
+int test_wc_DsaExportKeyRaw_individual_args(void);
 
 #define TEST_DSA_DECLS                                          \
     TEST_DECL_GROUP("dsa", test_wc_InitDsaKey),                 \
@@ -47,6 +51,10 @@ int test_wc_DsaCheckPubKey(void);
     TEST_DECL_GROUP("dsa", test_wc_DsaImportParamsRawCheck),    \
     TEST_DECL_GROUP("dsa", test_wc_DsaExportParamsRaw),         \
     TEST_DECL_GROUP("dsa", test_wc_DsaExportKeyRaw),            \
-    TEST_DECL_GROUP("dsa", test_wc_DsaCheckPubKey)
+    TEST_DECL_GROUP("dsa", test_wc_DsaCheckPubKey),             \
+    TEST_DECL_GROUP("dsa", test_wc_DsaSign_bad_digestSz),       \
+    TEST_DECL_GROUP("dsa", test_wc_DsaImportParamsRaw_individual_args), \
+    TEST_DECL_GROUP("dsa", test_wc_DsaExportParamsRaw_individual_args), \
+    TEST_DECL_GROUP("dsa", test_wc_DsaExportKeyRaw_individual_args)
 
 #endif /* WOLFCRYPT_TEST_DSA_H */

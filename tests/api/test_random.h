@@ -37,6 +37,11 @@ int test_wc_RNG_DRBG_Reseed(void);
 int test_wc_RNG_TestSeed(void);
 int test_wc_RNG_HealthTest(void);
 int test_wc_RNG_HealthTest_SHA512(void);
+int test_wc_RNG_HealthTest_SHA256_Ext(void);
+int test_wc_RNG_HealthTest_SHA512_Ext(void);
+int test_wc_RNG_SeedCb(void);
+int test_wc_RNG_CustomRandBlock(void);
+int test_wc_RNG_DrbgDisable(void);
 int test_wc_Entropy_Get(void);
 
 #define TEST_RANDOM_DECLS                                           \
@@ -53,6 +58,11 @@ int test_wc_Entropy_Get(void);
     TEST_DECL_GROUP("random", test_wc_RNG_TestSeed),                \
     TEST_DECL_GROUP("random", test_wc_RNG_HealthTest),              \
     TEST_DECL_GROUP("random", test_wc_RNG_HealthTest_SHA512),       \
+    TEST_DECL_GROUP("random", test_wc_RNG_HealthTest_SHA256_Ext),   \
+    TEST_DECL_GROUP("random", test_wc_RNG_HealthTest_SHA512_Ext),   \
+    TEST_DECL_GROUP("random", test_wc_RNG_SeedCb),                  \
+    TEST_DECL_GROUP("random", test_wc_RNG_CustomRandBlock),         \
+    TEST_DECL_GROUP("random", test_wc_RNG_DrbgDisable),             \
     TEST_DECL_GROUP("random", test_wc_Entropy_Get)
 
 #endif /* WOLFCRYPT_TEST_RANDOM_H */

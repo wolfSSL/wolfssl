@@ -299,7 +299,7 @@ int test_wc_DsaKeyToDer(void)
 int test_wc_DsaKeyToPublicDer(void)
 {
     EXPECT_DECLS;
-#ifndef HAVE_SELFTEST
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 #if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
     DsaKey key;
     WC_RNG rng;
@@ -733,3 +733,309 @@ int test_wc_DsaCheckPubKey(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_DsaCheckPubKey */
+
+#ifndef NO_DSA
+/* Fill dst (a NUL-terminated hex-digit buffer of len+1 bytes) with a
+ * synthetic hex string representing an len/2-byte-long value with the top
+ * nibble forced to 0xf (top bit set, so the value is exactly 4*len bits
+ * long) and every other nibble set to 0x1 (odd bottom nibble, arbitrary
+ * non-zero filler; the exact digits do not matter for these tests, only the
+ * bit length does). len must be even. */
+static void dsa_test_fill_hex(char* dst, int len)
+{
+    int i;
+    dst[0] = 'f';
+    for (i = 1; i < len; i++)
+        dst[i] = '1';
+    dst[len] = '\0';
+}
+#endif
+
+/*
+ * Testing wc_DsaSign_ex() / wc_DsaVerify_ex() digestSz bad-argument checks
+ * (WC_MIN_DIGEST_SIZE_FOR_SIGN/_VERIFY / WC_MAX_DIGEST_SIZE) and the
+ * qMinus1 iszero/isneg guard in wc_DsaSign_ex (q == 1 -> qMinus1 == 0).
+ */
+int test_wc_DsaSign_bad_digestSz(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DSA) && !defined(WC_FIPS_186_5_PLUS) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    DsaKey key;
+    WC_RNG rng;
+    byte   signature[DSA_SIG_SIZE];
+    byte   hash[WC_MAX_DIGEST_SIZE + 16];
+    int    answer = 0;
+#ifdef USE_CERT_BUFFERS_1024
+    byte   tmp[ONEK_BUF];
+    word32 bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte   tmp[TWOK_BUF];
+    word32 bytes = sizeof_dsa_key_der_2048;
+#else
+    byte   tmp[TWOK_BUF];
+    XFILE  fp = XBADFILE;
+    word32 bytes = 0;
+#endif
+    word32 idx = 0;
+
+    XMEMSET(hash, 0xAA, sizeof(hash));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+#else
+    XMEMSET(tmp, 0, sizeof(tmp));
+    ExpectTrue((fp = XFOPEN("./certs/dsa2048.der", "rb")) != XBADFILE);
+    ExpectTrue((bytes = (word32)XFREAD(tmp, 1, sizeof(tmp), fp)) > 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+#endif
+
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* digestSz too large */
+    ExpectIntEQ(wc_DsaSign_ex(hash, WC_MAX_DIGEST_SIZE + 1, signature, &key,
+        &rng), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    /* digestSz too small */
+    ExpectIntEQ(wc_DsaSign_ex(hash, WC_MIN_DIGEST_SIZE_FOR_SIGN - 1,
+        signature, &key, &rng), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    /* a valid digestSz signs successfully (all-false baseline) */
+    ExpectIntEQ(wc_DsaSign_ex(hash, WC_SHA_DIGEST_SIZE, signature, &key,
+        &rng), 0);
+
+    ExpectIntEQ(wc_DsaVerify_ex(hash, WC_MAX_DIGEST_SIZE + 1, signature,
+        &key, &answer), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    ExpectIntEQ(wc_DsaVerify_ex(hash, WC_MIN_DIGEST_SIZE_FOR_VERIFY - 1,
+        signature, &key, &answer), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    ExpectIntEQ(wc_DsaVerify_ex(hash, WC_SHA_DIGEST_SIZE, signature, &key,
+        &answer), 0);
+    ExpectIntEQ(answer, 1);
+
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && defined(WOLFSSL_PUBLIC_MP)
+    /* q == 1: qMinus1 (q - 1) == 0 -> mp_iszero(qMinus1) true */
+    ExpectIntEQ(mp_set(&key.q, 1), 0);
+    ExpectIntEQ(wc_DsaSign_ex(hash, WC_SHA_DIGEST_SIZE, signature, &key,
+        &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_FreeDsaKey(&key);
+#endif /* !NO_DSA && !WC_FIPS_186_5_PLUS */
+    return EXPECT_RESULT();
+} /* END test_wc_DsaSign_bad_digestSz */
+
+/*
+ * Testing the individual (single-operand) NULL/mismatch combinations of
+ * _DsaImportParamsRaw()'s guard (reached via wc_DsaImportParamsRaw() and
+ * wc_DsaImportParamsRawCheck()) that the existing all-NULL / all-valid
+ * tests in test_wc_DsaImportParamsRaw don't reach: each of p/q/g NULL
+ * individually (others valid), and CheckDsaLN's divLen==224/divLen==256
+ * MC/DC pair at a 2048-bit modulus size (untrusted path, synthetic
+ * non-prime p - trusted=1 for wc_DsaImportParamsRaw so no primality
+ * search is run).
+ */
+int test_wc_DsaImportParamsRaw_individual_args(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DSA)
+    DsaKey key;
+    const char* p = "d38311e2cd388c3ed698e82fdf88eb92b5a9a483dc88005d"
+                    "4b725ef341eabb47cf8a7a8a41e792a156b7ce97206c4f9c"
+                    "5ce6fc5ae7912102b6b502e59050b5b21ce263dddb2044b6"
+                    "52236f4d42ab4b5d6aa73189cef1ace778d7845a5c1c1c71"
+                    "47123188f8dc551054ee162b634d60f097f719076640e209"
+                    "80a0093113a8bd73";
+    const char* q = "96c5390a8b612c0e422bb2b0ea194a3ec935a281";
+    const char* g = "06b7861abbd35cc89e79c52f68d20875389b127361ca66822"
+                    "138ce4991d2b862259d6b4548a6495b195aa0e0b6137ca37e"
+                    "b23b94074d3c3d300042bdf15762812b6333ef7b07ceba786"
+                    "07610fcc9ee68491dbc1e34cd12615474e52b18bc934fb00c"
+                    "61d39e7da8902291c4434a4e2224c3f4fd9f93cd6f4f17fc0"
+                    "76341a7e7d9";
+    /* 2048-bit (512 hex digit) synthetic p, 224-bit (56 hex digit) and
+     * 256-bit (64 hex digit) synthetic q, to drive CheckDsaLN's case-2048
+     * divLen==224/divLen==256 MC/DC pair. Trusted import (wc_DsaImport
+     * ParamsRaw hardcodes trusted=1) skips the primality search entirely,
+     * so p need not actually be prime. */
+    char p2048[513];
+    char q224[57];
+    char q256[65];
+
+    dsa_test_fill_hex(p2048, 512);
+    dsa_test_fill_hex(q224, 56);
+    dsa_test_fill_hex(q256, 64);
+
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    /* q == NULL alone (p, g valid) */
+    ExpectIntEQ(wc_DsaImportParamsRaw(&key, p, NULL, g),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* g == NULL alone (p, q valid) */
+    ExpectIntEQ(wc_DsaImportParamsRaw(&key, p, q, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* p == NULL alone (q, g valid) */
+    ExpectIntEQ(wc_DsaImportParamsRaw(&key, NULL, q, g),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_FreeDsaKey(&key);
+
+    /* CheckDsaLN(2048, 224): divLen==224 true, divLen==256 false */
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_DsaImportParamsRaw(&key, p2048, q224, g), 0);
+    wc_FreeDsaKey(&key);
+
+    /* CheckDsaLN(2048, 256): divLen==224 false, divLen==256 true */
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_DsaImportParamsRaw(&key, p2048, q256, g), 0);
+    wc_FreeDsaKey(&key);
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* untrusted path (wc_DsaImportParamsRawCheck, trusted=0): err==MP_OKAY
+     * (the p hex-radix read succeeded) && !trusted (true) -> the primality
+     * check runs, and the synthetic (non-prime) p is rejected internally
+     * with DH_CHECK_PUB_E. Once the primality rejection sets err, every
+     * later step in _DsaImportParamsRaw is gated on "if (err == MP_OKAY)" --
+     * including the final CheckDsaLN(L,N) bit-length check (gated as of
+     * commit 30ceba03c "dsa: gate CheckDsaLN on err==MP_OKAY") -- so nothing
+     * overwrites the DH_CHECK_PUB_E, and it is the function's observable
+     * return code for this input. */
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_DsaImportParamsRawCheck(&key, p2048, q256, g, 0, NULL),
+        WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
+    wc_FreeDsaKey(&key);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_DsaImportParamsRaw_individual_args */
+
+/*
+ * Testing the individual (single-operand) NULL/mixed-NULL combinations of
+ * wc_DsaExportParamsRaw()'s two guards that the existing
+ * test_wc_DsaExportParamsRaw doesn't reach: qSz/gSz NULL individually, and
+ * a mixed (not all-NULL, not all-valid) p/q/g buffer combination for both
+ * the LENGTH_ONLY_E all-NULL check and the BAD_FUNC_ARG partial-NULL check.
+ */
+int test_wc_DsaExportParamsRaw_individual_args(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DSA)
+    DsaKey key;
+    const char* p = "d38311e2cd388c3ed698e82fdf88eb92b5a9a483dc88005d"
+                    "4b725ef341eabb47cf8a7a8a41e792a156b7ce97206c4f9c"
+                    "5ce6fc5ae7912102b6b502e59050b5b21ce263dddb2044b6"
+                    "52236f4d42ab4b5d6aa73189cef1ace778d7845a5c1c1c71"
+                    "47123188f8dc551054ee162b634d60f097f719076640e209"
+                    "80a0093113a8bd73";
+    const char* q = "96c5390a8b612c0e422bb2b0ea194a3ec935a281";
+    const char* g = "06b7861abbd35cc89e79c52f68d20875389b127361ca66822"
+                    "138ce4991d2b862259d6b4548a6495b195aa0e0b6137ca37e"
+                    "b23b94074d3c3d300042bdf15762812b6333ef7b07ceba786"
+                    "07610fcc9ee68491dbc1e34cd12615474e52b18bc934fb00c"
+                    "61d39e7da8902291c4434a4e2224c3f4fd9f93cd6f4f17fc0"
+                    "76341a7e7d9";
+    byte pOut[MAX_DSA_PARAM_SIZE];
+    byte qOut[MAX_DSA_PARAM_SIZE];
+    byte gOut[MAX_DSA_PARAM_SIZE];
+    word32 pOutSz, qOutSz, gOutSz;
+
+    XMEMSET(&key, 0, sizeof(DsaKey));
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_DsaImportParamsRaw(&key, p, q, g), 0);
+
+    pOutSz = sizeof(pOut); qOutSz = sizeof(qOut); gOutSz = sizeof(gOut);
+    /* qSz == NULL alone */
+    ExpectIntEQ(wc_DsaExportParamsRaw(&key, pOut, &pOutSz, qOut, NULL, gOut,
+        &gOutSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* gSz == NULL alone */
+    ExpectIntEQ(wc_DsaExportParamsRaw(&key, pOut, &pOutSz, qOut, &qOutSz,
+        gOut, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* mixed: p NULL, q and g non-NULL (not all-NULL -> skips LENGTH_ONLY_E;
+     * not all-valid -> BAD_FUNC_ARG from the second guard) */
+    ExpectIntEQ(wc_DsaExportParamsRaw(&key, NULL, &pOutSz, qOut, &qOutSz,
+        gOut, &gOutSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* mixed: q NULL only */
+    ExpectIntEQ(wc_DsaExportParamsRaw(&key, pOut, &pOutSz, NULL, &qOutSz,
+        gOut, &gOutSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* mixed: g NULL only */
+    ExpectIntEQ(wc_DsaExportParamsRaw(&key, pOut, &pOutSz, qOut, &qOutSz,
+        NULL, &gOutSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_FreeDsaKey(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_DsaExportParamsRaw_individual_args */
+
+/*
+ * Testing the individual (single-operand) NULL/zero-only combinations of
+ * wc_DsaExportKeyRaw()'s guards that the existing test_wc_DsaExportKeyRaw
+ * doesn't reach: ySz NULL alone, y NULL alone (x valid), and only one of
+ * (x, y) zero (the mp_iszero(x) && mp_iszero(y) "both zero" check).
+ */
+int test_wc_DsaExportKeyRaw_individual_args(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+    DsaKey key;
+    WC_RNG rng;
+    byte xOut[MAX_DSA_PARAM_SIZE];
+    byte yOut[MAX_DSA_PARAM_SIZE];
+    word32 xOutSz, yOutSz;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MakeDsaParameters(&rng, 1024, &key), 0);
+    ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);
+
+    xOutSz = sizeof(xOut); yOutSz = sizeof(yOut);
+    /* ySz == NULL alone */
+    ExpectIntEQ(wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* y == NULL alone (x valid): LENGTH_ONLY_E only fires when BOTH x and y
+     * are NULL; with exactly one NULL this falls through to the
+     * "x == NULL || y == NULL" guard -> BAD_FUNC_ARG. */
+    ExpectIntEQ(wc_DsaExportKeyRaw(&key, xOut, &xOutSz, NULL, &yOutSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_FreeDsaKey(&key);
+
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && defined(WOLFSSL_PUBLIC_MP)
+    /* only y is zero (x non-zero): mp_iszero(x)==false short-circuits the
+     * "both zero" check before mp_iszero(y) is even evaluated by most
+     * compilers, but the source is a plain && so MC/DC still needs this
+     * combination demonstrated with x forced non-zero and y forced zero. */
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    /* free the RNG from the previous block before re-initializing it */
+    wc_FreeRng(&rng);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MakeDsaParameters(&rng, 1024, &key), 0);
+    ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);
+    mp_zero(&key.y);
+    xOutSz = sizeof(xOut); yOutSz = sizeof(yOut);
+    ExpectIntEQ(wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, &yOutSz), 0);
+    wc_FreeDsaKey(&key);
+
+    /* only x is zero (y non-zero) */
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    /* free the RNG from the previous block before re-initializing it */
+    wc_FreeRng(&rng);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MakeDsaParameters(&rng, 1024, &key), 0);
+    ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);
+    mp_zero(&key.x);
+    xOutSz = sizeof(xOut); yOutSz = sizeof(yOut);
+    ExpectIntEQ(wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, &yOutSz), 0);
+    wc_FreeDsaKey(&key);
+#endif
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif /* !NO_DSA && WOLFSSL_KEY_GEN */
+    return EXPECT_RESULT();
+} /* END test_wc_DsaExportKeyRaw_individual_args */
