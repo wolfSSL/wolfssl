@@ -19194,7 +19194,8 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
     #endif
         if (ret != WC_NO_ERR_TRACE(AES_GCM_AUTH_E))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
+    #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
+        !defined(WOLFSSL_PPC64_ASM) && \
         !defined(WOLFSSL_PPC32_ASM) && !defined(STM32_CRYPTO_AES_GCM) && \
         !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
         !defined(WOLFSSL_KCAPI_AES) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
