@@ -16507,7 +16507,7 @@ static wc_test_ret_t aes_ecb_direct_test(void)
  * functions come from the validated module and don't reject a missing key, so
  * this test does not apply there. */
 #if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AESGCM) || defined(HAVE_AES_ECB) || \
+    defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_AES_ECB) || \
     defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB)) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 #define WC_TEST_HAVE_AES_NO_KEY_SET
@@ -16523,14 +16523,14 @@ static wc_test_ret_t aes_no_key_set_test(void)
 #endif
     byte    plain[WC_AES_BLOCK_SIZE];
     byte    cipher[WC_AES_BLOCK_SIZE];
-#ifdef HAVE_AESGCM
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     byte    iv[WC_AES_BLOCK_SIZE];
     byte    tag[WC_AES_BLOCK_SIZE];
 #endif
 
     XMEMSET(plain, 0, sizeof(plain));
     XMEMSET(cipher, 0, sizeof(cipher));
-#ifdef HAVE_AESGCM
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     XMEMSET(iv, 0, sizeof(iv));
     XMEMSET(tag, 0, sizeof(tag));
 #endif
@@ -16571,6 +16571,17 @@ static wc_test_ret_t aes_no_key_set_test(void)
             tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
+
+#ifdef HAVE_AESCCM
+    if (wc_AesCcmEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, 13,
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesCcmDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, 13,
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#endif /* HAVE_AESCCM */
 
 #ifdef HAVE_AES_ECB
     if (wc_AesEcbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
