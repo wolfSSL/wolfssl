@@ -1564,9 +1564,9 @@ fi
 # have dedicated streaming assembly (AES_GCM_*_RISCV64).  (Previously disabled
 # here.)
 
-# All wolfCrypt features:
+# All wolfCrypt features except quantum-resistant asymmetric:
 AC_ARG_ENABLE([all-crypto],
-    [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms (default: disabled)])],
+    [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms except quantum-resistant asymmetric (default: disabled)])],
     [ ENABLED_ALL_CRYPT=$enableval ],
     [ ENABLED_ALL_CRYPT=no ]
     )
@@ -1706,6 +1706,21 @@ then
 
     # Enable onestep KDF from NIST SP 800 56c option 1.
     AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+fi
+
+# All native quantum-resistant asymmetric algorithms:
+AC_ARG_ENABLE([all-quantum-crypto],
+    [AS_HELP_STRING([--enable-all-quantum-crypto],[Enable all quantum-resistant asymmetric algorithms (default: disabled)])],
+    [ ENABLED_ALL_QUANTUM_CRYPT=$enableval ],
+    [ ENABLED_ALL_QUANTUM_CRYPT=no ]
+    )
+if test "$ENABLED_ALL_QUANTUM_CRYPT" = "yes"
+then
+    test "$enable_mlkem" = "" && enable_mlkem=yes
+    test "$enable_mldsa" = "" && enable_mldsa=yes
+    test "$enable_xmss" = "" && enable_xmss=yes
+    test "$enable_lms" = "" && enable_lms=yes
+    test "$enable_slhdsa" = "" && enable_slhdsa='yes,sha2'
 fi
 
 # kernel-appropriate settings, also in enable-all-crypto above:
