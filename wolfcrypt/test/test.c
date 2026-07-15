@@ -26349,7 +26349,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     FreeDecodedCert(&cert);
 
-    /* Certificate with Inhibit Any Policy extension. */
+    /* Certificate with Inhibit Any Policy extension. RFC 5280 4.2.1.14 requires
+     * it to be critical and wolfSSL does not process it, so it is rejected. */
     file = XFOPEN(certExtIa, "rb");
     if (!file) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
@@ -26360,8 +26361,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+#ifndef WOLFSSL_NO_ASN_STRICT
+    if (ret != WC_NO_ERR_TRACE(ASN_CRIT_EXT_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = 0;
+#else
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+#endif
     FreeDecodedCert(&cert);
 
     /* Certificate with Netscape Certificate Type extension. */
