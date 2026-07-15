@@ -1939,6 +1939,20 @@ int test_wc_DecodeObjectId_ex(void)
                 ExpectIntEQ(out[i], oid_dot_large_arc[i]);
             }
         }
+
+        /* Test 9: an arc that does not fit in a word32 must be rejected by
+         * the overflow guard rather than silently wrapping. The first byte
+         * (0x2a) decodes to 1.2; the following five continuation bytes encode
+         * a single sub-identifier that needs more than 32 bits. */
+        {
+            static const byte oid_overflow_arc[] = {
+                0x2a, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F
+            };
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId_ex(oid_overflow_arc,
+                        sizeof(oid_overflow_arc), out, &outSz),
+                        WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+        }
     }
 #endif /* !NO_ASN && (HAVE_OID_DECODING || WOLFSSL_ASN_PRINT) */
 
@@ -2018,6 +2032,20 @@ int test_wc_EncodeObjectId(void)
             }
 #endif /* HAVE_OID_DECODING || WOLFSSL_ASN_PRINT */
         }
+
+        /* Test 6: first arc greater than 2 is invalid (in[0] > 2) */
+        {
+            static const word32 oid_bad_first[] = { 3U, 1U };
+            outSz = sizeof(out);
+            ExpectIntEQ(wc_EncodeObjectId(oid_bad_first,
+                        sizeof(oid_bad_first) / sizeof(word32), out, &outSz),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+
+        /* Test 7: fewer than two arcs is invalid (inSz < 2) */
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_EncodeObjectId(oid_small, 1, out, &outSz),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 #endif /* HAVE_OID_ENCODING && !NO_ASN */
 

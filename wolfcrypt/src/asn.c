@@ -7269,7 +7269,7 @@ int EncodeObjectId(const word16* in, word32 inSz,
     word32 d, t;
 
     /* check args */
-    if (in == NULL || outSz == NULL || inSz < 2) {
+    if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2) {
         return BAD_FUNC_ARG;
     }
 
@@ -7339,7 +7339,7 @@ int EncodeObjectId(const word16* in, word32 inSz,
 #endif /* HAVE_OID_ENCODING */
 
 #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
-/* Encode dotted form of OID into byte array version.
+/* Decode DER encoded form of OID into word16 OID dot seperated.
  *
  * @param [in]      in     Byte array containing OID.
  * @param [in]      inSz   Size of OID in bytes.
@@ -7404,7 +7404,7 @@ int DecodeObjectId(const byte* in, word32 inSz,
     return 0;
 }
 
-/* Encode dotted form of OID into word32 array version.
+/* Decode DER encoded form of OID into word32 OID dot seperated.
  *
  * Same as DecodeObjectId() but outputs to a word32 array so that OID
  * arc values larger than a word16 are not truncated.
