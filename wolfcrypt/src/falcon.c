@@ -7516,32 +7516,24 @@ static int falcon_hash_to_point(const byte* nonce, const byte* msg,
 {
     wc_Shake shake;
     byte block[WC_SHA3_256_BLOCK_SIZE];
-    byte* absorbBuf;
     size_t n = (size_t)1 << logn;
     size_t i = 0;
     int bi = WC_SHA3_256_BLOCK_SIZE;   /* force an initial squeeze */
     int ret;
     int shakeInit = 0;
 
-    /* Guard against size_t wrap of (nonce || msg) on 32-bit targets. */
-    if (msgLen > (word32)(0xFFFFFFFFUL - FALCON_NONCE_SIZE)) {
-        return BAD_FUNC_ARG;
-    }
-    absorbBuf = (byte*)XMALLOC((size_t)FALCON_NONCE_SIZE + msgLen, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (absorbBuf == NULL) {
-        return MEMORY_E;
-    }
-    XMEMCPY(absorbBuf, nonce, FALCON_NONCE_SIZE);
-    if (msgLen > 0) {
-        XMEMCPY(absorbBuf + FALCON_NONCE_SIZE, msg, msgLen);
-    }
-
+    /* Absorb nonce || msg incrementally, avoiding a temporary concatenation
+     * buffer: wc_Shake256_Absorb() is an Update() followed by the SHAKE finalize
+     * on the same sponge, so feeding the nonce with wc_Shake256_Update() first
+     * and the message with wc_Shake256_Absorb() second absorbs their
+     * concatenation and pads the state for squeezing. */
     ret = wc_InitShake256(&shake, heap, INVALID_DEVID);
     if (ret == 0) {
         shakeInit = 1;
-        ret = wc_Shake256_Absorb(&shake, absorbBuf,
-                (word32)(FALCON_NONCE_SIZE + msgLen));
+        ret = wc_Shake256_Update(&shake, nonce, FALCON_NONCE_SIZE);
+    }
+    if (ret == 0) {
+        ret = wc_Shake256_Absorb(&shake, msg, msgLen);
     }
 
     while (ret == 0 && i < n) {
@@ -7569,8 +7561,6 @@ static int falcon_hash_to_point(const byte* nonce, const byte* msg,
     if (shakeInit) {
         wc_Shake256_Free(&shake);
     }
-    /* nonce || msg are public; no zeroization needed. */
-    XFREE(absorbBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
