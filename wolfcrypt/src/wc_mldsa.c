@@ -1829,10 +1829,10 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
 
     /* Step 3. Get 20 bits as a number. */
     for (j = 0; j < MLDSA_N; j += 4) {
-        sword32 z0 = MLDSA_GAMMA1_19 - z[j + 0];
-        sword32 z1 = MLDSA_GAMMA1_19 - z[j + 1];
-        sword32 z2 = MLDSA_GAMMA1_19 - z[j + 2];
-        sword32 z3 = MLDSA_GAMMA1_19 - z[j + 3];
+        word32 z0 = (word32)(MLDSA_GAMMA1_19 - z[j + 0]);
+        word32 z1 = (word32)(MLDSA_GAMMA1_19 - z[j + 1]);
+        word32 z2 = (word32)(MLDSA_GAMMA1_19 - z[j + 2]);
+        word32 z3 = (word32)(MLDSA_GAMMA1_19 - z[j + 3]);
 
         /* 20 bits per number.
          * 4 numbers become 10 bytes. (4 * 20 bits = 10 * 8 bits) */
