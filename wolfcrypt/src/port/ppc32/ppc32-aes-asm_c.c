@@ -25,7 +25,7 @@
  *       ../wolfssl/wolfcrypt/src/port/ppc32/ppc32-aes-asm.c
  */
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_PPC32_ASM
