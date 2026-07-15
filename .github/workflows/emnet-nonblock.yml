@@ -11,6 +11,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 # END OF COMMON SECTION
 
 # Build wolfSSL with -DWOLFSSL_EMNET using the clean-room shim in
