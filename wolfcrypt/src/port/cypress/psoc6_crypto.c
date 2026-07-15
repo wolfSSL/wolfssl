@@ -2093,7 +2093,7 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
     uint8_t k[MAX_ECC_KEYSIZE] = { 0 };
 
     if (!key || !verif_res || !r || !s || !hash)
-        return -BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
 
     /* Enable CRYPTO block if not enabled */
     if (!Cy_Crypto_Core_IsEnabled(crypto_base)) {
@@ -2105,7 +2105,15 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
     sSz   = mp_unsigned_bin_size(s);
 
     if (keySz > MAX_ECC_KEYSIZE)
-        return -BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
+
+    /* r and s come from the (untrusted) signature. A valid ECDSA r,s is in
+     * [1, order-1], so each fits in keySz bytes. Reject anything larger before
+     * it is copied into the fixed-size signature_buf, which would otherwise
+     * overflow. The software path enforces this via wc_ecc_check_r_s_range(),
+     * which is compiled out for the PSoC6 port. */
+    if (rSz > keySz || sSz > keySz)
+        return BAD_FUNC_ARG;
 
     /* Prepare ECC key */
     ecc_key.type     = PK_PUBLIC;
