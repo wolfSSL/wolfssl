@@ -1057,4 +1057,2349 @@ L_poly1305_avx2_final_cmp_copy:
 poly1305_final_avx2 ENDP
 _TEXT ENDS
 ENDIF
+IFDEF HAVE_INTEL_AVX512
+_TEXT SEGMENT READONLY PARA
+poly1305_calc_powers_avx512 PROC
+        push	r12
+        push	r13
+        push	r14
+        push	r15
+        push	rdi
+        push	rsi
+        push	rbx
+        push	rbp
+        sub	rsp, 96
+        mov	r8, QWORD PTR [rcx]
+        mov	r9, QWORD PTR [rcx+8]
+        xor	r10, r10
+        ; Convert to 26 bits in 32
+        mov	rax, r8
+        mov	rdx, r8
+        mov	rsi, r8
+        mov	rbx, r9
+        mov	rbp, r9
+        shr	rdx, 26
+        shrd	rsi, r9, 52
+        shr	rbx, 14
+        shrd	rbp, r10, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+224], eax
+        mov	DWORD PTR [rcx+228], edx
+        mov	DWORD PTR [rcx+232], esi
+        mov	DWORD PTR [rcx+236], ebx
+        mov	DWORD PTR [rcx+240], ebp
+        mov	DWORD PTR [rcx+244], 0
+        mov	QWORD PTR [rsp], r8
+        mov	QWORD PTR [rsp+8], r9
+        mov	QWORD PTR [rsp+16], r10
+        ; Square 128-bit
+        mov	rax, r9
+        mul	r8
+        xor	r14, r14
+        mov	r12, rax
+        mov	r13, rdx
+        add	r12, rax
+        adc	r13, rdx
+        adc	r14, 0
+        mov	rax, r8
+        mul	rax
+        mov	r11, rax
+        mov	rdi, rdx
+        mov	rax, r9
+        mul	rax
+        add	r12, rdi
+        adc	r13, rax
+        adc	r14, rdx
+        ; Reduce 256-bit to 130-bit
+        mov	rax, r13
+        mov	rdx, r14
+        and	rax, -4
+        and	r13, 3
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, 0
+        shrd	rax, rdx, 2
+        shr	rdx, 2
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, 0
+        mov	rax, r13
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        and	r13, 3
+        add	r11, rax
+        adc	r12, 0
+        adc	r13, 0
+        ; Convert to 26 bits in 32
+        mov	rax, r11
+        mov	rdx, r11
+        mov	rsi, r11
+        mov	rbx, r12
+        mov	rbp, r12
+        shr	rdx, 26
+        shrd	rsi, r12, 52
+        shr	rbx, 14
+        shrd	rbp, r13, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+256], eax
+        mov	DWORD PTR [rcx+260], edx
+        mov	DWORD PTR [rcx+264], esi
+        mov	DWORD PTR [rcx+268], ebx
+        mov	DWORD PTR [rcx+272], ebp
+        mov	DWORD PTR [rcx+276], 0
+        mov	QWORD PTR [rsp+24], r11
+        mov	QWORD PTR [rsp+32], r12
+        mov	QWORD PTR [rsp+40], r13
+        ; Multiply 128-bit by 130-bit
+        ;   r1[0] * r2[0]
+        mov	rax, r8
+        mul	r11
+        mov	r14, rax
+        mov	r15, rdx
+        ;   r1[0] * r2[1]
+        mov	rax, r8
+        mul	r12
+        mov	rdi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        ;   r1[1] * r2[0]
+        mov	rax, r9
+        mul	r11
+        mov	rsi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r8
+        mul	r13
+        add	rdi, rax
+        adc	rsi, rdx
+        ;   r1[1] * r2[1]
+        mov	rax, r9
+        mul	r12
+        mov	rbx, 0
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r9
+        mul	r13
+        add	rsi, rax
+        adc	rbx, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        shrd	rax, rdx, 2
+        shrd	rdx, rbx, 2
+        shr	rbx, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        ; Convert to 26 bits in 32
+        mov	rax, r14
+        mov	rdx, r14
+        mov	rsi, r14
+        mov	rbx, r15
+        mov	rbp, r15
+        shr	rdx, 26
+        shrd	rsi, r15, 52
+        shr	rbx, 14
+        shrd	rbp, rdi, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+288], eax
+        mov	DWORD PTR [rcx+292], edx
+        mov	DWORD PTR [rcx+296], esi
+        mov	DWORD PTR [rcx+300], ebx
+        mov	DWORD PTR [rcx+304], ebp
+        mov	DWORD PTR [rcx+308], 0
+        mov	QWORD PTR [rsp+48], r14
+        mov	QWORD PTR [rsp+56], r15
+        mov	QWORD PTR [rsp+64], rdi
+        ; Square 130-bit
+        mov	rax, r12
+        mul	r11
+        xor	r14, r14
+        mov	r9, rax
+        mov	r10, rdx
+        add	r9, rax
+        adc	r10, rdx
+        adc	r14, 0
+        mov	rax, r11
+        mul	rax
+        mov	r8, rax
+        mov	rdi, rdx
+        mov	rax, r12
+        mul	rax
+        add	r9, rdi
+        adc	r10, rax
+        adc	r14, rdx
+        mov	rax, r13
+        mul	rax
+        mov	r15, rax
+        mov	rax, r13
+        mul	r11
+        add	r10, rax
+        adc	r14, rdx
+        adc	r15, 0
+        add	r10, rax
+        adc	r14, rdx
+        adc	r15, 0
+        mov	rax, r13
+        mul	r12
+        add	r14, rax
+        adc	r15, rdx
+        add	r14, rax
+        adc	r15, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, r10
+        mov	rdx, r14
+        mov	rdi, r15
+        and	rax, -4
+        and	r10, 3
+        add	r8, rax
+        adc	r9, rdx
+        adc	r10, rdi
+        shrd	rax, rdx, 2
+        shrd	rdx, rdi, 2
+        shr	rdi, 2
+        add	r8, rax
+        adc	r9, rdx
+        adc	r10, rdi
+        mov	rax, r10
+        and	r10, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r8, rax
+        adc	r9, 0
+        adc	r10, 0
+        ; Convert to 26 bits in 32
+        mov	rax, r8
+        mov	rdx, r8
+        mov	rsi, r8
+        mov	rbx, r9
+        mov	rbp, r9
+        shr	rdx, 26
+        shrd	rsi, r9, 52
+        shr	rbx, 14
+        shrd	rbp, r10, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+320], eax
+        mov	DWORD PTR [rcx+324], edx
+        mov	DWORD PTR [rcx+328], esi
+        mov	DWORD PTR [rcx+332], ebx
+        mov	DWORD PTR [rcx+336], ebp
+        mov	DWORD PTR [rcx+340], 0
+        mov	QWORD PTR [rsp+72], r8
+        mov	QWORD PTR [rsp+80], r9
+        mov	QWORD PTR [rsp+88], r10
+        mov	r11, QWORD PTR [rsp]
+        mov	r12, QWORD PTR [rsp+8]
+        mov	r13, QWORD PTR [rsp+16]
+        ; Multiply 128-bit by 130-bit
+        ;   r1[0] * r2[0]
+        mov	rax, r11
+        mul	r8
+        mov	r14, rax
+        mov	r15, rdx
+        ;   r1[0] * r2[1]
+        mov	rax, r11
+        mul	r9
+        mov	rdi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        ;   r1[1] * r2[0]
+        mov	rax, r12
+        mul	r8
+        mov	rsi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r11
+        mul	r10
+        add	rdi, rax
+        adc	rsi, rdx
+        ;   r1[1] * r2[1]
+        mov	rax, r12
+        mul	r9
+        mov	rbx, 0
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r12
+        mul	r10
+        add	rsi, rax
+        adc	rbx, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        shrd	rax, rdx, 2
+        shrd	rdx, rbx, 2
+        shr	rbx, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        ; Convert to 26 bits in 32
+        mov	rax, r14
+        mov	rdx, r14
+        mov	rsi, r14
+        mov	rbx, r15
+        mov	rbp, r15
+        shr	rdx, 26
+        shrd	rsi, r15, 52
+        shr	rbx, 14
+        shrd	rbp, rdi, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+624], eax
+        mov	DWORD PTR [rcx+628], edx
+        mov	DWORD PTR [rcx+632], esi
+        mov	DWORD PTR [rcx+636], ebx
+        mov	DWORD PTR [rcx+640], ebp
+        mov	DWORD PTR [rcx+644], 0
+        ; Square 130-bit
+        mov	rax, r9
+        mul	r8
+        xor	r14, r14
+        mov	r12, rax
+        mov	r13, rdx
+        add	r12, rax
+        adc	r13, rdx
+        adc	r14, 0
+        mov	rax, r8
+        mul	rax
+        mov	r11, rax
+        mov	rdi, rdx
+        mov	rax, r9
+        mul	rax
+        add	r12, rdi
+        adc	r13, rax
+        adc	r14, rdx
+        mov	rax, r10
+        mul	rax
+        mov	r15, rax
+        mov	rax, r10
+        mul	r8
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        mov	rax, r10
+        mul	r9
+        add	r14, rax
+        adc	r15, rdx
+        add	r14, rax
+        adc	r15, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, r13
+        mov	rdx, r14
+        mov	rdi, r15
+        and	rax, -4
+        and	r13, 3
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        shrd	rax, rdx, 2
+        shrd	rdx, rdi, 2
+        shr	rdi, 2
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        mov	rax, r13
+        and	r13, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r11, rax
+        adc	r12, 0
+        adc	r13, 0
+        ; Convert to 26 bits in 32
+        mov	rax, r11
+        mov	rdx, r11
+        mov	rsi, r11
+        mov	rbx, r12
+        mov	rbp, r12
+        shr	rdx, 26
+        shrd	rsi, r12, 52
+        shr	rbx, 14
+        shrd	rbp, r13, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+720], eax
+        mov	DWORD PTR [rcx+724], edx
+        mov	DWORD PTR [rcx+728], esi
+        mov	DWORD PTR [rcx+732], ebx
+        mov	DWORD PTR [rcx+736], ebp
+        mov	DWORD PTR [rcx+740], 0
+        mov	r8, QWORD PTR [rsp+48]
+        mov	r9, QWORD PTR [rsp+56]
+        mov	r10, QWORD PTR [rsp+64]
+        ; Square 130-bit
+        mov	rax, r9
+        mul	r8
+        xor	r14, r14
+        mov	r12, rax
+        mov	r13, rdx
+        add	r12, rax
+        adc	r13, rdx
+        adc	r14, 0
+        mov	rax, r8
+        mul	rax
+        mov	r11, rax
+        mov	rdi, rdx
+        mov	rax, r9
+        mul	rax
+        add	r12, rdi
+        adc	r13, rax
+        adc	r14, rdx
+        mov	rax, r10
+        mul	rax
+        mov	r15, rax
+        mov	rax, r10
+        mul	r8
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        mov	rax, r10
+        mul	r9
+        add	r14, rax
+        adc	r15, rdx
+        add	r14, rax
+        adc	r15, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, r13
+        mov	rdx, r14
+        mov	rdi, r15
+        and	rax, -4
+        and	r13, 3
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        shrd	rax, rdx, 2
+        shrd	rdx, rdi, 2
+        shr	rdi, 2
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        mov	rax, r13
+        and	r13, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r11, rax
+        adc	r12, 0
+        adc	r13, 0
+        ; Convert to 26 bits in 32
+        mov	rax, r11
+        mov	rdx, r11
+        mov	rsi, r11
+        mov	rbx, r12
+        mov	rbp, r12
+        shr	rdx, 26
+        shrd	rsi, r12, 52
+        shr	rbx, 14
+        shrd	rbp, r13, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+656], eax
+        mov	DWORD PTR [rcx+660], edx
+        mov	DWORD PTR [rcx+664], esi
+        mov	DWORD PTR [rcx+668], ebx
+        mov	DWORD PTR [rcx+672], ebp
+        mov	DWORD PTR [rcx+676], 0
+        mov	r8, QWORD PTR [rsp]
+        mov	r9, QWORD PTR [rsp+8]
+        mov	r10, QWORD PTR [rsp+16]
+        ; Multiply 128-bit by 130-bit
+        ;   r1[0] * r2[0]
+        mov	rax, r8
+        mul	r11
+        mov	r14, rax
+        mov	r15, rdx
+        ;   r1[0] * r2[1]
+        mov	rax, r8
+        mul	r12
+        mov	rdi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        ;   r1[1] * r2[0]
+        mov	rax, r9
+        mul	r11
+        mov	rsi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r8
+        mul	r13
+        add	rdi, rax
+        adc	rsi, rdx
+        ;   r1[1] * r2[1]
+        mov	rax, r9
+        mul	r12
+        mov	rbx, 0
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r9
+        mul	r13
+        add	rsi, rax
+        adc	rbx, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        shrd	rax, rdx, 2
+        shrd	rdx, rbx, 2
+        shr	rbx, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        ; Convert to 26 bits in 32
+        mov	rax, r14
+        mov	rdx, r14
+        mov	rsi, r14
+        mov	rbx, r15
+        mov	rbp, r15
+        shr	rdx, 26
+        shrd	rsi, r15, 52
+        shr	rbx, 14
+        shrd	rbp, rdi, 40
+        and	rax, 67108863
+        and	rdx, 67108863
+        and	rsi, 67108863
+        and	rbx, 67108863
+        and	rbp, 67108863
+        mov	DWORD PTR [rcx+688], eax
+        mov	DWORD PTR [rcx+692], edx
+        mov	DWORD PTR [rcx+696], esi
+        mov	DWORD PTR [rcx+700], ebx
+        mov	DWORD PTR [rcx+704], ebp
+        mov	DWORD PTR [rcx+708], 0
+        add	rsp, 96
+        pop	rbp
+        pop	rbx
+        pop	rsi
+        pop	rdi
+        pop	r15
+        pop	r14
+        pop	r13
+        pop	r12
+        ret
+poly1305_calc_powers_avx512 ENDP
+_TEXT ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512_blocks_mask QWORD 0000000003ffffffh, 0000000003ffffffh
+        QWORD 0000000003ffffffh, 0000000003ffffffh
+        QWORD 0000000003ffffffh, 0000000003ffffffh
+        QWORD 0000000003ffffffh, 0000000003ffffffh
+ptr_L_poly1305_avx512_blocks_mask QWORD L_poly1305_avx512_blocks_mask
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512_blocks_hibit QWORD 0000000001000000h, 0000000001000000h
+        QWORD 0000000001000000h, 0000000001000000h
+        QWORD 0000000001000000h, 0000000001000000h
+        QWORD 0000000001000000h, 0000000001000000h
+ptr_L_poly1305_avx512_blocks_hibit QWORD L_poly1305_avx512_blocks_hibit
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512_blocks_permidx QWORD 0000000400000000h, 0000000c00000008h
+        QWORD 0000001400000010h, 0000001c00000018h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000500000001h, 0000000d00000009h
+        QWORD 0000001500000011h, 0000001d00000019h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000600000002h, 0000000e0000000ah
+        QWORD 0000001600000012h, 0000001e0000001ah
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000700000003h, 0000000f0000000bh
+        QWORD 0000001700000013h, 0000001f0000001bh
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+ptr_L_poly1305_avx512_blocks_permidx QWORD L_poly1305_avx512_blocks_permidx
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512_blocks_rxidx QWORD 0000001000000018h, 0000000000000008h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000001100000019h, 0000000100000009h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 000000120000001ah, 000000020000000ah
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 000000130000001bh, 000000030000000bh
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 000000140000001ch, 000000040000000ch
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+ptr_L_poly1305_avx512_blocks_rxidx QWORD L_poly1305_avx512_blocks_rxidx
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+poly1305_blocks_avx512 PROC
+        push	r12
+        push	rdi
+        push	rsi
+        push	r13
+        push	r14
+        push	r15
+        mov	rdi, rcx
+        mov	rsi, rdx
+        mov	rdx, r8
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rcx, QWORD PTR [ptr_L_poly1305_avx512_blocks_mask]
+        mov	r13, QWORD PTR [ptr_L_poly1305_avx512_blocks_hibit]
+        mov	r14, QWORD PTR [ptr_L_poly1305_avx512_blocks_permidx]
+        mov	r15, QWORD PTR [ptr_L_poly1305_avx512_blocks_rxidx]
+        vpxorq	zmm24, zmm24, zmm24
+        lea	rax, QWORD PTR [rdi+64]
+        cmp	WORD PTR [rdi+616], 0
+        jne	L_poly1305_avx512_blocks_begin_h
+        ; Load the message data
+        vmovdqu64	zmm25, [rsi]
+        vmovdqu64	zmm26, [rsi+64]
+        vmovdqu64	zmm27, [r14]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm0, ymm27
+        vmovdqu64	zmm27, [r14+64]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm1, ymm27
+        vmovdqu64	zmm27, [r14+128]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm2, ymm27
+        vmovdqu64	zmm27, [r14+192]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm3, ymm27
+        vmovdqu64	zmm4, [r13]
+        vpsllq	zmm1, zmm1, 6
+        vpsllq	zmm2, zmm2, 12
+        vpsllq	zmm3, zmm3, 18
+        vmovdqu64	zmm23, [rcx]
+        ; Reduce, in place, the message data
+        vpsrlq	zmm19, zmm0, 26
+        vpsrlq	zmm20, zmm3, 26
+        vpandq	zmm0, zmm0, zmm23
+        vpandq	zmm3, zmm3, zmm23
+        vpaddq	zmm1, zmm19, zmm1
+        vpaddq	zmm4, zmm20, zmm4
+        vpsrlq	zmm19, zmm1, 26
+        vpsrlq	zmm20, zmm4, 26
+        vpandq	zmm1, zmm1, zmm23
+        vpandq	zmm4, zmm4, zmm23
+        vpaddq	zmm2, zmm19, zmm2
+        vpslld	zmm21, zmm20, 2
+        vpaddd	zmm21, zmm20, zmm21
+        vpsrlq	zmm19, zmm2, 26
+        vpaddq	zmm0, zmm21, zmm0
+        vpsrlq	zmm20, zmm0, 26
+        vpandq	zmm2, zmm2, zmm23
+        vpandq	zmm0, zmm0, zmm23
+        vpaddq	zmm3, zmm19, zmm3
+        vpaddq	zmm1, zmm20, zmm1
+        vpsrlq	zmm19, zmm3, 26
+        vpandq	zmm3, zmm3, zmm23
+        vpaddq	zmm4, zmm19, zmm4
+        add	rsi, 128
+        sub	rdx, 128
+        jz	L_poly1305_avx512_blocks_store
+        jmp	L_poly1305_avx512_blocks_load_r8
+L_poly1305_avx512_blocks_begin_h:
+        ; Load the H values.
+        vpmovzxdq	zmm0, [rax]
+        vpmovzxdq	zmm1, [rax+32]
+        vpmovzxdq	zmm2, [rax+64]
+        vpmovzxdq	zmm3, [rax+96]
+        vpmovzxdq	zmm4, [rax+128]
+        ; Check if there is a power of r to load - otherwise use r^8.
+        cmp	BYTE PTR [rdi+616], 0
+        je	L_poly1305_avx512_blocks_load_r8
+        ; Load the 8 powers of r - r^8 .. r^1.
+        vmovdqu64	zmm14, [rdi+224]
+        vmovdqu64	zmm15, [rdi+288]
+        vmovdqu64	zmm16, [rdi+624]
+        vmovdqu64	zmm17, [rdi+688]
+        vmovdqu64	zmm18, [r15]
+        vpermi2d	zmm18, zmm16, zmm17
+        vpmovzxdq	ymm20, xmm18
+        vmovdqu64	zmm19, [r15]
+        vpermi2d	zmm19, zmm14, zmm15
+        vpmovzxdq	ymm21, xmm19
+        vinserti64x4	zmm5, zmm20, ymm21, 1
+        vmovdqu64	zmm18, [r15+64]
+        vpermi2d	zmm18, zmm16, zmm17
+        vpmovzxdq	ymm20, xmm18
+        vmovdqu64	zmm19, [r15+64]
+        vpermi2d	zmm19, zmm14, zmm15
+        vpmovzxdq	ymm21, xmm19
+        vinserti64x4	zmm6, zmm20, ymm21, 1
+        vmovdqu64	zmm18, [r15+128]
+        vpermi2d	zmm18, zmm16, zmm17
+        vpmovzxdq	ymm20, xmm18
+        vmovdqu64	zmm19, [r15+128]
+        vpermi2d	zmm19, zmm14, zmm15
+        vpmovzxdq	ymm21, xmm19
+        vinserti64x4	zmm7, zmm20, ymm21, 1
+        vmovdqu64	zmm18, [r15+192]
+        vpermi2d	zmm18, zmm16, zmm17
+        vpmovzxdq	ymm20, xmm18
+        vmovdqu64	zmm19, [r15+192]
+        vpermi2d	zmm19, zmm14, zmm15
+        vpmovzxdq	ymm21, xmm19
+        vinserti64x4	zmm8, zmm20, ymm21, 1
+        vmovdqu64	zmm18, [r15+256]
+        vpermi2d	zmm18, zmm16, zmm17
+        vpmovzxdq	ymm20, xmm18
+        vmovdqu64	zmm19, [r15+256]
+        vpermi2d	zmm19, zmm14, zmm15
+        vpmovzxdq	ymm21, xmm19
+        vinserti64x4	zmm9, zmm20, ymm21, 1
+        jmp	L_poly1305_avx512_blocks_mul_5
+L_poly1305_avx512_blocks_load_r8:
+        ; Load r^8 into all eight lanes.
+        vpbroadcastd	zmm5, DWORD PTR [rdi+720]
+        vpbroadcastd	zmm6, DWORD PTR [rdi+724]
+        vpbroadcastd	zmm7, DWORD PTR [rdi+728]
+        vpbroadcastd	zmm8, DWORD PTR [rdi+732]
+        vpbroadcastd	zmm9, DWORD PTR [rdi+736]
+L_poly1305_avx512_blocks_mul_5:
+        ; Multiply top 4 26-bit values of all eight powers by 5
+        vpslld	zmm10, zmm6, 2
+        vpslld	zmm11, zmm7, 2
+        vpslld	zmm12, zmm8, 2
+        vpslld	zmm13, zmm9, 2
+        vpaddq	zmm10, zmm6, zmm10
+        vpaddq	zmm11, zmm7, zmm11
+        vpaddq	zmm12, zmm8, zmm12
+        vpaddq	zmm13, zmm9, zmm13
+        vmovdqu64	zmm23, [rcx]
+        ; If not finished then loop over data
+        cmp	BYTE PTR [rdi+616], 1
+        jne	L_poly1305_avx512_blocks_start
+        ; Do last multiply, reduce, add the eight H together and move to
+        ; 32-bit registers
+        vpmuludq	zmm14, zmm4, zmm10
+        vpmuludq	zmm19, zmm3, zmm11
+        vpmuludq	zmm15, zmm4, zmm11
+        vpmuludq	zmm20, zmm3, zmm12
+        vpmuludq	zmm16, zmm4, zmm12
+        vpaddq	zmm14, zmm19, zmm14
+        vpmuludq	zmm21, zmm2, zmm12
+        vpmuludq	zmm17, zmm4, zmm13
+        vpaddq	zmm15, zmm20, zmm15
+        vpmuludq	zmm22, zmm1, zmm13
+        vpmuludq	zmm19, zmm2, zmm13
+        vpaddq	zmm14, zmm21, zmm14
+        vpmuludq	zmm20, zmm3, zmm13
+        vpmuludq	zmm21, zmm3, zmm5
+        vpaddq	zmm14, zmm22, zmm14
+        vpmuludq	zmm18, zmm4, zmm5
+        vpaddq	zmm15, zmm19, zmm15
+        vpmuludq	zmm22, zmm0, zmm5
+        vpaddq	zmm16, zmm20, zmm16
+        vpmuludq	zmm19, zmm1, zmm5
+        vpaddq	zmm17, zmm21, zmm17
+        vpmuludq	zmm20, zmm2, zmm5
+        vpmuludq	zmm21, zmm2, zmm6
+        vpaddq	zmm14, zmm22, zmm14
+        vpmuludq	zmm22, zmm3, zmm6
+        vpaddq	zmm15, zmm19, zmm15
+        vpmuludq	zmm19, zmm0, zmm6
+        vpaddq	zmm16, zmm20, zmm16
+        vpmuludq	zmm20, zmm1, zmm6
+        vpaddq	zmm17, zmm21, zmm17
+        vpmuludq	zmm21, zmm1, zmm7
+        vpaddq	zmm18, zmm22, zmm18
+        vpmuludq	zmm22, zmm2, zmm7
+        vpaddq	zmm15, zmm19, zmm15
+        vpmuludq	zmm19, zmm0, zmm7
+        vpaddq	zmm16, zmm20, zmm16
+        vpmuludq	zmm20, zmm0, zmm8
+        vpaddq	zmm17, zmm21, zmm17
+        vpmuludq	zmm21, zmm1, zmm8
+        vpaddq	zmm18, zmm22, zmm18
+        vpaddq	zmm16, zmm19, zmm16
+        vpmuludq	zmm22, zmm0, zmm9
+        vpaddq	zmm17, zmm20, zmm17
+        vpaddq	zmm18, zmm21, zmm18
+        vpaddq	zmm18, zmm22, zmm18
+        vpsrlq	zmm19, zmm14, 26
+        vpsrlq	zmm20, zmm17, 26
+        vpandq	zmm14, zmm14, zmm23
+        vpandq	zmm17, zmm17, zmm23
+        vpaddq	zmm15, zmm19, zmm15
+        vpaddq	zmm18, zmm20, zmm18
+        vpsrlq	zmm19, zmm15, 26
+        vpsrlq	zmm20, zmm18, 26
+        vpandq	zmm1, zmm15, zmm23
+        vpandq	zmm4, zmm18, zmm23
+        vpaddq	zmm16, zmm19, zmm16
+        vpslld	zmm21, zmm20, 2
+        vpaddd	zmm21, zmm20, zmm21
+        vpsrlq	zmm19, zmm16, 26
+        vpaddq	zmm14, zmm21, zmm14
+        vpsrlq	zmm20, zmm14, 26
+        vpandq	zmm2, zmm16, zmm23
+        vpandq	zmm0, zmm14, zmm23
+        vpaddq	zmm17, zmm19, zmm17
+        vpaddq	zmm1, zmm20, zmm1
+        vpsrlq	zmm19, zmm17, 26
+        vpandq	zmm3, zmm17, zmm23
+        vpaddq	zmm4, zmm19, zmm4
+        vshufi64x2	zmm14, zmm0, zmm0, 78
+        vshufi64x2	zmm15, zmm1, zmm1, 78
+        vshufi64x2	zmm16, zmm2, zmm2, 78
+        vshufi64x2	zmm17, zmm3, zmm3, 78
+        vshufi64x2	zmm18, zmm4, zmm4, 78
+        vpaddq	zmm0, zmm14, zmm0
+        vpaddq	zmm1, zmm15, zmm1
+        vpaddq	zmm2, zmm16, zmm2
+        vpaddq	zmm3, zmm17, zmm3
+        vpaddq	zmm4, zmm18, zmm4
+        vpsrldq	zmm14, zmm0, 8
+        vpsrldq	zmm15, zmm1, 8
+        vpsrldq	zmm16, zmm2, 8
+        vpsrldq	zmm17, zmm3, 8
+        vpsrldq	zmm18, zmm4, 8
+        vpaddq	zmm0, zmm14, zmm0
+        vpaddq	zmm1, zmm15, zmm1
+        vpaddq	zmm2, zmm16, zmm2
+        vpaddq	zmm3, zmm17, zmm3
+        vpaddq	zmm4, zmm18, zmm4
+        vpermq	zmm14, zmm0, 2
+        vpermq	zmm15, zmm1, 2
+        vpermq	zmm16, zmm2, 2
+        vpermq	zmm17, zmm3, 2
+        vpermq	zmm18, zmm4, 2
+        vpaddq	zmm0, zmm14, zmm0
+        vpaddq	zmm1, zmm15, zmm1
+        vpaddq	zmm2, zmm16, zmm2
+        vpaddq	zmm3, zmm17, zmm3
+        vpaddq	zmm4, zmm18, zmm4
+        vmovd	r8d, xmm0
+        vmovd	r9d, xmm1
+        vmovd	r10d, xmm2
+        vmovd	r11d, xmm3
+        vmovd	r12d, xmm4
+        jmp	L_poly1305_avx512_blocks_end_calc
+L_poly1305_avx512_blocks_start:
+        vmovdqu64	zmm25, [rsi]
+        vmovdqu64	zmm26, [rsi+64]
+        vmovdqu64	zmm27, [r14]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm14, ymm27
+        vmovdqu64	zmm27, [r14+64]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm15, ymm27
+        vmovdqu64	zmm27, [r14+128]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm16, ymm27
+        vmovdqu64	zmm27, [r14+192]
+        vpermi2d	zmm27, zmm25, zmm26
+        vpmovzxdq	zmm17, ymm27
+        vmovdqu64	zmm18, [r13]
+        vpsllq	zmm15, zmm15, 6
+        vpsllq	zmm16, zmm16, 12
+        vpsllq	zmm17, zmm17, 18
+        vpmuludq	zmm19, zmm4, zmm10
+        vpaddq	zmm14, zmm19, zmm14
+        vpmuludq	zmm19, zmm3, zmm11
+        vpmuludq	zmm20, zmm4, zmm11
+        vpaddq	zmm15, zmm20, zmm15
+        vpmuludq	zmm20, zmm3, zmm12
+        vpmuludq	zmm21, zmm4, zmm12
+        vpaddq	zmm16, zmm21, zmm16
+        vpaddq	zmm14, zmm19, zmm14
+        vpmuludq	zmm21, zmm2, zmm12
+        vpmuludq	zmm22, zmm4, zmm13
+        vpaddq	zmm17, zmm22, zmm17
+        vpaddq	zmm15, zmm20, zmm15
+        vpmuludq	zmm22, zmm1, zmm13
+        vpmuludq	zmm19, zmm2, zmm13
+        vpaddq	zmm14, zmm21, zmm14
+        vpmuludq	zmm20, zmm3, zmm13
+        vpmuludq	zmm21, zmm3, zmm5
+        vpaddq	zmm14, zmm22, zmm14
+        vpmuludq	zmm22, zmm4, zmm5
+        vpaddq	zmm18, zmm22, zmm18
+        vpaddq	zmm15, zmm19, zmm15
+        vpmuludq	zmm22, zmm0, zmm5
+        vpaddq	zmm16, zmm20, zmm16
+        vpmuludq	zmm19, zmm1, zmm5
+        vpaddq	zmm17, zmm21, zmm17
+        vpmuludq	zmm20, zmm2, zmm5
+        vpmuludq	zmm21, zmm2, zmm6
+        vpaddq	zmm14, zmm22, zmm14
+        vpmuludq	zmm22, zmm3, zmm6
+        vpaddq	zmm15, zmm19, zmm15
+        vpmuludq	zmm19, zmm0, zmm6
+        vpaddq	zmm16, zmm20, zmm16
+        vpmuludq	zmm20, zmm1, zmm6
+        vpaddq	zmm17, zmm21, zmm17
+        vpmuludq	zmm21, zmm1, zmm7
+        vpaddq	zmm18, zmm22, zmm18
+        vpmuludq	zmm22, zmm2, zmm7
+        vpaddq	zmm15, zmm19, zmm15
+        vpmuludq	zmm19, zmm0, zmm7
+        vpaddq	zmm16, zmm20, zmm16
+        vpmuludq	zmm20, zmm0, zmm8
+        vpaddq	zmm17, zmm21, zmm17
+        vpmuludq	zmm21, zmm1, zmm8
+        vpaddq	zmm18, zmm22, zmm18
+        vpaddq	zmm16, zmm19, zmm16
+        vpmuludq	zmm22, zmm0, zmm9
+        vpaddq	zmm17, zmm20, zmm17
+        vpaddq	zmm18, zmm21, zmm18
+        vpaddq	zmm18, zmm22, zmm18
+        vpsrlq	zmm19, zmm14, 26
+        vpsrlq	zmm20, zmm17, 26
+        vpandq	zmm14, zmm14, zmm23
+        vpandq	zmm17, zmm17, zmm23
+        vpaddq	zmm15, zmm19, zmm15
+        vpaddq	zmm18, zmm20, zmm18
+        vpsrlq	zmm19, zmm15, 26
+        vpsrlq	zmm20, zmm18, 26
+        vpandq	zmm1, zmm15, zmm23
+        vpandq	zmm4, zmm18, zmm23
+        vpaddq	zmm16, zmm19, zmm16
+        vpslld	zmm21, zmm20, 2
+        vpaddd	zmm21, zmm20, zmm21
+        vpsrlq	zmm19, zmm16, 26
+        vpaddq	zmm14, zmm21, zmm14
+        vpsrlq	zmm20, zmm14, 26
+        vpandq	zmm2, zmm16, zmm23
+        vpandq	zmm0, zmm14, zmm23
+        vpaddq	zmm17, zmm19, zmm17
+        vpaddq	zmm1, zmm20, zmm1
+        vpsrlq	zmm19, zmm17, 26
+        vpandq	zmm3, zmm17, zmm23
+        vpaddq	zmm4, zmm19, zmm4
+        add	rsi, 128
+        sub	rdx, 128
+        jnz	L_poly1305_avx512_blocks_start
+L_poly1305_avx512_blocks_store:
+        ; Store eight H values - state
+        vpmovqd	[rax], zmm0
+        vpmovqd	[rax+32], zmm1
+        vpmovqd	[rax+64], zmm2
+        vpmovqd	[rax+96], zmm3
+        vpmovqd	[rax+128], zmm4
+L_poly1305_avx512_blocks_end_calc:
+        cmp	BYTE PTR [rdi+616], 0
+        je	L_poly1305_avx512_blocks_complete
+        mov	rax, r8
+        mov	rdx, r10
+        mov	rcx, r12
+        shr	rdx, 12
+        shr	rcx, 24
+        shl	r9, 26
+        shl	r10, 52
+        shl	r11, 14
+        shl	r12, 40
+        add	rax, r9
+        adc	rax, r10
+        adc	rdx, r11
+        adc	rdx, r12
+        adc	rcx, 0
+        mov	r8, rcx
+        and	rcx, 3
+        shr	r8, 2
+        lea	r8, QWORD PTR [r8+4*r8+0]
+        add	rax, r8
+        adc	rdx, 0
+        adc	rcx, 0
+        mov	QWORD PTR [rdi+24], rax
+        mov	QWORD PTR [rdi+32], rdx
+        mov	QWORD PTR [rdi+40], rcx
+L_poly1305_avx512_blocks_complete:
+        mov	BYTE PTR [rdi+617], 1
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	r15
+        pop	r14
+        pop	r13
+        pop	rsi
+        pop	rdi
+        pop	r12
+        ret
+poly1305_blocks_avx512 ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+poly1305_final_avx512 PROC
+        push	rdi
+        push	rsi
+        mov	rdi, rcx
+        mov	rsi, rdx
+        mov	BYTE PTR [rdi+616], 1
+        mov	cl, BYTE PTR [rdi+617]
+        cmp	cl, 0
+        je	L_poly1305_avx512_final_done_blocks_X8
+        push	rsi
+        mov	r8, 128
+        xor	rdx, rdx
+        mov	rcx, rdi
+        call	poly1305_blocks_avx512
+        pop	rsi
+L_poly1305_avx512_final_done_blocks_X8:
+        mov	rax, QWORD PTR [rdi+608]
+        mov	rcx, rax
+        and	rcx, -16
+        cmp	cl, 0
+        je	L_poly1305_avx512_final_done_blocks
+        push	rcx
+        push	rax
+        push	rsi
+        mov	r8, rcx
+        lea	rdx, QWORD PTR [rdi+480]
+        mov	rcx, rdi
+        call	poly1305_blocks_avx
+        pop	rsi
+        pop	rax
+        pop	rcx
+L_poly1305_avx512_final_done_blocks:
+        sub	QWORD PTR [rdi+608], rcx
+        xor	rdx, rdx
+        jmp	L_poly1305_avx512_final_cmp_copy
+L_poly1305_avx512_final_start_copy:
+        mov	r8b, BYTE PTR [rdi+rcx+480]
+        mov	BYTE PTR [rdi+rdx+480], r8b
+        inc	cl
+        inc	dl
+L_poly1305_avx512_final_cmp_copy:
+        cmp	al, cl
+        jne	L_poly1305_avx512_final_start_copy
+        mov	rcx, rdi
+        mov	rdx, rsi
+        call	poly1305_final_avx
+        vpxor	xmm0, xmm0, xmm0
+        vmovdqu	YMMWORD PTR [rdi+64], ymm0
+        vmovdqu	YMMWORD PTR [rdi+96], ymm0
+        vmovdqu	YMMWORD PTR [rdi+128], ymm0
+        vmovdqu	YMMWORD PTR [rdi+160], ymm0
+        vmovdqu	YMMWORD PTR [rdi+192], ymm0
+        vmovdqu	YMMWORD PTR [rdi+224], ymm0
+        vmovdqu	YMMWORD PTR [rdi+256], ymm0
+        vmovdqu	YMMWORD PTR [rdi+288], ymm0
+        vmovdqu	YMMWORD PTR [rdi+320], ymm0
+        vmovdqu	YMMWORD PTR [rdi+624], ymm0
+        vmovdqu	YMMWORD PTR [rdi+656], ymm0
+        vmovdqu	YMMWORD PTR [rdi+688], ymm0
+        vmovdqu	YMMWORD PTR [rdi+720], ymm0
+        mov	QWORD PTR [rdi+608], 0
+        mov	WORD PTR [rdi+616], 0
+        vzeroupper
+        pop	rsi
+        pop	rdi
+        ret
+poly1305_final_avx512 ENDP
+_TEXT ENDS
+ENDIF
+IFDEF HAVE_INTEL_AVX512
+_TEXT SEGMENT READONLY PARA
+poly1305_calc_powers_avx512ifma PROC
+        push	r12
+        push	r13
+        push	r14
+        push	r15
+        push	rdi
+        push	rsi
+        push	rbx
+        push	rbp
+        sub	rsp, 96
+        mov	r8, QWORD PTR [rcx]
+        mov	r9, QWORD PTR [rcx+8]
+        xor	r10, r10
+        ; Convert to 44 bits in 64
+        mov	rax, r8
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r8
+        shrd	rdx, r9, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r9
+        shrd	rsi, r10, 24
+        mov	QWORD PTR [rcx+224], rax
+        mov	QWORD PTR [rcx+232], rdx
+        mov	QWORD PTR [rcx+240], rsi
+        mov	QWORD PTR [rsp], r8
+        mov	QWORD PTR [rsp+8], r9
+        mov	QWORD PTR [rsp+16], r10
+        ; Square 128-bit
+        mov	rax, r9
+        mul	r8
+        xor	r14, r14
+        mov	r12, rax
+        mov	r13, rdx
+        add	r12, rax
+        adc	r13, rdx
+        adc	r14, 0
+        mov	rax, r8
+        mul	rax
+        mov	r11, rax
+        mov	rdi, rdx
+        mov	rax, r9
+        mul	rax
+        add	r12, rdi
+        adc	r13, rax
+        adc	r14, rdx
+        ; Reduce 256-bit to 130-bit
+        mov	rax, r13
+        mov	rdx, r14
+        and	rax, -4
+        and	r13, 3
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, 0
+        shrd	rax, rdx, 2
+        shr	rdx, 2
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, 0
+        mov	rax, r13
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        and	r13, 3
+        add	r11, rax
+        adc	r12, 0
+        adc	r13, 0
+        ; Convert to 44 bits in 64
+        mov	rax, r11
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r11
+        shrd	rdx, r12, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r12
+        shrd	rsi, r13, 24
+        mov	QWORD PTR [rcx+256], rax
+        mov	QWORD PTR [rcx+264], rdx
+        mov	QWORD PTR [rcx+272], rsi
+        mov	QWORD PTR [rsp+24], r11
+        mov	QWORD PTR [rsp+32], r12
+        mov	QWORD PTR [rsp+40], r13
+        ; Multiply 128-bit by 130-bit
+        ;   r1[0] * r2[0]
+        mov	rax, r8
+        mul	r11
+        mov	r14, rax
+        mov	r15, rdx
+        ;   r1[0] * r2[1]
+        mov	rax, r8
+        mul	r12
+        mov	rdi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        ;   r1[1] * r2[0]
+        mov	rax, r9
+        mul	r11
+        mov	rsi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r8
+        mul	r13
+        add	rdi, rax
+        adc	rsi, rdx
+        ;   r1[1] * r2[1]
+        mov	rax, r9
+        mul	r12
+        mov	rbx, 0
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r9
+        mul	r13
+        add	rsi, rax
+        adc	rbx, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        shrd	rax, rdx, 2
+        shrd	rdx, rbx, 2
+        shr	rbx, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        ; Convert to 44 bits in 64
+        mov	rax, r14
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r14
+        shrd	rdx, r15, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r15
+        shrd	rsi, rdi, 24
+        mov	QWORD PTR [rcx+288], rax
+        mov	QWORD PTR [rcx+296], rdx
+        mov	QWORD PTR [rcx+304], rsi
+        mov	QWORD PTR [rsp+48], r14
+        mov	QWORD PTR [rsp+56], r15
+        mov	QWORD PTR [rsp+64], rdi
+        ; Square 130-bit
+        mov	rax, r12
+        mul	r11
+        xor	r14, r14
+        mov	r9, rax
+        mov	r10, rdx
+        add	r9, rax
+        adc	r10, rdx
+        adc	r14, 0
+        mov	rax, r11
+        mul	rax
+        mov	r8, rax
+        mov	rdi, rdx
+        mov	rax, r12
+        mul	rax
+        add	r9, rdi
+        adc	r10, rax
+        adc	r14, rdx
+        mov	rax, r13
+        mul	rax
+        mov	r15, rax
+        mov	rax, r13
+        mul	r11
+        add	r10, rax
+        adc	r14, rdx
+        adc	r15, 0
+        add	r10, rax
+        adc	r14, rdx
+        adc	r15, 0
+        mov	rax, r13
+        mul	r12
+        add	r14, rax
+        adc	r15, rdx
+        add	r14, rax
+        adc	r15, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, r10
+        mov	rdx, r14
+        mov	rdi, r15
+        and	rax, -4
+        and	r10, 3
+        add	r8, rax
+        adc	r9, rdx
+        adc	r10, rdi
+        shrd	rax, rdx, 2
+        shrd	rdx, rdi, 2
+        shr	rdi, 2
+        add	r8, rax
+        adc	r9, rdx
+        adc	r10, rdi
+        mov	rax, r10
+        and	r10, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r8, rax
+        adc	r9, 0
+        adc	r10, 0
+        ; Convert to 44 bits in 64
+        mov	rax, r8
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r8
+        shrd	rdx, r9, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r9
+        shrd	rsi, r10, 24
+        mov	QWORD PTR [rcx+320], rax
+        mov	QWORD PTR [rcx+328], rdx
+        mov	QWORD PTR [rcx+336], rsi
+        mov	QWORD PTR [rsp+72], r8
+        mov	QWORD PTR [rsp+80], r9
+        mov	QWORD PTR [rsp+88], r10
+        mov	r11, QWORD PTR [rsp]
+        mov	r12, QWORD PTR [rsp+8]
+        mov	r13, QWORD PTR [rsp+16]
+        ; Multiply 128-bit by 130-bit
+        ;   r1[0] * r2[0]
+        mov	rax, r11
+        mul	r8
+        mov	r14, rax
+        mov	r15, rdx
+        ;   r1[0] * r2[1]
+        mov	rax, r11
+        mul	r9
+        mov	rdi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        ;   r1[1] * r2[0]
+        mov	rax, r12
+        mul	r8
+        mov	rsi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r11
+        mul	r10
+        add	rdi, rax
+        adc	rsi, rdx
+        ;   r1[1] * r2[1]
+        mov	rax, r12
+        mul	r9
+        mov	rbx, 0
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r12
+        mul	r10
+        add	rsi, rax
+        adc	rbx, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        shrd	rax, rdx, 2
+        shrd	rdx, rbx, 2
+        shr	rbx, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        ; Convert to 44 bits in 64
+        mov	rax, r14
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r14
+        shrd	rdx, r15, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r15
+        shrd	rsi, rdi, 24
+        mov	QWORD PTR [rcx+624], rax
+        mov	QWORD PTR [rcx+632], rdx
+        mov	QWORD PTR [rcx+640], rsi
+        ; Square 130-bit
+        mov	rax, r9
+        mul	r8
+        xor	r14, r14
+        mov	r12, rax
+        mov	r13, rdx
+        add	r12, rax
+        adc	r13, rdx
+        adc	r14, 0
+        mov	rax, r8
+        mul	rax
+        mov	r11, rax
+        mov	rdi, rdx
+        mov	rax, r9
+        mul	rax
+        add	r12, rdi
+        adc	r13, rax
+        adc	r14, rdx
+        mov	rax, r10
+        mul	rax
+        mov	r15, rax
+        mov	rax, r10
+        mul	r8
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        mov	rax, r10
+        mul	r9
+        add	r14, rax
+        adc	r15, rdx
+        add	r14, rax
+        adc	r15, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, r13
+        mov	rdx, r14
+        mov	rdi, r15
+        and	rax, -4
+        and	r13, 3
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        shrd	rax, rdx, 2
+        shrd	rdx, rdi, 2
+        shr	rdi, 2
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        mov	rax, r13
+        and	r13, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r11, rax
+        adc	r12, 0
+        adc	r13, 0
+        ; Convert to 44 bits in 64
+        mov	rax, r11
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r11
+        shrd	rdx, r12, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r12
+        shrd	rsi, r13, 24
+        mov	QWORD PTR [rcx+720], rax
+        mov	QWORD PTR [rcx+728], rdx
+        mov	QWORD PTR [rcx+736], rsi
+        mov	r8, QWORD PTR [rsp+48]
+        mov	r9, QWORD PTR [rsp+56]
+        mov	r10, QWORD PTR [rsp+64]
+        ; Square 130-bit
+        mov	rax, r9
+        mul	r8
+        xor	r14, r14
+        mov	r12, rax
+        mov	r13, rdx
+        add	r12, rax
+        adc	r13, rdx
+        adc	r14, 0
+        mov	rax, r8
+        mul	rax
+        mov	r11, rax
+        mov	rdi, rdx
+        mov	rax, r9
+        mul	rax
+        add	r12, rdi
+        adc	r13, rax
+        adc	r14, rdx
+        mov	rax, r10
+        mul	rax
+        mov	r15, rax
+        mov	rax, r10
+        mul	r8
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        mov	rax, r10
+        mul	r9
+        add	r14, rax
+        adc	r15, rdx
+        add	r14, rax
+        adc	r15, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, r13
+        mov	rdx, r14
+        mov	rdi, r15
+        and	rax, -4
+        and	r13, 3
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        shrd	rax, rdx, 2
+        shrd	rdx, rdi, 2
+        shr	rdi, 2
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        mov	rax, r13
+        and	r13, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r11, rax
+        adc	r12, 0
+        adc	r13, 0
+        ; Convert to 44 bits in 64
+        mov	rax, r11
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r11
+        shrd	rdx, r12, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r12
+        shrd	rsi, r13, 24
+        mov	QWORD PTR [rcx+656], rax
+        mov	QWORD PTR [rcx+664], rdx
+        mov	QWORD PTR [rcx+672], rsi
+        mov	r8, QWORD PTR [rsp]
+        mov	r9, QWORD PTR [rsp+8]
+        mov	r10, QWORD PTR [rsp+16]
+        ; Multiply 128-bit by 130-bit
+        ;   r1[0] * r2[0]
+        mov	rax, r8
+        mul	r11
+        mov	r14, rax
+        mov	r15, rdx
+        ;   r1[0] * r2[1]
+        mov	rax, r8
+        mul	r12
+        mov	rdi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        ;   r1[1] * r2[0]
+        mov	rax, r9
+        mul	r11
+        mov	rsi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r8
+        mul	r13
+        add	rdi, rax
+        adc	rsi, rdx
+        ;   r1[1] * r2[1]
+        mov	rax, r9
+        mul	r12
+        mov	rbx, 0
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r9
+        mul	r13
+        add	rsi, rax
+        adc	rbx, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        shrd	rax, rdx, 2
+        shrd	rdx, rbx, 2
+        shr	rbx, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        ; Convert to 44 bits in 64
+        mov	rax, r14
+        shl	rax, 20
+        shr	rax, 20
+        mov	rdx, r14
+        shrd	rdx, r15, 44
+        shl	rdx, 20
+        shr	rdx, 20
+        mov	rsi, r15
+        shrd	rsi, rdi, 24
+        mov	QWORD PTR [rcx+688], rax
+        mov	QWORD PTR [rcx+696], rdx
+        mov	QWORD PTR [rcx+704], rsi
+        add	rsp, 96
+        pop	rbp
+        pop	rbx
+        pop	rsi
+        pop	rdi
+        pop	r15
+        pop	r14
+        pop	r13
+        pop	r12
+        ret
+poly1305_calc_powers_avx512ifma ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+poly1305_setkey_avx512ifma PROC
+        call	poly1305_setkey_avx
+        vpxorq	zmm0, zmm0, zmm0
+        vmovdqu64	[rcx+752], zmm0
+        vmovdqu64	[rcx+816], zmm0
+        vmovdqu64	[rcx+880], zmm0
+        mov	QWORD PTR [rcx+608], 0
+        mov	WORD PTR [rcx+616], 0
+        ret
+poly1305_setkey_avx512ifma ENDP
+_TEXT ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512ifma_blocks_mask44 QWORD 00000fffffffffffh, 00000fffffffffffh
+        QWORD 00000fffffffffffh, 00000fffffffffffh
+        QWORD 00000fffffffffffh, 00000fffffffffffh
+        QWORD 00000fffffffffffh, 00000fffffffffffh
+ptr_L_poly1305_avx512ifma_blocks_mask44 QWORD L_poly1305_avx512ifma_blocks_mask44
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512ifma_blocks_mask24 QWORD 0000000000ffffffh, 0000000000ffffffh
+        QWORD 0000000000ffffffh, 0000000000ffffffh
+        QWORD 0000000000ffffffh, 0000000000ffffffh
+        QWORD 0000000000ffffffh, 0000000000ffffffh
+ptr_L_poly1305_avx512ifma_blocks_mask24 QWORD L_poly1305_avx512ifma_blocks_mask24
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512ifma_blocks_pad QWORD 0000010000000000h, 0000010000000000h
+        QWORD 0000010000000000h, 0000010000000000h
+        QWORD 0000010000000000h, 0000010000000000h
+        QWORD 0000010000000000h, 0000010000000000h
+ptr_L_poly1305_avx512ifma_blocks_pad QWORD L_poly1305_avx512ifma_blocks_pad
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512ifma_blocks_idxeven QWORD 0000000000000000h, 0000000000000002h
+        QWORD 0000000000000004h, 0000000000000006h
+        QWORD 0000000000000008h, 000000000000000ah
+        QWORD 000000000000000ch, 000000000000000eh
+ptr_L_poly1305_avx512ifma_blocks_idxeven QWORD L_poly1305_avx512ifma_blocks_idxeven
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512ifma_blocks_idxodd QWORD 0000000000000001h, 0000000000000003h
+        QWORD 0000000000000005h, 0000000000000007h
+        QWORD 0000000000000009h, 000000000000000bh
+        QWORD 000000000000000dh, 000000000000000fh
+ptr_L_poly1305_avx512ifma_blocks_idxodd QWORD L_poly1305_avx512ifma_blocks_idxodd
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_poly1305_avx512ifma_blocks_rxidx QWORD 000000000000000ch, 0000000000000008h
+        QWORD 0000000000000004h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 000000000000000dh, 0000000000000009h
+        QWORD 0000000000000005h, 0000000000000001h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 000000000000000eh, 000000000000000ah
+        QWORD 0000000000000006h, 0000000000000002h
+        QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
+ptr_L_poly1305_avx512ifma_blocks_rxidx QWORD L_poly1305_avx512ifma_blocks_rxidx
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+poly1305_blocks_avx512ifma PROC
+        push	rdi
+        push	rsi
+        push	r12
+        push	r13
+        push	r14
+        mov	rdi, rcx
+        mov	rsi, rdx
+        mov	rdx, r8
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	r8, QWORD PTR [ptr_L_poly1305_avx512ifma_blocks_mask44]
+        mov	r9, QWORD PTR [ptr_L_poly1305_avx512ifma_blocks_mask24]
+        mov	r10, QWORD PTR [ptr_L_poly1305_avx512ifma_blocks_pad]
+        mov	r11, QWORD PTR [ptr_L_poly1305_avx512ifma_blocks_idxeven]
+        mov	r12, QWORD PTR [ptr_L_poly1305_avx512ifma_blocks_idxodd]
+        mov	r13, QWORD PTR [ptr_L_poly1305_avx512ifma_blocks_rxidx]
+        vmovdqu64	zmm18, [r8]
+        cmp	WORD PTR [rdi+616], 0
+        jne	L_poly1305_avx512ifma_blocks_begin_h
+        ; First 8 blocks initialise the lanes directly.
+        vmovdqu64	zmm14, [rsi]
+        vmovdqu64	zmm15, [rsi+64]
+        vmovdqu64	zmm16, [r11]
+        vpermi2q	zmm16, zmm14, zmm15
+        vmovdqu64	zmm17, [r12]
+        vpermi2q	zmm17, zmm14, zmm15
+        vpandq	zmm0, zmm16, [r8]
+        vpsrlq	zmm14, zmm16, 44
+        vpandq	zmm15, zmm17, [r9]
+        vpsllq	zmm15, zmm15, 20
+        vporq	zmm1, zmm15, zmm14
+        vpsrlq	zmm2, zmm17, 24
+        vporq	zmm2, zmm2, [r10]
+        add	rsi, 128
+        sub	rdx, 128
+        jz	L_poly1305_avx512ifma_blocks_store
+        jmp	L_poly1305_avx512ifma_blocks_load_r8
+L_poly1305_avx512ifma_blocks_begin_h:
+        vmovdqu64	zmm0, [rdi+752]
+        vmovdqu64	zmm1, [rdi+816]
+        vmovdqu64	zmm2, [rdi+880]
+        cmp	BYTE PTR [rdi+616], 0
+        je	L_poly1305_avx512ifma_blocks_load_r8
+        ; Finished: load the 8 distinct powers r^8..r^1.
+        vmovdqu64	zmm8, [rdi+224]
+        vmovdqu64	zmm9, [rdi+288]
+        vmovdqu64	zmm10, [rdi+624]
+        vmovdqu64	zmm11, [rdi+688]
+        vmovdqu64	zmm12, [r13]
+        vpermi2q	zmm12, zmm10, zmm11
+        vmovdqu64	zmm13, [r13]
+        vpermi2q	zmm13, zmm8, zmm9
+        vinserti64x4	zmm3, zmm12, ymm13, 1
+        vmovdqu64	zmm12, [r13+64]
+        vpermi2q	zmm12, zmm10, zmm11
+        vmovdqu64	zmm13, [r13+64]
+        vpermi2q	zmm13, zmm8, zmm9
+        vinserti64x4	zmm4, zmm12, ymm13, 1
+        vmovdqu64	zmm12, [r13+128]
+        vpermi2q	zmm12, zmm10, zmm11
+        vmovdqu64	zmm13, [r13+128]
+        vpermi2q	zmm13, zmm8, zmm9
+        vinserti64x4	zmm5, zmm12, ymm13, 1
+        jmp	L_poly1305_avx512ifma_blocks_do_mul
+L_poly1305_avx512ifma_blocks_load_r8:
+        vpbroadcastq	zmm3, QWORD PTR [rdi+720]
+        vpbroadcastq	zmm4, QWORD PTR [rdi+728]
+        vpbroadcastq	zmm5, QWORD PTR [rdi+736]
+L_poly1305_avx512ifma_blocks_do_mul:
+        vpsllq	zmm14, zmm4, 2
+        vpsllq	zmm6, zmm4, 4
+        vpaddq	zmm6, zmm6, zmm14
+        vpsllq	zmm14, zmm5, 2
+        vpsllq	zmm7, zmm5, 4
+        vpaddq	zmm7, zmm7, zmm14
+        cmp	BYTE PTR [rdi+616], 1
+        jne	L_poly1305_avx512ifma_blocks_start
+        ; Finished: final multiply, collapse lanes, reduce to ctx->h.
+        vpxorq	zmm8, zmm8, zmm8
+        vpxorq	zmm9, zmm9, zmm9
+        vpxorq	zmm10, zmm10, zmm10
+        vpxorq	zmm11, zmm11, zmm11
+        vpxorq	zmm12, zmm12, zmm12
+        vpxorq	zmm13, zmm13, zmm13
+        vpmadd52luq	zmm8, zmm0, zmm3
+        vpmadd52luq	zmm8, zmm1, zmm7
+        vpmadd52luq	zmm8, zmm2, zmm6
+        vpmadd52huq	zmm11, zmm0, zmm3
+        vpmadd52huq	zmm11, zmm1, zmm7
+        vpmadd52huq	zmm11, zmm2, zmm6
+        vpmadd52luq	zmm9, zmm0, zmm4
+        vpmadd52luq	zmm9, zmm1, zmm3
+        vpmadd52luq	zmm9, zmm2, zmm7
+        vpmadd52huq	zmm12, zmm0, zmm4
+        vpmadd52huq	zmm12, zmm1, zmm3
+        vpmadd52huq	zmm12, zmm2, zmm7
+        vpmadd52luq	zmm10, zmm0, zmm5
+        vpmadd52luq	zmm10, zmm1, zmm4
+        vpmadd52luq	zmm10, zmm2, zmm3
+        vpmadd52huq	zmm13, zmm0, zmm5
+        vpmadd52huq	zmm13, zmm1, zmm4
+        vpmadd52huq	zmm13, zmm2, zmm3
+        vpsllq	zmm14, zmm11, 8
+        vpaddq	zmm9, zmm14, zmm9
+        vpsllq	zmm14, zmm12, 8
+        vpaddq	zmm10, zmm14, zmm10
+        vpsllq	zmm15, zmm13, 8
+        vpsllq	zmm14, zmm15, 2
+        vpsllq	zmm15, zmm15, 4
+        vpaddq	zmm15, zmm15, zmm14
+        vpaddq	zmm8, zmm15, zmm8
+        vpsrlq	zmm14, zmm8, 44
+        vpandq	zmm0, zmm8, zmm18
+        vpaddq	zmm9, zmm14, zmm9
+        vpsrlq	zmm14, zmm9, 44
+        vpandq	zmm1, zmm9, zmm18
+        vpaddq	zmm10, zmm14, zmm10
+        vpsrlq	zmm14, zmm10, 44
+        vpandq	zmm2, zmm10, zmm18
+        vpsllq	zmm15, zmm14, 2
+        vpsllq	zmm14, zmm14, 4
+        vpaddq	zmm14, zmm14, zmm15
+        vpaddq	zmm0, zmm14, zmm0
+        vshufi64x2	zmm14, zmm0, zmm0, 78
+        vshufi64x2	zmm15, zmm1, zmm1, 78
+        vshufi64x2	zmm16, zmm2, zmm2, 78
+        vpaddq	zmm0, zmm14, zmm0
+        vpaddq	zmm1, zmm15, zmm1
+        vpaddq	zmm2, zmm16, zmm2
+        vpsrldq	zmm14, zmm0, 8
+        vpsrldq	zmm15, zmm1, 8
+        vpsrldq	zmm16, zmm2, 8
+        vpaddq	zmm0, zmm14, zmm0
+        vpaddq	zmm1, zmm15, zmm1
+        vpaddq	zmm2, zmm16, zmm2
+        vpermq	zmm14, zmm0, 2
+        vpermq	zmm15, zmm1, 2
+        vpermq	zmm16, zmm2, 2
+        vpaddq	zmm0, zmm14, zmm0
+        vpaddq	zmm1, zmm15, zmm1
+        vpaddq	zmm2, zmm16, zmm2
+        vmovq	rax, xmm0
+        vmovq	rcx, xmm1
+        vmovq	rdx, xmm2
+        mov	r9, rcx
+        shr	r9, 20
+        mov	r10, rdx
+        shr	r10, 40
+        mov	r8, rax
+        mov	rax, rcx
+        shl	rax, 44
+        add	r8, rax
+        adc	r9, 0
+        mov	rax, rdx
+        shl	rax, 24
+        add	r9, rax
+        adc	r10, 0
+        mov	r14, r10
+        and	r10, 3
+        shr	r14, 2
+        lea	r14, QWORD PTR [r14+4*r14+0]
+        add	r8, r14
+        adc	r9, 0
+        adc	r10, 0
+        mov	QWORD PTR [rdi+24], r8
+        mov	QWORD PTR [rdi+32], r9
+        mov	QWORD PTR [rdi+40], r10
+        jmp	L_poly1305_avx512ifma_blocks_end_calc
+L_poly1305_avx512ifma_blocks_start:
+        vmovdqu64	zmm14, [rsi]
+        vmovdqu64	zmm15, [rsi+64]
+        vmovdqu64	zmm16, [r11]
+        vpermi2q	zmm16, zmm14, zmm15
+        vmovdqu64	zmm17, [r12]
+        vpermi2q	zmm17, zmm14, zmm15
+        vpandq	zmm8, zmm16, [r8]
+        vpsrlq	zmm14, zmm16, 44
+        vpandq	zmm15, zmm17, [r9]
+        vpsllq	zmm15, zmm15, 20
+        vporq	zmm9, zmm15, zmm14
+        vpsrlq	zmm10, zmm17, 24
+        vporq	zmm10, zmm10, [r10]
+        vpxorq	zmm11, zmm11, zmm11
+        vpxorq	zmm12, zmm12, zmm12
+        vpxorq	zmm13, zmm13, zmm13
+        vpmadd52luq	zmm8, zmm0, zmm3
+        vpmadd52luq	zmm8, zmm1, zmm7
+        vpmadd52luq	zmm8, zmm2, zmm6
+        vpmadd52huq	zmm11, zmm0, zmm3
+        vpmadd52huq	zmm11, zmm1, zmm7
+        vpmadd52huq	zmm11, zmm2, zmm6
+        vpmadd52luq	zmm9, zmm0, zmm4
+        vpmadd52luq	zmm9, zmm1, zmm3
+        vpmadd52luq	zmm9, zmm2, zmm7
+        vpmadd52huq	zmm12, zmm0, zmm4
+        vpmadd52huq	zmm12, zmm1, zmm3
+        vpmadd52huq	zmm12, zmm2, zmm7
+        vpmadd52luq	zmm10, zmm0, zmm5
+        vpmadd52luq	zmm10, zmm1, zmm4
+        vpmadd52luq	zmm10, zmm2, zmm3
+        vpmadd52huq	zmm13, zmm0, zmm5
+        vpmadd52huq	zmm13, zmm1, zmm4
+        vpmadd52huq	zmm13, zmm2, zmm3
+        vpsllq	zmm14, zmm11, 8
+        vpaddq	zmm9, zmm14, zmm9
+        vpsllq	zmm14, zmm12, 8
+        vpaddq	zmm10, zmm14, zmm10
+        vpsllq	zmm15, zmm13, 8
+        vpsllq	zmm14, zmm15, 2
+        vpsllq	zmm15, zmm15, 4
+        vpaddq	zmm15, zmm15, zmm14
+        vpaddq	zmm8, zmm15, zmm8
+        vpsrlq	zmm14, zmm8, 44
+        vpandq	zmm0, zmm8, zmm18
+        vpaddq	zmm9, zmm14, zmm9
+        vpsrlq	zmm14, zmm9, 44
+        vpandq	zmm1, zmm9, zmm18
+        vpaddq	zmm10, zmm14, zmm10
+        vpsrlq	zmm14, zmm10, 44
+        vpandq	zmm2, zmm10, zmm18
+        vpsllq	zmm15, zmm14, 2
+        vpsllq	zmm14, zmm14, 4
+        vpaddq	zmm14, zmm14, zmm15
+        vpaddq	zmm0, zmm14, zmm0
+        add	rsi, 128
+        sub	rdx, 128
+        jnz	L_poly1305_avx512ifma_blocks_start
+L_poly1305_avx512ifma_blocks_store:
+        vmovdqu64	[rdi+752], zmm0
+        vmovdqu64	[rdi+816], zmm1
+        vmovdqu64	[rdi+880], zmm2
+L_poly1305_avx512ifma_blocks_end_calc:
+L_poly1305_avx512ifma_blocks_complete:
+        mov	BYTE PTR [rdi+617], 1
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	r14
+        pop	r13
+        pop	r12
+        pop	rsi
+        pop	rdi
+        ret
+poly1305_blocks_avx512ifma ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+poly1305_final_avx512ifma PROC
+        push	rdi
+        push	rsi
+        mov	rdi, rcx
+        mov	rsi, rdx
+        mov	BYTE PTR [rdi+616], 1
+        mov	cl, BYTE PTR [rdi+617]
+        cmp	cl, 0
+        je	L_poly1305_avx512ifma_final_done_blocks_8
+        push	rsi
+        mov	r8, 128
+        xor	rdx, rdx
+        mov	rcx, rdi
+        call	poly1305_blocks_avx512ifma
+        pop	rsi
+L_poly1305_avx512ifma_final_done_blocks_8:
+        mov	rax, QWORD PTR [rdi+608]
+        mov	rcx, rax
+        and	rcx, -16
+        cmp	cl, 0
+        je	L_poly1305_avx512ifma_final_done_blocks
+        push	rcx
+        push	rax
+        push	rsi
+        mov	r8, rcx
+        lea	rdx, QWORD PTR [rdi+480]
+        mov	rcx, rdi
+        call	poly1305_blocks_avx
+        pop	rsi
+        pop	rax
+        pop	rcx
+L_poly1305_avx512ifma_final_done_blocks:
+        sub	QWORD PTR [rdi+608], rcx
+        xor	rdx, rdx
+        jmp	L_poly1305_avx512ifma_final_cmp_copy
+L_poly1305_avx512ifma_final_start_copy:
+        mov	r8b, BYTE PTR [rdi+rcx+480]
+        mov	BYTE PTR [rdi+rdx+480], r8b
+        inc	cl
+        inc	dl
+L_poly1305_avx512ifma_final_cmp_copy:
+        cmp	al, cl
+        jne	L_poly1305_avx512ifma_final_start_copy
+        mov	rcx, rdi
+        mov	rdx, rsi
+        call	poly1305_final_avx
+        vpxorq	zmm0, zmm0, zmm0
+        vmovdqu	YMMWORD PTR [rdi+224], ymm0
+        vmovdqu	YMMWORD PTR [rdi+256], ymm0
+        vmovdqu	YMMWORD PTR [rdi+288], ymm0
+        vmovdqu	YMMWORD PTR [rdi+320], ymm0
+        vmovdqu	YMMWORD PTR [rdi+624], ymm0
+        vmovdqu	YMMWORD PTR [rdi+656], ymm0
+        vmovdqu	YMMWORD PTR [rdi+688], ymm0
+        vmovdqu	YMMWORD PTR [rdi+720], ymm0
+        vmovdqu64	[rdi+752], zmm0
+        vmovdqu64	[rdi+816], zmm0
+        vmovdqu64	[rdi+880], zmm0
+        mov	QWORD PTR [rdi+608], 0
+        mov	WORD PTR [rdi+616], 0
+        vzeroupper
+        pop	rsi
+        pop	rdi
+        ret
+poly1305_final_avx512ifma ENDP
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
+poly1305_fold_avx512ifma PROC
+        push	r12
+        push	r13
+        push	r14
+        push	r15
+        push	rdi
+        push	rsi
+        push	rbx
+        push	rbp
+        sub	rsp, 64
+        mov	DWORD PTR [rsp+24], edx
+        mov	r8, QWORD PTR [rcx]
+        mov	r9, QWORD PTR [rcx+8]
+        xor	r10, r10
+        mov	QWORD PTR [rsp], r8
+        mov	QWORD PTR [rsp+8], r9
+        mov	QWORD PTR [rsp+16], r10
+        bsrq	rax, rdx
+        mov	QWORD PTR [rsp+32], rax
+L_poly1305_fold_loop:
+        mov	rax, QWORD PTR [rsp+32]
+        test	rax, rax
+        jz	L_poly1305_fold_done
+        dec	rax
+        mov	QWORD PTR [rsp+32], rax
+        mov	r8, QWORD PTR [rsp]
+        mov	r9, QWORD PTR [rsp+8]
+        mov	r10, QWORD PTR [rsp+16]
+        ; Square 130-bit
+        mov	rax, r9
+        mul	r8
+        xor	r14, r14
+        mov	r12, rax
+        mov	r13, rdx
+        add	r12, rax
+        adc	r13, rdx
+        adc	r14, 0
+        mov	rax, r8
+        mul	rax
+        mov	r11, rax
+        mov	rdi, rdx
+        mov	rax, r9
+        mul	rax
+        add	r12, rdi
+        adc	r13, rax
+        adc	r14, rdx
+        mov	rax, r10
+        mul	rax
+        mov	r15, rax
+        mov	rax, r10
+        mul	r8
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        mov	rax, r10
+        mul	r9
+        add	r14, rax
+        adc	r15, rdx
+        add	r14, rax
+        adc	r15, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, r13
+        mov	rdx, r14
+        mov	rdi, r15
+        and	rax, -4
+        and	r13, 3
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        shrd	rax, rdx, 2
+        shrd	rdx, rdi, 2
+        shr	rdi, 2
+        add	r11, rax
+        adc	r12, rdx
+        adc	r13, rdi
+        mov	rax, r13
+        and	r13, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r11, rax
+        adc	r12, 0
+        adc	r13, 0
+        mov	QWORD PTR [rsp], r11
+        mov	QWORD PTR [rsp+8], r12
+        mov	QWORD PTR [rsp+16], r13
+        mov	eax, DWORD PTR [rsp+24]
+        mov	rdx, QWORD PTR [rsp+32]
+        btq	rax, rdx
+        jnc	L_poly1305_fold_skip
+        mov	r8, QWORD PTR [rcx]
+        mov	r9, QWORD PTR [rcx+8]
+        xor	r10, r10
+        mov	r11, QWORD PTR [rsp]
+        mov	r12, QWORD PTR [rsp+8]
+        mov	r13, QWORD PTR [rsp+16]
+        ; Multiply 128-bit by 130-bit
+        ;   r1[0] * r2[0]
+        mov	rax, r8
+        mul	r11
+        mov	r14, rax
+        mov	r15, rdx
+        ;   r1[0] * r2[1]
+        mov	rax, r8
+        mul	r12
+        mov	rdi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        ;   r1[1] * r2[0]
+        mov	rax, r9
+        mul	r11
+        mov	rsi, 0
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r8
+        mul	r13
+        add	rdi, rax
+        adc	rsi, rdx
+        ;   r1[1] * r2[1]
+        mov	rax, r9
+        mul	r12
+        mov	rbx, 0
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r9
+        mul	r13
+        add	rsi, rax
+        adc	rbx, rdx
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        shrd	rax, rdx, 2
+        shrd	rdx, rbx, 2
+        shr	rbx, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbx
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        mov	QWORD PTR [rsp], r14
+        mov	QWORD PTR [rsp+8], r15
+        mov	QWORD PTR [rsp+16], rdi
+L_poly1305_fold_skip:
+        jmp	L_poly1305_fold_loop
+L_poly1305_fold_done:
+        mov	r8, QWORD PTR [rcx+64]
+        mov	r9, QWORD PTR [rcx+72]
+        mov	r10, QWORD PTR [rcx+80]
+        mov	r11, QWORD PTR [rsp]
+        mov	r12, QWORD PTR [rsp+8]
+        mov	r13, QWORD PTR [rsp+16]
+        ; Multiply 130-bit by 130-bit
+        mov	r14, 0
+        mov	r15, 0
+        mov	rdi, 0
+        mov	rsi, 0
+        mov	rbx, 0
+        ;   r1[0] * r2[0]
+        mov	rax, r8
+        mul	r11
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, 0
+        adc	rsi, 0
+        adc	rbx, 0
+        ;   r1[0] * r2[1]
+        mov	rax, r8
+        mul	r12
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        adc	rbx, 0
+        ;   r1[0] * r2[2]
+        mov	rax, r8
+        mul	r13
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[0]
+        mov	rax, r9
+        mul	r11
+        add	r15, rax
+        adc	rdi, rdx
+        adc	rsi, 0
+        adc	rbx, 0
+        ;   r1[1] * r2[1]
+        mov	rax, r9
+        mul	r12
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[1] * r2[2]
+        mov	rax, r9
+        mul	r13
+        add	rsi, rax
+        adc	rbx, rdx
+        ;   r1[2] * r2[0]
+        mov	rax, r10
+        mul	r11
+        add	rdi, rax
+        adc	rsi, rdx
+        adc	rbx, 0
+        ;   r1[2] * r2[1]
+        mov	rax, r10
+        mul	r12
+        add	rsi, rax
+        adc	rbx, rdx
+        ;   r1[2] * r2[2]
+        mov	rax, r10
+        mul	r13
+        add	rbx, rax
+        ; Reduce 260-bit to 130-bit
+        mov	rax, rdi
+        mov	rdx, rsi
+        mov	rbp, rbx
+        and	rax, -4
+        and	rdi, 3
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbp
+        shrd	rax, rdx, 2
+        shrd	rdx, rbp, 2
+        shr	rbp, 2
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, rbp
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        mov	rax, QWORD PTR [rcx+24]
+        add	r14, rax
+        mov	rax, QWORD PTR [rcx+32]
+        adc	r15, rax
+        mov	rax, QWORD PTR [rcx+40]
+        adc	rdi, rax
+        mov	rax, rdi
+        and	rdi, 3
+        shr	rax, 2
+        lea	rax, QWORD PTR [rax+4*rax+0]
+        add	r14, rax
+        adc	r15, 0
+        adc	rdi, 0
+        mov	QWORD PTR [rcx+24], r14
+        mov	QWORD PTR [rcx+32], r15
+        mov	QWORD PTR [rcx+40], rdi
+        add	rsp, 64
+        pop	rbp
+        pop	rbx
+        pop	rsi
+        pop	rdi
+        pop	r15
+        pop	r14
+        pop	r13
+        pop	r12
+        ret
+poly1305_fold_avx512ifma ENDP
+_TEXT ENDS
+ENDIF
 END

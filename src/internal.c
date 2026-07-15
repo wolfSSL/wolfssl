@@ -20765,55 +20765,61 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     wc_MemZero_Add("ChachaAEADEncrypt nonce", nonce, CHACHA20_NONCE_SZ);
 #endif
 
-    /* set the nonce for chacha and get poly1305 key */
-    if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0) {
-        ForceZero(nonce, CHACHA20_NONCE_SZ);
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-    #endif
-        return ret;
-    }
-
-    /* create Poly1305 key using chacha20 keystream */
-    if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, poly,
-                                                    poly, sizeof(poly))) != 0) {
-        ForceZero(nonce, CHACHA20_NONCE_SZ);
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-    #endif
-        return ret;
-    }
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("ChachaAEADEncrypt poly", poly, CHACHA20_256_KEY_SIZE);
-#endif
-
-    /* set the counter after getting poly1305 key */
-    if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1)) != 0) {
-        ForceZero(nonce, CHACHA20_NONCE_SZ);
-        ForceZero(poly, sizeof(poly));
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-    #endif
-        return ret;
-    }
-    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-#endif
-
-    /* encrypt the plain text */
-    if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out,
-                                                         input, msgLen)) != 0) {
-        ForceZero(poly, sizeof(poly));
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-    #endif
-        return ret;
-    }
-
-    /* get the poly1305 tag using either old padding scheme or more recent */
+    /* Derive the Poly1305 key, encrypt and authenticate.  The legacy oldPoly
+     * draft keeps the manual derivation and old tag layout.  RFC 7905 uses the
+     * persistent-key stitched helper - it derives the per-record poly key,
+     * encrypts and MACs in one pass (the IFMA stitch for large records, else
+     * two-pass), matching the split ssl->encrypt.chacha / ssl->auth.poly1305
+     * contexts kept keyed across the connection. */
     if (ssl->options.oldPoly != 0) {
+        /* set the nonce for chacha and get poly1305 key */
+        if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0) {
+            ForceZero(nonce, CHACHA20_NONCE_SZ);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+        #endif
+            return ret;
+        }
+
+        /* create Poly1305 key using chacha20 keystream */
+        if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, poly,
+                                                    poly, sizeof(poly))) != 0) {
+            ForceZero(nonce, CHACHA20_NONCE_SZ);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+        #endif
+            return ret;
+        }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("ChachaAEADEncrypt poly", poly, CHACHA20_256_KEY_SIZE);
+    #endif
+
+        /* set the counter after getting poly1305 key */
+        if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1)) != 0) {
+            ForceZero(nonce, CHACHA20_NONCE_SZ);
+            ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
+            return ret;
+        }
+        ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
+
+        /* encrypt the plain text */
+        if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out,
+                                                         input, msgLen)) != 0) {
+            ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
+            return ret;
+        }
+
+        /* get the poly1305 tag using the old padding scheme */
         if ((ret = Poly1305TagOld(ssl, add, addSz, (const byte* )out,
                                                          poly, sz, tag)) != 0) {
             ForceZero(poly, sizeof(poly));
@@ -20822,29 +20828,22 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
         #endif
             return ret;
         }
+        ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+    #endif
     }
     else {
-        if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly,
-                                                          sizeof(poly))) != 0) {
-            ForceZero(poly, sizeof(poly));
-        #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-        #endif
+        ret = wc_ChaCha20Poly1305_Encrypt_ex(ssl->encrypt.chacha,
+            ssl->auth.poly1305, out, input, msgLen, nonce, tag, add,
+            (word32)addSz);
+        ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
+        if (ret != 0)
             return ret;
-        }
-        if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, add, addSz, out, msgLen,
-                tag, sizeof(tag))) != 0) {
-            ForceZero(poly, sizeof(poly));
-        #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-        #endif
-            return ret;
-        }
     }
-    ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-#endif
 
     /* append tag to ciphertext */
     XMEMCPY(out + msgLen, tag, sizeof(tag));
@@ -20959,45 +20958,49 @@ int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     wc_MemZero_Add("ChachaAEADEncrypt nonce", nonce, CHACHA20_NONCE_SZ);
 #endif
 
-    /* set nonce and get poly1305 key */
-    if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0) {
-        ForceZero(nonce, CHACHA20_NONCE_SZ);
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-    #endif
-        return ret;
-    }
-
-    /* use chacha20 keystream to get poly1305 key for tag */
-    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, poly,
-                                                    poly, sizeof(poly))) != 0) {
-        ForceZero(nonce, CHACHA20_NONCE_SZ);
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-    #endif
-        return ret;
-    }
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("ChachaAEADEncrypt poly", poly, CHACHA20_256_KEY_SIZE);
-#endif
-
-    /* set counter after getting poly1305 key */
-    if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1)) != 0) {
-        ForceZero(nonce, CHACHA20_NONCE_SZ);
-        ForceZero(poly, sizeof(poly));
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-    #endif
-        return ret;
-    }
-    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
-#endif
-
-    /* get the tag using Poly1305 */
+    /* Verify the tag and decrypt.  oldPoly keeps the manual derivation, old tag
+     * layout and verify-then-decrypt.  RFC 7905 uses the persistent-key
+     * stitched helper (verify + decrypt in one pass - the IFMA decrypt stitch
+     * for large records, else two-pass; it zeroes plain on tag mismatch). */
     if (ssl->options.oldPoly != 0) {
+        /* set nonce and get poly1305 key */
+        if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0) {
+            ForceZero(nonce, CHACHA20_NONCE_SZ);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+        #endif
+            return ret;
+        }
+
+        /* use chacha20 keystream to get poly1305 key for tag */
+        if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, poly,
+                                                    poly, sizeof(poly))) != 0) {
+            ForceZero(nonce, CHACHA20_NONCE_SZ);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+        #endif
+            return ret;
+        }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("ChachaAEADEncrypt poly", poly, CHACHA20_256_KEY_SIZE);
+    #endif
+
+        /* set counter after getting poly1305 key */
+        if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1)) != 0) {
+            ForceZero(nonce, CHACHA20_NONCE_SZ);
+            ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
+            return ret;
+        }
+        ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
+
+        /* get the tag using the old padding scheme */
         if ((ret = Poly1305TagOld(ssl, add, addSz, input, poly, sz, tag))
                 != 0) {
             ForceZero(poly, sizeof(poly));
@@ -21006,43 +21009,45 @@ int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         #endif
             return ret;
         }
+        ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+    #endif
+
+        /* check tag sent along with packet */
+        if (ConstantCompare(input + msgLen, tag,
+                                            ssl->specs.aead_mac_size) != 0) {
+            WOLFSSL_MSG("MAC did not match");
+            if (!ssl->options.dtls)
+                SendAlert(ssl, alert_fatal, bad_record_mac);
+            WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
+            return VERIFY_MAC_ERROR;
+        }
+
+        /* if the tag was good decrypt message */
+        if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain,
+                                                 input, (word32)msgLen)) != 0)
+            return ret;
     }
     else {
-        if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly,
-                                                          sizeof(poly))) != 0) {
-            ForceZero(poly, sizeof(poly));
-        #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-        #endif
-            return ret;
-        }
-        if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, add, addSz, input,
-                (word32)msgLen, tag, sizeof(tag))) != 0) {
-            ForceZero(poly, sizeof(poly));
-        #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-        #endif
+        ret = wc_ChaCha20Poly1305_Decrypt_ex(ssl->decrypt.chacha,
+            ssl->auth.poly1305, plain, input, (word32)msgLen, nonce,
+            input + msgLen, add, (word32)addSz);
+        ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
+        if (ret != 0) {
+            if (ret == WC_NO_ERR_TRACE(MAC_CMP_FAILED_E)) {
+                WOLFSSL_MSG("MAC did not match");
+                if (!ssl->options.dtls)
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
+                return VERIFY_MAC_ERROR;
+            }
             return ret;
         }
     }
-    ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
-#endif
-
-    /* check tag sent along with packet */
-    if (ConstantCompare(input + msgLen, tag, ssl->specs.aead_mac_size) != 0) {
-        WOLFSSL_MSG("MAC did not match");
-        if (!ssl->options.dtls)
-            SendAlert(ssl, alert_fatal, bad_record_mac);
-        WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
-        return VERIFY_MAC_ERROR;
-    }
-
-    /* if the tag was good decrypt message */
-    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain,
-                                                           input, (word32)msgLen)) != 0)
-        return ret;
 
     #ifdef CHACHA_AEAD_TEST
        printf("plain after decrypt :\n");

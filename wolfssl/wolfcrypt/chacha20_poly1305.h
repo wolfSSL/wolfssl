@@ -104,6 +104,20 @@ int wc_ChaCha20Poly1305_Decrypt(
                 const byte inAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],
                 byte* outPlaintext);
 
+/* Encrypt+authenticate one message with pre-keyed ChaCha20 and Poly1305
+ * contexts (analogue of wc_AesGcmEncrypt on a keyed Aes) - keeps the ChaCha key
+ * across records and only varies the nonce, and uses the single-pass stitch.
+ * Intended for the TLS record layer. */
+WOLFSSL_API int wc_ChaCha20Poly1305_Encrypt_ex(ChaCha* chacha, Poly1305* poly,
+    byte* out, const byte* in, word32 sz, const byte* nonce, byte* tag,
+    const byte* aad, word32 aadSz);
+/* Decrypt+verify counterpart of wc_ChaCha20Poly1305_Encrypt_ex.  On tag
+ * mismatch returns MAC_CMP_FAILED_E and zeroizes out (no plaintext released);
+ * out may alias in (in-place). */
+WOLFSSL_API WARN_UNUSED_RESULT int wc_ChaCha20Poly1305_Decrypt_ex(
+    ChaCha* chacha, Poly1305* poly, byte* out, const byte* in, word32 sz,
+    const byte* nonce, const byte* tag, const byte* aad, word32 aadSz);
+
 WOLFSSL_API WARN_UNUSED_RESULT
 int wc_ChaCha20Poly1305_CheckTag(
     const byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],

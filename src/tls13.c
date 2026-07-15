@@ -2513,49 +2513,11 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
                                     const byte* input, word16 sz, byte* nonce,
                                     const byte* aad, word16 aadSz, byte* tag)
 {
-    int    ret    = 0;
-    byte   poly[CHACHA20_256_KEY_SIZE];
-
-    /* Poly1305 key is 256 bits of zero encrypted with ChaCha20. */
-    XMEMSET(poly, 0, sizeof(poly));
-
-    /* Set the nonce for ChaCha and get Poly1305 key. */
-    ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0);
-    if (ret != 0)
-        return ret;
-    /* Create Poly1305 key using ChaCha20 keystream. */
-    ret = wc_Chacha_Process(ssl->encrypt.chacha, poly, poly, sizeof(poly));
-    if (ret != 0)
-        return ret;
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("ChaCha20Poly1305_Encrypt poly", poly, sizeof(poly));
-#endif
-    ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1);
-    if (ret != 0)
-        return ret;
-    /* Encrypt the plain text. */
-    ret = wc_Chacha_Process(ssl->encrypt.chacha, output, input, sz);
-    if (ret != 0) {
-        ForceZero(poly, sizeof(poly));
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(poly, sizeof(poly));
-    #endif
-        return ret;
-    }
-
-    /* Set key for Poly1305. */
-    ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
-    ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(poly, sizeof(poly));
-#endif
-    if (ret != 0)
-        return ret;
-    /* Add authentication code of encrypted data to end. */
-    ret = wc_Poly1305_MAC(ssl->auth.poly1305, aad, aadSz, output, sz, tag,
-                                                              POLY1305_AUTH_SZ);
-
-    return ret;
+    /* Persistent-key stitched helper: derives the per-record Poly1305 key from
+     * the keyed ChaCha, then encrypts and authenticates in one pass (the IFMA
+     * stitch for large records, else two-pass).  TLS 1.3 is always RFC 8439. */
+    return wc_ChaCha20Poly1305_Encrypt_ex(ssl->encrypt.chacha,
+        ssl->auth.poly1305, output, input, sz, nonce, tag, aad, aadSz);
 }
 #endif
 
@@ -2901,54 +2863,16 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
                                     const byte* tagIn)
 {
     int ret;
-    byte tag[POLY1305_AUTH_SZ];
-    byte poly[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
 
-    /* Poly1305 key is 256 bits of zero encrypted with ChaCha20. */
-    XMEMSET(poly, 0, sizeof(poly));
-
-    /* Set nonce and get Poly1305 key. */
-    ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0);
-    if (ret != 0)
-        return ret;
-    /* Use ChaCha20 keystream to get Poly1305 key for tag. */
-    ret = wc_Chacha_Process(ssl->decrypt.chacha, poly, poly, sizeof(poly));
-    if (ret != 0)
-        return ret;
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("ChaCha20Poly1305_Decrypt poly", poly, sizeof(poly));
-#endif
-    ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1);
-    if (ret != 0) {
-        ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(poly, sizeof(poly));
-    #endif
-        return ret;
-    }
-
-    /* Set key for Poly1305. */
-    ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
-    ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(poly, sizeof(poly));
-#endif
-    if (ret != 0)
-        return ret;
-    /* Generate authentication tag for encrypted data. */
-    if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, aad, aadSz, input, sz, tag,
-                                                           sizeof(tag))) != 0) {
-        return ret;
-    }
-
-    /* Check tag sent along with packet. */
-    if (ConstantCompare(tagIn, tag, POLY1305_AUTH_SZ) != 0) {
+    /* Persistent-key stitched helper: verifies the Poly1305 tag over
+     * aad+ciphertext and decrypts in one pass (the IFMA decrypt stitch for
+     * large records, else two-pass); it zeroes output on tag mismatch. */
+    ret = wc_ChaCha20Poly1305_Decrypt_ex(ssl->decrypt.chacha,
+        ssl->auth.poly1305, output, input, sz, nonce, tagIn, aad, aadSz);
+    if (ret == WC_NO_ERR_TRACE(MAC_CMP_FAILED_E)) {
         WOLFSSL_MSG("MAC did not match");
-        return VERIFY_MAC_ERROR;
+        ret = VERIFY_MAC_ERROR;
     }
-
-    /* If the tag was good decrypt message. */
-    ret = wc_Chacha_Process(ssl->decrypt.chacha, output, input, sz);
 
     return ret;
 }
