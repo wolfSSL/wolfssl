@@ -19207,9 +19207,18 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
              * The FIPS module's AES-GCM decrypt does not clear it, so skip
              * this check under HAVE_FIPS. */
             word32 z;
-            for (z = 0; z < (word32)sizeof(p); z++) {
-                if (resultP[z] != 0)
-                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            int check_zeroed = 1;
+        #ifdef WOLF_CRYPTO_CB
+            /* An offloaded (devId) backend runs the decrypt on the far side
+             * and is not required to zero the caller's output buffer. */
+            if (dec->devId != INVALID_DEVID)
+                check_zeroed = 0;
+        #endif
+            if (check_zeroed) {
+                for (z = 0; z < (word32)sizeof(p); z++) {
+                    if (resultP[z] != 0)
+                        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
             }
         }
     #endif
