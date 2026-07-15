@@ -1233,8 +1233,11 @@ int test_wc_DrbgDecisionCoverage(void)
  * loop and the reseed-interval-exceeded decision through the public API.
  * Varying the requested size exercises the per-block copy-out branch
  * ("outSz > OUTPUT_BLOCK_LEN" true for multi-block, false for a sub-block
- * tail); a bounded burst of generate calls crosses the (campaign-shrunk)
- * WC_RESEED_INTERVAL so the DRBG_NEED_RESEED -> PollAndReSeed path is taken.
+ * tail); the reseed-interval-exceeded (DRBG_NEED_RESEED -> PollAndReSeed)
+ * branch is forced by setting the active DRBG's reseedCtr to
+ * WC_RESEED_INTERVAL - 1 before a generate (same idiom as
+ * test_wc_RNG_ReseedBoundary) -- the default interval (1,000,000) is far
+ * beyond a bounded test loop, so a simple burst would NOT reach it.
  * Repeated under both DRBG hash widths when SHA-512 is compiled in. */
 int test_wc_DrbgFeatureCoverage(void)
 {
@@ -1268,10 +1271,49 @@ int test_wc_DrbgFeatureCoverage(void)
             XMEMSET(big, 0, sizeof(big));
             ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, sizes[i]), 0);
         }
-        /* Cross the reseed interval (bounded loop). */
-        for (i = 0; i < 40; i++) {
-            ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+        /* Force the reseed-interval-exceeded path. The default
+         * WC_RESEED_INTERVAL (1,000,000) is unreachable in a bounded loop, so
+         * set the active DRBG's reseedCtr just below the limit and generate
+         * across it, taking DRBG_NEED_RESEED -> PollAndReSeed (same idiom as
+         * test_wc_RNG_ReseedBoundary). Guarded via a probe generate so configs
+         * that bypass the Hash_DRBG path (e.g. --enable-intelrand) skip it. */
+    #ifndef NO_SHA256
+        if (rng.drbgType == WC_DRBG_SHA256) {
+            struct DRBG_internal* drbg = (struct DRBG_internal*)rng.drbg;
+            if (drbg != NULL && rng.status == WC_DRBG_OK) {
+            #ifdef WORD64_AVAILABLE
+                word64 startCtr = drbg->reseedCtr;
+            #else
+                word32 startCtr = drbg->reseedCtr;
+            #endif
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                if (drbg->reseedCtr == startCtr + 1) {
+                    drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg->reseedCtr == 2);
+                }
+            }
         }
+    #endif
+    #ifdef WOLFSSL_DRBG_SHA512
+        if (rng.drbgType == WC_DRBG_SHA512) {
+            struct DRBG_SHA512_internal* drbg512 =
+                (struct DRBG_SHA512_internal*)rng.drbg512;
+            if (drbg512 != NULL && rng.status == WC_DRBG_OK) {
+                word64 startCtr = drbg512->reseedCtr;
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                if (drbg512->reseedCtr == startCtr + 1) {
+                    drbg512->reseedCtr = WC_RESEED_INTERVAL - 1;
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg512->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg512->reseedCtr == 2);
+                }
+            }
+        }
+    #endif
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
 
     #if defined(WOLFSSL_DRBG_SHA512) && \
