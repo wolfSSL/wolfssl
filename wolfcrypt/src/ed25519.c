@@ -88,7 +88,6 @@
 
 static int WC_ARG_NOT_NULL(1) WC_ARG_NOT_NULL(2)
     ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
-
 {
     int ret;
 
