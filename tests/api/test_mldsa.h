@@ -66,6 +66,8 @@ int test_wc_MldsaFeatureCoverage(void);
  * Becomes a TEST_SKIPPED stub when WOLFSSL_NO_DILITHIUM_LEGACY_NAMES is
  * defined. */
 int test_mldsa_legacy_shim(void);
+int test_wc_MldsaDecisionCoverage2(void);
+int test_wc_MldsaDerDecisionCoverage(void);
 
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_mldsa),                                      \
@@ -95,6 +97,8 @@ int test_mldsa_legacy_shim(void);
     TEST_DECL_GROUP("mldsa", test_dilithium_hash),                             \
     TEST_DECL_GROUP("mldsa", test_wc_MldsaDecisionCoverage),                   \
     TEST_DECL_GROUP("mldsa", test_wc_MldsaFeatureCoverage),                    \
-    TEST_DECL_GROUP("mldsa", test_mldsa_legacy_shim)
+    TEST_DECL_GROUP("mldsa", test_mldsa_legacy_shim),                         \
+    TEST_DECL_GROUP("mldsa", test_wc_MldsaDecisionCoverage2),                  \
+    TEST_DECL_GROUP("mldsa", test_wc_MldsaDerDecisionCoverage)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */
