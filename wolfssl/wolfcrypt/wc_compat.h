@@ -30,10 +30,12 @@
      (!defined(WC_SHA512_TYPE_DEFINED) || !defined(WC_SHA384_TYPE_DEFINED))) ||\
     (defined(WOLF_CRYPT_AES_H) && !defined(NO_AES) &&                          \
      !defined(WC_AES_TYPE_DEFINED)) ||                                         \
-    (defined(WOLF_CRYPT_RANDOM_H) && !defined(WC_RNG_TYPE_DEFINED))
+    (defined(WOLF_CRYPT_RANDOM_H) && !defined(WC_RNG_TYPE_DEFINED)) ||         \
+    (defined(WOLF_CRYPT_FIPS_H) && !defined(fipsCastStatus_get)) ||            \
+    (defined(WOLF_CRYPT_FIPS_TEST_H) && !defined(WC_FIPS_ENUM_CAST_ID_DEFINED))
 
-    /* Inhibit wc_compat.h during inclusion of sha256.h, sha512.h, aes.h, and
-     * random.h, to mitigate circular dependencies via aes.h included below.
+    /* Inhibit wc_compat.h during inclusion of sha256.h, sha512.h, aes.h,
+     * random.h, fips.h, and fips_test.h, to mitigate circular dependencies.
      */
 
 #else /* Circular dependency deferral check passed */
@@ -49,7 +51,8 @@
 #endif
 
 #if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && \
-    !defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED)
+    !defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED) && \
+    !defined(FIPS_NO_WRAPPERS)
 
     /* Unless WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED, wc_AesGcmEncrypt() is a
      * non-FIPS API hardwired to FIPS_WRONG_API_E in fips.c.  But we can emulate
@@ -108,8 +111,10 @@
                                  authTagSz, authIn, authInSz);
     }
     #endif /* ! WOLFSSL_AESGCM_STREAM */
-#endif /* HAVE_FIPS && HAVE_AESGCM &&             */
-       /* !WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED */
+#endif /* HAVE_FIPS && HAVE_AESGCM &&                  */
+       /* !WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED &&   */
+       /* !FIPS_NO_WRAPPERS && !WOLF_CRYPT_FIPS_TEST_H */
+
 
 #ifdef __cplusplus
     }

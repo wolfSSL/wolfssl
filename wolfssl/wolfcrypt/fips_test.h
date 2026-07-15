@@ -100,6 +100,7 @@ enum FipsCastId {
     FIPS_CAST_AES_KW            = 28,
     FIPS_CAST_COUNT             = 29
 };
+#define WC_FIPS_ENUM_CAST_ID_DEFINED
 
 enum FipsCastStateId {
     FIPS_CAST_STATE_INIT        = 0,
