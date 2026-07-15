@@ -37,6 +37,12 @@
 #include <tests/utils.h>
 #include <tests/api/test_lms_xmss.h>
 
+/* getpid() gives the stateful LMS/XMSS test key files a per-process name so
+ * parallel unit.test runs on a shared /tmp do not clobber each other. */
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+#include <unistd.h>
+#endif
+
 /*----------------------------------------------------------------------------*/
 /* LMS tests                                                                  */
 /*----------------------------------------------------------------------------*/
@@ -45,7 +51,22 @@
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
-#define LMS_TEST_PRIV_KEY_FILE "/tmp/wolfssl_test_lms.key"
+/* Per-process temp file: parallel unit.test runs (e.g. CI shards that share
+ * /tmp) must not clobber each other's stateful LMS private key. */
+static const char* lms_test_priv_key_file(void)
+{
+    static char lmsPath[64];
+    if (lmsPath[0] == '\0') {
+    #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+        (void)XSNPRINTF(lmsPath, sizeof(lmsPath),
+            "/tmp/wolfssl_test_lms_%d.key", (int)getpid());
+    #else
+        (void)XSNPRINTF(lmsPath, sizeof(lmsPath), "/tmp/wolfssl_test_lms.key");
+    #endif
+    }
+    return lmsPath;
+}
+#define LMS_TEST_PRIV_KEY_FILE lms_test_priv_key_file()
 
 static int test_lms_write_key(const byte* priv, word32 privSz, void* context)
 {
@@ -1056,7 +1077,23 @@ int test_rfc9802_lms_x509_gen(void)
 #if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_HAVE_XMSS) && \
     !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
     defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-#define XMSS_GEN_TEST_PRIV_KEY_FILE "/tmp/wolfssl_test_xmss_gen.key"
+/* Per-process temp file: parallel unit.test runs (e.g. CI shards that share
+ * /tmp) must not clobber each other's stateful XMSS private key. */
+static const char* xmss_gen_priv_key_file(void)
+{
+    static char xmssPath[64];
+    if (xmssPath[0] == '\0') {
+    #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+        (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
+            "/tmp/wolfssl_test_xmss_gen_%d.key", (int)getpid());
+    #else
+        (void)XSNPRINTF(xmssPath, sizeof(xmssPath),
+            "/tmp/wolfssl_test_xmss_gen.key");
+    #endif
+    }
+    return xmssPath;
+}
+#define XMSS_GEN_TEST_PRIV_KEY_FILE xmss_gen_priv_key_file()
 static enum wc_XmssRc xmss_gen_write_key(const byte* priv, word32 privSz,
     void* context)
 {
