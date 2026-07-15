@@ -506,6 +506,14 @@ static int IsOnlyPskDheKe(int argc, char** argv)
 }
 #endif /* WOLFSSL_STATIC_PSK */
 
+#ifndef HAVE_SESSION_TICKET
+/* if the line uses --send-ticket return 1, else 0 */
+static int IsSendTicket(const char* line)
+{
+    return XSTRSTR(line, "--send-ticket") != NULL;
+}
+#endif
+
 static int execute_test_case(int svr_argc, char** svr_argv,
                              int cli_argc, char** cli_argv,
                              int addNoVerify, int addNonBlocking,
@@ -556,6 +564,19 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         XSTRLCAT(commandLine, svr_argv[i], sizeof commandLine);
         XSTRLCAT(commandLine, flagSep, sizeof commandLine);
     }
+#ifndef HAVE_SESSION_TICKET
+    /* --send-ticket is only a recognized server option when session tickets
+     * are compiled in. Without them, mygetopt_long stops parsing at the
+     * unknown option and the harness-appended "-p 0" is dropped, so the server
+     * binds the default port 11111 instead of an ephemeral one. Skip the case
+     * rather than let it race on 11111. */
+    if (IsSendTicket(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("send-ticket not supported in build: %s\n", commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
     if (IsValidCipherSuite(commandLine, cipherSuite, sizeof cipherSuite) == 0) {
         #ifdef DEBUG_SUITE_TESTS
             printf("cipher suite %s not supported in build\n", cipherSuite);

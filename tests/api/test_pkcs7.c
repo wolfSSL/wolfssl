@@ -5024,7 +5024,19 @@ int test_wc_PKCS7_BER(void)
     if (EXPECT_SUCCESS()) {
         ret = wc_PKCS7_DecodeEnvelopedData(
             pkcs7, berContent, sizeof(berContent), decoded, sizeof(decoded));
-        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+        /* The 1024-bit RSA key is not supported by SP math, so the internal
+         * KTRI key unwrap fails with WC_KEY_SIZE_E. When the Bleichenbacher
+         * padding-oracle mitigation is compiled in (needs HMAC + SHA-256), that
+         * failure is deliberately hidden: wc_PKCS7_DecryptKtri() substitutes a
+         * randomly-seeded fake CEK and lets content decryption proceed so the
+         * RSA error is not observable to the caller. The outcome is therefore
+         * non-deterministic - the DES3 content decrypts to random data that
+         * almost always trips a later length/padding check (BUFFER_E), but on
+         * rare seeds forms a valid-looking structure and the decode "succeeds"
+         * (ret >= 0). Without the mitigation the raw WC_KEY_SIZE_E is returned.
+         * Accept any of these; only an unexpected negative error fails. */
+        ExpectTrue((ret >= 0) ||
+                   (ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
                    (ret == WC_NO_ERR_TRACE(BUFFER_E)));
     }
 #else
