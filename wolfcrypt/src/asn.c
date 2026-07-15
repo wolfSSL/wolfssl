@@ -21465,16 +21465,13 @@ static int DecodeAltSigVal(const byte* input, int sz, DecodedCert* cert)
 /* Macro to check if bit is set, if not sets and return success.
     Otherwise returns failure */
 /* Macro required here because bit-field operation */
-#ifndef WOLFSSL_NO_ASN_STRICT
-    #define VERIFY_AND_SET_OID(bit) \
-        if ((bit) == 0) \
-            (bit) = 1; \
-        else \
-            return ASN_OBJECT_ID_E;
-#else
-    /* With no strict defined, the verify is skipped */
-#define VERIFY_AND_SET_OID(bit) bit = 1;
-#endif
+/* RFC 5280 4.2 forbids a repeated extension, so a duplicate is rejected even
+ * under WOLFSSL_NO_ASN_STRICT. */
+#define VERIFY_AND_SET_OID(bit) \
+    if ((bit) == 0) \
+        (bit) = 1; \
+    else \
+        return ASN_OBJECT_ID_E;
 
 /* Parse extension type specific data based on OID sum.
  *
@@ -21647,9 +21644,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         /* Certificate policies. */
         case CERT_POLICY_OID:
         #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
-            /* certificatePolicies is non-repeatable (RFC 5280 4.2). In strict
-             * mode (the default; VERIFY_AND_SET_OID is a no-op under
-             * WOLFSSL_NO_ASN_STRICT, like every other extension) reject a
+            /* certificatePolicies is non-repeatable (RFC 5280 4.2). Reject a
              * duplicate regardless of WOLFSSL_SEP - otherwise the second one
              * silently overwrites the first (DecodeCertPolicy resets
              * extCertPoliciesNb), a policy-authorization confusion. */
