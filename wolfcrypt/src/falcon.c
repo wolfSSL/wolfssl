@@ -328,6 +328,7 @@ typedef int (*falcon_samplerZ)(void* ctx, fpr mu, fpr isigma);
 static int falcon_complete_private(sword8* G, const sword8* f,
         const sword8* g, const sword8* F, unsigned logn, void* heap);
 
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
 /* Expand the private basis (f, g, F, G) into 'expanded' (which must hold
  * FALCON_EXPANDED_KEY_FPR(logn) fpr elements): the B0 matrix in FFT
  * representation and the normalized ffLDL tree. Allocates an internal scratch
@@ -362,6 +363,7 @@ static int falcon_do_sign_tree(falcon_samplerZ samp, void* samp_ctx,
  * FALCON_SIGN_TMP_FPR(logn) fpr. Returns 0 on success. */
 static int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
         const word16* c, sword16* s2, fpr* tmp, unsigned logn);
+#endif /* !WOLFSSL_FALCON_SIGN_SMALL_MEM (tree-signer forward decls) */
 
 #ifdef __cplusplus
     }    /* extern "C" */
@@ -6234,6 +6236,11 @@ int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
 /* ==================================================================== */
 /* ffLDL tree construction (expand_privkey).                             */
 
+/* The eager ffLDL tree + tree-based signer are compiled only for the default
+ * (fast) path. WOLFSSL_FALCON_SIGN_SMALL_MEM builds the dynamic signer instead,
+ * which rebuilds the tree inside the sampler and so does not use any of this. */
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
+
 /* Size of the ffLDL tree (number of fpr elements) for polynomials of degree
  * 2^logn:  s(0) = 1,  s(logn) = 2^logn + 2*s(logn-1)  =>  (logn+1)*2^logn. */
 static WC_INLINE unsigned ffLDL_treesize(unsigned logn)
@@ -6389,7 +6396,10 @@ static void ffLDL_binary_normalize(fpr* tree, unsigned orig_logn, unsigned logn)
     }
 }
 
-/* Convert a small-integer polynomial into the fpr representation. */
+#endif /* !WOLFSSL_FALCON_SIGN_SMALL_MEM (ffLDL tree construction) */
+
+/* Convert a small-integer polynomial into the fpr representation. Shared by the
+ * eager expand_privkey and the dynamic signer. */
 static void smallints_to_fpr(fpr* r, const sword8* t, unsigned logn)
 {
     size_t n, u;
@@ -6400,6 +6410,7 @@ static void smallints_to_fpr(fpr* r, const sword8* t, unsigned logn)
     }
 }
 
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
 /* Expanded-key layout offsets (in fpr elements). */
 static WC_INLINE size_t skoff_b00(unsigned logn) { (void)logn; return 0; }
 static WC_INLINE size_t skoff_b01(unsigned logn) { return MKN(logn); }
@@ -6777,8 +6788,11 @@ void falcon_ffSampling_fft(falcon_samplerZ samp, void* samp_ctx,
 /* ==================================================================== */
 /* do_sign_tree / sign_core.                                             */
 
+#endif /* !WOLFSSL_FALCON_SIGN_SMALL_MEM (expand_privkey + tree sampler) */
+
 /* is_short_half: squared l2-norm of (s1, s2) where the s1 partial sum (sqn) is
- * already accumulated and saturates to 2^32-1. Returns 1 if within bound. */
+ * already accumulated and saturates to 2^32-1. Returns 1 if within bound.
+ * Shared by the tree-based and dynamic signers. */
 static int is_short_half(word32 sqn, const sword16* s2, unsigned logn)
 {
     size_t n, u;
@@ -6798,6 +6812,7 @@ static int is_short_half(word32 sqn, const sword16* s2, unsigned logn)
     return sqn <= l2bound[logn];
 }
 
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
 /* Single signing attempt over the expanded key. Returns 1 if the produced
  * (s1, s2) is short enough (s2 written), 0 if the caller should retry. tmp[]
  * needs room for six polynomials. */
@@ -6948,6 +6963,279 @@ int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
     }
     return ret;
 }
+
+#endif /* !WOLFSSL_FALCON_SIGN_SMALL_MEM (eager tree-based signer) */
+
+#ifdef WOLFSSL_FALCON_SIGN_SMALL_MEM
+/* Low-memory ("dynamic") signing. Instead of precomputing and storing the whole
+ * expanded key (the ffLDL tree, ~120KB at Falcon-1024), it rebuilds the tree on
+ * the fly *inside* the sampling recursion, so only one scratch buffer of
+ * FALCON_SIGN_DYN_TMP_FPR(logn) fpr is ever live -- roughly half the memory of
+ * the expand+tree path, at the cost of redoing the tree work on every signing
+ * attempt. Faithful port of the Falcon reference sign_dyn / ffSampling_fft_dyntree
+ * (so the sampler is invoked in exactly the reference order and the signatures
+ * are identical to the default path), with the reference recursion flattened to
+ * an explicit stack per the wolfSSL no-recursion rule. */
+
+/* Scratch, in fpr, for falcon_do_sign_dyn (reference TMPSIZE_SIGNDYN = 78*2^logn
+ * bytes; 10*2^logn fpr = 80*2^logn bytes covers it for the supported logn). */
+#define FALCON_SIGN_DYN_TMP_FPR(logn)    ((size_t)10 << (logn))
+
+/* One pending ffSampling_fft_dyntree node (the reference recursion, flattened).
+ * Each internal node LDL-decomposes its Gram block in place, then descends first
+ * into the right sub-tree (stage 1) and then the left (stage 2). */
+typedef struct falcon_dyn_frame {
+    fpr* t0;
+    fpr* t1;
+    fpr* g00;
+    fpr* g01;
+    fpr* g11;
+    fpr* tmp;
+    unsigned logn;
+    unsigned stage;
+} falcon_dyn_frame;
+
+#define FALCON_DYN_STAGE_ENTER  0U
+#define FALCON_DYN_STAGE_RIGHT  1U   /* right child done, do middle work + left */
+#define FALCON_DYN_STAGE_LEFT   2U   /* left child done, merge and pop          */
+/* logn <= 10, so the deepest chain is 11 frames (logn..0). */
+#define FALCON_DYN_MAX_FRAMES   12
+
+/* Fast Fourier sampling that builds the LDL tree lazily. Iterative equivalent of
+ * the reference ffSampling_fft_dyntree; the sampler call order is identical. */
+static void falcon_ffSampling_fft_dyntree(falcon_samplerZ samp, void* samp_ctx,
+        fpr* t0, fpr* t1, fpr* g00, fpr* g01, fpr* g11,
+        unsigned orig_logn, unsigned logn, fpr* tmp)
+{
+    falcon_dyn_frame stk[FALCON_DYN_MAX_FRAMES];
+    int sp;
+
+    if (logn > 10) {
+        return;
+    }
+    stk[0].t0 = t0; stk[0].t1 = t1;
+    stk[0].g00 = g00; stk[0].g01 = g01; stk[0].g11 = g11;
+    stk[0].tmp = tmp; stk[0].logn = logn; stk[0].stage = FALCON_DYN_STAGE_ENTER;
+    sp = 1;
+
+    while (sp > 0) {
+        falcon_dyn_frame* f = &stk[sp - 1];
+        size_t n, hn;
+        fpr* z0;
+        fpr* z1;
+
+        /* Deepest level: the leaf value is g00[0]; normalize by sigma and
+         * sample the two coordinates. */
+        if (f->logn == 0) {
+            fpr leaf = fpr_mul(fpr_sqrt(f->g00[0]), fpr_inv_sigma[orig_logn]);
+            f->t0[0] = fpr_of(samp(samp_ctx, f->t0[0], leaf));
+            f->t1[0] = fpr_of(samp(samp_ctx, f->t1[0], leaf));
+            sp--;
+            continue;
+        }
+
+        n = (size_t)1 << f->logn;
+        hn = n >> 1;
+
+        if (f->stage == FALCON_DYN_STAGE_ENTER) {
+            /* Decompose G into LDL (in place): keep d00 (== g00), d11 and l10. */
+            falcon_poly_LDL_fft(f->g00, f->g01, f->g11, f->logn);
+            /* Split d00 and d11 into half-size Gram matrices; save l10 in tmp. */
+            falcon_poly_split_fft(f->tmp, f->tmp + hn, f->g00, f->logn);
+            XMEMCPY(f->g00, f->tmp, n * sizeof(fpr));
+            falcon_poly_split_fft(f->tmp, f->tmp + hn, f->g11, f->logn);
+            XMEMCPY(f->g11, f->tmp, n * sizeof(fpr));
+            XMEMCPY(f->tmp, f->g01, n * sizeof(fpr));
+            XMEMCPY(f->g01, f->g00, hn * sizeof(fpr));
+            XMEMCPY(f->g01 + hn, f->g11, hn * sizeof(fpr));
+
+            /* Split t1 and descend into the right sub-tree. */
+            z1 = f->tmp + n;
+            falcon_poly_split_fft(z1, z1 + hn, f->t1, f->logn);
+            f->stage = FALCON_DYN_STAGE_RIGHT;
+            stk[sp].t0  = z1;          stk[sp].t1  = z1 + hn;
+            stk[sp].g00 = f->g11;      stk[sp].g01 = f->g11 + hn;
+            stk[sp].g11 = f->g01 + hn; stk[sp].tmp = z1 + n;
+            stk[sp].logn = f->logn - 1; stk[sp].stage = FALCON_DYN_STAGE_ENTER;
+            sp++;
+            continue;
+        }
+        else if (f->stage == FALCON_DYN_STAGE_RIGHT) {
+            /* Merge the right-subtree result, then tb0 = t0 + (t1 - z1)*l10. */
+            z1 = f->tmp + n;
+            falcon_poly_merge_fft(f->tmp + (n << 1), z1, z1 + hn, f->logn);
+            XMEMCPY(z1, f->t1, n * sizeof(fpr));
+            falcon_poly_sub(z1, f->tmp + (n << 1), f->logn);
+            XMEMCPY(f->t1, f->tmp + (n << 1), n * sizeof(fpr));
+            falcon_poly_mul_fft(f->tmp, z1, f->logn);
+            falcon_poly_add(f->t0, f->tmp, f->logn);
+
+            /* Split tb0 (in t0) and descend into the left sub-tree. */
+            z0 = f->tmp;
+            falcon_poly_split_fft(z0, z0 + hn, f->t0, f->logn);
+            f->stage = FALCON_DYN_STAGE_LEFT;
+            stk[sp].t0  = z0;      stk[sp].t1  = z0 + hn;
+            stk[sp].g00 = f->g00;  stk[sp].g01 = f->g00 + hn;
+            stk[sp].g11 = f->g01;  stk[sp].tmp = z0 + n;
+            stk[sp].logn = f->logn - 1; stk[sp].stage = FALCON_DYN_STAGE_ENTER;
+            sp++;
+            continue;
+        }
+        else {  /* FALCON_DYN_STAGE_LEFT */
+            z0 = f->tmp;
+            falcon_poly_merge_fft(f->t0, z0, z0 + hn, f->logn);
+            sp--;
+            continue;
+        }
+    }
+}
+
+/* One dynamic signing attempt. Returns 1 if the produced (s1, s2) is short
+ * enough (s2 written), 0 to retry with a fresh nonce. Faithful port of the
+ * reference do_sign_dyn. 'tmp' must hold FALCON_SIGN_DYN_TMP_FPR(logn) fpr. */
+static int falcon_do_sign_dyn_once(falcon_samplerZ samp, void* samp_ctx,
+        sword16* s2, const sword8* f, const sword8* g, const sword8* F,
+        const sword8* G, const word16* hm, unsigned logn, fpr* tmp)
+{
+    size_t n, u;
+    fpr *t0, *t1, *tx, *ty;
+    fpr *b00, *b01, *b10, *b11, *g00, *g01, *g11;
+    fpr ni;
+    word32 sqn, ng;
+    sword16 *s1tmp, *s2tmp;
+
+    n = MKN(logn);
+
+    /* Basis B = [[g, -f], [G, -F]] in FFT. */
+    b00 = tmp; b01 = b00 + n; b10 = b01 + n; b11 = b10 + n;
+    smallints_to_fpr(b01, f, logn);
+    smallints_to_fpr(b00, g, logn);
+    smallints_to_fpr(b11, F, logn);
+    smallints_to_fpr(b10, G, logn);
+    falcon_FFT(b01, logn); falcon_FFT(b00, logn);
+    falcon_FFT(b11, logn); falcon_FFT(b10, logn);
+    falcon_poly_neg(b01, logn);
+    falcon_poly_neg(b11, logn);
+
+    /* Gram matrix G = B*adj(B), upper triangle; keep b01, b11 for the target. */
+    t0 = b11 + n; t1 = t0 + n;
+    XMEMCPY(t0, b01, n * sizeof(fpr)); falcon_poly_mulselfadj_fft(t0, logn);
+    XMEMCPY(t1, b00, n * sizeof(fpr)); falcon_poly_muladj_fft(t1, b10, logn);
+    falcon_poly_mulselfadj_fft(b00, logn); falcon_poly_add(b00, t0, logn); /* g00 */
+    XMEMCPY(t0, b01, n * sizeof(fpr));
+    falcon_poly_muladj_fft(b01, b11, logn); falcon_poly_add(b01, t1, logn); /* g01 */
+    falcon_poly_mulselfadj_fft(b10, logn);
+    XMEMCPY(t1, b11, n * sizeof(fpr)); falcon_poly_mulselfadj_fft(t1, logn);
+    falcon_poly_add(b10, t1, logn);                                        /* g11 */
+
+    /* Layout now: g00 g01 g11 b11 b01 t0 t1. */
+    g00 = b00; g01 = b01; g11 = b10;
+    b01 = t0; t0 = b01 + n; t1 = t0 + n;
+
+    /* Target [hm, 0], then apply the basis. */
+    for (u = 0; u < n; u++) {
+        t0[u] = fpr_of(hm[u]);
+    }
+    falcon_FFT(t0, logn);
+    ni = fpr_inverse_of_q;
+    XMEMCPY(t1, t0, n * sizeof(fpr));
+    falcon_poly_mul_fft(t1, b01, logn); falcon_poly_mulconst(t1, fpr_neg(ni), logn);
+    falcon_poly_mul_fft(t0, b11, logn); falcon_poly_mulconst(t0, ni, logn);
+
+    /* Discard b01, b11: move (t0,t1) down. Layout: g00 g01 g11 t0 t1. */
+    XMEMMOVE(b11, t0, n * 2 * sizeof(fpr));
+    t0 = g11 + n; t1 = t0 + n;
+
+    /* Sample; result over (t0,t1). */
+    falcon_ffSampling_fft_dyntree(samp, samp_ctx, t0, t1, g00, g01, g11,
+            logn, logn, t1 + n);
+
+    /* Recompute the basis (it was overwritten) and get the lattice point. */
+    b00 = tmp; b01 = b00 + n; b10 = b01 + n; b11 = b10 + n;
+    XMEMMOVE(b11 + n, t0, n * 2 * sizeof(fpr));
+    t0 = b11 + n; t1 = t0 + n;
+    smallints_to_fpr(b01, f, logn); smallints_to_fpr(b00, g, logn);
+    smallints_to_fpr(b11, F, logn); smallints_to_fpr(b10, G, logn);
+    falcon_FFT(b01, logn); falcon_FFT(b00, logn);
+    falcon_FFT(b11, logn); falcon_FFT(b10, logn);
+    falcon_poly_neg(b01, logn); falcon_poly_neg(b11, logn);
+    tx = t1 + n; ty = tx + n;
+
+    XMEMCPY(tx, t0, n * sizeof(fpr)); XMEMCPY(ty, t1, n * sizeof(fpr));
+    falcon_poly_mul_fft(tx, b00, logn); falcon_poly_mul_fft(ty, b10, logn);
+    falcon_poly_add(tx, ty, logn);
+    XMEMCPY(ty, t0, n * sizeof(fpr)); falcon_poly_mul_fft(ty, b01, logn);
+    XMEMCPY(t0, tx, n * sizeof(fpr));
+    falcon_poly_mul_fft(t1, b11, logn); falcon_poly_add(t1, ty, logn);
+    falcon_iFFT(t0, logn); falcon_iFFT(t1, logn);
+
+    /* s1 = hm - round(t0); accumulate squared norm with saturation. */
+    s1tmp = (sword16*)tx;
+    sqn = 0; ng = 0;
+    for (u = 0; u < n; u++) {
+        sword32 z = (sword32)hm[u] - (sword32)fpr_rint(t0[u]);
+        sqn += (word32)(z * z);
+        ng |= sqn;
+        s1tmp[u] = (sword16)z;
+    }
+    sqn |= (word32)(0 - (ng >> 31));
+
+    /* s2 = -round(t1); only committed if the pair is short (hm must survive a
+     * retry, and s2[] may alias hm[]). */
+    s2tmp = (sword16*)tmp;
+    for (u = 0; u < n; u++) {
+        s2tmp[u] = (sword16)(0 - fpr_rint(t1[u]));
+    }
+    if (is_short_half(sqn, s2tmp, logn)) {
+        XMEMCPY(s2, s2tmp, n * sizeof(sword16));
+        XMEMCPY(tmp, s1tmp, n * sizeof(sword16));
+        return 1;
+    }
+    return 0;
+}
+
+/* Dynamic signing with restart, mirroring falcon_do_sign_tree. */
+static int falcon_do_sign_dyn(falcon_samplerZ samp, void* samp_ctx, sword16* s2,
+        const sword8* f, const sword8* g, const sword8* F, const sword8* G,
+        const word16* hm, unsigned logn, fpr* tmp, const int* samplerErr)
+{
+    unsigned long iter;
+
+    if (samp == NULL || s2 == NULL || f == NULL || g == NULL || F == NULL
+            || G == NULL || hm == NULL || tmp == NULL || logn < 1 || logn > 10) {
+        return BAD_FUNC_ARG;
+    }
+    for (iter = 0; iter < FALCON_SIGN_MAX_RESTARTS; iter++) {
+        if (falcon_do_sign_dyn_once(samp, samp_ctx, s2, f, g, F, G, hm, logn,
+                tmp)) {
+            return 0;
+        }
+        if (samplerErr != NULL && *samplerErr != 0) {
+            return *samplerErr;
+        }
+    }
+    return WC_FAILURE;
+}
+
+/* Top-level low-memory sign: like falcon_sign_core but from the raw basis
+ * (f, g, F, G) instead of a precomputed expanded key. */
+static int falcon_sign_dyn_core(falcon_sampler_ctx* spc, const sword8* f,
+        const sword8* g, const sword8* F, const sword8* G, const word16* c,
+        sword16* s2, fpr* tmp, unsigned logn)
+{
+    int ret;
+
+    if (spc == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ret = falcon_do_sign_dyn(falcon_sampler_z, spc, s2, f, g, F, G, c, logn, tmp,
+            &spc->p.err);
+    if (ret == 0 && spc->p.err != 0) {
+        ret = spc->p.err;
+    }
+    return ret;
+}
+#endif /* WOLFSSL_FALCON_SIGN_SMALL_MEM */
 
 #endif /* HAVE_FALCON && !WOLFSSL_FALCON_VERIFY_ONLY && !WOLF_CRYPTO_CB_ONLY_FALCON */
 
@@ -7679,7 +7967,10 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     sword8 *f = NULL, *g = NULL, *F = NULL, *G = NULL;
     word16* c = NULL;
     sword16* s2 = NULL;
-    fpr *expanded = NULL, *tmp = NULL;
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
+    fpr* expanded = NULL;
+#endif
+    fpr* tmp = NULL;
     byte* arena = NULL;             /* single allocation backing all buffers */
     size_t arenaSz = 0;
     falcon_sampler_ctx spc;
@@ -7714,6 +8005,22 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
      * (f, g, F, G) -- so each sub-buffer is naturally aligned from the
      * max-aligned base. */
     {
+#ifdef WOLFSSL_FALCON_SIGN_SMALL_MEM
+        /* Dynamic signing needs only one fpr scratch (the tree is rebuilt inside
+         * the sampler), so the arena is far smaller than the expand+tree path. */
+        size_t dSz = sizeof(fpr) * FALCON_SIGN_DYN_TMP_FPR(logn);
+        arenaSz = dSz + (size_t)8 * (size_t)n;   /* c+s2 = 4n, f+g+F+G = 4n */
+        arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (arena != NULL) {
+            tmp = (fpr*)arena;
+            c   = (word16*)(arena + dSz);
+            s2  = (sword16*)(arena + dSz + 2 * (size_t)n);
+            f   = (sword8*)(arena + dSz + 4 * (size_t)n);
+            g   = f + n;
+            F   = g + n;
+            G   = F + n;
+        }
+#else
         size_t eSz = sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn);
         size_t tSz = sizeof(fpr) * FALCON_SIGN_TMP_FPR(logn);
         arenaSz = eSz + tSz + (size_t)8 * (size_t)n;  /* c+s2 = 4n, f+g+F+G = 4n */
@@ -7728,6 +8035,7 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
             F        = g + n;
             G        = F + n;
         }
+#endif
     }
     if (arena == NULL) {
         ret = MEMORY_E;
@@ -7743,10 +8051,14 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     if (ret != 0) {
         goto out;
     }
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
+    /* Precompute the expanded key (skipped in small-mem mode: the dynamic signer
+     * rebuilds the tree on the fly for each attempt). */
     ret = falcon_expand_privkey(expanded, f, g, F, G, logn, heap);
     if (ret != 0) {
         goto out;
     }
+#endif
     ret = falcon_sampler_init(&spc, (int)logn, rng);
     if (ret != 0) {
         goto out;
@@ -7764,7 +8076,11 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         if (ret != 0) {
             goto out;
         }
+#ifdef WOLFSSL_FALCON_SIGN_SMALL_MEM
+        ret = falcon_sign_dyn_core(&spc, f, g, F, G, c, s2, tmp, logn);
+#else
         ret = falcon_sign_core(&spc, expanded, c, s2, tmp, logn);
+#endif
         if (ret != 0) {
             goto out;
         }

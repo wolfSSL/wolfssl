@@ -1867,6 +1867,7 @@ ENABLED_FALCON_ASM=no
 ENABLED_FALCON_DOUBLE=no
 ENABLED_FALCON_AVX2=no
 ENABLED_FALCON_NEON=no
+ENABLED_FALCON_SMALL_MEM=no
 
 # Parse the comma-separated backend sub-options. AC_ARG_ENABLE yields the plain
 # "yes"/"no" for a bare --enable-falcon/--disable-falcon; anything else is a
@@ -1882,7 +1883,8 @@ if test "$ENABLED_FALCON" != "no" && test "$ENABLED_FALCON" != "yes"; then
             double) ENABLED_FALCON_DOUBLE=yes ;;
             avx2)   ENABLED_FALCON_AVX2=yes ;;
             neon)   ENABLED_FALCON_NEON=yes ;;
-            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon]) ;;
+            small-mem) ENABLED_FALCON_SMALL_MEM=yes ;;
+            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem]) ;;
         esac
     done
     IFS="$OIFS"
@@ -8177,6 +8179,10 @@ fi
 if test "$ENABLED_FALCON_NEON" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_FFT_NEON"
+fi
+if test "$ENABLED_FALCON_SMALL_MEM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_SIGN_SMALL_MEM"
 fi
 
 # XMSS CFLAG processing (after FIPS section for sandwich pattern)
