@@ -1709,7 +1709,10 @@ static void slhdsakey_base_2b(const byte* x, byte b, byte outLen, word16* baseb)
     int j;
     int i = 0;
     int bits = 0;
-    int total = 0;
+    /* total accumulates unmasked via << 8 and must be unsigned: a signed
+     * type overflows from the 4th consumed byte (UB). High bits are
+     * discarded by mask, so the output is unaffected. */
+    word32 total = 0;
     word16 mask = (word16)((1 << b) - 1);
 
     for (j = 0; j < outLen; j++) {
