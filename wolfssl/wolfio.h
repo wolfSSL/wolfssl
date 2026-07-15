@@ -906,6 +906,8 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #endif
 #ifdef WOLFSSL_ISOTP
     #define ISOTP_DEFAULT_TIMEOUT 100
+    /* ISO 15765-2 N_Bs: how long a sender waits for flow control */
+    #define ISOTP_FLOW_CONTROL_TIMEOUT 1000
     #define ISOTP_DEFAULT_WAIT_COUNT 3
     #define ISOTP_FIRST_FRAME_DATA_SIZE 6
     #define ISOTP_SINGLE_FRAME_DATA_SIZE 7

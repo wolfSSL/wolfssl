@@ -3851,9 +3851,21 @@ static int isotp_send_flow_control(struct isotp_wolfssl_ctx *ctx,
 static int isotp_receive_flow_control(struct isotp_wolfssl_ctx *ctx)
 {
     int ret;
+    int waited;
     enum isotp_frame_type type;
     enum isotp_flow_control flow_control;
-    ret = ctx->recv_fn(&ctx->frame, ctx->arg, ISOTP_DEFAULT_TIMEOUT);
+    /* Wait up to N_Bs for flow control rather than a single 100ms poll: a peer
+     * that is momentarily late is normal, and every other ISO-TP receive here
+     * retries. Treating the first miss as fatal aborts healthy transfers. */
+    waited = 0;
+    do {
+        ret = ctx->recv_fn(&ctx->frame, ctx->arg, ISOTP_DEFAULT_TIMEOUT);
+        if (ret != 0) {
+            break;
+        }
+        waited += ISOTP_DEFAULT_TIMEOUT;
+    } while (waited < ISOTP_FLOW_CONTROL_TIMEOUT);
+
     if (ret == 0) {
         return WOLFSSL_CBIO_ERR_TIMEOUT;
     } else if (ret < 0) {
