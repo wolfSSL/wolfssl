@@ -9173,7 +9173,7 @@ int test_wc_AesGcmArgMcdc(void)
     /* ---- wc_AesGcmDecryptFinal(): nonceSet AND ---- */
     {
         Aes aes;
-        byte tag[WC_AES_BLOCK_SIZE];
+        byte tag[WC_AES_BLOCK_SIZE] = { 0 };
 
         XMEMSET(&aes, 0, sizeof(aes));
         ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);

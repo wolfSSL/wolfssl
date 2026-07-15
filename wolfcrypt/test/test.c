@@ -12502,7 +12502,7 @@ static wc_test_ret_t des_key_wrap_test(void)
     {
         0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
     };
-    byte cipher[24];
+    byte cipher[24] = { 0 };
     EncryptedInfo info;
     wc_test_ret_t ret;
 
@@ -12759,7 +12759,7 @@ static wc_test_ret_t des3_key_wrap_test(void)
         0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
         0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
     };
-    byte cipher[24];
+    byte cipher[24] = { 0 };
     EncryptedInfo info;
     wc_test_ret_t ret;
 
