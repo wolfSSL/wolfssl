@@ -31,6 +31,11 @@ the error status.
 #ifndef WOLF_CRYPT_ERROR_H
 #define WOLF_CRYPT_ERROR_H
 
+/* Avoid wolfcrypt/types.h here, to mitigate circular dependencies via
+ * wc_compat.h.
+ */
+#include <wolfssl/wolfcrypt/wc_port.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
