@@ -33998,8 +33998,8 @@ int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
 #endif /* WC_ENABLE_ASYM_KEY_IMPORT */
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
-int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                               ed25519_key* key, word32 inSz)
+int wc_Ed25519PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
+                                  ed25519_key* key, word32 inSz, int trusted)
 {
     int ret;
     byte privKey[ED25519_KEY_SIZE], pubKey[2*ED25519_PUB_KEY_SIZE+1];
@@ -34017,11 +34017,17 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
             ret = wc_ed25519_import_private_only(privKey, privKeyLen, key);
         }
         else {
-            ret = wc_ed25519_import_private_key(privKey, privKeyLen,
-                pubKey, pubKeyLen, key);
+            ret = wc_ed25519_import_private_key_ex(privKey, privKeyLen,
+                pubKey, pubKeyLen, key, trusted);
         }
     }
     return ret;
+}
+
+int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                               ed25519_key* key, word32 inSz)
+{
+    return wc_Ed25519PrivateKeyDecode_ex(input, inOutIdx, key, inSz, 0);
 }
 
 int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
@@ -34421,8 +34427,8 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 outLen,
 #endif /* HAVE_CURVE25519 && HAVE_CURVE25519_KEY_EXPORT */
 
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
-int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                               ed448_key* key, word32 inSz)
+int wc_Ed448PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
+                                ed448_key* key, word32 inSz, int trusted)
 {
     int ret;
     byte privKey[ED448_KEY_SIZE], pubKey[ED448_PUB_KEY_SIZE];
@@ -34440,11 +34446,17 @@ int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
             ret = wc_ed448_import_private_only(privKey, privKeyLen, key);
         }
         else {
-            ret = wc_ed448_import_private_key(privKey, privKeyLen,
-                pubKey, pubKeyLen, key);
+            ret = wc_ed448_import_private_key_ex(privKey, privKeyLen,
+                pubKey, pubKeyLen, key, trusted);
         }
     }
     return ret;
+}
+
+int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                               ed448_key* key, word32 inSz)
+{
+    return wc_Ed448PrivateKeyDecode_ex(input, inOutIdx, key, inSz, 0);
 }
 
 int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,

@@ -731,6 +731,68 @@ int test_wc_Ed25519KeyToDer_oneasymkey_version(void)
     return EXPECT_RESULT();
 }
 
+/* The trusted flag controls whether a public key bundled in the DER is
+ * checked against the private key during decode. */
+int test_wc_Ed25519PrivateKeyDecode_ex(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_MAKE_KEY)
+    ed25519_key key;
+    ed25519_key key2;
+    WC_RNG rng;
+    byte der[256];
+    int  derSz = 0;
+    word32 idx;
+
+    XMEMSET(&key,  0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng,  0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_init(&key2), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+
+    /* Bundled private+public DER; public key is the trailing
+     * ED25519_PUB_KEY_SIZE bytes. */
+    ExpectIntGT(derSz = wc_Ed25519KeyToDer(&key, der, (word32)sizeof(der)),
+        0);
+
+    /* Intact DER decodes with either trust setting. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 0), 0);
+    idx = 0;
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 1), 0);
+
+    /* Corrupt the bundled public key. */
+    if (derSz > 0) {
+        der[derSz - 1] ^= 0x01;
+    }
+
+    /* Untrusted decode checks the public key and must reject it, as must
+     * the non-ex decode. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 0), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    idx = 0;
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode(der, &idx, &key2, (word32)derSz),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+
+    /* Trusted decode skips the check. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 1), 0);
+
+    wc_ed25519_free(&key);
+    wc_ed25519_free(&key2);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Ed25519 identity and small-order public keys must be rejected. When
  * the public key is the identity point (or any small-order point), any
  * signature of the form (R = [S]B, S) verifies for arbitrary messages

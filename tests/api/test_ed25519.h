@@ -37,6 +37,7 @@ int test_wc_Ed25519PublicKeyToDer(void);
 int test_wc_Ed25519KeyToDer(void);
 int test_wc_Ed25519PrivateKeyToDer(void);
 int test_wc_Ed25519KeyToDer_oneasymkey_version(void);
+int test_wc_Ed25519PrivateKeyDecode_ex(void);
 int test_wc_ed25519_reject_small_order_keys(void);
 int test_wc_ed25519_sign_verify_ctx_ph(void);
 int test_wc_ed25519_verify_streaming(void);
@@ -63,6 +64,7 @@ int test_wc_ed25519_make_public_argchecks(void);
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_verify_streaming),   \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_check_key_edgecases), \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_variants),     \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_public_argchecks)
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_public_argchecks), \
+    TEST_DECL_GROUP("ed25519", test_wc_Ed25519PrivateKeyDecode_ex)
 
 #endif /* WOLFCRYPT_TEST_ED25519_H */

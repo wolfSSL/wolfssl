@@ -663,6 +663,67 @@ int test_wc_Ed448KeyToDer_oneasymkey_version(void)
     return EXPECT_RESULT();
 }
 
+/* The trusted flag controls whether a public key bundled in the DER is
+ * checked against the private key during decode. */
+int test_wc_Ed448PrivateKeyDecode_ex(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    defined(HAVE_ED448_KEY_IMPORT)
+    ed448_key key;
+    ed448_key key2;
+    WC_RNG rng;
+    byte der[512];
+    int  derSz = 0;
+    word32 idx;
+
+    XMEMSET(&key,  0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng,  0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_init(&key2), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* Bundled private+public DER; public key is the trailing
+     * ED448_PUB_KEY_SIZE bytes. */
+    ExpectIntGT(derSz = wc_Ed448KeyToDer(&key, der, (word32)sizeof(der)), 0);
+
+    /* Intact DER decodes with either trust setting. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 0), 0);
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 1), 0);
+
+    /* Corrupt the bundled public key. */
+    if (derSz > 0) {
+        der[derSz - 1] ^= 0x01;
+    }
+
+    /* Untrusted decode checks the public key and must reject it, as must
+     * the non-ex decode. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 0), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode(der, &idx, &key2, (word32)derSz),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+
+    /* Trusted decode skips the check. */
+    idx = 0;
+    ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
+        (word32)derSz, 1), 0);
+
+    wc_ed448_free(&key);
+    wc_ed448_free(&key2);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Ed448 identity and small-order public keys must be rejected.
  * Edwards448 has cofactor 4, so the small-order subgroup contains the
  * identity, an order-2 point, and two order-4 points. With any of these
