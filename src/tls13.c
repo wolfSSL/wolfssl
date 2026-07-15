@@ -5577,6 +5577,20 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
         }
+
+        if (args->extMsgType == hello_retry_request) {
+            /* The sentinel Random (RFC 8446 4.1.3) identifies this as a TLS 1.3
+             * HelloRetryRequest, which MUST carry supported_versions
+             * (4.1.4/4.2.1). Reaching this downgrade branch means it does not,
+             * so the HRR is malformed. Reject it before DoServerHello would
+             * reinterpret the sentinel as a plain TLS 1.2 ServerHello.Random.
+             * The sentinel has already identified this as an HRR, so report it
+             * uniformly as an invalid HRR; INVALID_PARAMETER maps to the
+             * illegal_parameter alert. */
+            WOLFSSL_MSG("HelloRetryRequest with no supported_versions");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
 #ifndef WOLFSSL_NO_TLS12
         /* Force client hello version 1.2 to work for static RSA. */
         ssl->chVersion.minor = TLSv1_2_MINOR;
@@ -5631,6 +5645,21 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
+            }
+
+            if (args->extMsgType == hello_retry_request) {
+                /* The HelloRetryRequest sentinel Random is reserved for TLS 1.3
+                 * (RFC 8446 4.1.3), but supported_versions (which an HRR MUST
+                 * carry, 4.1.4/4.2.1) is absent, so the message is malformed.
+                 * Reject before the downgrade reparses the remaining extensions
+                 * as a TLS 1.2 server_hello, where a recognized-but-not-
+                 * permitted extension (e.g. server_name) would wrongly yield an
+                 * unsupported_extension alert. illegal_parameter (via
+                 * EXT_NOT_ALLOWED) is chosen over missing_extension per the
+                 * RFC 8446 4.2 rule for such extensions. */
+                WOLFSSL_MSG("HelloRetryRequest without supported_versions");
+                WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                return EXT_NOT_ALLOWED;
             }
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
     defined(WOLFSSL_WPAS_SMALL)
