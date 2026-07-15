@@ -7605,6 +7605,8 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     word32 pubSz = 0, keySz = 0;
     sword8 *f = NULL, *g = NULL, *F = NULL, *G = NULL;
     word16* h = NULL;
+    byte* arena = NULL;
+    size_t arenaSz = 0;
     void* heap;
 
     if (key == NULL || rng == NULL) {
@@ -7617,13 +7619,21 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
                                             : FALCON_LEVEL5_KEY_SIZE;
     heap = key->heap;
 
-    f = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    g = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    F = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    G = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    h = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (f == NULL || g == NULL || F == NULL || G == NULL || h == NULL) {
+    /* One allocation for h (word16, public) then f/g/F/G (sword8, secret),
+     * ordered so each is naturally aligned. */
+    {
+        size_t hSz = sizeof(word16) * (size_t)n;
+        arenaSz = hSz + 4 * (size_t)n;
+        arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (arena != NULL) {
+            h = (word16*)arena;
+            f = (sword8*)(arena + hSz);
+            g = f + n;
+            F = g + n;
+            G = F + n;
+        }
+    }
+    if (arena == NULL) {
         ret = MEMORY_E;
         goto out;
     }
@@ -7650,11 +7660,12 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
     key->prvKeySet = 1;
 
 out:
-    if (f != NULL) { ForceZero(f, (word32)n); XFREE(f, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (g != NULL) { ForceZero(g, (word32)n); XFREE(g, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (F != NULL) { ForceZero(F, (word32)n); XFREE(F, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (G != NULL) { ForceZero(G, (word32)n); XFREE(G, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (h != NULL) { XFREE(h, heap, DYNAMIC_TYPE_TMP_BUFFER); }
+    /* One ForceZero + free; covers the secret f/g/F/G (h is public but zeroing
+     * it too is harmless). */
+    if (arena != NULL) {
+        ForceZero(arena, (word32)arenaSz);
+        XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     return ret;
 }
 
@@ -7669,6 +7680,8 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     word16* c = NULL;
     sword16* s2 = NULL;
     fpr *expanded = NULL, *tmp = NULL;
+    byte* arena = NULL;             /* single allocation backing all buffers */
+    size_t arenaSz = 0;
     falcon_sampler_ctx spc;
     byte nonce[FALCON_NONCE_SIZE];
     void* heap;
@@ -7695,18 +7708,28 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     }
     heap = key->heap;
 
-    f  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    g  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    F  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    G  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    c  = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    s2 = (sword16*)XMALLOC(sizeof(sword16) * (size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    expanded = (fpr*)XMALLOC(sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    tmp = (fpr*)XMALLOC(sizeof(fpr) * FALCON_SIGN_TMP_FPR(logn), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (f == NULL || g == NULL || F == NULL || G == NULL || c == NULL ||
-            s2 == NULL || expanded == NULL || tmp == NULL) {
+    /* One allocation backs every sign buffer (the working set is >100KB at
+     * Falcon-1024, so it stays on the heap in all builds). Ordered by decreasing
+     * alignment -- fpr (expanded, tmp), then word16 (c, s2), then sword8
+     * (f, g, F, G) -- so each sub-buffer is naturally aligned from the
+     * max-aligned base. */
+    {
+        size_t eSz = sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn);
+        size_t tSz = sizeof(fpr) * FALCON_SIGN_TMP_FPR(logn);
+        arenaSz = eSz + tSz + (size_t)8 * (size_t)n;  /* c+s2 = 4n, f+g+F+G = 4n */
+        arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (arena != NULL) {
+            expanded = (fpr*)arena;
+            tmp      = (fpr*)(arena + eSz);
+            c        = (word16*)(arena + eSz + tSz);
+            s2       = (sword16*)(arena + eSz + tSz + 2 * (size_t)n);
+            f        = (sword8*)(arena + eSz + tSz + 4 * (size_t)n);
+            g        = f + n;
+            F        = g + n;
+            G        = F + n;
+        }
+    }
+    if (arena == NULL) {
         ret = MEMORY_E;
         goto out;
     }
@@ -7777,19 +7800,11 @@ out:
     /* Always zeroize: the SHAKE sponge may hold seed-derived state even if
      * falcon_sampler_init failed after absorbing the seed. */
     ForceZero(&spc, sizeof(spc));
-    if (f != NULL)     { ForceZero(f, (word32)n); XFREE(f, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (g != NULL)     { ForceZero(g, (word32)n); XFREE(g, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (F != NULL)     { ForceZero(F, (word32)n); XFREE(F, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (G != NULL)     { ForceZero(G, (word32)n); XFREE(G, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (s2 != NULL)    XFREE(s2, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (c != NULL)     XFREE(c, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (expanded != NULL) {
-        ForceZero(expanded, (word32)(sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn)));
-        XFREE(expanded, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (tmp != NULL) {
-        ForceZero(tmp, (word32)(sizeof(fpr) * FALCON_SIGN_TMP_FPR(logn)));
-        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    /* One ForceZero + free covers every secret in the arena (f/g/F/G, the
+     * expanded basis, and the sign scratch). */
+    if (arena != NULL) {
+        ForceZero(arena, (word32)arenaSz);
+        XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     return ret;
 }
@@ -7813,6 +7828,8 @@ int falcon_native_check_key(falcon_key* key)
     word16 *h = NULL, *ft = NULL, *gt = NULL;
     const word16* zetas = NULL;
     const word16* izetas = NULL;
+    byte* arena = NULL;
+    size_t arenaSz = 0;
     void* heap;
 
     if (key == NULL) {
@@ -7825,17 +7842,21 @@ int falcon_native_check_key(falcon_key* key)
                                           : FALCON_LEVEL5_KEY_SIZE;
     heap = key->heap;
 
-    f  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    g  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    F  = (sword8*)XMALLOC((size_t)n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    h  = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    ft = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    gt = (word16*)XMALLOC(sizeof(word16) * (size_t)n, heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (f == NULL || g == NULL || F == NULL || h == NULL || ft == NULL ||
-            gt == NULL) {
+    /* One allocation: h/ft/gt (word16) then f/g/F (sword8), alignment-ordered. */
+    {
+        size_t wSz = sizeof(word16) * (size_t)n;
+        arenaSz = 3 * wSz + 3 * (size_t)n;
+        arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (arena != NULL) {
+            h  = (word16*)arena;
+            ft = (word16*)(arena + wSz);
+            gt = (word16*)(arena + 2 * wSz);
+            f  = (sword8*)(arena + 3 * wSz);
+            g  = f + n;
+            F  = g + n;
+        }
+    }
+    if (arena == NULL) {
         ret = MEMORY_E;
         goto out;
     }
@@ -7881,18 +7902,11 @@ int falcon_native_check_key(falcon_key* key)
     }
 
 out:
-    if (f != NULL)  { ForceZero(f, (word32)n); XFREE(f, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (g != NULL)  { ForceZero(g, (word32)n); XFREE(g, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (F != NULL)  { ForceZero(F, (word32)n); XFREE(F, heap, DYNAMIC_TYPE_TMP_BUFFER); }
-    if (ft != NULL) {
-        ForceZero(ft, (word32)(n * (int)sizeof(word16)));
-        XFREE(ft, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    /* One ForceZero + free (covers the secret f/g/F and the NTT images ft/gt). */
+    if (arena != NULL) {
+        ForceZero(arena, (word32)arenaSz);
+        XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (gt != NULL) {
-        ForceZero(gt, (word32)(n * (int)sizeof(word16)));
-        XFREE(gt, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (h != NULL)  XFREE(h, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
@@ -7913,6 +7927,15 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     const word16* izetas = NULL;
     sword16* s2 = NULL;
     void* heap;
+    /* h, c, t (word16) and s2 (sword16) are all n elements of 2 bytes: carve
+     * them from one arena. The verify working set is public and small (<=8KB at
+     * Falcon-1024), so it lives on the stack unless WOLFSSL_SMALL_STACK asks for
+     * the heap. */
+#ifdef WOLFSSL_SMALL_STACK
+    word16* arena = NULL;
+#else
+    word16 arena[4 * FALCON_MAX_N];
+#endif
 
     if (sig == NULL || res == NULL || key == NULL ||
             (msg == NULL && msgLen != 0)) {
@@ -7942,14 +7965,18 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     sigData = sig + 1 + FALCON_NONCE_SIZE;
     sigDataLen = sigLen - 1 - FALCON_NONCE_SIZE;
 
-    h      = (word16*)XMALLOC(sizeof(word16) * n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    c      = (word16*)XMALLOC(sizeof(word16) * n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    t      = (word16*)XMALLOC(sizeof(word16) * n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    s2     = (sword16*)XMALLOC(sizeof(sword16) * n, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (h == NULL || c == NULL || t == NULL || s2 == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+    arena = (word16*)XMALLOC(sizeof(word16) * 4 * (size_t)n, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (arena == NULL) {
         ret = MEMORY_E;
         goto out;
     }
+#endif
+    h  = arena;
+    c  = arena + n;
+    t  = arena + 2 * n;
+    s2 = (sword16*)(arena + 3 * n);
 
     /* Decode public key h (skip the 0x0n header byte). */
     if (key->p[0] != (byte)(FALCON_PUB_HEAD | logn)) {
@@ -8046,11 +8073,10 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     }
 
 out:
-    if (h != NULL)      XFREE(h, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (c != NULL)      XFREE(c, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (t != NULL)      XFREE(t, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    /* zetas/izetas point at static caches; not freed. */
-    if (s2 != NULL)     XFREE(s2, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    /* h/c/t/s2 share one arena; zetas/izetas point at static caches. */
+#ifdef WOLFSSL_SMALL_STACK
+    if (arena != NULL) XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 
