@@ -866,8 +866,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             XMEMCPY(nonConstSSL->session->sessionID, ch->sessionId.elements,
                 ch->sessionId.size);
 #else
-        /* RFC 9147 Section 5.3: DTLS 1.3 ServerHello must have empty
-         * legacy_session_id_echo. Don't copy the client's session ID. */
+        /* RFC 9147 Section 5: "DTLS servers MUST NOT echo the
+         * legacy_session_id value from the client." */
         nonConstSSL->session->sessionIDSz = 0;
 #endif
         nonConstSSL->options.cipherSuite0 = cs.cipherSuite0;

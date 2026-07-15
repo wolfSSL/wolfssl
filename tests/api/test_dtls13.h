@@ -53,6 +53,8 @@ int test_dtls_srtp(void);
 int test_dtls13_min_rtx_interval(void);
 int test_dtls13_no_session_id_echo(void);
 int test_dtls13_5_9_0_compat(void);
+int test_dtls13_5_9_0_compat_bad_echo(void);
+int test_dtls13_5_9_0_compat_empty_echo(void);
 
 #define TEST_DTLS13_DECLS                                                      \
     TEST_DECL_GROUP("dtls13", test_dtls13_bad_epoch_ch),                       \
@@ -76,6 +78,8 @@ int test_dtls13_5_9_0_compat(void);
     TEST_DECL_GROUP("dtls13", test_dtls_srtp),                                 \
     TEST_DECL_GROUP("dtls13", test_dtls13_min_rtx_interval),                   \
     TEST_DECL_GROUP("dtls13", test_dtls13_no_session_id_echo),                 \
-    TEST_DECL_GROUP("dtls13", test_dtls13_5_9_0_compat)
+    TEST_DECL_GROUP("dtls13", test_dtls13_5_9_0_compat),                       \
+    TEST_DECL_GROUP("dtls13", test_dtls13_5_9_0_compat_bad_echo),              \
+    TEST_DECL_GROUP("dtls13", test_dtls13_5_9_0_compat_empty_echo)
 
 #endif /* TESTS_API_DTLS13_H */

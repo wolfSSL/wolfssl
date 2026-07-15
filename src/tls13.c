@@ -41,7 +41,16 @@
  * WOLFSSL_EARLY_DATA_GROUP: Group early data with ClientHello     default: off
  * WOLFSSL_POST_HANDSHAKE_AUTH: Post-handshake client auth         default: off
  * WOLFSSL_TLS13_TICKET_BEFORE_FINISHED: Send NewSessionTicket     default: off
- *                            before client Finished message
+ *                            before client Finished message. Violates the
+ *                            RFC 8446 Section 4.6.1 ordering requirement; for
+ *                            interop with peers that expect the early ticket.
+ * WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID: Echo legacy_session_id   default: off
+ *                            in DTLS 1.3. Violates RFC 9147 Section 5 ("DTLS
+ *                            servers MUST NOT echo the legacy_session_id
+ *                            value from the client"). A server built with this
+ *                            option echoes the session ID, which a compliant
+ *                            client rejects, so enable it only where the peer
+ *                            is wolfSSL <= 5.9.0 or shares this option.
  * WOLFSSL_NO_CLIENT_AUTH:   Disable TLS 1.3 client authentication default: off
  * WOLFSSL_NO_CLIENT_CERT_ERROR: Require client certificate        default: off
  * WOLFSSL_CERT_SETUP_CB:    Certificate setup callback            default: off
@@ -5854,12 +5863,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         || ssl->options.dtls
 #endif
     ) {
-        /* RFC 9147 Section 5.3 / RFC 9001 Section 8.4: DTLS 1.3 and QUIC
+        /* RFC 9147 Section 5 / RFC 9001 Section 8.4: DTLS 1.3 and QUIC
          * ServerHello must have empty legacy_session_id_echo. */
         int requireEmptyEcho = 1;
 #ifdef WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID
         /* Compat: a wolfSSL <= 5.9.0 DTLS 1.3 server echoes the client's
-         * legacy_session_id; accept any echo. */
+         * legacy_session_id back instead of omitting it. */
         if (ssl->options.dtls)
             requireEmptyEcho = 0;
 #endif
@@ -5868,6 +5877,19 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
         }
+#ifdef WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID
+        /* An echoing wolfSSL <= 5.9.0 server must still send back what was
+         * sent (RFC 8446 Section 4.1.3), so don't accept an arbitrary value.
+         * An empty echo is the compliant server case and stays acceptable. */
+        if (!requireEmptyEcho && args->sessIdSz != 0 &&
+                (args->sessIdSz != ssl->session->sessionIDSz ||
+                 XMEMCMP(ssl->session->sessionID, args->sessId,
+                         args->sessIdSz) != 0)) {
+            WOLFSSL_MSG("Server sent different session id");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+#endif
     }
     else
 #endif /* WOLFSSL_QUIC || WOLFSSL_DTLS13 */
@@ -7181,7 +7203,8 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     /* Reconstruct the HelloRetryMessage for handshake hash. */
     sessIdSz = ssl->session->sessionIDSz;
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID)
-    /* RFC 9147 Section 5.3: DTLS 1.3 must use empty legacy_session_id. */
+    /* RFC 9147 Section 5: a DTLS 1.3 server does not echo the session ID, so
+     * the reconstructed transcript must not carry one either. */
     if (ssl->options.dtls)
         sessIdSz = 0;
 #endif
@@ -7662,9 +7685,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(BUFFER_ERROR, exit_dch);
 
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID)
-    /* RFC 9147 Section 5.3: DTLS 1.3 ServerHello must have empty
-     * legacy_session_id_echo. Don't store the client's value so it
-     * won't be echoed in SendTls13ServerHello. */
+    /* RFC 9147 Section 5: "DTLS servers MUST NOT echo the legacy_session_id
+     * value from the client." Don't store it so SendTls13ServerHello can't
+     * echo it. */
     if (ssl->options.dtls) {
         ssl->session->sessionIDSz = 0;
     }
@@ -8271,8 +8294,8 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID)
     if (ssl->options.dtls) {
-        /* RFC 9147 Section 5.3: DTLS 1.3 ServerHello must have empty
-         * legacy_session_id_echo. */
+        /* RFC 9147 Section 5: "DTLS servers MUST NOT echo the
+         * legacy_session_id value from the client." */
         output[idx++] = 0;
     }
     else
