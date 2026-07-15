@@ -254,16 +254,14 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h
 endif
 
 if BUILD_FALCON
-# Internal Falcon headers (the public API is wolfssl/wolfcrypt/falcon.h, listed
-# unconditionally above). Automake distributes both branches of a conditional,
-# so these are still included in "make dist" when Falcon is disabled.
-nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_bigint.h
-nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_codec.h
+# Internal Falcon headers kept for the separate AVX2/NEON FFT backends, which
+# share the fpr primitives, the falcon_gm_tab twiddle table, and the poly seam
+# with the merged falcon.c. The rest of the Falcon internals now live as static
+# code inside falcon.c. The public API is wolfssl/wolfcrypt/falcon.h (above).
+# Automake distributes both branches of a conditional, so these are still
+# included in "make dist" when Falcon is disabled.
 nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_fft.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_fpr.h
-nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_keygen.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_poly.h
-nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_sampler.h
-nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_falcon_sign.h
 endif
 

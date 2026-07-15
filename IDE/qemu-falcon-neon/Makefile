@@ -16,16 +16,7 @@ ASM_SRCS := start.S
 # Full native Falcon (keygen + sign + verify) + SHAKE256 + runtime.
 WOLFSSL_SRCS := \
 	../../wolfcrypt/src/falcon.c \
-	../../wolfcrypt/src/wc_falcon.c \
-	../../wolfcrypt/src/wc_falcon_fpr.c \
-	../../wolfcrypt/src/wc_falcon_fft.c \
 	../../wolfcrypt/src/wc_falcon_fft_neon.c \
-	../../wolfcrypt/src/wc_falcon_poly.c \
-	../../wolfcrypt/src/wc_falcon_sampler.c \
-	../../wolfcrypt/src/wc_falcon_codec.c \
-	../../wolfcrypt/src/wc_falcon_keygen.c \
-	../../wolfcrypt/src/wc_falcon_sign.c \
-	../../wolfcrypt/src/wc_falcon_bigint.c \
 	../../wolfcrypt/src/sha3.c \
 	../../wolfcrypt/src/sha256.c \
 	../../wolfcrypt/src/hash.c \

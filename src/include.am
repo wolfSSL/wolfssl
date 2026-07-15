@@ -1342,18 +1342,6 @@ endif BUILD_INTELASM
 endif !BUILD_X86_ASM
 endif
 
-if BUILD_FALCON
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fpr.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_poly.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sampler.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_codec.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_bigint.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_keygen.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sign.c
-endif
-
 if BUILD_WC_LMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms_impl.c
@@ -2143,18 +2131,6 @@ if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mldsa_asm.S
 endif BUILD_INTELASM
 endif !BUILD_X86_ASM
-endif
-
-if BUILD_FALCON
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fpr.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fft.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_poly.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sampler.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_codec.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_bigint.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_keygen.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_sign.c
 endif
 
 if BUILD_WC_LMS
