@@ -4041,6 +4041,20 @@ byte falcon_prng_get_u8(falcon_prng* p)
     return v;
 }
 
+/* Read a little-endian word64 from a (possibly unaligned) byte buffer. Falcon's
+ * PRNG output is consumed little-endian on every platform, so this is a single
+ * load on a little-endian CPU and a load plus byte-swap on a big-endian one --
+ * one endian-aware helper instead of the explicit 8-byte assembly (which some
+ * compilers do not coalesce into a word load). */
+static WC_INLINE word64 falcon_load_le64(const byte* b)
+{
+    word64 v = readUnalignedWord64(b);
+#ifdef BIG_ENDIAN_ORDER
+    v = ByteReverseWord64(v);
+#endif
+    return v;
+}
+
 word64 falcon_prng_get_u64(falcon_prng* p)
 {
     word64 v;
@@ -4049,14 +4063,7 @@ word64 falcon_prng_get_u64(falcon_prng* p)
     if (p->ptr + 8U > p->len)
         (void)falcon_prng_refill(p);
     i = p->ptr;
-    v =  (word64)p->buf[i + 0]
-      | ((word64)p->buf[i + 1] << 8)
-      | ((word64)p->buf[i + 2] << 16)
-      | ((word64)p->buf[i + 3] << 24)
-      | ((word64)p->buf[i + 4] << 32)
-      | ((word64)p->buf[i + 5] << 40)
-      | ((word64)p->buf[i + 6] << 48)
-      | ((word64)p->buf[i + 7] << 56);
+    v = falcon_load_le64(&p->buf[i]);
     p->ptr += 8U;
     return v;
 }
@@ -4347,14 +4354,7 @@ static word64 get_rng_u64(falcon_rng* r)
     }
     p = r->buf + r->ptr;
     r->ptr += 8;
-    v = (word64)p[0]
-      | ((word64)p[1] << 8)
-      | ((word64)p[2] << 16)
-      | ((word64)p[3] << 24)
-      | ((word64)p[4] << 32)
-      | ((word64)p[5] << 40)
-      | ((word64)p[6] << 48)
-      | ((word64)p[7] << 56);
+    v = falcon_load_le64(p);
     return v;
 }
 
