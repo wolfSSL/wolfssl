@@ -21,9 +21,9 @@
 
 /* White-box supplement for wolfcrypt/src/wc_lms_impl.c (the native HSS/LMS
  * implementation - 50 file-static WOTS / Merkle / HSS helpers). This TU
- * #includes wc_lms_impl.c verbatim so the statics are directly reachable, and
+ * #includes wc_lms_impl.c verbatim so the static helpers are directly reachable, and
  * links against libwolfssl.a with wc_lms_impl.o trimmed (wc_lms.o kept). The
- * bulk of the statics are exercised by driving a full public wc_LmsKey_*
+ * bulk of the static helpers are exercised by driving a full public wc_LmsKey_*
  * keygen / multi-sign / verify roundtrip (which flows through this file's
  * wc_hss_* / wc_lms_* / wc_lmots_* helpers), one per compiled-in hash family;
  * a few targeted direct static calls then flip decision false-sides that the
@@ -70,7 +70,7 @@ static int wb_read_key(byte* priv, word32 privSz, void* context)
 }
 
 /* Full keygen + multi-sign + verify (+ negative verify) for one hash family,
- * flowing through the wc_hss_* / wc_lms_* / wc_lmots_* statics in this file. */
+ * flowing through the wc_hss_* / wc_lms_* / wc_lmots_* static helpers in this file. */
 static void wb_family_roundtrip(WC_RNG* rng, int hash, const char* label)
 {
     LmsKey key;
@@ -217,7 +217,7 @@ static void wb_run(void)
 
 static void wb_run(void)
 {
-    WB_NOTE("WOLFSSL_LMS_VERIFY_ONLY: no signing statics to drive here");
+    WB_NOTE("WOLFSSL_LMS_VERIFY_ONLY: no signing static helpers to drive here");
 }
 
 #endif /* WOLFSSL_LMS_VERIFY_ONLY */

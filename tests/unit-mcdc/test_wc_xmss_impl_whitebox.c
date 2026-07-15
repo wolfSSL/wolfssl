@@ -21,9 +21,9 @@
 
 /* White-box supplement for wolfcrypt/src/wc_xmss_impl.c (the native XMSS /
  * XMSS^MT implementation - 51 file-static WOTS+ / L-tree / BDS helpers). This
- * TU #includes wc_xmss_impl.c verbatim so the statics are directly reachable,
+ * TU #includes wc_xmss_impl.c verbatim so the static helpers are directly reachable,
  * and links against libwolfssl.a with wc_xmss_impl.o trimmed (wc_xmss.o kept).
- * The statics are exercised by driving a full public wc_XmssKey_* keygen /
+ * The static helpers are exercised by driving a full public wc_XmssKey_* keygen /
  * multi-sign / verify roundtrip (which flows through this file's WOTS+ chain,
  * L-tree, tree-hash and BDS state helpers), once per compiled-in hash family,
  * for a single tree, a 2-layer XMSS^MT tree, and a tall (height-40, 8-layer)
@@ -72,7 +72,7 @@ static enum wc_XmssRc wb_read_key(byte* priv, word32 privSz, void* context)
 }
 
 /* Full keygen + multi-sign + verify (+ negative verify) for one parameter set,
- * flowing through the WOTS+/L-tree/BDS statics in this file. */
+ * flowing through the WOTS+/L-tree/BDS static helpers in this file. */
 static void wb_param_roundtrip(WC_RNG* rng, const char* paramStr)
 {
     XmssKey key;

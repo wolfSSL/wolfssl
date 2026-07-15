@@ -27,7 +27,7 @@
  * caller drives them only with well-formed, self-consistent operands, so the
  * argument-check and bound-check decisions inside these helpers cannot have
  * both halves of each independence pair demonstrated from tests/api. This TU
- * #includes wc_mldsa.c so the statics are in scope and calls each targeted
+ * #includes wc_mldsa.c so the static helpers are in scope and calls each targeted
  * helper with BOTH halves of every targeted decision in a single binary
  * (MC/DC is computed per binary).
  *

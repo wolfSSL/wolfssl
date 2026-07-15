@@ -39,7 +39,7 @@
  *     WOLFSSL_MLKEM_NO_LARGE_CODE / WOLFSSL_MLKEM_NTT_UNROLL) gets its reduction
  *     and butterfly loops driven when the campaign rebuilds this TU per arm.
  *
- * This TU #includes wc_mlkem_poly.c so those statics are in scope, then calls
+ * This TU #includes wc_mlkem_poly.c so those static helpers are in scope, then calls
  * each with both halves of every targeted pair on tiny fixed-size buffers.
  * Memory-safe by construction (all buffers are MLKEM_N sword16 / bounded byte
  * arrays); prints skips and returns 0 on any unexpected result so the campaign

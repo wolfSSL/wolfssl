@@ -30657,10 +30657,12 @@ int test_wc_MldsaDecisionCoverage(void)
     /* wc_MlDsaKey_MakeKey: key == NULL and rng == NULL independence of the
      * (key==NULL)||(rng==NULL) compound. A real RNG is not needed since these
      * short-circuit before use. */
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
     ExpectIntEQ(wc_MlDsaKey_MakeKey(NULL, (WC_RNG*)&key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     /* Length getters with a NULL key -> underlying *Size returns BAD_FUNC_ARG
      * (< 0) so the getter propagates it (the *len < 0 decision TRUE side). */
