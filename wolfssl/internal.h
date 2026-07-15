@@ -4249,6 +4249,7 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_SNI
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
+    byte            inSniCallback;
 #endif
 #if defined(WOLFSSL_MULTICAST) && defined(WOLFSSL_DTLS)
     CallbackMcastHighwater mcastHwCb; /* Sequence number highwater callback */
@@ -5114,6 +5115,30 @@ typedef struct Buffers {
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 } Buffers;
+
+/* Dec refcount and maybe free the DER buffer.
+ *
+ * pDer is the buffer to release.
+ *
+ * weOwn is set when this object allocated its own copy of the buffer,
+ * and 0 when the buffer is an alias of the buffer owned by the context.
+*/
+#ifdef WOLFSSL_DER_REFCOUNT
+    #define FreeSslDer(pDer, weOwn)                                         \
+        do {                                                                \
+            FreeDer(pDer);                                                  \
+            (weOwn) = 0;                                                    \
+        } while (0)
+#else
+    #define FreeSslDer(pDer, weOwn)                                         \
+        do {                                                                \
+            if (weOwn) {                                                    \
+                FreeDer(pDer);                                              \
+                (weOwn) = 0;                                                \
+            }                                                               \
+            *(pDer) = NULL;                                                 \
+        } while (0)
+#endif
 
 /* sub-states for send/do key share (key exchange) */
 enum asyncState {

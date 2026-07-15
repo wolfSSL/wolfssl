@@ -252,8 +252,10 @@ enum wolfSSL_ErrorCodes {
 
     OCSP_NO_URL                  = -522,   /* Cert advertises no OCSP responder
                                             * and no override URL is set */
+    CTX_BUSY_E                   = -523,   /* Context in use by active sessions;
+                                            * cannot change certs, keys or DH */
 
-    WOLFSSL_LAST_E               = -522
+    WOLFSSL_LAST_E               = -523
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };

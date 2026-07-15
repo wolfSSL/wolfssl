@@ -7174,6 +7174,15 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
+    /* Inc refcount on the shared DER buffers */
+    if (!RefDer(ssl->buffers.certificate)) {
+        ssl->buffers.certificate = NULL;
+        return BAD_MUTEX_E;
+    }
+    if (!RefDer(ssl->buffers.certChain)) {
+        ssl->buffers.certChain = NULL;
+        return BAD_MUTEX_E;
+    }
 #endif
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
@@ -7191,10 +7200,15 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.weOwnKey = 1;
     }
     else {
-        ssl->buffers.key      = ctx->privateKey;
+        ssl->buffers.key = ctx->privateKey;
     }
 #else
-    ssl->buffers.key      = ctx->privateKey;
+    ssl->buffers.key = ctx->privateKey;
+    /* Inc refcount on the shared DER buffer */
+    if (!RefDer(ssl->buffers.key)) {
+        ssl->buffers.key = NULL;
+        return BAD_MUTEX_E;
+    }
 #endif
 #else
     if (ctx->privateKey != NULL) {
@@ -7225,6 +7239,10 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
     ssl->buffers.altKey   = ctx->altPrivateKey;
+    if (!RefDer(ssl->buffers.altKey)) {
+        ssl->buffers.altKey = NULL;
+        return BAD_MUTEX_E;
+    }
 #else
     if (ctx->altPrivateKey != NULL) {
         ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,
@@ -9218,6 +9236,12 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifndef NO_CERTS
     ssl->keepCert = 0; /* make sure certificate is free'd */
     wolfSSL_UnloadCertsKeys(ssl);
+    FreeSslDer(&ssl->buffers.certificate, ssl->buffers.weOwnCert);
+    FreeSslDer(&ssl->buffers.certChain, ssl->buffers.weOwnCertChain);
+    FreeSslDer(&ssl->buffers.key, ssl->buffers.weOwnKey);
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    FreeSslDer(&ssl->buffers.altKey, ssl->buffers.weOwnAltKey);
+#endif
 #endif
 #ifndef NO_RSA
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
@@ -29072,6 +29096,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case RPK_UNTRUSTED_E:
         return "RFC 7250 Raw Public Key not trusted";
+
+    case CTX_BUSY_E:
+        return "Context in use by active sessions, operation not allowed";
     }
 
     return "unknown error number";
@@ -43898,8 +43925,13 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
         * when SNI is received. Call it now if exists */
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
+            WOLFSSL_CTX* cbCtx = ssl->ctx;
+            byte inSniPrev = cbCtx->inSniCallback;
+
             WOLFSSL_MSG("Calling custom sni callback");
-            sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
+            cbCtx->inSniCallback = 1;
+            sniRet = cbCtx->sniRecvCb(ssl, &ad, cbCtx->sniRecvCbArg);
+            cbCtx->inSniCallback = inSniPrev;
             switch (sniRet) {
                 case warning_return:
                     WOLFSSL_MSG("Error in custom sni callback. Warning alert");
