@@ -19170,6 +19170,51 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (XMEMCMP(p, resultP, sizeof(p)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* A tampered tag must fail decryption. On the software C path the output
+     * buffer is additionally cleared so unauthenticated plaintext is never
+     * released. The AES-NI/asm paths do not clear it, so the zero-check is
+     * limited to the C path, which is forced here by disabling AES-NI for
+     * this one call. */
+    {
+    #ifdef WOLFSSL_AESNI
+        int saved_use_aesni = dec->use_aesni;
+        dec->use_aesni = 0;
+    #endif
+        resultT[0] ^= 0xB5;
+        XMEMSET(resultP, 0x5A, sizeof(p));
+        ret = wc_AesGcmDecrypt(dec, resultP, resultC, sizeof(p),
+                               randIV, sizeof(randIV), resultT, 16, a, sizeof(a));
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        resultT[0] ^= 0xB5;
+    #ifdef WOLFSSL_AESNI
+        dec->use_aesni = saved_use_aesni;
+    #endif
+        if (ret != WC_NO_ERR_TRACE(AES_GCM_AUTH_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
+        !defined(WOLFSSL_PPC64_ASM) && \
+        !defined(WOLFSSL_PPC32_ASM) && !defined(STM32_CRYPTO_AES_GCM) && \
+        !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
+        !defined(WOLFSSL_KCAPI_AES) && !defined(WOLFSSL_DEVCRYPTO_AES) && \
+        !defined(WOLFSSL_ESP32_CRYPT) && !defined(WOLFSSL_IMXRT_DCP) && \
+        !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(HAVE_FIPS) && \
+        !defined(WC_AES_GCM_DEC_AUTH_EARLY) && !defined(WOLFSSL_ASYNC_CRYPT)
+        {
+            /* C path clears the output buffer on authentication failure.
+             * The FIPS module's AES-GCM decrypt does not clear it, so skip
+             * this check under HAVE_FIPS. */
+            word32 z;
+            for (z = 0; z < (word32)sizeof(p); z++) {
+                if (resultP[z] != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            }
+        }
+    #endif
+        ret = 0;
+    }
 #endif /* HAVE_AES_DECRYPT */
 
   out:
