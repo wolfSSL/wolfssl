@@ -134,3 +134,53 @@ jobs:
             $GITHUB_WORKSPACE/oqs-install/lib/liboqs.a \
             -lm -lcrypto -lpthread -o falcon-interop
           ./falcon-interop
+
+  # Exercise every selectable Falcon backend, not just the default portable-
+  # integer fpr path. Backend selection is compile-time (no runtime CPUID
+  # fallback), so each leg runs on a host with the required ISA: AVX2/FMA is
+  # present on all GitHub x86 runners, NEON on the free ARM64 runners.
+  falcon_backends:
+    name: Backend ${{ matrix.name }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'default',           runner: ubuntu-latest,    opts: '--enable-falcon' }
+          - { name: 'asm',               runner: ubuntu-latest,    opts: '--enable-falcon=asm' }
+          - { name: 'double',            runner: ubuntu-latest,    opts: '--enable-falcon=double' }
+          - { name: 'avx2',              runner: ubuntu-latest,    opts: '--enable-falcon=avx2',           avx2: true }
+          - { name: 'small-mem',         runner: ubuntu-latest,    opts: '--enable-falcon=small-mem' }
+          - { name: 'avx2+small-mem',    runner: ubuntu-latest,    opts: '--enable-falcon=avx2,small-mem', avx2: true }
+          - { name: 'neon (ARM64)',      runner: ubuntu-24.04-arm, opts: '--enable-falcon=neon' }
+          # verify-only strips keygen/sign, so it is a build/link check only
+          # (testwolfcrypt's falcon_test needs signing).
+          - { name: 'verify-only',       runner: ubuntu-latest,    opts: '--enable-falcon CPPFLAGS=-DWOLFSSL_FALCON_VERIFY_ONLY', build_only: true }
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool
+
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      # Robustness guard: an AVX2-compiled binary SIGILLs on a non-AVX2 host.
+      # GitHub x86 runners always have AVX2+FMA, but fail loudly if that changes.
+      - name: Require AVX2 on the runner
+        if: ${{ matrix.avx2 }}
+        run: grep -q avx2 /proc/cpuinfo || { echo "::error::runner lacks AVX2"; exit 1; }
+
+      - name: Build wolfSSL (Falcon ${{ matrix.name }})
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.opts }} --enable-experimental --enable-static
+          make -j$(nproc)
+
+      - name: Run wolfCrypt Falcon self-test
+        if: ${{ ! matrix.build_only }}
+        run: ./wolfcrypt/test/testwolfcrypt
