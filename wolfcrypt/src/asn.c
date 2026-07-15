@@ -21795,18 +21795,15 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         default:
             if (isUnknownExt != NULL)
                 *isUnknownExt = 1;
-        /* TINY reaches default: for stripped extensions too, so reject a
-         * critical one even under NO_ASN_STRICT to stay fail-closed. */
-        #if !defined(WOLFSSL_NO_ASN_STRICT) || defined(WOLFSSL_X509_TINY)
             /* While it is a failure to not support critical extensions,
              * still parse the certificate ignoring the unsupported
              * extension to allow caller to accept it with the verify
-             * callback. */
+             * callback. RFC 5280 4.2 makes this a MUST that
+             * WOLFSSL_NO_ASN_STRICT does not relax. */
             if (critical) {
                 WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
                 ret = ASN_CRIT_EXT_E;
             }
-        #endif
             break;
     }
 
