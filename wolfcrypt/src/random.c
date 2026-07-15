@@ -441,6 +441,8 @@ int wc_DrbgState_MutexInit(void)
         }
         drbgStateMutex_inited = WC_DRBG_MUTEX_INITED;
     }
+
+    return 0;
     #endif
 #else
     return 0;
@@ -493,6 +495,7 @@ int wc_DrbgState_MutexFree(void)
         }
         drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
     }
+    return 0;
     #endif
 #else
     return 0;
