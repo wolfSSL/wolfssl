@@ -625,6 +625,9 @@ int test_wc_DhAgree_nonblock(void)
     int ret;
     int rounds;
 
+    XMEMSET(&aliceKey, 0, sizeof(aliceKey));
+    XMEMSET(&bobKey, 0, sizeof(bobKey));
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_InitDhKey(&aliceKey), 0);
     ExpectIntEQ(wc_InitDhKey(&bobKey), 0);
@@ -690,6 +693,8 @@ int test_wc_DhImportExportKeyPair(void)
     word32 privSz = sizeof(priv), pubSz = sizeof(pub);
     byte privOut[TEST_DH_BUF_SIZE], pubOut[TEST_DH_BUF_SIZE];
     word32 privOutSz, pubOutSz;
+
+    XMEMSET(&key, 0, sizeof(key));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_InitDhKey(&key), 0);
@@ -770,6 +775,8 @@ int test_wc_DhCheckPubKey(void)
     word32 privSz = sizeof(priv), pubSz = sizeof(pub);
     byte tiny[1] = { 0x01 };
 
+    XMEMSET(&key, 0, sizeof(key));
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(params = wc_Dh_ffdhe2048_Get());
 
@@ -837,6 +844,8 @@ int test_wc_DhCheckPrivKey(void)
     byte priv[TEST_DH_BUF_SIZE], pub[TEST_DH_BUF_SIZE];
     word32 privSz = sizeof(priv), pubSz = sizeof(pub);
     byte zero[1] = { 0x00 };
+
+    XMEMSET(&key, 0, sizeof(key));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(params = wc_Dh_ffdhe2048_Get());
@@ -910,6 +919,8 @@ int test_wc_DhCheckKeyPair(void)
     byte priv[TEST_DH_BUF_SIZE] = {0}, pub[TEST_DH_BUF_SIZE] = {0};
     word32 privSz = sizeof(priv), pubSz = sizeof(pub);
 
+    XMEMSET(&key, 0, sizeof(key));
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_InitDhKey(&key), 0);
     ExpectIntEQ(wc_DhSetNamedKey(&key, WC_FFDHE_2048), 0);
@@ -969,6 +980,8 @@ int test_wc_DhGenerateParams_and_ExportRaw(void)
     byte pOut[TEST_DH_BUF_SIZE], qOut[TEST_DH_BUF_SIZE];
     byte gOut[TEST_DH_BUF_SIZE];
     word32 pSz, qSz, gSz;
+
+    XMEMSET(&dh, 0, sizeof(dh));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_InitDhKey(&dh), 0);

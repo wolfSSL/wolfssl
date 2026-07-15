@@ -1040,6 +1040,7 @@ int test_wc_ed25519_verify_streaming(void)
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(sig, 0, sizeof(sig));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
