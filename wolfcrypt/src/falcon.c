@@ -3623,21 +3623,10 @@ static const byte falcon_max_fg_bits[] = {
     5
 };
 
-/* Maximum bit width used to encode F (and G), indexed by logn (0..10).
- * From the Falcon reference (codec.c). */
-static const byte falcon_max_FG_bits[] = {
-    0, /* unused */
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8
-};
+/* Maximum bit width used to encode F (and G): a constant 8 for every degree in
+ * the Falcon reference (codec.c), so no per-logn table is needed (unlike
+ * falcon_max_fg_bits, which varies with logn). */
+#define FALCON_MAX_FG_BITS 8
 
 /* ------------------------------------------------------------------------ */
 
@@ -3758,7 +3747,7 @@ size_t falcon_trim_i8_encode(byte* out, size_t max_out, const sword8* x,
     word32 acc = 0, mask;
     unsigned acc_len = 0;
 
-    /* Callers only pass falcon_max_fg_bits/falcon_max_FG_bits values (5..8);
+    /* Callers only pass falcon_max_fg_bits / FALCON_MAX_FG_BITS values (5..8);
      * guard the shifts below against out-of-range widths anyway. */
     if (bits < 2 || bits > 8) {
         return 0;
@@ -3880,7 +3869,7 @@ int falcon_privkey_decode(const byte* sk, size_t sklen, sword8* f, sword8* g,
     }
     u += v;
 
-    v = falcon_trim_i8_decode(F, logn, falcon_max_FG_bits[logn],
+    v = falcon_trim_i8_decode(F, logn, FALCON_MAX_FG_BITS,
             sk + u, sklen - u);
     if (v == 0) {
         return ASN_PARSE_E;
@@ -3930,7 +3919,7 @@ size_t falcon_privkey_encode(byte* sk, size_t max_sk, const sword8* f,
     u += v;
 
     v = falcon_trim_i8_encode(sk + u, max_sk - u, F, logn,
-            falcon_max_FG_bits[logn]);
+            FALCON_MAX_FG_BITS);
     if (v == 0) {
         return 0;
     }
@@ -6094,7 +6083,7 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
         }
 
         /* Solve the NTRU equation to get F,G. */
-        lim = (1 << (falcon_max_FG_bits[logn] - 1)) - 1;
+        lim = (1 << (FALCON_MAX_FG_BITS - 1)) - 1;
         if (!solve_NTRU(logn, F, G, f, g, lim, (word32*)tmpbuf)) {
             continue;
         }
