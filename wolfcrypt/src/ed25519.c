@@ -86,7 +86,9 @@
     static const byte ed25519Ctx[ED25519CTX_SIZE + 1] = ED25519CTX_SNC_MESSAGE;
 #endif
 
-static int ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
+static int WC_ARG_NOT_NULL(1) WC_ARG_NOT_NULL(2)
+    ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
+
 {
     int ret;
 
@@ -108,7 +110,7 @@ static int ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
 }
 
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
-static int ed25519_hash_reset(ed25519_key* key)
+static int WC_ARG_NOT_NULL(1) ed25519_hash_reset(ed25519_key* key)
 {
     int ret;
 
@@ -132,8 +134,9 @@ static int ed25519_hash_reset(ed25519_key* key)
 }
 #endif /* WOLFSSL_ED25519_PERSISTENT_SHA */
 
-static int ed25519_hash_update(ed25519_key* key, wc_Sha512 *sha,
-                               const byte* data, word32 len)
+static int WC_ARG_NOT_NULL(1)
+    ed25519_hash_update(ed25519_key* key, wc_Sha512 *sha,
+                        const byte* data, word32 len)
 {
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     if (key->sha_clean_flag) {
@@ -145,7 +148,8 @@ static int ed25519_hash_update(ed25519_key* key, wc_Sha512 *sha,
     return wc_Sha512Update(sha, data, len);
 }
 
-static int ed25519_hash_final(ed25519_key* key, wc_Sha512 *sha, byte* hash)
+static int WC_ARG_NOT_NULL(1)
+    ed25519_hash_final(ed25519_key* key, wc_Sha512 *sha, byte* hash)
 {
     int ret = wc_Sha512Final(sha, hash);
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
@@ -158,7 +162,8 @@ static int ed25519_hash_final(ed25519_key* key, wc_Sha512 *sha, byte* hash)
     return ret;
 }
 
-static void ed25519_hash_free(ed25519_key* key, wc_Sha512 *sha)
+static void WC_ARG_NOT_NULL(1)
+    ed25519_hash_free(ed25519_key* key, wc_Sha512 *sha)
 {
     wc_Sha512Free(sha);
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
@@ -1002,18 +1007,24 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 
 int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen) {
+    if (key == NULL)
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
                                         type, context, contextLen);
 }
 
 int wc_ed25519_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
                                         ed25519_key* key) {
+    if (key == NULL)
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_update_with_sha(msgSegment, msgSegmentLen,
                                           key, &key->sha);
 }
 
 int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
                                 ed25519_key* key) {
+    if (key == NULL)
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_final_with_sha(sig, sigLen, res,
                                          key, &key->sha);
 }
