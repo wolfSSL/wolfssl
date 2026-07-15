@@ -38,11 +38,11 @@
  * API (every wrapper hard-codes non-NULL, well-formed arguments).
  *
  * Also closes the "key == NULL" operand of the sanity checks in three more
- * HAVE_ED448_VERIFY file-statics: ed448_verify_msg_init_with_sha(),
+ * HAVE_ED448_VERIFY file-static functions: ed448_verify_msg_init_with_sha(),
  * ed448_verify_msg_update_with_sha() and ed448_verify_msg_final_with_sha().
  * wc_ed448_verify_msg_ex() (the non-streaming public entry point) always
  * checks key == NULL itself before calling these, so that combination never
- * reaches the statics from there; the WOLFSSL_ED448_STREAMING_VERIFY
+ * reaches the static functions from there; the WOLFSSL_ED448_STREAMING_VERIFY
  * wc_ed448_verify_msg_init/update/final() wrappers compute `&key->sha` from
  * the caller's key *before* calling the static, so a NULL key can only be
  * driven into the static safely by calling it directly here (each static
@@ -145,7 +145,7 @@ static void wb_ed448_hash(void)
  * (ORed with other arguments) that no public caller can trip: the
  * non-streaming entry point (wc_ed448_verify_msg_ex()) checks key == NULL
  * itself first, and the streaming wrappers dereference key (to take
- * &key->sha) before ever calling these statics. Call the statics directly.
+ * &key->sha) before ever calling these static functions. Call the static functions directly.
  * ------------------------------------------------------------------------- */
 static void wb_ed448_verify_key_null(void)
 {

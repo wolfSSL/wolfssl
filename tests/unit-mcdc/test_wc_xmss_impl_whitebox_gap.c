@@ -31,7 +31,7 @@
  *   - internal to file-static BDS bookkeeping helpers that only run deep
  *     inside a multi-thousand-hash keygen/sign cycle.
  *
- * This white-box #includes wc_xmss_impl.c directly so those statics and
+ * This white-box #includes wc_xmss_impl.c directly so those static functions and
  * link-local entry points are in scope, and drives each targeted decision's
  * MC/DC independence pair with hand-built, deliberately tiny XmssParams
  * (small tree heights so full keygen/sign/verify cycles stay cheap) instead
