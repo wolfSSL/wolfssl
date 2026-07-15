@@ -14684,10 +14684,11 @@ enum {
 /* Supported types of encodings (tags) for RDN strings.
  * X.509: RFC 5280, 4.1.2.4 - DirectoryString
  * (IA5 String not listed in RFC but required for alternative types)
+ * (BIT STRING only for x500UniqueIdentifier - OID 2.5.4.45)
  */
 static const byte rdnChoice[] = {
     ASN_PRINTABLE_STRING, ASN_IA5_STRING, ASN_UTF8STRING, ASN_T61STRING,
-    ASN_UNIVERSALSTRING, ASN_BMPSTRING, 0
+    ASN_UNIVERSALSTRING, ASN_BMPSTRING, ASN_BIT_STRING, 0
 };
 #endif
 
@@ -15177,6 +15178,14 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
             *nid = GetCertNameSubjectNID(id);
         #endif
         }
+        else if (id == ASN_X500_UNIQUE_ID) {
+            /* Not in the table as its id is outside the contiguous range. */
+            typeStr = WOLFSSL_X500_UNIQUE_ID;
+            typeStrLen = sizeof(WOLFSSL_X500_UNIQUE_ID) - 1;
+        #ifdef WOLFSSL_X509_NAME_AVAILABLE
+            *nid = WC_NID_x500UniqueIdentifier;
+        #endif
+        }
     }
     else if (oidSz == sizeof(attrEmailOid) && XMEMCMP(oid, attrEmailOid, oidSz) == 0) {
         /* Set the email id, type string, length and NID. */
@@ -15266,6 +15275,15 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         }
     }
 
+    /* rdnChoice[] allows a BIT STRING tag for any attribute OID but only
+     * x500UniqueIdentifier may use it - all others are DirectoryString
+     * (RFC 5280, 4.1.2.4). Checked here to also catch unrecognized OIDs. */
+    if ((ret == 0) && (dataASN[RDNASN_IDX_ATTR_VAL].tag == ASN_BIT_STRING) &&
+            (id != ASN_X500_UNIQUE_ID)) {
+        WOLFSSL_MSG("BIT STRING RDN value only valid for x500UniqueIdentifier");
+        ret = ASN_PARSE_E;
+    }
+
     if ((ret == 0) && (typeStr != NULL)) {
         /* OID type to store for subject name and add to full string. */
         const byte* str;
@@ -15275,14 +15293,27 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         /* Get the string reference and length. */
         GetASN_GetRef(&dataASN[RDNASN_IDX_ATTR_VAL], &str, &strLen);
 
-        if (isSubject) {
+        /* Strip the BIT STRING unused-bits count octet. Only byte-aligned
+         * values are supported as the count isn't stored. */
+        if (tag == ASN_BIT_STRING) {
+            if ((strLen == 0) || (str[0] != 0)) {
+                WOLFSSL_MSG("BIT STRING RDN value not byte-aligned");
+                ret = ASN_PARSE_E;
+            }
+            else {
+                str++;
+                strLen--;
+            }
+        }
+
+        if ((ret == 0) && isSubject) {
             /* Store subject field components. */
             ret = SetSubject(cert, id, str, (int)strLen, tag);
         }
     #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)) && \
         defined(WOLFSSL_HAVE_ISSUER_NAMES)
         /* Put issuer common name string and encoding into certificate. */
-        else {
+        else if (ret == 0) {
             ret = SetIssuer(cert, id, str, (int)strLen, tag);
         }
     #endif
@@ -15291,7 +15322,9 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
              * terminating NUL character. */
             if ((typeStrLen + strLen) < (word32)(WC_ASN_NAME_MAX - *idx))
             {
-                /* Add RDN to full string. */
+                /* Add RDN to full string. Binary values are copied verbatim,
+                 * so this display string may truncate at an embedded NUL - use
+                 * the WOLFSSL_X509_NAME entry for the full value. */
                 XMEMCPY(&full[*idx], typeStr, typeStrLen);
                 *idx += typeStrLen;
                 XMEMCPY(&full[*idx], str, strLen);
@@ -15427,6 +15460,25 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 }
             #endif
 
+                /* Only x500UniqueIdentifier may be a BIT STRING. Strip the
+                 * unused-bits count octet - only byte-aligned values are
+                 * supported as the count isn't stored. */
+                if (tag == ASN_BIT_STRING) {
+                    if (nid != WC_NID_x500UniqueIdentifier) {
+                        WOLFSSL_MSG("BIT STRING RDN value only valid for "
+                                    "x500UniqueIdentifier");
+                        ret = ASN_PARSE_E;
+                    }
+                    else if ((strLen == 0) || (str[0] != 0)) {
+                        WOLFSSL_MSG("BIT STRING RDN value not byte-aligned");
+                        ret = ASN_PARSE_E;
+                    }
+                    else {
+                        str++;
+                        strLen--;
+                    }
+                }
+
                 /* Convert BER tag to a OpenSSL type. */
                 switch (tag) {
                     case CTC_UTF8:
@@ -15435,11 +15487,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     case CTC_PRINTABLE:
                         enc = WOLFSSL_V_ASN1_PRINTABLESTRING;
                         break;
+                    case ASN_BIT_STRING:
+                        enc = WOLFSSL_V_ASN1_BIT_STRING;
+                        break;
                     default:
                         WOLFSSL_MSG("Unknown encoding type, default UTF8");
                         enc = WOLFSSL_MBSTRING_UTF8;
                 }
-                if (nid != 0) {
+                if ((ret == 0) && (nid != 0)) {
                     /* Add an entry to the X509_NAME. */
                     if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, enc, str,
                             (int)strLen, -1, -1) != WOLFSSL_SUCCESS) {

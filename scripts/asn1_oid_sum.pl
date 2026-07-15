@@ -1287,6 +1287,7 @@ my @name_title = ( 2, 5, 4, 9, 12 );
 my @name_description = ( 2, 5, 4, 13 );
 my @name_business_cat = ( 2, 5, 4, 15 );
 my @name_postal_code = ( 2, 5, 4, 17 );
+my @name_x500_unique_id = ( 2, 5, 4, 45 );
 my @name_pkcs9_email = ( 1, 2, 840, 113549, 1, 9, 1 );;
 my @name_rfc822_mailbox = ( 0, 9, 2342, 19200300, 100, 1, 3 );
 my @name_fav_drink = ( 0, 9, 2342, 19200300, 100, 1, 5 );
@@ -1317,6 +1318,7 @@ my @cert_names = (
                                             same => 1                         },
     { name => "WC_NAME_INITIALIS",          oid => \@csr_initials,
                                             same => 1                         },
+    { name => "WC_NAME_X500_UNIQUE_ID",     oid => \@name_x500_unique_id      },
     { name => "WC_NAME_EMAIL_ADDRESS",      oid => \@name_pkcs9_email         },
     { name => "WC_NAME_USER_ID",            oid => \@csr_user_id,
                                             same => 1                         },
