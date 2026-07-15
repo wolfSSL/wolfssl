@@ -38,8 +38,6 @@ int test_DecodeAltNames_length_underflow(void);
 int test_DecodeCertExtensions_dup_certpol(void);
 int test_ParseCert_SM3wSM2_short_pubkey(void);
 int test_ParseCert_dnBufferBoundary(void);
-int test_wc_DecodeObjectId(void);
-int test_wc_DecodeObjectId(void);
 int test_wc_DecodeObjectId_ex(void);
 int test_wc_DecodeObjectId_FIPS16(void);
 int test_wc_EncodeObjectId(void);
@@ -66,16 +64,10 @@ int test_wc_AsnFeatureCoverage(void);
     TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow),   \
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_dup_certpol),  \
     TEST_DECL_GROUP("asn", test_ParseCert_SM3wSM2_short_pubkey),    \
-<<<<<<< HEAD
     TEST_DECL_GROUP("asn", test_ParseCert_dnBufferBoundary),        \
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
-||||||| parent of a5d67d1ce (Updated size of OID represention to be word32 instead of word16 so OIDs)
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
-=======
     TEST_DECL_GROUP("asn", test_wc_DecodeObjectId_ex),              \
     TEST_DECL_GROUP("asn", test_wc_EncodeObjectId),                 \
     TEST_DECL_GROUP("asn", test_wc_DecodeObjectId_FIPS16),          \
->>>>>>> a5d67d1ce (Updated size of OID represention to be word32 instead of word16 so OIDs)
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_negative),         \
