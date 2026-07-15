@@ -785,12 +785,16 @@
         #include <sched.h>
         #define WOLFSSL_THREAD_YIELD() (void)sched_yield()
     #elif defined(USE_WINDOWS_API) && !defined(WOLFSSL_NOT_WINDOWS_API)
+        #include <windows.h>
         #define WOLFSSL_THREAD_YIELD() (void)SwitchToThread()
     #elif defined(FREERTOS)
+        #include <freertos/task.h>
         #define WOLFSSL_THREAD_YIELD() taskYIELD()
     #elif defined(THREADX)
+        #include <tx_api.h>
         #define WOLFSSL_THREAD_YIELD() tx_thread_relinquish()
     #elif defined(WOLFSSL_ZEPHYR)
+        #include <zephyr/kernel.h>
         #define WOLFSSL_THREAD_YIELD() k_yield()
     #elif defined(WOLFSSL_VXWORKS)
         #include <vxWorks.h>

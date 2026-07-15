@@ -390,11 +390,11 @@ enum {
 static wolfSSL_Mutex drbgStateMutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(drbgStateMutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-#ifdef WOLFSSL_ATOMIC_OPS
+#if defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_THREAD_YIELD)
 static wolfSSL_Atomic_Int drbgStateMutex_inited =
                     WOLFSSL_ATOMIC_INITIALIZER(WC_DRBG_MUTEX_UNINITED);
 #else
-static volatile int drbgStateMutex_inited = 0;
+static volatile int drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
 #endif
 #endif
 #endif /* !SINGLE_THREADED */
