@@ -36,6 +36,10 @@ int test_wc_ChaCha20Poly1305_InPlace(void);
 int test_wc_ChaCha20Poly1305_UnalignedBuffers(void);
 int test_wc_ChaCha20Poly1305_CrossCipher(void);
 int test_wc_ChaCha20Poly1305_DecisionCoverage(void);
+int test_wc_ChaCha20Poly1305_LargeMessage(void);
+int test_wc_ChaCha20Poly1305_SmallWithAad(void);
+int test_wc_ChaCha20Poly1305_StreamLarge(void);
+int test_wc_ChaCha20Poly1305_Ex(void);
 int test_wc_XChaCha20Poly1305_DecisionCoverage(void);
 int test_wc_XChaCha20Poly1305_LargeBuffer(void);
 
@@ -52,6 +56,10 @@ int test_wc_XChaCha20Poly1305_LargeBuffer(void);
     TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_UnalignedBuffers),      \
     TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_CrossCipher),           \
     TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_DecisionCoverage),      \
+    TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_LargeMessage),          \
+    TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_SmallWithAad),          \
+    TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_StreamLarge),           \
+    TEST_DECL_GROUP("chacha20-poly1305", test_wc_ChaCha20Poly1305_Ex),                    \
     TEST_DECL_GROUP("xchacha20-poly1305", test_wc_XChaCha20Poly1305_DecisionCoverage),    \
     TEST_DECL_GROUP("xchacha20-poly1305", test_wc_XChaCha20Poly1305_LargeBuffer)
 

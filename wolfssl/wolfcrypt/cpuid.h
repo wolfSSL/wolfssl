@@ -105,6 +105,7 @@ typedef word32 cpuid_flags_t;
     /* AVX-512 Byte and Word: byte/word instructions at 512-bit width
      * (vpshufb, vpaddw, vpmulhw, vpackusdw, ... on zmm). */
     #define CPUID_AVX512_BW 0x80000
+    #define CPUID_SSSE3  0x100000     /* SSSE3 (pshufb etc.) */
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -139,6 +140,7 @@ typedef word32 cpuid_flags_t;
         (IS_INTEL_AVX512(f) && IS_INTEL_AVX512_BW(f))
     #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
     #define IS_CPU_AMD(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AMD)
+    #define IS_INTEL_SSSE3(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SSSE3)
 
 #elif defined(HAVE_CPUID_AARCH64)
 
