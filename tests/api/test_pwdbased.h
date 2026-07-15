@@ -26,9 +26,15 @@
 
 int test_wc_PBKDF1_ex_iterations(void);
 int test_wc_PBKDF2_ex_iterations(void);
+int test_wc_PBKDF1DecisionCoverage(void);
+int test_wc_PBKDF2DecisionCoverage(void);
+int test_wc_PKCS12_PBKDFDecisionCoverage(void);
 
 #define TEST_PWDBASED_DECLS                                                 \
     TEST_DECL_GROUP("pwdbased", test_wc_PBKDF1_ex_iterations),             \
-    TEST_DECL_GROUP("pwdbased", test_wc_PBKDF2_ex_iterations)
+    TEST_DECL_GROUP("pwdbased", test_wc_PBKDF2_ex_iterations),             \
+    TEST_DECL_GROUP("pwdbased", test_wc_PBKDF1DecisionCoverage),           \
+    TEST_DECL_GROUP("pwdbased", test_wc_PBKDF2DecisionCoverage),           \
+    TEST_DECL_GROUP("pwdbased", test_wc_PKCS12_PBKDFDecisionCoverage)
 
 #endif /* WOLFCRYPT_TEST_PWDBASED_H */

@@ -40,6 +40,8 @@ int test_wc_slhdsa_der_decode_files(void);
 int test_wc_slhdsa_x509_i2d_roundtrip(void);
 int test_wc_slhdsa_param_disabled(void);
 int test_wc_slhdsa_decoder_disabled_oid(void);
+int test_wc_SlhdsaDecisionCoverage(void);
+int test_wc_SlhdsaFeatureCoverage(void);
 
 #define TEST_SLHDSA_DECLS                                                      \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa),                                 \
@@ -57,6 +59,8 @@ int test_wc_slhdsa_decoder_disabled_oid(void);
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_der_decode_files),                \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_x509_i2d_roundtrip),              \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_param_disabled),                  \
-    TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_decoder_disabled_oid)
+    TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_decoder_disabled_oid),            \
+    TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaDecisionCoverage),                 \
+    TEST_DECL_GROUP("slhdsa", test_wc_SlhdsaFeatureCoverage)
 
 #endif /* WOLFCRYPT_TEST_SLHDSA_H */

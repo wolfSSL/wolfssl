@@ -2734,6 +2734,267 @@ int test_wc_slhdsa_decoder_disabled_oid(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * MC/DC DecisionCoverage: exercise the argument-check / short-buffer /
+ * compound-guard independence pairs of the SLH-DSA public API without any
+ * (slow) key generation or signing. Each negative call isolates ONE operand
+ * of a compound decision so unique-cause MC/DC can be shown:
+ *   - wc_SlhDsaKey_Init: key==NULL vs an unknown param (loop falls through,
+ *     idx==-1 -> NOT_COMPILED_IN).
+ *   - wc_SlhDsaKey_ImportPublic / _ExportPublic (and the private variants):
+ *     each operand of the "(key==NULL)||(key->params==NULL)||(ptr==NULL)[||
+ *     (lenPtr==NULL)]" OR is driven true alone (a zeroed key gives
+ *     key!=NULL with key->params==NULL), plus the length else-if arm.
+ *   - size getters: key==NULL vs params==NULL independence.
+ *   - wc_SlhDsaKey_CheckKey: NULL / params==NULL / MISSING_KEY (no private).
+ *   - wc_SlhDsaKey_Init_id / _Init_label compound guards (WOLF_PRIVATE_KEY_ID).
+ */
+int test_wc_SlhdsaDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(TEST_SLHDSA_DEFAULT_PARAM)
+    SlhDsaKey key;
+    SlhDsaKey zkey;   /* zeroed: key != NULL but key->params == NULL */
+    byte  pub[TEST_SLHDSA_DEFAULT_PUB_LEN] = {0};
+    word32 pubLen;
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    byte  priv[TEST_SLHDSA_DEFAULT_PRIV_LEN] = {0};
+    word32 privLen;
+#endif
+
+    XMEMSET(&zkey, 0, sizeof(zkey));
+
+    /* wc_SlhDsaKey_Init: NULL key vs unknown-parameter fall-through. */
+    ExpectIntEQ(wc_SlhDsaKey_Init(NULL, TEST_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* key != NULL but param absent from table: for-loop never matches so
+     * idx stays -1 -> NOT_COMPILED_IN (the loop's compare-false path and the
+     * idx==-1 true path). */
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, (enum SlhDsaParam)0x7fff, NULL,
+        INVALID_DEVID), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+
+    /* One good key for the pointer-operand pairs below. */
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), 0);
+
+    /* wc_SlhDsaKey_ImportPublic: 3-operand OR + length else-if. */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPublic(NULL, pub, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* key==NULL   */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPublic(&zkey, pub, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* params==NULL */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPublic(&key, NULL, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* pub==NULL   */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPublic(&key, pub, (word32)sizeof(pub) + 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));                    /* wrong len   */
+
+    /* wc_SlhDsaKey_ExportPublic: 4-operand OR + length else-if. */
+    pubLen = (word32)sizeof(pub);
+    ExpectIntEQ(wc_SlhDsaKey_ExportPublic(NULL, pub, &pubLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* key==NULL     */
+    ExpectIntEQ(wc_SlhDsaKey_ExportPublic(&zkey, pub, &pubLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* params==NULL  */
+    ExpectIntEQ(wc_SlhDsaKey_ExportPublic(&key, NULL, &pubLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* pub==NULL     */
+    ExpectIntEQ(wc_SlhDsaKey_ExportPublic(&key, pub, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                    /* pubLen==NULL  */
+    pubLen = 1;                                            /* too small     */
+    ExpectIntEQ(wc_SlhDsaKey_ExportPublic(&key, pub, &pubLen),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    /* Size getters: key==NULL vs params==NULL independence. */
+    ExpectIntEQ(wc_SlhDsaKey_PublicSize(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_PublicSize(&zkey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_SigSize(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_SigSize(&zkey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    ExpectIntEQ(wc_SlhDsaKey_PrivateSize(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_PrivateSize(&zkey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_SlhDsaKey_ImportPrivate: 3-operand OR + length else-if. */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(NULL, priv, (word32)sizeof(priv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&zkey, priv, (word32)sizeof(priv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key, NULL, (word32)sizeof(priv)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key, priv, (word32)sizeof(priv) + 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    /* wc_SlhDsaKey_ExportPrivate: 4-operand OR + length else-if. */
+    privLen = (word32)sizeof(priv);
+    ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(NULL, priv, &privLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(&zkey, priv, &privLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(&key, NULL, &privLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(&key, priv, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    privLen = 1;
+    ExpectIntEQ(wc_SlhDsaKey_ExportPrivate(&key, priv, &privLen),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    /* wc_SlhDsaKey_CheckKey: NULL / params==NULL / no-private MISSING_KEY. */
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&zkey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), WC_NO_ERR_TRACE(MISSING_KEY));
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+    wc_SlhDsaKey_Free(&key);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    {
+        byte idbuf[4];
+        XMEMSET(idbuf, 0xAB, sizeof(idbuf));
+
+        /* wc_SlhDsaKey_Init_id compound guards. */
+        /* key==NULL (first operand true). */
+        ExpectIntEQ(wc_SlhDsaKey_Init_id(NULL, TEST_SLHDSA_DEFAULT_PARAM,
+            idbuf, (int)sizeof(idbuf), NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* id==NULL && len>0 : id operand independence (key!=NULL). */
+        ExpectIntEQ(wc_SlhDsaKey_Init_id(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            NULL, 4, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* len<0 : (len<0) true, (len>MAX) false. */
+        ExpectIntEQ(wc_SlhDsaKey_Init_id(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            idbuf, -1, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        /* len>MAX : (len<0) false, (len>MAX) true. */
+        ExpectIntEQ(wc_SlhDsaKey_Init_id(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            idbuf, SLHDSA_MAX_ID_LEN + 1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        /* id==NULL && len==0 : (len>0) false -> falls through to Init OK. */
+        ExpectIntEQ(wc_SlhDsaKey_Init_id(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            NULL, 0, NULL, INVALID_DEVID), 0);
+        wc_SlhDsaKey_Free(&key);
+        /* Valid id -> success (id!=NULL && len>0 copy path). */
+        ExpectIntEQ(wc_SlhDsaKey_Init_id(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            idbuf, (int)sizeof(idbuf), NULL, INVALID_DEVID), 0);
+        wc_SlhDsaKey_Free(&key);
+
+        /* wc_SlhDsaKey_Init_label: (key==NULL)||(label==NULL) independence,
+         * empty-label BUFFER_E, then success. */
+        ExpectIntEQ(wc_SlhDsaKey_Init_label(NULL, TEST_SLHDSA_DEFAULT_PARAM,
+            "lbl", NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SlhDsaKey_Init_label(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            NULL, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SlhDsaKey_Init_label(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            "", NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_SlhDsaKey_Init_label(&key, TEST_SLHDSA_DEFAULT_PARAM,
+            "lbl", NULL, INVALID_DEVID), 0);
+        wc_SlhDsaKey_Free(&key);
+    }
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+#endif /* WOLFSSL_HAVE_SLHDSA && TEST_SLHDSA_DEFAULT_PARAM */
+    return EXPECT_RESULT();
+}
+
+/* Positive size-from-param switch-arm coverage. Each compiled-in parameter
+ * set hits its own case label in wc_SlhDsaKey_{Public,Sig,Private}SizeFromParam;
+ * an unknown param hits the default (NOT_COMPILED_IN) arm. No keygen/sign. */
+int test_wc_SlhdsaFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_HAVE_SLHDSA
+    /* SHAKE family switch arms. */
+#ifdef WOLFSSL_SLHDSA_PARAM_128S
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHAKE128S),
+        WC_SLHDSA_SHAKE128S_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHAKE128S),
+        WC_SLHDSA_SHAKE128S_SIG_LEN);
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    ExpectIntEQ(wc_SlhDsaKey_PrivateSizeFromParam(SLHDSA_SHAKE128S),
+        WC_SLHDSA_SHAKE128S_PRIV_LEN);
+#endif
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_128F
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHAKE128F),
+        WC_SLHDSA_SHAKE128F_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHAKE128F),
+        WC_SLHDSA_SHAKE128F_SIG_LEN);
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    ExpectIntEQ(wc_SlhDsaKey_PrivateSizeFromParam(SLHDSA_SHAKE128F),
+        WC_SLHDSA_SHAKE128F_PRIV_LEN);
+#endif
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_192S
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHAKE192S),
+        WC_SLHDSA_SHAKE192S_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHAKE192S),
+        WC_SLHDSA_SHAKE192S_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_192F
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHAKE192F),
+        WC_SLHDSA_SHAKE192F_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHAKE192F),
+        WC_SLHDSA_SHAKE192F_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256S
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHAKE256S),
+        WC_SLHDSA_SHAKE256S_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHAKE256S),
+        WC_SLHDSA_SHAKE256S_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256F
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHAKE256F),
+        WC_SLHDSA_SHAKE256F_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHAKE256F),
+        WC_SLHDSA_SHAKE256F_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_SHA2
+    /* SHA-2 family switch arms. */
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128S
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHA2_128S),
+        WC_SLHDSA_SHA2_128S_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHA2_128S),
+        WC_SLHDSA_SHA2_128S_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128F
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHA2_128F),
+        WC_SLHDSA_SHA2_128F_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHA2_128F),
+        WC_SLHDSA_SHA2_128F_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192S
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHA2_192S),
+        WC_SLHDSA_SHA2_192S_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHA2_192S),
+        WC_SLHDSA_SHA2_192S_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192F
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHA2_192F),
+        WC_SLHDSA_SHA2_192F_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHA2_192F),
+        WC_SLHDSA_SHA2_192F_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256S
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHA2_256S),
+        WC_SLHDSA_SHA2_256S_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHA2_256S),
+        WC_SLHDSA_SHA2_256S_SIG_LEN);
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256F
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam(SLHDSA_SHA2_256F),
+        WC_SLHDSA_SHA2_256F_PUB_LEN);
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam(SLHDSA_SHA2_256F),
+        WC_SLHDSA_SHA2_256F_SIG_LEN);
+#endif
+#endif /* WOLFSSL_SLHDSA_SHA2 */
+
+    /* default (unknown param) switch arm -> NOT_COMPILED_IN. */
+    ExpectIntEQ(wc_SlhDsaKey_PublicSizeFromParam((enum SlhDsaParam)0x7fff),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(wc_SlhDsaKey_SigSizeFromParam((enum SlhDsaParam)0x7fff),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    ExpectIntEQ(wc_SlhDsaKey_PrivateSizeFromParam((enum SlhDsaParam)0x7fff),
+        WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+#endif
+#endif /* WOLFSSL_HAVE_SLHDSA */
+    return EXPECT_RESULT();
+}
+
 #ifdef TEST_SLHDSA_DEFAULT_PARAM
     #undef TEST_SLHDSA_DEFAULT_PARAM
     #undef TEST_SLHDSA_DEFAULT_SIG_LEN

@@ -888,3 +888,182 @@ int test_wc_ed448_reject_small_order_keys(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * MC/DC decision coverage for wolfcrypt/src/ed448.c decisions the pre-existing
+ * ed448 API tests never drive: the sign/verify (context == NULL && contextLen
+ * != 0) compound and its "context != NULL" hash-update branches, the explicit
+ * wc_ed448_sign_msg_ex/verify_msg_ex type path, and the Ed448ph (prehash)
+ * sign/verify branches including the (type == Ed448ph && inLen !=
+ * ED448_PREHASH_SIZE) length check.
+ */
+int test_wc_Ed448DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    ed448_key key;
+    WC_RNG    rng;
+    byte      msg[]     = "ed448 decision coverage message";
+    byte      ctx[]     = "ed448-context";
+    byte      sig[ED448_SIG_SIZE];
+    byte      hash[ED448_PREHASH_SIZE];
+    byte      badhash[ED448_PREHASH_SIZE - 1];
+    word32    sigLen = sizeof(sig);
+    word32    msgLen = sizeof(msg);
+    byte      ctxLen = (byte)(sizeof(ctx) - 1);
+    int       verify = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(hash, 0x5a, sizeof(hash));
+    XMEMSET(badhash, 0x5a, sizeof(badhash));
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* Sign/verify with a non-NULL context: exercises the "context != NULL"
+     * side of the (context == NULL && contextLen != 0) compound plus the
+     * "context != NULL" hash-update branches in both sign and verify. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, ctx, ctxLen),
+        0);
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigLen, msg, msgLen, &verify, &key,
+        ctx, ctxLen), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* context == NULL && contextLen != 0: compound TRUE -> BAD_FUNC_ARG, in
+     * both the sign and verify sanity checks. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, NULL, 5),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sizeof(sig), msg, msgLen, &verify,
+        &key, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Explicit wc_ed448_sign_msg_ex/verify_msg_ex with type == Ed448. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key,
+        (byte)Ed448, ctx, ctxLen), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg_ex(sig, sigLen, msg, msgLen, &verify, &key,
+        (byte)Ed448, ctx, ctxLen), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Ed448ph: type == Ed448ph path through sign_msg_ex (prehash then sign)
+     * and the matching verify, without and with a context. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_msg(msg, msgLen, sig, &sigLen, &key, NULL, 0),
+        0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448ph_verify_msg(sig, sigLen, msg, msgLen, &verify, &key,
+        NULL, 0), 0);
+    ExpectIntEQ(verify, 1);
+
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_msg(msg, msgLen, sig, &sigLen, &key, ctx,
+        ctxLen), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448ph_verify_msg(sig, sigLen, msg, msgLen, &verify, &key,
+        ctx, ctxLen), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Ed448ph prehash sign/verify with a correctly sized hash. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_hash(hash, sizeof(hash), sig, &sigLen, &key,
+        NULL, 0), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448ph_verify_hash(sig, sigLen, hash, sizeof(hash), &verify,
+        &key, NULL, 0), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* type == Ed448ph && inLen != ED448_PREHASH_SIZE -> BAD_LENGTH_E
+     * (sign_hash forwards hashLen as inLen with type Ed448ph). */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_hash(badhash, sizeof(badhash), sig, &sigLen,
+        &key, NULL, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Ed448DecisionCoverage */
+
+/*
+ * Feature coverage for the ed448 streaming verify API
+ * (wc_ed448_verify_msg_init/update/final): positive multi-chunk verification
+ * (loop true-sides) without and with a context, plus the update NULL-segment
+ * and init/final NULL argument guards. Guarded identically to the streaming
+ * verify code under test so it auto-skips where the feature is compiled out.
+ */
+int test_wc_Ed448FeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
+    defined(HAVE_ED448_VERIFY) && defined(WOLFSSL_ED448_STREAMING_VERIFY)
+    ed448_key key;
+    WC_RNG    rng;
+    byte      msg[]  = "streaming multi-chunk ed448 verify message body";
+    byte      ctx[]  = "stream-ctx";
+    byte      sig[ED448_SIG_SIZE];
+    word32    sigLen = sizeof(sig);
+    word32    msgLen = sizeof(msg);
+    byte      ctxLen = (byte)(sizeof(ctx) - 1);
+    int       verify = 0;
+    word32    off;
+    word32    chunk = 7;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* Sign the whole message (no context), then verify it through the
+     * streaming init/update(x N)/final API a few bytes at a time. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, NULL, 0), 0);
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, NULL,
+        0), 0);
+    for (off = 0; off < msgLen; off += chunk) {
+        word32 n = (msgLen - off < chunk) ? (msgLen - off) : chunk;
+        ExpectIntEQ(wc_ed448_verify_msg_update(msg + off, n, &key), 0);
+    }
+    ExpectIntEQ(wc_ed448_verify_msg_final(sig, sigLen, &verify, &key), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Same, but with a non-NULL context supplied at init. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, ctx, ctxLen),
+        0);
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, ctx,
+        ctxLen), 0);
+    for (off = 0; off < msgLen; off += chunk) {
+        word32 n = (msgLen - off < chunk) ? (msgLen - off) : chunk;
+        ExpectIntEQ(wc_ed448_verify_msg_update(msg + off, n, &key), 0);
+    }
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg_final(sig, sigLen, &verify, &key), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Negative decisions in the streaming path: init NULL sig, update NULL
+     * segment (ed448_verify_msg_update_with_sha's msgSegment == NULL guard),
+     * final NULL res. */
+    ExpectIntEQ(wc_ed448_verify_msg_init(NULL, sigLen, &key, (byte)Ed448, NULL,
+        0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, NULL,
+        0), 0);
+    ExpectIntEQ(wc_ed448_verify_msg_update(NULL, msgLen, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_verify_msg_update(msg, msgLen, &key), 0);
+    ExpectIntEQ(wc_ed448_verify_msg_final(sig, sigLen, NULL, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Ed448FeatureCoverage */
+

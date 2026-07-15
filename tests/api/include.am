@@ -18,6 +18,7 @@ tests_unit_test_SOURCES += tests/api/test_hash.c
 # MAC
 tests_unit_test_SOURCES += tests/api/test_hmac.c
 tests_unit_test_SOURCES += tests/api/test_cmac.c
+tests_unit_test_SOURCES += tests/api/test_kdf.c
 # SHE
 tests_unit_test_SOURCES += tests/api/test_she.c
 # Cipher
@@ -32,8 +33,11 @@ tests_unit_test_SOURCES += tests/api/test_aes.c
 tests_unit_test_SOURCES += tests/api/test_ascon.c
 tests_unit_test_SOURCES += tests/api/test_sm4.c
 tests_unit_test_SOURCES += tests/api/test_wc_encrypt.c
+tests_unit_test_SOURCES += tests/api/test_coding.c
+tests_unit_test_SOURCES += tests/api/test_error.c
 # Random
 tests_unit_test_SOURCES += tests/api/test_random.c
+tests_unit_test_SOURCES += tests/api/test_wolfentropy.c
 # MP
 tests_unit_test_SOURCES += tests/api/test_wolfmath.c
 # Public Key Algorithm
@@ -138,6 +142,7 @@ EXTRA_DIST += tests/api/test_digest.h
 EXTRA_DIST += tests/api/test_hash.h
 EXTRA_DIST += tests/api/test_hmac.h
 EXTRA_DIST += tests/api/test_cmac.h
+EXTRA_DIST += tests/api/test_kdf.h
 EXTRA_DIST += tests/api/test_she.h
 EXTRA_DIST += tests/api/test_des3.h
 EXTRA_DIST += tests/api/test_chacha.h
@@ -151,7 +156,10 @@ EXTRA_DIST += tests/api/test_ascon.h
 EXTRA_DIST += tests/api/test_sm4.h
 EXTRA_DIST += tests/api/test_ascon_kats.h
 EXTRA_DIST += tests/api/test_wc_encrypt.h
+EXTRA_DIST += tests/api/test_coding.h
+EXTRA_DIST += tests/api/test_error.h
 EXTRA_DIST += tests/api/test_random.h
+EXTRA_DIST += tests/api/test_wolfentropy.h
 EXTRA_DIST += tests/api/test_wolfmath.h
 EXTRA_DIST += tests/api/test_rsa.h
 EXTRA_DIST += tests/api/test_dsa.h

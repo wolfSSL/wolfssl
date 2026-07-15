@@ -56,6 +56,10 @@ int test_mldsa_x509_pubkey_sigtype(void);
 int test_mldsa_verify_hash(void);
 int test_dilithium_hash(void);
 
+/* MC/DC coverage supplements defined in tests/api/test_mldsa.c. */
+int test_wc_MldsaDecisionCoverage(void);
+int test_wc_MldsaFeatureCoverage(void);
+
 /* Legacy-name shim coverage defined in tests/api/test_mldsa_legacy.c.
  * Single function -- compile-time wc_static_assert checks for every alias
  * + one runtime smoke test that drives each arg-reordering macro family.
@@ -89,6 +93,8 @@ int test_mldsa_legacy_shim(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_x509_pubkey_sigtype),                  \
     TEST_DECL_GROUP("mldsa", test_mldsa_verify_hash),                          \
     TEST_DECL_GROUP("mldsa", test_dilithium_hash),                             \
+    TEST_DECL_GROUP("mldsa", test_wc_MldsaDecisionCoverage),                   \
+    TEST_DECL_GROUP("mldsa", test_wc_MldsaFeatureCoverage),                    \
     TEST_DECL_GROUP("mldsa", test_mldsa_legacy_shim)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */

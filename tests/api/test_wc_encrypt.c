@@ -29,6 +29,8 @@
 #endif
 
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
 #include <tests/api/test_wc_encrypt.h>
@@ -154,4 +156,174 @@ int test_wc_Des_CbcEncryptDecryptWithKey(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Des_CbcEncryptDecryptWithKey */
+
+/*
+ * wc_AesCbcEncryptWithKey / wc_AesCbcDecryptWithKey round-trip: exercises the
+ * WC_ALLOC/wc_AesInit/SetKey/CbcEncrypt ret==0 chains in wc_encrypt.c.
+ */
+int test_wc_AesCbcEncryptDecryptWithKey(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+    const byte key[16] = {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xdc,0xba,0x98,0x76,0x54,0x32,0x10
+    };
+    const byte iv[16] = {
+        0x10,0x20,0x30,0x40,0x50,0x60,0x70,0x80,
+        0x90,0xa0,0xb0,0xc0,0xd0,0xe0,0xf0,0x00
+    };
+    const byte plain[16] = {
+        'w','o','l','f','s','s','l',' ','a','e','s','c','b','c','!','!'
+    };
+    byte cipher[16] = {0};
+    byte decrypted[16] = {0};
+
+    ExpectIntEQ(wc_AesCbcEncryptWithKey(cipher, plain, (word32)sizeof(plain),
+                                        key, (word32)sizeof(key), iv), 0);
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, cipher,
+                                        (word32)sizeof(cipher),
+                                        key, (word32)sizeof(key), iv), 0);
+    ExpectBufEQ(decrypted, plain, (int)sizeof(plain));
+
+    /* invalid key size propagates an error out of the ret==0 chain */
+    ExpectIntNE(wc_AesCbcEncryptWithKey(cipher, plain, (word32)sizeof(plain),
+                                        key, 5, iv), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_AesCbcEncryptDecryptWithKey */
+
+/*
+ * wc_BufferKeyEncrypt / wc_BufferKeyDecrypt: argument-check decision coverage
+ * (the 5- and 4-operand OR guards) plus the info->cipherType dispatch arms
+ * (WC_CIPHER_DES / WC_CIPHER_DES3 / WC_CIPHER_AES_CBC).
+ */
+int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
+    !defined(NO_PWDBASED) && !defined(NO_SHA)
+    const byte pw[] = { 'p','a','s','s','w','o','r','d' };
+    EncryptedInfo info;
+    byte der[32];
+
+    /* ---- wc_BufferKeyEncrypt argument-check independence pairs ---- */
+    /* baseline: all operands valid (built per cipher below); here vary one at a
+     * time while the others are valid. */
+    XMEMSET(&info, 0, sizeof(info));
+    info.cipherType = WC_CIPHER_AES_CBC;
+    info.keySz = 16;
+    info.ivSz  = 16;
+    XMEMSET(info.iv, 0x22, 16);
+    XMEMSET(der, 0x33, sizeof(der));
+
+    /* der == NULL */
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, NULL, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* password == NULL */
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, (word32)sizeof(der),
+                    NULL, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* info == NULL */
+    ExpectIntEQ(wc_BufferKeyEncrypt(NULL, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* info->keySz == 0 */
+    info.keySz = 0;
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    info.keySz = 16;
+    /* info->ivSz < PKCS5_SALT_SZ */
+    info.ivSz = PKCS5_SALT_SZ - 1;
+    ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    info.ivSz = 16;
+
+    /* ---- wc_BufferKeyDecrypt argument-check independence pairs ---- */
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, NULL, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, (word32)sizeof(der),
+                    NULL, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_BufferKeyDecrypt(NULL, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    info.keySz = 0;
+    ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, (word32)sizeof(der),
+                    pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    info.keySz = 16;
+
+    /* ---- cipherType dispatch: AES-CBC encrypt (16-byte block) ---- */
+#if defined(HAVE_AES_CBC)
+    {
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_AES_CBC;
+        info.keySz = 16;
+        info.ivSz  = 16;
+        XMEMSET(info.iv, 0x24, 16);
+        XMEMSET(der, 0x33, 16);
+        ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, 16,
+                        pw, (int)sizeof(pw), WC_HASH_TYPE_SHA), 0);
+    }
+#endif
+    /* ---- cipherType dispatch: 3DES and DES encrypt (8-byte block) ---- */
+#ifndef NO_DES3
+    {
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_DES3;
+        info.keySz = 24;
+        info.ivSz  = PKCS5_SALT_SZ;
+        XMEMSET(info.iv, 0x25, PKCS5_SALT_SZ);
+        XMEMSET(der, 0x33, 24);
+        ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, 24,
+                        pw, (int)sizeof(pw), WC_HASH_TYPE_SHA), 0);
+
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_DES;
+        info.keySz = 8;
+        info.ivSz  = PKCS5_SALT_SZ;
+        XMEMSET(info.iv, 0x26, PKCS5_SALT_SZ);
+        XMEMSET(der, 0x33, 24);
+        ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, 24,
+                        pw, (int)sizeof(pw), WC_HASH_TYPE_SHA), 0);
+    }
+#endif
+
+    /* ---- decrypt dispatch: iv is hex (Base16-decoded to the PBKDF salt) ---- */
+#if defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_BASE16)
+    {
+        /* 16 hex chars -> 8-byte salt after Base16_Decode */
+        const byte hexIv[16] = {
+            '1','1','2','2','3','3','4','4',
+            '5','5','6','6','7','7','8','8'
+        };
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_AES_CBC;
+        info.keySz = 16;
+        info.ivSz  = 16;
+        XMEMCPY(info.iv, hexIv, 16);
+        XMEMSET(der, 0x33, 16);
+        ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, 16,
+                        pw, (int)sizeof(pw), WC_HASH_TYPE_SHA), 0);
+
+        /* ivSz that decodes below PKCS5_SALT_SZ -> BUFFER_E */
+        XMEMSET(&info, 0, sizeof(info));
+        info.cipherType = WC_CIPHER_AES_CBC;
+        info.keySz = 16;
+        info.ivSz  = 4; /* 4 hex chars -> 2-byte salt < PKCS5_SALT_SZ */
+        XMEMCPY(info.iv, hexIv, 4);
+        XMEMSET(der, 0x33, 16);
+        ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, 16,
+                        pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_BufferKeyEncryptDecryptDecisionCoverage */
 

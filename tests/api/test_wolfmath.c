@@ -1027,3 +1027,518 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
     return EXPECT_RESULT();
 } /* End test_wc_SpIntExptGcdDecisionCoverage */
 
+/*
+ * MC/DC coverage for the FASTMATH multi-precision engine (wolfcrypt/src/tfm.c,
+ * the bigint-tfm module, iso26262/mcdc-per-module). Under USE_FAST_MATH the
+ * public mp_* API IS the fp_* engine (mp_* are macro/thin wrappers over fp_*),
+ * so these drive tfm.c's argument checks, capacity/FP_SIZE guards, sign paths,
+ * and degenerate-input decisions through the public, WOLFSSL_PUBLIC_MP-exposed
+ * surface. Decisions that live only in file-static helpers unreachable from the
+ * public API (fp_invmod_slow, _fp_exptmod_ct/_nct/_base_2,
+ * fp_montgomery_reduce_mulx, fp_cond_swap_ct, s_is_power_of_two,
+ * fp_prime_miller_rabin, fp_read_radix_16 internals) are supplemented by
+ * tests/unit-mcdc/test_tfm_whitebox.c.
+ */
+
+/*
+ * Testing fp_div / fp_div_d / fp_mod_d / fp_gcd / fp_lcm / fp_montgomery_* /
+ * fp_read_radix / mp_toradix / mp_radix_size / conversion helpers: argument,
+ * divisor-zero, degenerate-magnitude, capacity, sign, and radix-parser
+ * decision branches reachable from the public fastmath API.
+ */
+int test_wc_TfmDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_FAST_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
+    defined(WOLFSSL_KEY_GEN) && defined(HAVE_ECC)
+    mp_int a;
+    mp_int b;
+    mp_int c;
+    mp_int d;
+    mp_digit rem = 0;
+    byte bin[64];
+    char str[256];
+
+    XMEMSET(&a, 0, sizeof(a));
+    XMEMSET(&b, 0, sizeof(b));
+    XMEMSET(&c, 0, sizeof(c));
+    XMEMSET(&d, 0, sizeof(d));
+    XMEMSET(bin, 0, sizeof(bin));
+
+    ExpectIntEQ(mp_init(&a), MP_OKAY);
+    ExpectIntEQ(mp_init(&b), MP_OKAY);
+    ExpectIntEQ(mp_init(&c), MP_OKAY);
+    ExpectIntEQ(mp_init(&d), MP_OKAY);
+
+    /* fp_div: divisor zero (fp_iszero(b) true) -> MP_VAL; a<b fast path (both
+     * the d!=NULL/c!=NULL copy legs and their NULL counterparts); and a real
+     * division (both operands nonzero, a>b). */
+    ExpectIntEQ(mp_set(&a, 100), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, &c, &d), WC_NO_ERR_TRACE(MP_VAL)); /* b == 0 */
+    ExpectIntEQ(mp_set(&b, 200), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, &c, &d), MP_OKAY);   /* a < b: q=0,r=a; d,c!=NULL */
+    ExpectIntEQ(mp_div(&a, &b, NULL, &d), MP_OKAY); /* a < b: c==NULL leg */
+    ExpectIntEQ(mp_div(&a, &b, &c, NULL), MP_OKAY); /* a < b: d==NULL leg */
+    ExpectIntEQ(mp_set(&b, 7), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, &c, &d), MP_OKAY);   /* a > b: real division */
+    ExpectIntEQ(mp_div(&a, &b, &c, NULL), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, NULL, &d), MP_OKAY);
+
+    /* fp_mod_d via mp_mod_d: divisor 0 -> MP_VAL; divisor 1 / zero-dividend
+     * quick-out; power-of-two divisor (s_is_power_of_two true); non-power-of-2
+     * (general long-division loop). */
+    ExpectIntEQ(mp_set(&a, 0x9ABC), MP_OKAY);
+    ExpectIntEQ(mp_mod_d(&a, 0, &rem), WC_NO_ERR_TRACE(MP_VAL)); /* b == 0 */
+    ExpectIntEQ(mp_mod_d(&a, 1, &rem), MP_OKAY);       /* b == 1 quick out */
+    ExpectIntEQ(mp_mod_d(&a, 16, &rem), MP_OKAY);      /* power of two */
+    ExpectIntEQ(mp_mod_d(&a, 13, &rem), MP_OKAY);      /* non power of two */
+    ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+    ExpectIntEQ(mp_mod_d(&a, 13, &rem), MP_OKAY);      /* zero dividend quick out */
+
+    /* fp_gcd: gcd(0,0) undefined -> MP_VAL; one operand zero (result is the
+     * other); both nonzero normal; the cmp_mag sort both ways (a>=b and a<b). */
+    ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), WC_NO_ERR_TRACE(MP_VAL)); /* 0,0 */
+    ExpectIntEQ(mp_set(&b, 18), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), MP_OKAY);          /* a==0, b!=0 */
+    ExpectIntEQ(mp_set(&a, 18), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), MP_OKAY);          /* a!=0, b==0 */
+    ExpectIntEQ(mp_set(&a, 48), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 36), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), MP_OKAY);          /* a>=b sort */
+    ExpectIntEQ(mp_set(&a, 36), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 48), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), MP_OKAY);          /* a<b sort */
+
+    /* fp_lcm: lcm(0,x) undefined -> MP_VAL (both operand positions); normal
+     * both cmp_mag branches (a>b and a<=b select which operand is divided). */
+    ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 5), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), WC_NO_ERR_TRACE(MP_VAL)); /* a == 0 */
+    ExpectIntEQ(mp_set(&a, 5), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), WC_NO_ERR_TRACE(MP_VAL)); /* b == 0 */
+    ExpectIntEQ(mp_set(&a, 12), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 8), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), MP_OKAY);          /* |a| > |b| */
+    ExpectIntEQ(mp_set(&a, 8), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 12), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), MP_OKAY);          /* |a| <= |b| */
+
+    /* fp_montgomery_setup / fp_montgomery_reduce(_ex): setup on an odd modulus;
+     * reduce with the non-constant-time (ct==0) and constant-time (ct==1)
+     * decision arms. */
+    {
+        mp_digit mont = 0;
+        ExpectIntEQ(mp_set(&b, 0xF1), MP_OKAY);       /* odd modulus */
+        ExpectIntEQ(mp_montgomery_setup(&b, &mont), MP_OKAY);
+        ExpectIntEQ(mp_set(&a, 0x3), MP_OKAY);
+        ExpectIntEQ(mp_montgomery_reduce(&a, &b, mont), MP_OKAY);
+        ExpectIntEQ(mp_set(&a, 0x3), MP_OKAY);
+        ExpectIntEQ(mp_montgomery_reduce_ex(&a, &b, mont, 0), MP_OKAY);
+        ExpectIntEQ(mp_set(&a, 0x3), MP_OKAY);
+        ExpectIntEQ(mp_montgomery_reduce_ex(&a, &b, mont, 1), MP_OKAY); /* ct */
+    }
+
+    /* fp_to_unsigned_bin_len_ct: NULL a, NULL out, negative outSz -> MP_VAL;
+     * normal. */
+    ExpectIntEQ(mp_set(&a, 0x123456), MP_OKAY);
+    ExpectIntEQ(mp_to_unsigned_bin_len_ct(NULL, bin, (int)sizeof(bin)),
+        WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_to_unsigned_bin_len_ct(&a, NULL, (int)sizeof(bin)),
+        WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_to_unsigned_bin_len_ct(&a, bin, -1),
+        WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_to_unsigned_bin_len_ct(&a, bin, (int)sizeof(bin)), MP_OKAY);
+    ExpectIntEQ(mp_to_unsigned_bin_len(&a, bin, (int)sizeof(bin)), MP_OKAY);
+
+    /* fp_read_radix (generic radix-10 loop): normal; leading '-' sign path;
+     * trailing-whitespace tolerated (y>=radix then whitespace-to-EOL break);
+     * embedded invalid char after digits -> MP_VAL. */
+    ExpectIntEQ(mp_read_radix(&a, "255", 10), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&a, "-255", 10), MP_OKAY);       /* neg sign */
+    ExpectIntEQ(mp_read_radix(&a, "255 \t", 10), MP_OKAY);     /* trailing ws */
+    ExpectIntEQ(mp_read_radix(&a, "25!5", 10), WC_NO_ERR_TRACE(MP_VAL));
+    /* fp_read_radix_16 path (DIGIT_BIT==64/32 && radix==16): normal; trailing
+     * whitespace before any digit seen (eol_done false -> continue); embedded
+     * whitespace after digits seen (eol_done true -> MP_VAL); '-' sign. */
+    ExpectIntEQ(mp_read_radix(&a, "1Ab2", 16), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&a, "1Ab2 \n", 16), MP_OKAY);    /* trailing ws */
+    ExpectIntEQ(mp_read_radix(&a, "1A b2", 16), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_read_radix(&a, "-1Ab2", 16), MP_OKAY);      /* neg sign */
+
+#ifdef WC_MP_TO_RADIX
+    /* mp_radix_size / mp_toradix: radix==2 special; radix<2 -> MP_VAL; zero
+     * special (radix 16 padded and non-16); negative-sign; odd-hex-digit
+     * padding; general path. */
+    {
+        int size = 0;
+        ExpectIntEQ(mp_set(&a, 0xABCDE), MP_OKAY);
+        ExpectIntEQ(mp_radix_size(&a, 2, &size), MP_OKAY);       /* binary */
+        ExpectIntEQ(mp_radix_size(&a, 1, &size), WC_NO_ERR_TRACE(MP_VAL));
+        ExpectIntEQ(mp_radix_size(&a, 16, &size), MP_OKAY);      /* general */
+        ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+        ExpectIntEQ(mp_radix_size(&a, 16, &size), MP_OKAY);      /* zero, hex */
+        ExpectIntEQ(mp_radix_size(&a, 10, &size), MP_OKAY);      /* zero, dec */
+
+        ExpectIntEQ(mp_toradix(&a, str, 1), WC_NO_ERR_TRACE(MP_VAL));
+        ExpectIntEQ(mp_toradix(&a, str, 16), MP_OKAY);           /* zero, hex */
+        ExpectIntEQ(mp_toradix(&a, str, 10), MP_OKAY);           /* zero, dec */
+        ExpectIntEQ(mp_set(&a, 0xABCDE), MP_OKAY);
+        ExpectIntEQ(mp_toradix(&a, str, 16), MP_OKAY);           /* general hex */
+        ExpectIntEQ(mp_toradix(&a, str, 10), MP_OKAY);           /* general dec */
+    }
+#endif
+
+    /* fp_add / fp_sub sign matrix (tfm always carries a sign field): build a
+     * negative operand by subtracting a larger value, then drive same-sign and
+     * opposite-sign add/sub combinations so the fp_add/fp_sub magnitude-vs-sign
+     * dispatch branches are all taken. */
+    ExpectIntEQ(mp_set(&a, 3), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 10), MP_OKAY);
+    ExpectIntEQ(mp_sub(&a, &b, &c), MP_OKAY);      /* c = -7 (negative) */
+    ExpectIntEQ(mp_add(&c, &b, &d), MP_OKAY);      /* neg + pos */
+    ExpectIntEQ(mp_add(&b, &c, &d), MP_OKAY);      /* pos + neg */
+    ExpectIntEQ(mp_add(&c, &c, &d), MP_OKAY);      /* neg + neg */
+    ExpectIntEQ(mp_sub(&c, &b, &d), MP_OKAY);      /* neg - pos */
+    ExpectIntEQ(mp_sub(&b, &c, &d), MP_OKAY);      /* pos - neg */
+    ExpectIntEQ(mp_sub(&c, &c, &d), MP_OKAY);      /* neg - neg */
+
+    mp_clear(&a);
+    mp_clear(&b);
+    mp_clear(&c);
+    mp_clear(&d);
+#endif
+    return EXPECT_RESULT();
+} /* End test_wc_TfmDecisionCoverage */
+
+/*
+ * Testing fp_exptmod / fp_exptmod_ex / fp_exptmod_nct / fp_invmod /
+ * fp_invmod_mont_ct / fp_isprime_ex / mp_prime_is_prime(_ex): the top-level
+ * modulus/degenerate-input decision chain (P==0, P->used capacity, P==1,
+ * X==0, G==0, base-2 special, negative-exponent invmod branch) plus the
+ * primality argument checks and small-value fast paths.
+ */
+int test_wc_TfmExptModDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_FAST_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
+    defined(WOLFSSL_KEY_GEN) && defined(HAVE_ECC)
+    mp_int g;
+    mp_int x;
+    mp_int p;
+    mp_int y;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&y, 0, sizeof(y));
+
+    ExpectIntEQ(mp_init(&g), MP_OKAY);
+    ExpectIntEQ(mp_init(&x), MP_OKAY);
+    ExpectIntEQ(mp_init(&p), MP_OKAY);
+    ExpectIntEQ(mp_init(&y), MP_OKAY);
+
+    /* fp_exptmod (constant-time arm under TFM_TIMING_RESISTANT, otherwise nct):
+     * P==0 -> MP_VAL; P==1 -> Y=0; X==0 -> Y=1; G==0 -> Y=0; G==2 base-2
+     * special; ordinary base/exp. */
+    ExpectIntEQ(mp_set(&g, 4), MP_OKAY);
+    ExpectIntEQ(mp_set(&x, 13), MP_OKAY);
+    ExpectIntEQ(mp_set(&p, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), WC_NO_ERR_TRACE(MP_VAL)); /* P==0 */
+    ExpectIntEQ(mp_set(&p, 1), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);   /* P==1 -> Y=0 */
+    ExpectIntEQ(mp_set(&p, 497), MP_OKAY);
+    ExpectIntEQ(mp_set(&x, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);   /* X==0 -> Y=1 */
+    ExpectIntEQ(mp_set(&x, 13), MP_OKAY);
+    ExpectIntEQ(mp_set(&g, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);   /* G==0 -> Y=0 */
+    ExpectIntEQ(mp_set(&g, 2), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);   /* G==2 base-2 special */
+    ExpectIntEQ(mp_set(&g, 4), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);   /* ordinary */
+
+    /* fp_exptmod_ex: same degenerate chain plus an explicit digit count. */
+    ExpectIntEQ(mp_set(&p, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_ex(&g, &x, x.used, &p, &y), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_set(&p, 1), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_ex(&g, &x, x.used, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_set(&p, 497), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_ex(&g, &x, x.used, &p, &y), MP_OKAY);
+
+    /* fp_exptmod_nct (explicit non-constant-time arm, always compiled): P==0
+     * -> MP_VAL; P==1 -> Y=0; X==0 -> Y=1; G==0 -> Y=0; ordinary. This is the
+     * disjoint _fp_exptmod_nct path (the MCDC_NO_TFM_TR variant routes the main
+     * exptmod here too). */
+    ExpectIntEQ(mp_set(&g, 4), MP_OKAY);
+    ExpectIntEQ(mp_set(&x, 13), MP_OKAY);
+    ExpectIntEQ(mp_set(&p, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_nct(&g, &x, &p, &y), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_set(&p, 1), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_nct(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_set(&p, 497), MP_OKAY);
+    ExpectIntEQ(mp_set(&x, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_nct(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_set(&x, 13), MP_OKAY);
+    ExpectIntEQ(mp_set(&g, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_nct(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_set(&g, 4), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_nct(&g, &x, &p, &y), MP_OKAY);
+
+    /* fp_invmod: inverse of 3 mod 497; then a non-invertible (even/even) input
+     * so the gcd!=1 rejection branch is taken. */
+    ExpectIntEQ(mp_set(&g, 3), MP_OKAY);
+    ExpectIntEQ(mp_set(&p, 497), MP_OKAY);
+    ExpectIntEQ(mp_invmod(&g, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_set(&g, 4), MP_OKAY);
+    ExpectIntEQ(mp_set(&p, 6), MP_OKAY);
+    ExpectIntNE(mp_invmod(&g, &p, &y), MP_OKAY);   /* gcd(4,6)!=1: not invertible */
+
+    /* fp_invmod_mont_ct: inverse mod an odd modulus with the Montgomery
+     * constant from setup (constant-time inverse used by ECC). */
+    {
+        mp_digit mont = 0;
+        ExpectIntEQ(mp_set(&p, 497), MP_OKAY);
+        ExpectIntEQ(mp_montgomery_setup(&p, &mont), MP_OKAY);
+        ExpectIntEQ(mp_set(&g, 3), MP_OKAY);
+        ExpectIntEQ(mp_invmod_mont_ct(&g, &p, &y, mont), MP_OKAY);
+    }
+
+    /* fp_isprime_ex via mp_prime_is_prime: t out of range (t<=0, t>PRIME_SIZE)
+     * -> MP_VAL; a==1 -> NO; a in small-primes table -> YES; a composite even
+     * (trial division catches it) -> NO; a a larger prime (needs Miller-Rabin)
+     * -> YES. */
+    {
+        int result = 0;
+        ExpectIntEQ(mp_set(&g, 17), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&g, 0, &result),
+            WC_NO_ERR_TRACE(MP_VAL));                /* t <= 0 */
+        ExpectIntEQ(mp_prime_is_prime(&g, 1000000, &result),
+            WC_NO_ERR_TRACE(MP_VAL));                /* t > FP_PRIME_SIZE */
+        ExpectIntEQ(mp_set(&g, 1), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&g, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_NO);                  /* a == 1 */
+        ExpectIntEQ(mp_set(&g, 7), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&g, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_YES);                 /* in primes table */
+        ExpectIntEQ(mp_set(&g, 100), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&g, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_NO);                  /* even composite */
+        ExpectIntEQ(mp_set(&g, 1009), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&g, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_YES);                 /* prime via Miller-Rabin */
+
+#if !defined(WC_NO_RNG)
+        {
+            WC_RNG rng;
+            XMEMSET(&rng, 0, sizeof(rng));
+            ExpectIntEQ(wc_InitRng(&rng), 0);
+            /* mp_prime_is_prime_ex NULL/degenerate checks + a real trial. */
+            ExpectIntEQ(mp_prime_is_prime_ex(NULL, 8, &result, &rng),
+                WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(mp_prime_is_prime_ex(&g, 8, NULL, &rng),
+                WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(mp_prime_is_prime_ex(&g, 8, &result, NULL),
+                WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(mp_prime_is_prime_ex(&g, 0, &result, &rng),
+                WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(mp_set(&g, 1), MP_OKAY);
+            ExpectIntEQ(mp_prime_is_prime_ex(&g, 8, &result, &rng), MP_OKAY);
+            ExpectIntEQ(result, MP_NO);
+            ExpectIntEQ(mp_set(&g, 1009), MP_OKAY);
+            ExpectIntEQ(mp_prime_is_prime_ex(&g, 8, &result, &rng), MP_OKAY);
+            ExpectIntEQ(result, MP_YES);
+            DoExpectIntEQ(wc_FreeRng(&rng), 0);
+        }
+#endif /* !WC_NO_RNG */
+    }
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&y);
+#endif
+    return EXPECT_RESULT();
+} /* End test_wc_TfmExptModDecisionCoverage */
+
+/*
+ * MC/DC coverage for the HEAPMATH multi-precision engine
+ * (wolfcrypt/src/integer.c, the bigint-integer module,
+ * iso26262/mcdc-per-module). Under USE_INTEGER_HEAP_MATH the public mp_* API
+ * IS integer.c. These drive its argument checks, divisor-zero / degenerate
+ * guards, capacity paths and radix parser through the public,
+ * WOLFSSL_PUBLIC_MP-exposed surface. The file-static helpers (mp_div_d,
+ * mp_prime_miller_rabin, mp_prime_is_divisible, s_is_power_of_two, bn_reverse)
+ * are supplemented by tests/unit-mcdc/test_integer_whitebox.c.
+ */
+int test_wc_IntegerDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_INTEGER_HEAP_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_RSA) && \
+    defined(WOLFSSL_KEY_GEN) && defined(HAVE_ECC)
+    mp_int a;
+    mp_int b;
+    mp_int c;
+    mp_int d;
+    mp_digit rem = 0;
+    byte bin[64];
+    char str[256];
+
+    XMEMSET(&a, 0, sizeof(a));
+    XMEMSET(&b, 0, sizeof(b));
+    XMEMSET(&c, 0, sizeof(c));
+    XMEMSET(&d, 0, sizeof(d));
+    XMEMSET(bin, 0, sizeof(bin));
+
+    ExpectIntEQ(mp_init(&a), MP_OKAY);
+    ExpectIntEQ(mp_init(&b), MP_OKAY);
+    ExpectIntEQ(mp_init(&c), MP_OKAY);
+    ExpectIntEQ(mp_init(&d), MP_OKAY);
+
+    /* mp_div: divisor zero -> MP_VAL; a<b fast path (q=0,r=a) with c/d present
+     * and NULL; a>b real division; quotient-only and remainder-only. */
+    ExpectIntEQ(mp_set(&a, 100), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, &c, &d), WC_NO_ERR_TRACE(MP_VAL)); /* b==0 */
+    ExpectIntEQ(mp_set(&b, 200), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, &c, &d), MP_OKAY);  /* a<b */
+    ExpectIntEQ(mp_div(&a, &b, NULL, &d), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, &c, NULL), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 7), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, &c, &d), MP_OKAY);  /* a>b division */
+    ExpectIntEQ(mp_div(&a, &b, &c, NULL), MP_OKAY);
+    ExpectIntEQ(mp_div(&a, &b, NULL, &d), MP_OKAY);
+
+    /* mp_mod_d: divisor 0 -> MP_VAL; divisor 1 / zero-dividend quick out;
+     * power-of-two vs non-power-of-two divisor. */
+    ExpectIntEQ(mp_set(&a, 0x9ABC), MP_OKAY);
+    ExpectIntEQ(mp_mod_d(&a, 0, &rem), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_mod_d(&a, 1, &rem), MP_OKAY);
+    ExpectIntEQ(mp_mod_d(&a, 16, &rem), MP_OKAY);
+    ExpectIntEQ(mp_mod_d(&a, 13, &rem), MP_OKAY);
+    ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+    ExpectIntEQ(mp_mod_d(&a, 13, &rem), MP_OKAY);
+
+    /* mp_gcd: gcd(0,0) -> MP_VAL; one-operand-zero; normal both sort orders. */
+    ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_set(&b, 18), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), MP_OKAY);      /* a==0 */
+    ExpectIntEQ(mp_set(&a, 48), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 36), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), MP_OKAY);
+    ExpectIntEQ(mp_set(&a, 36), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 48), MP_OKAY);
+    ExpectIntEQ(mp_gcd(&a, &b, &c), MP_OKAY);
+
+    /* mp_lcm: lcm with a zero operand -> MP_VAL (both positions); normal. */
+    ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 5), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_set(&a, 5), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_set(&a, 12), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 8), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), MP_OKAY);
+    ExpectIntEQ(mp_set(&a, 8), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 12), MP_OKAY);
+    ExpectIntEQ(mp_lcm(&a, &b, &c), MP_OKAY);
+
+    /* mp_exptmod: P==0 -> MP_VAL; P==1; X==0; G==0; ordinary. */
+    ExpectIntEQ(mp_set(&a, 4), MP_OKAY);   /* base */
+    ExpectIntEQ(mp_set(&b, 13), MP_OKAY);  /* exp  */
+    ExpectIntEQ(mp_set(&c, 0), MP_OKAY);   /* mod  */
+    ExpectIntNE(mp_exptmod(&a, &b, &c, &d), MP_OKAY); /* P==0 */
+    ExpectIntEQ(mp_set(&c, 1), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &c, &d), MP_OKAY);
+    ExpectIntEQ(mp_set(&c, 497), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &c, &d), MP_OKAY); /* X==0 */
+    ExpectIntEQ(mp_set(&b, 13), MP_OKAY);
+    ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &c, &d), MP_OKAY); /* G==0 */
+    ExpectIntEQ(mp_set(&a, 4), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &c, &d), MP_OKAY); /* ordinary */
+    ExpectIntEQ(mp_exptmod_nct(&a, &b, &c, &d), MP_OKAY);
+
+    /* mp_invmod: normal inverse; non-invertible (even/even) rejection. */
+    ExpectIntEQ(mp_set(&a, 3), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 497), MP_OKAY);
+    ExpectIntEQ(mp_invmod(&a, &b, &c), MP_OKAY);
+    ExpectIntEQ(mp_set(&a, 4), MP_OKAY);
+    ExpectIntEQ(mp_set(&b, 6), MP_OKAY);
+    ExpectIntNE(mp_invmod(&a, &b, &c), MP_OKAY);
+
+    /* mp_montgomery_setup / mp_montgomery_reduce on an odd modulus. */
+    {
+        mp_digit mont = 0;
+        ExpectIntEQ(mp_set(&b, 0xF1), MP_OKAY);
+        ExpectIntEQ(mp_montgomery_setup(&b, &mont), MP_OKAY);
+        ExpectIntEQ(mp_set(&a, 0x3), MP_OKAY);
+        ExpectIntEQ(mp_montgomery_reduce(&a, &b, mont), MP_OKAY);
+    }
+
+    /* mp_read_radix: generic radix-10 (normal, negative, trailing whitespace,
+     * embedded invalid); radix-16. */
+    ExpectIntEQ(mp_read_radix(&a, "255", 10), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&a, "-255", 10), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&a, "1Ab2", 16), MP_OKAY);
+
+    /* mp_to_unsigned_bin_len + conversion. */
+    ExpectIntEQ(mp_set(&a, 0x123456), MP_OKAY);
+    ExpectIntEQ(mp_to_unsigned_bin_len(&a, bin, (int)sizeof(bin)), MP_OKAY);
+
+#ifdef WC_MP_TO_RADIX
+    /* mp_radix_size / mp_toradix: radix==2 special; radix<2 -> MP_VAL; zero
+     * special; general hex and decimal. */
+    {
+        int size = 0;
+        ExpectIntEQ(mp_set(&a, 0xABCDE), MP_OKAY);
+        ExpectIntEQ(mp_radix_size(&a, 2, &size), MP_OKAY);
+        ExpectIntEQ(mp_radix_size(&a, 1, &size), WC_NO_ERR_TRACE(MP_VAL));
+        ExpectIntEQ(mp_radix_size(&a, 16, &size), MP_OKAY);
+        ExpectIntEQ(mp_toradix(&a, str, 1), WC_NO_ERR_TRACE(MP_VAL));
+        ExpectIntEQ(mp_toradix(&a, str, 16), MP_OKAY);
+        ExpectIntEQ(mp_toradix(&a, str, 10), MP_OKAY);
+        ExpectIntEQ(mp_set(&a, 0), MP_OKAY);
+        ExpectIntEQ(mp_toradix(&a, str, 16), MP_OKAY);  /* zero */
+    }
+#endif
+
+    /* mp_prime_is_prime: t out of range; a==1; table prime; even composite;
+     * larger prime via Miller-Rabin. */
+    {
+        int result = 0;
+        ExpectIntEQ(mp_set(&a, 17), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&a, 0, &result), WC_NO_ERR_TRACE(MP_VAL));
+        ExpectIntEQ(mp_set(&a, 1), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&a, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_NO);
+        ExpectIntEQ(mp_set(&a, 7), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&a, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_YES);
+        ExpectIntEQ(mp_set(&a, 100), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&a, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_NO);
+        ExpectIntEQ(mp_set(&a, 1009), MP_OKAY);
+        ExpectIntEQ(mp_prime_is_prime(&a, 8, &result), MP_OKAY);
+        ExpectIntEQ(result, MP_YES);
+    }
+
+    mp_clear(&a);
+    mp_clear(&b);
+    mp_clear(&c);
+    mp_clear(&d);
+#endif
+    return EXPECT_RESULT();
+} /* End test_wc_IntegerDecisionCoverage */
+

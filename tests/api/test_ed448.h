@@ -38,6 +38,8 @@ int test_wc_Ed448KeyToDer(void);
 int test_wc_Ed448PrivateKeyToDer(void);
 int test_wc_Ed448KeyToDer_oneasymkey_version(void);
 int test_wc_ed448_reject_small_order_keys(void);
+int test_wc_Ed448DecisionCoverage(void);
+int test_wc_Ed448FeatureCoverage(void);
 
 #define TEST_ED448_DECLS                                          \
     TEST_DECL_GROUP("ed448", test_wc_ed448_make_key),             \
@@ -53,6 +55,8 @@ int test_wc_ed448_reject_small_order_keys(void);
     TEST_DECL_GROUP("ed448", test_wc_Ed448KeyToDer),              \
     TEST_DECL_GROUP("ed448", test_wc_Ed448PrivateKeyToDer),       \
     TEST_DECL_GROUP("ed448", test_wc_Ed448KeyToDer_oneasymkey_version), \
-    TEST_DECL_GROUP("ed448", test_wc_ed448_reject_small_order_keys)
+    TEST_DECL_GROUP("ed448", test_wc_ed448_reject_small_order_keys), \
+    TEST_DECL_GROUP("ed448", test_wc_Ed448DecisionCoverage),      \
+    TEST_DECL_GROUP("ed448", test_wc_Ed448FeatureCoverage)
 
 #endif /* WOLFCRYPT_TEST_ED448_H */

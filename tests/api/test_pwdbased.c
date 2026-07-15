@@ -71,3 +71,174 @@ int test_wc_PBKDF2_ex_iterations(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* MC/DC decision coverage of wc_PBKDF1_ex: independence pair for each operand
+ * of the argument-check OR, the iteration ceiling, the invalid-hash path, and
+ * one valid derivation. */
+int test_wc_PBKDF1DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PBKDF1) && !defined(NO_PWDBASED) && !defined(NO_SHA) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    static const byte passwd[] = { 'p', 'a', 's', 's' };
+    static const byte salt[]   = { 0x78, 0x57, 0x8E, 0x5a,
+                                   0x5d, 0x63, 0xcb, 0x06 };
+    byte derived[16] = {0};
+    int  prevMax;
+
+    /* argument-check OR: key==NULL || keyLen<0 || passwdLen<0 || saltLen<0 ||
+     * ivLen<0 -- vary each operand alone (others valid). */
+    ExpectIntEQ(wc_PBKDF1_ex(NULL, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
+                    2, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PBKDF1_ex(derived, -1, NULL, 0,
+                    passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
+                    2, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, -1, salt, (int)sizeof(salt),
+                    2, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), salt, -1,
+                    2, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, -1,
+                    passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
+                    2, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* iterations <= 0 */
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
+                    0, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* iterations > current max */
+    prevMax = wc_PBKDF_max_iterations_get();
+    ExpectIntGT(wc_PBKDF_max_iterations_set(2), 0);
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
+                    3, WC_SHA, HEAP_HINT), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntGT(wc_PBKDF_max_iterations_set(prevMax), 0);
+
+    /* invalid hash type -> error out of wc_HashGetDigestSize (not 0) */
+    ExpectIntNE(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
+                    2, WC_HASH_TYPE_NONE, HEAP_HINT), 0);
+
+    /* valid derivation (keyLen spanning >1 digest block) */
+    ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
+                    passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
+                    2, WC_SHA, HEAP_HINT), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* MC/DC decision coverage of wc_PBKDF2_ex argument checks + edges. */
+int test_wc_PBKDF2DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+    !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    static const byte passwd[] = { 'p', 'a', 's', 's' };
+    static const byte salt[]   = { 0x78, 0x57, 0x8E, 0x5a,
+                                   0x5d, 0x63, 0xcb, 0x06 };
+    byte derived[24] = {0};
+    int  prevMax;
+
+    /* output==NULL || pLen<0 || sLen<0 || kLen<0 -- vary each operand alone. */
+    ExpectIntEQ(wc_PBKDF2_ex(NULL, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, -1,
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, -1, 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, -1,
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* iterations <= 0 */
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 0, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* iterations > current max */
+    prevMax = wc_PBKDF_max_iterations_get();
+    ExpectIntGT(wc_PBKDF_max_iterations_set(2), 0);
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 3, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntGT(wc_PBKDF_max_iterations_set(prevMax), 0);
+
+    /* invalid hash type -> hLen<0 -> BAD_FUNC_ARG */
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_HASH_TYPE_NONE, HEAP_HINT, INVALID_DEVID),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* valid derivation */
+    ExpectIntEQ(wc_PBKDF2_ex(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, HEAP_HINT, INVALID_DEVID), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* MC/DC decision coverage of wc_PKCS12_PBKDF argument checks + edges. */
+int test_wc_PKCS12_PBKDFDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    static const byte passwd[] = { 'p', 'a', 's', 's' };
+    static const byte salt[]   = { 0x78, 0x57, 0x8E, 0x5a,
+                                   0x5d, 0x63, 0xcb, 0x06 };
+    byte derived[24] = {0};
+    int  prevMax;
+    const int id = 1; /* key material id (RFC 7292) */
+
+    /* output==NULL || passLen<=0 || saltLen<=0 || kLen<0 -- vary each. */
+    ExpectIntEQ(wc_PKCS12_PBKDF(NULL, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, id), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, 0,
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, id), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
+                    salt, 0, 2, (int)sizeof(derived),
+                    WC_SHA256, id), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, -1,
+                    WC_SHA256, id), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* iterations <= 0 */
+    ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 0, (int)sizeof(derived),
+                    WC_SHA256, id), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* iterations > current max */
+    prevMax = wc_PBKDF_max_iterations_get();
+    ExpectIntGT(wc_PBKDF_max_iterations_set(2), 0);
+    ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 3, (int)sizeof(derived),
+                    WC_SHA256, id), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntGT(wc_PBKDF_max_iterations_set(prevMax), 0);
+
+    /* invalid hash type -> error out of wc_HashGetDigestSize (not 0) */
+    ExpectIntNE(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_HASH_TYPE_NONE, id), 0);
+
+    /* valid derivation */
+    ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, id), 0);
+#endif
+    return EXPECT_RESULT();
+}

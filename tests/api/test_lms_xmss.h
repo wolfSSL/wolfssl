@@ -30,6 +30,10 @@ int test_rfc9802_lms_x509_verify(void);
 int test_rfc9802_xmss_x509_verify(void);
 int test_rfc9802_lms_x509_gen(void);
 int test_rfc9802_xmss_x509_gen(void);
+int test_wc_LmsDecisionCoverage(void);
+int test_wc_LmsFeatureCoverage(void);
+int test_wc_XmssDecisionCoverage(void);
+int test_wc_XmssFeatureCoverage(void);
 
 /* LMS, and RFC 9802 (HSS/LMS and XMSS/XMSS^MT in X.509). */
 #define TEST_LMS_XMSS_DECLS                                                  \
@@ -38,6 +42,10 @@ int test_rfc9802_xmss_x509_gen(void);
     TEST_DECL_GROUP("lms", test_rfc9802_lms_x509_verify),               \
     TEST_DECL_GROUP("xmss", test_rfc9802_xmss_x509_verify),             \
     TEST_DECL_GROUP("lms", test_rfc9802_lms_x509_gen),                  \
-    TEST_DECL_GROUP("xmss", test_rfc9802_xmss_x509_gen)
+    TEST_DECL_GROUP("xmss", test_rfc9802_xmss_x509_gen),                \
+    TEST_DECL_GROUP("lms", test_wc_LmsDecisionCoverage),               \
+    TEST_DECL_GROUP("lms", test_wc_LmsFeatureCoverage),               \
+    TEST_DECL_GROUP("xmss", test_wc_XmssDecisionCoverage),            \
+    TEST_DECL_GROUP("xmss", test_wc_XmssFeatureCoverage)
 
 #endif /* WOLFCRYPT_TEST_LMS_XMSS_H */

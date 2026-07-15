@@ -4087,3 +4087,293 @@ int test_wc_mlkem_decode_privkey_bad_pubhash(void)
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_decode_privkey_bad_pubhash */
 
+
+/******************************************************************************
+ * MC/DC coverage supplements (ISO 26262 per-module campaign).
+ *
+ * test_wc_MlkemDecisionCoverage: one negative call per argument-check /
+ * short-buffer / key-state branch in the public ML-KEM API, each asserting the
+ * SPECIFIC error, so every guard operand shows its independence pair (the
+ * all-valid rows are supplied by the KAT tests and FeatureCoverage below, all
+ * in the same tests/unit.test binary where llvm-cov unions MC/DC).
+ *
+ * test_wc_MlkemFeatureCoverage: positive full make-key/encode/decode/
+ * encapsulate/decapsulate round-trips over every compiled parameter set, to
+ * drive the per-parameter-set switch arms and the NTT/compress/decompress
+ * positive paths.
+ *****************************************************************************/
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+/* Full positive round-trip for one parameter set. Returns TEST_SUCCESS. */
+static int mlkem_feature_roundtrip(int type)
+{
+    EXPECT_DECLS;
+    MlKemKey* key = NULL;
+    MlKemKey* peer = NULL;
+    WC_RNG rng;
+    byte* priv = NULL;
+    byte* pub  = NULL;
+    byte* ct   = NULL;
+    byte ss1[WC_ML_KEM_SS_SZ];
+    byte ss2[WC_ML_KEM_SS_SZ];
+    word32 privLen = 0;
+    word32 pubLen = 0;
+    word32 ctLen = 0;
+    word32 ssLen = 0;
+    word32 badLen = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(ss1, 0, sizeof(ss1));
+    XMEMSET(ss2, 0, sizeof(ss2));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    key  = (MlKemKey*)XMALLOC(sizeof(*key),  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    peer = (MlKemKey*)XMALLOC(sizeof(*peer), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    ExpectNotNull(peer);
+
+    ExpectIntEQ(wc_MlKemKey_Init(key,  type, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(peer, type, NULL, INVALID_DEVID), 0);
+
+    /* Size queries drive the per-parameter-set case arms. */
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(key, &privLen), 0);
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(key, &pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &ctLen), 0);
+    ExpectIntEQ(wc_MlKemKey_SharedSecretSize(key, &ssLen), 0);
+    ExpectIntEQ((int)ssLen, WC_ML_KEM_SS_SZ);
+
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+
+    priv = (byte*)XMALLOC(privLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pub  = (byte*)XMALLOC(pubLen,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ct   = (byte*)XMALLOC(ctLen,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(priv);
+    ExpectNotNull(pub);
+    ExpectNotNull(ct);
+
+    /* Encode both halves; decode the public key into a peer object. */
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pub, pubLen), 0);
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, priv, privLen), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePublicKey(peer, pub, pubLen), 0);
+
+    /* Peer encapsulates to us; we decapsulate and recover the same secret. */
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(peer, ct, ss1, &rng), 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss2, ct, ctLen), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(XMEMCMP(ss1, ss2, WC_ML_KEM_SS_SZ), 0);
+
+    /* Wrong cipher-text length: the len guard's false side -> BUFFER_E. */
+    badLen = (ctLen > 1) ? (ctLen - 1) : (ctLen + 1);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss2, ct, badLen),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
+
+    /* Decode the private key into a fresh object and decapsulate again. */
+    wc_MlKemKey_Free(peer);
+    ExpectIntEQ(wc_MlKemKey_Init(peer, type, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(peer, priv, privLen), 0);
+    XMEMSET(ss2, 0, sizeof(ss2));
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(peer, ss2, ct, ctLen), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(XMEMCMP(ss1, ss2, WC_ML_KEM_SS_SZ), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ct,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_MlKemKey_Free(peer);
+    wc_MlKemKey_Free(key);
+    XFREE(peer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wc_MlkemFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+#ifndef WOLFSSL_NO_ML_KEM_512
+    ExpectIntEQ(mlkem_feature_roundtrip(WC_ML_KEM_512), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_768
+    ExpectIntEQ(mlkem_feature_roundtrip(WC_ML_KEM_768), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    ExpectIntEQ(mlkem_feature_roundtrip(WC_ML_KEM_1024), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_MlkemFeatureCoverage */
+
+int test_wc_MlkemDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+    MlKemKey* key = NULL;
+    MlKemKey* newKey = NULL;
+    WC_RNG rng;
+    word32 len = 0;
+    byte out[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    byte in[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    byte rndMk[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    byte rndEnc[WC_ML_KEM_ENC_RAND_SZ];
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int t = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int t = WC_ML_KEM_512;
+#else
+    const int t = WC_ML_KEM_1024;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(in, 0, sizeof(in));
+    XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(ss, 0, sizeof(ss));
+    XMEMSET(rndMk, 0, sizeof(rndMk));
+    XMEMSET(rndEnc, 0, sizeof(rndEnc));
+
+    key = (MlKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* --- wc_MlKemKey_Init: (key == NULL) and unrecognized-type default. --- */
+    ExpectIntEQ(wc_MlKemKey_Init(NULL, t, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_Init(key, -12345, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Valid init: the false side of the guards, and the object under test. */
+    ExpectIntEQ(wc_MlKemKey_Init(key, t, NULL, INVALID_DEVID), 0);
+
+    /* --- wc_MlKemKey_New / _Delete. --- */
+    ExpectNull(wc_MlKemKey_New(-12345, NULL, INVALID_DEVID));
+    ExpectNotNull(newKey = wc_MlKemKey_New(t, NULL, INVALID_DEVID));
+    ExpectIntEQ(wc_MlKemKey_Delete(NULL, &newKey),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_Delete(newKey, &newKey), 0);
+
+    /* --- Size queries: (key == NULL) and (len == NULL) independence. --- */
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(NULL, &len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_SharedSecretSize(key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(NULL, &len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(NULL, &len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_PublicKeySize(key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    /* --- wc_MlKemKey_MakeKey / _MakeKeyWithRandom. --- */
+    ExpectIntEQ(wc_MlKemKey_MakeKey(NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(NULL, rndMk, sizeof(rndMk)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, NULL, sizeof(rndMk)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, rndMk, sizeof(rndMk) - 1),
+        WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+    /* --- wc_MlKemKey_Encapsulate: four-operand OR, one NULL per row. --- */
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(NULL, ct, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, NULL, ss, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* WithRandom: NULL operands + wrong length -> BUFFER_E. */
+    ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(NULL, ct, ss, rndEnc,
+        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, NULL, ss, rndEnc,
+        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, NULL, rndEnc,
+        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, NULL,
+        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, rndEnc,
+        sizeof(rndEnc) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    /* --- wc_MlKemKey_Decapsulate: three-operand OR + priv-not-set state. --- */
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(NULL, ss, ct, sizeof(ct)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, NULL, ct, sizeof(ct)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, NULL, sizeof(ct)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Key initialised but no private key set -> BAD_STATE_E. */
+    ExpectIntEQ(wc_MlKemKey_CipherTextSize(key, &len), 0);
+    ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, len),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+#endif
+
+    /* --- Decode: (key == NULL) / (in == NULL) / wrong length -> BUFFER_E. --- */
+    ExpectIntEQ(wc_MlKemKey_DecodePublicKey(NULL, in, sizeof(in)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, NULL, sizeof(in)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, in, 1),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(NULL, in, sizeof(in)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(key, NULL, sizeof(in)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(key, in, 1),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* --- Encode: (key == NULL) / (out == NULL) / not-set state -> BAD_STATE_E.
+     *     key was Init'd but never populated, so pub/priv are unset. --- */
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(NULL, out, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, NULL, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, out, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(NULL, out, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, NULL, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, out, sizeof(out)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_MlKemKey_Free(key);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* Silence -Werror unused warnings when make-key / encapsulate / decapsulate
+     * are individually compiled out (the buffers are used only in those
+     * sub-guarded sections). */
+    (void)ct;
+    (void)ss;
+    (void)rndMk;
+    (void)rndEnc;
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_MlkemDecisionCoverage */
