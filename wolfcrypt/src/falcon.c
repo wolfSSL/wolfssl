@@ -3251,6 +3251,15 @@ void zint_co_reduce_mod(word32* a, word32* b, const word32* m, size_t len,
  * encoded length. Temporary array must be large enough to accommodate 4
  * extra values of that length. Arrays u, v and tmp may not overlap with
  * each other, or with either x or y.
+ *
+ * This is a binary GCD, but it runs in CONSTANT TIME: x and y are derived from
+ * the secret polynomials during key generation, so the control flow and memory
+ * access pattern must not depend on their values. That is why the loops are
+ * fixed-count and every conditional is expressed with bit masks / sign bits
+ * rather than data-dependent branches or early exits -- the structure that can
+ * look "inefficient" is exactly what keeps the private key off the timing side
+ * channel. It is still fast: the top words drive per-iteration reduction factors
+ * that shrink the operands by ~31 bits at a time (word-wise, not bit-by-bit).
  */
 int zint_bezout(word32* u, word32* v, const word32* x, const word32* y,
     size_t len, word32* tmp)
