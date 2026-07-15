@@ -6131,6 +6131,13 @@ out:
  * the PRNG's sticky error. */
 #define FALCON_SIGN_MAX_RESTARTS  4096UL
 
+#ifdef WOLFSSL_FALCON_SIGN_STATS
+/* Optional instrumentation: counts the (rare) ffSampling restarts, for test
+ * harnesses. Defined here so it links; external linkage so a harness can read
+ * it. Not compiled into production builds. */
+unsigned long falcon_sign_restart_count = 0;
+#endif
+
 /* IEEE-754 binary64 bit patterns (the fpr seam carries doubles as word64).
  * These mirror named constants from the reference fpr.h that are not part of
  * the public wc_falcon_fpr.h API. fpr_invsqrt2 / fpr_invsqrt8 ARE exported by
@@ -6944,9 +6951,7 @@ int falcon_do_sign_tree(falcon_samplerZ samp, void* samp_ctx, sword16* s2,
                 return *samplerErr;
             }
 #ifdef WOLFSSL_FALCON_SIGN_STATS
-            /* Optional instrumentation for test harnesses: counts the rare
-             * ffSampling restarts. Not compiled into production builds. */
-            extern unsigned long falcon_sign_restart_count;
+            /* Count this restart (counter defined at file scope). */
             falcon_sign_restart_count++;
 #endif
         }
@@ -8219,8 +8224,12 @@ int falcon_native_check_key(falcon_key* key)
     falcon_ntt(gt, n, zetas);
     falcon_ntt(h, n, zetas);
     for (i = 0; i < n; i++) {
+        /* Barrett reduction (division-free, constant-time) instead of '%': ft[i]
+         * is the NTT image of the secret polynomial f, and both h[i] and ft[i]
+         * are in [0, q) so the product is in [0, q^2) -- falcon_barrett's domain
+         * -- matching the verify path's pointwise multiply. */
         if (ft[i] == 0 ||
-                (word16)(((word64)h[i] * ft[i]) % FALCON_Q) != gt[i]) {
+                (word16)falcon_barrett((word32)h[i] * ft[i]) != gt[i]) {
             ret = PUBLIC_KEY_E;
             break;
         }

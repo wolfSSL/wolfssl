@@ -1858,8 +1858,13 @@ AC_ARG_WITH([liboqs],
 #   neon   - AArch64 NEON (2-wide float64x2_t + FMA) vectorized FFT; implies
 #            double. Advanced SIMD is part of the ARMv8-A baseline, so no special
 #            -march is required.
+#   small-mem - low-memory dynamic signing: rebuilds the ffLDL tree inside the
+#            sampler instead of precomputing the expanded key, roughly halving
+#            the sign working set (~168KB -> ~78KB at Falcon-1024) for ~10%
+#            slower signing. Orthogonal to the fpr/FFT backends above; verify
+#            and keygen are unchanged.
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list of fpr/FFT backends: asm, double, avx2, neon (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem for low-memory signing (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
