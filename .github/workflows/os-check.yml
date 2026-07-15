@@ -436,7 +436,12 @@ jobs:
           {"name": "opensslextra-no-filesystem-no-bio", "minutes": 0.9,
            "configure": ["--enable-opensslextra", "--disable-filesystem", "CPPFLAGS=-DNO_BIO"]},
           {"name": "no-examples-no-malloc", "minutes": 0.8,
-           "configure": ["--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_MALLOC"]}
+           "configure": ["--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_MALLOC"]},
+          {"comment": "WOLFSSL_NO_ASN_STRICT still enforces the RFC 5280 4.2 and 4.2.1.10 MUSTs",
+           "name": "no-asn-strict-certs",
+           "configure": ["--enable-testcert", "--enable-opensslextra", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-ecc",
+            "CPPFLAGS=-DWOLFSSL_NO_ASN_STRICT -DWOLFSSL_CUSTOM_OID -DHAVE_OID_ENCODING -DWOLFSSL_ALT_NAMES"]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \

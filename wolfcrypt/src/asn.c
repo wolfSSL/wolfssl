@@ -52,7 +52,14 @@ ASN Options:
  * RSA_DECODE_EXTRA: Decodes extra information in RSA public key.
  * WOLFSSL_CERT_GEN: Cert generation. Saves extra certificate info in GetName.
  * WOLFSSL_NO_ASN_STRICT: Disable strict RFC compliance checks to
-    restore 3.13.0 behavior.
+    restore 3.13.0 behavior. It no longer disables these RFC 5280 checks:
+    duplicate detection on the certificate extensions that use
+    VERIFY_AND_SET_OID (4.2), rejection of a critical extension whose OID is
+    unrecognized (4.2, subject to any WC_ASN_UNKNOWN_EXT_CB callback), and
+    application of directoryName name constraints to subjectAltName entries as
+    well as the subject (4.2.1.10). It still relaxes the critical check for a
+    recognized-but-unsupported extension (e.g. certificatePolicies without
+    WOLFSSL_SEP or WOLFSSL_CERT_EXT) and the CRL duplicate-extension check.
  * WOLFSSL_ASN_ALLOW_0_SERIAL: Even if WOLFSSL_NO_ASN_STRICT is not defined,
     allow a length=1, but zero value serial number.
  * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
@@ -19048,9 +19055,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 }
                 break;
             case ASN_DIR_TYPE:
-            #ifndef WOLFSSL_NO_ASN_STRICT
                 name = cert->altDirNames;
-            #endif
 
                 /* RFC 5280 section 4.2.1.10
                     "Restrictions of the form directoryName MUST be

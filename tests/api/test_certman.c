@@ -1024,13 +1024,8 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
 #endif
     ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
-#ifndef WOLFSSL_NO_ASN_STRICT
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
-#else
-    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
-                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-#endif
 
     /* check that it still fails if one bad altname and one good altname is in
      * the certificate */
@@ -1050,13 +1045,8 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
 #endif
     ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
-#ifndef WOLFSSL_NO_ASN_STRICT
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
-#else
-    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
-                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-#endif
 
     /* check it fails with switching position of bad altname */
     wolfSSL_X509_free(x509);
@@ -1075,13 +1065,8 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
 #endif
     ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
-#ifndef WOLFSSL_NO_ASN_STRICT
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
-#else
-    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
-                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-#endif
     wolfSSL_CertManagerFree(cm);
 
     wolfSSL_X509_free(x509);
@@ -1110,13 +1095,8 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
 #endif
     ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
-#ifndef WOLFSSL_NO_ASN_STRICT
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
-#else
-    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
-                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-#endif
     wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(x509);
     wolfSSL_X509_free(ca);
