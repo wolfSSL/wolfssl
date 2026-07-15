@@ -88,6 +88,8 @@ int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
         default:
             return BAD_FUNC_ARG;
     }
+    /* Mark key installed so the shared aes.c mode guards accept this context. */
+    aes->keyInstalled = 1;
 
     if ((ret = wc_AesSetIV(aes, iv)) != 0) {
         return ret;

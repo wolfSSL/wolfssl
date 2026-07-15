@@ -87,6 +87,9 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         aes->ctx.key.storage.location.buffer.pointer = (void*)aes->key;
         aes->ctx.key.storage.location.buffer.size = keylen;
         aes->ctx.key.size = keylen;
+        /* Mark key installed so the shared aes.c mode guards accept this
+         * context. */
+        aes->keyInstalled = 1;
     }
 
     return ret;

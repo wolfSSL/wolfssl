@@ -123,6 +123,8 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 #endif
     aes->keylen = keylen;
     aes->rounds = keylen/4 + 6;
+    /* Mark key installed so the shared aes.c mode guards accept this context. */
+    aes->keyInstalled = 1;
 
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
