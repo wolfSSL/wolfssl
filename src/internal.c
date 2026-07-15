@@ -31062,8 +31062,42 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
 #endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_TLS) && (!defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS))
-static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
+#ifdef WC_RSA_PSS
+/* Smallest RSA key able to make an RSA-PSS signature with the given hash:
+ * emLen >= 2*hLen + 2 (RFC 8017 9.1.1, salt length = hash length).
+ * Returns 0 when the hash isn't one used with RSA-PSS - no restriction. */
+static word32 MinRsaPssKeySz(int hashAlgo)
 {
+    word32 hLen;
+
+    switch (hashAlgo) {
+    #ifndef NO_SHA256
+        case sha256_mac:
+            hLen = WC_SHA256_DIGEST_SIZE;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hLen = WC_SHA384_DIGEST_SIZE;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            hLen = WC_SHA512_DIGEST_SIZE;
+            break;
+    #endif
+        default:
+            return 0;
+    }
+
+    return 2 * hLen + 2;
+}
+#endif /* WC_RSA_PSS */
+
+static int MatchSigAlgo(WOLFSSL* ssl, int hashAlgo, int sigAlgo)
+{
+    (void)hashAlgo;
+
 #ifdef HAVE_ED25519
     if (ssl->pkCurveOID == ECC_ED25519_OID) {
         /* Certificate has Ed25519 key, only match with Ed25519 sig alg  */
@@ -31124,9 +31158,16 @@ static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
         if (IsAtLeastTLSv1_3(ssl->version))
             return sigAlgo == rsa_pss_sa_algo;
     #endif
-        /* TLS 1.2 and below - RSA-PSS allowed. */
-        if (sigAlgo == rsa_pss_sa_algo)
+        /* TLS 1.2 and below - RSA-PSS allowed, but only if the RSA key is big
+         * enough to actually produce an RSA-PSS signature with this hash. */
+        if (sigAlgo == rsa_pss_sa_algo) {
+            word32 minSz = MinRsaPssKeySz(hashAlgo);
+
+            if (minSz != 0 && ssl->buffers.keySz != 0 &&
+                    (word32)ssl->buffers.keySz < minSz)
+                return 0;
             return 1;
+        }
     }
 #endif
 #ifdef HAVE_ECC_BRAINPOOL
@@ -31273,7 +31314,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
         if (hashAlgo < minHash)
             continue;
         /* Keep looking if signature algorithm isn't supported by cert. */
-        if (!MatchSigAlgo(ssl, sigAlgo))
+        if (!MatchSigAlgo(ssl, hashAlgo, sigAlgo))
             continue;
 
         if (matchSuites) {
