@@ -788,13 +788,10 @@
         #include <windows.h>
         #define WOLFSSL_THREAD_YIELD() (void)SwitchToThread()
     #elif defined(FREERTOS)
-        #include <freertos/task.h>
         #define WOLFSSL_THREAD_YIELD() taskYIELD()
     #elif defined(THREADX)
-        #include <tx_api.h>
         #define WOLFSSL_THREAD_YIELD() tx_thread_relinquish()
-    #elif defined(WOLFSSL_ZEPHYR)
-        #include <zephyr/kernel.h>
+    #elif defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x30100
         #define WOLFSSL_THREAD_YIELD() k_yield()
     #elif defined(WOLFSSL_VXWORKS)
         #include <vxWorks.h>
