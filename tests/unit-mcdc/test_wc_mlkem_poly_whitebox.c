@@ -133,10 +133,129 @@ static void wb_transform(void)
 
 #endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_ARMASM */
 
+/* ------------------------------------------------------------------------- *
+ * Additional file-static gap drivers (merged from the former _gap TU).
+ *
+ * Residual classes left untouched here (see the gap-closing REPORT.md for the
+ * full accounting):
+ *   - IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0):
+ *     cpuid-dispatch, host-always-AVX2 residual (same class as every other
+ *     module's intel-dispatch skip).
+ *   - The USE_INTEL_SPEEDUP AVX2 rejection-sampling while-loops: USE_INTEL_SPEEDUP
+ *     is OFF by default and only compiled with the separate `--enable-intelasm`
+ *     axis, which this campaign build does not use.
+ *   - `(ret == 0) && ...` chain guards in mlkem_gen_matrix_c/_i and
+ *     mlkem_get_noise_c: ret can only go non-zero via a mid-chain PRF/hash
+ *     failure, which is not selectable without corrupting library state.
+ *   - mlkem_hash512()'s data2 checks: the data2==NULL side only occurs on the
+ *     WOLFSSL_MLKEM_KYBER (original Kyber) call path, a separate build axis.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_MLKEM) && \
+    !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+
+/* ------------------------------------------------------------------------- *
+ * mlkem_rej_uniform_c(): j < rLen independence pair.
+ *
+ *   for (; (i + 4 < len) && (j < rLen); j += 6) { ... }
+ *
+ * All-0xFF random bytes decode to four 12-bit values of 0xFFF (4095) per
+ * 6-byte block - always >= MLKEM_Q (3329), so every candidate is rejected
+ * and "i" never advances past 0. With len == 8, "i + 4 < len" (4 < 8)
+ * stays true for the whole call, isolating j < rLen: the loop runs at
+ * least twice while data remains (j < rLen true) then stops the instant
+ * j reaches rLen (j < rLen false), with i + 4 < len unchanged throughout.
+ * ------------------------------------------------------------------------- */
+static void wb_rej_uniform_c_rlen_exhaust(void)
+{
+    sword16 p[16];
+    byte r[40];
+    unsigned int len = 8;
+    unsigned int rLen = 24;
+    unsigned int got;
+
+    XMEMSET(p, 0, sizeof(p));
+    /* All-ones: every decoded 12-bit sample is rejected (>= MLKEM_Q). */
+    XMEMSET(r, 0xFF, sizeof(r));
+
+    got = mlkem_rej_uniform_c(p, len, r, rLen);
+    if (got != 0) {
+        WB_NOTE("mlkem_rej_uniform_c: expected 0 accepted samples from an"
+            " all-rejected buffer");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("mlkem_rej_uniform_c j<rLen exhaustion pair exercised");
+}
+
+/* ------------------------------------------------------------------------- *
+ * mlkem_get_noise_c(): vec2 != NULL independence pair.
+ *
+ *   if ((ret == 0) && (vec2 != NULL)) { ... for each of k polynomials ... }
+ *
+ * Call once with a real vec2 (True side - also reachable from the public
+ * API) and once with vec2 == NULL (False side - not reachable from the
+ * public API in this build variant; see file header). k == 2 is used
+ * purely as a small, generic vector length; it does not depend on which
+ * WOLFSSL_WC_ML_KEM_* parameter set is compiled in.
+ * ------------------------------------------------------------------------- */
+static void wb_get_noise_c_vec2_null(void)
+{
+    MLKEM_PRF_T prf;
+    sword16 vec1[2 * MLKEM_N];
+    sword16 vec2[2 * MLKEM_N];
+    sword16 poly[MLKEM_N];
+    byte seed[WC_ML_KEM_SYM_SZ + 4];
+    const int k = 2;
+    int ret;
+
+    XMEMSET(vec1, 0, sizeof(vec1));
+    XMEMSET(vec2, 0, sizeof(vec2));
+    XMEMSET(poly, 0, sizeof(poly));
+    XMEMSET(seed, 0x37, sizeof(seed));
+
+    mlkem_prf_init(&prf);
+    /* vec2 != NULL True side (also poly != NULL True side). */
+    ret = mlkem_get_noise_c(&prf, k, vec1, MLKEM_CBD_ETA2, vec2,
+        MLKEM_CBD_ETA2, poly, seed);
+    if (ret != 0) {
+        WB_NOTE("mlkem_get_noise_c (vec2 non-NULL) failed");
+        wb_fail = 1;
+    }
+
+    XMEMSET(seed, 0x37, sizeof(seed));
+    /* vec2 != NULL False side: not reachable via the public API in this
+     * build variant (see file header). poly is also NULL here so the
+     * call stays memory-safe (no dereference of either optional output). */
+    ret = mlkem_get_noise_c(&prf, k, vec1, MLKEM_CBD_ETA2, NULL,
+        MLKEM_CBD_ETA2, NULL, seed);
+    if (ret != 0) {
+        WB_NOTE("mlkem_get_noise_c (vec2 NULL) failed");
+        wb_fail = 1;
+    }
+
+    mlkem_prf_free(&prf);
+
+    WB_NOTE("mlkem_get_noise_c vec2 NULL/non-NULL sides exercised");
+}
+
+#else
+
+static void wb_rej_uniform_c_rlen_exhaust(void)
+{
+    WB_NOTE("mlkem_rej_uniform_c arm not compiled in this variant; skipped");
+}
+
+static void wb_get_noise_c_vec2_null(void)
+{
+    WB_NOTE("mlkem_get_noise_c arm not compiled in this variant; skipped");
+}
+
+#endif
+
 int main(void)
 {
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_ARMASM)
     printf("wc_mlkem_poly.c white-box MC/DC supplement\n");
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_ARMASM)
     wb_cmp();
     wb_rej_uniform();
     wb_transform();
@@ -145,9 +264,13 @@ int main(void)
          * coverage is still valid. Report and exit 0. */
         printf("  [wb] note: one or more sanity checks were unexpected\n");
     }
-    printf("wc_mlkem_poly.c white-box: done\n");
 #else
     printf("wc_mlkem_poly.c white-box: skipped (MLKEM off or ARMASM build)\n");
 #endif
+    /* gap drivers below carry their own skip-stubs, so they are always safe
+     * to call regardless of the feature guard above. */
+    wb_rej_uniform_c_rlen_exhaust();
+    wb_get_noise_c_vec2_null();
+    printf("wc_mlkem_poly.c white-box: done\n");
     return 0;
 }

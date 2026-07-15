@@ -36,6 +36,17 @@
  *   ed448_hash() key/in/hash NULL guard ...................... 4 conditions
  * The only ed448.c gap confirmed structurally unreachable through the public
  * API (every wrapper hard-codes non-NULL, well-formed arguments).
+ *
+ * Also closes the "key == NULL" operand of the sanity checks in three more
+ * HAVE_ED448_VERIFY file-static functions: ed448_verify_msg_init_with_sha(),
+ * ed448_verify_msg_update_with_sha() and ed448_verify_msg_final_with_sha().
+ * wc_ed448_verify_msg_ex() (the non-streaming public entry point) always
+ * checks key == NULL itself before calling these, so that combination never
+ * reaches the static functions from there; the WOLFSSL_ED448_STREAMING_VERIFY
+ * wc_ed448_verify_msg_init/update/final() wrappers compute `&key->sha` from
+ * the caller's key *before* calling the static, so a NULL key can only be
+ * driven into the static safely by calling it directly here (each static
+ * checks key == NULL before dereferencing it, so this is memory-safe).
  */
 
 /* Pull ed448.c in verbatim so the file-static helper below is in scope and
@@ -126,6 +137,72 @@ static void wb_ed448_hash(void)
 
 #endif /* HAVE_ED448 */
 
+#if defined(HAVE_ED448) && defined(HAVE_ED448_VERIFY)
+
+/* ------------------------------------------------------------------------- *
+ * ed448_verify_msg_init_with_sha() / ed448_verify_msg_update_with_sha() /
+ * ed448_verify_msg_final_with_sha() each open with a "key == NULL" operand
+ * (ORed with other arguments) that no public caller can trip: the
+ * non-streaming entry point (wc_ed448_verify_msg_ex()) checks key == NULL
+ * itself first, and the streaming wrappers dereference key (to take
+ * &key->sha) before ever calling these static functions. Call the static functions directly.
+ * ------------------------------------------------------------------------- */
+static void wb_ed448_verify_key_null(void)
+{
+    wc_Shake sha;
+    byte     sig[ED448_SIG_SIZE];
+    byte     msg[8];
+    int      res;
+    int      ret;
+
+    XMEMSET(&sha, 0, sizeof(sha));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 0x22, sizeof(msg));
+
+    /* ed448_verify_msg_init_with_sha(): key == NULL, sig != NULL, no
+     * context -- the other two OR operands (sig == NULL,
+     * context == NULL && contextLen != 0) both FALSE. */
+    ret = ed448_verify_msg_init_with_sha(sig, sizeof(sig), NULL, &sha, Ed448,
+        NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("ed448_verify_msg_init_with_sha(key==NULL) did not return "
+                "BAD_FUNC_ARG");
+        wb_fail = 1;
+    }
+
+    /* ed448_verify_msg_update_with_sha(): key == NULL, msgSegment != NULL
+     * (msgSegment == NULL operand FALSE). */
+    ret = ed448_verify_msg_update_with_sha(msg, sizeof(msg), NULL, &sha);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("ed448_verify_msg_update_with_sha(key==NULL) did not return "
+                "BAD_FUNC_ARG");
+        wb_fail = 1;
+    }
+
+    /* ed448_verify_msg_final_with_sha(): key == NULL, sig/res != NULL
+     * (sig == NULL, res == NULL operands both FALSE). The function
+     * returns before writing *res on this path, so res must stay
+     * unchanged. */
+    res = 1;
+    ret = ed448_verify_msg_final_with_sha(sig, sizeof(sig), &res, NULL, &sha);
+    if ((ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) || (res != 1)) {
+        WB_NOTE("ed448_verify_msg_final_with_sha(key==NULL) did not return "
+                "BAD_FUNC_ARG");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("ed448 verify_*_with_sha key==NULL guards exercised");
+}
+
+#else
+
+static void wb_ed448_verify_key_null(void)
+{
+    WB_NOTE("HAVE_ED448_VERIFY not compiled in this variant; skipped");
+}
+
+#endif /* HAVE_ED448 && HAVE_ED448_VERIFY */
+
 int main(void)
 {
     printf("ed448.c white-box supplement\n");
@@ -134,6 +211,7 @@ int main(void)
     return 0;
 #else
     wb_ed448_hash();
+    wb_ed448_verify_key_null();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */

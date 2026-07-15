@@ -27,8 +27,9 @@
  * caller drives them only with well-formed, self-consistent operands, so the
  * argument-check and bound-check decisions inside these helpers cannot have
  * both halves of each independence pair demonstrated from tests/api. This TU
- * #includes wc_mldsa.c so the static helpers are in scope and calls each targeted
- * helper with BOTH halves of every targeted decision in a single binary
+ * #includes wc_mldsa.c so the static functions are in scope and calls each
+ * targeted helper with BOTH halves of every targeted decision in a single
+ * binary
  * (MC/DC is computed per binary).
  *
  * Scope choices to keep the binary fast and memory-safe:
@@ -134,6 +135,65 @@ static void wb_check_low(void)
     WB_OK("mldsa_check_low / vec_check_low_c operand pairs exercised");
 }
 #endif
+
+/* ------------------------------------------------------------------ *
+ * mldsa_check_hint: two inner loop decisions that the 3-outcome test
+ * above never reaches because their FALSE/TRUE pair only shows up with
+ * carefully overlapping polynomial hint-count bytes (not just a simple
+ * valid/invalid signature encoding):
+ *
+ *   do { o++; } while ((o < k) && (i == h[omega + o]));  [line ~5363]
+ *     Needs the (o < k) operand held TRUE while (i == h[omega+o]) is
+ *     shown both TRUE (poly o+1 shares the same running count) and
+ *     FALSE (poly o+2 has a different count) -- a single call with 3
+ *     polynomials sharing the count at the first match and diverging at
+ *     the next index demonstrates both.
+ *
+ *   while ((o < k) && (i == h[omega + o])) { o++; }      [line ~5377]
+ *     The "consume trailing same-count polynomials" loop entered only
+ *     when the outer for-loop is exhausted by i reaching omega with o
+ *     stalled below k. Since mldsa_check_hint does not itself validate
+ *     that hint-count bytes are monotonic/bounded, arbitrary trailing
+ *     byte values let us show the (i == h[omega+o]) operand both TRUE
+ *     and FALSE while (o < k) stays TRUE.
+ * ------------------------------------------------------------------ */
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+static void wb_check_hint_inner_loops(void)
+{
+    byte h[32];
+    int ret;
+
+    /* Line ~5363 do-while: k=3, omega=8. Hint values h[0..7] strictly
+     * increasing so the "else if (h[i-1] >= h[i])" arm never fires.
+     * Counts: poly0=poly1=3 (do-while continues: TRUE), poly2=5
+     * (do-while stops: FALSE), both checked while (o < k) is TRUE. */
+    XMEMSET(h, 0, sizeof(h));
+    h[0] = 0; h[1] = 1; h[2] = 2; h[3] = 3; h[4] = 4;
+    h[5] = 0; h[6] = 0; h[7] = 0; /* tail hint bytes unused, zero */
+    h[8] = 3; h[9] = 3; h[10] = 5;
+    ret = mldsa_check_hint(h, 3, 8);
+    if (ret != 0) {
+        WB_NOTE("mldsa_check_hint(inner do-while pair) expected 0");
+    }
+
+    /* Line ~5377 while: k=2, omega=8. Hint values 0..7 strictly
+     * increasing (no false-positive match, no else-if error), so the
+     * outer for-loop exhausts via i==omega with o stalled at 0. The
+     * trailing counts h[8]=8 (matches i==omega -> TRUE, o advances to 1)
+     * then h[9]=3 (does not match i==omega -> FALSE, o stays at 1),
+     * both observed while (o < k) is TRUE. o!=k at the end -> a hint
+     * count was left unconsumed -> SIG_VERIFY_E. */
+    XMEMSET(h, 0, sizeof(h));
+    h[0] = 0; h[1] = 1; h[2] = 2; h[3] = 3; h[4] = 4; h[5] = 5; h[6] = 6;
+    h[7] = 7;
+    h[8] = 8; h[9] = 3;
+    ret = mldsa_check_hint(h, 2, 8);
+    if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+        WB_NOTE("mldsa_check_hint(inner while pair) expected SIG_VERIFY_E");
+    }
+    WB_OK("mldsa_check_hint inner do-while/while operand pairs exercised");
+}
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
 /* ------------------------------------------------------------------ *
  * mldsa_make_hint_88 / _32 / mldsa_make_hint: the 3-way compound
@@ -567,15 +627,43 @@ static void wb_oid_to_level(void)
     int ret;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    /* Matching OID (ML-DSA-44, non-draft) -> level set, ret 0. */
+    /* Matching OID (ML-DSA-44, non-draft) -> level set, ret 0.
+     * Also exercises the 65/87 chain arms' (ret != 0) operand as TRUE
+     * (44 didn't match anything before this call in a fresh call, but
+     * here 44 matches immediately so the 65/87 "ret != 0" checks below
+     * see ret==0 and short-circuit to FALSE). */
     ret = mldsa_oid_to_level(ml_dsa_oid_44, (word32)sizeof(ml_dsa_oid_44),
         &level);
     if ((ret != 0) || (level != WC_ML_DSA_44)) {
         WB_NOTE("oid_to_level(44) unexpected");
     }
 #endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    /* Matching OID (ML-DSA-65): 44's arm (ret != 0) is TRUE (no match
+     * yet), 65's arm matches (ret != 0 TRUE, oidLen== TRUE, memcmp==0
+     * TRUE), then 87's arm sees (ret != 0) FALSE (already matched). */
+    level = 0;
+    ret = mldsa_oid_to_level(ml_dsa_oid_65, (word32)sizeof(ml_dsa_oid_65),
+        &level);
+    if ((ret != 0) || (level != WC_ML_DSA_65)) {
+        WB_NOTE("oid_to_level(65) unexpected");
+    }
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    /* Matching OID (ML-DSA-87): 44/65 arms' (ret != 0) stay TRUE (no
+     * match), 87's arm matches. */
+    level = 0;
+    ret = mldsa_oid_to_level(ml_dsa_oid_87, (word32)sizeof(ml_dsa_oid_87),
+        &level);
+    if ((ret != 0) || (level != WC_ML_DSA_87)) {
+        WB_NOTE("oid_to_level(87) unexpected");
+    }
+#endif
 
-    /* No match: length matches a known OID but bytes differ -> ASN_PARSE_E. */
+    /* No match, same length: length matches every known OID (all 9
+     * bytes) but bytes differ from all of them -> ASN_PARSE_E. Gives
+     * (oidLen == sizeof(...)) TRUE and memcmp()==0 FALSE for every arm
+     * in one call. */
     {
         byte bogus[9];
         XMEMSET(bogus, 0xAA, sizeof(bogus));
@@ -585,7 +673,19 @@ static void wb_oid_to_level(void)
             WB_NOTE("oid_to_level(bogus) expected ASN_PARSE_E");
         }
     }
-    WB_OK("mldsa_oid_to_level match/no-match exercised");
+
+    /* No match, different length: (oidLen == sizeof(...)) FALSE for
+     * every arm (independence of the oidLen operand from the memcmp
+     * one) -> falls through every arm untouched -> ASN_PARSE_E. */
+    {
+        byte shortOid[3] = { 0xAA, 0xAA, 0xAA };
+        level = 0;
+        ret = mldsa_oid_to_level(shortOid, (word32)sizeof(shortOid), &level);
+        if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+            WB_NOTE("oid_to_level(short) expected ASN_PARSE_E");
+        }
+    }
+    WB_OK("mldsa_oid_to_level match/no-match/length pairs exercised");
 }
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
@@ -615,6 +715,7 @@ int main(void)
 #endif /* !WOLFSSL_MLDSA_NO_SIGN */
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
     wb_check_hint();
+    wb_check_hint_inner_loops();
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
     wb_check_eta_range();
