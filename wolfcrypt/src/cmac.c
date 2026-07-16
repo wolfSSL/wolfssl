@@ -156,6 +156,11 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
         return BAD_FUNC_ARG;
     }
 
+    /* Reject total input of more than 2^32-1 bytes per context */
+    if (inSz > (WOLFSSL_MAX_32BIT - (cmac->totalSz + cmac->bufferSz))) {
+        return BAD_LENGTH_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     if (cmac->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, in, inSz,
