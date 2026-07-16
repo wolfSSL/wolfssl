@@ -586,7 +586,7 @@ int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     }
 
     if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+        WOLFSSL_MSG("GcmDecrypt authTagSz too small error");
         return BAD_FUNC_ARG;
     }
 
