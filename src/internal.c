@@ -36950,6 +36950,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WC_NO_ERR_TRACE(BAD_CERTIFICATE_STATUS_ERROR):
                 return bad_certificate_status_response;
             case WC_NO_ERR_TRACE(OUT_OF_ORDER_E):
+            case WC_NO_ERR_TRACE(DUPLICATE_MSG_E):
                 return unexpected_message;
             default:
                 return invalid_alert;
