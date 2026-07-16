@@ -44,6 +44,14 @@
 #include <tests/api/api.h>
 #include <tests/api/test_kdf.h>
 
+/* The _ex TLS 1.3 HKDF variants (wc_Tls13_HKDF_Extract_ex /
+ * wc_Tls13_HKDF_Expand_Label_ex) postdate the frozen FIPS/selftest kdf.h and
+ * are neither declared nor exported in those build contexts, so only exercise
+ * them outside FIPS/selftest. The thin non-_ex wrappers exist everywhere. */
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #define WOLFSSL_TEST_HKDF_EX
+#endif
+
 /* ------------------------------------------------------------------ */
 /* WOLF_CRYPTO_CB support for wc_KDA_KDF_twostep_cmac's dispatch guard */
 /* ------------------------------------------------------------------ */
@@ -179,7 +187,7 @@ int test_wc_KdfDecisionCoverage(void)
     /* ---------------------------------------------------------------- */
     /* wc_Tls13_HKDF_Extract_ex(): switch(digest) default arm.           */
     /* ---------------------------------------------------------------- */
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+#if defined(HAVE_HKDF) && !defined(NO_HMAC) && defined(WOLFSSL_TEST_HKDF_EX)
     {
         byte prk[WC_MAX_DIGEST_SIZE] = {0};
         byte salt[8] = {0};
@@ -195,7 +203,8 @@ int test_wc_KdfDecisionCoverage(void)
     /* ---------------------------------------------------------------- */
     /* wc_Tls13_HKDF_Expand_Label_ex(): label-buffer size guard.          */
     /* ---------------------------------------------------------------- */
-#if defined(HAVE_HKDF) && !defined(NO_HMAC) && !defined(NO_SHA256)
+#if defined(HAVE_HKDF) && !defined(NO_HMAC) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_TEST_HKDF_EX)
     {
         byte okm[64] = {0};
         byte prk[WC_SHA256_DIGEST_SIZE] = {0};
@@ -744,22 +753,25 @@ int test_wc_KdfFeatureCoverage(void)
         byte ikm[WC_MAX_DIGEST_SIZE] = {0};
 
 #ifndef NO_SHA256
-        /* ikmLen == 0: internal zero-fill branch. */
+        ikm[0] = 0x11;
+#ifdef WOLFSSL_TEST_HKDF_EX
+        /* ikmLen == 0: internal zero-fill branch (ikm ignored when len 0). */
         ExpectIntEQ(wc_Tls13_HKDF_Extract_ex(prk, salt, sizeof(salt), ikm, 0,
             WC_SHA256, HEAP_HINT, INVALID_DEVID), 0);
         /* ikmLen != 0: caller-supplied IKM used as-is. */
-        ikm[0] = 0x11;
         ExpectIntEQ(wc_Tls13_HKDF_Extract_ex(prk, salt, sizeof(salt), ikm,
             WC_SHA256_DIGEST_SIZE, WC_SHA256, HEAP_HINT, INVALID_DEVID), 0);
+#endif
         /* Thin (non-_ex) wrapper. */
         ExpectIntEQ(wc_Tls13_HKDF_Extract(prk, salt, sizeof(salt), ikm,
             WC_SHA256_DIGEST_SIZE, WC_SHA256), 0);
 #endif
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_TEST_HKDF_EX)
         ExpectIntEQ(wc_Tls13_HKDF_Extract_ex(prk, salt, sizeof(salt), ikm, 0,
             WC_SHA384, HEAP_HINT, INVALID_DEVID), 0);
 #endif
-#if defined(WOLFSSL_TLS13_SHA512) && defined(WOLFSSL_SHA512)
+#if defined(WOLFSSL_TLS13_SHA512) && defined(WOLFSSL_SHA512) && \
+    defined(WOLFSSL_TEST_HKDF_EX)
         ExpectIntEQ(wc_Tls13_HKDF_Extract_ex(prk, salt, sizeof(salt), ikm, 0,
             WC_SHA512, HEAP_HINT, INVALID_DEVID), 0);
 #endif
@@ -777,6 +789,7 @@ int test_wc_KdfFeatureCoverage(void)
         byte label[8] = { 'l','a','b','e','l',0,0,0 };
         byte info[8] = {0};
 
+#ifdef WOLFSSL_TEST_HKDF_EX
         /* All three zero. */
         ExpectIntEQ(wc_Tls13_HKDF_Expand_Label_ex(okm, sizeof(okm), prk,
             sizeof(prk), protocol, 0, label, 0, info, 0, WC_SHA256,
@@ -785,11 +798,12 @@ int test_wc_KdfFeatureCoverage(void)
         ExpectIntEQ(wc_Tls13_HKDF_Expand_Label_ex(okm, sizeof(okm), prk,
             sizeof(prk), protocol, 6, label, 5, info, 4, WC_SHA256,
             HEAP_HINT, INVALID_DEVID), 0);
+#endif
         /* Thin (non-_ex) wrapper. */
         ExpectIntEQ(wc_Tls13_HKDF_Expand_Label(okm, sizeof(okm), prk,
             sizeof(prk), protocol, 6, label, 5, info, 4, WC_SHA256), 0);
 
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_TEST_HKDF_EX)
         ExpectIntEQ(wc_Tls13_HKDF_Expand_Label_ex(okm, sizeof(okm), prk,
             sizeof(prk), protocol, 6, label, 5, info, 4, WC_SHA384,
             HEAP_HINT, INVALID_DEVID), 0);

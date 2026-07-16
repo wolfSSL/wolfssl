@@ -29,6 +29,10 @@
 
 #include <stdio.h>
 
+#ifndef HEAP_HINT
+#define HEAP_HINT NULL
+#endif
+
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
@@ -392,6 +396,400 @@ static void wb_fp_cnt_lsb_all_zero_digits(void)
     WB_NOTE("fp_cnt_lsb least-significant-zero-digit loop exercised");
 }
 
+/* ------------------------------------------------------------------------- *
+ * Relocated from tests/api (test_wolfmath.c). These drive library-internal,
+ * non-exported fp_* symbols (fp_set/fp_mul_2/fp_mul_2d/fp_invmod_mont_ct/
+ * fp_exptmod_nct/...) that are declared WITHOUT MP_API and so hidden under
+ * -fvisibility=hidden in a shared-library build: calling them from tests/api
+ * broke the normal (shared) wolfSSL CI link. Compiled here via #include of
+ * tfm.c they resolve directly. Coverage-only: both directions of each decision
+ * are executed; no return values are asserted (the exact call arguments are
+ * preserved, since those are what drive each MC/DC pair).
+ * ------------------------------------------------------------------------- */
+
+/*
+ * Testing fp_mul_2/fp_mul_2d/fp_div_2d/fp_mod_2d/fp_invmod/
+ * fp_invmod_mont_ct/fp_to_unsigned_bin_len/mp_read_radix/mp_radix_size/
+ * mp_toradix/mp_rand_prime/mp_prime_is_prime(_ex): argument-check,
+ * capacity/FP_SIZE-guard and sign-dispatch decision branches of the
+ * FASTMATH (tfm.c) backend (bigint-tfm module).
+ */
+static void wb_TfmDecisionCoverage(void)
+{
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
+    fp_int a;
+    fp_int b;
+    fp_int c;
+
+    XMEMSET(&a, 0, sizeof(a));
+    XMEMSET(&b, 0, sizeof(b));
+    XMEMSET(&c, 0, sizeof(c));
+
+    /* fp_mul_2: range check is
+     *   (a->used > FP_SIZE-1) || ((a->used == FP_SIZE-1) && (top bit set))
+     * Four calls complete all three operands' independence pairs (masking
+     * MC/DC: the OR's first operand shares 'a->used' with the AND's first
+     * operand, so they cannot vary independently of each other - each is
+     * paired against the boundary case instead). */
+    fp_zero(&a);
+    a.used = FP_SIZE; /* a->used > FP_SIZE-1: true, rest masked */
+    (void)fp_mul_2(&a, &b);
+    fp_zero(&a);
+    a.used = FP_SIZE - 2; /* both OR operands false: ordinary small value */
+    a.dp[FP_SIZE - 3] = 1;
+    (void)fp_mul_2(&a, &b);
+    /* Note: the guard reads the FIXED sentinel slot a->dp[FP_SIZE-1] (one
+     * past the last digit ->used == FP_SIZE-1 actually counts), not
+     * a->dp[a->used-1] - so the "top bit set" side needs that specific
+     * slot poked directly (fp_zero() leaves it 0, which every legitimate
+     * caller's value would too, since it is beyond ->used). */
+    fp_zero(&a);
+    a.used = FP_SIZE - 1; /* a->used == FP_SIZE-1 true, top bit clear */
+    a.dp[FP_SIZE - 2] = 1;
+    (void)fp_mul_2(&a, &b);
+    fp_zero(&a);
+    a.used = FP_SIZE - 1; /* a->used == FP_SIZE-1 true, top bit SET */
+    a.dp[FP_SIZE - 2] = 1;
+    a.dp[FP_SIZE - 1] = (fp_digit)1 << (DIGIT_BIT - 1);
+    (void)fp_mul_2(&a, &b);
+
+    /* fp_mul_2d: "carry && x < FP_SIZE" - carry true with room to store it
+     * (x < FP_SIZE, small 'a') vs carry true with the destination already
+     * completely full (x == FP_SIZE, top digit high bit set). */
+    fp_zero(&a);
+    fp_set(&a, 1);
+    a.dp[0] = (fp_digit)1 << (DIGIT_BIT - 1); /* shifting by 1 overflows */
+    (void)fp_mul_2d(&a, 1, &c); /* carry true, x(1) < FP_SIZE */
+    fp_zero(&a);
+    a.used = FP_SIZE;
+    a.dp[FP_SIZE - 1] = (fp_digit)1 << (DIGIT_BIT - 1);
+    (void)fp_mul_2d(&a, 1, &c); /* x==FP_SIZE */
+
+    /* fp_div_2d: "a == c && d != NULL" / "a != c && d != NULL". Three
+     * calls complete both operands' independence pairs. */
+    fp_zero(&a);
+    fp_set(&a, 200);
+    fp_div_2d(&a, 3, &a, &c); /* a == c (true), d != NULL (true) */
+    fp_zero(&a);
+    fp_set(&a, 200);
+    fp_div_2d(&a, 3, &b, &c); /* a != c (false/true pair vs above), d!=NULL */
+    fp_zero(&a);
+    fp_set(&a, 200);
+    fp_div_2d(&a, 3, &b, NULL); /* a != c, d == NULL: isolates d!=NULL */
+
+    /* fp_mod_2d: first guard "c->sign==FP_ZPOS && b>=DIGIT_BIT*a->used"
+     * (c is fp_copy(a,c) inside, so c->sign tracks a->sign); second guard
+     * "c->sign==FP_NEG && bmax>=FP_SIZE" (only reached once the first is
+     * false). */
+    fp_zero(&a);
+    fp_set(&a, 5); /* a->used == 1 */
+    fp_mod_2d(&a, (int)DIGIT_BIT, &c); /* ZPOS(T) && b>=DIGIT_BIT*1(T):
+                                    early return, c == a unchanged (5) */
+    (void)fp_cmp_d(&c, 5);
+    fp_zero(&a);
+    fp_set(&a, 5);
+    fp_setneg(&a);
+    fp_mod_2d(&a, (int)DIGIT_BIT, &c); /* ZPOS(F): isolates the sign operand */
+    fp_zero(&a);
+    fp_set(&a, 5);
+    fp_mod_2d(&a, 0, &c); /* ZPOS(T), b>=... (F): isolates the 'b' operand */
+    (void)fp_iszero(&c);
+    /* second guard: build a huge negative 'a' (a->used == FP_SIZE) so the
+     * first guard's "b >= DIGIT_BIT*a->used" is false for a 'b' just under
+     * FP_SIZE*DIGIT_BIT, yet bmax = ceil(b/DIGIT_BIT) can still reach
+     * FP_SIZE. */
+    fp_zero(&a);
+    a.used = FP_SIZE;
+    a.dp[FP_SIZE - 1] = 1;
+    fp_setneg(&a);
+    fp_mod_2d(&a, (int)(DIGIT_BIT * FP_SIZE) - 1, &c); /* NEG(T), bmax>=FP_SIZE(T) */
+    fp_zero(&a);
+    a.used = FP_SIZE;
+    a.dp[FP_SIZE - 1] = 1;
+    fp_mod_2d(&a, (int)(DIGIT_BIT * FP_SIZE) - 1, &c); /* ZPOS: isolates NEG op */
+    fp_zero(&a);
+    a.used = FP_SIZE;
+    a.dp[FP_SIZE - 1] = 1;
+    fp_setneg(&a);
+    fp_mod_2d(&a, 4, &c); /* NEG(T), bmax small (F): isolates bmax operand */
+
+    /* fp_invmod: "b->sign==FP_NEG || fp_iszero(b)==FP_YES" (fp_iszero(b)
+     * half already shown elsewhere; complete the sign operand's pair). */
+    fp_zero(&a);
+    fp_set(&a, 3);
+    fp_zero(&b);
+    fp_set(&b, 7);
+    fp_setneg(&b);
+    (void)fp_invmod(&a, &b, &c);
+    fp_zero(&b);
+    fp_set(&b, 7);
+    (void)fp_invmod(&a, &b, &c);
+
+    /* fp_invmod_mont_ct: "(a->used*2 > FP_SIZE) || (b->used*2 > FP_SIZE)".
+     * Three calls complete both operands' pairs. */
+    fp_zero(&a);
+    a.used = FP_SIZE;
+    fp_zero(&b);
+    fp_set(&b, 3);
+    (void)fp_invmod_mont_ct(&a, &b, &c, 1);
+    fp_zero(&a);
+    fp_set(&a, 2);
+    fp_zero(&b);
+    b.used = FP_SIZE;
+    (void)fp_invmod_mont_ct(&a, &b, &c, 1);
+    fp_zero(&a);
+    fp_set(&a, 2);
+    fp_zero(&b);
+    fp_set(&b, 3);
+    (void)fp_invmod_mont_ct(&a, &b, &c, 1);
+
+    /* fp_to_unsigned_bin_len: "i == a->used-1 && (a->dp[i]>>j) != 0" -
+     * output length exactly reaches the top digit, with (A) enough spare
+     * high bits to hold it (success) and (B) not enough (truncated,
+     * FP_VAL). A third call with a fully-sized buffer isolates the
+     * "i == a->used-1" operand (never reached: overall false). */
+#if DIGIT_BIT == 64 || DIGIT_BIT == 32 || DIGIT_BIT == 16
+    {
+        byte buf[8];
+        XMEMSET(buf, 0, sizeof(buf));
+        fp_zero(&a);
+        fp_set(&a, 0xFF); /* fits in 1 byte */
+        (void)fp_to_unsigned_bin_len(&a, buf, 4); /* i!=used-1 */
+        XMEMSET(buf, 0, sizeof(buf));
+        (void)fp_to_unsigned_bin_len(&a, buf, 1); /* i==used-1,
+                                                       top bits already 0 */
+        fp_zero(&a);
+        fp_set(&a, 0x1FF); /* needs 2 bytes */
+        XMEMSET(buf, 0, sizeof(buf));
+        (void)fp_to_unsigned_bin_len(&a, buf, 1); /* i==used-1, top bits nonzero */
+    }
+#endif
+
+    /* mp_read_radix (fp_read_radix): "radix < 2 || radix > 64". */
+    (void)mp_read_radix(&a, "10", 1);
+    (void)mp_read_radix(&a, "10", 65);
+    (void)mp_read_radix(&a, "10", MP_RADIX_DEC);
+
+    /* mp_radix_size / mp_toradix: "radix < 2 || radix > 64" (each function
+     * has its own copy of the guard). */
+    {
+        int size = 0;
+        char buf[8];
+
+        XMEMSET(buf, 0, sizeof(buf));
+        (void)mp_radix_size(&a, 1, &size);
+        (void)mp_radix_size(&a, 65, &size);
+        (void)mp_radix_size(&a, MP_RADIX_DEC, &size);
+
+        (void)mp_toradix(&a, buf, 1);
+        (void)mp_toradix(&a, buf, 65);
+        XMEMSET(buf, 0, sizeof(buf));
+        (void)mp_toradix(&a, buf, MP_RADIX_DEC);
+    }
+
+#if !defined(WC_NO_RNG)
+    /* mp_rand_prime (fp_randprime): "len < 2 || len > 512" (len<2 already
+     * shown elsewhere; complete the len>512 operand's pair). */
+    {
+        WC_RNG rng;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        (void)wc_InitRng(&rng);
+        fp_zero(&a);
+        /* mp_rand_prime (fp_randprime) is declared/defined only under
+         * WOLFSSL_KEY_GEN; gate the calls to match so keygen-off variants
+         * neither implicitly declare nor leave it an undefined reference. */
+#ifdef WOLFSSL_KEY_GEN
+        (void)mp_rand_prime(&a, 513, &rng, HEAP_HINT);
+        (void)mp_rand_prime(&a, 32, &rng, HEAP_HINT);
+#endif
+
+        /* mp_prime_is_prime_ex (own trial-division/Miller-Rabin engine):
+         * "t <= 0 || t > FP_PRIME_SIZE" (t<=0 already shown elsewhere;
+         * complete the t>FP_PRIME_SIZE operand's pair). */
+        {
+            int result = 0;
+
+            fp_zero(&a);
+            fp_set(&a, 17);
+            (void)mp_prime_is_prime_ex(&a, FP_PRIME_SIZE + 1, &result, &rng);
+            (void)mp_prime_is_prime_ex(&a, 8, &result, &rng);
+            (void)result;
+        }
+
+        (void)wc_FreeRng(&rng);
+    }
+#endif /* !WC_NO_RNG */
+
+    /* mp_prime_is_prime (fp_isprime_ex): trial-division loop
+     * "res != MP_OKAY || d == 0" - only the 'd == 0' half is targeted here
+     * (res != MP_OKAY is a defensive residual, see REPORT.md); and the
+     * Miller-Rabin loop "err != FP_OKAY || res == FP_NO": a composite that
+     * survives trial division (product of two primes above the built-in
+     * table) reaches Miller-Rabin and is correctly rejected there. */
+    {
+        int result = 0;
+
+        fp_zero(&a);
+        fp_set(&a, 17); /* prime: table hit */
+        (void)mp_prime_is_prime(&a, 8, &result);
+        (void)result;
+
+        fp_zero(&a);
+        fp_set(&a, 6); /* divisible by 2 and 3 */
+        (void)mp_prime_is_prime(&a, 8, &result);
+        (void)result;
+
+        /* 1013 * 1019 = 1032247: both factors are larger than every prime
+         * in the FP_PRIME_SIZE (256) built-in table, so trial division
+         * finds no divisor and the composite reaches Miller-Rabin, which
+         * correctly reports it composite (res == FP_NO). */
+        fp_zero(&a);
+        fp_set(&a, 1032247u);
+        (void)mp_prime_is_prime(&a, 8, &result);
+        (void)result;
+    }
+
+    mp_clear(&a);
+    mp_clear(&b);
+    mp_clear(&c);
+#endif /* !WOLFSSL_SP_MATH && !WOLFSSL_SP_MATH_ALL */
+    WB_NOTE("TfmDecisionCoverage decision branches exercised");
+}
+
+/*
+ * Testing fp_exptmod/fp_exptmod_ex/fp_exptmod_nct: the negative-exponent
+ * (X->sign == FP_NEG) branch's "invmod succeeded" / "modulus is negative"
+ * decision chain, common to all three entry points, and the tail
+ * "mode == 2 && bitcpy > 0" leftover-window decision inside the shared
+ * non-constant-time engine (bigint-tfm module, tfm.c).
+ */
+static void wb_TfmExptModDecisionCoverage(void)
+{
+#if !defined(POSITIVE_EXP_ONLY) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
+    fp_int g;
+    fp_int x;
+    fp_int p;
+    fp_int y;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&y, 0, sizeof(y));
+
+    /* fp_exptmod: "fp_iszero(P) || (P->used > FP_SIZE/2)" - the iszero half
+     * is exercised elsewhere; complete the size operand's pair with a huge
+     * (but nonzero) modulus. */
+    fp_set(&g, 3);
+    fp_set(&x, 2);
+    fp_zero(&p);
+    p.used = (FP_SIZE / 2) + 1;
+    p.dp[p.used - 1] = 1;
+    (void)fp_exptmod(&g, &x, &p, &y);
+    fp_set(&p, 15);
+    (void)fp_exptmod(&g, &x, &p, &y);
+
+    /* fp_exptmod / fp_exptmod_ex / fp_exptmod_nct share the same
+     * negative-exponent chain:
+     *   if ((err == 0) && (P->sign == FP_NEG)) { err = fp_add(Y, P, Y); }
+     * where 'err' comes from invmod(G, |P|, ...). Three calls per entry
+     * point complete both operands' independence pairs:
+     *   call A: G=3, X=-3, P=7  (invmod succeeds: err==0 T; P ZPOS: F)
+     *   call B: G=3, X=-3, P=-7 (invmod succeeds: err==0 T; P NEG: T)
+     *   call C: G=7, X=-3, P=-7 (invmod fails (gcd=7): err==0 F; P NEG: T)
+     * Pair (A,B) isolates the P->sign operand (err==0 held true);
+     * pair (B,C) isolates the err==0 operand (P->sign held negative). */
+    fp_set(&g, 3);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    (void)fp_exptmod(&g, &x, &p, &y); /* call A */
+    fp_set(&g, 3);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    fp_setneg(&p);
+    (void)fp_exptmod(&g, &x, &p, &y); /* call B */
+    fp_set(&g, 7);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    fp_setneg(&p);
+    (void)fp_exptmod(&g, &x, &p, &y); /* call C */
+
+    /* fp_exptmod_ex: same size guard ("fp_iszero(P)||P->used>FP_SIZE/2")
+     * and the same negative-exponent chain, reached through its own entry
+     * point (digits == 0 lets it pick X->used internally). */
+    fp_set(&g, 3);
+    fp_set(&x, 2);
+    fp_zero(&p);
+    p.used = (FP_SIZE / 2) + 1;
+    p.dp[p.used - 1] = 1;
+    (void)fp_exptmod_ex(&g, &x, 0, &p, &y);
+
+    fp_set(&g, 3);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    (void)fp_exptmod_ex(&g, &x, 0, &p, &y); /* call A */
+    fp_set(&g, 3);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    fp_setneg(&p);
+    (void)fp_exptmod_ex(&g, &x, 0, &p, &y); /* call B */
+    fp_set(&g, 7);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    fp_setneg(&p);
+    (void)fp_exptmod_ex(&g, &x, 0, &p, &y); /* call C */
+
+    /* fp_exptmod_nct: always uses the non-constant-time engine regardless
+     * of TFM_TIMING_RESISTANT, so its own copy of the negative-exponent
+     * chain is independently reachable through this entry point. */
+    fp_set(&g, 3);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    (void)fp_exptmod_nct(&g, &x, &p, &y); /* call A */
+    fp_set(&g, 3);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    fp_setneg(&p);
+    (void)fp_exptmod_nct(&g, &x, &p, &y); /* call B */
+    fp_set(&g, 7);
+    fp_set(&x, 3);
+    fp_setneg(&x);
+    fp_set(&p, 7);
+    fp_setneg(&p);
+    (void)fp_exptmod_nct(&g, &x, &p, &y); /* call C */
+
+    /* _fp_exptmod_nct tail (reached via the public fp_exptmod_nct):
+     * "mode == 2 && bitcpy > 0" - winsize is chosen from fp_count_bits(X):
+     * <=21 bits picks winsize 1, which flushes every bit immediately
+     * (bitcpy is always 0 at the tail: the false side); a bigger X (e.g.
+     * 30 bits, winsize 3) leaves a partial window at the end (bitcpy > 0:
+     * the true side). */
+    fp_set(&g, 3);
+    fp_set(&x, 7); /* 3 bits: winsize 1, bitcpy==0 tail */
+    fp_set(&p, 15);
+    (void)fp_exptmod_nct(&g, &x, &p, &y);
+    fp_set(&g, 3);
+    fp_set(&x, 0x3FFFFFFF); /* 30 bits: winsize 3 */
+    fp_set(&p, 15);
+    (void)fp_exptmod_nct(&g, &x, &p, &y);
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&y);
+#endif /* !POSITIVE_EXP_ONLY && !WOLFSSL_SP_MATH && !WOLFSSL_SP_MATH_ALL */
+    WB_NOTE("TfmExptModDecisionCoverage decision branches exercised");
+}
+
 #endif /* USE_FAST_MATH && WOLFSSL_PUBLIC_MP */
 
 int main(void)
@@ -416,6 +814,8 @@ int main(void)
     wb_fp_sqr_negative_used();
     wb_fp_invmod_slow_entry_guard();
     wb_fp_cnt_lsb_all_zero_digits();
+    wb_TfmDecisionCoverage();
+    wb_TfmExptModDecisionCoverage();
 #endif
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures surface as skips, not failures: a nonzero exit makes the
