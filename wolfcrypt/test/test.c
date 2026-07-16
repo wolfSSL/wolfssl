@@ -780,6 +780,9 @@ typedef struct testVector {
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
+#ifndef WOLFSSL_NO_FORCE_ZERO
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  forcezero_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  asn_test(void);
@@ -2440,6 +2443,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("error    test failed!\n", ret);
     else
         TEST_PASS("error    test passed!\n");
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+    if ( (ret = forcezero_test()) != 0)
+        TEST_FAIL("forcezero test failed!\n", ret);
+    else
+        TEST_PASS("forcezero test passed!\n");
+#endif
 
     if ( (ret = memory_test()) != 0)
         TEST_FAIL("MEMORY   test failed!\n", ret);
@@ -4269,6 +4279,68 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 
     return 0;
 }
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+
+/* Test ForceZero boundary conditions. Dead-store elimination is checked
+ * separately by check-forcezero-dse.sh. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t forcezero_test(void)
+{
+    byte buf[3 * sizeof(unsigned long) + 16];
+    word32 i;
+    word32 off;
+    word32 len;
+
+    /* len == 0: buffer must be untouched. */
+    XMEMSET(buf, 0xA5, sizeof(buf));
+    wc_ForceZero(buf, 0);
+    for (i = 0; i < sizeof(buf); i++) {
+        if (buf[i] != 0xA5) {
+            printf("ForceZero failed: len=0 modified index %u "
+                   "(expected 0xA5, got 0x%02X)\n", i, buf[i]);
+            return WC_TEST_RET_ENC_I((int)i);
+        }
+    }
+
+    /* Sweep offsets against lengths. */
+    for (off = 0; off < sizeof(unsigned long); off++) {
+        for (len = 0; len <= 2 * sizeof(unsigned long) + 3 &&
+                      off + len <= sizeof(buf); len++) {
+            XMEMSET(buf, 0xA5, sizeof(buf));
+
+            wc_ForceZero(buf + off, len);
+
+            for (i = 0; i < off; i++) {
+                if (buf[i] != 0xA5) {
+                    printf("ForceZero failed: wrote before start. "
+                           "off=%u len=%u i=%u (expected 0xA5, got 0x%02X)\n",
+                           off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+            for (i = off; i < off + len; i++) {
+                if (buf[i] != 0x00) {
+                    printf("ForceZero failed: missed zeroing. "
+                           "off=%u len=%u i=%u (expected 0x00, got 0x%02X)\n",
+                           off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+            for (i = off + len; i < sizeof(buf); i++) {
+                if (buf[i] != 0xA5) {
+                    printf("ForceZero failed: wrote past end. "
+                           "off=%u len=%u i=%u (expected 0xA5, got 0x%02X)\n",
+                           off, len, i, buf[i]);
+                    return WC_TEST_RET_ENC_I((int)i);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
 
 #ifndef NO_CODING
 

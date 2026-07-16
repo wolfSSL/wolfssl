@@ -415,6 +415,15 @@ static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 int aarch64_use_sb = 0;
 #endif
 
+#ifdef WC_BARRIER_DATA_USES_SINK
+/* Opaque callee for WC_BARRIER_DATA(). */
+static void wc_bd_sink(void* p)
+{
+    (void)p;
+}
+WOLFSSL_LOCAL void (* const volatile wc_bd_sink_ptr)(void*) = wc_bd_sink;
+#endif
+
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
