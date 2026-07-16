@@ -20,6 +20,12 @@
 #                       (e.g. $(srcdir)/LICENSING).
 #
 # Optional (defaults shown):
+#   SBOM_OPTIONS_H      Path to a product-generated options header (e.g.
+#                       wolfMQTT's $(builddir)/wolfmqtt/options.h) that records
+#                       the enabled build macros.  Set this for products whose
+#                       feature flags are NOT in config.h (no AC_DEFINE); when
+#                       unset the recipe derives the macros from the compiler +
+#                       config.h.  Default: unset.
 #   SBOM_ARTIFACT       lib | bin - which build output to hash.  Default: lib.
 #   SBOM_LIB_STEM       Library basename w/o extension.  Default: lib$(SBOM_PKGNAME).
 #   SBOM_BIN_NAME       Program name when SBOM_ARTIFACT = bin.  Default: $(SBOM_PKGNAME).
@@ -99,8 +105,9 @@ CLEANFILES += $(SBOM_CDX) $(SBOM_SPDX) $(SBOM_SPDX_TV)
 
 # Stage a `make install` into a private tree, discover the installed artifact
 # (shared/static library or program; ELF/Mach-O/PE), hash it, capture the
-# configured build macros (AM_CPPFLAGS/AM_CFLAGS/CFLAGS + config.h; some
-# products carry their feature -D flags in AM_CFLAGS rather than AM_CPPFLAGS),
+# configured build macros (from SBOM_OPTIONS_H if set, else AM_CPPFLAGS/
+# AM_CFLAGS/CFLAGS + config.h; some products carry their feature -D flags in
+# AM_CFLAGS rather than AM_CPPFLAGS, and some outside config.h entirely),
 # generate SPDX+CDX, validate
 # the SPDX, then convert to tag-value.  The staging tree and temp defines file
 # are removed unconditionally via `trap`, even on failure.  SOURCE_DATE_EPOCH is
@@ -143,10 +150,14 @@ sbom:
 	    exit 1; \
 	fi; \
 	echo "SBOM: hashing $$sbom_art"; \
-	$(CC) -dM -E $(DEFAULT_INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
-	    $(AM_CFLAGS) $(CFLAGS) \
-	    $(if $(wildcard $(SBOM_CONFIG_H)),-include $(SBOM_CONFIG_H)) \
-	    -x c /dev/null > "$$_defines"; \
+	opts_h="$(SBOM_OPTIONS_H)"; \
+	if test -z "$$opts_h"; then \
+	    opts_h="$$_defines"; \
+	    $(CC) -dM -E $(DEFAULT_INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	        $(AM_CFLAGS) $(CFLAGS) \
+	        $(if $(wildcard $(SBOM_CONFIG_H)),-include $(SBOM_CONFIG_H)) \
+	        -x c /dev/null > "$$_defines"; \
+	fi; \
 	if test -z "$${SOURCE_DATE_EPOCH:-}" && test -n "$(GIT)" && \
 	   $(GIT) -C "$(srcdir)" rev-parse --git-dir >/dev/null 2>&1; then \
 	    sde=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null`; \
@@ -190,7 +201,7 @@ sbom:
 	    --version $(PACKAGE_VERSION) \
 	    --supplier "wolfSSL Inc." \
 	    --license-file $(SBOM_LICENSE_FILE) \
-	    --options-h "$$_defines" \
+	    --options-h "$$opts_h" \
 	    --lib "$$sbom_art" \
 	    $$dep_args \
 	    $(if $(SBOM_LICENSE_OVERRIDE),--license-override '$(SBOM_LICENSE_OVERRIDE)') \
