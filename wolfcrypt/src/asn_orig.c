@@ -3090,6 +3090,25 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
                 }
                 break;
 
+        #ifdef WOLFSSL_DTN
+            case BUNDLE_EID_OID:
+                /* id-on-bundleEID (RFC 9174) carries an IA5String value. */
+                if (GetASNTag(input, idx, &tag, sz) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+
+                if (ret == 0 && tag != ASN_IA5_STRING) {
+                    WOLFSSL_MSG("Was expecting an IA5String for bundleEID");
+                    ret = ASN_PARSE_E;
+                }
+
+                if (ret == 0 && (GetLength(input, idx, &strLen, sz) < 0)) {
+                    WOLFSSL_MSG("Was expecting a string for bundleEID");
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif /* WOLFSSL_DTN */
+
             default:
                 WOLFSSL_MSG("Unknown constructed other name, skipping");
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
@@ -3579,6 +3598,14 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                         return ret;
                     break;
             #endif /* WOLFSSL_FPKI */
+            #ifdef WOLFSSL_DTN
+                case BUNDLE_EID_OID:
+                    ret = DecodeConstructedOtherName(cert, input, &idx, sz,
+                            oid);
+                    if (ret != 0)
+                        return ret;
+                    break;
+            #endif /* WOLFSSL_DTN */
 
                 default:
                     WOLFSSL_MSG("\tUnsupported other name type, skipping");
