@@ -1494,6 +1494,13 @@ static int wc_PKCS7_SignerInfoSetSID(wc_PKCS7* pkcs7, byte* in, int inSz)
 }
 
 
+#if !defined(NO_PKCS7_STREAM) && (!defined(NO_DES3) || !defined(NO_AES))
+/* defined later in this file; needed here to release a decrypt context left
+ * initialized by an abandoned streaming decode */
+static void wc_PKCS7_DecryptContentFree(wc_PKCS7* pkcs7, word32 encryptOID,
+    void* heap);
+#endif
+
 /* releases any memory allocated by a PKCS7 initializer */
 void wc_PKCS7_Free(wc_PKCS7* pkcs7)
 {
@@ -1501,6 +1508,28 @@ void wc_PKCS7_Free(wc_PKCS7* pkcs7)
         return;
 
 #ifndef NO_PKCS7_STREAM
+    /* A streaming EnvelopedData decode that was abandoned mid-message (e.g. it
+     * returned WC_PKCS7_WANT_READ_E and was never resumed) leaves the
+     * content-decryption context allocated by wc_PKCS7_DecryptContentInit().
+     * Release it before tearing down the stream so it is not leaked. Only the
+     * EnvelopedData decode path allocates decryptKey, and only there does the
+     * stream's first saved var hold the content cipher OID, so gate on a
+     * pending context: when decryptKey is NULL there is nothing to free and
+     * the (unrelated) saved var of another streaming decode must not be
+     * interpreted as a cipher OID. */
+#if !defined(NO_DES3) || !defined(NO_AES)
+    if (pkcs7->stream != NULL &&
+    #ifndef NO_AES
+            pkcs7->decryptKey.aes != NULL
+    #else
+            pkcs7->decryptKey.des3 != NULL
+    #endif
+       ) {
+        word32 encOID = 0;
+        wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
+        wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
+    }
+#endif
     wc_PKCS7_FreeStream(pkcs7);
 #endif
 
