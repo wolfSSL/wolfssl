@@ -405,27 +405,30 @@ int wc_HKDF_Expand_ex(
     key derivation
 
     \return 0 Returned upon successfully generating a key with the given inputs
-    \return BAD_FUNC_ARG Returned if an invalid hash type is given (see type param)
+    \return BAD_FUNC_ARG Returned if an invalid hash type is given (see digest
+    param), if prk is NULL, or if ikm is NULL and ikmLen is not 0
     \return MEMORY_E Returned if there is an error allocating memory
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
 
     \param prk     Generated pseudorandom key
-    \param salt    salt.
+    \param salt    salt. May be NULL, in which case saltLen is ignored
     \param saltLen length of the salt
-    \param ikm     pointer to putput for keying material
-    \param ikmLen  length of the input keying material buffer
-    \param digest  hash type to use for the HKDF. Valid types are: WC_SHA256, WC_SHA384 or WC_SHA512
+    \param ikm     input keying material. May be NULL when ikmLen is 0
+    \param ikmLen  length of the input keying material. 0 substitutes a digest
+    length zeroed IKM per RFC 8446, not an empty IKM
+    \param digest  hash type to use for the HKDF. Valid types are: WC_SHA256,
+    WC_SHA384, WC_SHA512 or WC_SM3
 
     _Example_
     \code
-    byte secret[] = { // initialize with random key };
+    byte ikm[] = { // initialize with input keying material };
     byte salt[] = { // initialize with optional salt };
-    byte masterSecret[MAX_DIGEST_SIZE];
+    byte prk[MAX_DIGEST_SIZE];
 
-    int ret = wc_Tls13_HKDF_Extract(secret, salt, sizeof(salt), 0,
-        masterSecret, sizeof(masterSecret), WC_SHA512);
+    int ret = wc_Tls13_HKDF_Extract(prk, salt, sizeof(salt), ikm, sizeof(ikm),
+        WC_SHA512);
     if ( ret != 0 ) {
 	    // error generating derived key
     }
@@ -450,29 +453,33 @@ int wc_Tls13_HKDF_Extract(
     key derivation. This is the _ex version adding heap hint and device identifier.
 
     \return 0 Returned upon successfully generating a key with the given inputs
-    \return BAD_FUNC_ARG Returned if an invalid hash type is given (see type param)
+    \return BAD_FUNC_ARG Returned if an invalid hash type is given (see digest
+    param), if prk is NULL, or if ikm is NULL and ikmLen is not 0
     \return MEMORY_E Returned if there is an error allocating memory
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
 
     \param prk     Generated pseudorandom key
-    \param salt    Salt.
+    \param salt    Salt. May be NULL; saltLen is then ignored unless a crypto
+    callback handles the request
     \param saltLen Length of the salt
-    \param ikm     Pointer to output for keying material
-    \param ikmLen  Length of the input keying material buffer
-    \param digest  Hash type to use for the HKDF. Valid types are: WC_SHA256, WC_SHA384 or WC_SHA512
+    \param ikm     Input keying material. May be NULL when ikmLen is 0
+    \param ikmLen  Length of the input keying material. 0 substitutes a digest
+    length zeroed IKM per RFC 8446, not an empty IKM
+    \param digest  Hash type to use for the HKDF. Valid types are: WC_SHA256,
+    WC_SHA384, WC_SHA512 or WC_SM3
     \param heap    Heap hint to use for memory. Can be NULL
     \param devId   ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
-    byte secret[] = { // initialize with random key };
+    byte ikm[] = { // initialize with input keying material };
     byte salt[] = { // initialize with optional salt };
-    byte masterSecret[MAX_DIGEST_SIZE];
+    byte prk[MAX_DIGEST_SIZE];
 
-    int ret = wc_Tls13_HKDF_Extract_ex(secret, salt, sizeof(salt), 0,
-        masterSecret, sizeof(masterSecret), WC_SHA512, NULL, INVALID_DEVID);
+    int ret = wc_Tls13_HKDF_Extract_ex(prk, salt, sizeof(salt), ikm,
+        sizeof(ikm), WC_SHA512, NULL, INVALID_DEVID);
     if ( ret != 0 ) {
 	    // error generating derived key
     }
