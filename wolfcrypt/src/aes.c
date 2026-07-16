@@ -5593,6 +5593,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 return WC_HW_E;
             }
             aes->blackKey = keyIdOut;
+            aes->keyInstalled = 1;
             return 0;
         }
     #endif
