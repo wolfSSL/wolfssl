@@ -672,8 +672,10 @@ if [ "$DOCONFIGURE" = "yes" ]; then
     fi
 
     if [ -s wolfcrypt/src/fips_test.c ]; then
-        OUT=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
-        NEWHASH=$(echo "$OUT" | cut -c1-64)
+        # Take the hash exactly as long as reported: the in core digest is
+        # SHA-256 (64 hex) up to FIPS v6.0.0 and SHA-512 (128 hex) from v7.0.0.
+        NEWHASH=$(./wolfcrypt/test/testwolfcrypt | \
+                  sed -n 's/^hash = \([0-9A-Fa-f][0-9A-Fa-f]*\).*$/\1/p' | head -1)
         if [ -n "$NEWHASH" ]; then
             cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
             sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak > \

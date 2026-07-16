@@ -331,8 +331,18 @@ enum wolfCrypt_ErrorCodes {
     TSP_VERIFY_E        = -1019, /* TSP token invalid or response doesn't
                                   * match request */
 
-    WC_SPAN2_LAST_E     = -1019, /* Update to indicate last used error code */
-    WC_LAST_E           = -1019, /* the last code used either here or in
+    SLH_DSA_PCT_E       = -1020, /* SLH-DSA Pairwise Consistency Test failure */
+    CMAC_KAT_FIPS_E     = -1021, /* AES-CMAC KAT failure */
+    SHAKE_KAT_FIPS_E    = -1022, /* SHAKE KAT failure */
+    DH_PCT_E            = -1023, /* DH Pairwise Consistency Test failure.
+                                  * Retired in FIPS v7+ (classic DH left the
+                                  * module boundary); the code stays allocated
+                                  * so fips.c can report it as retired rather
+                                  * than unknown. */
+    AES_KW_KAT_FIPS_E   = -1024, /* AES Key Wrap KAT failure */
+
+    WC_SPAN2_LAST_E     = -1024, /* Update to indicate last used error code */
+    WC_LAST_E           = -1024, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

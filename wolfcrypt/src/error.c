@@ -695,6 +695,21 @@ const char* wc_GetErrorString(int error)
     case TSP_VERIFY_E:
         return "TSP token invalid or response doesn't match request error";
 
+    case SLH_DSA_PCT_E:
+        return "wolfcrypt SLH-DSA Pairwise Consistency Test Failure";
+
+    case CMAC_KAT_FIPS_E:
+        return "wolfCrypt FIPS AES-CMAC Known Answer Test Failure";
+
+    case SHAKE_KAT_FIPS_E:
+        return "wolfCrypt FIPS SHAKE Known Answer Test Failure";
+
+    case DH_PCT_E:
+        return "wolfcrypt DH Pairwise Consistency Test Failure";
+
+    case AES_KW_KAT_FIPS_E:
+        return "wolfCrypt FIPS AES Key Wrap Known Answer Test Failure";
+
     case SEQ_OVERFLOW_E:
         return "Sequence counter would overflow";
 
