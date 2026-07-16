@@ -187,6 +187,13 @@
   limit needs roughly 23.7 million early data records on one connection, so no
   practical caller is affected.
 
+* **API (`secure_zero_memory` removed from `blake2-impl.h`)**: the BLAKE2 code
+  now zeroizes with `ForceZero()`, which unlike the removed helper's plain
+  volatile byte loop is fenced against dead-store elimination.  No public
+  header includes `blake2-impl.h` - `blake2.h` includes `blake2-int.h` - so
+  only code that named the file directly is affected, and because the helper
+  was `static` there is no ABI change.  Such code should call `wc_ForceZero()`.
+
 ## New Features
 
 * Added Argon2 (RFC 9106) password hashing with all three variants - Argon2d, Argon2i and Argon2id - via `--enable-argon2`. Only version 0x13 is implemented. Provides the one-shot `wc_Argon2()`/`wc_Argon2_ex()` and a reusable context API (`wc_Argon2Init`/`wc_Argon2SetParams`/`wc_Argon2DeriveTag`/`wc_Argon2Free`, plus `wc_Argon2New`/`wc_Argon2Delete` unless `WC_NO_CONSTRUCTORS`) that allocates the memory block array once for applications deriving many tags. `--enable-argon2-threads` fills the segments of a slice in parallel, which does not change the derived tag: the one-shot functions use a thread per lane, and the context API takes a count from `wc_Argon2SetThreads()`. by @SparkiDev

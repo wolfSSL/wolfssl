@@ -101,6 +101,13 @@ Threading/Mutex options:
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
 #endif
@@ -412,8 +419,53 @@ int wc_local_InitDownDone(wc_init_state_t *s)
 static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-int aarch64_use_sb = 0;
+WOLFSSL_API int aarch64_use_sb = 0;
 #endif
+
+/* Opaque callee for WC_BARRIER_DATA(). Always compiled so a consumer built
+ * with a different compiler can still link against it.
+ */
+static void bd_sink_impl(const void* p)
+{
+    (void)p;
+}
+/* const puts this in .data.rel.ro (ELF) / .rdata (PE), read-only after
+ * relocation. Adding volatile would undo that: volatile objects have side
+ * effects, so they are not emitted as read-only data.
+ */
+static void (* const bd_sink_ptr)(const void*) = bd_sink_impl;
+WOLFSSL_API void wc_bd_sink(const void* p)
+{
+    /* Volatile load of bd_sink_ptr: compiler cannot assume the value and must
+     * emit an indirect call, thwarting LTO/DSE.  Qualifiers on fn itself are
+     * omitted intentionally -- qualifying the rvalue result of the cast fires
+     * MSVC C4197.
+     */
+    void (*fn)(const void*) =
+        *(void (* volatile * volatile)(const void*))&bd_sink_ptr;
+
+    fn(p);
+}
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+/* Exported ForceZero(). Lives here, not memory.c/misc.c, since this file is
+ * always compiled regardless of NO_INLINE or --disable-memory.
+ */
+WOLFSSL_API void wc_ForceZero(void *mem, size_t len)
+{
+    ForceZero(mem, len);
+}
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
+
+#ifndef WOLFSSL_NO_CONST_CMP
+/* Exported ConstantCompare(). Lives here, not memory.c, for the same reason
+ * as wc_ForceZero() above.
+ */
+WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length)
+{
+    return ConstantCompare(a, b, length);
+}
+#endif /* !WOLFSSL_NO_CONST_CMP */
 
 /* Used to initialize state for wolfcrypt
    return 0 on success

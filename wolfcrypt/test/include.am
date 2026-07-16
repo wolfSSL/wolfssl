@@ -18,6 +18,16 @@ wolfcrypt_test_testwolfcrypt_LDADD       += $(top_builddir)/tests/swdev/build/sw
 wolfcrypt_test_testwolfcrypt_DEPENDENCIES += $(top_builddir)/tests/swdev/build/swdev.o
 endif
 noinst_HEADERS += wolfcrypt/test/test.h wolfcrypt/test/test_paths.h.in
+
+# ForceZero() dead-store-elimination regression probe (see
+# check-forcezero-dse.test for why forcezero_test() above can't catch this
+# on its own). Skips itself (exit 77) on toolchains/hosts it doesn't cover;
+# see the wrapper for details.
+TESTS += wolfcrypt/test/check-forcezero-dse.test
+AM_TESTS_ENVIRONMENT = \
+    WCTEST_CC='$(CC)'; export WCTEST_CC; \
+    WCTEST_BUILDDIR='$(abs_top_builddir)'; export WCTEST_BUILDDIR; \
+    WCTEST_SRCDIR='$(abs_top_srcdir)'; export WCTEST_SRCDIR;
 endif
 endif
 
@@ -76,4 +86,8 @@ EXTRA_DIST += wolfcrypt/test/test-VS2022.vcxproj
 EXTRA_DIST += wolfcrypt/test/test-VS2022.vcxproj.user
 
 EXTRA_DIST += wolfcrypt/test/README.md
+
+EXTRA_DIST += wolfcrypt/test/dse_probe.c
+EXTRA_DIST += wolfcrypt/test/check-forcezero-dse.test
+
 DISTCLEANFILES+= wolfcrypt/test/.libs/testwolfcrypt
