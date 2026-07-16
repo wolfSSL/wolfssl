@@ -20,8 +20,10 @@ then
     exit 1
 fi
 
-OUT=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
-NEWHASH=$(echo "$OUT" | cut -c1-64)
+# Take the hash exactly as long as reported: the in core digest is SHA-256 (64
+# hex) up to FIPS v6.0.0 and SHA-512 (128 hex) from v7.0.0 on.
+NEWHASH=$(./wolfcrypt/test/testwolfcrypt | \
+          sed -n 's/^hash = \([0-9A-Fa-f][0-9A-Fa-f]*\).*$/\1/p' | head -1)
 if test -n "$NEWHASH"
 then
     cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
