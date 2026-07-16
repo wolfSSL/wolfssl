@@ -5884,3 +5884,218 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+/*
+ * Encode a minimal RSA SignedData (SHA-256) with the requested DigestInfo
+ * AlgorithmIdentifier parameter encoding. When signedAttribs is zero the
+ * signature covers the content DigestInfo directly; when non-zero it covers
+ * the signed-attributes DigestInfo with a deterministic attribute set
+ * (contentType + messageDigest, no signingTime). Either way the signed data is
+ * deterministic, so two encodes that differ only in hashParamsAbsent sign the
+ * same hash - only the DigestInfo NULL parameters differ. Returns the encoded
+ * size (> 0) on success, negative on failure.
+ */
+static int pkcs7_sign_digest_params(byte* cert, word32 certSz,
+                                    byte* key, word32 keySz,
+                                    byte hashParamsAbsent, byte signedAttribs,
+                                    byte* out, word32 outSz)
+{
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte   data[] = "wolfSSL PKCS#7 DigestInfo params regression content";
+    int    ret;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL) {
+        wc_FreeRng(&rng);
+        return MEMORY_E;
+    }
+
+    ret = wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0)
+        ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret == 0) {
+        if (signedAttribs) {
+            /* Deterministic attributes only (no signingTime) so two encodes
+             * stay byte-identical and the cross-signature splice stays valid. */
+            pkcs7->defaultSignedAttribs = WOLFSSL_CONTENT_TYPE_ATTRIBUTE |
+                                          WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE;
+        }
+        else {
+            ret = wc_PKCS7_NoDefaultSignedAttribs(pkcs7);
+        }
+    }
+    if (ret == 0) {
+        pkcs7->content          = data;
+        pkcs7->contentSz        = (word32)sizeof(data) - 1;
+        pkcs7->privateKey       = key;
+        pkcs7->privateKeySz     = keySz;
+        pkcs7->encryptOID       = RSAk;
+        pkcs7->hashOID          = SHA256h;
+        pkcs7->rng              = &rng;
+        pkcs7->hashParamsAbsent = (hashParamsAbsent != 0) ? 1 : 0;
+
+        ret = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    wc_FreeRng(&rng);
+    return ret;
+}
+
+/*
+ * Build a SignedData whose SignerInfo digestAlgorithm parameter encoding does
+ * NOT match the encoding of the DigestInfo covered by the RSA signature. The
+ * same content is signed twice - once NULL-absent, once NULL-present - and the
+ * signature from one encode is spliced over the other message. RSA signatures
+ * are fixed length, so this is a same-length byte substitution needing no
+ * re-encoding. signerInfoAbsent selects the produced message's SignerInfo
+ * digestAlgorithm encoding; the spliced signature then carries the opposite
+ * encoding. Returns the message size (> 0) on success, negative on failure.
+ */
+static int pkcs7_build_digestparam_mismatch(byte* cert, word32 certSz,
+                                            byte* key, word32 keySz,
+                                            byte signedAttribs,
+                                            byte signerInfoAbsent,
+                                            byte* out, word32 outSz)
+{
+    byte   other[FOURK_BUF];
+    int    keepSz, otherSz;
+    /* RSA-2048 signature is 256 bytes, wrapped as OCTET STRING 04 82 01 00. */
+    const int rsaSigSz = 256;
+
+    /* message that keeps the requested SignerInfo digestAlgorithm encoding */
+    keepSz = pkcs7_sign_digest_params(cert, certSz, key, keySz, signerInfoAbsent,
+                                      signedAttribs, out, outSz);
+    if (keepSz <= 0)
+        return keepSz;
+
+    /* message whose signature covers the opposite DigestInfo encoding */
+    XMEMSET(other, 0, sizeof(other));
+    otherSz = pkcs7_sign_digest_params(cert, certSz, key, keySz,
+                                       (byte)!signerInfoAbsent, signedAttribs,
+                                       other, (word32)sizeof(other));
+    if (otherSz <= 0)
+        return otherSz;
+
+    /* both messages must end with the 256-byte signature OCTET STRING */
+    if (keepSz <= rsaSigSz + 4 || otherSz <= rsaSigSz + 4)
+        return -1;
+    if (out[keepSz - rsaSigSz - 4] != 0x04 ||
+            other[otherSz - rsaSigSz - 4] != 0x04) {
+        return -1;
+    }
+
+    /* splice the opposite-encoding signature over the kept message */
+    XMEMCPY(out + keepSz - rsaSigSz, other + otherSz - rsaSigSz,
+            (size_t)rsaSigSz);
+    return keepSz;
+}
+#endif
+
+/*
+ * Regression test for the DigestInfo AlgorithmIdentifier parameter mismatch.
+ *
+ * The parameter encoding (NULL present vs absent) of the SignerInfo
+ * digestAlgorithm - a CMS field, RFC 5652/5754 - is independent of the
+ * parameter encoding of the AlgorithmIdentifier inside the PKCS#1 v1.5
+ * DigestInfo that the RSA signature actually covers (RFC 8017). wolfSSL must
+ * not couple them. Go's crypto/rsa (micromdm/scep and other Go CMS/SCEP
+ * stacks) omits the NULL in the SignerInfo digestAlgorithm while signing a
+ * NULL-present DigestInfo; before the fix wc_PKCS7_VerifySignedData() returned
+ * SIG_VERIFY_E on such a (cryptographically valid) message.
+ *
+ * The mismatch is produced here entirely from wolfSSL's own signer, so no
+ * externally captured message is embedded (see pkcs7_build_digestparam_
+ * mismatch). The fix is symmetric, so both directions are exercised, over both
+ * the attribute-free and signed-attribute signing paths.
+ */
+int test_wc_PKCS7_VerifySignedData_NoDigestParams(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    PKCS7* pkcs7 = NULL;
+    byte   cert[sizeof(client_cert_der_2048)];
+    byte   key[sizeof(client_key_der_2048)];
+    word32 certSz = (word32)sizeof(cert);
+    word32 keySz  = (word32)sizeof(key);
+    byte   msg[FOURK_BUF];
+    int    msgSz = 0;
+
+    XMEMCPY(cert, client_cert_der_2048, certSz);
+    XMEMCPY(key, client_key_der_2048, keySz);
+
+    /* Direction A (Go/micromdm), no signed attributes: SignerInfo
+     * digestAlgorithm NULL-absent, signature over a NULL-present DigestInfo. */
+    XMEMSET(msg, 0, sizeof(msg));
+    ExpectIntGT(msgSz = pkcs7_build_digestparam_mismatch(cert, certSz, key,
+                keySz, 0, 1, msg, (word32)sizeof(msg)), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Direction B (reverse), no signed attributes: SignerInfo digestAlgorithm
+     * NULL-present, signature over a NULL-absent DigestInfo. Exercises the
+     * other branch of the symmetric (!hashParamsAbsent) retry. */
+    XMEMSET(msg, 0, sizeof(msg));
+    ExpectIntGT(msgSz = pkcs7_build_digestparam_mismatch(cert, certSz, key,
+                keySz, 0, 0, msg, (word32)sizeof(msg)), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Direction A with signed attributes: same mismatch over the signed-
+     * attributes path, exercising the flipped rebuild's attribute-hashing
+     * branch. */
+    XMEMSET(msg, 0, sizeof(msg));
+    ExpectIntGT(msgSz = pkcs7_build_digestparam_mismatch(cert, certSz, key,
+                keySz, 1, 1, msg, (word32)sizeof(msg)), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Direction B with signed attributes: completes the 2x2 matrix (both flip
+     * directions over both the attribute-free and signed-attribute paths). */
+    XMEMSET(msg, 0, sizeof(msg));
+    ExpectIntGT(msgSz = pkcs7_build_digestparam_mismatch(cert, certSz, key,
+                keySz, 1, 0, msg, (word32)sizeof(msg)), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Negative control: a corrupted signature must still fail. The fix adds a
+     * third acceptance attempt (the flipped DigestInfo parameter encoding), so
+     * assert the added leniency did not become over-broad - a signature that
+     * matches under neither encoding must return non-zero. Reuse the last
+     * built message and flip the final signature byte. Guarded on msgSz > 0 so
+     * a failed build above is never passed to the (word32) size cast. */
+    if (msgSz > 0) {
+        msg[msgSz - 1] ^= 0xFF;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+        wc_PKCS7_Free(pkcs7);
+    }
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 && USE_CERT_BUFFERS_2048 */
+    return EXPECT_RESULT();
+}

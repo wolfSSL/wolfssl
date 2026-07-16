@@ -5639,20 +5639,25 @@ static int wc_PKCS7_MlDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 /* build SignedData digest, both in PKCS#7 DigestInfo format and
  * as plain digest for CMS.
  *
- * pkcs7          - pointer to initialized PKCS7 struct
- * signedAttrib   - signed attributes
- * signedAttribSz - size of signedAttrib, octets
- * pkcs7Digest    - [OUT] PKCS#7 DigestInfo
- * pkcs7DigestSz  - [IN/OUT] size of pkcs7Digest
- * plainDigest    - [OUT] pointer to plain digest, offset into pkcs7Digest
- * plainDigestSz  - [OUT] size of digest at plainDigest
+ * pkcs7            - pointer to initialized PKCS7 struct
+ * signedAttrib     - signed attributes
+ * signedAttribSz   - size of signedAttrib, octets
+ * pkcs7Digest      - [OUT] PKCS#7 DigestInfo
+ * pkcs7DigestSz    - [IN/OUT] size of pkcs7Digest
+ * plainDigest      - [OUT] pointer to plain digest, offset into pkcs7Digest
+ * plainDigestSz    - [OUT] size of digest at plainDigest
+ * hashParamsAbsent - if non-zero, omit the NULL parameters in the DigestInfo
+ *                    AlgorithmIdentifier; if zero, include them. This is the
+ *                    DigestInfo encoding (RFC 8017), which is independent of
+ *                    the SignerInfo digestAlgorithm parameters (RFC 5652/5754).
  *
  * returns 0 on success, negative on error */
 static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
                                       word32 signedAttribSz, byte* pkcs7Digest,
                                       word32* pkcs7DigestSz, byte** plainDigest,
                                       word32* plainDigestSz,
-                                      const byte* hashBuf, word32 hashBufSz)
+                                      const byte* hashBuf, word32 hashBufSz,
+                                      byte hashParamsAbsent)
 {
     int ret = 0, digIdx = 0;
     word32 attribSetSz = 0, hashSz = 0;
@@ -5737,9 +5742,10 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
         }
     }
 
-    /* Set algoID, match whatever was input to match either NULL or absent */
+    /* Set algoID, using the requested DigestInfo parameter encoding (NULL
+     * present or absent) so the caller can try both against the signature. */
     algoIdSz = SetAlgoIDEx(pkcs7->hashOID, algoId, oidHashType,
-                            0, pkcs7->hashParamsAbsent);
+                            0, hashParamsAbsent);
 
     digestStrSz = SetOctetString(hashSz, digestStr);
     digestInfoSeqSz = SetSequence(algoIdSz + digestStrSz + hashSz,
@@ -5944,11 +5950,13 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
         }
     }
 
-    /* build hash to verify against */
+    /* build hash to verify against, mirroring the SignerInfo digestAlgorithm
+     * parameter encoding as parsed */
     ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
                                          signedAttribSz, pkcs7Digest,
                                          &pkcs7DigestSz, &plainDigest,
-                                         &plainDigestSz, hashBuf, hashSz);
+                                         &plainDigestSz, hashBuf, hashSz,
+                                         pkcs7->hashParamsAbsent);
     if (ret < 0) {
         WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
@@ -6041,12 +6049,37 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
 
 #ifndef NO_RSA
         case RSAk:
+            /* Try the DigestInfo built with the SignerInfo digestAlgorithm
+             * parameter encoding as parsed. */
             ret = wc_PKCS7_RsaVerify(pkcs7, sig, (int)sigSz, pkcs7Digest,
                                      pkcs7DigestSz);
             if (ret < 0) {
+                /* Some signers place the raw digest (no DigestInfo) in the
+                 * signature. */
                 WOLFSSL_MSG("PKCS#7 verification failed, trying CMS");
                 ret = wc_PKCS7_RsaVerify(pkcs7, sig, (int)sigSz, plainDigest,
                                          plainDigestSz);
+            }
+            if (ret < 0) {
+                /* The DigestInfo AlgorithmIdentifier inside a PKCS#1 v1.5
+                 * signature (RFC 8017) is encoded independently of the
+                 * SignerInfo digestAlgorithm parameters (RFC 5652/5754): a
+                 * signer may omit the NULL in one and include it in the other
+                 * (e.g. Go's crypto/rsa signs a NULL-present DigestInfo while
+                 * omitting the NULL in the SignerInfo). Rebuild the DigestInfo
+                 * with the opposite parameter encoding and try once more. This
+                 * overwrites pkcs7Digest/plainDigest, so it must run after the
+                 * plain-digest attempt above. */
+                WOLFSSL_MSG("PKCS#7 verification failed, trying flipped params");
+                ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
+                                            signedAttribSz, pkcs7Digest,
+                                            &pkcs7DigestSz, &plainDigest,
+                                            &plainDigestSz, hashBuf, hashSz,
+                                            (byte)(!pkcs7->hashParamsAbsent));
+                if (ret == 0) {
+                    ret = wc_PKCS7_RsaVerify(pkcs7, sig, (int)sigSz, pkcs7Digest,
+                                             pkcs7DigestSz);
+                }
             }
             break;
 
