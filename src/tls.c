@@ -16694,7 +16694,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             #endif
             #if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
                 if (ssl->options.certWithExternPsk) {
-                    /* RFC8773bis requires psk_dhe_ke with cert_with_extern_psk. */
+                    /* RFC 9973 requires psk_dhe_ke with cert_with_extern_psk. */
                     modes |= 1 << PSK_DHE_KE;
                 }
             #endif
@@ -18753,12 +18753,12 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
             if (msgType == client_hello && isRequest) {
                 TLSX* pskm;
-                /* RFC8773bis: CH2 after HRR must keep CH1's extension set. */
+                /* RFC 9973: CH2 after HRR must keep CH1's extension set. */
                 if (secondClientHello && !prevHasPskWithCert) {
                     WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
-                /* RFC8773bis: cert_with_extern_psk depends on these extensions. */
+                /* RFC 9973: cert_with_extern_psk depends on these extensions. */
                 if (!hasPsk || !hasPskModes || !hasKeyShare || !hasSg ||
                     !hasSigAlg) {
                     WOLFSSL_ERROR_VERBOSE(EXT_MISSING);
@@ -18776,7 +18776,7 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 }
 #endif
                 pskm = TLSX_Find(ssl->extensions, TLSX_PSK_KEY_EXCHANGE_MODES);
-                /* RFC8773bis requires client support for psk_dhe_ke mode. */
+                /* RFC 9973 requires client support for psk_dhe_ke mode. */
                 if (pskm == NULL || (pskm->val & (1 << PSK_DHE_KE)) == 0) {
                     WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
@@ -18792,7 +18792,7 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         }
         else if (msgType == client_hello && isRequest && secondClientHello &&
                 prevHasPskWithCert) {
-            /* RFC8773bis: reject dropping the extension in CH2 after HRR. */
+            /* RFC 9973: reject dropping the extension in CH2 after HRR. */
             WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
             return EXT_NOT_ALLOWED;
         }

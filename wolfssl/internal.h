@@ -3006,7 +3006,7 @@ typedef struct Options Options;
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
 #define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
-#define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 8773bis */
+#define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 9973 */
 #define TLSXT_SESSION_TICKET             0x0023
 #define TLSXT_PRE_SHARED_KEY             0x0029
 #define TLSXT_EARLY_DATA                 0x002a

@@ -5490,7 +5490,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSK_ONE_ID"
 fi
 
-# Certificate Authentication with External PSK (RFC 8773bis)
+# Certificate Authentication with External PSK (RFC 9973, obsoletes RFC 8773)
 AC_ARG_ENABLE([cert-with-extern-psk],
     [AS_HELP_STRING([--enable-cert-with-extern-psk],[Enable Certificate Authentication with External PSKs for TLS 1.3 (default: disabled)])],
     [ ENABLED_CERT_WITH_EXTERN_PSK=$enableval ],

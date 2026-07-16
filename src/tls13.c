@@ -6004,12 +6004,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
             if (ssl->options.certWithExternPsk && psk->resumption) {
-                /* RFC8773bis mode requires external PSK, not ticket resumption. */
+                /* RFC 9973 mode requires external PSK, not ticket resumption. */
                 WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
                 return PSK_KEY_ERROR;
             }
             if (ssl->options.certWithExternPsk && ssl->options.shSentKeyShare == 0) {
-                /* RFC8773bis Sec. 3: cert_with_extern_psk requires psk_dhe_ke;
+                /* RFC 9973 Sect. 3: cert_with_extern_psk requires psk_dhe_ke;
                  * a ServerHello without a key_share confirms only psk_ke. */
                 WOLFSSL_MSG("cert_with_extern_psk: ServerHello missing key_share");
                 WOLFSSL_ERROR_VERBOSE(EXT_MISSING);
@@ -6556,7 +6556,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         }
         if (ret == WOLFSSL_TICKET_RET_OK) {
 #if defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && defined(HAVE_SESSION_TICKET)
-            /* RFC 8773bis Sect. 5.1: all PSKs listed alongside
+            /* RFC 9973 Sect. 5.1: all PSKs listed alongside
              * tls_cert_with_extern_psk MUST be external PSKs.  A successfully
              * decrypted session ticket identity is a resumption PSK, so the
              * server MUST abort with illegal_parameter regardless of whether
@@ -6881,7 +6881,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         extEarlyData = TLSX_Find(ssl->extensions, TLSX_EARLY_DATA);
         if (extEarlyData != NULL) {
             /* Check if accepting early data and first PSK.
-             * RFC 8773bis: early_data is not compatible with
+             * RFC 9973: early_data is not compatible with
              * cert_with_extern_psk, so skip key derivation in that case. */
             if (ssl->earlyData != no_early_data && first
                 && ssl->options.maxEarlyDataSz > 0
@@ -6951,7 +6951,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
             ssl->options.sendVerify = SEND_CERT;
             certExt->resp = 1;
         #ifdef WOLFSSL_EARLY_DATA
-            /* RFC 8773bis: early_data is not compatible with
+            /* RFC 9973: early_data is not compatible with
              * cert_with_extern_psk.  TLSX_Parse already rejects the
              * combination in the ClientHello, but clear the response flag
              * here as a defense-in-depth measure. */

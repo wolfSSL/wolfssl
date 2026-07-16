@@ -1206,7 +1206,7 @@ int test_tls13_cert_with_extern_psk_rejects_resumption(void)
     ssl_s = NULL;
 
     /* Step 2: attempt to resume while also offering cert_with_extern_psk.
-     * RFC 8773bis Sect. 5.1 requires all PSKs offered alongside
+     * RFC 9973 Sect. 5.1 requires all PSKs offered alongside
      * cert_with_extern_psk to be external PSKs.  The client MUST therefore
      * suppress the resumption ticket identity from the pre_shared_key
      * extension.  The handshake succeeds as a cert_with_extern_psk handshake
