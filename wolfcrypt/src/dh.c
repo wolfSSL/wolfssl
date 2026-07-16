@@ -1091,7 +1091,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
 
     if (*privSz > DH_MAX_SIZE) {
         WOLFSSL_MSG("DH private key size exceeds DH_MAX_SIZE");
-        return BAD_FUNC_ARG;
+        return WC_KEY_SIZE_E;
     }
 
     qSz = mp_unsigned_bin_size(&key->q);

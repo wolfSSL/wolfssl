@@ -72,7 +72,7 @@ typedef enum CmacType {
 } CmacType;
 
 #define WC_CMAC_TAG_MAX_SZ AES_BLOCK_SIZE
-#define WC_CMAC_TAG_MIN_SZ (AES_BLOCK_SIZE/4)
+#define WC_CMAC_TAG_MIN_SZ (AES_BLOCK_SIZE/2)
 
 #endif /* HAVE_FIPS */
 

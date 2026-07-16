@@ -8798,7 +8798,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             /* a compressed coordinate cannot exceed MAX_ECC_BYTES; bound it
              * before doubling so inLen*2 + 1 cannot overflow word32. */
             if (inLen > MAX_ECC_BYTES)
-                err = BAD_FUNC_ARG;
+                err = ECC_BAD_ARG_E;
             else
                 inLen = inLen*2 + 1;  /* used uncompressed len */
         }
