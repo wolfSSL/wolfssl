@@ -101,6 +101,13 @@ Threading/Mutex options:
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
 #endif
@@ -412,8 +419,43 @@ int wc_local_InitDownDone(wc_init_state_t *s)
 static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-int aarch64_use_sb = 0;
+WOLFSSL_API int aarch64_use_sb = 0;
 #endif
+
+/* Opaque callee for WC_BARRIER_DATA(). Always compiled so a consumer built
+ * with a different compiler can still link against it.
+ */
+static void bd_sink_impl(void* p)
+{
+    (void)p;
+}
+/* const puts this in .data.rel.ro (ELF) / .rdata (PE), read-only after
+ * relocation. Adding volatile would undo that: volatile objects have side
+ * effects, so they are not emitted as read-only data.
+ */
+static void (* const bd_sink_ptr)(void*) = bd_sink_impl;
+WOLFSSL_API void wc_bd_sink(void* p)
+{
+    /* The volatile read thwarts LTO and DSE: its result may not be assumed,
+     * so the call stays indirect and bd_sink_impl() cannot be inlined away.
+     * Taking the address via a volatile pointer ensures bd_sink_ptr itself
+     * is emitted and not optimized out as a known constant.
+     */
+    void (* const volatile fn)(void*) =
+        *(void (* const volatile * volatile)(void*))&bd_sink_ptr;
+
+    fn(p);
+}
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+/* Exported ForceZero(). Lives here, not memory.c/misc.c, since this file is
+ * always compiled regardless of NO_INLINE or --disable-memory.
+ */
+WOLFSSL_API void wc_ForceZero(void *mem, size_t len)
+{
+    ForceZero(mem, len);
+}
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
 
 /* Used to initialize state for wolfcrypt
    return 0 on success

@@ -177,17 +177,8 @@ jobs:
               | sed 's#.*refs/tags/##' | sort -Vr)
           echo "Newest release tags: ${T[*]:0:3}"
 
-          if [ "${#T[@]}" -lt 3 ]; then
-            echo "Fewer than three release tags; falling back to full history."
-            git fetch --unshallow --filter=tree:0 --tags origin
-          else
-            # Fetch by ref (not raw SHA) so this does not depend on the server
-            # allowing reachable-SHA1-in-want.
-            git fetch --no-tags --filter=tree:0 --shallow-exclude="${T[2]}" origin \
-                "$GITHUB_REF" \
-                "refs/tags/${T[0]}:refs/tags/${T[0]}" \
-                "refs/tags/${T[1]}:refs/tags/${T[1]}"
-          fi
+          # Fetch full treeless history to avoid shallow clone edge cases and guarantee tag ancestry.
+          git fetch --unshallow --filter=tree:0 --tags origin
 
           # Fail LOUD if this step and check-break.sh disagree on the scan base.
           # check-break.sh:61 falls back to the NEWEST tag when the second line
