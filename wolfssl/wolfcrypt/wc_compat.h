@@ -23,16 +23,20 @@
     \brief Header file containing wolfCrypt compatibility shims
 */
 
-#if (defined(WOLF_CRYPT_SHA256_H) && !defined(NO_SHA256) &&                    \
-     !defined(WC_SHA256_TYPE_DEFINED)) ||                                      \
-    (defined(WOLF_CRYPT_SHA512_H) &&                                           \
-     (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) &&                   \
-     (!defined(WC_SHA512_TYPE_DEFINED) || !defined(WC_SHA384_TYPE_DEFINED))) ||\
-    (defined(WOLF_CRYPT_AES_H) && !defined(NO_AES) &&                          \
-     !defined(WC_AES_TYPE_DEFINED)) ||                                         \
-    (defined(WOLF_CRYPT_RANDOM_H) && !defined(WC_RNG_TYPE_DEFINED)) ||         \
-    (defined(WOLF_CRYPT_FIPS_H) && !defined(fipsCastStatus_get)) ||            \
-    (defined(WOLF_CRYPT_FIPS_TEST_H) && !defined(WC_FIPS_ENUM_CAST_ID_DEFINED))
+#if (defined(WOLF_CRYPT_SHA256_H) && !defined(NO_SHA256) &&                  \
+     !defined(WC_SHA256_TYPE_DEFINED) && !defined(SHA256_NOINLINE)) ||       \
+    (defined(WOLF_CRYPT_SHA512_H) &&                                         \
+     (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) &&                 \
+     !defined(WC_SHA512_TYPE_DEFINED) && !defined(WC_SHA384_TYPE_DEFINED) && \
+     !defined(SHA512_NOINLINE)) ||                                           \
+    (defined(WOLF_CRYPT_AES_H) && !defined(NO_AES) &&                        \
+     !defined(WC_AES_TYPE_DEFINED) && !defined(CTAO_CRYPT_AES_H)) ||         \
+    (defined(WOLF_CRYPT_RANDOM_H) && !defined(WC_RNG_TYPE_DEFINED)) ||       \
+    (defined(WOLF_CRYPT_FIPS_H) &&                                           \
+     !defined(fipsCastStatus_get) && !defined(wc_Des3_SetKey) &&             \
+     !defined(WC_DES3_TYPE_DEFINED)) ||                                      \
+    (defined(WOLF_CRYPT_FIPS_TEST_H) &&                                      \
+     !defined(WC_FIPS_ENUM_CAST_ID_DEFINED) && !defined(WOLF_CRYPT_FIPS_H))
 
     /* Inhibit wc_compat.h during inclusion of sha256.h, sha512.h, aes.h,
      * random.h, fips.h, and fips_test.h, to mitigate circular dependencies.
@@ -99,9 +103,9 @@
                            const byte* authIn, word32 authInSz)
     {
         int ret;
-        byte scratch[GCM_NONCE_MAX_SZ];
+        byte scratch[16]; /* FIPS v2 doesn't have GCM_NONCE_MAX_SZ */
 
-        if (ivSz > GCM_NONCE_MAX_SZ)
+        if (ivSz > sizeof(scratch))
             return BAD_LENGTH_E;
 
         ret = wc_AesGcmSetExtIV(aes, iv, ivSz);
