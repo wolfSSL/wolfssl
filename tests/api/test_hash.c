@@ -970,6 +970,15 @@ int test_wc_HashDecisionCoverage(void)
     ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_BLAKE2S),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
 
+    /* wc_HashUpdate/wc_HashFinal/wc_HashFree reach the "not supported ->
+     * HASH_TYPE_E" switch arm only when DEBUG_WOLFSSL is off: under
+     * DEBUG_WOLFSSL each first checks (hash->type != type) and returns
+     * BAD_FUNC_ARG before the switch. wc_HashInit above legitimately refuses
+     * these types, so hash->type is never one of them and the debug check
+     * always intercepts here, making the arm unreachable in DEBUG builds
+     * (non-DEBUG builds cover it). Not a value workaround -- the arm's
+     * coverage simply comes from non-DEBUG variants in the campaign union. */
+#ifndef DEBUG_WOLFSSL
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_MD5_SHA, (byte*)"a", 1),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_BLAKE2B, (byte*)"a", 1),
@@ -990,6 +999,7 @@ int test_wc_HashDecisionCoverage(void)
         WC_NO_ERR_TRACE(HASH_TYPE_E));
     ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_BLAKE2S),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
+#endif /* !DEBUG_WOLFSSL */
 
     /* wc_Hash/wc_Hash_ex: dig_size < 0 (true side) via an unsupported
      * hashType hitting the default/NONE arm of wc_HashGetDigestSize. */
