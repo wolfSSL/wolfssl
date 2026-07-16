@@ -225,7 +225,13 @@ impl ChaCha20Poly1305 {
     ///
     /// This function consumes the `ChaCha20Poly1305` instance. The
     /// `update_data()` function must be called before calling this function to
-    /// add all input data.
+    /// add all input data (if present).
+    ///
+    /// Note that for decryption operations, the authentication tag is computed
+    /// and returned but is *not* checked so it is up to the caller to compare
+    /// to the expected tag. Use `finalize_verify()` instead for decryption
+    /// operations to finalize and compare against the expected authentication
+    /// tag in one operation.
     ///
     /// # Parameters
     ///
@@ -242,6 +248,48 @@ impl ChaCha20Poly1305 {
         let rc = unsafe {
             sys::wc_ChaCha20Poly1305_Final(&mut self.wc_ccp,
                 auth_tag.as_mut_ptr())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
+    }
+
+    /// Finalize the decrypt/encrypt operation and verify the authentication
+    /// tag against `auth_tag`.
+    ///
+    /// This function consumes the `ChaCha20Poly1305` instance. The
+    /// `update_data()` function must be called before calling this function to
+    /// add all input data (if present). The authentication tag is computed
+    /// internally and compared against the expected `auth_tag` in constant
+    /// time. This is typically used when decrypting to verify the transmitted
+    /// authentication tag.
+    ///
+    /// # Parameters
+    ///
+    /// * `auth_tag`: Expected authentication tag to verify against (must be 16
+    ///   bytes).
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value. A tag mismatch is reported as Err with the
+    /// `MAC_CMP_FAILED_E` error code.
+    pub fn finalize_verify(mut self, auth_tag: &[u8]) -> Result<(), i32> {
+        if auth_tag.len() != Self::AUTH_TAG_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
+        let mut calculated_tag = [0u8; Self::AUTH_TAG_SIZE];
+        let rc = unsafe {
+            sys::wc_ChaCha20Poly1305_Final(&mut self.wc_ccp,
+                calculated_tag.as_mut_ptr())
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let rc = unsafe {
+            sys::wc_ChaCha20Poly1305_CheckTag(auth_tag.as_ptr(),
+                calculated_tag.as_ptr())
         };
         if rc != 0 {
             return Err(rc);
