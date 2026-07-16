@@ -1010,6 +1010,7 @@ enum AlertDescription {
     bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
     unknown_psk_identity            = 115, /**< RFC 4279, section 2 */
     certificate_required            = 116, /**< RFC 8446, section 8.2 */
+    general_error                   = 117, /**< RFC 9846, section 6.2 */
     no_application_protocol         = 120,
     ech_required                    = 121  /**< RFC 9849, section 5 */
 };

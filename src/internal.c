@@ -23002,6 +23002,13 @@ const char* AlertTypeToString(int type)
                 return certificate_required_str;
             }
 
+        case general_error:
+            {
+                static const char general_error_str[] =
+                    "general_error";
+                return general_error_str;
+            }
+
         case no_application_protocol:
             {
                 static const char no_application_protocol_str[] =
