@@ -55,7 +55,6 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
 }
 #endif
 
-
 /* Determine whether the object is configured for DTLS.
  *
  * @param [in] ssl  SSL/TLS object.
@@ -69,7 +68,6 @@ int wolfSSL_dtls(WOLFSSL* ssl)
         dtlsOpt = ssl->options.dtls;
     return dtlsOpt;
 }
-
 
 #ifndef WOLFSSL_LEANPSK
 #if defined(WOLFSSL_DTLS) && defined(XINET_PTON) && \
@@ -322,7 +320,6 @@ int wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer,
 #endif
 }
 
-
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
 
 /* Enable DTLS over SCTP mode on the context.
@@ -341,7 +338,6 @@ int wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx)
     ctx->dtlsSctp = 1;
     return WOLFSSL_SUCCESS;
 }
-
 
 /* Enable DTLS over SCTP mode on the object.
  *
@@ -380,7 +376,6 @@ int wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, word16 newMtu)
     ctx->dtlsMtuSz = newMtu;
     return WOLFSSL_SUCCESS;
 }
-
 
 /* Set the DTLS path MTU on the object.
  *
@@ -647,7 +642,6 @@ int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
 
 #endif /* WOLFSSL_SRTP */
 
-
 #ifdef WOLFSSL_DTLS_DROP_STATS
 
 /* Get the DTLS dropped-record statistics for the object.
@@ -680,7 +674,6 @@ int wolfSSL_dtls_get_drop_stats(WOLFSSL* ssl,
 }
 
 #endif /* WOLFSSL_DTLS_DROP_STATS */
-
 
 #if defined(WOLFSSL_MULTICAST)
 
@@ -747,7 +740,6 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
     return newCur;
 }
 #endif /* WOLFSSL_DTLS */
-
 
 /* Set the master secret and derived keys directly on the object.
  *
@@ -848,7 +840,6 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
     return ret;
 }
 
-
 #ifdef WOLFSSL_DTLS
 
 /* Add or remove a peer from the multicast peer list.
@@ -913,7 +904,6 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int sub)
     return ret;
 }
 
-
 /* Determine whether a multicast peer is known and active.
  *
  * @param [in] ssl     SSL/TLS object.
@@ -948,7 +938,6 @@ int wolfSSL_mcast_peer_known(WOLFSSL* ssl, unsigned short peerId)
     return known;
 }
 
-
 /* Set the multicast highwater callback and thresholds on the context.
  *
  * @param [in] ctx     SSL/TLS context object.
@@ -977,7 +966,6 @@ int wolfSSL_CTX_mcast_set_highwater_cb(WOLFSSL_CTX* ctx, word32 maxSeq,
     return WOLFSSL_SUCCESS;
 }
 
-
 /* Set the user context passed to the multicast highwater callback.
  *
  * @param [in] ssl  SSL/TLS object.
@@ -999,9 +987,7 @@ int wolfSSL_mcast_set_highwater_ctx(WOLFSSL* ssl, void* ctx)
 
 #endif /* WOLFSSL_MULTICAST */
 
-
 #endif /* WOLFSSL_LEANPSK */
-
 
 #ifndef NO_TLS
 #ifdef WOLFSSL_MULTICAST
@@ -1033,7 +1019,6 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 
 #endif /* WOLFSSL_MULTICAST */
 #endif /* !NO_TLS */
-
 
 #ifdef WOLFSSL_DTLS
 /* Get the DTLS MAC secret for the requested side and epoch.
@@ -1094,7 +1079,6 @@ const byte* wolfSSL_GetDtlsMacSecret(WOLFSSL* ssl, int verify, int epochOrder)
 }
 #endif /* WOLFSSL_DTLS */
 
-
 /* Get whether the DTLS object is using non-blocking I/O.
  *
  * @param [in] ssl  SSL/TLS object.
@@ -1122,7 +1106,6 @@ int wolfSSL_dtls_get_using_nonblock(WOLFSSL* ssl)
     return useNb;
 }
 
-
 #ifndef WOLFSSL_LEANPSK
 
 /* Set whether the DTLS object uses non-blocking I/O.
@@ -1149,7 +1132,6 @@ void wolfSSL_dtls_set_using_nonblock(WOLFSSL* ssl, int nonblock)
                     "DEPRECATED for non-DTLS use.");
     }
 }
-
 
 #ifdef WOLFSSL_DTLS
 
@@ -1226,9 +1208,7 @@ int wolfSSL_DTLSv1_handle_timeout(WOLFSSL* ssl)
     (void)ssl;
     return 0;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 /* Set the initial DTLS timeout duration.
  *
  * Not implemented - stub for OpenSSL compatibility.
@@ -1270,7 +1250,6 @@ int wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int timeout)
     return WOLFSSL_SUCCESS;
 }
 
-
 /* Set the maximum DTLS receive timeout, in seconds, on the object.
  *
  * @param [in] ssl      SSL/TLS object.
@@ -1293,7 +1272,6 @@ int wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int timeout)
 
     return WOLFSSL_SUCCESS;
 }
-
 
 /* Process a DTLS timeout, retransmitting messages as needed.
  *
@@ -1346,7 +1324,6 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     return result;
 }
 
-
 /* Retransmit all stored DTLS handshake messages.
  *
  * @param [in] ssl  SSL/TLS object.
@@ -1380,7 +1357,6 @@ int wolfSSL_dtls_retransmit(WOLFSSL* ssl)
 
 #endif /* DTLS */
 #endif /* LEANPSK */
-
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 
@@ -1453,6 +1429,117 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecret", 0);
     return ret;
+}
+
+struct chGoodDisableReadCbCtx {
+    ClientHelloGoodCb userCb;
+    void*             userCtx;
+};
+
+/* ClientHello good callback that stops reading.
+ *
+ * Wraps the user's callback so that reading is disabled once a ClientHello
+ * with a valid cookie has been received. Used by wolfDTLS_accept_stateless().
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] ctx  Context with user callback and its context.
+ * @return  0 on success or when no user callback set.
+ * @return  Value returned by the user callback when negative.
+ */
+static int chGoodDisableReadCB(WOLFSSL* ssl, void* ctx)
+{
+    struct chGoodDisableReadCbCtx* cb = (struct chGoodDisableReadCbCtx*)ctx;
+    int ret = 0;
+    if (cb->userCb != NULL)
+        ret = cb->userCb(ssl, cb->userCtx);
+    if (ret >= 0)
+        wolfSSL_SSLDisableRead(ssl);
+    return ret;
+}
+
+/**
+ * Statelessly listen for a connection
+ * @param ssl The ssl object to use for listening to connections
+ * @return WOLFSSL_SUCCESS - ClientHello containing a valid cookie was received
+ *                           The connection can be continued with wolfSSL_accept
+ *         WOLFSSL_FAILURE - The I/O layer returned WANT_READ. This is either
+ *                           because there is no data to read and we are using
+ *                           non-blocking sockets or we sent a cookie request
+ *                           and we are waiting for a reply. The user should
+ *                           call wolfDTLS_accept_stateless again after data
+ *                           becomes available in the I/O layer.
+ *         WOLFSSL_FATAL_ERROR - A fatal error occurred. The ssl object should
+ *                           be free'd and allocated again to continue.
+ */
+int wolfDTLS_accept_stateless(WOLFSSL* ssl)
+{
+    byte disableRead;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    struct chGoodDisableReadCbCtx cb;
+
+    WOLFSSL_ENTER("wolfDTLS_SetChGoodCb");
+
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    /* Save this to restore it later */
+    disableRead = (byte)ssl->options.disableRead;
+    cb.userCb = ssl->chGoodCb;
+    cb.userCtx = ssl->chGoodCtx;
+
+    /* Register our own callback so that we can disable reading */
+    if (wolfDTLS_SetChGoodCb(ssl, chGoodDisableReadCB, &cb) != WOLFSSL_SUCCESS)
+        return WOLFSSL_FATAL_ERROR;
+
+    ssl->options.returnOnGoodCh = 1;
+    ret = wolfSSL_accept(ssl);
+    ssl->options.returnOnGoodCh = 0;
+    /* restore user options */
+    ssl->options.disableRead = disableRead;
+    (void)wolfDTLS_SetChGoodCb(ssl, cb.userCb, cb.userCtx);
+    if (ret == WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("should not happen. maybe the user called "
+                    "wolfDTLS_accept_stateless instead of wolfSSL_accept");
+    }
+    else if (ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
+             ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+        ssl->error = 0;
+        if (ssl->options.dtlsStateful)
+            ret = WOLFSSL_SUCCESS;
+        else
+            ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    return ret;
+}
+
+/* Set the callback to call when a ClientHello with a valid cookie is received.
+ *
+ * WC_NO_INLINE: wolfDTLS_accept_stateless passes the address of a stack-local
+ * context here; the restore call before return clears it again. Preventing
+ * inlining hides that cross-frame assignment from GCC's -Wdangling-pointer
+ * analysis, which otherwise flags a false positive on GCC 14+.
+ *
+ * @param [in] ssl       SSL/TLS object.
+ * @param [in] cb        Callback to call. NULL to clear.
+ * @param [in] user_ctx  Context to pass to the callback.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+WC_NO_INLINE
+int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
+{
+    WOLFSSL_ENTER("wolfDTLS_SetChGoodCb");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->chGoodCb  = cb;
+    ssl->chGoodCtx = user_ctx;
+
+    return WOLFSSL_SUCCESS;
 }
 
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */

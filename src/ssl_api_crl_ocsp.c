@@ -630,5 +630,112 @@ void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
 
 #endif /* !NO_CERTS */
 
+#ifdef OPENSSL_EXTRA
+
+/* Split an OCSP responder URL into its parts.
+ *
+ * URL is of the form: http[s]://host[:port][/path]
+ * Host, port and path are allocated and must be freed by the caller.
+ *
+ * @param [in]  url   URL of OCSP responder.
+ * @param [out] host  Host name of responder.
+ * @param [out] port  Port of responder. "80" or "443" when not in URL.
+ * @param [out] path  Path of responder. "/" when not in URL.
+ * @param [out] ssl   1 when scheme is https, 0 when http.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when a parameter is NULL, the URL is malformed or
+ *          dynamic memory allocation fails.
+ */
+int wolfSSL_OCSP_parse_url(const char* url, char** host, char** port,
+        char** path, int* ssl)
+{
+    const char* u;
+    const char* upath; /* path in u */
+    const char* uport; /* port in u */
+    const char* hostEnd;
+
+    WOLFSSL_ENTER("OCSP_parse_url");
+
+    if (url == NULL || host == NULL || port == NULL || path == NULL ||
+            ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    u = url;
+    *host = NULL;
+    *port = NULL;
+    *path = NULL;
+    *ssl = 0;
+
+    if (*(u++) != 'h') goto err;
+    if (*(u++) != 't') goto err;
+    if (*(u++) != 't') goto err;
+    if (*(u++) != 'p') goto err;
+    if (*u == 's') {
+        *ssl = 1;
+        u++;
+        *port = CopyString("443", -1, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    else if (*u == ':') {
+        *ssl = 0;
+        *port = CopyString("80", -1, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    else
+        goto err;
+    if (*port == NULL)
+        goto err;
+    if (*(u++) != ':') goto err;
+    if (*(u++) != '/') goto err;
+    if (*(u++) != '/') goto err;
+
+    /* Look for path */
+    upath = XSTRSTR(u, "/");
+    *path = CopyString(upath == NULL ? "/" : upath, -1, NULL,
+                       DYNAMIC_TYPE_OPENSSL);
+    if (*path == NULL)
+        goto err;
+
+    /* Look for port */
+    uport = XSTRSTR(u, ":");
+    if (uport != NULL) {
+        if (*(++uport) == '\0')
+            goto err;
+        /* port must be before path */
+        if (upath != NULL && uport >= upath)
+            goto err;
+        XFREE(*port, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (upath)
+            *port = CopyString(uport, (int)(upath - uport), NULL,
+                               DYNAMIC_TYPE_OPENSSL);
+        else
+            *port = CopyString(uport, -1, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (*port == NULL)
+            goto err;
+        hostEnd = uport - 1;
+    }
+    else
+        hostEnd = upath;
+
+    if (hostEnd)
+        *host = CopyString(u, (int)(hostEnd - u), NULL, DYNAMIC_TYPE_OPENSSL);
+    else
+        *host = CopyString(u, -1, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    if (*host == NULL)
+        goto err;
+
+    return WOLFSSL_SUCCESS;
+err:
+    XFREE(*host, NULL, DYNAMIC_TYPE_OPENSSL);
+    *host = NULL;
+    XFREE(*port, NULL, DYNAMIC_TYPE_OPENSSL);
+    *port = NULL;
+    XFREE(*path, NULL, DYNAMIC_TYPE_OPENSSL);
+    *path = NULL;
+    return WOLFSSL_FAILURE;
+}
+
+#endif /* OPENSSL_EXTRA */
+
 #endif /* !WOLFSSL_SSL_API_CRL_OCSP_INCLUDED */
 

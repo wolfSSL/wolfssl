@@ -524,7 +524,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #endif /* OPENSSL_EXTRA */
 #endif /* !NO_CHECK_PRIVATE_KEY */
 
-
 #ifdef OPENSSL_ALL
 /**
  * Return the private key of the SSL/TLS context.
@@ -676,7 +675,6 @@ int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 
     return ret;
 }
-
 
 /* Set size, in bytes, of temporary ECDHE key into SSL/TLS object.
  *
@@ -1650,7 +1648,6 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
     return WOLFSSL_SUCCESS;
 }
 
-
 /* Set the minimum ECC key size, in bits, allowed with the object.
  *
  * @param [in] ssl    SSL/TLS object.
@@ -1719,7 +1716,6 @@ int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
     ctx->cm->minRsaKeySz = keySz / 8;
     return WOLFSSL_SUCCESS;
 }
-
 
 /* Set the minimum RSA key size, in bits, allowed with the object.
  *
@@ -1804,7 +1800,6 @@ int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
     return WOLFSSL_SUCCESS;
 }
 
-
 /* Set the minimum DH key size, in bits, allowed with the object.
  *
  * @param [in] ssl         SSL/TLS object.
@@ -1831,7 +1826,6 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
     return WOLFSSL_SUCCESS;
 }
 
-
 /* Set the maximum DH key size, in bits, allowed with the context.
  *
  * @param [in] ctx         SSL/TLS context object.
@@ -1857,7 +1851,6 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
     return WOLFSSL_SUCCESS;
 }
 
-
 /* Set the maximum DH key size, in bits, allowed with the object.
  *
  * @param [in] ssl         SSL/TLS object.
@@ -1882,7 +1875,6 @@ int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
     ssl->options.maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
-
 
 /* Get the size, in bits, of the DH key being used by the object.
  *
@@ -1919,9 +1911,6 @@ WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 }
 #endif
 
-#endif /* OPENSSL_EXTRA */
-
-#ifdef OPENSSL_EXTRA
 /* Map a wolfSSL MAC/hash algorithm identifier to a NID.
  *
  * @param [in]  hashAlgo  MAC/hash algorithm identifier.
@@ -2700,7 +2689,6 @@ int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
 
-
 #ifdef OPENSSL_EXTRA
 /* Enable or disable automatic ECDH curve selection on the object.
  *
@@ -2748,6 +2736,179 @@ int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff)
     (void)onoff;
     return WOLFSSL_SUCCESS;
 }
+
+    #if defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256) \
+        && !defined(WC_NO_RNG)
+    static const byte srp_N[] = {
+        0xEE, 0xAF, 0x0A, 0xB9, 0xAD, 0xB3, 0x8D, 0xD6, 0x9C, 0x33, 0xF8,
+        0x0A, 0xFA, 0x8F, 0xC5, 0xE8, 0x60, 0x72, 0x61, 0x87, 0x75, 0xFF,
+        0x3C, 0x0B, 0x9E, 0xA2, 0x31, 0x4C, 0x9C, 0x25, 0x65, 0x76, 0xD6,
+        0x74, 0xDF, 0x74, 0x96, 0xEA, 0x81, 0xD3, 0x38, 0x3B, 0x48, 0x13,
+        0xD6, 0x92, 0xC6, 0xE0, 0xE0, 0xD5, 0xD8, 0xE2, 0x50, 0xB9, 0x8B,
+        0xE4, 0x8E, 0x49, 0x5C, 0x1D, 0x60, 0x89, 0xDA, 0xD1, 0x5D, 0xC7,
+        0xD7, 0xB4, 0x61, 0x54, 0xD6, 0xB6, 0xCE, 0x8E, 0xF4, 0xAD, 0x69,
+        0xB1, 0x5D, 0x49, 0x82, 0x55, 0x9B, 0x29, 0x7B, 0xCF, 0x18, 0x85,
+        0xC5, 0x29, 0xF5, 0x66, 0x66, 0x0E, 0x57, 0xEC, 0x68, 0xED, 0xBC,
+        0x3C, 0x05, 0x72, 0x6C, 0xC0, 0x2F, 0xD4, 0xCB, 0xF4, 0x97, 0x6E,
+        0xAA, 0x9A, 0xFD, 0x51, 0x38, 0xFE, 0x83, 0x76, 0x43, 0x5B, 0x9F,
+        0xC6, 0x1D, 0x2F, 0xC0, 0xEB, 0x06, 0xE3
+    };
+    static const byte srp_g[] = {
+        0x02
+    };
+
+    /* Set the SRP username on the SSL/TLS CTX object.
+     *
+     * The SRP side is taken from the method of the CTX object. When a password
+     * has already been set with wolfSSL_CTX_set_srp_password() then the saved
+     * password is applied here.
+     *
+     * @param [in, out] ctx       SSL/TLS CTX object.
+     * @param [in]      username  SRP username.
+     * @return  WOLFSSL_SUCCESS on success.
+     * @return  WOLFSSL_FAILURE when ctx, its SRP object or username is NULL,
+     *          the side is not set, or a wolfCrypt SRP operation fails.
+     */
+    int wolfSSL_CTX_set_srp_username(WOLFSSL_CTX* ctx, char* username)
+    {
+        int r = 0;
+        SrpSide srp_side = SRP_CLIENT_SIDE;
+
+        WOLFSSL_ENTER("wolfSSL_CTX_set_srp_username");
+        if (ctx == NULL || ctx->srp == NULL || username==NULL)
+            return WOLFSSL_FAILURE;
+
+        if (ctx->method->side == WOLFSSL_SERVER_END){
+            srp_side = SRP_SERVER_SIDE;
+        } else if (ctx->method->side == WOLFSSL_CLIENT_END){
+            srp_side = SRP_CLIENT_SIDE;
+        } else {
+            WOLFSSL_MSG("Init CTX failed");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wc_SrpInit(ctx->srp, SRP_TYPE_SHA256, srp_side) < 0) {
+            WOLFSSL_MSG("Init SRP CTX failed");
+            XFREE(ctx->srp, ctx->heap, DYNAMIC_TYPE_SRP);
+            ctx->srp = NULL;
+            return WOLFSSL_FAILURE;
+        }
+        r = wc_SrpSetUsername(ctx->srp, (const byte*)username,
+                              (word32)XSTRLEN(username));
+        if (r < 0) {
+            WOLFSSL_MSG("fail to set srp username.");
+            return WOLFSSL_FAILURE;
+        }
+
+        /* if wolfSSL_CTX_set_srp_password has already been called, */
+        /* use saved password here */
+        if (ctx->srp_password != NULL) {
+            if (ctx->srp->user == NULL)
+                return WOLFSSL_FAILURE;
+            return wolfSSL_CTX_set_srp_password(ctx, (char*)ctx->srp_password);
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* Set the SRP password on the SSL/TLS CTX object.
+     *
+     * When the username has been set, the SRP parameters and a random salt are
+     * set on the SRP object with the password. Otherwise the password is saved
+     * for wolfSSL_CTX_set_srp_username() to apply.
+     *
+     * @param [in, out] ctx       SSL/TLS CTX object.
+     * @param [in]      password  SRP password.
+     * @return  WOLFSSL_SUCCESS on success.
+     * @return  WOLFSSL_FAILURE when ctx, its SRP object or password is NULL, a
+     *          wolfCrypt SRP operation fails or dynamic memory allocation
+     *          fails.
+     */
+    int wolfSSL_CTX_set_srp_password(WOLFSSL_CTX* ctx, char* password)
+    {
+        int r;
+        byte salt[SRP_SALT_SIZE];
+
+        WOLFSSL_ENTER("wolfSSL_CTX_set_srp_password");
+        if (ctx == NULL || ctx->srp == NULL || password == NULL)
+            return WOLFSSL_FAILURE;
+
+        if (ctx->srp->user != NULL) {
+            WC_RNG rng;
+            if (wc_InitRng(&rng) < 0) {
+                WOLFSSL_MSG("wc_InitRng failed");
+                return WOLFSSL_FAILURE;
+            }
+            XMEMSET(salt, 0, sizeof(salt)/sizeof(salt[0]));
+            r = wc_RNG_GenerateBlock(&rng, salt, sizeof(salt)/sizeof(salt[0]));
+            wc_FreeRng(&rng);
+            if (r <  0) {
+                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+                return WOLFSSL_FAILURE;
+            }
+            if (wc_SrpSetParams(ctx->srp, srp_N, sizeof(srp_N)/sizeof(srp_N[0]),
+                                srp_g, sizeof(srp_g)/sizeof(srp_g[0]),
+                                salt, sizeof(salt)/sizeof(salt[0])) < 0){
+                WOLFSSL_MSG("wc_SrpSetParam failed");
+                return WOLFSSL_FAILURE;
+            }
+            r = wc_SrpSetPassword(ctx->srp, (const byte*)password,
+                                  (word32)XSTRLEN(password));
+            if (r < 0) {
+                WOLFSSL_MSG("wc_SrpSetPassword failed.");
+                return WOLFSSL_FAILURE;
+            }
+            XFREE(ctx->srp_password, NULL, DYNAMIC_TYPE_SRP);
+            ctx->srp_password = NULL;
+        } else {
+            /* save password for wolfSSL_set_srp_username */
+            XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
+
+            ctx->srp_password = (byte*)XMALLOC(XSTRLEN(password) + 1, ctx->heap,
+                                               DYNAMIC_TYPE_SRP);
+            if (ctx->srp_password == NULL){
+                WOLFSSL_MSG("memory allocation error");
+                return WOLFSSL_FAILURE;
+            }
+            XMEMCPY(ctx->srp_password, password, XSTRLEN(password) + 1);
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
+    /**
+     * The modulus passed to wc_SrpSetParams in ssl_api_pk.c is constant so
+     * check that the requested strength is less than or equal to the size of
+     * the static modulus size.
+     * @param ctx Not used
+     * @param strength Minimum number of bits for the modulus
+     * @return 1 if strength is less than or equal to static modulus
+     *         0 if strength is greater than static modulus
+     */
+    int  wolfSSL_CTX_set_srp_strength(WOLFSSL_CTX *ctx, int strength)
+    {
+        (void)ctx;
+        WOLFSSL_ENTER("wolfSSL_CTX_set_srp_strength");
+        if (strength > (int)(sizeof(srp_N)*8)) {
+            WOLFSSL_MSG("Bad Parameter");
+            return WOLFSSL_FAILURE;
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* Get the SRP username set on the CTX object of an SSL/TLS object.
+     *
+     * @param [in] ssl  SSL/TLS object.
+     * @return  SRP username on success.
+     * @return  NULL when ssl, its CTX object or the SRP object is NULL.
+     */
+    char* wolfSSL_get_srp_username(WOLFSSL *ssl)
+    {
+        if (ssl && ssl->ctx && ssl->ctx->srp) {
+            return (char*) ssl->ctx->srp->user;
+        }
+        return NULL;
+    }
+    #endif /* WOLFCRYPT_HAVE_SRP && !NO_SHA256 && !WC_NO_RNG */
 
 #endif /* OPENSSL_EXTRA */
 

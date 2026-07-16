@@ -36,6 +36,8 @@
  * ASN1_item APIs
  ******************************************************************************/
 
+#ifndef OPENSSL_EXTRA_NO_ASN1
+
 #ifndef NO_ASN
 
 #ifdef OPENSSL_EXTRA
@@ -1317,7 +1319,6 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
     return ret;
 }
 
-
 /* Calculate 2's complement of DER encoding.
  *
  * @param [in]  data    Array that is number.
@@ -2010,7 +2011,6 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* a)
 
     return ret;
 }
-
 
 /* Sets the value of the ASN.1 INTEGER object to the long value.
  *
@@ -4966,5 +4966,1432 @@ int wolfSSL_ASN1_TYPE_get(const WOLFSSL_ASN1_TYPE *a)
           WOLFSSL_WPAS_SMALL */
 
 #endif /* !NO_ASN */
+
+#endif /* !OPENSSL_EXTRA_NO_ASN1 */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+/* Table of OID information: NID, OID sum, OID group and names.
+ *
+ * Entries of an OID group are contiguous. Lookups search the entries of one
+ * group linearly, so the order of entries within a group has been changed to
+ * put the most commonly used first and the legacy and rarely used last. The
+ * order is not otherwise significant. Keep new entries with their group.
+ */
+const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
+#ifndef NO_CERTS
+    /* oidCertExtType */
+    { WC_NID_basic_constraints, BASIC_CA_OID, oidCertExtType,
+      "basicConstraints", "X509v3 Basic Constraints"},
+    { WC_NID_subject_alt_name, ALT_NAMES_OID, oidCertExtType, "subjectAltName",
+      "X509v3 Subject Alternative Name"},
+    { WC_NID_crl_distribution_points, CRL_DIST_OID, oidCertExtType,
+      "crlDistributionPoints", "X509v3 CRL Distribution Points"},
+    { WC_NID_info_access, AUTH_INFO_OID, oidCertExtType, "authorityInfoAccess",
+      "Authority Information Access"},
+    { WC_NID_authority_key_identifier, AUTH_KEY_OID, oidCertExtType,
+      "authorityKeyIdentifier", "X509v3 Authority Key Identifier"},
+    { WC_NID_subject_key_identifier, SUBJ_KEY_OID, oidCertExtType,
+      "subjectKeyIdentifier", "X509v3 Subject Key Identifier"},
+    { WC_NID_key_usage, KEY_USAGE_OID, oidCertExtType, "keyUsage",
+      "X509v3 Key Usage"},
+    { WC_NID_inhibit_any_policy, INHIBIT_ANY_OID, oidCertExtType,
+      "inhibitAnyPolicy", "X509v3 Inhibit Any Policy"},
+    { WC_NID_ext_key_usage, EXT_KEY_USAGE_OID, oidCertExtType,
+      "extendedKeyUsage", "X509v3 Extended Key Usage"},
+    { WC_NID_name_constraints, NAME_CONS_OID, oidCertExtType,
+      "nameConstraints", "X509v3 Name Constraints"},
+    { WC_NID_certificate_policies, CERT_POLICY_OID, oidCertExtType,
+      "certificatePolicies", "X509v3 Certificate Policies"},
+#if defined(WOLFSSL_APACHE_HTTPD) && defined(OPENSSL_EXTRA)
+    /* "1.3.6.1.4.1.311.20.2.3" */
+    { WC_NID_ms_upn, WOLFSSL_MS_UPN_SUM, oidCertExtType, WOLFSSL_SN_MS_UPN,
+      WOLFSSL_LN_MS_UPN },
+#endif
+
+    /* oidCertAuthInfoType */
+    { WC_NID_ad_OCSP, AIA_OCSP_OID, oidCertAuthInfoType, "OCSP",
+      "OCSP"},
+    { WC_NID_ad_ca_issuers, AIA_CA_ISSUER_OID, oidCertAuthInfoType,
+      "caIssuers", "CA Issuers"},
+
+    /* oidCertPolicyType */
+    { WC_NID_any_policy, CP_ANY_OID, oidCertPolicyType, "anyPolicy",
+      "X509v3 Any Policy"},
+
+    /* oidCertAltNameType */
+    { WC_NID_hw_name_oid, HW_NAME_OID, oidCertAltNameType, "Hardware name",""},
+
+    /* oidCertKeyUseType */
+    { WC_NID_anyExtendedKeyUsage, EKU_ANY_OID, oidCertKeyUseType,
+      "anyExtendedKeyUsage", "Any Extended Key Usage"},
+    { EKU_SERVER_AUTH_OID, EKU_SERVER_AUTH_OID, oidCertKeyUseType,
+      "serverAuth", "TLS Web Server Authentication"},
+    { EKU_CLIENT_AUTH_OID, EKU_CLIENT_AUTH_OID, oidCertKeyUseType,
+      "clientAuth", "TLS Web Client Authentication"},
+    { EKU_OCSP_SIGN_OID, EKU_OCSP_SIGN_OID, oidCertKeyUseType,
+      "OCSPSigning", "OCSP Signing"},
+
+    /* oidCertNameType */
+    /* Ordered most commonly used first: entries of a group are searched
+     * linearly. Distinguished name attributes are first, then the extended
+     * validation ones, then the rarely used and legacy. */
+    { WC_NID_commonName, WC_NAME_COMMON_NAME_OID, oidCertNameType,
+      "CN", "commonName"},
+    { WC_NID_organizationName, WC_NAME_ORGANIZATION_NAME_OID, oidCertNameType,
+      "O", "organizationName"},
+    { WC_NID_organizationalUnitName, WC_NAME_ORGANIZATION_UNIT_NAME_OID,
+      oidCertNameType, "OU", "organizationalUnitName"},
+    { WC_NID_countryName, WC_NAME_COUNTRY_NAME_OID, oidCertNameType,
+      "C", "countryName"},
+    { WC_NID_stateOrProvinceName, WC_NAME_STATE_NAME_OID, oidCertNameType,
+      "ST", "stateOrProvinceName"},
+    { WC_NID_localityName, WC_NAME_LOCALITY_NAME_OID, oidCertNameType,
+      "L", "localityName"},
+    { WC_NID_emailAddress, WC_NAME_EMAIL_ADDRESS_OID, oidCertNameType,
+      "emailAddress", "emailAddress"},
+    { WC_NID_serialNumber, WC_NAME_SERIAL_NUMBER_OID, oidCertNameType,
+      "serialNumber", "serialNumber"},
+    { WC_NID_domainComponent, WC_NAME_DOMAIN_COMPONENT_OID, oidCertNameType,
+      "DC", "domainComponent"},
+
+    /* Extended validation attributes. */
+    { WC_NID_streetAddress, WC_NAME_STREET_ADDRESS_OID, oidCertNameType,
+      "street", "streetAddress"},
+    { WC_NID_postalCode, WC_NAME_POSTAL_CODE_OID, oidCertNameType, "postalCode",
+      "postalCode"},
+    { WC_NID_businessCategory, WC_NAME_BUSINESS_CATEGORY_OID, oidCertNameType,
+      "businessCategory", "businessCategory"},
+    { WC_NID_jurisdictionCountryName, WC_NAME_JURIS_COUNTRY_OID,
+      oidCertNameType, "jurisdictionC", "jurisdictionCountryName"},
+    { WC_NID_jurisdictionStateOrProvinceName, WC_NAME_JURIS_STATE_PROV_OID,
+      oidCertNameType, "jurisdictionST", "jurisdictionStateOrProvinceName"},
+
+    /* Rarely used and legacy attributes. */
+    { WC_NID_userId, WC_NAME_USER_ID_OID, oidCertNameType, "UID", "userId"},
+    { WC_NID_title, WC_NAME_TITLE_OID, oidCertNameType, "title", "title"},
+    { WC_NID_description, WC_NAME_DESCRIPTION_OID, oidCertNameType,
+      "description", "description"},
+    { WC_NID_rfc822Mailbox, WC_NAME_RFC822_MAILBOX_OID, oidCertNameType,
+      "rfc822Mailbox", "rfc822Mailbox"},
+    { WC_NID_favouriteDrink, WC_NAME_FAVOURITE_DRINK_OID, oidCertNameType,
+      "favouriteDrink", "favouriteDrink"},
+#if !defined(WOLFSSL_CERT_REQ)
+    { WC_NID_surname, WC_NAME_SURNAME_OID, oidCertNameType, "SN", "surname"},
+#endif
+    { WC_NID_netscape_cert_type, NETSCAPE_CT_OID, oidCertNameType,
+      "nsCertType", "Netscape Cert Type"},
+#if defined(WOLFSSL_APACHE_HTTPD) && defined(OPENSSL_EXTRA)
+    /* "1.3.6.1.5.5.7.8.7" */
+    { WC_NID_id_on_dnsSRV, WOLFSSL_DNS_SRV_SUM, oidCertNameType,
+      WOLFSSL_SN_DNS_SRV, WOLFSSL_LN_DNS_SRV },
+#endif
+
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_NAME_ALL)
+    { WC_NID_pkcs9_challengePassword, CHALLENGE_PASSWORD_OID,
+            oidCsrAttrType, "challengePassword", "challengePassword"},
+    { WC_NID_pkcs9_contentType, PKCS9_CONTENT_TYPE_OID,
+        oidCsrAttrType, "contentType", "contentType" },
+    { WC_NID_pkcs9_unstructuredName, UNSTRUCTURED_NAME_OID,
+        oidCsrAttrType, "unstructuredName", "unstructuredName" },
+    { WC_NID_name, WC_NAME_NAME_OID, oidCsrAttrType, "name", "name" },
+    { WC_NID_surname, SURNAME_OID,
+        oidCsrAttrType, "surname", "surname" },
+    { WC_NID_givenName, WC_NAME_GIVEN_NAME_OID,
+        oidCsrAttrType, "givenName", "givenName" },
+    { WC_NID_initials, WC_NAME_INITIALIS_OID,
+        oidCsrAttrType, "initials", "initials" },
+    { WC_NID_dnQualifier, DNQUALIFIER_OID,
+        oidCsrAttrType, "dnQualifier", "dnQualifier" },
+    { WC_NID_serialNumber, SERIAL_NUMBER_OID,
+        oidCsrAttrType, "serialNumber", "serialNumber" },
+    { WC_NID_userId, USER_ID_OID, oidCsrAttrType, "UID", "userId" },
+#endif
+#endif
+#ifdef OPENSSL_EXTRA /* OPENSSL_EXTRA_X509_SMALL only needs the above */
+        /* oidHashType */
+        /* Ordered most commonly used first: entries of a group are searched
+         * linearly. SHA-2 first, then SHA-3, then the rarely used. Legacy
+         * digests are last. */
+    #ifdef WOLFSSL_SM3
+        { WC_NID_sm3, SM3h, oidHashType, "SM3", "sm3"},
+    #endif
+    #ifndef NO_SHA256
+        { WC_NID_sha256, SHA256h, oidHashType, "SHA256", "sha256"},
+    #endif
+    #ifdef WOLFSSL_SHA384
+        { WC_NID_sha384, SHA384h, oidHashType, "SHA384", "sha384"},
+    #endif
+    #ifdef WOLFSSL_SHA512
+        { WC_NID_sha512, SHA512h, oidHashType, "SHA512", "sha512"},
+    #endif
+    #ifdef WOLFSSL_SHA224
+        { WC_NID_sha224, SHA224h, oidHashType, "SHA224", "sha224"},
+    #endif
+    #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_256
+        { WC_NID_sha3_256, SHA3_256h, oidHashType, "SHA3-256", "sha3-256"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        { WC_NID_sha3_384, SHA3_384h, oidHashType, "SHA3-384", "sha3-384"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        { WC_NID_sha3_512, SHA3_512h, oidHashType, "SHA3-512", "sha3-512"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_224
+        { WC_NID_sha3_224, SHA3_224h, oidHashType, "SHA3-224", "sha3-224"},
+        #endif
+    #endif /* WOLFSSL_SHA3 */
+    #ifdef WOLFSSL_SHAKE128
+        { WC_NID_shake128, SHAKE128h, oidHashType, "SHAKE128", "shake128"},
+    #endif
+    #ifdef WOLFSSL_SHAKE256
+        { WC_NID_shake256, SHAKE256h, oidHashType, "SHAKE256", "shake256"},
+    #endif
+
+        /* Legacy digests. */
+    #ifndef NO_SHA
+        { WC_NID_sha1, SHAh, oidHashType, "SHA1", "sha1"},
+    #endif
+    #ifndef NO_MD5
+        { WC_NID_md5, MD5h, oidHashType, "MD5", "md5"},
+    #endif
+    #ifndef NO_MD4
+        { WC_NID_md4, MD4h, oidHashType, "MD4", "md4"},
+    #endif
+    #ifdef WOLFSSL_MD2
+        { WC_NID_md2, MD2h, oidHashType, "MD2", "md2"},
+    #endif
+        /* oidSigType */
+        /* Ordered most commonly used first: entries of a group are searched
+         * linearly. Legacy signature algorithms are last. */
+    #ifdef HAVE_ED25519
+        { WC_NID_ED25519, CTC_ED25519, oidSigType, "ED25519", "ED25519"},
+    #endif
+    #ifdef HAVE_ED448
+        { WC_NID_ED448, CTC_ED448, oidSigType, "ED448", "ED448"},
+    #endif
+    #ifndef NO_RSA
+        #ifndef NO_SHA256
+        { WC_NID_sha256WithRSAEncryption, CTC_SHA256wRSA, oidSigType,
+          "RSA-SHA256", "sha256WithRSAEncryption"},
+        #endif
+        #ifdef WOLFSSL_SHA384
+        { WC_NID_sha384WithRSAEncryption, CTC_SHA384wRSA, oidSigType,
+          "RSA-SHA384", "sha384WithRSAEncryption"},
+        #endif
+        #ifdef WOLFSSL_SHA512
+        { WC_NID_sha512WithRSAEncryption, CTC_SHA512wRSA, oidSigType,
+          "RSA-SHA512", "sha512WithRSAEncryption"},
+        #endif
+        #ifdef WC_RSA_PSS
+        { WC_NID_rsassaPss, CTC_RSASSAPSS, oidSigType,
+          "RSASSA-PSS", "rsassaPss" },
+        #endif
+        #ifdef WOLFSSL_SHA224
+        { WC_NID_sha224WithRSAEncryption, CTC_SHA224wRSA, oidSigType,
+          "RSA-SHA224", "sha224WithRSAEncryption"},
+        #endif
+        #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_256
+        { WC_NID_RSA_SHA3_256, CTC_SHA3_256wRSA, oidSigType, "RSA-SHA3-256",
+          "sha3-256WithRSAEncryption"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        { WC_NID_RSA_SHA3_384, CTC_SHA3_384wRSA, oidSigType, "RSA-SHA3-384",
+          "sha3-384WithRSAEncryption"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        { WC_NID_RSA_SHA3_512, CTC_SHA3_512wRSA, oidSigType, "RSA-SHA3-512",
+          "sha3-512WithRSAEncryption"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_224
+        { WC_NID_RSA_SHA3_224, CTC_SHA3_224wRSA, oidSigType, "RSA-SHA3-224",
+          "sha3-224WithRSAEncryption"},
+        #endif
+        #endif
+    #endif /* NO_RSA */
+    #ifdef HAVE_ECC
+        #ifndef NO_SHA256
+        { WC_NID_ecdsa_with_SHA256, CTC_SHA256wECDSA, oidSigType,
+          "ecdsa-with-SHA256","sha256WithECDSA"},
+        #endif
+        #ifdef WOLFSSL_SHA384
+        { WC_NID_ecdsa_with_SHA384, CTC_SHA384wECDSA, oidSigType,
+          "ecdsa-with-SHA384","sha384WithECDSA"},
+        #endif
+        #ifdef WOLFSSL_SHA512
+        { WC_NID_ecdsa_with_SHA512, CTC_SHA512wECDSA, oidSigType,
+          "ecdsa-with-SHA512","sha512WithECDSA"},
+        #endif
+        #ifdef WOLFSSL_SHA224
+        { WC_NID_ecdsa_with_SHA224, CTC_SHA224wECDSA, oidSigType,
+          "ecdsa-with-SHA224","sha224WithECDSA"},
+        #endif
+        #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_256
+        { WC_NID_ecdsa_with_SHA3_256, CTC_SHA3_256wECDSA, oidSigType,
+          "id-ecdsa-with-SHA3-256", "ecdsa_with_SHA3-256"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        { WC_NID_ecdsa_with_SHA3_384, CTC_SHA3_384wECDSA, oidSigType,
+          "id-ecdsa-with-SHA3-384", "ecdsa_with_SHA3-384"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        { WC_NID_ecdsa_with_SHA3_512, CTC_SHA3_512wECDSA, oidSigType,
+          "id-ecdsa-with-SHA3-512", "ecdsa_with_SHA3-512"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_224
+        { WC_NID_ecdsa_with_SHA3_224, CTC_SHA3_224wECDSA, oidSigType,
+          "id-ecdsa-with-SHA3-224", "ecdsa_with_SHA3-224"},
+        #endif
+        #endif
+    #endif /* HAVE_ECC */
+        /* Legacy MD2, MD5 and SHA-1 based signatures. */
+    #ifndef NO_RSA
+        #ifdef WOLFSSL_MD2
+        { WC_NID_md2WithRSAEncryption, CTC_MD2wRSA, oidSigType, "RSA-MD2",
+          "md2WithRSAEncryption"},
+        #endif
+        #ifndef NO_MD5
+        { WC_NID_md5WithRSAEncryption, CTC_MD5wRSA, oidSigType, "RSA-MD5",
+          "md5WithRSAEncryption"},
+        #endif
+        #ifndef NO_SHA
+        { WC_NID_sha1WithRSAEncryption, CTC_SHAwRSA, oidSigType, "RSA-SHA1",
+          "sha1WithRSAEncryption"},
+        #endif
+    #endif /* NO_RSA */
+    #ifdef HAVE_ECC
+        #ifndef NO_SHA
+        { WC_NID_ecdsa_with_SHA1, CTC_SHAwECDSA, oidSigType, "ecdsa-with-SHA1",
+          "shaWithECDSA"},
+        #endif
+    #endif /* HAVE_ECC */
+        /* DSA is rarely used. */
+    #ifndef NO_DSA
+        #ifndef NO_SHA
+        { WC_NID_dsaWithSHA1, CTC_SHAwDSA, oidSigType,
+          "DSA-SHA1", "dsaWithSHA1"},
+        { WC_NID_dsa_with_SHA256, CTC_SHA256wDSA, oidSigType, "dsa_with_SHA256",
+          "dsa_with_SHA256"},
+        #endif
+    #endif /* NO_DSA */
+
+        /* oidKeyType */
+    #ifndef NO_DSA
+        { WC_NID_dsa, DSAk, oidKeyType, "DSA", "dsaEncryption"},
+    #endif /* NO_DSA */
+    #ifndef NO_RSA
+        { WC_NID_rsaEncryption, RSAk, oidKeyType, "rsaEncryption",
+          "rsaEncryption"},
+    #ifdef WC_RSA_PSS
+        { WC_NID_rsassaPss, RSAPSSk, oidKeyType, "RSASSA-PSS", "rsassaPss"},
+    #endif
+    #endif /* NO_RSA */
+    #ifdef HAVE_ECC
+        { WC_NID_X9_62_id_ecPublicKey, ECDSAk, oidKeyType, "id-ecPublicKey",
+                                                        "id-ecPublicKey"},
+    #endif /* HAVE_ECC */
+    #ifndef NO_DH
+        { WC_NID_dhKeyAgreement, DHk, oidKeyType, "dhKeyAgreement",
+          "dhKeyAgreement"},
+    #endif
+    #ifdef HAVE_ED448
+        { WC_NID_ED448, ED448k,  oidKeyType, "ED448", "ED448"},
+    #endif
+    #ifdef HAVE_ED25519
+        { WC_NID_ED25519, ED25519k,  oidKeyType, "ED25519", "ED25519"},
+    #endif
+    #ifdef HAVE_FALCON
+        { CTC_FALCON_LEVEL1, FALCON_LEVEL1k,  oidKeyType, "Falcon Level 1",
+                                                          "Falcon Level 1"},
+        { CTC_FALCON_LEVEL5, FALCON_LEVEL5k,  oidKeyType, "Falcon Level 5",
+                                                          "Falcon Level 5"},
+    #endif /* HAVE_FALCON */
+    #ifdef WOLFSSL_HAVE_MLDSA
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        /* Pre-standardization (NIST PQC round 3) Dilithium OID labels.
+         * These coexist with the FIPS 204 "ML-DSA 44/65/87" entries below
+         * and are intentionally kept under the Dilithium name. */
+        { CTC_DILITHIUM_LEVEL2, DILITHIUM_LEVEL2k,  oidKeyType,
+          "Dilithium Level 2", "Dilithium Level 2"},
+        { CTC_DILITHIUM_LEVEL3, DILITHIUM_LEVEL3k,  oidKeyType,
+          "Dilithium Level 3", "Dilithium Level 3"},
+        { CTC_DILITHIUM_LEVEL5, DILITHIUM_LEVEL5k,  oidKeyType,
+          "Dilithium Level 5", "Dilithium Level 5"},
+    #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
+        { CTC_ML_DSA_44, ML_DSA_44k,  oidKeyType,
+          "ML-DSA 44", "ML-DSA 44"},
+        { CTC_ML_DSA_65, ML_DSA_65k,  oidKeyType,
+          "ML-DSA 65", "ML-DSA 65"},
+        { CTC_ML_DSA_87, ML_DSA_87k,  oidKeyType,
+          "ML-DSA 87", "ML-DSA 87"},
+    #endif /* WOLFSSL_HAVE_MLDSA */
+
+        /* oidCurveType */
+    #ifdef HAVE_ECC
+        /* Ordered most commonly used first: entries of a group are searched
+         * linearly. */
+    #ifdef WOLFSSL_SM2
+        { WC_NID_sm2, ECC_SM2P256V1_OID, oidCurveType, "sm2", "sm2"},
+    #endif
+        { WC_NID_X9_62_prime256v1, ECC_SECP256R1_OID, oidCurveType,
+          "prime256v1", "prime256v1"},
+        { WC_NID_secp224r1, ECC_SECP224R1_OID,  oidCurveType, "secp224r1",
+          "secp224r1"},
+        { WC_NID_secp384r1, ECC_SECP384R1_OID,  oidCurveType, "secp384r1",
+          "secp384r1"},
+        { WC_NID_secp521r1, ECC_SECP521R1_OID,  oidCurveType, "secp521r1",
+          "secp521r1"},
+
+        { WC_NID_brainpoolP160r1, ECC_BRAINPOOLP160R1_OID,  oidCurveType,
+          "brainpoolP160r1", "brainpoolP160r1"},
+        { WC_NID_brainpoolP192r1, ECC_BRAINPOOLP192R1_OID,  oidCurveType,
+          "brainpoolP192r1", "brainpoolP192r1"},
+        { WC_NID_brainpoolP224r1, ECC_BRAINPOOLP224R1_OID,  oidCurveType,
+          "brainpoolP224r1", "brainpoolP224r1"},
+        { WC_NID_brainpoolP256r1, ECC_BRAINPOOLP256R1_OID,  oidCurveType,
+          "brainpoolP256r1", "brainpoolP256r1"},
+        { WC_NID_brainpoolP320r1, ECC_BRAINPOOLP320R1_OID,  oidCurveType,
+          "brainpoolP320r1", "brainpoolP320r1"},
+        { WC_NID_brainpoolP384r1, ECC_BRAINPOOLP384R1_OID,  oidCurveType,
+          "brainpoolP384r1", "brainpoolP384r1"},
+        { WC_NID_brainpoolP512r1, ECC_BRAINPOOLP512R1_OID,  oidCurveType,
+          "brainpoolP512r1", "brainpoolP512r1"},
+
+        { WC_NID_X9_62_prime192v1, ECC_SECP192R1_OID, oidCurveType,
+          "prime192v1", "prime192v1"},
+        { WC_NID_X9_62_prime192v2, ECC_PRIME192V2_OID, oidCurveType,
+          "prime192v2", "prime192v2"},
+        { WC_NID_X9_62_prime192v3, ECC_PRIME192V3_OID, oidCurveType,
+          "prime192v3", "prime192v3"},
+
+        { WC_NID_X9_62_prime239v1, ECC_PRIME239V1_OID, oidCurveType,
+          "prime239v1", "prime239v1"},
+        { WC_NID_X9_62_prime239v2, ECC_PRIME239V2_OID, oidCurveType,
+          "prime239v2", "prime239v2"},
+        { WC_NID_X9_62_prime239v3, ECC_PRIME239V3_OID, oidCurveType,
+          "prime239v3", "prime239v3"},
+
+        { WC_NID_secp112r1, ECC_SECP112R1_OID,  oidCurveType, "secp112r1",
+          "secp112r1"},
+        { WC_NID_secp112r2, ECC_SECP112R2_OID,  oidCurveType, "secp112r2",
+          "secp112r2"},
+
+        { WC_NID_secp128r1, ECC_SECP128R1_OID,  oidCurveType, "secp128r1",
+          "secp128r1"},
+        { WC_NID_secp128r2, ECC_SECP128R2_OID,  oidCurveType, "secp128r2",
+          "secp128r2"},
+
+        { WC_NID_secp160r1, ECC_SECP160R1_OID,  oidCurveType, "secp160r1",
+          "secp160r1"},
+        { WC_NID_secp160r2, ECC_SECP160R2_OID,  oidCurveType, "secp160r2",
+          "secp160r2"},
+
+        { WC_NID_secp160k1, ECC_SECP160K1_OID,  oidCurveType, "secp160k1",
+          "secp160k1"},
+        { WC_NID_secp192k1, ECC_SECP192K1_OID,  oidCurveType, "secp192k1",
+          "secp192k1"},
+        { WC_NID_secp224k1, ECC_SECP224K1_OID,  oidCurveType, "secp224k1",
+          "secp224k1"},
+        { WC_NID_secp256k1, ECC_SECP256K1_OID,  oidCurveType, "secp256k1",
+          "secp256k1"},
+    #endif /* HAVE_ECC */
+
+        /* oidBlkType */
+    #ifdef WOLFSSL_AES_128
+        { AES128CBCb, AES128CBCb, oidBlkType, "AES-128-CBC", "aes-128-cbc"},
+    #endif
+    #ifdef WOLFSSL_AES_192
+        { AES192CBCb, AES192CBCb, oidBlkType, "AES-192-CBC", "aes-192-cbc"},
+    #endif
+    #ifdef WOLFSSL_AES_256
+        { AES256CBCb, AES256CBCb, oidBlkType, "AES-256-CBC", "aes-256-cbc"},
+    #endif
+    #ifndef NO_DES3
+        { WC_NID_des, DESb, oidBlkType, "DES-CBC", "des-cbc"},
+        { WC_NID_des3, DES3b, oidBlkType, "DES-EDE3-CBC", "des-ede3-cbc"},
+    #endif /* !NO_DES3 */
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        { WC_NID_chacha20_poly1305, WC_NID_chacha20_poly1305, oidBlkType,
+          "ChaCha20-Poly1305", "chacha20-poly1305"},
+    #endif
+
+        /* oidOcspType */
+    #ifdef HAVE_OCSP
+        { WC_NID_id_pkix_OCSP_basic, OCSP_BASIC_OID, oidOcspType,
+          "basicOCSPResponse", "Basic OCSP Response"},
+        { OCSP_NONCE_OID, OCSP_NONCE_OID, oidOcspType, "Nonce", "OCSP Nonce"},
+    #endif /* HAVE_OCSP */
+
+    #ifndef NO_PWDBASED
+        /* oidKdfType */
+        { PBKDF2_OID, PBKDF2_OID, oidKdfType, "PBKDFv2", "PBKDF2"},
+
+        /* oidPBEType */
+        { PBE_SHA1_RC4_128, PBE_SHA1_RC4_128, oidPBEType,
+          "PBE-SHA1-RC4-128", "pbeWithSHA1And128BitRC4"},
+        { PBE_SHA1_DES, PBE_SHA1_DES, oidPBEType, "PBE-SHA1-DES",
+          "pbeWithSHA1AndDES-CBC"},
+        { PBE_SHA1_DES3, PBE_SHA1_DES3, oidPBEType, "PBE-SHA1-3DES",
+          "pbeWithSHA1And3-KeyTripleDES-CBC"},
+    #endif
+
+        /* oidKeyWrapType */
+    #ifdef WOLFSSL_AES_128
+        { AES128_WRAP, AES128_WRAP, oidKeyWrapType, "AES-128 wrap",
+          "aes128-wrap"},
+    #endif
+    #ifdef WOLFSSL_AES_192
+        { AES192_WRAP, AES192_WRAP, oidKeyWrapType, "AES-192 wrap",
+          "aes192-wrap"},
+    #endif
+    #ifdef WOLFSSL_AES_256
+        { AES256_WRAP, AES256_WRAP, oidKeyWrapType, "AES-256 wrap",
+          "aes256-wrap"},
+    #endif
+
+    #ifndef NO_PKCS7
+        #ifndef NO_DH
+        /* oidCmsKeyAgreeType */
+            #ifndef NO_SHA
+        { dhSinglePass_stdDH_sha1kdf_scheme, dhSinglePass_stdDH_sha1kdf_scheme,
+          oidCmsKeyAgreeType, "dhSinglePass-stdDH-sha1kdf-scheme",
+          "dhSinglePass-stdDH-sha1kdf-scheme"},
+            #endif
+            #ifdef WOLFSSL_SHA224
+        { dhSinglePass_stdDH_sha224kdf_scheme,
+          dhSinglePass_stdDH_sha224kdf_scheme, oidCmsKeyAgreeType,
+          "dhSinglePass-stdDH-sha224kdf-scheme",
+          "dhSinglePass-stdDH-sha224kdf-scheme"},
+            #endif
+            #ifndef NO_SHA256
+        { dhSinglePass_stdDH_sha256kdf_scheme,
+          dhSinglePass_stdDH_sha256kdf_scheme, oidCmsKeyAgreeType,
+          "dhSinglePass-stdDH-sha256kdf-scheme",
+          "dhSinglePass-stdDH-sha256kdf-scheme"},
+            #endif
+            #ifdef WOLFSSL_SHA384
+        { dhSinglePass_stdDH_sha384kdf_scheme,
+          dhSinglePass_stdDH_sha384kdf_scheme, oidCmsKeyAgreeType,
+          "dhSinglePass-stdDH-sha384kdf-scheme",
+          "dhSinglePass-stdDH-sha384kdf-scheme"},
+            #endif
+            #ifdef WOLFSSL_SHA512
+        { dhSinglePass_stdDH_sha512kdf_scheme,
+          dhSinglePass_stdDH_sha512kdf_scheme, oidCmsKeyAgreeType,
+          "dhSinglePass-stdDH-sha512kdf-scheme",
+          "dhSinglePass-stdDH-sha512kdf-scheme"},
+            #endif
+        #endif
+    #endif
+    #if defined(WOLFSSL_APACHE_HTTPD)
+        /* "1.3.6.1.5.5.7.1.24" */
+        { WC_NID_tlsfeature, WOLFSSL_TLS_FEATURE_SUM, oidTlsExtType,
+            WOLFSSL_SN_TLS_FEATURE, WOLFSSL_LN_TLS_FEATURE },
+    #endif
+#endif /* OPENSSL_EXTRA */
+};
+
+#define WOLFSSL_OBJECT_INFO_SZ \
+                (sizeof(wolfssl_object_info) / sizeof(*wolfssl_object_info))
+const size_t wolfssl_object_info_sz = WOLFSSL_OBJECT_INFO_SZ;
+
+/* Index of the runs of entries in wolfssl_object_info[] that share an OID
+ * group. Entries of a group are contiguous, so a group is one [start, start +
+ * count) range. Looking up by group first bounds a search to that range
+ * instead of the whole table.
+ *
+ * The entries of wolfssl_object_info[] are conditionally compiled, so the
+ * ranges differ with build configuration and are calculated in
+ * wolfssl_object_info_slice_init() at wolfSSL_Init() time.
+ */
+typedef struct WolfsslObjectInfoSlice {
+    word32 type;
+    word16 start;
+    word16 count;
+} WolfsslObjectInfoSlice;
+
+/* Maximum number of OID groups with entries in wolfssl_object_info[]. */
+#define WOLFSSL_OBJECT_INFO_SLICE_MAX   24
+
+static WolfsslObjectInfoSlice wolfssl_object_info_slice[
+    WOLFSSL_OBJECT_INFO_SLICE_MAX];
+/* Number of slices calculated. 0 when not calculated yet. */
+static int wolfssl_object_info_slice_cnt = 0;
+
+/* Calculate the index of OID group runs in wolfssl_object_info[].
+ *
+ * Entries of a group are contiguous. Called once from wolfSSL_Init().
+ * On overflow the index is discarded and lookups search all entries.
+ */
+void wolfssl_object_info_slice_init(void)
+{
+    size_t i;
+    int cnt = 0;
+
+    for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
+        /* Continue the run when the group is the same as the last. */
+        if ((cnt > 0) && (wolfssl_object_info[i].type ==
+                wolfssl_object_info_slice[cnt - 1].type)) {
+            wolfssl_object_info_slice[cnt - 1].count++;
+            continue;
+        }
+        /* More groups than expected - fall back to searching all entries. */
+        if (cnt == WOLFSSL_OBJECT_INFO_SLICE_MAX) {
+            WOLFSSL_MSG("OID group index too small");
+            cnt = 0;
+            break;
+        }
+        wolfssl_object_info_slice[cnt].type  = wolfssl_object_info[i].type;
+        wolfssl_object_info_slice[cnt].start = (word16)i;
+        wolfssl_object_info_slice[cnt].count = 1;
+        cnt++;
+    }
+
+    wolfssl_object_info_slice_cnt = cnt;
+}
+
+/* Get the range of wolfssl_object_info[] entries in an OID group.
+ *
+ * When the index has not been calculated, all entries are in range. Callers
+ * must check the group of an entry as well.
+ *
+ * start and end are always set: an empty range when the group has no entries.
+ *
+ * @param [in]  grp    OID group to find.
+ * @param [out] start  First index of group.
+ * @param [out] end    One past last index of group.
+ * @return  1 when there is a range to search.
+ * @return  0 when no entries have this group.
+ */
+static int wolfssl_object_info_range(word32 grp, size_t* start, size_t* end)
+{
+    int i;
+
+    /* Empty range so that a caller looping over it does nothing. */
+    *start = 0;
+    *end   = 0;
+
+    for (i = 0; i < wolfssl_object_info_slice_cnt; i++) {
+        if (wolfssl_object_info_slice[i].type == grp) {
+            *start = wolfssl_object_info_slice[i].start;
+            *end   = *start + wolfssl_object_info_slice[i].count;
+            return 1;
+        }
+    }
+    /* Index not calculated - search all entries. */
+    if (wolfssl_object_info_slice_cnt == 0) {
+        *end = WOLFSSL_OBJECT_INFO_SZ;
+        return 1;
+    }
+
+    return 0;
+}
+
+/* Get the OID sum for a NID in an OID group.
+ *
+ * @param [in] nid  NID to find.
+ * @param [in] grp  OID group the NID is in.
+ * @return  OID sum on success.
+ * @return  -1 as an unsigned value when the NID is not in the group.
+ */
+word32 nid2oid(int nid, int grp)
+{
+    size_t i;
+    size_t end;
+
+    /* Find the entry with the NID in the group. Only the entries of the
+     * group need to be searched. Match on group as well as NID: the same NID
+     * may appear in more than one group. */
+    if (wolfssl_object_info_range((word32)grp, &i, &end)) {
+        for (; i < end; i++) {
+            if ((wolfssl_object_info[i].nid == nid) &&
+                    (wolfssl_object_info[i].type == (word32)grp)) {
+                return (word32)wolfssl_object_info[i].id;
+            }
+        }
+    }
+
+    WOLFSSL_MSG("NID not in table");
+    /* MSVC warns without the cast */
+    return (word32)-1;
+}
+
+/* Get the NID for an OID sum.
+ *
+ * The entries of grp are searched first. When not found there, every entry is
+ * searched as callers may not know the group.
+ *
+ * @param [in] oid  OID sum to find.
+ * @param [in] grp  OID group the OID is expected to be in.
+ * @return  NID on success.
+ * @return  WOLFSSL_FATAL_ERROR when the OID is not in the table.
+ */
+int oid2nid(word32 oid, int grp)
+{
+    size_t i;
+    size_t end;
+
+    /* Find the entry with the OID in the group. Only the entries of the
+     * group need to be searched. */
+    if (wolfssl_object_info_range((word32)grp, &i, &end)) {
+        for (; i < end; i++) {
+            if ((wolfssl_object_info[i].id == (int)oid) &&
+                    (wolfssl_object_info[i].type == (word32)grp)) {
+                return wolfssl_object_info[i].nid;
+            }
+        }
+    }
+
+    /* Not in the group - search every entry.
+     *
+     * Callers may not know the group. wolfSSL_OBJ_txt2obj() creates an object
+     * from a numerical OID string with no group set, and
+     * wolfSSL_OBJ_obj2nid() then looks it up with grp of 0. */
+    for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
+        if (wolfssl_object_info[i].id == (int)oid) {
+            return wolfssl_object_info[i].nid;
+        }
+    }
+
+    WOLFSSL_MSG("OID not in table");
+    return WOLFSSL_FATAL_ERROR;
+}
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
+
+/* Convert shortname to NID.
+ *
+ * For OpenSSL compatibility.
+ *
+ * @param [in] sn  Short name of OID.
+ * @return  NID corresponding to shortname on success.
+ * @return  WC_NID_undef when not recognized.
+ */
+int wc_OBJ_sn2nid(const char *sn)
+{
+    const WOLFSSL_ObjectInfo *obj_info = wolfssl_object_info;
+    size_t i;
+    WOLFSSL_ENTER("wc_OBJ_sn2nid");
+    for (i = 0; i < wolfssl_object_info_sz; i++, obj_info++) {
+        if (XSTRCMP(sn, obj_info->sName) == 0)
+            return obj_info->nid;
+    }
+    WOLFSSL_MSG("short name not found in table");
+    return WC_NID_undef;
+}
+
+    /* NID variables are dependent on compatibility header files currently
+     *
+     * returns a pointer to a new WOLFSSL_ASN1_OBJECT struct on success and NULL
+     *         on fail
+     */
+
+    WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int id)
+    {
+        return wolfSSL_OBJ_nid2obj_ex(id, NULL);
+    }
+
+    /* Create or fill an ASN.1 OBJECT_ID object from a NID.
+     *
+     * The OID group is not known and so is looked up in the table with the
+     * NID. The DER encoding of the OID is created on the object.
+     *
+     * @param [in]      id       NID of object.
+     * @param [in, out] arg_obj  Object to fill. NULL to allocate a new object.
+     * @return  ASN.1 OBJECT_ID object on success.
+     * @return  NULL when the NID is not in the table, the short name is too
+     *          long or dynamic memory allocation fails.
+     */
+    WOLFSSL_LOCAL WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj_ex(int id,
+                                                WOLFSSL_ASN1_OBJECT* arg_obj)
+    {
+        word32 oidSz = 0;
+        int nid = 0;
+        const byte* oid;
+        word32 type = 0;
+        WOLFSSL_ASN1_OBJECT* obj = arg_obj;
+        byte objBuf[MAX_OID_SZ + MAX_LENGTH_SZ + 1]; /* +1 for object tag */
+        word32 objSz = 0;
+        const char* sName = NULL;
+        int i;
+
+#ifdef WOLFSSL_DEBUG_OPENSSL
+        WOLFSSL_ENTER("wolfSSL_OBJ_nid2obj");
+#endif
+
+        for (i = 0; i < (int)wolfssl_object_info_sz; i++) {
+            if (wolfssl_object_info[i].nid == id) {
+                nid = id;
+                id = wolfssl_object_info[i].id;
+                sName = wolfssl_object_info[i].sName;
+                type = wolfssl_object_info[i].type;
+                break;
+            }
+        }
+        if (i == (int)wolfssl_object_info_sz) {
+            WOLFSSL_MSG("NID not in table");
+        #ifdef WOLFSSL_QT
+            sName = NULL;
+            type = (word32)id;
+        #else
+            return NULL;
+        #endif
+        }
+
+    #ifdef HAVE_ECC
+         if (type == 0 && wc_ecc_get_oid((word32)id, &oid, &oidSz) > 0) {
+             type = oidCurveType;
+         }
+    #endif /* HAVE_ECC */
+
+        if (sName != NULL) {
+            if (XSTRLEN(sName) > WOLFSSL_MAX_SNAME - 1) {
+                WOLFSSL_MSG("Attempted short name is too large");
+                return NULL;
+            }
+        }
+
+        oid = OidFromId((word32)id, type, &oidSz);
+
+        /* set object ID to buffer */
+        if (obj == NULL){
+            obj = wolfSSL_ASN1_OBJECT_new();
+            if (obj == NULL) {
+                WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                return NULL;
+            }
+        }
+        obj->nid     = nid;
+        obj->type    = id;
+        obj->grp     = (int)type;
+
+        obj->sName[0] = '\0';
+        if (sName != NULL) {
+            XMEMCPY(obj->sName, (char*)sName, XSTRLEN((char*)sName));
+        }
+
+        objBuf[0] = ASN_OBJECT_ID; objSz++;
+        objSz += SetLength(oidSz, objBuf + 1);
+        if (oidSz) {
+            XMEMCPY(objBuf + objSz, oid, oidSz);
+            objSz     += oidSz;
+        }
+
+        if (obj->objSz == 0 || objSz != obj->objSz) {
+            obj->objSz = objSz;
+            if(((obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0) ||
+                                                           (obj->obj == NULL)) {
+                if (obj->obj != NULL)
+                    XFREE((byte*)obj->obj, NULL, DYNAMIC_TYPE_ASN1);
+                obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
+                if (obj->obj == NULL) {
+                    wolfSSL_ASN1_OBJECT_free(obj);
+                    return NULL;
+                }
+                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
+            }
+            else {
+                obj->dynamic &= (unsigned char)~WOLFSSL_ASN1_DYNAMIC_DATA;
+            }
+        }
+        XMEMCPY((byte*)obj->obj, objBuf, obj->objSz);
+
+        (void)type;
+
+        return obj;
+    }
+
+    /* Get the description of a numerical OID string.
+     *
+     * Only OIDs that have no long name in the table are translated.
+     *
+     * @param [in] oid  Numerical OID string. eg. "2.5.29.37.0".
+     * @return  Description of OID on success.
+     * @return  NULL when the OID has no description.
+     */
+    static const char* oid_translate_num_to_str(const char* oid)
+    {
+        const struct oid_dict {
+            const char* num;
+            const char* desc;
+        } oid_dict[] = {
+            { "2.5.29.37.0",       "Any Extended Key Usage" },
+            { "1.3.6.1.5.5.7.3.1", "TLS Web Server Authentication" },
+            { "1.3.6.1.5.5.7.3.2", "TLS Web Client Authentication" },
+            { "1.3.6.1.5.5.7.3.3", "Code Signing" },
+            { "1.3.6.1.5.5.7.3.4", "E-mail Protection" },
+            { "1.3.6.1.5.5.7.3.8", "Time Stamping" },
+            { "1.3.6.1.5.5.7.3.9", "OCSP Signing" },
+            { NULL, NULL }
+        };
+        const struct oid_dict* idx;
+
+        for (idx = oid_dict; idx->num != NULL; idx++) {
+            if (!XSTRCMP(oid, idx->num)) {
+                return idx->desc;
+            }
+        }
+        return NULL;
+    }
+
+    /* Write the numerical form of an ASN.1 OBJECT_ID object's OID into a
+     * buffer.
+     *
+     * String is of the form "1.2.840.113549.1.9.1" and is always NUL
+     * terminated. Truncated when the buffer is too small.
+     *
+     * @param [out] buf     Buffer to hold string.
+     * @param [in]  bufLen  Length of buffer in bytes.
+     * @param [in]  a       ASN.1 OBJECT_ID object.
+     * @return  Length of string that would be written, excluding the NUL
+     *          terminator, on success.
+     * @return  0 when decoding the object fails.
+     */
+    static int wolfssl_obj2txt_numeric(char *buf, int bufLen,
+                                       const WOLFSSL_ASN1_OBJECT *a)
+    {
+        int bufSz;
+        int    length;
+        word32 idx = 0;
+        byte   tag;
+
+        if (GetASNTag(a->obj, &idx, &tag, a->objSz) != 0) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (tag != ASN_OBJECT_ID) {
+            WOLFSSL_MSG("Bad ASN1 Object");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (GetLength((const byte*)a->obj, &idx, &length,
+                       a->objSz) < 0 || length < 0) {
+            return ASN_PARSE_E;
+        }
+
+        if (bufLen < MAX_OID_STRING_SZ) {
+            bufSz = bufLen - 1;
+        }
+        else {
+            bufSz = MAX_OID_STRING_SZ;
+        }
+
+        if ((bufSz = DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,
+                    (word32)length)) <= 0) {
+            WOLFSSL_MSG("Error decoding OID");
+            return WOLFSSL_FAILURE;
+        }
+
+        buf[bufSz] = '\0';
+
+        return bufSz;
+    }
+
+    /* If no_name is one then use numerical form, otherwise short name.
+     *
+     * Returns the buffer size on success, WOLFSSL_FAILURE on error
+     */
+    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, const WOLFSSL_ASN1_OBJECT *a,
+                            int no_name)
+    {
+        int bufSz;
+        const char* desc;
+        const char* name;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_obj2txt");
+
+        if (buf == NULL || bufLen <= 1 || a == NULL) {
+            WOLFSSL_MSG("Bad input argument");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (no_name == 1) {
+            return wolfssl_obj2txt_numeric(buf, bufLen, a);
+        }
+
+        /* return long name unless using x509small, then return short name */
+#if defined(OPENSSL_EXTRA_X509_SMALL) && !defined(OPENSSL_EXTRA)
+        name = a->sName;
+#else
+        name = wolfSSL_OBJ_nid2ln(wolfSSL_OBJ_obj2nid(a));
+#endif
+
+        if (name == NULL) {
+            WOLFSSL_MSG("Name not found");
+            bufSz = 0;
+        }
+        else if (XSTRLEN(name) + 1 < (word32)bufLen - 1) {
+            bufSz = (int)XSTRLEN(name);
+        }
+        else {
+            bufSz = bufLen - 1;
+        }
+        if (bufSz) {
+            XMEMCPY(buf, name, (size_t)bufSz);
+        }
+        else if (a->type == WOLFSSL_GEN_DNS || a->type == WOLFSSL_GEN_EMAIL ||
+                 a->type == WOLFSSL_GEN_URI) {
+            size_t objLen = XSTRLEN((const char*)a->obj);
+            if (objLen >= (size_t)bufLen) {
+                bufSz = bufLen - 1;
+            }
+            else {
+                bufSz = (int)objLen;
+            }
+            XMEMCPY(buf, a->obj, (size_t)bufSz);
+        }
+        else if ((bufSz = wolfssl_obj2txt_numeric(buf, bufLen, a)) > 0) {
+            if ((desc = oid_translate_num_to_str(buf))) {
+                bufSz = (int)XSTRLEN(desc);
+                bufSz = (int)min((word32)bufSz,(word32) bufLen - 1);
+                XMEMCPY(buf, desc, (size_t)bufSz);
+            }
+        }
+        else {
+            bufSz = 0;
+        }
+
+        buf[bufSz] = '\0';
+
+        return bufSz;
+    }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS_SMALL)
+    /* Returns the long name that corresponds with an ASN1_OBJECT nid value.
+     *  n : NID value of ASN1_OBJECT to search */
+    const char* wolfSSL_OBJ_nid2ln(int n)
+    {
+        const WOLFSSL_ObjectInfo *obj_info = wolfssl_object_info;
+        size_t i;
+        WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
+        for (i = 0; i < wolfssl_object_info_sz; i++, obj_info++) {
+            if (obj_info->nid == n) {
+                return obj_info->lName;
+            }
+        }
+        WOLFSSL_MSG("NID not found in table");
+        return NULL;
+    }
+#endif /* OPENSSL_EXTRA, HAVE_LIGHTY, WOLFSSL_MYSQL_COMPATIBLE, HAVE_STUNNEL,
+          WOLFSSL_NGINX, HAVE_POCO_LIB, WOLFSSL_HAPROXY, WOLFSSL_WPAS_SMALL */
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
+    defined(WOLFSSL_HAPROXY)
+    /* Return the corresponding short name for the nid <n>.
+     * or NULL if short name can't be found.
+     */
+    const char * wolfSSL_OBJ_nid2sn(int n) {
+        const WOLFSSL_ObjectInfo *obj_info = wolfssl_object_info;
+        size_t i;
+        WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
+
+        if (n == WC_NID_md5) {
+            /* WC_NID_surname == WC_NID_md5 and WC_NID_surname comes before
+             * WC_NID_md5 in wolfssl_object_info. As a result, the loop below
+             * will incorrectly return "SN" instead of "MD5." WC_NID_surname
+             * isn't the true OpenSSL NID, but other functions rely on this
+             * table and modifying it to conform with OpenSSL's NIDs isn't
+             * trivial. */
+             return "MD5";
+        }
+        for (i = 0; i < wolfssl_object_info_sz; i++, obj_info++) {
+            if (obj_info->nid == n) {
+                return obj_info->sName;
+            }
+        }
+        WOLFSSL_MSG_EX("SN not found (nid:%d)",n);
+        return NULL;
+    }
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* Get the NID for a short name.
+     *
+     * @param [in] sn  Short name of object. eg. "CN".
+     * @return  NID on success.
+     * @return  WC_NID_undef when sn is NULL or not recognized.
+     */
+    int wolfSSL_OBJ_sn2nid(const char *sn) {
+        WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
+        if (sn == NULL)
+            return WC_NID_undef;
+        return wc_OBJ_sn2nid(sn);
+    }
+#endif
+
+    /* Get the length of the OID in an ASN.1 OBJECT_ID object.
+     *
+     * @param [in] o  ASN.1 OBJECT_ID object.
+     * @return  Length of the OID in bytes on success.
+     * @return  0 when o is NULL or decoding the object fails.
+     */
+    size_t wolfSSL_OBJ_length(const WOLFSSL_ASN1_OBJECT* o)
+    {
+        size_t ret = 0;
+        int err = 0;
+        word32 idx = 0;
+        int len = 0;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_length");
+
+        if (o == NULL || o->obj == NULL) {
+            WOLFSSL_MSG("Bad argument.");
+            err = 1;
+        }
+
+        if (err == 0 && GetASNObjectId(o->obj, &idx, &len, o->objSz)) {
+            WOLFSSL_MSG("Error parsing ASN.1 header.");
+            err = 1;
+        }
+        if (err == 0) {
+            ret = (size_t)len;
+        }
+
+        WOLFSSL_LEAVE("wolfSSL_OBJ_length", (int)ret);
+
+        return ret;
+    }
+
+    /* Get the OID in an ASN.1 OBJECT_ID object.
+     *
+     * Returned data is owned by the object and must not be freed.
+     *
+     * @param [in] o  ASN.1 OBJECT_ID object.
+     * @return  OID of object on success.
+     * @return  NULL when o is NULL or decoding the object fails.
+     */
+    const unsigned char* wolfSSL_OBJ_get0_data(const WOLFSSL_ASN1_OBJECT* o)
+    {
+        const unsigned char* ret = NULL;
+        int err = 0;
+        word32 idx = 0;
+        int len = 0;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_get0_data");
+
+        if (o == NULL || o->obj == NULL) {
+            WOLFSSL_MSG("Bad argument.");
+            err = 1;
+        }
+
+        if (err == 0 && GetASNObjectId(o->obj, &idx, &len, o->objSz)) {
+            WOLFSSL_MSG("Error parsing ASN.1 header.");
+            err = 1;
+        }
+        if (err == 0) {
+            ret = o->obj + idx;
+        }
+
+        return ret;
+    }
+
+    /* Gets the NID value that corresponds with the ASN1 object.
+     *
+     * o ASN1 object to get NID of
+     *
+     * Return NID on success and a negative value on failure
+     */
+    int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o)
+    {
+        word32 oid = 0;
+        word32 idx = 0;
+        int ret;
+
+#ifdef WOLFSSL_DEBUG_OPENSSL
+        WOLFSSL_ENTER("wolfSSL_OBJ_obj2nid");
+#endif
+
+        if (o == NULL) {
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        #ifdef WOLFSSL_QT
+        if (o->grp == oidCertExtType) {
+            /* If nid is an unknown extension, return WC_NID_undef */
+            if (wolfSSL_OBJ_nid2sn(o->nid) == NULL)
+                return WC_NID_undef;
+        }
+        #endif
+
+        if (o->nid > 0)
+            return o->nid;
+        if ((ret = GetObjectId(o->obj, &idx, &oid,
+                                    (word32)o->grp, o->objSz)) < 0) {
+            if (ret == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E)) {
+                /* Put ASN object tag in front and try again */
+                int len = SetObjectId((int)o->objSz, NULL) + (int)o->objSz;
+                byte* buf = (byte*)XMALLOC((size_t)len, NULL,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
+                if (!buf) {
+                    WOLFSSL_MSG("malloc error");
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                idx = (word32)SetObjectId((int)o->objSz, buf);
+                XMEMCPY(buf + idx, o->obj, o->objSz);
+                idx = 0;
+                ret = GetObjectId(buf, &idx, &oid, (word32)o->grp, (word32)len);
+                XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (ret < 0) {
+                    WOLFSSL_MSG("Issue getting OID of object");
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+            else {
+                WOLFSSL_MSG("Issue getting OID of object");
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+
+        return oid2nid(oid, o->grp);
+    }
+
+    /* Return the corresponding NID for the long name <ln>
+     * or WC_NID_undef if NID can't be found.
+     */
+    int wolfSSL_OBJ_ln2nid(const char *ln)
+    {
+        const WOLFSSL_ObjectInfo *obj_info = wolfssl_object_info;
+        size_t lnlen;
+        WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
+        if (ln && (lnlen = XSTRLEN(ln)) > 0) {
+            /* Accept input like "/commonName=" */
+            if (ln[0] == '/') {
+                ln++;
+                lnlen--;
+            }
+            if (lnlen) {
+                size_t i;
+
+                if (ln[lnlen-1] == '=') {
+                    lnlen--;
+                }
+                for (i = 0; i < wolfssl_object_info_sz; i++, obj_info++) {
+                    if (lnlen == XSTRLEN(obj_info->lName) &&
+                            XSTRNCMP(ln, obj_info->lName, lnlen) == 0) {
+                        return obj_info->nid;
+                    }
+                }
+            }
+        }
+        return WC_NID_undef;
+    }
+
+    /* compares two objects, return 0 if equal */
+    int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* a,
+                        const WOLFSSL_ASN1_OBJECT* b)
+    {
+        WOLFSSL_ENTER("wolfSSL_OBJ_cmp");
+
+        if (a && b && a->obj && b->obj) {
+            if (a->objSz == b->objSz) {
+                return XMEMCMP(a->obj, b->obj, a->objSz);
+            }
+            else if (a->type == EXT_KEY_USAGE_OID ||
+                     b->type == EXT_KEY_USAGE_OID) {
+                /* Special case for EXT_KEY_USAGE_OID so that
+                 * cmp will be treated as a substring search */
+                /* Used in libest to check for id-kp-cmcRA in
+                 * EXT_KEY_USAGE extension */
+                unsigned int idx;
+                const byte* s; /* shorter */
+                unsigned int sLen;
+                const byte* l; /* longer */
+                unsigned int lLen;
+                if (a->objSz > b->objSz) {
+                    s = b->obj; sLen = b->objSz;
+                    l = a->obj; lLen = a->objSz;
+                }
+                else {
+                    s = a->obj; sLen = a->objSz;
+                    l = b->obj; lLen = b->objSz;
+                }
+                for (idx = 0; idx <= lLen - sLen; idx++) {
+                    if (XMEMCMP(l + idx, s, sLen) == 0) {
+                        /* Found substring */
+                        return 0;
+                    }
+                }
+            }
+        }
+
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif /* OPENSSL_EXTRA, HAVE_LIGHTY, WOLFSSL_MYSQL_COMPATIBLE, HAVE_STUNNEL,
+          WOLFSSL_NGINX, HAVE_POCO_LIB, WOLFSSL_HAPROXY */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
+    /* Gets the NID value that is related to the OID string passed in. Example
+     * string would be "2.5.29.14" for subject key ID.
+     *
+     * returns NID value on success and WC_NID_undef on error
+     */
+    int wolfSSL_OBJ_txt2nid(const char* s)
+    {
+        unsigned int i;
+    #ifdef WOLFSSL_CERT_EXT
+        int ret;
+        unsigned int sum = 0;
+        unsigned int outSz = MAX_OID_SZ;
+        unsigned char out[MAX_OID_SZ];
+
+        XMEMSET(out, 0, sizeof(out));
+    #endif
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_txt2nid");
+
+        if (s == NULL) {
+            return WC_NID_undef;
+        }
+
+    #ifdef WOLFSSL_CERT_EXT
+        ret = EncodePolicyOID(out, &outSz, s, NULL);
+        if (ret == 0) {
+            /* sum OID */
+            sum = wc_oid_sum(out, outSz);
+        }
+    #endif /* WOLFSSL_CERT_EXT */
+
+        /* get the group that the OID's sum is in
+         * @TODO possible conflict with multiples */
+        for (i = 0; i < wolfssl_object_info_sz; i++) {
+            int len;
+        #ifdef WOLFSSL_CERT_EXT
+            if (ret == 0) {
+                if (wolfssl_object_info[i].id == (int)sum) {
+                    return wolfssl_object_info[i].nid;
+                }
+            }
+        #endif
+
+            /* try as a short name */
+            len = (int)XSTRLEN(s);
+            if ((int)XSTRLEN(wolfssl_object_info[i].sName) == len &&
+                XSTRNCMP(wolfssl_object_info[i].sName, s, (word32)len) == 0) {
+                return wolfssl_object_info[i].nid;
+            }
+
+            /* try as a long name */
+            if ((int)XSTRLEN(wolfssl_object_info[i].lName) == len &&
+                XSTRNCMP(wolfssl_object_info[i].lName, s, (word32)len) == 0) {
+                return wolfssl_object_info[i].nid;
+            }
+        }
+
+        return WC_NID_undef;
+    }
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
+    defined(WOLFSSL_HAPROXY)
+
+    /* Create a new ASN.1 OBJECT_ID object from a name or numerical OID.
+     *
+     * @param [in] s        Short name, long name or numerical OID string.
+     * @param [in] no_name  When 0, s may be a short name, long name or
+     *                      numerical OID. When 1, s must be a numerical OID.
+     * @return  ASN.1 OBJECT_ID object on success.
+     * @return  NULL when s is NULL, not recognized or dynamic memory
+     *          allocation fails.
+     */
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_txt2obj(const char* s, int no_name)
+    {
+        int i, ret;
+        int nid = WC_NID_undef;
+        unsigned int outSz = MAX_OID_SZ;
+        unsigned char out[MAX_OID_SZ];
+        WOLFSSL_ASN1_OBJECT* obj;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_txt2obj");
+
+        if (s == NULL)
+            return NULL;
+
+        /* If s is numerical value, try to sum oid */
+        ret = EncodePolicyOID(out, &outSz, s, NULL);
+        if (ret == 0 && outSz > 0) {
+            /* If numerical encode succeeded then just
+             * create object from that because sums are
+             * not unique and can cause confusion. */
+            obj = wolfSSL_ASN1_OBJECT_new();
+            if (obj == NULL) {
+                WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                return NULL;
+            }
+            obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
+            obj->obj = (byte*)XMALLOC(1 + MAX_LENGTH_SZ + outSz, NULL,
+                    DYNAMIC_TYPE_ASN1);
+            if (obj->obj == NULL) {
+                wolfSSL_ASN1_OBJECT_free(obj);
+                return NULL;
+            }
+            obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
+            i = SetObjectId((int)outSz, (byte*)obj->obj);
+            XMEMCPY((byte*)obj->obj + i, out, outSz);
+            obj->objSz = (word32)i + outSz;
+            return obj;
+        }
+
+        /* TODO: update short names in wolfssl_object_info and check OID sums
+           are correct */
+        for (i = 0; i < (int)wolfssl_object_info_sz; i++) {
+            /* Short name, long name, and numerical value are interpreted */
+            if (no_name == 0 &&
+                ((XSTRCMP(s, wolfssl_object_info[i].sName) == 0) ||
+                 (XSTRCMP(s, wolfssl_object_info[i].lName) == 0)))
+            {
+                    nid = wolfssl_object_info[i].nid;
+            }
+        }
+
+        if (nid != WC_NID_undef)
+            return wolfSSL_OBJ_nid2obj(nid);
+
+        return NULL;
+    }
+#endif
+
+    /* compatibility function. Its intended use is to remove OID's from an
+     * internal table that have been added with OBJ_create. wolfSSL manages its
+     * own internal OID values and does not currently support OBJ_create. */
+    void wolfSSL_OBJ_cleanup(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_OBJ_cleanup");
+    }
+
+    #ifndef NO_WOLFSSL_STUB
+    /* Add an OID to the internal table.
+     *
+     * Not implemented. wolfSSL manages its own OID values.
+     *
+     * @param [in] oid  Numerical OID string. Not used.
+     * @param [in] sn   Short name of object. Not used.
+     * @param [in] ln   Long name of object. Not used.
+     * @return  WOLFSSL_FAILURE always.
+     */
+    int wolfSSL_OBJ_create(const char *oid, const char *sn, const char *ln)
+    {
+        (void)oid;
+        (void)sn;
+        (void)ln;
+        WOLFSSL_STUB("wolfSSL_OBJ_create");
+        return WOLFSSL_FAILURE;
+    }
+    #endif
+#endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
+    HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 
 #endif /* !WOLFSSL_SSL_ASN1_INCLUDED */
