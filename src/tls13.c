@@ -6244,8 +6244,10 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     *inOutIdx += OPAQUE16_LEN;
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
-    if (len == 0)
-        return INVALID_PARAMETER;
+    /* RFC 9846 Section 4.4.2: CertificateRequest.extensions has a lower bound of
+     * 0, so an empty extensions block is parsed rather than rejected here. A
+     * request missing the mandatory signature_algorithms extension is caught by
+     * the check below. */
     if ((ret = TLSX_Parse(ssl, input + *inOutIdx, len, certificate_request,
                                                                 &peerSuites))) {
         return ret;
