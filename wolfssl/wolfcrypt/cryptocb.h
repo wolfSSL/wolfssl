@@ -95,6 +95,21 @@
 #if defined(WOLFSSL_HAVE_XMSS)
     #include <wolfssl/wolfcrypt/wc_xmss.h>
 #endif
+#ifdef WOLFSSL_SM2
+    #include <wolfssl/wolfcrypt/sm2.h>
+#endif
+#ifdef WOLFSSL_SM3
+    #include <wolfssl/wolfcrypt/sm3.h>
+#endif
+#ifdef WOLFSSL_SM4
+    #include <wolfssl/wolfcrypt/sm4.h>
+#endif
+
+/* Advertises SM dispatch support to the SM implementation sources. The SM
+ * code below also requires WOLFSSL_SM_CRYPTOCB, defined by SM implementation
+ * headers whose contexts carry a devId, so this header stays compatible with
+ * older SM implementations. */
+#define WOLF_CRYPTO_CB_HAVE_SM
 
 
 #ifdef WOLF_CRYPTO_CB_CMD
@@ -139,6 +154,35 @@ typedef struct {
     const byte* authIn;
     word32      authInSz;
 } wc_CryptoCb_AesAuthDec;
+#endif
+
+#if defined(WOLFSSL_SM_CRYPTOCB) && \
+    (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
+/* GCM and CCM both pass the IV through nonce/nonceSz. */
+typedef struct {
+    wc_Sm4*     sm4;
+    byte*       out;
+    const byte* in;
+    word32      sz;
+    const byte* nonce;
+    word32      nonceSz;
+    byte*       authTag;
+    word32      authTagSz;
+    const byte* authIn;
+    word32      authInSz;
+} wc_CryptoCb_Sm4AuthEnc;
+typedef struct {
+    wc_Sm4*     sm4;
+    byte*       out;
+    const byte* in;
+    word32      sz;
+    const byte* nonce;
+    word32      nonceSz;
+    const byte* authTag;
+    word32      authTagSz;
+    const byte* authIn;
+    word32      authInSz;
+} wc_CryptoCb_Sm4AuthDec;
 #endif
 
 #ifdef WOLF_CRYPTO_CB_SETKEY
@@ -265,6 +309,30 @@ typedef struct wc_CryptoInfo {
             } ecc_check_pub;          /* distinct from ecc_check (priv-key cmp)  */
             #endif
         #endif /* HAVE_ECC */
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+            struct {
+                const byte* in;
+                word32      inlen;
+                byte*       out;
+                word32*     outlen;
+                WC_RNG*     rng;
+                ecc_key*    key;
+            } sm2sign;
+            struct {
+                const byte* sig;
+                word32      siglen;
+                const byte* hash;
+                word32      hashlen;
+                int*        res;
+                ecc_key*    key;
+            } sm2verify;
+            struct {
+                ecc_key* private_key;
+                ecc_key* public_key;
+                byte*    out;
+                word32*  outlen;
+            } sm2dh;
+        #endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
         #ifdef HAVE_CURVE25519
             struct {
                 WC_RNG*  rng;
@@ -406,7 +474,7 @@ typedef struct wc_CryptoInfo {
         };
 #endif
     } pk;
-#if !defined(NO_AES) || !defined(NO_DES3)
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(WOLFSSL_SM4)
     struct {
         int type; /* enum wc_CipherType */
         int enc;
@@ -477,14 +545,49 @@ typedef struct wc_CryptoInfo {
                 word32      keySz;
             } aessetkey;
         #endif
+        #ifdef WOLFSSL_SM_CRYPTOCB
+            #ifdef WOLFSSL_SM4_GCM
+            wc_CryptoCb_Sm4AuthEnc sm4gcm_enc;
+            wc_CryptoCb_Sm4AuthDec sm4gcm_dec;
+            #endif /* WOLFSSL_SM4_GCM */
+            #ifdef WOLFSSL_SM4_CCM
+            wc_CryptoCb_Sm4AuthEnc sm4ccm_enc;
+            wc_CryptoCb_Sm4AuthDec sm4ccm_dec;
+            #endif /* WOLFSSL_SM4_CCM */
+            #ifdef WOLFSSL_SM4_CBC
+            struct {
+                wc_Sm4*     sm4;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } sm4cbc;
+            #endif /* WOLFSSL_SM4_CBC */
+            #ifdef WOLFSSL_SM4_CTR
+            struct {
+                wc_Sm4*     sm4;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } sm4ctr;
+            #endif /* WOLFSSL_SM4_CTR */
+            #ifdef WOLFSSL_SM4_ECB
+            struct {
+                wc_Sm4*     sm4;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } sm4ecb;
+            #endif /* WOLFSSL_SM4_ECB */
+        #endif /* WOLFSSL_SM_CRYPTOCB */
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } cipher;
-#endif /* !NO_AES || !NO_DES3 */
+#endif /* !NO_AES || !NO_DES3 || WOLFSSL_SM4 */
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
-    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA3)
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || \
+    defined(WOLFSSL_SHA3) || defined(WOLFSSL_SM3)
     struct {
         int type; /* enum wc_HashType */
         const byte* in;
@@ -512,12 +615,15 @@ typedef struct wc_CryptoInfo {
         #ifdef WOLFSSL_SHA3
             wc_Sha3* sha3;
         #endif
+        #if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+            wc_Sm3* sm3;
+        #endif
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } hash;
-#endif /* !NO_SHA || !NO_SHA256 */
+#endif /* !NO_SHA || !NO_SHA256 || SHA384 || SHA512 || SHA3 || SM3 */
 #ifndef NO_HMAC
     struct {
         int macType; /* enum wc_HashType */
@@ -797,6 +903,17 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder,
 #endif
 #endif /* HAVE_ECC */
 
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM_CRYPTOCB)
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2Sign(const byte* in, word32 inlen, byte* out,
+    word32* outlen, WC_RNG* rng, ecc_key* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2Verify(const byte* sig, word32 siglen,
+    const byte* hash, word32 hashlen, int* res, ecc_key* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2SharedSecret(ecc_key* private_key,
+    ecc_key* public_key, byte* out, word32* outlen);
+#endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
+
 #ifdef HAVE_CURVE25519
 WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
     curve25519_key* key);
@@ -929,6 +1046,51 @@ WOLFSSL_LOCAL int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
                                const byte* in, word32 sz);
 #endif /* !NO_DES3 */
 
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
+#ifdef WOLFSSL_SM4_GCM
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4GcmEncrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4GcmDecrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    const byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+#endif /* WOLFSSL_SM4_GCM */
+#ifdef WOLFSSL_SM4_CCM
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CcmEncrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CcmDecrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    const byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+#endif /* WOLFSSL_SM4_CCM */
+#ifdef WOLFSSL_SM4_CBC
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CbcEncrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CbcDecrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+#endif /* WOLFSSL_SM4_CBC */
+#ifdef WOLFSSL_SM4_CTR
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CtrEncrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+#endif /* WOLFSSL_SM4_CTR */
+#ifdef WOLFSSL_SM4_ECB
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4EcbEncrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4EcbDecrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+#endif /* WOLFSSL_SM4_ECB */
+#endif /* WOLFSSL_SM4 && WOLFSSL_SM_CRYPTOCB */
+
 #ifndef NO_SHA
 WOLFSSL_LOCAL int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
     word32 inSz, byte* digest);
@@ -965,6 +1127,11 @@ WOLFSSL_LOCAL int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
     word32 inSz, byte* out, word32 outSz);
 #endif
 #endif
+
+#if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
+WOLFSSL_LOCAL int wc_CryptoCb_Sm3Hash(wc_Sm3* sm3, const byte* in,
+    word32 inSz, byte* digest);
+#endif /* WOLFSSL_SM3 && WOLFSSL_SM_CRYPTOCB */
 
 #ifndef NO_HMAC
 WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
