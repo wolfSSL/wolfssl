@@ -111,8 +111,11 @@
         ret = wc_AesGcmSetExtIV(aes, iv, ivSz);
         if (ret != 0)
             return ret;
-        return wc_AesGcmEncrypt_ex(aes, out, in, sz, scratch, ivSz, authTag,
+        ret = wc_AesGcmEncrypt_ex(aes, out, in, sz, scratch, ivSz, authTag,
                                  authTagSz, authIn, authInSz);
+        if (ret != 0)
+            return ret;
+        return wc_AesGcmSetExtIV(aes, iv, ivSz);
     }
     #endif /* ! WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_FIPS && HAVE_AESGCM &&                  */
