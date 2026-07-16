@@ -12401,6 +12401,19 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
+    if (!ssl->options.dtls) {
+        /* RFC 9846 Section 4.7.3: a sending implementation MUST NOT allow its
+         * number of key updates to exceed 2^48-1. Receivers MUST NOT enforce
+         * this on the peer. */
+        if (w64GTE(ssl->keys.keyUpdateCount,
+                   w64From32(TLS13_KEY_UPDATE_MAX_HI32,
+                             TLS13_KEY_UPDATE_MAX_LO32))) {
+            WOLFSSL_MSG("TLS 1.3 key update count at maximum; refusing "
+                        "KeyUpdate");
+            return BAD_STATE_E;
+        }
+    }
+
     outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
@@ -12472,6 +12485,9 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
             return ret;
         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
+
+        /* Count this key update against the RFC 9846 sender limit. */
+        w64Increment(&ssl->keys.keyUpdateCount);
     }
 
 
