@@ -16535,12 +16535,16 @@ static wc_test_ret_t aes_no_key_set_test(void)
     XMEMSET(tag, 0, sizeof(tag));
 #endif
 
+    /* The keyInstalled guard is pure-software hardening placed after the
+     * crypto-cb dispatch, so use INVALID_DEVID here: a registered device would
+     * route these calls to the callback (against a zero key) and never reach
+     * the guard. */
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    aes = wc_AesNew(HEAP_HINT, devId, &ret);
+    aes = wc_AesNew(HEAP_HINT, INVALID_DEVID, &ret);
     if (aes == NULL)
         return WC_TEST_RET_ENC_EC(ret);
 #else
-    ret = wc_AesInit(aes, HEAP_HINT, devId);
+    ret = wc_AesInit(aes, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
