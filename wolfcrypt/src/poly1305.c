@@ -799,6 +799,7 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     return poly1305_c_blocks(ctx, m, bytes);
 #endif
 }
+#endif /* !WOLFSSL_RISCV_ASM */
 
 /*
 This local function is used for the last call when a message with a given
@@ -820,6 +821,9 @@ static WC_INLINE int poly1305_block(Poly1305* ctx, const unsigned char *m)
     return 0;
 #elif defined(WOLFSSL_ARMASM)
     poly1305_block_aarch64(ctx, m);
+    return 0;
+#elif defined(WOLFSSL_RISCV_ASM)
+    poly1305_block_16_riscv64(ctx, m);
     return 0;
 #else
     return poly1305_blocks(ctx, m, POLY1305_BLOCK_SIZE);
@@ -865,6 +869,8 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
     poly1305_set_key(ctx, key);
 #endif
     ctx->finished = 0;
+#elif defined(WOLFSSL_RISCV_ASM)
+    poly1305_set_key_riscv64(ctx, key);
 #else
     poly1305_c_setkey(ctx, key);
 #endif
@@ -913,6 +919,18 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 #else
         poly1305_final(ctx, mac);
 #endif
+#elif defined(WOLFSSL_RISCV_ASM)
+    /* process the remaining block */
+    if (ctx->leftover) {
+        size_t i = ctx->leftover;
+        ctx->buffer[i] = 1;
+        for (i = i + 1; i < POLY1305_BLOCK_SIZE; i++)
+            ctx->buffer[i] = 0;
+        ctx->finished = 1;
+        poly1305_block_16_riscv64(ctx, ctx->buffer);
+    }
+
+    poly1305_final_riscv64(ctx, mac);
 #else
     /* process the remaining block */
     if (ctx->leftover) {
@@ -928,7 +946,6 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     return 0;
 }
-#endif /* !WOLFSSL_RISCV_ASM */
 
 
 int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)

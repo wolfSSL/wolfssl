@@ -42,6 +42,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 
 #if !defined(NO_AES) || defined(WOLFSSL_SM4)
+
 typedef struct Gcm {
     ALIGN16 byte H[16];
 #ifdef OPENSSL_EXTRA
@@ -1133,6 +1134,84 @@ WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
 #endif /* WOLFSSL_AES_XTS */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* WOLFSSL_ARMASM */
+
+#if defined(WOLFSSL_RISCV_ASM)
+/* Block cipher and key schedule - all RISC-V paths (vector/scalar/base). */
+WOLFSSL_LOCAL void AES_set_key_RISCV64(const byte* userKey, int keylen,
+    byte* key, int dir);
+WOLFSSL_LOCAL void AES_encrypt_RISCV64(const byte* in, byte* out, byte* key,
+    int nr);
+#ifdef HAVE_AES_DECRYPT
+WOLFSSL_LOCAL void AES_decrypt_RISCV64(const byte* in, byte* out, byte* key,
+    int nr);
+#endif
+
+#ifdef HAVE_AES_ECB
+WOLFSSL_LOCAL void AES_encrypt_blocks_RISCV64(const byte* in, byte* out,
+    word32 sz, byte* key, int nr);
+WOLFSSL_LOCAL void AES_decrypt_blocks_RISCV64(const byte* in, byte* out,
+    word32 sz, byte* key, int nr);
+#endif
+#ifdef HAVE_AES_CBC
+WOLFSSL_LOCAL void AES_CBC_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
+    byte* reg, byte* key, int nr);
+WOLFSSL_LOCAL void AES_CBC_decrypt_RISCV64(const byte* in, byte* out, word32 sz,
+    byte* reg, byte* key, int nr);
+#endif
+#ifdef WOLFSSL_AES_COUNTER
+WOLFSSL_LOCAL void AES_CTR_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
+    byte* reg, byte* key, byte* tmp, word32* left, int nr);
+#endif
+#ifdef WOLFSSL_AES_XTS
+WOLFSSL_LOCAL void AES_XTS_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
+    const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_RISCV64(const byte* in, byte* out, word32 sz,
+    const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#endif
+
+#ifdef HAVE_AESGCM
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
+    defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+WOLFSSL_LOCAL void AES_GCM_set_key_RISCV64(const byte* nonce, byte* key,
+    byte* gcm_h, int nr);
+#endif
+WOLFSSL_LOCAL void AES_GCM_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
+    const byte* nonce, word32 nonceSz, byte* tag, word32 tagSz, const byte* aad,
+    word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg, int nr);
+WOLFSSL_LOCAL int AES_GCM_decrypt_RISCV64(byte* in, byte* out, word32 sz,
+    const byte* nonce, word32 nonceSz, const byte* tag, word32 tagSz,
+    const byte* aad, word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg,
+    int nr);
+#if defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+WOLFSSL_LOCAL void GHASH_RISCV64(byte* x, byte* h, const byte* in,
+    word32 blocks);
+#endif
+#if defined(WOLFSSL_AESGCM_STREAM)
+WOLFSSL_LOCAL void AES_GCM_init_RISCV64(const byte* key, int nr,
+    const byte* nonce, word32 nonceSz, byte* gcm_h, byte* counter,
+    byte* initCtr);
+WOLFSSL_LOCAL void AES_GCM_ghash_block_RISCV64(const byte* data, byte* tag,
+    byte* gcm_h);
+WOLFSSL_LOCAL void AES_GCM_aad_update_RISCV64(const byte* addt, word32 abytes,
+    byte* tag, byte* h);
+WOLFSSL_LOCAL void AES_GCM_encrypt_block_RISCV64(const byte* key, int nr,
+    byte* out, const byte* in, byte* counter);
+WOLFSSL_LOCAL void AES_GCM_encrypt_update_RISCV64(const byte* key, int nr,
+    byte* out, const byte* in, word32 nbytes, byte* tag, byte* h,
+    byte* counter);
+WOLFSSL_LOCAL void AES_GCM_encrypt_final_RISCV64(byte* tag, byte* authTag,
+    word32 tbytes, word32 nbytes, word32 abytes, byte* h, byte* initCtr);
+#ifdef HAVE_AES_DECRYPT
+WOLFSSL_LOCAL void AES_GCM_decrypt_update_RISCV64(const byte* key, int nr,
+    byte* out, const byte* in, word32 nbytes, byte* tag, byte* h,
+    byte* counter);
+WOLFSSL_LOCAL void AES_GCM_decrypt_final_RISCV64(byte* tag, const byte* authTag,
+    word32 tbytes, word32 nbytes, word32 abytes, byte* h, byte* initCtr,
+    int* res);
+#endif
+#endif /* WOLFSSL_AESGCM_STREAM */
+#endif /* HAVE_AESGCM */
+#endif /* WOLFSSL_RISCV_ASM */
 
 #if defined(WOLFSSL_PPC64_ASM)
 WOLFSSL_LOCAL void AES_set_encrypt_key(const unsigned char* key, word32 len,

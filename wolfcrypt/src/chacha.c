@@ -67,11 +67,6 @@ Public domain.
 #endif /* HAVE_CHACHA */
 
 
-#if defined(WOLFSSL_RISCV_ASM) && !defined(NO_CHACHA_ASM)
-    /* implementation located in wolfcrypt/src/port/riscv/riscv-64-chacha.c */
-
-#else
-
 /* BEGIN ChaCha C implementation */
 #if defined(HAVE_CHACHA)
 
@@ -140,7 +135,8 @@ Public domain.
   */
 int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 {
-#if !defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
+#if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
+    !defined(USE_RISCV_CHACHA_SPEEDUP)
     word32 temp[CHACHA_IV_WORDS];/* used for alignment of memory */
 #endif
 
@@ -153,10 +149,12 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     if (chacha_use_neon())
         wc_chacha_setiv(ctx->X, inIv, counter);
     else
-#elif defined(USE_ARM_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARM_CHACHA_C_ONLY)
+#elif (defined(USE_ARM_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARM_CHACHA_C_ONLY)) || \
+    defined(USE_RISCV_CHACHA_SPEEDUP)
     wc_chacha_setiv(ctx->X, inIv, counter);
 #endif
-#if !defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
+#if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
+    !defined(USE_RISCV_CHACHA_SPEEDUP)
     {
         XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
         /* block counter */
@@ -173,7 +171,8 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     return 0;
 }
 
-#if !defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
+#if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
+    !defined(USE_RISCV_CHACHA_SPEEDUP)
 /* "expand 32-byte k" as unsigned 32 byte */
 static const word32 sigma[4] = {0x61707865, 0x3320646e, 0x79622d32, 0x6b206574};
 /* "expand 16-byte k" as unsigned 16 byte */
@@ -185,7 +184,8 @@ static const word32 tau[4] = {0x61707865, 0x3120646e, 0x79622d36, 0x6b206574};
   */
 int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 {
-#if !defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
+#if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
+    !defined(USE_RISCV_CHACHA_SPEEDUP)
     const word32* constants;
     const byte*   k;
 #ifdef XSTREAM_ALIGN
@@ -203,10 +203,12 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     if (chacha_use_neon())
         wc_chacha_setkey(ctx->X, key, keySz);
     else
-#elif defined(USE_ARM_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARM_CHACHA_C_ONLY)
+#elif (defined(USE_ARM_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARM_CHACHA_C_ONLY)) || \
+    defined(USE_RISCV_CHACHA_SPEEDUP)
     wc_chacha_setkey(ctx->X, key, keySz);
 #endif
-#if !defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
+#if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
+    !defined(USE_RISCV_CHACHA_SPEEDUP)
     {
 #ifdef XSTREAM_ALIGN
     if ((wc_ptr_t)key % 4) {
@@ -259,8 +261,8 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     return 0;
 }
 
-#if (!defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP)) || \
-    defined(WOLFSSL_ARM_CHACHA_NEED_C)
+#if (!defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP) && \
+    !defined(USE_RISCV_CHACHA_SPEEDUP)) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
 /**
   * Converts word into bytes with rotations having been done.
   */
@@ -307,8 +309,8 @@ extern void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
 #endif
 
 
-#if (!defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP)) || \
-    defined(WOLFSSL_ARM_CHACHA_NEED_C)
+#if (!defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP) && \
+    !defined(USE_RISCV_CHACHA_SPEEDUP)) || defined(WOLFSSL_ARM_CHACHA_NEED_C)
 /**
   * Encrypt a stream of bytes
   */
@@ -406,7 +408,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
         chacha_encrypt_x64(ctx, input, output, msglen);
         return 0;
     }
-#elif defined(USE_ARM_CHACHA_SPEEDUP)
+#elif defined(USE_ARM_CHACHA_SPEEDUP) || defined(USE_RISCV_CHACHA_SPEEDUP)
 #ifdef WOLFSSL_ARM_CHACHA_NEON_FALLBACK
     if (chacha_use_neon())
 #endif
@@ -446,7 +448,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 #endif
 }
 #endif /* HAVE_CHACHA */
-#endif /* END ChaCha C implementation */
+/* END ChaCha C implementation */
 
 #if defined(HAVE_CHACHA) && defined(HAVE_XCHACHA)
 

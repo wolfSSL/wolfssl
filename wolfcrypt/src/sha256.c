@@ -60,7 +60,7 @@ on the specific device platform.
 #endif
 
 
-#if !defined(NO_SHA256) && !defined(WOLFSSL_RISCV_ASM)
+#if !defined(NO_SHA256)
 
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
@@ -130,6 +130,7 @@ on the specific device platform.
         defined(WOLFSSL_PPC32_ASM) || \
         defined(WOLFSSL_PPC64_ASM) || \
         defined(WOLFSSL_ARMASM) || \
+        defined(WOLFSSL_RISCV_ASM) || \
         (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
             (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))))
     #error "WOLF_CRYPTO_CB_ONLY_SHA256 is incompatible with SHA-256 hardware" \
@@ -248,6 +249,8 @@ on the specific device platform.
 #elif defined(WOLFSSL_PPC64_ASM)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0
 #elif defined(WOLFSSL_ARMASM)
+    #define SHA256_UPDATE_REV_BYTES(ctx)    0
+#elif defined(WOLFSSL_RISCV_ASM)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0
 #else
     #define SHA256_UPDATE_REV_BYTES(ctx)    SHA256_REV_BYTES(ctx)
@@ -1392,6 +1395,60 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #define XTRANSFORM      Transform_Sha256
 #define XTRANSFORM_LEN  Transform_Sha256_Len
 
+#elif defined(WOLFSSL_RISCV_ASM) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+
+int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
+{
+    int ret = 0;
+
+    if (sha256 == NULL)
+        return BAD_FUNC_ARG;
+    ret = InitSha256(sha256);
+    if (ret != 0)
+        return ret;
+
+    sha256->heap = heap;
+#ifdef WOLF_CRYPTO_CB
+    sha256->devId = devId;
+    sha256->devCtx = NULL;
+#else
+    (void)devId;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha256->W = NULL;
+#endif
+
+    return ret;
+}
+
+static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
+{
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
+    Transform_Sha256_Len_riscv_vector(sha256, data, WC_SHA256_BLOCK_SIZE);
+#elif defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+    Transform_Sha256_Len_riscv_crypto(sha256, data, WC_SHA256_BLOCK_SIZE);
+#else
+    Transform_Sha256_Len_riscv(sha256, data, WC_SHA256_BLOCK_SIZE);
+#endif
+    return 0;
+}
+
+static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
+    word32 len)
+{
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
+    Transform_Sha256_Len_riscv_vector(sha256, data, len);
+#elif defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+    Transform_Sha256_Len_riscv_crypto(sha256, data, len);
+#else
+    Transform_Sha256_Len_riscv(sha256, data, len);
+#endif
+    return 0;
+}
+#define XTRANSFORM      Transform_Sha256
+#define XTRANSFORM_LEN  Transform_Sha256_Len
+
 #elif defined(WOLF_CRYPTO_CB_ONLY_SHA256)
     /* Software SHA-256 stripped; every op dispatches via cryptocb. */
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
@@ -1987,7 +2044,8 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                 2 * sizeof(word32));
         }
     #endif
-    #if defined(WOLFSSL_ARMASM) && !defined(FREESCALE_MMCAU_SHA)
+    #if (defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)) && \
+        !defined(FREESCALE_MMCAU_SHA)
         ByteReverseWords( &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
             2 * sizeof(word32));
@@ -2107,7 +2165,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             return BAD_FUNC_ARG;
         }
 
-    #ifdef WOLFSSL_ARMASM
+    #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
         #ifdef __aarch64__
         if (Transform_Sha256_Len_p == Transform_Sha256_Len) {
             return Transform_Sha256(sha256, data);

@@ -72,6 +72,10 @@ Block counter is located at index 12.
     #ifndef NO_CHACHA_ASM
         #define USE_ARM_CHACHA_SPEEDUP
     #endif
+#elif defined(WOLFSSL_RISCV_ASM)
+    #ifndef NO_CHACHA_ASM
+        #define USE_RISCV_CHACHA_SPEEDUP
+    #endif
 #endif
 
 enum {
@@ -88,7 +92,7 @@ typedef struct ChaCha {
     word32 left;                            /* number of bytes leftover */
 #if defined(USE_INTEL_CHACHA_SPEEDUP) || defined(USE_ARM_CHACHA_SPEEDUP)
     word32 over[CHACHA_CHUNK_WORDS];
-#elif defined(WOLFSSL_RISCV_ASM)
+#elif defined(USE_RISCV_CHACHA_SPEEDUP)
     ALIGN8 word32 over[CHACHA_CHUNK_WORDS];
 #endif
 } ChaCha;
@@ -112,7 +116,7 @@ WOLFSSL_API int wc_XChacha_SetKey(ChaCha *ctx, const byte *key, word32 keySz,
                                   word32 counter);
 #endif
 
-#if defined(USE_ARM_CHACHA_SPEEDUP)
+#if defined(USE_ARM_CHACHA_SPEEDUP) || defined(USE_RISCV_CHACHA_SPEEDUP)
 
 WOLFSSL_LOCAL void wc_chacha_setiv(word32* x, const byte* iv, word32 counter);
 WOLFSSL_LOCAL void wc_chacha_setkey(word32* x, const byte* key, word32 keySz);

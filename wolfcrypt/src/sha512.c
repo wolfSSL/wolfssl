@@ -64,8 +64,7 @@
            " acceleration backends"
 #endif
 
-#if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && \
-    !defined(WOLFSSL_RISCV_ASM)
+#if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384))
 
 /* determine if we are using Espressif SHA hardware acceleration */
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
@@ -188,6 +187,7 @@
     defined(PSOC6_HASH_SHA2) || \
     defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) || \
     defined(WOLFSSL_ARMASM) || \
+    defined(WOLFSSL_RISCV_ASM) || \
     (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
     #error "WOLF_CRYPTO_CB_ONLY_SHA512 is incompatible with SHA-512 hardware" \
@@ -1655,6 +1655,32 @@ static WC_INLINE int Transform_Sha512(wc_Sha512* sha512, const byte* data)
 
 #define Sha512_SetTransform()   WC_DO_NOTHING
 
+#elif defined(WOLFSSL_RISCV_ASM)
+
+static WC_INLINE int Transform_Sha512(wc_Sha512* sha512, const byte* data)
+{
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
+    Transform_Sha512_Len_riscv_vector(sha512, data, WC_SHA512_BLOCK_SIZE);
+#elif defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+    Transform_Sha512_Len_riscv_crypto(sha512, data, WC_SHA512_BLOCK_SIZE);
+#else
+    Transform_Sha512_Len_riscv(sha512, data, WC_SHA512_BLOCK_SIZE);
+#endif
+    return 0;
+}
+static WC_INLINE int Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
+    word32 len)
+{
+#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
+    Transform_Sha512_Len_riscv_vector(sha512, data, len);
+#elif defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
+    Transform_Sha512_Len_riscv_crypto(sha512, data, len);
+#else
+    Transform_Sha512_Len_riscv(sha512, data, len);
+#endif
+    return 0;
+}
+
 #else
     #define Transform_Sha512(sha512) _Transform_Sha512(sha512)
 
@@ -1775,7 +1801,8 @@ int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
 #endif /* WOLFSSL_SHA512 */
 
 #if (!defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
-     !defined(WOLFSSL_PPC32_ASM)) || defined(NEED_SOFT_SHA512)
+     !defined(WOLFSSL_PPC32_ASM) && !defined(WOLFSSL_RISCV_ASM)) || \
+    defined(NEED_SOFT_SHA512)
 
 static const word64 K512[80] = {
     W64LIT(0x428a2f98d728ae22), W64LIT(0x7137449123ef65cd),
@@ -1961,14 +1988,15 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
         #if (!defined(WOLFSSL_ESP32_CRYPT) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
-             !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+             !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
+             !defined(WOLFSSL_RISCV_ASM)
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
         #endif
             }
     #endif
     #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
-        defined(WOLFSSL_PPC32_ASM)
+        defined(WOLFSSL_PPC32_ASM) || defined(WOLFSSL_RISCV_ASM)
             ret = Transform_Sha512(sha512, (const byte*)sha512->buffer);
     #elif !defined(WOLFSSL_ESP32_CRYPT) || \
            defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
@@ -1994,7 +2022,8 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
         }
     }
 
-#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
+    defined(WOLFSSL_PPC32_ASM) || defined(WOLFSSL_RISCV_ASM)
     if (len >= WC_SHA512_BLOCK_SIZE) {
         word32 blocksLen = len & ~((word32)WC_SHA512_BLOCK_SIZE-1);
 
@@ -2203,7 +2232,8 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         #if (!defined(WOLFSSL_ESP32_CRYPT) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
               defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
-             !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+             !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
+             !defined(WOLFSSL_RISCV_ASM)
             ByteReverseWords64(sha512->buffer,sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
         #endif
@@ -2211,7 +2241,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
 #endif /* LITTLE_ENDIAN_ORDER */
 #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
-    defined(WOLFSSL_PPC32_ASM)
+    defined(WOLFSSL_PPC32_ASM) || defined(WOLFSSL_RISCV_ASM)
         ret = Transform_Sha512(sha512, (const byte*)sha512->buffer);
         if (ret != 0)
             return ret;
@@ -2260,7 +2290,8 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     #if (!defined(WOLFSSL_ESP32_CRYPT) || \
           defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
           defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)) && \
-         !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+         !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
+         !defined(WOLFSSL_RISCV_ASM)
             ByteReverseWords64(sha512->buffer, sha512->buffer, WC_SHA512_PAD_SIZE);
     #endif
 #endif
@@ -2285,7 +2316,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
                            &(sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
                            WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE);
     }
-#elif defined(WOLFSSL_ARMASM)
+#elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
     #define SHA512_PAD_LEN_64  (WC_SHA512_PAD_SIZE / sizeof(word64))
     {
         ByteReverseWords64(&(sha512->buffer[SHA512_PAD_LEN_64]),
@@ -2306,7 +2337,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 #endif
 
 #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
-    defined(WOLFSSL_PPC32_ASM)
+    defined(WOLFSSL_PPC32_ASM) || defined(WOLFSSL_RISCV_ASM)
     ret = Transform_Sha512(sha512, (const byte*)sha512->buffer);
     if (ret != 0)
         return ret;
@@ -2571,7 +2602,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     }
 #endif /* LITTLE_ENDIAN_ORDER */
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
     ByteReverseWords64(buffer, (word64*)data, WC_SHA512_BLOCK_SIZE);
     Transform_Sha512(sha, (const byte*)buffer);
     ret = 0;
