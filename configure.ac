@@ -1985,6 +1985,16 @@ do
   esac
 done
 
+# If ML-DSA is enabled but no specific level (44/65/87) was requested,
+# default to enabling all levels.
+if test "$ENABLED_MLDSA" != "no" && test "$ENABLED_MLDSA44" = "" && \
+   test "$ENABLED_MLDSA65" = "" && test "$ENABLED_MLDSA87" = ""
+then
+    ENABLED_MLDSA44=yes
+    ENABLED_MLDSA65=yes
+    ENABLED_MLDSA87=yes
+fi
+
 # XMSS
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
