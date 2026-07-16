@@ -18,6 +18,10 @@ wolfcrypt_test_testwolfcrypt_LDADD       += $(top_builddir)/tests/swdev/build/sw
 wolfcrypt_test_testwolfcrypt_DEPENDENCIES += $(top_builddir)/tests/swdev/build/swdev.o
 endif
 noinst_HEADERS += wolfcrypt/test/test.h wolfcrypt/test/test_paths.h.in
+
+# ForceZero() dead-store-elimination regression probe. Skips on unsupported
+# toolchains/hosts. WCTEST_* env vars are set in the top-level Makefile.am.
+dist_noinst_SCRIPTS += wolfcrypt/test/check-forcezero-dse.test
 endif
 endif
 
@@ -76,4 +80,7 @@ EXTRA_DIST += wolfcrypt/test/test-VS2022.vcxproj
 EXTRA_DIST += wolfcrypt/test/test-VS2022.vcxproj.user
 
 EXTRA_DIST += wolfcrypt/test/README.md
+
+EXTRA_DIST += wolfcrypt/test/dse_probe.c
+
 DISTCLEANFILES+= wolfcrypt/test/.libs/testwolfcrypt

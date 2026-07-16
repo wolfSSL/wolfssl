@@ -198,12 +198,10 @@ jobs:
       # The `latest` leg is the only one that reads wolfSSL history: it needs the
       # commit messages check-break.sh scans (the last two release cycles) plus
       # the two newest release tags, and no file contents, so --filter=tree:0
-      # fetches commits+tags only and turns a 912 MiB full clone into ~1 MiB on
-      # top of the source. The exclude boundary is the THIRD-newest release, not
-      # the scan base, because --shallow-exclude severs the ref it names and
-      # severing the scan base would drop it from `git tag --merged HEAD` and
-      # silently halve the window. Tags come in by explicit refspec (never
-      # --tags, which re-pulls every tag's history), and note a server without
+      # fetches commits+tags+full history only (treeless, not full clone) --
+      # far smaller than the 912 MiB full clone even though there is no
+      # shallow boundary left to bound it further. Tags come in via --tags
+      # since the exact release tags needed can shift; a server without
       # uploadpack.allowFilter silently ignores the filter and clones in full.
       - name: Deepen wolfSSL history for the break check
         if: ${{ matrix.ref_mode == 'latest' }}
@@ -211,25 +209,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Release-tag selection MUST agree with check-break.sh's
-          # `--list 'v*-stable' --sort=-v:refname`. `sort -Vr` matches git's
-          # -v:refname on this tag set (verified incl. double-digit minors,
-          # e.g. v5.9.10 > v5.9.2). The assertion below catches any drift.
-          mapfile -t T < <(git ls-remote --tags --refs origin 'v*-stable' \
-              | sed 's#.*refs/tags/##' | sort -Vr)
-          echo "Newest release tags: ${T[*]:0:3}"
-
-          if [ "${#T[@]}" -lt 3 ]; then
-            echo "Fewer than three release tags; falling back to full history."
-            git fetch --unshallow --filter=tree:0 --tags origin
-          else
-            # Fetch by ref (not raw SHA) so this does not depend on the server
-            # allowing reachable-SHA1-in-want.
-            git fetch --no-tags --filter=tree:0 --shallow-exclude="${T[2]}" origin \
-                "$GITHUB_REF" \
-                "refs/tags/${T[0]}:refs/tags/${T[0]}" \
-                "refs/tags/${T[1]}:refs/tags/${T[1]}"
-          fi
+          git fetch --unshallow --filter=tree:0 --tags origin
 
           # Fail LOUD if this step and check-break.sh disagree on the scan base.
           # check-break.sh:61 falls back to the NEWEST tag when the second line
@@ -237,23 +217,6 @@ jobs:
           rel="$(git tag --merged HEAD --sort=-v:refname --list 'v*-stable')"
           base="$(printf '%s\n' "$rel" | sed -n '2p')"
           echo "Deepened to $(git rev-list --count HEAD) commits; scan base='${base}'"
-
-          # The fetch above deepens whatever "$GITHUB_REF" resolves to NOW, but
-          # actions/checkout pinned a SHA when the job started. GitHub can
-          # regenerate refs/pull/N/merge in between -- a new commit object with
-          # the same parents -- and then FETCH_HEAD is not HEAD, HEAD keeps its
-          # depth-1 graft, and no tag is reachable from it. Deepen the ref we are
-          # actually on before giving up. Re-running the job cannot clear this:
-          # a re-run replays the same pinned SHA.
-          if [ -z "$base" ]; then
-            echo "Scan base empty (merge ref moved under the checkout?);" \
-                 "retrying with a full deepen."
-            git fetch --unshallow --filter=tree:0 --tags origin
-            rel="$(git tag --merged HEAD --sort=-v:refname --list 'v*-stable')"
-            base="$(printf '%s\n' "$rel" | sed -n '2p')"
-            echo "Re-deepened to $(git rev-list --count HEAD) commits;" \
-                 "scan base='${base}'"
-          fi
 
           if [ -z "$base" ]; then
             echo "::error::Deepen produced no usable scan base; check-break.sh would scan the wrong window."

@@ -332,6 +332,7 @@ WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 #endif
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
+/* Zero len bytes at mem. */
 WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
 #endif
 
