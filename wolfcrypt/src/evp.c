@@ -8347,8 +8347,8 @@ void wolfSSL_EVP_init(void)
                  * combines them to a new iv. EVP is given exactly *one* iv,
                  * so to pass it into chacha, we have to revert that first.
                  * The counter comes first in little-endian */
-                word32 counter = (word32)iv[0] + (word32)(iv[1] << 8) +
-                    (word32)(iv[2] << 16) + (word32)(iv[3] << 24);
+                word32 counter = (word32)iv[0] | ((word32)iv[1] << 8) |
+                    ((word32)iv[2] << 16) | ((word32)iv[3] << 24);
                 if (wc_Chacha_SetIV(&ctx->cipher.chacha,
                                     iv + sizeof(counter), counter) != 0) {
 
