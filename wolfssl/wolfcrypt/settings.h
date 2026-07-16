@@ -3044,7 +3044,7 @@
     #define HAVE_ECC
     #define NO_SESSION_CACHE
     #define NO_ERROR_STRINGS
-    #define XMALLOC_USER
+    #define XMALLOC_OVERRIDE
     #define XMALLOC(sz, heap, type)     ((void)(heap), (void)(type), os_malloc(sz))
     #define XREALLOC(p, sz, heap, type) ((void)(heap), (void)(type), os_realloc(p, sz))
     #define XFREE(p, heap, type)        ((void)(heap), (void)(type), os_free(p))

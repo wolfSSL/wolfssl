@@ -520,6 +520,9 @@
         #elif defined(NUCLEUS_PLUS_2_3)
             typedef int socklen_t;
             #define XSOCKLENT socklen_t
+        #elif defined(WOLFSSL_APACHE_MYNEWT)
+            /* mn_socket doesn't provide socklen_t */
+            #define XSOCKLENT int
         #else
             #define XSOCKLENT socklen_t
         #endif
