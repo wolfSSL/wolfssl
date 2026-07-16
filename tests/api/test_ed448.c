@@ -1353,7 +1353,7 @@ int test_wc_ed448_check_key_decisions(void)
 
     /* Same construction but with an extra byte (p[1]) perturbed so the
      * second range-check loop exits early with ret == 0 before the final
-     * byte compare runs -- closes that compare's (ret == PUBLIC_KEY_E)
+     * byte compare runs -- closes that compare's PUBLIC_KEY_E
      * guard operand's FALSE side. */
     near_p[1] = 0x00;
     ExpectIntEQ(wc_ed448_init(&freshKey), 0);

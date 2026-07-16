@@ -59,7 +59,7 @@
 #define TEST_KDF_CRYPTOCB_DEVID 0x4b444630 /* "KDF0" */
 
 /* Toggled by the test below: when set, the callback fails outright instead
- * of computing the KDF, giving the (ret != CRYPTOCB_UNAVAILABLE) guard in
+ * of computing the KDF, giving the CRYPTOCB_UNAVAILABLE fall-through guard in
  * wc_KDA_KDF_twostep_cmac an independence pair (dispatch-taken-and-fails vs
  * dispatch-taken-and-succeeds), both within this one registered devId. */
 static int test_kdf_cryptocb_force_fail = 0;
@@ -631,7 +631,7 @@ int test_wc_KdfDecisionCoverage(void)
 
 #if defined(WOLF_CRYPTO_CB)
         /* devId != INVALID_DEVID: dispatch taken. Independence pair for
-         * the (ret != CRYPTOCB_UNAVAILABLE) guard: succeeds, then fails
+         * the CRYPTOCB_UNAVAILABLE fall-through guard: succeeds, then fails
          * outright, both via the SAME registered devId. */
         ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_KDF_CRYPTOCB_DEVID,
             test_kdf_cryptocb, NULL), 0);

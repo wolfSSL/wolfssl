@@ -4148,9 +4148,15 @@ static int mlkem_feature_roundtrip(int type)
 
     ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
 
-    priv = (byte*)XMALLOC(privLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    pub  = (byte*)XMALLOC(pubLen,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    ct   = (byte*)XMALLOC(ctLen,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* The size queries above set these; guard each allocation so static
+     * analysis sees a nonzero size (clang-tidy flags a possible 0-byte
+     * malloc otherwise). ExpectNotNull below still catches a 0-size query. */
+    if (privLen > 0)
+        priv = (byte*)XMALLOC(privLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubLen > 0)
+        pub  = (byte*)XMALLOC(pubLen,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ctLen > 0)
+        ct   = (byte*)XMALLOC(ctLen,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(priv);
     ExpectNotNull(pub);
     ExpectNotNull(ct);
