@@ -127,17 +127,12 @@ jobs:
           # (|| true), errors left visible so a runner without IPv6 still runs the
           # IPv4 tests and any failure stays diagnosable in the log.
           #
-          # The inverted OPENSSL testserversec tests (OPENSSLCERTCLIENT etc.)
-          # run a foreground one-shot SSL listener with no port-wait; their
-          # background connector gives up after 2s (retry=2, 1s apart). On a
-          # loaded runner the listener can bind after the connector is gone
-          # and then blocks in accept() forever. retry=30 widens that window;
-          # a healthy run still connects on the first or second attempt, and
-          # testserversec kills the connector right after the client returns,
-          # so passing runs pay nothing. timeout(1) bounds each shard
-          # (normally ~2 min) so any remaining hang fails fast with the
-          # culprit test named in the shard output instead of stalling the
-          # job into the 15-min kill, which discards all output.
+          # The inverted OPENSSL testserversec tests run a one-shot foreground
+          # listener with no port-wait; the background connector quits after
+          # 2s (retry=2), and a later listener then hangs in accept() forever.
+          # retry=30 widens the window at no cost to passing runs. timeout
+          # makes any remaining hang fail fast with the culprit test named in
+          # the shard output instead of stalling into the 15-min job kill.
           cat > socat-configs.json <<'EOF'
           [{
             "name": "socat", "build": false, "netns": true, "shards": __SHARDS__,
