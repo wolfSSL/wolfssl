@@ -1122,6 +1122,32 @@ add_option(WOLFSSL_XMSS
     "Enable the wolfSSL XMSS implementation (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_XMSSVERIFYONLY
+    "Enable the XMSS/XMSS^MT verify-only implementation (default: disabled)"
+    "no" "yes;no")
+
+add_option(WOLFSSL_XMSSSMALL
+    "Enable the smaller, slower XMSS/XMSS^MT implementation (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_XMSS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_XMSS")
+
+    set_wolfssl_definitions("WOLFSSL_HAVE_XMSS" RESULT)
+
+    if (WOLFSSL_XMSSVERIFYONLY)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_XMSS_VERIFY_ONLY")
+
+        set_wolfssl_definitions("WOLFSSL_XMSS_VERIFY_ONLY" RESULT)
+    endif()
+
+    if (WOLFSSL_XMSSSMALL)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WC_XMSS_SMALL")
+
+        set_wolfssl_definitions("WOLFSSL_WC_XMSS_SMALL"    RESULT)
+    endif()
+endif()
+
 # SLH-DSA
 add_option(WOLFSSL_SLHDSA
     "Enable the wolfSSL SLH-DSA implementation (default: disabled)"
