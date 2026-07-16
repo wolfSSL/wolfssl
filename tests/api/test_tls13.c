@@ -7111,12 +7111,16 @@ int test_tls13_fragmented_session_ticket(void)
     if (EXPECT_SUCCESS() && ssl_c->arrays != NULL) {
         /* Zero before freeing so WOLFSSL_CHECK_MEM_ZERO builds don't abort. */
         if (ssl_c->arrays->preMasterSecret != NULL) {
+#ifndef WOLFSSL_NO_FORCE_ZERO
             ForceZero(ssl_c->arrays->preMasterSecret, ENCRYPT_LEN);
+#endif
             XFREE(ssl_c->arrays->preMasterSecret, ssl_c->heap,
                   DYNAMIC_TYPE_SECRET);
             ssl_c->arrays->preMasterSecret = NULL;
         }
+#ifndef WOLFSSL_NO_FORCE_ZERO
         ForceZero(ssl_c->arrays, sizeof(Arrays));
+#endif
         XFREE(ssl_c->arrays, ssl_c->heap, DYNAMIC_TYPE_ARRAYS);
         ssl_c->arrays = NULL;
     }

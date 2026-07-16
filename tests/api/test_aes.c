@@ -10583,7 +10583,9 @@ static int test_CryptoCb_Aes_Cb(int devId, wc_CryptoInfo* info, void* ctx)
 
         if (aes != NULL && aes->devCtx == cryptoCbAesMockHandle) {
             /* "Delete" key from simulated SE */
+#ifndef WOLFSSL_NO_FORCE_ZERO
             ForceZero(&mockSeKey, sizeof(mockSeKey));
+#endif
             cryptoCbAesFreeCalled++;
         }
 
@@ -10963,7 +10965,9 @@ static int test_CryptoCb_AesGcm_Offload_Cb(int devId, wc_CryptoInfo* info, void*
 
         if (aes != NULL && aes->devCtx == cryptoCbAesGcmMockHandle) {
             /* "Delete" key from simulated SE */
+#ifndef WOLFSSL_NO_FORCE_ZERO
             ForceZero(&mockSeKeyOffload, sizeof(mockSeKeyOffload));
+#endif
             cryptoCbAesGcmFreeCalled++;
         }
 
@@ -11619,8 +11623,11 @@ static int test_Tls13Zero_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 
         Aes* aes = (Aes*)info->free.obj;
         if (aes != NULL && aes->devCtx != NULL) {
+#ifndef WOLFSSL_NO_FORCE_ZERO
             Tls13ZeroKeySlot* slot = (Tls13ZeroKeySlot*)aes->devCtx;
+            /* slot is static; zero, don't free. */
             ForceZero(slot, sizeof(*slot));
+#endif
             aes->devCtx = NULL;
         }
         return 0;
