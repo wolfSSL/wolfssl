@@ -36,6 +36,7 @@ int test_wc_HashGetFlags(void);
 int test_wc_Hash_Algs(void);
 int test_wc_HashGetOID(void);
 int test_wc_OidGetHash(void);
+int test_wc_HashTypeConvert(void);
 int test_wc_HashDecisionCoverage(void);
 int test_wc_HashFeatureCoverage(void);
 
@@ -52,6 +53,7 @@ int test_wc_HashFeatureCoverage(void);
     TEST_DECL_GROUP("hash", test_wc_Hash_Algs),         \
     TEST_DECL_GROUP("hash", test_wc_HashGetOID),        \
     TEST_DECL_GROUP("hash", test_wc_OidGetHash),        \
+    TEST_DECL_GROUP("hash", test_wc_HashTypeConvert),   \
     TEST_DECL_GROUP("hash", test_wc_HashDecisionCoverage), \
     TEST_DECL_GROUP("hash", test_wc_HashFeatureCoverage)
 

@@ -297,6 +297,22 @@ int test_wc_GenerateSeed(void)
     /* Different configurations have different paths and different errors or
      * no error at all. */
 #ifdef TEST_WC_GENERATE_SEED_PARAMS
+    /* NOTE (GAPS.md residual, line ~5525 "os == NULL || output == NULL"):
+     * TEST_WC_GENERATE_SEED_PARAMS is not defined by any variant in
+     * configs/random/ today. Its header comment cites a real historical
+     * bug -- the generic Linux getrandom()/dev-urandom wc_GenerateSeed()
+     * arm's vDSO getrandom() fast path used to segfault on a NULL output
+     * buffer instead of returning an error. That bug was fixed by
+     * "random: reject NULL output in Unix wc_GenerateSeed" (adds this
+     * exact "os == NULL || output == NULL" guard ahead of any backend
+     * dispatch), and empirically (native --enable-all build, getrandom()
+     * backend) both wc_GenerateSeed(NULL, output, sz) and
+     * wc_GenerateSeed(os, NULL, sz) now return BAD_FUNC_ARG cleanly with no
+     * crash. Defining TEST_WC_GENERATE_SEED_PARAMS in
+     * configs/random/user_settings.base.h (none of this module's variants
+     * select a different OS/HW entropy backend) would safely close this
+     * residual; left undefined here since gap-closing tasks don't modify
+     * the shared campaign config headers -- flagged for the orchestrator. */
     /* Bad parameters. */
     ExpectIntEQ(wc_GenerateSeed(NULL, NULL  , 16),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));

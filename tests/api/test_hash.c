@@ -844,6 +844,33 @@ int test_wc_OidGetHash(void)
 }
 
 /*
+ * MC/DC coverage for wc_HashTypeConvert()'s "current master" mapping arm
+ * (int hashType -> enum wc_HashType), used only when HAVE_FIPS/HAVE_SELFTEST
+ * are NOT defined (the legacy FIPSv1/selftest build instead uses a switch
+ * with its own per-type case labels, a structurally different mechanism):
+ * "hashType > 0 && hashType <= WC_HASH_TYPE_MAX". Every other caller in this
+ * suite (indirectly, via password-based-KDF style paths) only ever
+ * supplies the operand pair's true-true and false-(n/a) sides; this test
+ * supplies the missing independence pair for the "hashType <=
+ * WC_HASH_TYPE_MAX" operand by holding "hashType > 0" true while flipping
+ * the upper-bound check to its false side (an out-of-range positive
+ * value).
+ */
+int test_wc_HashTypeConvert(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_PWDBASED) || !defined(NO_ASN)
+    /* hashType > 0 (true, held) && hashType <= WC_HASH_TYPE_MAX (false) ->
+     * eHashType stays at its WC_HASH_TYPE_NONE initializer. */
+    enum wc_HashType converted = wc_HashTypeConvert((int)WC_HASH_TYPE_MAX +
+        100);
+
+    ExpectIntEQ((int)converted, (int)WC_HASH_TYPE_NONE);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_HashTypeConvert */
+
+/*
  * MC/DC decision coverage for the wc_Hash* dispatcher in wolfcrypt/src/
  * hash.c: argument-check / NULL / type-mismatch / unknown-hashType /
  * short-buffer branches, each asserting the specific error the source

@@ -385,6 +385,42 @@ int test_wc_KdfDecisionCoverage(void)
         ExpectIntEQ(wc_SRTCP_KDF_label(NULL, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Each remaining leaf of wc_SRTP_KDF_label()'s own copy of the
+         * compound arg-validation OR, shown true in isolation. */
+        ExpectIntEQ(wc_SRTP_KDF_label(key, AES_256_KEY_SIZE + 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key), NULL, sizeof(salt),
+            -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key), salt,
+            WC_SRTP_MAX_SALT + 1, -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key), salt, sizeof(salt),
+            -2, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key), salt, sizeof(salt),
+            25, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Same 5 leaves for wc_SRTCP_KDF_label()'s own copy of the same
+         * decision (a distinct source location from the above). */
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, AES_256_KEY_SIZE + 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key), NULL, sizeof(salt),
+            -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key), salt,
+            WC_SRTP_MAX_SALT + 1, -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key), salt, sizeof(salt),
+            -2, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key), salt, sizeof(salt),
+            25, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 
     /* wc_SRTP_KDF_kdr_to_idx(): while(kdr != 0) loop, false-immediately vs
@@ -511,6 +547,23 @@ int test_wc_KdfDecisionCoverage(void)
         ExpectIntEQ(wc_KDA_KDF_PRF_cmac(kin, sizeof(kin), fixedInfo,
             sizeof(fixedInfo), kout, 32, WC_CMAC_AES, HEAP_HINT,
             INVALID_DEVID), 0);
+
+        /* Loop body's own "ret == 0 && fixedInfoSz > 0" guard: fixedInfoSz
+         * operand false (fixedInfoSz == 0), ret == 0 held true, with a
+         * KoutSz spanning one full block so the loop body actually runs. */
+        ExpectIntEQ(wc_KDA_KDF_PRF_cmac(kin, sizeof(kin), NULL, 0, kout, 16,
+            WC_CMAC_AES, HEAP_HINT, INVALID_DEVID), 0);
+
+        /* Same guard's ret == 0 operand false: an invalid Kin length (not
+         * 16/24/32) makes wc_InitCmac_ex() fail on the first loop
+         * iteration, forcing ret != 0 by the time this guard is reached
+         * (fixedInfoSz > 0 held true, as in the baseline calls above). */
+        {
+            byte kinBad[AES_128_KEY_SIZE + 4] = {0};
+            ExpectIntEQ(wc_KDA_KDF_PRF_cmac(kinBad, sizeof(kinBad), fixedInfo,
+                sizeof(fixedInfo), kout, 16, WC_CMAC_AES, HEAP_HINT,
+                INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
     }
 
     {
@@ -542,6 +595,16 @@ int test_wc_KdfDecisionCoverage(void)
         /* salt == NULL. */
         ExpectIntEQ(wc_KDA_KDF_twostep_cmac(NULL, sizeof(salt), z,
             sizeof(z), fixedInfo, sizeof(fixedInfo), output, sizeof(output),
+            HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* z == NULL. */
+        ExpectIntEQ(wc_KDA_KDF_twostep_cmac(salt, sizeof(salt), NULL,
+            sizeof(z), fixedInfo, sizeof(fixedInfo), output, sizeof(output),
+            HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* output == NULL. */
+        ExpectIntEQ(wc_KDA_KDF_twostep_cmac(salt, sizeof(salt), z,
+            sizeof(z), fixedInfo, sizeof(fixedInfo), NULL, sizeof(output),
             HEAP_HINT, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Baseline: valid two-step derivation, dispatch not taken
@@ -779,6 +842,12 @@ int test_wc_KdfFeatureCoverage(void)
             h, sizeof(h), sessionId, sizeof(sessionId)), 0);
         /* keySz==40 -> blocks==2, remainder==0. */
         ExpectIntEQ(wc_SSH_KDF(WC_SHA, 'D', key, 40, k, sizeof(k), h,
+            sizeof(h), sessionId, sizeof(sessionId)), 0);
+        /* keySz==43 -> blocks==2 (loop runs once), remainder>0, with kPad
+         * (k[0] top bit clear) false: independence pair for the
+         * remainder-tail's "ret == 0 && kPad" guard's kPad operand,
+         * against the 'C' case above (same ret == 0, kPad true). */
+        ExpectIntEQ(wc_SSH_KDF(WC_SHA, 'E', key, 43, k, sizeof(k), h,
             sizeof(h), sessionId, sizeof(sessionId)), 0);
 #endif
 #ifndef NO_SHA256

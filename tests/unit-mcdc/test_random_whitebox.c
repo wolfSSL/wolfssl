@@ -48,6 +48,25 @@
  *     sizeof(reseedCtr)) that always satisfy the guard, so the false side
  *     needs a direct call with mismatched/zero lengths.
  *
+ * Two further GAPS.md residual classes remain justified SKIPS, deliberately
+ * NOT chased by this white-box (per the campaign's no-fault-injection
+ * convention -- same class as the documented rsa/sp-math residuals):
+ *
+ *   - Hash_gen()/Hash512_gen()'s "data == NULL || digest == NULL" XMALLOC
+ *     guard (only compiled under WOLFSSL_SMALL_STACK &&
+ *     !WOLFSSL_SMALL_STACK_CACHE): reaching either operand's true side needs
+ *     the shared allocator to fail on one of two back-to-back XMALLOC()
+ *     calls; this campaign injects no allocation-failure fault (same
+ *     documented residual class as the rsa/sp-math allocation-failure
+ *     branches -- see db/modules.json's "random" entry).
+ *   - Hash_DRBG_Init()/Hash512_DRBG_Init()'s chained
+ *     "Hash_df(...)==DRBG_SUCCESS && Hash_df(...)==DRBG_SUCCESS" (resp.
+ *     Hash512_df) compound: showing either operand's false side needs
+ *     wc_Sha256Update()/wc_Sha256Final() (resp. SHA-512) to fail mid-
+ *     operation on a live call with valid buffers, which does not happen
+ *     under normal library operation (same transform-failure class as the
+ *     sha module's residuals) and is not forced here.
+ *
  * This white-box #includes random.c directly to reach these file-static
  * helpers and drives both sides of each leaf in the same binary (a single
  * clang MC/DC bitmap does not merge independence pairs across separately

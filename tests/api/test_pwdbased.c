@@ -126,6 +126,23 @@ int test_wc_PBKDF1DecisionCoverage(void)
     ExpectIntEQ(wc_PBKDF1_ex(derived, (int)sizeof(derived), NULL, 0,
                     passwd, (int)sizeof(passwd), salt, (int)sizeof(salt),
                     2, WC_SHA, HEAP_HINT), 0);
+
+    /* `if (ivLeft && digestLeft)` independence pairs. keyLen == digestLen
+     * (20 for SHA-1) with ivLen > 0: the first D-iteration exactly
+     * exhausts the digest into the key (digestLeft becomes 0), so
+     * ivLeft(true) && digestLeft(false) -> false; the following
+     * iteration resets digestLeft and drains the iv, so
+     * ivLeft(true) && digestLeft(true) -> true. Paired with the
+     * ivLen == 0 calls above (ivLeft always false) for the ivLeft
+     * operand's independence pair. */
+    {
+        byte key20[20] = {0};
+        byte iv8[8] = {0};
+
+        ExpectIntEQ(wc_PBKDF1_ex(key20, (int)sizeof(key20), iv8,
+                        (int)sizeof(iv8), passwd, (int)sizeof(passwd),
+                        salt, (int)sizeof(salt), 2, WC_SHA, HEAP_HINT), 0);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -238,6 +255,15 @@ int test_wc_PKCS12_PBKDFDecisionCoverage(void)
     /* valid derivation */
     ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
                     salt, (int)sizeof(salt), 2, (int)sizeof(derived),
+                    WC_SHA256, id), 0);
+
+    /* inner `while ((ret == 0) && (kLen > 0))` independence pair for the
+     * kLen operand: kLen == 0 is a valid request (not caught by the
+     * kLen < 0 arg-check) so the loop body never executes and
+     * kLen > 0 evaluates false with ret == 0 held true, paired with the
+     * "valid derivation" call above where kLen > 0 evaluates true. */
+    ExpectIntEQ(wc_PKCS12_PBKDF(derived, passwd, (int)sizeof(passwd),
+                    salt, (int)sizeof(salt), 2, 0,
                     WC_SHA256, id), 0);
 #endif
     return EXPECT_RESULT();

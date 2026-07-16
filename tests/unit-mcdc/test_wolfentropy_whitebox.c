@@ -46,6 +46,26 @@
  * exercise the MemUse/GetSample/GetNoise/Condition path best-effort; any
  * setup failure is reported as a skip (return 0), never a test failure, so
  * the campaign never discards the variant's coverage.
+ *
+ * wc_Entropy_Get() itself has two decisions whose operands reference the
+ * SAME file-static health-test state, but are not independently selectable
+ * from tests/api because Entropy_Init() (run once by test setup) already
+ * leaves that state primed:
+ *
+ *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
+ *     - "prop_total == 0"   startup-retrigger via the first OR operand
+ *     - "!rep_have_prev"    startup-retrigger via the second OR operand
+ *   "while ((ret == 0) && (len > 0))"
+ *   "for (i = 0; (ret == 0) && (i < noise_len); i++)"
+ *     - "ret == 0"          both loops only ever end via their *other*
+ *                           operand on a healthy host; force an early exit
+ *                           by rigging the Proportion counts so the very
+ *                           first sample of the very first pass trips the
+ *                           cutoff, whatever its (unpredictable) value is.
+ *
+ * wb_startup_retrigger() and wb_get_loop_early_exit() below drive these by
+ * writing prop_total / rep_have_prev / prop_cnt[] directly (file-static,
+ * visible to this TU) immediately before calling the public entry point.
  */
 
 #include <wolfcrypt/src/wolfentropy.c>
@@ -159,6 +179,102 @@ static void wb_collect_path(void)
     Entropy_Final();
 }
 
+/* wc_Entropy_Get()'s startup-retrigger guard:
+ *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
+ * On any live process, Entropy_Init() (already run by test setup and by
+ * wb_collect_path() above) leaves prop_total != 0 and rep_have_prev == 1, so
+ * this guard's *true* side -- and each of its two OR operands individually
+ * -- is never shown from tests/api. Both globals are file-static: drive
+ * each operand's independence pair directly, holding the other operand
+ * false (the "both false" side is already exercised by every other
+ * steady-state call in this campaign, e.g. wb_collect_path() above). */
+static void wb_startup_retrigger(void)
+{
+    int ret;
+    byte out[32];
+
+    ret = Entropy_Init();
+    if (ret != 0) {
+        WB_NOTE("Entropy_Init failed; skipping startup-retrigger exercise");
+        return;
+    }
+
+    /* "prop_total == 0" true, "!rep_have_prev" false: retrigger via the
+     * first OR operand alone. */
+    prop_total = 0;
+    rep_have_prev = 1;
+    XMEMSET(out, 0, sizeof(out));
+    ret = wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
+    if (ret != 0) {
+        WB_NOTE("startup retrigger via prop_total==0 failed");
+        wb_fail = 1;
+    }
+
+    /* "prop_total == 0" false, "!rep_have_prev" true: retrigger via the
+     * second OR operand alone. */
+    prop_total = 1;
+    rep_have_prev = 0;
+    XMEMSET(out, 0, sizeof(out));
+    ret = wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
+    if (ret != 0) {
+        WB_NOTE("startup retrigger via !rep_have_prev failed");
+        wb_fail = 1;
+    }
+
+    Entropy_Final();
+}
+
+/* wc_Entropy_Get()'s collection loops:
+ *   "while ((ret == 0) && (len > 0))"
+ *   "for (i = 0; (ret == 0) && (i < noise_len); i++)"
+ * A healthy host's real jitter noise never fails a health test, so neither
+ * loop's "ret == 0" operand is ever shown false while its counterpart
+ * (len > 0 / i < noise_len) is still true -- both loops only ever end via
+ * the *other* operand. Force the Adaptive Proportion test to reject on the
+ * very first sample of the very first pass by pre-loading every prop_cnt[]
+ * slot to PROP_CUTOFF - 1 with prop_total already in the windowed phase:
+ * whichever byte the real jitter sample turns out to be, incrementing its
+ * count trips the cutoff deterministically, regardless of the
+ * (unpredictable) sample value itself. A single fixed Repetition sample is
+ * primed first so that test cannot itself reject and mask the rig. */
+static void wb_get_loop_early_exit(void)
+{
+    int ret;
+    byte out[64];
+    int v;
+
+    ret = Entropy_Init();
+    if (ret != 0) {
+        WB_NOTE("Entropy_Init failed; skipping loop-early-exit exercise");
+        return;
+    }
+
+    Entropy_HealthTest_Reset();
+    /* Deterministically prime the Repetition test's "have previous" state
+     * via its own first-sample branch so it can never reach REP_CUTOFF
+     * during this exercise (rep_cnt ends at 1, or at most 2 if the first
+     * real sample happens to repeat 0xab). */
+    Entropy_HealthTest_Repetition(0xab);
+
+    /* Rig the Proportion test into the windowed phase with every count one
+     * short of the reject cutoff. */
+    prop_total = PROP_CUTOFF;
+    for (v = 0; v < (1 << ENTROPY_BITS_USED); v++) {
+        prop_cnt[v] = PROP_CUTOFF - 1;
+    }
+
+    XMEMSET(out, 0, sizeof(out));
+    ret = wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
+    if (ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)) {
+        WB_NOTE("rigged proportion cutoff did not short-circuit "
+                 "wc_Entropy_Get's collection loops");
+        wb_fail = 1;
+    }
+
+    Entropy_HealthTest_Reset();
+    Entropy_Final();
+}
+
 #else /* !HAVE_ENTROPY_MEMUSE */
 
 static void wb_repetition(void)
@@ -167,6 +283,10 @@ static void wb_proportion(void)
 { WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped proportion test"); }
 static void wb_collect_path(void)
 { WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped collection path"); }
+static void wb_startup_retrigger(void)
+{ WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped startup retrigger"); }
+static void wb_get_loop_early_exit(void)
+{ WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped loop early exit"); }
 
 #endif /* HAVE_ENTROPY_MEMUSE */
 
@@ -174,10 +294,14 @@ int main(void)
 {
     printf("wolfentropy.c white-box supplement\n");
     /* Collection path first (clean global health state), then the crafted
-     * threshold streams (each resets the health state it touches). */
+     * threshold streams (each resets the health state it touches), then the
+     * rigged-state exercises of wc_Entropy_Get()'s own decisions (each pair
+     * calls Entropy_Init()/Entropy_Final() around itself). */
     wb_collect_path();
     wb_repetition();
     wb_proportion();
+    wb_startup_retrigger();
+    wb_get_loop_early_exit();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
      * campaign discard this variant's coverage. */

@@ -189,6 +189,25 @@ int test_wc_AesCbcEncryptDecryptWithKey(void)
     /* invalid key size propagates an error out of the ret==0 chain */
     ExpectIntNE(wc_AesCbcEncryptWithKey(cipher, plain, (word32)sizeof(plain),
                                         key, 5, iv), 0);
+
+    /* wc_AesCbcDecryptWithKey argument-check independence pairs:
+     * "out == NULL || in == NULL || key == NULL || iv == NULL" - vary one
+     * operand at a time while the other three stay valid. */
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(NULL, cipher, (word32)sizeof(cipher),
+                                        key, (word32)sizeof(key), iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, NULL,
+                                        (word32)sizeof(cipher),
+                                        key, (word32)sizeof(key), iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, cipher,
+                                        (word32)sizeof(cipher),
+                                        NULL, (word32)sizeof(key), iv),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCbcDecryptWithKey(decrypted, cipher,
+                                        (word32)sizeof(cipher),
+                                        key, (word32)sizeof(key), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_AesCbcEncryptDecryptWithKey */

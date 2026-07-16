@@ -1158,6 +1158,11 @@ int test_wc_ChaCha20Poly1305_DecisionCoverage(void)
  *     exercised (every existing decrypt call uses a >= 16-byte ciphertext).
  *   - wc_XChaCha20Poly1305_Encrypt: dst_space < dst_len -> BUFFER_E - never
  *     exercised (every existing call sizes the output buffer generously).
+ *   - internal crypt_oneshot helper: the ad_len/nonce_len/key_len >
+ *     WOLFSSL_MAX_32BIT truncation-guard OR-chain - never exercised (every
+ *     existing call uses in-range lengths); each operand's independence
+ *     pair is shown on a 64-bit CPU (the only width where a size_t value
+ *     can exceed WOLFSSL_MAX_32BIT).
  ******************************************************************************/
 int test_wc_XChaCha20Poly1305_DecisionCoverage(void)
 {
@@ -1211,6 +1216,32 @@ int test_wc_XChaCha20Poly1305_DecisionCoverage(void)
         plaintext, sizeof(plaintext), aad, sizeof(aad),
         nonce, sizeof(nonce), key, sizeof(key)),
         WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* --- Internal crypt_oneshot helper's length sanity check:
+     * "(ad_len > WOLFSSL_MAX_32BIT) || (nonce_len > WOLFSSL_MAX_32BIT) ||
+     * (key_len > WOLFSSL_MAX_32BIT)". Only expressible where size_t is
+     * wider than 32 bits (on a 32-bit CPU no size_t value can exceed
+     * WOLFSSL_MAX_32BIT, so the decision is a permanent, always-false
+     * residual there). Each call flips exactly one operand above
+     * WOLFSSL_MAX_32BIT while the other two stay at their valid, in-range
+     * sizes; the "all in range" false side is exercised throughout the
+     * rest of this file's successful Encrypt/Decrypt calls. None of these
+     * huge lengths are ever dereferenced: the check fires before the ad/
+     * nonce/key buffers are touched. */
+#if defined(WC_64BIT_CPU)
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(out, sizeof(out),
+        plaintext, sizeof(plaintext), aad, (size_t)WOLFSSL_MAX_32BIT + 1,
+        nonce, sizeof(nonce), key, sizeof(key)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(out, sizeof(out),
+        plaintext, sizeof(plaintext), aad, sizeof(aad),
+        nonce, (size_t)WOLFSSL_MAX_32BIT + 1, key, sizeof(key)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(out, sizeof(out),
+        plaintext, sizeof(plaintext), aad, sizeof(aad),
+        nonce, sizeof(nonce), key, (size_t)WOLFSSL_MAX_32BIT + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif /* WC_64BIT_CPU */
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_XChaCha20Poly1305_DecisionCoverage */

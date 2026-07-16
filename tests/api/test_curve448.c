@@ -593,6 +593,22 @@ int test_wc_curve448_check_public_le(void)
     buf[10] = 0x00;
     ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
         EC448_LITTLE_ENDIAN), 0);
+    /* i still lands on 28 (bytes 55..29 all 0xff), but pub[28] is neither
+     * 0xff nor 0xfe: independence pair (false side) for the "pub[28] ==
+     * 0xfe" operand of the high-value compound -> no inner check, valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[28] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), 0);
+    /* pub[28] == 0xfe (enters the inner check, i lands on 0 with the low
+     * bytes still all 0xff) but pub[0] is below the 0xfe threshold:
+     * independence pair (false side) for the inner "pub[0] >= 0xfe"
+     * operand -> valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[28] = 0xfe;
+    buf[0] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_curve448_check_public_le */
@@ -637,6 +653,22 @@ int test_wc_curve448_check_public_be(void)
     XMEMSET(buf, 0xff, sizeof(buf));
     buf[27] = 0xfe;
     buf[CURVE448_PUB_KEY_SIZE - 2] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), 0);
+    /* i still lands on 27 (bytes 0..26 all 0xff), but pub[27] is neither
+     * 0xff nor 0xfe: independence pair (false side) for the "pub[27] ==
+     * 0xfe" operand of the high-value compound -> no inner check, valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[27] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), 0);
+    /* pub[27] == 0xfe (enters the inner check, i lands on SIZE-1 with the
+     * tail still all 0xff) but pub[SIZE-1] is below the 0xfe threshold:
+     * independence pair (false side) for the inner "pub[SIZE-1] >= 0xfe"
+     * operand -> valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[27] = 0xfe;
+    buf[CURVE448_PUB_KEY_SIZE - 1] = 0x00;
     ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
         EC448_BIG_ENDIAN), 0);
 #endif

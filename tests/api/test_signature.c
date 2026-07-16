@@ -215,7 +215,21 @@ int test_wc_falcon_sign_verify(void)
  * dispatch wrapper: argument-check independence pairs, sig_type switch
  * dispatch (including the sig_type-NONE/default arm and unsupported-type
  * arms), hash-type/size validation, and the RSA_W_ENC-specific ASN.1
- * decode-length checks. */
+ * decode-length checks.
+ *
+ * Also covers, for the ECC and plain-RSA verify paths in
+ * wolfcrypt/src/signature.c:
+ *   - "(ret != 0 || is_valid_sig != 1)" (ECC): both independence pairs,
+ *     via a corrupted-signature call (ret != 0, masking is_valid_sig) and
+ *     a wrong-data call (ret == 0, is_valid_sig == 0).
+ *   - "((word32)ret == hash_len && XMEMCMP(...) == 0)" (RSA): the
+ *     XMEMCMP-operand independence pair, via a wrong-data call that
+ *     decrypts to a correct-length but mismatching plaintext.
+ * NOT closeable: "(ret >= 0 && plain_ptr)" (RSA) - in this software-only
+ * build (no crypto-cb/hardware backend), wc_RsaSSL_VerifyInline() only
+ * ever assigns plain_ptr when it returns ret >= 0 (see wc_RsaUnPad_ex's
+ * caller in rsa.c), so the two operands are perfectly coupled and cannot
+ * be toggled independently: a structurally-complementary pair. */
 int test_wc_SignatureDecisionCoverage(void)
 {
     EXPECT_DECLS;
@@ -334,7 +348,11 @@ int test_wc_SignatureDecisionCoverage(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
-            /* Real signature that fails verification: SIG_VERIFY_E */
+            /* Real signature that fails verification: SIG_VERIFY_E.
+             * Corrupting the leading DER SEQUENCE-tag byte makes
+             * wc_ecc_verify_hash() itself fail (ret != 0): independence
+             * pair (true side) for the "ret != 0" operand of
+             * "(ret != 0 || is_valid_sig != 1)", masking is_valid_sig. */
             {
                 byte realSig[128] = {0};
                 word32 realSigLen = (word32)sizeof(realSig);
@@ -345,6 +363,27 @@ int test_wc_SignatureDecisionCoverage(void)
                 realSig[0] = (byte)(realSig[0] ^ 0xFF);
                 ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA256, sig_type,
                     data, data_len, realSig, realSigLen, &ecc, key_len),
+                    WC_NO_ERR_TRACE(SIG_VERIFY_E));
+            }
+
+            /* A syntactically-valid signature (untouched DER encoding) that
+             * mathematically fails verification because it was generated
+             * over DIFFERENT data: wc_ecc_verify_hash() itself returns
+             * ret == 0 but sets is_valid_sig to 0 -> independence pair
+             * (true side) for the "is_valid_sig != 1" operand, with
+             * "ret != 0" held false this time. */
+            {
+                byte otherData[16];
+                byte realSig2[128] = {0};
+                word32 realSig2Len = (word32)sizeof(realSig2);
+
+                XMEMSET(otherData, 0xA5, sizeof(otherData));
+                ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA256,
+                    sig_type, data, data_len, realSig2, &realSig2Len, &ecc,
+                    key_len, &rng), 0);
+                ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA256, sig_type,
+                    otherData, (word32)sizeof(otherData), realSig2,
+                    realSig2Len, &ecc, key_len),
                     WC_NO_ERR_TRACE(SIG_VERIFY_E));
             }
 
@@ -578,6 +617,36 @@ int test_wc_SignatureDecisionCoverage(void)
                 WC_NO_ERR_TRACE(BAD_LENGTH_E));
         }
 #endif /* !NO_ASN && !NO_SHA */
+
+        /* Plain RSA: a syntactically-valid signature whose decrypted,
+         * unpadded plaintext is exactly hash_len bytes (so
+         * "(word32)ret == hash_len" is true) but whose content does not
+         * match hash_data, because the signature was generated over
+         * DIFFERENT data: independence pair (false side) for the
+         * "XMEMCMP(...) == 0" operand, with "(word32)ret == hash_len" held
+         * true -> SIG_VERIFY_E. The true/true (matching) side is exercised
+         * by the plain-RSA round trip in test_wc_SignatureFeatureCoverage().
+         */
+        {
+            WC_RNG rng;
+            byte data[16];
+            byte otherData[16];
+            word32 data_len = (word32)sizeof(data);
+            byte realSig[512] = {0};
+            word32 realSigLen = (word32)sizeof(realSig);
+
+            XMEMSET(data, 0x24, sizeof(data));
+            XMEMSET(otherData, 0x99, sizeof(otherData));
+            ExpectIntEQ(wc_InitRng(&rng), 0);
+            ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA, data, data_len, realSig, &realSigLen,
+                &rsa_key, key_len, &rng), 0);
+            ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA, otherData, (word32)sizeof(otherData),
+                realSig, realSigLen, &rsa_key, key_len),
+                WC_NO_ERR_TRACE(SIG_VERIFY_E));
+            DoExpectIntEQ(wc_FreeRng(&rng), 0);
+        }
 
         DoExpectIntEQ(wc_FreeRsaKey(&rsa_key), 0);
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
