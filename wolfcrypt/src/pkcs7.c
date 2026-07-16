@@ -14232,6 +14232,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     byte tag = 0;
     byte padCheck = 0;
     int padIndex;
+    word32 peekIdx = 0;
+    int innerSz = 0;
+    byte innerTag = 0;
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -14500,6 +14503,33 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret == 0 && GetLength_ex(pkiMsg, &idx, &encryptedContentTotalSz,
                                                             pkiMsgSz, 0) < 0) {
                 ret = ASN_PARSE_E;
+            }
+
+            /* A definite-length constructed [0] wrapping a single
+             * definite-length OCTET STRING (as emitted by Go's crypto/pkcs7,
+             * e.g. micromdm/scep) is not BER-fragmented content. Unwrap the
+             * inner OCTET STRING and decode it like the primitive [0] case so
+             * the fragmented-OCTET-STRING loop, which expects an indefinite
+             * EOC terminator, is not entered. The inner length is parsed with
+             * NO_USER_CHECK because the full ciphertext may not be buffered
+             * yet in streaming mode; the size equality below validates it. The
+             * equality is computed in word32: innerSz is >= 0 here (from the
+             * GetLength_ex check) but NO_USER_CHECK lets it reach INT_MAX, so a
+             * signed addition could overflow (undefined behavior) on crafted
+             * input. Unsigned arithmetic is well-defined and, for the valid
+             * innerSz range, does not wrap. */
+            if (ret == 0 && explicitOctet && encryptedContentTotalSz > 0) {
+                peekIdx = idx;
+                if (GetASNTag(pkiMsg, &peekIdx, &innerTag, pkiMsgSz) == 0 &&
+                        innerTag == ASN_OCTET_STRING &&
+                        GetLength_ex(pkiMsg, &peekIdx, &innerSz, pkiMsgSz,
+                                     NO_USER_CHECK) >= 0 &&
+                        (word32)innerSz + (peekIdx - idx) ==
+                        (word32)encryptedContentTotalSz) {
+                    idx = peekIdx;
+                    encryptedContentTotalSz = innerSz;
+                    explicitOctet = 0;
+                }
             }
 
         #ifdef NO_PKCS7_STREAM
