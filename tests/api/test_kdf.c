@@ -95,6 +95,13 @@ static int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, void* ctx)
 int test_wc_KdfDecisionCoverage(void)
 {
     EXPECT_DECLS;
+    /* FIPS/selftest builds diverge on KDF behavior: wc_HmacSetKey enforces the
+     * 14-byte HMAC_FIPS_MIN_KEY (returns HMAC_MIN_KEYLEN_E for the short keys
+     * these probes use), the MD5/TLS1.0 PRF is disallowed, and several argument
+     * checks differ, so these OPEN-build MC/DC assertions do not hold. kdf.c
+     * coverage is measured only in non-FIPS campaign variants, so skip the whole
+     * suite under FIPS/selftest. */
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 #ifndef NO_KDF
 
     /* ---------------------------------------------------------------- */
@@ -647,6 +654,7 @@ int test_wc_KdfDecisionCoverage(void)
 #endif /* HAVE_CMAC_KDF && WOLFSSL_AES_128 */
 
 #endif /* !NO_KDF */
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
     return EXPECT_RESULT();
 } /* END test_wc_KdfDecisionCoverage */
 
@@ -657,6 +665,11 @@ int test_wc_KdfDecisionCoverage(void)
 int test_wc_KdfFeatureCoverage(void)
 {
     EXPECT_DECLS;
+    /* See test_wc_KdfDecisionCoverage: FIPS/selftest builds diverge on KDF
+     * behavior (14-byte minimum HMAC key, MD5/TLS1.0 PRF disallowed, differing
+     * argument checks), so skip this OPEN-build positive-path suite there;
+     * kdf.c is measured only in non-FIPS campaign variants. */
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 #ifndef NO_KDF
 
     /* wc_PRF() across every enabled hash arm, and both the
@@ -909,5 +922,6 @@ int test_wc_KdfFeatureCoverage(void)
 #endif /* WC_SRTP_KDF */
 
 #endif /* !NO_KDF */
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
     return EXPECT_RESULT();
 } /* END test_wc_KdfFeatureCoverage */
