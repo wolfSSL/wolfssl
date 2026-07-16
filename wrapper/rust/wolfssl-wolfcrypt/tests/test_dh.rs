@@ -2,7 +2,7 @@
 
 mod common;
 
-#[cfg(any(all(dh_keygen, dh_ffdhe_2048), random))]
+#[cfg(any(dh_ffdhe_2048, random))]
 use wolfssl_wolfcrypt::dh::DH;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
@@ -209,4 +209,40 @@ fn test_dh_shared_secret() {
 
     assert_eq!(ss0_size, ss1_size);
     assert_eq!(*ss0, *ss1);
+}
+
+#[test]
+#[cfg(dh_ffdhe_2048)]
+fn test_dh_prime_size() {
+    common::setup();
+    let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    assert_eq!(dh.prime_size().expect("Error with prime_size()"), 256);
+}
+
+#[test]
+#[cfg(all(dh_ffdhe_2048, random))]
+fn test_dh_shared_secret_buffer_too_small() {
+    common::setup();
+    let mut rng = RNG::new().expect("Error with RNG::new()");
+    let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+
+    let mut private = [0u8; 256];
+    let mut private_size = 0u32;
+    let mut public = [0u8; 256];
+    let mut public_size = 0u32;
+    dh.generate_key_pair(&mut rng, &mut private, &mut private_size, &mut public, &mut public_size).expect("Error with generate_key_pair()");
+    let private = &private[0..(private_size as usize)];
+    let public = &public[0..(public_size as usize)];
+
+    /* A buffer one byte short of the prime size must be reported rather than
+     * written past the end. The canary guards against the shared secret being
+     * written beyond the slice that was passed in. */
+    let prime_size = dh.prime_size().expect("Error with prime_size()");
+    let mut ss = [0u8; 256];
+    let (dout, canary) = ss.split_at_mut(prime_size - 1);
+    canary[0] = 0xA5;
+    let rc = dh.shared_secret(dout, private, public)
+        .expect_err("shared_secret() must reject an undersized buffer");
+    assert_eq!(rc, wolfssl_wolfcrypt::sys::wolfCrypt_ErrorCodes_BUFFER_E);
+    assert_eq!(canary[0], 0xA5);
 }

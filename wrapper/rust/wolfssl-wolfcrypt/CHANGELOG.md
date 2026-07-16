@@ -1,5 +1,17 @@
 # wolfssl-wolfcrypt Change Log
 
+## Unreleased
+
+New features:
+
+- Add DH::prime_size() to query the DH prime size, which is the minimum output
+  buffer size DH::shared_secret() requires
+
+Fixes and improvements:
+
+- Fix DH::shared_secret() writing past the end of an output buffer smaller than
+  the DH prime; it now returns BUFFER_E instead
+
 ## v2.1.0
 
 Fixes:
