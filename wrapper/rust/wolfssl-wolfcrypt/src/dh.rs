@@ -1443,6 +1443,48 @@ impl DH {
         Ok(())
     }
 
+    /// Get the size in bytes of the DH `p` parameter (the prime).
+    ///
+    /// This is the size of the DH prime `p` and the maximum length that
+    /// `shared_secret()` may write, and therefore the minimum length of the
+    /// output buffer.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(size) containing the size in bytes of the DH prime or
+    /// Err(e) containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// #[cfg(dh_ffdhe_2048)]
+    /// {
+    /// use wolfssl_wolfcrypt::dh::DH;
+    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let prime_size = dh.prime_size().expect("Error with prime_size()");
+    /// assert_eq!(prime_size, 256);
+    /// }
+    /// ```
+    pub fn prime_size(&mut self) -> Result<usize, i32> {
+        let mut p_size = 0u32;
+        let mut q_size = 0u32;
+        let mut g_size = 0u32;
+        /* Passing null buffers for p, q and g requests the parameter sizes
+         * only, which wc_DhExportParamsRaw() reports by returning
+         * LENGTH_ONLY_E. Any other return value, including success, means the
+         * sizes were not filled in. */
+        let rc = unsafe {
+            sys::wc_DhExportParamsRaw(&mut self.wc_dhkey,
+                core::ptr::null_mut(), &mut p_size,
+                core::ptr::null_mut(), &mut q_size,
+                core::ptr::null_mut(), &mut g_size)
+        };
+        if rc != sys::wolfCrypt_ErrorCodes_LENGTH_ONLY_E {
+            return Err(rc);
+        }
+        Ok(p_size as usize)
+    }
+
     /// Export Diffie-Hellman context parameters.
     ///
     /// # Parameters
@@ -1533,6 +1575,14 @@ impl DH {
     /// symmetric communication. On successfully generating a shared secret
     /// key, the size of the secret key written to `dout` will be returned.
     ///
+    /// # Parameters
+    ///
+    /// * `dout`: Output buffer containing the generated shared secret value.
+    ///   The buffer must be at least as large as `self.prime_size()` or
+    ///   a `BUFFER_E` error code will be returned.
+    /// * `private`: Private key buffer.
+    /// * `other_pub`: Other side public key used to generate shared secret.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(size) containing the size of the key written to
@@ -1563,6 +1613,11 @@ impl DH {
     /// }
     /// ```
     pub fn shared_secret(&mut self, dout: &mut [u8], private: &[u8], other_pub: &[u8]) -> Result<usize, i32> {
+        /* wc_DhAgree() does not check the buffer size, so reject a short
+         * buffer before the call to avoid a buffer overrun. */
+        if dout.len() < self.prime_size()? {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let private_size = crate::buffer_len_to_u32(private.len())?;
         let other_pub_size = crate::buffer_len_to_u32(other_pub.len())?;
