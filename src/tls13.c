@@ -72,6 +72,7 @@
  *                            (no ciphersuite requires it currently)
  * WOLFSSL_ERROR_CODE_OPENSSL: Use OpenSSL-compatible error codes  default: off
  * WOLFSSL_SSLKEYLOGFILE_OUTPUT: Set key log output file path      default: off
+ * WOLFSSL_SSLKEYLOGFILE_USE_ENV: Use SSLKEYLOGFILE env var path   default: off
  * WOLFSSL_RW_THREADED:      Enable read/write threading support   default: off
  * WOLFSSL_ASYNC_IO:         Enable async I/O operations           default: off
  * WOLFSSL_NONBLOCK_OCSP:    Non-blocking OCSP processing          default: off
@@ -16437,10 +16438,25 @@ int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
     byte clientRandom[RAN_LEN];
     int clientRandomSz;
     XFILE fp;
+#if defined(WOLFSSL_SSLKEYLOGFILE_OUTPUT) && defined(WOLFSSL_SSLKEYLOGFILE_USE_ENV)
+    const char* keyLogFile;
+#endif
 
     (void) ctx;
 #ifdef WOLFSSL_SSLKEYLOGFILE_OUTPUT
+#ifdef WOLFSSL_SSLKEYLOGFILE_USE_ENV
+    /* RFC 9850: prefer the SSLKEYLOGFILE environment variable so tools such as
+     * curl and Wireshark can share the path, else use the compile-time path.
+     * XGETENV resolves to NULL where environment access is unavailable. Opt-in
+     * so a build with the variable exported for other applications is not
+     * affected. */
+    keyLogFile = XGETENV("SSLKEYLOGFILE");
+    if (keyLogFile == NULL || keyLogFile[0] == '\0')
+        keyLogFile = WOLFSSL_SSLKEYLOGFILE_OUTPUT;
+    fp = XFOPEN(keyLogFile, "ab");
+#else
     fp = XFOPEN(WOLFSSL_SSLKEYLOGFILE_OUTPUT, "ab");
+#endif
     if (fp == XBADFILE) {
         return BAD_FUNC_ARG;
     }

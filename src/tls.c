@@ -102,6 +102,7 @@
  * WOLFSSL_SNIFFER:          Enable TLS packet sniffing support    default: off
  * WOLFSSL_SNIFFER_KEYLOGFILE: Sniffer keylog file support         default: off
  * WOLFSSL_SSLKEYLOGFILE:    Enable SSL key log file output        default: off
+ * WOLFSSL_SSLKEYLOGFILE_USE_ENV: Use SSLKEYLOGFILE env var path   default: off
  * WOLFSSL_SRTP:             Enable SRTP extension support         default: off
  * WOLFSSL_DUAL_ALG_CERTS:   Enable dual algorithm certificates   default: off
  * WOLFSSL_HAVE_PRF:         Enable TLS PRF function access        default: off
