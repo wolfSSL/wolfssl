@@ -6482,8 +6482,8 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
 {
     int ret = 0;
 #ifdef WOLFSSL_SE050
-    /* SE050 TLS users store a word32 at id, need to cast back */
-    word32* keyPtr = NULL;
+    /* SE050 TLS users store a word32 at id, need to read it back */
+    word32 keyId = 0;
 #endif
 
     if (key == NULL)
@@ -6498,8 +6498,8 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
     #ifdef WOLFSSL_SE050
         /* Set SE050 ID from word32, populate ecc_key with public from SE050 */
         if (len == (int)sizeof(word32)) {
-            keyPtr = (word32*)key->id;
-            ret = wc_ecc_use_key_id(key, *keyPtr, 0);
+            keyId = readUnalignedWord32(key->id);
+            ret = wc_ecc_use_key_id(key, keyId, 0);
         }
     #endif
     }
