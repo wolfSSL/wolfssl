@@ -2668,6 +2668,8 @@ struct WOLFSSL_CERT_MANAGER {
     byte            crlCheckAll:1;         /* always leaf, but all ? */
     byte            ocspEnabled:1;         /* is OCSP on ? */
     byte            ocspCheckAll:1;        /* always leaf, but all ? */
+    byte            ocspFailIfNotSupported:1; /* refuse a cert that advertises
+                                              * no OCSP responder ? */
     byte            ocspSendNonce:1;       /* send the OCSP nonce ? */
     byte            ocspUseOverrideURL:1;  /* ignore cert responder, override */
     byte            ocspStaplingEnabled:1; /* is OCSP Stapling on ? */

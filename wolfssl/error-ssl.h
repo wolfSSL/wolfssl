@@ -250,7 +250,10 @@ enum wolfSSL_ErrorCodes {
     RPK_UNTRUSTED_E              = -521,   /* RFC 7250 Raw Public Key not trusted
                                            * out of band */
 
-    WOLFSSL_LAST_E               = -521
+    OCSP_NO_URL                  = -522,   /* Cert advertises no OCSP responder
+                                            * and no override URL is set */
+
+    WOLFSSL_LAST_E               = -522
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };

@@ -535,16 +535,12 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         urlSz = ocspRequest->urlSz;
     }
     else {
-        /* No AIA URL and no override. ocspCheckAll asks for strict chain
-         * checking, so fail closed - but only on the client verification
-         * instance (cm->ocsp); stapling (cm->ocsp_stapling) shares the cm
-         * flag and must stay best-effort. */
-        if (ocsp->cm->ocspCheckAll && ocsp == ocsp->cm->ocsp) {
-            WOLFSSL_MSG("Cert has no OCSP URL and ocspCheckAll is set");
-            return OCSP_NEED_URL;
-        }
-        WOLFSSL_MSG("Cert has no OCSP URL, assuming CERT_GOOD");
-        return 0;
+        /* Cert advertises no OCSP responder and no override URL is set, so
+         * OCSP has no opinion on this cert. Report that distinctly from a
+         * failed lookup; the caller owns the policy decision. Callers wanting
+         * the historical soft-fail run this through OcspNoUrlPolicy(). */
+        WOLFSSL_MSG("Cert has no OCSP URL");
+        return OCSP_NO_URL;
     }
 
     request = (byte*)XMALLOC((size_t)requestSz, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
@@ -579,6 +575,28 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
      * should free responseBuffer after checking OCSP return value in "ret" */
     WOLFSSL_LEAVE("CheckOcspRequest", ret);
     return ret;
+}
+
+/* Map OCSP_NO_URL - "this cert advertises no OCSP responder" - to a
+ * verification result.
+ *
+ * WOLFSSL_OCSP_CHECKALL selects which certificates get checked, not how hard
+ * to fail when one cannot be checked, so it deliberately has no say here.
+ * Refuse the cert only when the user explicitly asked for that with
+ * WOLFSSL_OCSP_FAIL_IF_NOT_SUPPORTED.
+ *
+ * Returns OCSP_NEED_URL to refuse the cert, or 0 for the historical
+ * soft-fail. */
+int OcspNoUrlPolicy(WOLFSSL_CERT_MANAGER* cm)
+{
+    if (cm != NULL && cm->ocspFailIfNotSupported) {
+        WOLFSSL_MSG("Cert has no OCSP URL and OCSP is required for every cert");
+        WOLFSSL_ERROR_VERBOSE(OCSP_NEED_URL);
+        return OCSP_NEED_URL;
+    }
+
+    WOLFSSL_MSG("Cert has no OCSP URL, assuming CERT_GOOD");
+    return 0;
 }
 
 /* Enforce https://www.rfc-editor.org/rfc/rfc6960#section-4.2.2.2. Both halves

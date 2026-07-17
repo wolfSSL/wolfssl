@@ -1685,6 +1685,74 @@ int test_ocsp_cert_unknown_crl_fallback_nonleaf(void)
 }
 #endif /* HAVE_OCSP && HAVE_CRL && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
+#if defined(HAVE_OCSP) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+
+/* The default memio chain (certs/server-cert.pem under certs/ca-cert.pem)
+ * carries no AIA extension, so no cert in it advertises an OCSP responder
+ * and no override URL is configured. */
+
+static int test_ocsp_no_url_checkall_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    /* CHECKALL selects scope only, so it must not fail a chain that
+     * advertises no responder. */
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_ocsp_no_url_fail_closed_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+                    WOLFSSL_OCSP_FAIL_IF_NOT_SUPPORTED),
+        WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+int test_ocsp_no_url_policy(void)
+{
+    EXPECT_DECLS;
+    struct test_ssl_memio_ctx test_ctx;
+
+    /* WOLFSSL_OCSP_CHECKALL on its own soft-fails a cert that advertises no
+     * responder, as it has since the flag was introduced. Regression test:
+     * failing closed here breaks any chain whose CA publishes no OCSP URI,
+     * which is common on the public web. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_cb.ctx_ready = test_ocsp_no_url_checkall_ctx_ready;
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* Opting in with WOLFSSL_OCSP_FAIL_IF_NOT_SUPPORTED refuses the same
+     * chain with OCSP_NEED_URL. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_cb.ctx_ready = test_ocsp_no_url_fail_closed_ctx_ready;
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(OCSP_NEED_URL));
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+#else
+int test_ocsp_no_url_policy(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_OCSP && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+
 #if defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) &&                 \
     defined(WOLFSSL_NONBLOCK_OCSP) && defined(HAVE_MAX_FRAGMENT) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) &&                   \
