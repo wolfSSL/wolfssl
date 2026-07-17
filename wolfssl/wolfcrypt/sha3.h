@@ -245,6 +245,134 @@ WOLFSSL_API int wc_Shake256_Copy(wc_Shake* src, wc_Sha3* dst);
     WOLFSSL_API int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags);
 #endif
 
+#if defined(WOLFSSL_KMAC) || defined(WOLFSSL_CSHAKE)
+/* KMAC (KECCAK Message Authentication Code) and its cSHAKE substrate,
+ * NIST SP 800-185. KMAC is built on cSHAKE, so enabling KMAC (WOLFSSL_KMAC)
+ * also enables cSHAKE; cSHAKE may be enabled on its own with WOLFSSL_CSHAKE.
+ * Both are built on the SHAKE XOF - the 128-bit variants require SHAKE128 and
+ * the 256-bit variants require SHAKE256. */
+#if defined(WOLFSSL_KMAC) && !defined(WOLFSSL_CSHAKE)
+    #define WOLFSSL_CSHAKE
+#endif
+
+/* KMAC and cSHAKE use the software KECCAK sponge directly (Sha3Update/
+ * Sha3Final), which is not available on pure-hardware SHA-3 ports. PSOC6
+ * offers hardware SHAKE but no software KECCAK, so they cannot be built there;
+ * fail early with a clear message rather than an obscure link error. */
+#if defined(PSOC6_HASH_SHA3)
+    #error "WOLFSSL_KMAC/WOLFSSL_CSHAKE not supported with PSOC6 hardware SHA-3"
+#endif
+
+/* cSHAKE variants follow the enabled SHAKE variants. */
+#if defined(WOLFSSL_SHAKE128) && !defined(WOLFSSL_CSHAKE128)
+    #define WOLFSSL_CSHAKE128
+#endif
+#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_CSHAKE256)
+    #define WOLFSSL_CSHAKE256
+#endif
+#if !defined(WOLFSSL_CSHAKE128) && !defined(WOLFSSL_CSHAKE256)
+    #error "WOLFSSL_KMAC/WOLFSSL_CSHAKE requires SHAKE128 and/or SHAKE256"
+#endif
+
+/* KMAC variants follow the enabled cSHAKE variants. */
+#ifdef WOLFSSL_KMAC
+    #if defined(WOLFSSL_CSHAKE128) && !defined(WOLFSSL_KMAC128)
+        #define WOLFSSL_KMAC128
+    #endif
+    #if defined(WOLFSSL_CSHAKE256) && !defined(WOLFSSL_KMAC256)
+        #define WOLFSSL_KMAC256
+    #endif
+#endif
+
+/* cSHAKE state - a SHAKE (KECCAK) sponge, the block rate, and the pad byte
+ * (0x04 when customized, 0x1f when it reduces to plain SHAKE). */
+struct wc_Cshake {
+    wc_Shake shake;
+    byte     count;
+    byte     pad;
+};
+
+#ifndef WC_CSHAKE_TYPE_DEFINED
+    typedef struct wc_Cshake wc_Cshake;
+    #define WC_CSHAKE_TYPE_DEFINED
+#endif
+
+#ifdef WOLFSSL_KMAC
+/* KMAC state - wraps a SHAKE (KECCAK) sponge plus the block rate. */
+struct wc_Kmac {
+    wc_Shake shake;
+    /* Number of 64-bit words in a KECCAK block (rate / 8) - selects the
+     * KMAC128 (SHAKE128) or KMAC256 (SHAKE256) variant. */
+    byte     count;
+};
+
+#ifndef WC_KMAC_TYPE_DEFINED
+    typedef struct wc_Kmac wc_Kmac;
+    #define WC_KMAC_TYPE_DEFINED
+#endif
+#endif /* WOLFSSL_KMAC */
+
+#ifdef WOLFSSL_KMAC128
+WOLFSSL_API int wc_InitKmac128(wc_Kmac* kmac, const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, void* heap, int devId);
+WOLFSSL_API int wc_Kmac128_Update(wc_Kmac* kmac, const byte* in, word32 inLen);
+WOLFSSL_API int wc_Kmac128_Final(wc_Kmac* kmac, byte* out, word32 outLen);
+WOLFSSL_API int wc_Kmac128_FinalXof(wc_Kmac* kmac, byte* out, word32 outLen);
+WOLFSSL_API int wc_Kmac128_Copy(wc_Kmac* src, wc_Kmac* dst);
+WOLFSSL_API void wc_Kmac128_Free(wc_Kmac* kmac);
+WOLFSSL_API int wc_Kmac128Hash(const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, const byte* in, word32 inLen,
+    byte* out, word32 outLen);
+WOLFSSL_API int wc_Kmac128HashXof(const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, const byte* in, word32 inLen,
+    byte* out, word32 outLen);
+#endif
+
+#ifdef WOLFSSL_KMAC256
+WOLFSSL_API int wc_InitKmac256(wc_Kmac* kmac, const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, void* heap, int devId);
+WOLFSSL_API int wc_Kmac256_Update(wc_Kmac* kmac, const byte* in, word32 inLen);
+WOLFSSL_API int wc_Kmac256_Final(wc_Kmac* kmac, byte* out, word32 outLen);
+WOLFSSL_API int wc_Kmac256_FinalXof(wc_Kmac* kmac, byte* out, word32 outLen);
+WOLFSSL_API int wc_Kmac256_Copy(wc_Kmac* src, wc_Kmac* dst);
+WOLFSSL_API void wc_Kmac256_Free(wc_Kmac* kmac);
+WOLFSSL_API int wc_Kmac256Hash(const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, const byte* in, word32 inLen,
+    byte* out, word32 outLen);
+WOLFSSL_API int wc_Kmac256HashXof(const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, const byte* in, word32 inLen,
+    byte* out, word32 outLen);
+#endif
+
+#ifdef WOLFSSL_CSHAKE128
+WOLFSSL_API int wc_InitCshake128(wc_Cshake* cshake, const byte* name,
+    word32 nameLen, const byte* custom, word32 customLen, void* heap,
+    int devId);
+WOLFSSL_API int wc_Cshake128_Update(wc_Cshake* cshake, const byte* in,
+    word32 inLen);
+WOLFSSL_API int wc_Cshake128_Final(wc_Cshake* cshake, byte* out, word32 outLen);
+WOLFSSL_API int wc_Cshake128_Copy(wc_Cshake* src, wc_Cshake* dst);
+WOLFSSL_API void wc_Cshake128_Free(wc_Cshake* cshake);
+WOLFSSL_API int wc_Cshake128(const byte* name, word32 nameLen,
+    const byte* custom, word32 customLen, const byte* in, word32 inLen,
+    byte* out, word32 outLen);
+#endif
+
+#ifdef WOLFSSL_CSHAKE256
+WOLFSSL_API int wc_InitCshake256(wc_Cshake* cshake, const byte* name,
+    word32 nameLen, const byte* custom, word32 customLen, void* heap,
+    int devId);
+WOLFSSL_API int wc_Cshake256_Update(wc_Cshake* cshake, const byte* in,
+    word32 inLen);
+WOLFSSL_API int wc_Cshake256_Final(wc_Cshake* cshake, byte* out, word32 outLen);
+WOLFSSL_API int wc_Cshake256_Copy(wc_Cshake* src, wc_Cshake* dst);
+WOLFSSL_API void wc_Cshake256_Free(wc_Cshake* cshake);
+WOLFSSL_API int wc_Cshake256(const byte* name, word32 nameLen,
+    const byte* custom, word32 customLen, const byte* in, word32 inLen,
+    byte* out, word32 outLen);
+#endif
+#endif /* WOLFSSL_KMAC || WOLFSSL_CSHAKE */
+
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 
 #ifdef WC_SHA3_NO_ASM

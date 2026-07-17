@@ -1643,3 +1643,917 @@ int test_wc_CryptoCb_Shake256_HashOffload(void)
     return EXPECT_RESULT();
 }
 
+
+/*******************************************************************************
+ * KMAC (NIST SP 800-185)
+ ******************************************************************************/
+
+#ifdef WOLFSSL_KMAC128
+/* Exercise one KMAC128 known-answer vector three ways: the one-shot API (for
+ * fixed-length output), single-Update streaming, and byte-at-a-time streaming.
+ * All must produce the expected output. */
+static int kmac128_kat(const byte* key, word32 keyLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, const byte* exp,
+    word32 expLen, int xof)
+{
+    EXPECT_DECLS;
+    wc_Kmac kmac;
+    byte out[200];
+    word32 i;
+
+    /* One-shot API - fixed-length and XOF variants. */
+    if (xof) {
+        ExpectIntEQ(wc_Kmac128HashXof(key, keyLen, custom, customLen, in,
+            inLen, out, expLen), 0);
+    }
+    else {
+        ExpectIntEQ(wc_Kmac128Hash(key, keyLen, custom, customLen, in, inLen,
+            out, expLen), 0);
+    }
+    ExpectBufEQ(out, exp, expLen);
+
+    /* Streaming with a single Update call. */
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, keyLen, custom, customLen,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac128_Update(&kmac, in, inLen), 0);
+    if (xof) {
+        ExpectIntEQ(wc_Kmac128_FinalXof(&kmac, out, expLen), 0);
+    }
+    else {
+        ExpectIntEQ(wc_Kmac128_Final(&kmac, out, expLen), 0);
+    }
+    ExpectBufEQ(out, exp, expLen);
+    wc_Kmac128_Free(&kmac);
+
+    /* Streaming one byte at a time must give the same result. */
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, keyLen, custom, customLen,
+        HEAP_HINT, INVALID_DEVID), 0);
+    for (i = 0; i < inLen; i++) {
+        ExpectIntEQ(wc_Kmac128_Update(&kmac, in + i, 1), 0);
+    }
+    if (xof) {
+        ExpectIntEQ(wc_Kmac128_FinalXof(&kmac, out, expLen), 0);
+    }
+    else {
+        ExpectIntEQ(wc_Kmac128_Final(&kmac, out, expLen), 0);
+    }
+    ExpectBufEQ(out, exp, expLen);
+    wc_Kmac128_Free(&kmac);
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_KMAC128 */
+
+int test_wc_Kmac128_KATs(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_KMAC128
+    static const byte key[32] = {
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+        0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+        0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
+    };
+    static const byte custom[21] = {
+        'M', 'y', ' ', 'T', 'a', 'g', 'g', 'e',
+        'd', ' ', 'A', 'p', 'p', 'l', 'i', 'c',
+        'a', 't', 'i', 'o', 'n'
+    };
+    static const byte msg4[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static const byte fx1[32] = {
+        0xe5, 0x78, 0x0b, 0x0d, 0x3e, 0xa6, 0xf7, 0xd3,
+        0xa4, 0x29, 0xc5, 0x70, 0x6a, 0xa4, 0x3a, 0x00,
+        0xfa, 0xdb, 0xd7, 0xd4, 0x96, 0x28, 0x83, 0x9e,
+        0x31, 0x87, 0x24, 0x3f, 0x45, 0x6e, 0xe1, 0x4e,
+    };
+    static const byte fx2[32] = {
+        0x3b, 0x1f, 0xba, 0x96, 0x3c, 0xd8, 0xb0, 0xb5,
+        0x9e, 0x8c, 0x1a, 0x6d, 0x71, 0x88, 0x8b, 0x71,
+        0x43, 0x65, 0x1a, 0xf8, 0xba, 0x0a, 0x70, 0x70,
+        0xc0, 0x97, 0x9e, 0x28, 0x11, 0x32, 0x4a, 0xa5,
+    };
+    static const byte fx3[32] = {
+        0x1f, 0x5b, 0x4e, 0x6c, 0xca, 0x02, 0x20, 0x9e,
+        0x0d, 0xcb, 0x5c, 0xa6, 0x35, 0xb8, 0x9a, 0x15,
+        0xe2, 0x71, 0xec, 0xc7, 0x60, 0x07, 0x1d, 0xfd,
+        0x80, 0x5f, 0xaa, 0x38, 0xf9, 0x72, 0x92, 0x30,
+    };
+    /* 200-byte customization (msg200) - the KMAC bytepad block
+     * (encode_string("KMAC") || encode_string(custom)) spans multiple rate
+     * blocks.  Cross-checked against OpenSSL EVP_MAC and a Keccak reference. */
+    static const byte kc_lc128[32] = {
+        0xe5, 0xe3, 0xeb, 0x4b, 0x78, 0x7f, 0x80, 0xa6,
+        0xa8, 0x57, 0xba, 0xf5, 0x61, 0x33, 0x4c, 0x67,
+        0x50, 0x13, 0x6e, 0x1d, 0x6a, 0x5a, 0x67, 0x8d,
+        0xec, 0x84, 0x86, 0x15, 0xdb, 0xdd, 0x18, 0x84,
+    };
+    static const byte xf1[32] = {
+        0xcd, 0x83, 0x74, 0x0b, 0xbd, 0x92, 0xcc, 0xc8,
+        0xcf, 0x03, 0x2b, 0x14, 0x81, 0xa0, 0xf4, 0x46,
+        0x0e, 0x7c, 0xa9, 0xdd, 0x12, 0xb0, 0x8a, 0x0c,
+        0x40, 0x31, 0x17, 0x8b, 0xac, 0xd6, 0xec, 0x35,
+    };
+    static const byte xf2[32] = {
+        0x31, 0xa4, 0x45, 0x27, 0xb4, 0xed, 0x9f, 0x5c,
+        0x61, 0x01, 0xd1, 0x1d, 0xe6, 0xd2, 0x6f, 0x06,
+        0x20, 0xaa, 0x5c, 0x34, 0x1d, 0xef, 0x41, 0x29,
+        0x96, 0x57, 0xfe, 0x9d, 0xf1, 0xa3, 0xb1, 0x6c,
+    };
+    static const byte xf3[32] = {
+        0x47, 0x02, 0x6c, 0x7c, 0xd7, 0x93, 0x08, 0x4a,
+        0xa0, 0x28, 0x3c, 0x25, 0x3e, 0xf6, 0x58, 0x49,
+        0x0c, 0x0d, 0xb6, 0x14, 0x38, 0xb8, 0x32, 0x6f,
+        0xe9, 0xbd, 0xdf, 0x28, 0x1b, 0x83, 0xae, 0x0f,
+    };
+    /* 1-byte customization string ("Z"). */
+    static const byte cust1[1] = { 0x5a };
+    static const byte c1_128[32] = {
+        0xd8, 0x82, 0xbb, 0x4f, 0x03, 0xfa, 0x26, 0xef,
+        0x8a, 0x80, 0x9b, 0xff, 0xec, 0x07, 0x6a, 0xe8,
+        0x0e, 0xfe, 0xc6, 0x69, 0x1a, 0x46, 0x10, 0x2f,
+        0x44, 0xb1, 0x97, 0x3b, 0xab, 0x3d, 0xd1, 0xf3,
+    };
+    /* Empty message. */
+    static const byte em_128[32] = {
+        0x58, 0xe8, 0xa9, 0x94, 0x28, 0xd5, 0x76, 0x17,
+        0xaa, 0x5c, 0xae, 0xae, 0x1d, 0xe3, 0xdb, 0x10,
+        0x8a, 0xf4, 0x11, 0x28, 0x6e, 0x64, 0xa0, 0x0a,
+        0x6e, 0x1f, 0x30, 0x8c, 0x3f, 0xe9, 0x55, 0x7c,
+    };
+    /* Fixed-length output longer than the rate (168) - multi-block squeeze. */
+    static const byte lo_128[200] = {
+        0x38, 0x15, 0x8a, 0x1c, 0xae, 0x4e, 0x1a, 0x25,
+        0xd8, 0x5f, 0x20, 0x31, 0x24, 0x6a, 0xde, 0x69,
+        0x7b, 0x32, 0x92, 0xfe, 0xf8, 0x8b, 0x09, 0x23,
+        0xa5, 0x9a, 0x02, 0xd1, 0xd5, 0x3b, 0x70, 0x46,
+        0x53, 0xee, 0x72, 0x42, 0x66, 0x2a, 0x10, 0x79,
+        0x6b, 0xa2, 0x07, 0x79, 0xd3, 0x00, 0xd5, 0x2d,
+        0x74, 0x32, 0x01, 0x87, 0x41, 0x23, 0x3d, 0x58,
+        0x72, 0x52, 0xd3, 0x1d, 0xc4, 0x8b, 0xdb, 0x82,
+        0x33, 0x28, 0x5d, 0x4a, 0x4a, 0xcd, 0x65, 0x84,
+        0x85, 0x09, 0xb0, 0x51, 0xa4, 0x48, 0xd8, 0x73,
+        0x64, 0x92, 0x28, 0xb6, 0x62, 0x6e, 0x5e, 0xf8,
+        0x17, 0xc7, 0xaf, 0x2d, 0xed, 0xc9, 0x1f, 0x12,
+        0x0f, 0x8c, 0xa5, 0x35, 0xa1, 0xee, 0x30, 0x1f,
+        0xae, 0x81, 0x86, 0xfd, 0xed, 0xe5, 0xa7, 0x61,
+        0x81, 0xa4, 0x72, 0xa3, 0x2c, 0xfa, 0xd1, 0xdd,
+        0xd1, 0x39, 0x1e, 0x16, 0x2f, 0x12, 0x4d, 0x4a,
+        0x75, 0x72, 0xad, 0x8a, 0x20, 0x07, 0x66, 0x01,
+        0xbc, 0xf8, 0x1e, 0x4b, 0x03, 0x91, 0xf3, 0xe9,
+        0x5a, 0xef, 0xfa, 0x70, 0x8c, 0x33, 0xc1, 0x21,
+        0x7c, 0x96, 0xbe, 0x6a, 0x4f, 0x02, 0xfb, 0xbc,
+        0x2d, 0x3b, 0x3b, 0x6f, 0xfa, 0xeb, 0x5b, 0xfd,
+        0x3b, 0xe4, 0xa2, 0xe0, 0x2b, 0x75, 0x99, 0x3f,
+        0xcc, 0x04, 0xda, 0x6f, 0xac, 0x4b, 0xfc, 0xb2,
+        0xa9, 0xf0, 0x57, 0x92, 0xa1, 0xa5, 0xcc, 0x80,
+        0xca, 0x34, 0x18, 0x62, 0x43, 0xef, 0xdb, 0x31,
+    };
+    /* 200-byte key - the key bytepad block spans multiple rate blocks. */
+    static const byte kmacLongK[32] = {
+        0x7b, 0x8d, 0x1e, 0xc0, 0xb6, 0x48, 0x6e, 0xe5,
+        0x92, 0x54, 0xc8, 0x54, 0x18, 0x58, 0xd4, 0xb7,
+        0xa4, 0xf7, 0x0c, 0x30, 0x29, 0x7e, 0xf8, 0x59,
+        0xa3, 0x4c, 0x48, 0x28, 0x2b, 0x5b, 0x49, 0xa1,
+    };
+    byte msg200[200];
+    int i;
+
+    for (i = 0; i < 200; i++) {
+        msg200[i] = (byte)i;
+    }
+
+    /* Fixed-length KMAC128 samples. */
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), NULL, 0, msg4,
+        (word32)sizeof(msg4), fx1, (word32)sizeof(fx1), 0), TEST_SUCCESS);
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg4, (word32)sizeof(msg4), fx2,
+        (word32)sizeof(fx2), 0), TEST_SUCCESS);
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg200, (word32)sizeof(msg200), fx3,
+        (word32)sizeof(fx3), 0), TEST_SUCCESS);
+    /* Customization longer than the rate (168) - bytepad block spans blocks. */
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), msg200,
+        (word32)sizeof(msg200), msg4, (word32)sizeof(msg4), kc_lc128,
+        (word32)sizeof(kc_lc128), 0), TEST_SUCCESS);
+
+    /* KMACXOF128 samples. */
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), NULL, 0, msg4,
+        (word32)sizeof(msg4), xf1, (word32)sizeof(xf1), 1), TEST_SUCCESS);
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg4, (word32)sizeof(msg4), xf2,
+        (word32)sizeof(xf2), 1), TEST_SUCCESS);
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg200, (word32)sizeof(msg200), xf3,
+        (word32)sizeof(xf3), 1), TEST_SUCCESS);
+
+    /* Edge cases: 1-byte customization, empty message, and a fixed-length
+     * output longer than the KECCAK rate (multi-block squeeze). */
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), cust1,
+        (word32)sizeof(cust1), msg4, (word32)sizeof(msg4), c1_128,
+        (word32)sizeof(c1_128), 0), TEST_SUCCESS);
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), NULL, 0, NULL, 0,
+        em_128, (word32)sizeof(em_128), 0), TEST_SUCCESS);
+    ExpectIntEQ(kmac128_kat(key, (word32)sizeof(key), NULL, 0, msg4,
+        (word32)sizeof(msg4), lo_128, (word32)sizeof(lo_128), 0),
+        TEST_SUCCESS);
+    /* 200-byte key (msg200) - key bytepad block spans multiple rate blocks. */
+    ExpectIntEQ(kmac128_kat(msg200, (word32)sizeof(msg200), NULL, 0, msg4,
+        (word32)sizeof(msg4), kmacLongK, (word32)sizeof(kmacLongK), 0),
+        TEST_SUCCESS);
+#endif /* WOLFSSL_KMAC128 */
+    return EXPECT_RESULT();
+}
+
+int test_wc_Kmac128_api(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_KMAC128
+    wc_Kmac kmac;
+    static const byte key[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static const byte msg[4] = { 0x00, 0x01, 0x02, 0x03 };
+    byte out[200];
+    byte out2[200];
+
+    /* wc_InitKmac128 argument checks. */
+    ExpectIntEQ(wc_InitKmac128(NULL, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_InitKmac128(&kmac, NULL, 4, NULL, 0, HEAP_HINT,
+        INVALID_DEVID), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 4,
+        HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+    /* NULL key with zero length is allowed. */
+    ExpectIntEQ(wc_InitKmac128(&kmac, NULL, 0, NULL, 0, HEAP_HINT,
+        INVALID_DEVID), 0);
+    wc_Kmac128_Free(&kmac);
+
+    /* wc_Kmac128_Update argument checks. */
+    ExpectIntEQ(wc_Kmac128_Update(NULL, msg, (word32)sizeof(msg)),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac128_Update(&kmac, NULL, 4), BAD_FUNC_ARG);
+    /* NULL message with zero length is allowed. */
+    ExpectIntEQ(wc_Kmac128_Update(&kmac, NULL, 0), 0);
+
+    /* wc_Kmac128_Final / wc_Kmac128_FinalXof argument checks. */
+    ExpectIntEQ(wc_Kmac128_Final(NULL, out, 32), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac128_Final(&kmac, NULL, 32), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac128_FinalXof(NULL, out, 32), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac128_FinalXof(&kmac, NULL, 32), BAD_FUNC_ARG);
+    /* Finalize the still-open operation and free it. */
+    ExpectIntEQ(wc_Kmac128_Final(&kmac, out, 32), 0);
+    wc_Kmac128_Free(&kmac);
+
+    /* wc_Kmac128Hash propagates argument errors. */
+    ExpectIntEQ(wc_Kmac128Hash(NULL, 4, NULL, 0, msg, (word32)sizeof(msg),
+        out, 32), BAD_FUNC_ARG);
+
+    /* Freeing NULL must be safe. */
+    wc_Kmac128_Free(NULL);
+
+    /* Output length is bound into fixed-length KMAC: a 16-byte tag is not a
+     * prefix of a 32-byte tag over the same input. */
+    ExpectIntEQ(wc_Kmac128Hash(key, (word32)sizeof(key), NULL, 0, msg,
+        (word32)sizeof(msg), out, 16), 0);
+    ExpectIntEQ(wc_Kmac128Hash(key, (word32)sizeof(key), NULL, 0, msg,
+        (word32)sizeof(msg), out2, 32), 0);
+    ExpectIntNE(XMEMCMP(out, out2, 16), 0);
+
+    /* XOF output is not length-bound: a short squeeze is a prefix of a longer
+     * one, including a squeeze that spans multiple rate blocks (168 bytes). */
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac128_Update(&kmac, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_Kmac128_FinalXof(&kmac, out, 32), 0);
+    wc_Kmac128_Free(&kmac);
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac128_Update(&kmac, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_Kmac128_FinalXof(&kmac, out2, 200), 0);
+    wc_Kmac128_Free(&kmac);
+    ExpectBufEQ(out, out2, 32);
+
+    /* An empty message is valid. */
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac128_Final(&kmac, out, 32), 0);
+    wc_Kmac128_Free(&kmac);
+#endif /* WOLFSSL_KMAC128 */
+    return EXPECT_RESULT();
+}
+
+#ifdef WOLFSSL_KMAC256
+/* KMAC256 analogue of kmac128_kat(). */
+static int kmac256_kat(const byte* key, word32 keyLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, const byte* exp,
+    word32 expLen, int xof)
+{
+    EXPECT_DECLS;
+    wc_Kmac kmac;
+    byte out[200];
+    word32 i;
+
+    if (xof) {
+        ExpectIntEQ(wc_Kmac256HashXof(key, keyLen, custom, customLen, in,
+            inLen, out, expLen), 0);
+    }
+    else {
+        ExpectIntEQ(wc_Kmac256Hash(key, keyLen, custom, customLen, in, inLen,
+            out, expLen), 0);
+    }
+    ExpectBufEQ(out, exp, expLen);
+
+    ExpectIntEQ(wc_InitKmac256(&kmac, key, keyLen, custom, customLen,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac256_Update(&kmac, in, inLen), 0);
+    if (xof) {
+        ExpectIntEQ(wc_Kmac256_FinalXof(&kmac, out, expLen), 0);
+    }
+    else {
+        ExpectIntEQ(wc_Kmac256_Final(&kmac, out, expLen), 0);
+    }
+    ExpectBufEQ(out, exp, expLen);
+    wc_Kmac256_Free(&kmac);
+
+    ExpectIntEQ(wc_InitKmac256(&kmac, key, keyLen, custom, customLen,
+        HEAP_HINT, INVALID_DEVID), 0);
+    for (i = 0; i < inLen; i++) {
+        ExpectIntEQ(wc_Kmac256_Update(&kmac, in + i, 1), 0);
+    }
+    if (xof) {
+        ExpectIntEQ(wc_Kmac256_FinalXof(&kmac, out, expLen), 0);
+    }
+    else {
+        ExpectIntEQ(wc_Kmac256_Final(&kmac, out, expLen), 0);
+    }
+    ExpectBufEQ(out, exp, expLen);
+    wc_Kmac256_Free(&kmac);
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_KMAC256 */
+
+int test_wc_Kmac256_KATs(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_KMAC256
+    static const byte key[32] = {
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+        0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+        0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
+    };
+    static const byte custom[21] = {
+        'M', 'y', ' ', 'T', 'a', 'g', 'g', 'e',
+        'd', ' ', 'A', 'p', 'p', 'l', 'i', 'c',
+        'a', 't', 'i', 'o', 'n'
+    };
+    static const byte msg4[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static const byte fx4[64] = {
+        0x20, 0xc5, 0x70, 0xc3, 0x13, 0x46, 0xf7, 0x03,
+        0xc9, 0xac, 0x36, 0xc6, 0x1c, 0x03, 0xcb, 0x64,
+        0xc3, 0x97, 0x0d, 0x0c, 0xfc, 0x78, 0x7e, 0x9b,
+        0x79, 0x59, 0x9d, 0x27, 0x3a, 0x68, 0xd2, 0xf7,
+        0xf6, 0x9d, 0x4c, 0xc3, 0xde, 0x9d, 0x10, 0x4a,
+        0x35, 0x16, 0x89, 0xf2, 0x7c, 0xf6, 0xf5, 0x95,
+        0x1f, 0x01, 0x03, 0xf3, 0x3f, 0x4f, 0x24, 0x87,
+        0x10, 0x24, 0xd9, 0xc2, 0x77, 0x73, 0xa8, 0xdd,
+    };
+    static const byte fx5[64] = {
+        0x75, 0x35, 0x8c, 0xf3, 0x9e, 0x41, 0x49, 0x4e,
+        0x94, 0x97, 0x07, 0x92, 0x7c, 0xee, 0x0a, 0xf2,
+        0x0a, 0x3f, 0xf5, 0x53, 0x90, 0x4c, 0x86, 0xb0,
+        0x8f, 0x21, 0xcc, 0x41, 0x4b, 0xcf, 0xd6, 0x91,
+        0x58, 0x9d, 0x27, 0xcf, 0x5e, 0x15, 0x36, 0x9c,
+        0xbb, 0xff, 0x8b, 0x9a, 0x4c, 0x2e, 0xb1, 0x78,
+        0x00, 0x85, 0x5d, 0x02, 0x35, 0xff, 0x63, 0x5d,
+        0xa8, 0x25, 0x33, 0xec, 0x6b, 0x75, 0x9b, 0x69,
+    };
+    static const byte fx6[64] = {
+        0xb5, 0x86, 0x18, 0xf7, 0x1f, 0x92, 0xe1, 0xd5,
+        0x6c, 0x1b, 0x8c, 0x55, 0xdd, 0xd7, 0xcd, 0x18,
+        0x8b, 0x97, 0xb4, 0xca, 0x4d, 0x99, 0x83, 0x1e,
+        0xb2, 0x69, 0x9a, 0x83, 0x7d, 0xa2, 0xe4, 0xd9,
+        0x70, 0xfb, 0xac, 0xfd, 0xe5, 0x00, 0x33, 0xae,
+        0xa5, 0x85, 0xf1, 0xa2, 0x70, 0x85, 0x10, 0xc3,
+        0x2d, 0x07, 0x88, 0x08, 0x01, 0xbd, 0x18, 0x28,
+        0x98, 0xfe, 0x47, 0x68, 0x76, 0xfc, 0x89, 0x65,
+    };
+    static const byte xf4[64] = {
+        0x17, 0x55, 0x13, 0x3f, 0x15, 0x34, 0x75, 0x2a,
+        0xad, 0x07, 0x48, 0xf2, 0xc7, 0x06, 0xfb, 0x5c,
+        0x78, 0x45, 0x12, 0xca, 0xb8, 0x35, 0xcd, 0x15,
+        0x67, 0x6b, 0x16, 0xc0, 0xc6, 0x64, 0x7f, 0xa9,
+        0x6f, 0xaa, 0x7a, 0xf6, 0x34, 0xa0, 0xbf, 0x8f,
+        0xf6, 0xdf, 0x39, 0x37, 0x4f, 0xa0, 0x0f, 0xad,
+        0x9a, 0x39, 0xe3, 0x22, 0xa7, 0xc9, 0x20, 0x65,
+        0xa6, 0x4e, 0xb1, 0xfb, 0x08, 0x01, 0xeb, 0x2b,
+    };
+    static const byte xf5[64] = {
+        0xff, 0x7b, 0x17, 0x1f, 0x1e, 0x8a, 0x2b, 0x24,
+        0x68, 0x3e, 0xed, 0x37, 0x83, 0x0e, 0xe7, 0x97,
+        0x53, 0x8b, 0xa8, 0xdc, 0x56, 0x3f, 0x6d, 0xa1,
+        0xe6, 0x67, 0x39, 0x1a, 0x75, 0xed, 0xc0, 0x2c,
+        0xa6, 0x33, 0x07, 0x9f, 0x81, 0xce, 0x12, 0xa2,
+        0x5f, 0x45, 0x61, 0x5e, 0xc8, 0x99, 0x72, 0x03,
+        0x1d, 0x18, 0x33, 0x73, 0x31, 0xd2, 0x4c, 0xeb,
+        0x8f, 0x8c, 0xa8, 0xe6, 0xa1, 0x9f, 0xd9, 0x8b,
+    };
+    static const byte xf6[64] = {
+        0xd5, 0xbe, 0x73, 0x1c, 0x95, 0x4e, 0xd7, 0x73,
+        0x28, 0x46, 0xbb, 0x59, 0xdb, 0xe3, 0xa8, 0xe3,
+        0x0f, 0x83, 0xe7, 0x7a, 0x4b, 0xff, 0x44, 0x59,
+        0xf2, 0xf1, 0xc2, 0xb4, 0xec, 0xeb, 0xb8, 0xce,
+        0x67, 0xba, 0x01, 0xc6, 0x2e, 0x8a, 0xb8, 0x57,
+        0x8d, 0x2d, 0x49, 0x9b, 0xd1, 0xbb, 0x27, 0x67,
+        0x68, 0x78, 0x11, 0x90, 0x02, 0x0a, 0x30, 0x6a,
+        0x97, 0xde, 0x28, 0x1d, 0xcc, 0x30, 0x30, 0x5d,
+    };
+    /* Fixed-length output longer than the rate (136) - multi-block squeeze. */
+    static const byte lo_256[200] = {
+        0x78, 0x44, 0xa5, 0x78, 0x6d, 0xda, 0x33, 0x4a,
+        0xc4, 0x05, 0xc1, 0x66, 0x6f, 0x92, 0x2a, 0x29,
+        0xb3, 0x6f, 0x59, 0xc1, 0x82, 0xfa, 0xe9, 0x3b,
+        0xa7, 0x3e, 0x73, 0x50, 0x27, 0x7c, 0xb5, 0xff,
+        0x76, 0xd7, 0x1d, 0x54, 0xdd, 0xa6, 0xe6, 0x46,
+        0x28, 0x2f, 0x2c, 0xe8, 0x95, 0x42, 0x7c, 0x8d,
+        0x81, 0x14, 0xd1, 0xb3, 0x3d, 0xca, 0xbf, 0x85,
+        0xcc, 0x36, 0x9e, 0x37, 0x5d, 0x97, 0x23, 0xb7,
+        0x83, 0xd4, 0x19, 0xb2, 0x76, 0xe7, 0x06, 0xbd,
+        0x68, 0x81, 0xa2, 0x23, 0x00, 0x4a, 0x80, 0x5a,
+        0xae, 0xbd, 0x5b, 0xed, 0xd3, 0x04, 0x0e, 0x9a,
+        0x5c, 0x32, 0x18, 0x2a, 0x17, 0x3f, 0x31, 0xdf,
+        0x11, 0x5f, 0x25, 0x73, 0xff, 0x17, 0x1c, 0x5f,
+        0x25, 0xb7, 0x0b, 0x2a, 0xc2, 0x57, 0x90, 0xe3,
+        0x77, 0xfb, 0x34, 0x87, 0x47, 0xd2, 0xcd, 0xc6,
+        0xf9, 0xd6, 0xcf, 0xee, 0x73, 0x23, 0x1b, 0xb7,
+        0x09, 0x8c, 0x9a, 0x49, 0x20, 0x7a, 0xf5, 0xcb,
+        0x00, 0xf1, 0xcb, 0xb4, 0xcb, 0x43, 0xd3, 0x74,
+        0xee, 0xce, 0x1f, 0xd4, 0x05, 0x69, 0xf0, 0x67,
+        0x74, 0x71, 0x33, 0x1b, 0x06, 0xda, 0xbb, 0xc2,
+        0x2a, 0xbc, 0x88, 0x12, 0x3f, 0x79, 0x50, 0x19,
+        0xa3, 0x5d, 0x91, 0xc4, 0x24, 0x86, 0x88, 0x8f,
+        0xfe, 0x61, 0x11, 0x9d, 0x18, 0xd3, 0xd1, 0x9a,
+        0x99, 0x83, 0x16, 0xb2, 0xed, 0xc5, 0x20, 0x07,
+        0x5e, 0x8c, 0xb2, 0xb0, 0x2f, 0x96, 0x25, 0x07,
+    };
+    /* 150-byte customization (msg200[0..149]) - the KMAC bytepad block spans
+     * multiple rate blocks.  Cross-checked vs OpenSSL and a Keccak ref. */
+    static const byte kc_lc256[32] = {
+        0xec, 0x73, 0x98, 0x6b, 0x47, 0x90, 0xea, 0xab,
+        0x9e, 0x1a, 0x95, 0xf8, 0x08, 0xbe, 0x66, 0x99,
+        0x70, 0x5f, 0xcf, 0x27, 0x8d, 0x76, 0xf0, 0x66,
+        0x18, 0x29, 0xbb, 0x2d, 0x25, 0x6b, 0xa4, 0x1e,
+    };
+    byte msg200[200];
+    int i;
+
+    for (i = 0; i < 200; i++) {
+        msg200[i] = (byte)i;
+    }
+
+    /* Fixed-length KMAC256 samples. */
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg4, (word32)sizeof(msg4), fx4,
+        (word32)sizeof(fx4), 0), TEST_SUCCESS);
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), NULL, 0, msg200,
+        (word32)sizeof(msg200), fx5, (word32)sizeof(fx5), 0), TEST_SUCCESS);
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg200, (word32)sizeof(msg200), fx6,
+        (word32)sizeof(fx6), 0), TEST_SUCCESS);
+    /* Customization longer than the rate (136) - bytepad block spans blocks. */
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), msg200, 150, msg4,
+        (word32)sizeof(msg4), kc_lc256, (word32)sizeof(kc_lc256), 0),
+        TEST_SUCCESS);
+
+    /* KMACXOF256 samples. */
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg4, (word32)sizeof(msg4), xf4,
+        (word32)sizeof(xf4), 1), TEST_SUCCESS);
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), NULL, 0, msg200,
+        (word32)sizeof(msg200), xf5, (word32)sizeof(xf5), 1), TEST_SUCCESS);
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), custom,
+        (word32)sizeof(custom), msg200, (word32)sizeof(msg200), xf6,
+        (word32)sizeof(xf6), 1), TEST_SUCCESS);
+
+    /* Fixed-length output longer than the rate - multi-block squeeze. */
+    ExpectIntEQ(kmac256_kat(key, (word32)sizeof(key), NULL, 0, msg4,
+        (word32)sizeof(msg4), lo_256, (word32)sizeof(lo_256), 0),
+        TEST_SUCCESS);
+#endif /* WOLFSSL_KMAC256 */
+    return EXPECT_RESULT();
+}
+
+int test_wc_Kmac256_api(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_KMAC256
+    wc_Kmac kmac;
+    static const byte key[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static const byte msg[4] = { 0x00, 0x01, 0x02, 0x03 };
+    byte out[200];
+    byte out2[200];
+
+    /* wc_InitKmac256 argument checks. */
+    ExpectIntEQ(wc_InitKmac256(NULL, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_InitKmac256(&kmac, NULL, 4, NULL, 0, HEAP_HINT,
+        INVALID_DEVID), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_InitKmac256(&kmac, key, (word32)sizeof(key), NULL, 4,
+        HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_InitKmac256(&kmac, NULL, 0, NULL, 0, HEAP_HINT,
+        INVALID_DEVID), 0);
+    wc_Kmac256_Free(&kmac);
+
+    /* wc_Kmac256_Update argument checks. */
+    ExpectIntEQ(wc_Kmac256_Update(NULL, msg, (word32)sizeof(msg)),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_InitKmac256(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac256_Update(&kmac, NULL, 4), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac256_Update(&kmac, NULL, 0), 0);
+
+    /* wc_Kmac256_Final / wc_Kmac256_FinalXof argument checks. */
+    ExpectIntEQ(wc_Kmac256_Final(NULL, out, 64), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac256_Final(&kmac, NULL, 64), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac256_FinalXof(NULL, out, 64), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac256_FinalXof(&kmac, NULL, 64), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac256_Final(&kmac, out, 64), 0);
+    wc_Kmac256_Free(&kmac);
+
+    /* wc_Kmac256Hash propagates argument errors. */
+    ExpectIntEQ(wc_Kmac256Hash(NULL, 4, NULL, 0, msg, (word32)sizeof(msg),
+        out, 64), BAD_FUNC_ARG);
+
+    wc_Kmac256_Free(NULL);
+
+    /* Output length is bound into fixed-length KMAC. */
+    ExpectIntEQ(wc_Kmac256Hash(key, (word32)sizeof(key), NULL, 0, msg,
+        (word32)sizeof(msg), out, 32), 0);
+    ExpectIntEQ(wc_Kmac256Hash(key, (word32)sizeof(key), NULL, 0, msg,
+        (word32)sizeof(msg), out2, 64), 0);
+    ExpectIntNE(XMEMCMP(out, out2, 32), 0);
+
+    /* XOF prefix property across a multi-block (136-byte rate) squeeze. */
+    ExpectIntEQ(wc_InitKmac256(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac256_Update(&kmac, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_Kmac256_FinalXof(&kmac, out, 64), 0);
+    wc_Kmac256_Free(&kmac);
+    ExpectIntEQ(wc_InitKmac256(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac256_Update(&kmac, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_Kmac256_FinalXof(&kmac, out2, 200), 0);
+    wc_Kmac256_Free(&kmac);
+    ExpectBufEQ(out, out2, 64);
+
+    /* An empty message is valid. */
+    ExpectIntEQ(wc_InitKmac256(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac256_Final(&kmac, out, 64), 0);
+    wc_Kmac256_Free(&kmac);
+#endif /* WOLFSSL_KMAC256 */
+    return EXPECT_RESULT();
+}
+
+/*******************************************************************************
+ * cSHAKE (NIST SP 800-185)
+ ******************************************************************************/
+
+#ifdef WOLFSSL_CSHAKE128
+/* Run one cSHAKE128 known-answer vector via one-shot and streaming APIs. */
+static int cshake128_kat(const byte* name, word32 nameLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, const byte* exp,
+    word32 expLen)
+{
+    EXPECT_DECLS;
+    wc_Cshake cshake;
+    byte out[200];
+    word32 i;
+
+    ExpectIntEQ(wc_Cshake128(name, nameLen, custom, customLen, in, inLen,
+        out, expLen), 0);
+    ExpectBufEQ(out, exp, expLen);
+
+    ExpectIntEQ(wc_InitCshake128(&cshake, name, nameLen, custom, customLen,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Cshake128_Update(&cshake, in, inLen), 0);
+    ExpectIntEQ(wc_Cshake128_Final(&cshake, out, expLen), 0);
+    ExpectBufEQ(out, exp, expLen);
+    wc_Cshake128_Free(&cshake);
+
+    ExpectIntEQ(wc_InitCshake128(&cshake, name, nameLen, custom, customLen,
+        HEAP_HINT, INVALID_DEVID), 0);
+    for (i = 0; i < inLen; i++) {
+        ExpectIntEQ(wc_Cshake128_Update(&cshake, in + i, 1), 0);
+    }
+    ExpectIntEQ(wc_Cshake128_Final(&cshake, out, expLen), 0);
+    ExpectBufEQ(out, exp, expLen);
+    wc_Cshake128_Free(&cshake);
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_CSHAKE128 */
+
+int test_wc_Cshake128(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_CSHAKE128
+    /* "Email Signature", "Func", "Cust" per NIST cSHAKE samples / extra. */
+    static const byte sName[4] = { 'F', 'u', 'n', 'c' };
+    static const byte sCust[4] = { 'C', 'u', 's', 't' };
+    static const byte emailS[15] = {
+        'E', 'm', 'a', 'i', 'l', ' ', 'S', 'i',
+        'g', 'n', 'a', 't', 'u', 'r', 'e'
+    };
+    static const byte msg4[4] = { 0x00, 0x01, 0x02, 0x03 };
+        static const byte cs1_128[32] = {
+            0xc1, 0xc3, 0x69, 0x25, 0xb6, 0x40, 0x9a, 0x04,
+            0xf1, 0xb5, 0x04, 0xfc, 0xbc, 0xa9, 0xd8, 0x2b,
+            0x40, 0x17, 0x27, 0x7c, 0xb5, 0xed, 0x2b, 0x20,
+            0x65, 0xfc, 0x1d, 0x38, 0x14, 0xd5, 0xaa, 0xf5,
+        };
+        static const byte cs2_128[32] = {
+            0xc5, 0x22, 0x1d, 0x50, 0xe4, 0xf8, 0x22, 0xd9,
+            0x6a, 0x2e, 0x88, 0x81, 0xa9, 0x61, 0x42, 0x0f,
+            0x29, 0x4b, 0x7b, 0x24, 0xfe, 0x3d, 0x20, 0x94,
+            0xba, 0xed, 0x2c, 0x65, 0x24, 0xcc, 0x16, 0x6b,
+        };
+        static const byte csn_128[32] = {
+            0x6d, 0xfa, 0x21, 0x3d, 0xd3, 0x43, 0x20, 0x05,
+            0x3a, 0x78, 0x5b, 0x8a, 0xd8, 0x0f, 0x11, 0x12,
+            0x8d, 0x5b, 0xe9, 0x76, 0x34, 0x07, 0x2c, 0xad,
+            0xea, 0xc4, 0x1c, 0xfa, 0xc0, 0x8d, 0x7f, 0xb5,
+        };
+        static const byte cslong_128[200] = {
+            0xc1, 0xc3, 0x69, 0x25, 0xb6, 0x40, 0x9a, 0x04,
+            0xf1, 0xb5, 0x04, 0xfc, 0xbc, 0xa9, 0xd8, 0x2b,
+            0x40, 0x17, 0x27, 0x7c, 0xb5, 0xed, 0x2b, 0x20,
+            0x65, 0xfc, 0x1d, 0x38, 0x14, 0xd5, 0xaa, 0xf5,
+            0x9c, 0xbc, 0xe8, 0x30, 0x07, 0x9c, 0x45, 0x2a,
+            0xbd, 0xeb, 0x87, 0x53, 0x66, 0xa4, 0x9e, 0xbf,
+            0xe7, 0x5b, 0x89, 0xef, 0x17, 0x39, 0x6e, 0x34,
+            0x89, 0x8e, 0x90, 0x48, 0x30, 0xb0, 0xe1, 0x36,
+            0xf1, 0x92, 0xcc, 0x06, 0x2b, 0xd2, 0xe1, 0x16,
+            0xa0, 0x7f, 0xe6, 0xeb, 0x9b, 0x4f, 0xc9, 0xba,
+            0x25, 0x4d, 0x7d, 0xbf, 0x6e, 0xc9, 0x86, 0x0c,
+            0x5b, 0xa3, 0x86, 0x86, 0xea, 0x29, 0x4d, 0xd7,
+            0x72, 0xc1, 0xfa, 0xd2, 0x0e, 0x42, 0x14, 0xaa,
+            0xd5, 0x39, 0x4a, 0x26, 0x71, 0x01, 0xe4, 0xc9,
+            0xd0, 0x9c, 0xe8, 0x02, 0x81, 0xdb, 0x7e, 0x91,
+            0x70, 0xd6, 0x05, 0x2a, 0xbe, 0x6e, 0x5a, 0x93,
+            0x57, 0x13, 0xe2, 0xc6, 0x23, 0x65, 0xf5, 0x9c,
+            0x9a, 0x7d, 0xf5, 0xa9, 0x8e, 0x40, 0x40, 0xff,
+            0x70, 0xe8, 0x50, 0x60, 0x10, 0x7f, 0x59, 0x6a,
+            0xcd, 0xbf, 0x87, 0x6e, 0x67, 0x8d, 0x73, 0xf2,
+            0xd4, 0x49, 0x43, 0x02, 0x22, 0x62, 0x19, 0xac,
+            0xbf, 0x98, 0xd7, 0x04, 0x86, 0xaf, 0xf1, 0xd5,
+            0xbb, 0xb1, 0xd5, 0x16, 0x2e, 0x02, 0x09, 0xb5,
+            0xaf, 0xcc, 0x7a, 0x07, 0x29, 0x4a, 0x53, 0x09,
+            0x45, 0xc3, 0xbc, 0x0b, 0x35, 0x1a, 0x05, 0x77,
+        };
+    /* Long function name N (60 bytes) - exercises the separate-absorb path
+     * for the customization block (name too large to batch). */
+    static const byte csLongN[32] = {
+        0xb6, 0xee, 0x3a, 0x07, 0x14, 0x68, 0xda, 0x79,
+        0x0a, 0x60, 0x3a, 0x49, 0x07, 0xf2, 0xca, 0x98,
+        0x27, 0xb8, 0xf1, 0xd6, 0x3a, 0x94, 0x00, 0x3a,
+        0xc5, 0x1f, 0xd7, 0x85, 0x85, 0xc7, 0xa0, 0x45,
+    };
+    /* Long customization S (200 bytes) - spans multiple rate blocks. */
+    static const byte csLongS[32] = {
+        0xf6, 0x42, 0x0e, 0x41, 0x80, 0x8c, 0xe8, 0x73,
+        0xd0, 0x0f, 0x26, 0xb6, 0x28, 0x1e, 0xad, 0xaa,
+        0x81, 0x86, 0x08, 0x69, 0xab, 0xc9, 0x4e, 0x95,
+        0x5a, 0xbd, 0x88, 0xac, 0xe5, 0x8b, 0x56, 0x75,
+    };
+    /* Long function name N (200 bytes, S = "Cust") - the name overflows the
+     * block, so the customization block spans multiple rate blocks. */
+    static const byte cs_ln128[32] = {
+        0xb9, 0x8f, 0x89, 0x0a, 0x12, 0x0e, 0x93, 0x35,
+        0xbf, 0xe2, 0x48, 0x97, 0x71, 0x81, 0x76, 0xb9,
+        0x01, 0x28, 0x6d, 0x2c, 0xe6, 0x98, 0x07, 0xb8,
+        0x0b, 0x13, 0x7b, 0x2e, 0x1c, 0x61, 0x5d, 0xf6,
+    };
+    byte msg200[200];
+#ifdef WOLFSSL_SHAKE128
+    byte shakeOut[32];
+    byte cshakeOut[32];
+    wc_Shake shake;
+#endif
+    int i;
+
+    for (i = 0; i < 200; i++) {
+        msg200[i] = (byte)i;
+    }
+
+    /* NIST cSHAKE128 samples (N empty, S = "Email Signature"). */
+    ExpectIntEQ(cshake128_kat(NULL, 0, emailS, (word32)sizeof(emailS), msg4,
+        (word32)sizeof(msg4), cs1_128, (word32)sizeof(cs1_128)), TEST_SUCCESS);
+    ExpectIntEQ(cshake128_kat(NULL, 0, emailS, (word32)sizeof(emailS), msg200,
+        (word32)sizeof(msg200), cs2_128, (word32)sizeof(cs2_128)),
+        TEST_SUCCESS);
+    /* Non-empty function name N. */
+    ExpectIntEQ(cshake128_kat(sName, (word32)sizeof(sName), sCust,
+        (word32)sizeof(sCust), msg4, (word32)sizeof(msg4), csn_128,
+        (word32)sizeof(csn_128)), TEST_SUCCESS);
+    /* Output longer than the rate - multi-block squeeze. */
+    ExpectIntEQ(cshake128_kat(NULL, 0, emailS, (word32)sizeof(emailS), msg4,
+        (word32)sizeof(msg4), cslong_128, (word32)sizeof(cslong_128)),
+        TEST_SUCCESS);
+    /* Long function name (msg200[0..59]) - separate-absorb branch. */
+    ExpectIntEQ(cshake128_kat(msg200, 60, sCust, (word32)sizeof(sCust), msg4,
+        (word32)sizeof(msg4), csLongN, (word32)sizeof(csLongN)), TEST_SUCCESS);
+    /* Long customization (200 bytes) - customization block spans blocks. */
+    ExpectIntEQ(cshake128_kat(NULL, 0, msg200, (word32)sizeof(msg200), msg4,
+        (word32)sizeof(msg4), csLongS, (word32)sizeof(csLongS)), TEST_SUCCESS);
+    /* Long function name (200 bytes) - name overflows the block. */
+    ExpectIntEQ(cshake128_kat(msg200, (word32)sizeof(msg200), sCust,
+        (word32)sizeof(sCust), msg4, (word32)sizeof(msg4), cs_ln128,
+        (word32)sizeof(cs_ln128)), TEST_SUCCESS);
+
+#ifdef WOLFSSL_SHAKE128
+    /* With empty name and customization, cSHAKE reduces to plain SHAKE.
+     * (WOLFSSL_CSHAKE128 always implies WOLFSSL_SHAKE128 via the header's
+     * feature derivation; the guard is defensive.) */
+    ExpectIntEQ(wc_Cshake128(NULL, 0, NULL, 0, msg4, (word32)sizeof(msg4),
+        cshakeOut, (word32)sizeof(cshakeOut)), 0);
+    ExpectIntEQ(wc_InitShake128(&shake, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Shake128_Update(&shake, msg4, (word32)sizeof(msg4)), 0);
+    ExpectIntEQ(wc_Shake128_Final(&shake, shakeOut,
+        (word32)sizeof(shakeOut)), 0);
+    ExpectBufEQ(cshakeOut, shakeOut, (word32)sizeof(shakeOut));
+    wc_Shake128_Free(&shake);
+#endif
+
+    /* Argument checks. */
+    {
+        wc_Cshake cshake;
+        byte out[32];
+
+        ExpectIntEQ(wc_InitCshake128(NULL, NULL, 0, emailS,
+            (word32)sizeof(emailS), HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_InitCshake128(&cshake, sName, 4, NULL, 4, HEAP_HINT,
+            INVALID_DEVID), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_InitCshake128(&cshake, NULL, 4, NULL, 0, HEAP_HINT,
+            INVALID_DEVID), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_InitCshake128(&cshake, NULL, 0, emailS,
+            (word32)sizeof(emailS), HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_Cshake128_Update(NULL, msg4, 4), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_Cshake128_Update(&cshake, NULL, 4), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_Cshake128_Final(NULL, out, 32), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_Cshake128_Final(&cshake, NULL, 32), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_Cshake128_Final(&cshake, out, 32), 0);
+        wc_Cshake128_Free(&cshake);
+        wc_Cshake128_Free(NULL);
+    }
+#endif /* WOLFSSL_CSHAKE128 */
+    return EXPECT_RESULT();
+}
+
+int test_wc_Cshake256(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_CSHAKE256
+    static const byte emailS[15] = {
+        'E', 'm', 'a', 'i', 'l', ' ', 'S', 'i',
+        'g', 'n', 'a', 't', 'u', 'r', 'e'
+    };
+    static const byte msg4[4] = { 0x00, 0x01, 0x02, 0x03 };
+        static const byte cs3_256[64] = {
+            0xd0, 0x08, 0x82, 0x8e, 0x2b, 0x80, 0xac, 0x9d,
+            0x22, 0x18, 0xff, 0xee, 0x1d, 0x07, 0x0c, 0x48,
+            0xb8, 0xe4, 0xc8, 0x7b, 0xff, 0x32, 0xc9, 0x69,
+            0x9d, 0x5b, 0x68, 0x96, 0xee, 0xe0, 0xed, 0xd1,
+            0x64, 0x02, 0x0e, 0x2b, 0xe0, 0x56, 0x08, 0x58,
+            0xd9, 0xc0, 0x0c, 0x03, 0x7e, 0x34, 0xa9, 0x69,
+            0x37, 0xc5, 0x61, 0xa7, 0x4c, 0x41, 0x2b, 0xb4,
+            0xc7, 0x46, 0x46, 0x95, 0x27, 0x28, 0x1c, 0x8c,
+        };
+        static const byte cs4_256[64] = {
+            0x07, 0xdc, 0x27, 0xb1, 0x1e, 0x51, 0xfb, 0xac,
+            0x75, 0xbc, 0x7b, 0x3c, 0x1d, 0x98, 0x3e, 0x8b,
+            0x4b, 0x85, 0xfb, 0x1d, 0xef, 0xaf, 0x21, 0x89,
+            0x12, 0xac, 0x86, 0x43, 0x02, 0x73, 0x09, 0x17,
+            0x27, 0xf4, 0x2b, 0x17, 0xed, 0x1d, 0xf6, 0x3e,
+            0x8e, 0xc1, 0x18, 0xf0, 0x4b, 0x23, 0x63, 0x3c,
+            0x1d, 0xfb, 0x15, 0x74, 0xc8, 0xfb, 0x55, 0xcb,
+            0x45, 0xda, 0x8e, 0x25, 0xaf, 0xb0, 0x92, 0xbb,
+        };
+    byte msg200[200];
+    wc_Cshake cshake;
+    byte out[64];
+    int i;
+
+    for (i = 0; i < 200; i++) {
+        msg200[i] = (byte)i;
+    }
+
+    /* NIST cSHAKE256 samples (N empty, S = "Email Signature"). */
+    ExpectIntEQ(wc_Cshake256(NULL, 0, emailS, (word32)sizeof(emailS), msg4,
+        (word32)sizeof(msg4), out, (word32)sizeof(cs3_256)), 0);
+    ExpectBufEQ(out, cs3_256, (word32)sizeof(cs3_256));
+
+    ExpectIntEQ(wc_InitCshake256(&cshake, NULL, 0, emailS,
+        (word32)sizeof(emailS), HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Cshake256_Update(&cshake, msg200, 100), 0);
+    ExpectIntEQ(wc_Cshake256_Update(&cshake, msg200 + 100, 100), 0);
+    ExpectIntEQ(wc_Cshake256_Final(&cshake, out, (word32)sizeof(cs4_256)), 0);
+    ExpectBufEQ(out, cs4_256, (word32)sizeof(cs4_256));
+    wc_Cshake256_Free(&cshake);
+
+    /* Argument checks. */
+    ExpectIntEQ(wc_InitCshake256(NULL, NULL, 0, emailS,
+        (word32)sizeof(emailS), HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Cshake256_Update(NULL, msg4, 4), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Cshake256_Final(NULL, out, 64), BAD_FUNC_ARG);
+    wc_Cshake256_Free(NULL);
+#endif /* WOLFSSL_CSHAKE256 */
+    return EXPECT_RESULT();
+}
+
+int test_wc_Kmac_Copy(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_KMAC128
+    wc_Kmac kmac;
+    wc_Kmac copy;
+    static const byte key[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static const byte msg[8] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    byte out1[32];
+    byte out2[32];
+    byte outRef[32];
+
+    /* Reference: full message in one shot. */
+    ExpectIntEQ(wc_Kmac128Hash(key, (word32)sizeof(key), NULL, 0, msg,
+        (word32)sizeof(msg), outRef, (word32)sizeof(outRef)), 0);
+
+    /* Argument checks. */
+    ExpectIntEQ(wc_Kmac128_Copy(NULL, &copy), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Kmac128_Copy(&kmac, NULL), BAD_FUNC_ARG);
+
+    /* Absorb a prefix, copy, then finalize both independently. The copy
+     * destination is initialized first so any resources it holds are released
+     * by wc_Kmac128_Copy(), matching the wc_Shake_Copy() convention. */
+    ExpectIntEQ(wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitKmac128(&copy, key, (word32)sizeof(key), NULL, 0,
+        HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Kmac128_Update(&kmac, msg, 4), 0);
+    ExpectIntEQ(wc_Kmac128_Copy(&kmac, &copy), 0);
+    /* Feed the rest to both - they must match each other and the reference. */
+    ExpectIntEQ(wc_Kmac128_Update(&kmac, msg + 4, 4), 0);
+    ExpectIntEQ(wc_Kmac128_Update(&copy, msg + 4, 4), 0);
+    ExpectIntEQ(wc_Kmac128_Final(&kmac, out1, (word32)sizeof(out1)), 0);
+    ExpectIntEQ(wc_Kmac128_Final(&copy, out2, (word32)sizeof(out2)), 0);
+    ExpectBufEQ(out1, outRef, (word32)sizeof(outRef));
+    ExpectBufEQ(out2, outRef, (word32)sizeof(outRef));
+    wc_Kmac128_Free(&kmac);
+    wc_Kmac128_Free(&copy);
+#endif /* WOLFSSL_KMAC128 */
+    return EXPECT_RESULT();
+}
+
+int test_wc_Cshake_Copy(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_CSHAKE128
+    wc_Cshake cshake;
+    wc_Cshake copy;
+    static const byte custom[4] = { 'C', 'u', 's', 't' };
+    static const byte msg[8] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    byte out1[32];
+    byte out2[32];
+    byte outRef[32];
+
+    /* Reference: full message in one shot. */
+    ExpectIntEQ(wc_Cshake128(NULL, 0, custom, (word32)sizeof(custom), msg,
+        (word32)sizeof(msg), outRef, (word32)sizeof(outRef)), 0);
+
+    /* Argument checks. */
+    ExpectIntEQ(wc_Cshake128_Copy(NULL, &copy), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Cshake128_Copy(&cshake, NULL), BAD_FUNC_ARG);
+
+    /* Absorb a prefix, copy, then finalize both independently. The copy
+     * destination is initialized first, matching wc_Shake_Copy convention. */
+    ExpectIntEQ(wc_InitCshake128(&cshake, NULL, 0, custom,
+        (word32)sizeof(custom), HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitCshake128(&copy, NULL, 0, custom,
+        (word32)sizeof(custom), HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Cshake128_Update(&cshake, msg, 4), 0);
+    ExpectIntEQ(wc_Cshake128_Copy(&cshake, &copy), 0);
+    ExpectIntEQ(wc_Cshake128_Update(&cshake, msg + 4, 4), 0);
+    ExpectIntEQ(wc_Cshake128_Update(&copy, msg + 4, 4), 0);
+    ExpectIntEQ(wc_Cshake128_Final(&cshake, out1, (word32)sizeof(out1)), 0);
+    ExpectIntEQ(wc_Cshake128_Final(&copy, out2, (word32)sizeof(out2)), 0);
+    ExpectBufEQ(out1, outRef, (word32)sizeof(outRef));
+    ExpectBufEQ(out2, outRef, (word32)sizeof(outRef));
+    wc_Cshake128_Free(&cshake);
+    wc_Cshake128_Free(&copy);
+#endif /* WOLFSSL_CSHAKE128 */
+    return EXPECT_RESULT();
+}

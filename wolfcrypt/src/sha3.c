@@ -126,6 +126,34 @@
 #endif
 #endif
 
+#ifdef USE_INTEL_SPEEDUP
+    /* Block-function selection when USE_INTEL_SPEEDUP: AVX2 on Intel, else
+     * BMI2, else the C block.  Measured single-instance Keccak-f[1600]
+     * (Ethereum "Optimizing Keccak"; OpenSSL keccak1600-x86_64.pl): AVX2 is
+     * ~13-17% faster than BMI2 on Intel Haswell..Skylake, tied on Ice Lake,
+     * but ~2x SLOWER on AMD Zen, so AVX2 is Intel-only.  (Single-stream
+     * AVX-512 is vpermt2q-bound and slower than BMI2 everywhere measured, so
+     * it is not built - see scripts sha3_avx512.rb.)
+     * Overrides: WOLFSSL_SHA3_AVX2 forces AVX2 on any vendor with it;
+     *            WOLFSSL_SHA3_NO_AVX2 never uses AVX2. */
+#if defined(WOLFSSL_SHA3_NO_AVX2)
+    #define SHA3_USE_AVX2(f) 0
+#elif defined(WOLFSSL_SHA3_AVX2)
+    #define SHA3_USE_AVX2(f) IS_INTEL_AVX2(f)
+#else
+    #define SHA3_USE_AVX2(f) (IS_INTEL_AVX2(f) && IS_CPU_INTEL(f))
+#endif
+
+    /* True when the selected block function uses vector registers and so
+     * needs the caller to save/restore them.  BMI2 and the C block use only
+     * general registers. */
+#ifdef WOLFSSL_SHA3_NO_AVX2
+    #define SHA3_BLOCK_VREGS(f) 0
+#else
+    #define SHA3_BLOCK_VREGS(f) ((f) == sha3_block_avx2)
+#endif
+#endif
+
 #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
     !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
 
@@ -738,7 +766,8 @@ static int InitSha3(wc_Sha3* sha3)
         }
         else
 #endif
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        /* See the selection comment above: AVX2 on Intel, otherwise BMI2. */
+        if (SHA3_USE_AVX2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
@@ -807,7 +836,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         word64 c) = SHA3_BLOCK_N;
 #endif
 
-    if (sha3_block == sha3_block_avx2) {
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -911,7 +940,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     }
 #endif
 #ifdef USE_INTEL_SPEEDUP
-    if (sha3_block == sha3_block_avx2) {
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
         RESTORE_VECTOR_REGISTERS();
     }
 #endif
@@ -980,7 +1009,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 #endif
 
 #ifdef USE_INTEL_SPEEDUP
-    if (sha3_block == sha3_block_avx2) {
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -1016,7 +1045,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
         XMEMCPY(hash + j, sha3->s, l - j);
     }
 #ifdef USE_INTEL_SPEEDUP
-    if (sha3_block == sha3_block_avx2) {
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
         RESTORE_VECTOR_REGISTERS();
     }
 #endif
@@ -2025,7 +2054,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     sha3_block = SHA3_BLOCK;
 #endif
 
-    if (sha3_block == sha3_block_avx2) {
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -2052,7 +2081,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     }
 
 #ifdef USE_INTEL_SPEEDUP
-    if (sha3_block == sha3_block_avx2)
+    if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
 
@@ -2315,7 +2344,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     sha3_block = SHA3_BLOCK;
 #endif
 
-    if (sha3_block == sha3_block_avx2) {
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -2342,7 +2371,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     }
 
 #ifdef USE_INTEL_SPEEDUP
-    if (sha3_block == sha3_block_avx2)
+    if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
 
@@ -2372,5 +2401,1114 @@ int wc_Shake256_Copy(wc_Shake* src, wc_Shake* dst)
     return wc_Sha3Copy(src, dst);
 }
 #endif
+
+#if (defined(WOLFSSL_KMAC) || defined(WOLFSSL_CSHAKE)) && \
+    defined(WC_SHA3_SW_KECCAK)
+/* cSHAKE and KMAC - NIST SP 800-185.
+ *
+ * cSHAKE is a customizable SHAKE; KMAC is cSHAKE keyed with the function name
+ * "KMAC". Both feed length-prefixed strings into the SHAKE (KECCAK) sponge and
+ * (when customized) finalize with the cSHAKE domain-separation pad byte 0x04
+ * rather than SHAKE's 0x1f. The heavy lifting - absorbing message bytes and
+ * squeezing output - reuses the software Sha3Update()/Sha3Final() helpers
+ * above. The KMAC-specific code is compiled only when WOLFSSL_KMAC is set;
+ * cSHAKE is also available on its own via WOLFSSL_CSHAKE. */
+
+/* left_encode(value) per NIST SP 800-185, section 2.3.1.
+ *
+ * A length byte giving the number of value bytes, followed by that many bytes
+ * of the value in big-endian (most significant first) order.
+ *
+ * @param [out] out    Buffer to write encoding to. Must hold at least 9 bytes.
+ * @param [in]  value  Value to encode. 0 encodes as the bytes 0x01 0x00.
+ *
+ * @return  Number of bytes written to out - between 2 and 9.
+ */
+static word32 KmacLeftEncode(byte* out, word64 value)
+{
+    word32 n = 1;
+    word64 v = value;
+
+    /* Build up the number of significant bytes (min 1) by halving: test the
+     * top 32 bits, then each smaller half, shifting away counted bytes. */
+    if ((v >> 32) != 0) { n += 4; v >>= 32; }
+    if ((v >> 16) != 0) { n += 2; v >>= 16; }
+    if ((v >>  8) != 0) { n += 1;           }
+
+    /* Length byte then the n value bytes big-endian.  Enter the switch at
+     * case n and fall through, storing least-significant byte first into
+     * out[n]..out[1]. */
+    out[0] = (byte)n;
+    switch (n) {
+        case 8: out[8] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 7: out[7] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 6: out[6] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 5: out[5] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 4: out[4] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 3: out[3] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 2: out[2] = (byte)value; value >>= 8; FALL_THROUGH;
+        default: out[1] = (byte)value;
+    }
+
+    return n + 1;
+}
+
+#ifdef WOLFSSL_KMAC
+/* right_encode(value) per NIST SP 800-185, section 2.3.1. Only used by KMAC
+ * (cSHAKE does not bind an output length).
+ *
+ * The value in big-endian (most significant first) order, followed by a length
+ * byte giving the number of value bytes.
+ *
+ * @param [out] out    Buffer to write encoding to. Must hold at least 9 bytes.
+ * @param [in]  value  Value to encode. 0 encodes as the bytes 0x00 0x01.
+ *
+ * @return  Number of bytes written to out - between 2 and 9.
+ */
+static word32 KmacRightEncode(byte* out, word64 value)
+{
+    word32 n = 1;
+    word64 v = value;
+
+    /* Build up the number of significant bytes (min 1) by halving: test the
+     * top 32 bits, then each smaller half, shifting away counted bytes. */
+    if ((v >> 32) != 0) { n += 4; v >>= 32; }
+    if ((v >> 16) != 0) { n += 2; v >>= 16; }
+    if ((v >>  8) != 0) { n += 1;           }
+
+    /* The n value bytes big-endian then the length byte.  Enter the switch at
+     * case n and fall through, storing least-significant byte first into
+     * out[n-1]..out[0]. */
+    switch (n) {
+        case 8: out[7] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 7: out[6] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 6: out[5] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 5: out[4] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 4: out[3] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 3: out[2] = (byte)value; value >>= 8; FALL_THROUGH;
+        case 2: out[1] = (byte)value; value >>= 8; FALL_THROUGH;
+        default: out[0] = (byte)value;
+    }
+    out[n] = (byte)n;
+
+    return n + 1;
+}
+#endif /* WOLFSSL_KMAC */
+
+/* Zero-pad the current bytepad() block, per NIST SP 800-185, section 2.3.3.
+ *
+ * Fills the tail of the current block with zeros so the number of bytes fed
+ * into the bytepad() block becomes a multiple of the KECCAK rate, then flushes
+ * the completed block.  The block offset is the sponge's own shake->i.
+ *
+ * @param [in,out] shake  SHAKE (KECCAK) object holding the sponge state.
+ * @param [in]     count  KECCAK 64-bit words per block - rate / 8.
+ * @param [in]     rate   KECCAK rate in bytes - the block size.
+ *
+ * @return  0 on success.
+ * @return  Negative error code from the sponge update on failure.
+ */
+static int CshakeBytePad(wc_Sha3* shake, byte count, word32 rate)
+{
+    int    ret = 0;
+    word32 pad = (rate - shake->i) % rate;
+
+    if (pad > 0) {
+        /* Zero the rest of the block in place and flush it - a zero-length
+         * update with i == rate triggers the XOR-in and permutation. */
+        XMEMSET(shake->t + shake->i, 0, pad);
+        shake->i = (byte)rate;
+        ret = Sha3Update(shake, shake->t, 0, count);
+    }
+    return ret;
+}
+
+/* Absorb the leading customization block shared by cSHAKE and KMAC:
+ *   bytepad(encode_string(name) || encode_string(custom), rate)
+ * (NIST SP 800-185, sections 3.2 and 3.3).
+ *
+ * Only ever called right after Init, so the sponge is fresh (shake->i is 0
+ * and shake->t is all zero). When the whole bytepad content fits in one block
+ * (the common case) it is copied straight into the block buffer and flushed
+ * once; otherwise the parts that may cross a block boundary go through
+ * Sha3Update.
+ *
+ * @param [in,out] shake      SHAKE (KECCAK) object holding the sponge state.
+ * @param [in]     count      KECCAK 64-bit words per block - rate / 8.
+ * @param [in]     name       Function-name string, NULL when nameLen is 0.
+ * @param [in]     nameLen    Length of name in bytes.
+ * @param [in]     custom     Customization string, NULL when customLen is 0.
+ * @param [in]     customLen  Length of custom in bytes.
+ *
+ * @return  0 on success.
+ * @return  Negative error code from the sponge update on failure.
+ */
+static int CshakeAbsorbBlock(wc_Sha3* shake, byte count, const byte* name,
+    word32 nameLen, const byte* custom, word32 customLen)
+{
+    word32 rate = (word32)count * 8U;
+    byte   enc[9];
+    word32 e;
+    word32 h;
+    word32 avail;
+    int    ret = 0;
+
+    /* left_encode(rate) || left_encode(nameLen * 8) straight into the block
+     * buffer - fits at the start of a fresh block. */
+    h  = KmacLeftEncode(shake->t, (word64)rate);
+    h += KmacLeftEncode(shake->t + h, (word64)nameLen * 8);
+    e  = KmacLeftEncode(enc, (word64)customLen * 8);
+    avail = rate - h;
+
+    /* Common case: the whole bytepad content fits in this one block, so copy
+     * name || left_encode(customLen*8) || custom straight in and let the pad
+     * flush it - no per-piece Sha3Update.  Conditions are ordered to avoid
+     * word32 overflow when name/custom are large. */
+    if ((nameLen < avail) && (e < avail - nameLen) &&
+            (customLen < avail - nameLen - e)) {
+        if (nameLen > 0) {
+            XMEMCPY(shake->t + h, name, nameLen);
+            h += nameLen;
+        }
+        XMEMCPY(shake->t + h, enc, e);
+        h += e;
+        if (customLen > 0) {
+            XMEMCPY(shake->t + h, custom, customLen);
+            h += customLen;
+        }
+        shake->i = (byte)h;
+    }
+    else {
+        /* name and/or custom cross a block boundary - absorb them. */
+        shake->i = (byte)h;
+        if (nameLen > 0) {
+            ret = Sha3Update(shake, name, nameLen, count);
+        }
+        if (ret == 0) {
+            ret = Sha3Update(shake, enc, e, count);
+        }
+        if ((ret == 0) && (customLen > 0)) {
+            ret = Sha3Update(shake, custom, customLen, count);
+        }
+    }
+
+    /* bytepad zero-fill - shake->i already tracks the block offset. */
+    if (ret == 0) {
+        ret = CshakeBytePad(shake, count, rate);
+    }
+    return ret;
+}
+
+#ifdef WOLFSSL_KMAC
+/* Initialize a KMAC operation for the given KECCAK block count.
+ *
+ * count is WC_SHA3_128_COUNT for KMAC128 or WC_SHA3_256_COUNT for KMAC256.
+ * Absorbs the two leading cSHAKE/KMAC bytepad blocks, leaving the sponge ready
+ * for message data (NIST SP 800-185, sections 3.2 and 4.3):
+ *   bytepad(encode_string("KMAC") || encode_string(custom), rate)
+ *   bytepad(encode_string(key), rate)
+ *
+ * @param [out] kmac       KMAC object to initialize.
+ * @param [in]  count      KECCAK 64-bit words per block - rate / 8.
+ * @param [in]  key        Key bytes.
+ * @param [in]  keyLen     Length of key in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of custom in bytes.
+ * @param [in]  heap       Dynamic memory hint.
+ * @param [in]  devId      Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a NULL pointer has a non-zero length.
+ * @return  Negative error code from the sponge update on failure.
+ */
+static int KmacInit(wc_Kmac* kmac, byte count, const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, void* heap, int devId)
+{
+    /* The KMAC function name string "KMAC". */
+    static const byte kmacName[4] = { 0x4b, 0x4d, 0x41, 0x43 };
+    word32 rate;
+    int    ret;
+
+    if ((kmac == NULL) || ((key == NULL) && (keyLen != 0)) ||
+            ((custom == NULL) && (customLen != 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        kmac->count = count;
+        rate = (word32)count * 8U;
+        ret = wc_InitSha3(&kmac->shake, heap, devId);
+
+        /* bytepad(encode_string("KMAC") || encode_string(custom), rate) */
+        if (ret == 0) {
+            ret = CshakeAbsorbBlock(&kmac->shake, count, kmacName,
+                (word32)sizeof(kmacName), custom, customLen);
+        }
+
+        /* bytepad(encode_string(key), rate).  The block above flushed, so the
+         * sponge is at a block boundary (shake->i == 0) - write the length
+         * encodings straight into the block buffer, as in CshakeAbsorbBlock. */
+        if (ret == 0) {
+            word32 h;
+
+            h  = KmacLeftEncode(kmac->shake.t, (word64)rate);
+            h += KmacLeftEncode(kmac->shake.t + h, (word64)keyLen * 8);
+            kmac->shake.i = (byte)h;
+
+            if (keyLen > 0) {
+                /* Copy a key that fits into the block straight in and flush
+                 * once; a longer key crosses a boundary so is absorbed. */
+                if (keyLen < rate - h) {
+                    XMEMCPY(kmac->shake.t + h, key, keyLen);
+                    kmac->shake.i += keyLen;
+                }
+                else {
+                    ret = Sha3Update(&kmac->shake, key, keyLen, count);
+                }
+            }
+            if (ret == 0) {
+                ret = CshakeBytePad(&kmac->shake, count, rate);
+            }
+        }
+    }
+
+    return ret;
+}
+
+/* Absorb message data into a KMAC operation.
+ *
+ * @param [in,out] kmac   KMAC object holding the sponge state.
+ * @param [in]     in     Message bytes, or NULL when inLen is 0.
+ * @param [in]     inLen  Length of in in bytes.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG on a NULL message with a non-zero length.
+ * @return  Negative error code from the sponge update on failure.
+ */
+static int KmacUpdate(wc_Kmac* kmac, const byte* in, word32 inLen)
+{
+    int ret;
+
+    if ((kmac == NULL) || ((in == NULL) && (inLen != 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = Sha3Update(&kmac->shake, in, inLen, kmac->count);
+    }
+    return ret;
+}
+
+/* Finalize a KMAC operation, producing outLen bytes of output.
+ *
+ * For fixed-length KMAC (xof == 0) the requested length is encoded into the
+ * message (right_encode(outLen * 8)) before the cSHAKE pad, so changing outLen
+ * changes the whole result - as required by SP 800-185. For the XOF variant
+ * (xof != 0) right_encode(0) is used and any number of output bytes may be
+ * produced without changing the leading bytes.
+ *
+ * @param [in,out] kmac    KMAC object holding the sponge state.
+ * @param [out]    out     Buffer to hold output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ * @param [in]     xof     Non-zero to finalize as an XOF - encode length 0.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when kmac or out is NULL.
+ * @return  Negative error code from the sponge on failure.
+ */
+static int KmacFinal(wc_Kmac* kmac, byte* out, word32 outLen, int xof)
+{
+    word32 rate;
+    int    ret = 0;
+
+    if ((kmac == NULL) || (out == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* right_encode(outLen * 8), or right_encode(0) for the XOF. */
+        word64 v = xof ? (word64)0 : (word64)outLen * 8;
+        rate = (word32)kmac->count * 8U;
+
+        /* The encoding is at most 9 bytes; when that many fit in the current
+         * block, write it straight into the block buffer, otherwise use a
+         * temporary and Sha3Update (which handles crossing the boundary). */
+        if ((word32)kmac->shake.i + 9 < rate) {
+            word32 l = KmacRightEncode(kmac->shake.t + kmac->shake.i, v);
+            kmac->shake.i = (byte)(kmac->shake.i + l);
+        }
+        else {
+            byte   enc[9];
+            word32 encLen = KmacRightEncode(enc, v);
+            ret = Sha3Update(&kmac->shake, enc, encLen, kmac->count);
+        }
+        if (ret == 0) {
+            /* cSHAKE domain separation pad (0x04), then squeeze outLen. */
+            ret = Sha3Final(&kmac->shake, 0x04, out, kmac->count, outLen);
+        }
+    }
+    return ret;
+}
+
+/* Copy the state of a KMAC operation so it can be finalized more than once
+ * (for example over a common prefix).
+ *
+ * dst must be an initialized wc_Kmac: the copy releases any resources it
+ * already holds before overwriting it (as with wc_Sha3Copy/wc_Shake_Copy).
+ *
+ * @param [in]  src  KMAC object to copy from.
+ * @param [out] dst  Initialized KMAC object to copy into.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when src or dst is NULL.
+ * @return  Negative error code from the sponge copy on failure.
+ */
+static int KmacCopy(wc_Kmac* src, wc_Kmac* dst)
+{
+    int ret;
+
+    if ((src == NULL) || (dst == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = wc_Sha3Copy(&src->shake, &dst->shake);
+        if (ret == 0) {
+            dst->count = src->count;
+        }
+    }
+    return ret;
+}
+#endif /* WOLFSSL_KMAC */
+
+#if defined(WOLFSSL_CSHAKE128) || defined(WOLFSSL_CSHAKE256)
+/* Initialize a cSHAKE operation for the given KECCAK block count.
+ *
+ * count is WC_SHA3_128_COUNT for cSHAKE128 or WC_SHA3_256_COUNT for cSHAKE256.
+ * When both the function-name and customization strings are empty, cSHAKE is
+ * defined to reduce to plain SHAKE (NIST SP 800-185, section 3.3), so no
+ * customization block is absorbed and the SHAKE pad (0x1f) is used.
+ *
+ * @param [out] cshake     cSHAKE object to initialize.
+ * @param [in]  count      KECCAK 64-bit words per block - rate / 8.
+ * @param [in]  name       Function-name string, or NULL when nameLen is 0.
+ * @param [in]  nameLen    Length of name in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of custom in bytes.
+ * @param [in]  heap       Dynamic memory hint.
+ * @param [in]  devId      Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a NULL pointer has a non-zero length.
+ * @return  Negative error code from the sponge update on failure.
+ */
+static int CshakeInit(wc_Cshake* cshake, byte count, const byte* name,
+    word32 nameLen, const byte* custom, word32 customLen, void* heap, int devId)
+{
+    int ret;
+
+    if ((cshake == NULL) || ((name == NULL) && (nameLen != 0)) ||
+            ((custom == NULL) && (customLen != 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        cshake->count = count;
+        ret = wc_InitSha3(&cshake->shake, heap, devId);
+        if (ret == 0) {
+            if ((nameLen == 0) && (customLen == 0)) {
+                /* No customization: cSHAKE reduces to SHAKE. */
+                cshake->pad = 0x1f;
+            }
+            else {
+                cshake->pad = 0x04;
+                ret = CshakeAbsorbBlock(&cshake->shake, count, name, nameLen,
+                    custom, customLen);
+            }
+        }
+    }
+    return ret;
+}
+
+/* Absorb message data into a cSHAKE operation.
+ *
+ * @param [in,out] cshake  cSHAKE object holding the sponge state.
+ * @param [in]     in      Message bytes, or NULL when inLen is 0.
+ * @param [in]     inLen   Length of in in bytes.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG on a NULL message with a non-zero length.
+ * @return  Negative error code from the sponge update on failure.
+ */
+static int CshakeUpdate(wc_Cshake* cshake, const byte* in, word32 inLen)
+{
+    int ret;
+
+    if ((cshake == NULL) || ((in == NULL) && (inLen != 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = Sha3Update(&cshake->shake, in, inLen, cshake->count);
+    }
+    return ret;
+}
+
+/* Finalize a cSHAKE operation, squeezing outLen bytes. cSHAKE is an XOF, so
+ * the output length is not bound into the result and a longer squeeze extends
+ * a shorter one.
+ *
+ * @param [in,out] cshake  cSHAKE object holding the sponge state.
+ * @param [out]    out     Buffer to hold output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when cshake or out is NULL.
+ * @return  Negative error code from the sponge on failure.
+ */
+static int CshakeFinal(wc_Cshake* cshake, byte* out, word32 outLen)
+{
+    int ret;
+
+    if ((cshake == NULL) || (out == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = Sha3Final(&cshake->shake, cshake->pad, out, cshake->count,
+            outLen);
+    }
+    return ret;
+}
+
+/* Copy the state of a cSHAKE operation so it can be finalized more than once
+ * (for example over a common message prefix).
+ *
+ * dst must be an initialized wc_Cshake: the copy releases any resources it
+ * already holds before overwriting it (as with wc_Sha3Copy/wc_Shake_Copy).
+ *
+ * @param [in]  src  cSHAKE object to copy from.
+ * @param [out] dst  Initialized cSHAKE object to copy into.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when src or dst is NULL.
+ * @return  Negative error code from the sponge copy on failure.
+ */
+static int CshakeCopy(wc_Cshake* src, wc_Cshake* dst)
+{
+    int ret;
+
+    if ((src == NULL) || (dst == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = wc_Sha3Copy(&src->shake, &dst->shake);
+        if (ret == 0) {
+            dst->count = src->count;
+            dst->pad   = src->pad;
+        }
+    }
+    return ret;
+}
+#endif /* WOLFSSL_CSHAKE128 || WOLFSSL_CSHAKE256 */
+
+#ifdef WOLFSSL_KMAC128
+/* Initialize a KMAC128 operation with a key and optional customization string.
+ *
+ * @param [out] kmac       wc_Kmac object to initialize.
+ * @param [in]  key        Key bytes.
+ * @param [in]  keyLen     Length of the key in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  heap       Dynamic memory hint.
+ * @param [in]  devId      Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a required pointer is NULL.
+ */
+int wc_InitKmac128(wc_Kmac* kmac, const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, void* heap, int devId)
+{
+    return KmacInit(kmac, WC_SHA3_128_COUNT, key, keyLen, custom, customLen,
+        heap, devId);
+}
+
+/* Absorb message data into a KMAC128 operation.
+ *
+ * @param [in,out] kmac   wc_Kmac object holding state.
+ * @param [in]     in     Message bytes, or NULL when inLen is 0.
+ * @param [in]     inLen  Length of in in bytes.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG on a NULL message with a non-zero length.
+ */
+int wc_Kmac128_Update(wc_Kmac* kmac, const byte* in, word32 inLen)
+{
+    return KmacUpdate(kmac, in, inLen);
+}
+
+/* Finalize a KMAC128 operation, writing outLen bytes to out.
+ *
+ * The output length is bound into the result (NIST SP 800-185 KMAC).
+ *
+ * @param [in,out] kmac    wc_Kmac object holding state.
+ * @param [out]    out     Buffer to hold the output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+int wc_Kmac128_Final(wc_Kmac* kmac, byte* out, word32 outLen)
+{
+    return KmacFinal(kmac, out, outLen, 0);
+}
+
+/* Finalize a KMAC128 operation as an XOF - KMACXOF128.
+ *
+ * The output length is not bound into the result, so any amount of output may
+ * be requested.
+ *
+ * @param [in,out] kmac    wc_Kmac object holding state.
+ * @param [out]    out     Buffer to hold the output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+int wc_Kmac128_FinalXof(wc_Kmac* kmac, byte* out, word32 outLen)
+{
+    return KmacFinal(kmac, out, outLen, 1);
+}
+
+/* Copy the state of a KMAC128 operation, allowing it to be finalized more
+ * than once (for example over a common message prefix).
+ *
+ * @param [in]  src  wc_Kmac object to copy from.
+ * @param [out] dst  wc_Kmac object to copy into.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when src or dst is NULL.
+ */
+int wc_Kmac128_Copy(wc_Kmac* src, wc_Kmac* dst)
+{
+    return KmacCopy(src, dst);
+}
+
+/* Dispose of any dynamically allocated data from a KMAC128 operation.
+ *
+ * The sponge state is key-derived, so it is zeroized on free, as with the
+ * other keyed MACs, HMAC and CMAC.
+ *
+ * @param [in,out] kmac  wc_Kmac object to free. May be NULL.
+ */
+void wc_Kmac128_Free(wc_Kmac* kmac)
+{
+    if (kmac != NULL) {
+        wc_Sha3Free(&kmac->shake);
+        ForceZero(kmac, sizeof(*kmac));
+    }
+}
+
+/* One-shot KMAC128 over a single message.
+ *
+ * @param [in]  key        Key bytes.
+ * @param [in]  keyLen     Length of the key in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  in         Message bytes, or NULL when inLen is 0.
+ * @param [in]  inLen      Length of the message in bytes.
+ * @param [out] out        Buffer to hold the output.
+ * @param [in]  outLen     Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  Negative error code on failure.
+ */
+int wc_Kmac128Hash(const byte* key, word32 keyLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, byte* out, word32 outLen)
+{
+    int ret = 0;
+    /* Heap-allocate the state on small-stack builds (it is ~400 bytes). */
+    WC_DECLARE_VAR(kmac, wc_Kmac, 1, NULL);
+
+    WC_ALLOC_VAR_EX(kmac, wc_Kmac, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_InitKmac128(kmac, key, keyLen, custom, customLen, NULL,
+            INVALID_DEVID);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac128_Update(kmac, in, inLen);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac128_Final(kmac, out, outLen);
+    }
+    /* wc_Kmac128_Free tolerates a NULL pointer (allocation failure). */
+    wc_Kmac128_Free(kmac);
+    WC_FREE_VAR_EX(kmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* One-shot KMACXOF128 over a single message.
+ *
+ * As wc_Kmac128Hash(), but the output length is not bound into the result
+ * (KMACXOF128), so any amount of output may be requested.
+ *
+ * @param [in]  key        Key bytes.
+ * @param [in]  keyLen     Length of the key in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  in         Message bytes, or NULL when inLen is 0.
+ * @param [in]  inLen      Length of the message in bytes.
+ * @param [out] out        Buffer to hold the output.
+ * @param [in]  outLen     Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  Negative error code on failure.
+ */
+int wc_Kmac128HashXof(const byte* key, word32 keyLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, byte* out, word32 outLen)
+{
+    int ret = 0;
+    /* Heap-allocate the state on small-stack builds (it is ~400 bytes). */
+    WC_DECLARE_VAR(kmac, wc_Kmac, 1, NULL);
+
+    WC_ALLOC_VAR_EX(kmac, wc_Kmac, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_InitKmac128(kmac, key, keyLen, custom, customLen, NULL,
+            INVALID_DEVID);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac128_Update(kmac, in, inLen);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac128_FinalXof(kmac, out, outLen);
+    }
+    /* wc_Kmac128_Free tolerates a NULL pointer (allocation failure). */
+    wc_Kmac128_Free(kmac);
+    WC_FREE_VAR_EX(kmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* WOLFSSL_KMAC128 */
+
+#ifdef WOLFSSL_KMAC256
+/* Initialize a KMAC256 operation with a key and optional customization string.
+ *
+ * @param [out] kmac       wc_Kmac object to initialize.
+ * @param [in]  key        Key bytes.
+ * @param [in]  keyLen     Length of the key in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  heap       Dynamic memory hint.
+ * @param [in]  devId      Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a required pointer is NULL.
+ */
+int wc_InitKmac256(wc_Kmac* kmac, const byte* key, word32 keyLen,
+    const byte* custom, word32 customLen, void* heap, int devId)
+{
+    return KmacInit(kmac, WC_SHA3_256_COUNT, key, keyLen, custom, customLen,
+        heap, devId);
+}
+
+/* Absorb message data into a KMAC256 operation.
+ *
+ * @param [in,out] kmac   wc_Kmac object holding state.
+ * @param [in]     in     Message bytes, or NULL when inLen is 0.
+ * @param [in]     inLen  Length of in in bytes.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG on a NULL message with a non-zero length.
+ */
+int wc_Kmac256_Update(wc_Kmac* kmac, const byte* in, word32 inLen)
+{
+    return KmacUpdate(kmac, in, inLen);
+}
+
+/* Finalize a KMAC256 operation, writing outLen bytes to out.
+ *
+ * The output length is bound into the result (NIST SP 800-185 KMAC).
+ *
+ * @param [in,out] kmac    wc_Kmac object holding state.
+ * @param [out]    out     Buffer to hold the output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+int wc_Kmac256_Final(wc_Kmac* kmac, byte* out, word32 outLen)
+{
+    return KmacFinal(kmac, out, outLen, 0);
+}
+
+/* Finalize a KMAC256 operation as an XOF - KMACXOF256.
+ *
+ * The output length is not bound into the result, so any amount of output may
+ * be requested.
+ *
+ * @param [in,out] kmac    wc_Kmac object holding state.
+ * @param [out]    out     Buffer to hold the output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+int wc_Kmac256_FinalXof(wc_Kmac* kmac, byte* out, word32 outLen)
+{
+    return KmacFinal(kmac, out, outLen, 1);
+}
+
+/* Copy the state of a KMAC256 operation, allowing it to be finalized more
+ * than once (for example over a common message prefix).
+ *
+ * @param [in]  src  wc_Kmac object to copy from.
+ * @param [out] dst  wc_Kmac object to copy into.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when src or dst is NULL.
+ */
+int wc_Kmac256_Copy(wc_Kmac* src, wc_Kmac* dst)
+{
+    return KmacCopy(src, dst);
+}
+
+/* Dispose of any dynamically allocated data from a KMAC256 operation.
+ *
+ * The sponge state is key-derived, so it is zeroized on free, as with the
+ * other keyed MACs, HMAC and CMAC.
+ *
+ * @param [in,out] kmac  wc_Kmac object to free. May be NULL.
+ */
+void wc_Kmac256_Free(wc_Kmac* kmac)
+{
+    if (kmac != NULL) {
+        wc_Sha3Free(&kmac->shake);
+        ForceZero(kmac, sizeof(*kmac));
+    }
+}
+
+/* One-shot KMAC256 over a single message.
+ *
+ * @param [in]  key        Key bytes.
+ * @param [in]  keyLen     Length of the key in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  in         Message bytes, or NULL when inLen is 0.
+ * @param [in]  inLen      Length of the message in bytes.
+ * @param [out] out        Buffer to hold the output.
+ * @param [in]  outLen     Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  Negative error code on failure.
+ */
+int wc_Kmac256Hash(const byte* key, word32 keyLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, byte* out, word32 outLen)
+{
+    int ret = 0;
+    /* Heap-allocate the state on small-stack builds (it is ~400 bytes). */
+    WC_DECLARE_VAR(kmac, wc_Kmac, 1, NULL);
+
+    WC_ALLOC_VAR_EX(kmac, wc_Kmac, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_InitKmac256(kmac, key, keyLen, custom, customLen, NULL,
+            INVALID_DEVID);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac256_Update(kmac, in, inLen);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac256_Final(kmac, out, outLen);
+    }
+    /* wc_Kmac256_Free tolerates a NULL pointer (allocation failure). */
+    wc_Kmac256_Free(kmac);
+    WC_FREE_VAR_EX(kmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* One-shot KMACXOF256 over a single message.
+ *
+ * As wc_Kmac256Hash(), but the output length is not bound into the result
+ * (KMACXOF256), so any amount of output may be requested.
+ *
+ * @param [in]  key        Key bytes.
+ * @param [in]  keyLen     Length of the key in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  in         Message bytes, or NULL when inLen is 0.
+ * @param [in]  inLen      Length of the message in bytes.
+ * @param [out] out        Buffer to hold the output.
+ * @param [in]  outLen     Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  Negative error code on failure.
+ */
+int wc_Kmac256HashXof(const byte* key, word32 keyLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, byte* out, word32 outLen)
+{
+    int ret = 0;
+    /* Heap-allocate the state on small-stack builds (it is ~400 bytes). */
+    WC_DECLARE_VAR(kmac, wc_Kmac, 1, NULL);
+
+    WC_ALLOC_VAR_EX(kmac, wc_Kmac, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_InitKmac256(kmac, key, keyLen, custom, customLen, NULL,
+            INVALID_DEVID);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac256_Update(kmac, in, inLen);
+    }
+    if (ret == 0) {
+        ret = wc_Kmac256_FinalXof(kmac, out, outLen);
+    }
+    /* wc_Kmac256_Free tolerates a NULL pointer (allocation failure). */
+    wc_Kmac256_Free(kmac);
+    WC_FREE_VAR_EX(kmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* WOLFSSL_KMAC256 */
+
+#ifdef WOLFSSL_CSHAKE128
+/* Initialize a cSHAKE128 operation with a function-name and customization
+ * string (NIST SP 800-185). Enabled together with KMAC (WOLFSSL_KMAC).
+ *
+ * @param [out] cshake     wc_Cshake object to initialize.
+ * @param [in]  name       Function-name string, or NULL when nameLen is 0.
+ *                         Reserved for NIST-defined functions; use an empty
+ *                         string for application customization via custom.
+ * @param [in]  nameLen    Length of name in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  heap       Dynamic memory hint.
+ * @param [in]  devId      Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a required pointer is NULL.
+ */
+int wc_InitCshake128(wc_Cshake* cshake, const byte* name, word32 nameLen,
+    const byte* custom, word32 customLen, void* heap, int devId)
+{
+    return CshakeInit(cshake, WC_SHA3_128_COUNT, name, nameLen, custom,
+        customLen, heap, devId);
+}
+
+/* Absorb message data into a cSHAKE128 operation.
+ *
+ * @param [in,out] cshake  wc_Cshake object holding state.
+ * @param [in]     in      Message bytes, or NULL when inLen is 0.
+ * @param [in]     inLen   Length of in in bytes.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG on a NULL message with a non-zero length.
+ */
+int wc_Cshake128_Update(wc_Cshake* cshake, const byte* in, word32 inLen)
+{
+    return CshakeUpdate(cshake, in, inLen);
+}
+
+/* Finalize a cSHAKE128 operation, writing outLen bytes to out.
+ *
+ * @param [in,out] cshake  wc_Cshake object holding state.
+ * @param [out]    out     Buffer to hold the output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+int wc_Cshake128_Final(wc_Cshake* cshake, byte* out, word32 outLen)
+{
+    return CshakeFinal(cshake, out, outLen);
+}
+
+/* Copy the state of a cSHAKE128 operation, allowing it to be finalized more
+ * than once (for example over a common message prefix). dst must already be
+ * an initialized wc_Cshake.
+ *
+ * @param [in]  src  wc_Cshake object to copy from.
+ * @param [out] dst  wc_Cshake object to copy into.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when src or dst is NULL.
+ */
+int wc_Cshake128_Copy(wc_Cshake* src, wc_Cshake* dst)
+{
+    return CshakeCopy(src, dst);
+}
+
+/* Dispose of any dynamically allocated data from a cSHAKE128 operation.
+ *
+ * @param [in,out] cshake  wc_Cshake object to free. May be NULL.
+ */
+void wc_Cshake128_Free(wc_Cshake* cshake)
+{
+    if (cshake != NULL) {
+        wc_Sha3Free(&cshake->shake);
+    }
+}
+
+/* One-shot cSHAKE128 over a single message.
+ *
+ * @param [in]  name       Function-name string, or NULL when nameLen is 0.
+ * @param [in]  nameLen    Length of name in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  in         Message bytes, or NULL when inLen is 0.
+ * @param [in]  inLen      Length of the message in bytes.
+ * @param [out] out        Buffer to hold the output.
+ * @param [in]  outLen     Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  Negative error code on failure.
+ */
+int wc_Cshake128(const byte* name, word32 nameLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, byte* out, word32 outLen)
+{
+    int ret = 0;
+    /* Heap-allocate the state on small-stack builds (it is ~400 bytes). */
+    WC_DECLARE_VAR(cshake, wc_Cshake, 1, NULL);
+
+    WC_ALLOC_VAR_EX(cshake, wc_Cshake, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_InitCshake128(cshake, name, nameLen, custom, customLen, NULL,
+            INVALID_DEVID);
+    }
+    if (ret == 0) {
+        ret = wc_Cshake128_Update(cshake, in, inLen);
+    }
+    if (ret == 0) {
+        ret = wc_Cshake128_Final(cshake, out, outLen);
+    }
+    /* wc_Cshake128_Free tolerates a NULL pointer (allocation failure). */
+    wc_Cshake128_Free(cshake);
+    WC_FREE_VAR_EX(cshake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* WOLFSSL_CSHAKE128 */
+
+#ifdef WOLFSSL_CSHAKE256
+/* Initialize a cSHAKE256 operation with a function-name and customization
+ * string. See wc_InitCshake128() for parameter details.
+ *
+ * @param [out] cshake     wc_Cshake object to initialize.
+ * @param [in]  name       Function-name string, or NULL when nameLen is 0.
+ * @param [in]  nameLen    Length of name in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  heap       Dynamic memory hint.
+ * @param [in]  devId      Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a required pointer is NULL.
+ */
+int wc_InitCshake256(wc_Cshake* cshake, const byte* name, word32 nameLen,
+    const byte* custom, word32 customLen, void* heap, int devId)
+{
+    return CshakeInit(cshake, WC_SHA3_256_COUNT, name, nameLen, custom,
+        customLen, heap, devId);
+}
+
+/* Absorb message data into a cSHAKE256 operation.
+ *
+ * @param [in,out] cshake  wc_Cshake object holding state.
+ * @param [in]     in      Message bytes, or NULL when inLen is 0.
+ * @param [in]     inLen   Length of in in bytes.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG on a NULL message with a non-zero length.
+ */
+int wc_Cshake256_Update(wc_Cshake* cshake, const byte* in, word32 inLen)
+{
+    return CshakeUpdate(cshake, in, inLen);
+}
+
+/* Finalize a cSHAKE256 operation, writing outLen bytes to out.
+ *
+ * @param [in,out] cshake  wc_Cshake object holding state.
+ * @param [out]    out     Buffer to hold the output.
+ * @param [in]     outLen  Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+int wc_Cshake256_Final(wc_Cshake* cshake, byte* out, word32 outLen)
+{
+    return CshakeFinal(cshake, out, outLen);
+}
+
+/* Copy the state of a cSHAKE256 operation, allowing it to be finalized more
+ * than once (for example over a common message prefix). dst must already be
+ * an initialized wc_Cshake.
+ *
+ * @param [in]  src  wc_Cshake object to copy from.
+ * @param [out] dst  wc_Cshake object to copy into.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when src or dst is NULL.
+ */
+int wc_Cshake256_Copy(wc_Cshake* src, wc_Cshake* dst)
+{
+    return CshakeCopy(src, dst);
+}
+
+/* Dispose of any dynamically allocated data from a cSHAKE256 operation.
+ *
+ * @param [in,out] cshake  wc_Cshake object to free. May be NULL.
+ */
+void wc_Cshake256_Free(wc_Cshake* cshake)
+{
+    if (cshake != NULL) {
+        wc_Sha3Free(&cshake->shake);
+    }
+}
+
+/* One-shot cSHAKE256 over a single message. See wc_Cshake128() for details.
+ *
+ * @param [in]  name       Function-name string, or NULL when nameLen is 0.
+ * @param [in]  nameLen    Length of name in bytes.
+ * @param [in]  custom     Customization string, or NULL when customLen is 0.
+ * @param [in]  customLen  Length of the customization string in bytes.
+ * @param [in]  in         Message bytes, or NULL when inLen is 0.
+ * @param [in]  inLen      Length of the message in bytes.
+ * @param [out] out        Buffer to hold the output.
+ * @param [in]  outLen     Number of output bytes to produce.
+ *
+ * @return  0 on success.
+ * @return  Negative error code on failure.
+ */
+int wc_Cshake256(const byte* name, word32 nameLen, const byte* custom,
+    word32 customLen, const byte* in, word32 inLen, byte* out, word32 outLen)
+{
+    int ret = 0;
+    /* Heap-allocate the state on small-stack builds (it is ~400 bytes). */
+    WC_DECLARE_VAR(cshake, wc_Cshake, 1, NULL);
+
+    WC_ALLOC_VAR_EX(cshake, wc_Cshake, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_InitCshake256(cshake, name, nameLen, custom, customLen, NULL,
+            INVALID_DEVID);
+    }
+    if (ret == 0) {
+        ret = wc_Cshake256_Update(cshake, in, inLen);
+    }
+    if (ret == 0) {
+        ret = wc_Cshake256_Final(cshake, out, outLen);
+    }
+    /* wc_Cshake256_Free tolerates a NULL pointer (allocation failure). */
+    wc_Cshake256_Free(cshake);
+    WC_FREE_VAR_EX(cshake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* WOLFSSL_CSHAKE256 */
+
+#endif /* (WOLFSSL_KMAC || WOLFSSL_CSHAKE) && WC_SHA3_SW_KECCAK */
 
 #endif /* WOLFSSL_SHA3 */

@@ -1674,6 +1674,8 @@ then
         test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
+        test "$enable_cshake" = "" && enable_cshake=yes
+        test "$enable_kmac" = "" && enable_kmac=yes
         test "$enable_compkey" = "" && enable_compkey=yes
         # AFALG lacks AES-ECB
         test "$enable_srtp_kdf" = "" && test "$enable_afalg" != "yes" && enable_srtp_kdf=yes
@@ -5042,6 +5044,49 @@ then
     fi
 fi
 
+# cSHAKE and KMAC (NIST SP 800-185), both built on SHAKE. KMAC is built on
+# cSHAKE, so enabling KMAC also enables cSHAKE; cSHAKE can be enabled on its own.
+AC_ARG_ENABLE([cshake],
+    [AS_HELP_STRING([--enable-cshake],[Enable wolfSSL cSHAKE support (default: disabled)])],
+    [ ENABLED_CSHAKE=$enableval ],
+    [ ENABLED_CSHAKE=no ]
+    )
+
+AC_ARG_ENABLE([kmac],
+    [AS_HELP_STRING([--enable-kmac],[Enable wolfSSL KMAC support (default: disabled)])],
+    [ ENABLED_KMAC=$enableval ],
+    [ ENABLED_KMAC=no ]
+    )
+
+# KMAC is built on cSHAKE - enabling KMAC enables cSHAKE.
+if test "$ENABLED_KMAC" != "no"
+then
+    ENABLED_CSHAKE=yes
+fi
+
+# cSHAKE (and thus KMAC) require SHA-3 and SHAKE. Force-enable them (unless
+# explicitly disabled).
+if test "$ENABLED_CSHAKE" != "no"
+then
+    if test "$ENABLED_SHA3" = "no"
+    then
+        AC_MSG_ERROR([cshake requires SHA-3: --enable-sha3])
+    fi
+    ENABLED_SHA3=yes
+    if test "$ENABLED_SHAKE128" != "no"
+    then
+        ENABLED_SHAKE128=yes
+    fi
+    if test "$ENABLED_SHAKE256" != "no"
+    then
+        ENABLED_SHAKE256=yes
+    fi
+    if test "$ENABLED_SHAKE128" = "no" && test "$ENABLED_SHAKE256" = "no"
+    then
+        AC_MSG_ERROR([cshake requires SHAKE128 and/or SHAKE256])
+    fi
+fi
+
 # SHA512
 AC_ARG_ENABLE([sha512],
     [AS_HELP_STRING([--enable-sha512],[Enable wolfSSL SHA-512 support (default: enabled)])],
@@ -7855,6 +7900,24 @@ then
     fi
 else
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
+fi
+
+# Set cSHAKE / KMAC flags. Both are built on SHAKE, so re-check here (after any
+# later logic - e.g. FIPS < 6 - may have force-disabled SHAKE) and fail with a
+# clear configure error rather than a confusing compile-time #error. KMAC
+# implies cSHAKE (ENABLED_CSHAKE was set above), so the SHAKE check on the
+# cSHAKE branch also covers KMAC.
+if test "$ENABLED_CSHAKE" != "no"
+then
+    if test "$ENABLED_SHAKE128" = "no" && test "$ENABLED_SHAKE256" = "no"
+    then
+        AC_MSG_ERROR([cshake requires SHAKE128 and/or SHAKE256, disabled in this configuration (for example by FIPS < 6)])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CSHAKE"
+fi
+if test "$ENABLED_KMAC" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KMAC"
 fi
 
 # MLKEM CFLAG processing (after FIPS section for sandwich pattern)
@@ -13304,6 +13367,8 @@ echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * SHA3:                       $ENABLED_SHA3"
 echo "   * SHAKE128:                   $ENABLED_SHAKE128"
 echo "   * SHAKE256:                   $ENABLED_SHAKE256"
+echo "   * cSHAKE:                     $ENABLED_CSHAKE"
+echo "   * KMAC:                       $ENABLED_KMAC"
 echo "   * SM3:                        $ENABLED_SM3"
 echo "   * BLAKE2B:                    $ENABLED_BLAKE2B"
 echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"

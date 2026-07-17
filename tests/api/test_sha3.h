@@ -61,6 +61,15 @@ int test_wc_Shake256_XOF(void);
 int test_wc_CryptoCb_Shake128_HashOffload(void);
 int test_wc_CryptoCb_Shake256_HashOffload(void);
 
+int test_wc_Kmac128_KATs(void);
+int test_wc_Kmac128_api(void);
+int test_wc_Kmac256_KATs(void);
+int test_wc_Kmac256_api(void);
+int test_wc_Kmac_Copy(void);
+int test_wc_Cshake128(void);
+int test_wc_Cshake256(void);
+int test_wc_Cshake_Copy(void);
+
 #define TEST_SHA3_DECLS                             \
     TEST_DECL_GROUP("sha3", test_wc_InitSha3),      \
     TEST_DECL_GROUP("sha3", test_wc_Sha3_Update),   \
@@ -99,5 +108,15 @@ int test_wc_CryptoCb_Shake256_HashOffload(void);
     TEST_DECL_GROUP("shake256", test_wc_Shake256_SqueezeBlocks),    \
     TEST_DECL_GROUP("shake256", test_wc_Shake256_XOF),              \
     TEST_DECL_GROUP("shake256", test_wc_CryptoCb_Shake256_HashOffload)
+
+#define TEST_KMAC_DECLS                                             \
+    TEST_DECL_GROUP("kmac", test_wc_Kmac128_KATs),                  \
+    TEST_DECL_GROUP("kmac", test_wc_Kmac128_api),                   \
+    TEST_DECL_GROUP("kmac", test_wc_Kmac256_KATs),                  \
+    TEST_DECL_GROUP("kmac", test_wc_Kmac256_api),                   \
+    TEST_DECL_GROUP("kmac", test_wc_Kmac_Copy),                     \
+    TEST_DECL_GROUP("cshake", test_wc_Cshake128),                   \
+    TEST_DECL_GROUP("cshake", test_wc_Cshake256),                   \
+    TEST_DECL_GROUP("cshake", test_wc_Cshake_Copy)
 
 #endif /* WOLFCRYPT_TEST_SHA3_H */
