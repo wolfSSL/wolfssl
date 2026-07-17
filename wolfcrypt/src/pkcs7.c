@@ -14752,6 +14752,18 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                             break;
                         }
                     }
+                #ifdef NO_PKCS7_STREAM
+                    /* Non-streaming has no resume path. If an error was flagged
+                     * (e.g. a definite-length constructed [0] whose OCTET
+                     * STRINGs were consumed without an indefinite EOC
+                     * terminator, so the scan ran off the end of the buffer)
+                     * stop here instead of re-reading past the end forever.
+                     * The streaming build breaks on error above; this is the
+                     * equivalent exit for the non-streaming loop. */
+                    if (ret != 0) {
+                        break;
+                    }
+                #endif
                 #ifndef NO_PKCS7_STREAM
                     pkcs7->stream->expected = MAX_OCTET_STR_SZ;
                     if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &localIdx,
