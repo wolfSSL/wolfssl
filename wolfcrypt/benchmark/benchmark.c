@@ -871,9 +871,14 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define BENCH_HMAC_SHA256        0x00000020
 #define BENCH_HMAC_SHA384        0x00000040
 #define BENCH_HMAC_SHA512        0x00000080
+#define BENCH_HMAC_SHA3_256      0x00000400
+#define BENCH_HMAC_SHA3_384      0x00000800
+#define BENCH_HMAC_SHA3_512      0x00001000
 #define BENCH_HMAC               (BENCH_HMAC_MD5    | BENCH_HMAC_SHA    | \
                                   BENCH_HMAC_SHA224 | BENCH_HMAC_SHA256 | \
-                                  BENCH_HMAC_SHA384 | BENCH_HMAC_SHA512)
+                                  BENCH_HMAC_SHA384 | BENCH_HMAC_SHA512 | \
+                                  BENCH_HMAC_SHA3_256 | BENCH_HMAC_SHA3_384 | \
+                                  BENCH_HMAC_SHA3_512)
 #define BENCH_PBKDF2             0x00000100
 #define BENCH_SIPHASH            0x00000200
 #define BENCH_KMAC               0x00000400
@@ -1221,6 +1226,17 @@ static const bench_alg bench_mac_opt[] = {
     #endif
     #ifdef WOLFSSL_SHA512
     { "-hmac-sha512",        BENCH_HMAC_SHA512       },
+    #endif
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_256
+    { "-hmac-sha3-256",      BENCH_HMAC_SHA3_256     },
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+    { "-hmac-sha3-384",      BENCH_HMAC_SHA3_384     },
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+    { "-hmac-sha3-512",      BENCH_HMAC_SHA3_512     },
+    #endif
     #endif
     #ifndef NO_PWDBASED
     { "-pbkdf2",             BENCH_PBKDF2            },
@@ -2392,6 +2408,9 @@ static const char* bench_result_words2[][6] = {
 #endif
 
 static int    numBlocks  = NUM_BLOCKS;
+/* Set to 1 when the user gives -blocks. Then we keep their block count
+ * instead of working one out from the block size. */
+static int    numBlocksSet = 0;
 static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
@@ -2489,6 +2508,7 @@ static void benchmark_static_init(int force)
 
         /* Init static variables */
         numBlocks  = NUM_BLOCKS;
+        numBlocksSet = 0;
         bench_size = BENCH_SIZE;
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         aesAuthAddSz    = AES_AUTH_ADD_SZ;
@@ -4381,6 +4401,38 @@ static void* benchmarks_do(void* args)
         #endif
         }
     #endif
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_256
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA3_256)) {
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha3_256(0);
+        #endif
+        #ifdef BENCH_DEVID
+            bench_hmac_sha3_256(1);
+        #endif
+        }
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA3_384)) {
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha3_384(0);
+        #endif
+        #ifdef BENCH_DEVID
+            bench_hmac_sha3_384(1);
+        #endif
+        }
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA3_512)) {
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha3_512(0);
+        #endif
+        #ifdef BENCH_DEVID
+            bench_hmac_sha3_512(1);
+        #endif
+        }
+    #endif
+    #endif /* WOLFSSL_SHA3 */
     #ifndef NO_PWDBASED
         if (bench_all || (bench_mac_algs & BENCH_PBKDF2)) {
             bench_pbkdf2();
@@ -9216,6 +9268,11 @@ exit:
 #endif /* WOLFSSL_SHAKE128 */
 
 #ifdef WOLFSSL_SHAKE256
+/* How many output bytes the SHAKE256 benchmark asks for each call.
+ * Set it smaller if your hardware limits the output size. */
+#ifndef BENCH_SHAKE256_XOF_SZ
+    #define BENCH_SHAKE256_XOF_SZ WC_SHA3_256_BLOCK_SIZE
+#endif
 void bench_shake256(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Shake, BENCH_MAX_PENDING,
@@ -9224,14 +9281,14 @@ void bench_shake256(int useDeviceID)
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
-                     WC_SHA3_256_BLOCK_SIZE, HEAP_HINT);
+                     BENCH_SHAKE256_XOF_SZ, HEAP_HINT);
 
     bench_stats_prepare();
 
     WC_CALLOC_ARRAY(hash, wc_Shake, BENCH_MAX_PENDING,
                      sizeof(wc_Shake), HEAP_HINT);
     WC_ALLOC_ARRAY(digest, byte, BENCH_MAX_PENDING,
-                  WC_SHA3_256_BLOCK_SIZE, HEAP_HINT);
+                  BENCH_SHAKE256_XOF_SZ, HEAP_HINT);
 
     if (digest_stream) {
         /* init keys */
@@ -9273,7 +9330,7 @@ void bench_shake256(int useDeviceID)
                     if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(hash[i]),
                                           0, &times, numBlocks, &pending)) {
                         ret = wc_Shake256_Final(hash[i], digest[i],
-                            WC_SHA3_256_BLOCK_SIZE);
+                            BENCH_SHAKE256_XOF_SZ);
                         if (!bench_async_handle(&ret,
                             BENCH_ASYNC_GET_DEV(hash[i]), 0,
                                                 &times, &pending)) {
@@ -9298,7 +9355,7 @@ void bench_shake256(int useDeviceID)
                     ret = wc_Shake256_Update(hash[0], bench_plain, bench_size);
                 if (ret == 0)
                     ret = wc_Shake256_Final(hash[0], digest[0],
-                        WC_SHA3_256_BLOCK_SIZE);
+                        BENCH_SHAKE256_XOF_SZ);
                 if (ret != 0)
                     goto exit_shake256;
                 RECORD_MULTI_VALUE_STATS();
@@ -10317,6 +10374,56 @@ void bench_hmac_sha512(int useDeviceID)
 }
 
 #endif /* WOLFSSL_SHA512 */
+
+#ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_256
+void bench_hmac_sha3_256(int useDeviceID)
+{
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(useDeviceID, WC_SHA3_256, WC_SHA3_256_DIGEST_SIZE, key,
+               sizeof(key), "HMAC-SHA3-256");
+}
+#endif /* !WOLFSSL_NOSHA3_256 */
+
+#ifndef WOLFSSL_NOSHA3_384
+void bench_hmac_sha3_384(int useDeviceID)
+{
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(useDeviceID, WC_SHA3_384, WC_SHA3_384_DIGEST_SIZE, key,
+               sizeof(key), "HMAC-SHA3-384");
+}
+#endif /* !WOLFSSL_NOSHA3_384 */
+
+#ifndef WOLFSSL_NOSHA3_512
+void bench_hmac_sha3_512(int useDeviceID)
+{
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(useDeviceID, WC_SHA3_512, WC_SHA3_512_DIGEST_SIZE, key,
+               sizeof(key), "HMAC-SHA3-512");
+}
+#endif /* !WOLFSSL_NOSHA3_512 */
+#endif /* WOLFSSL_SHA3 */
 
 #ifndef NO_PWDBASED
 void bench_pbkdf2(void)
@@ -17588,15 +17695,22 @@ out:
 
 #endif /* HAVE_GET_CYCLES */
 
+/* The fewest blocks we will ever run. Keeps a big block size from
+ * dividing the block count all the way down to zero. */
+#ifndef BENCH_MIN_BLOCKS
+    #define BENCH_MIN_BLOCKS 1
+#endif
 void benchmark_configure(word32 block_size)
 {
     /* must be greater than 0 */
     if (block_size > 0) {
-        numBlocks = (int)((word32)numBlocks * bench_size / block_size);
-        /* integer division can truncate to 0 for large block sizes; keep at
-         * least one block so the algorithm actually runs. */
-        if (numBlocks < 1)
-            numBlocks = 1;
+        /* Always start over from the original constants, not the current
+         * count, so testing several block sizes does not keep shrinking it. */
+        if (!numBlocksSet) {
+            numBlocks = (int)(NUM_BLOCKS * BENCH_SIZE / block_size);
+            if (numBlocks < BENCH_MIN_BLOCKS)
+                numBlocks = BENCH_MIN_BLOCKS;
+        }
         bench_size = block_size;
     }
 }
@@ -17938,8 +18052,10 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
         else if (string_matches(argv[1], "-blocks")) {
             argc--;
             argv++;
-            if (argc > 1)
+            if (argc > 1) {
                 numBlocks = XATOI(argv[1]);
+                numBlocksSet = 1;
+            }
         }
 #ifndef NO_FILESYSTEM
         else if (string_matches(argv[1], "-hash_input")) {
