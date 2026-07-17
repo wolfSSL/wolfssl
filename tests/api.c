@@ -30159,7 +30159,8 @@ static int test_SSL_CIPHER_get_current_kx(void)
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_SHA512))
+     !defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_ED25519))
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     int* keyFormat)
@@ -31263,7 +31264,8 @@ static int test_wc_CryptoCb(void)
 #if defined(WOLF_CRYPTO_CB) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_SHA512))
+     !defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_ED25519))
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519))
     int tlsVer;
@@ -37645,7 +37647,8 @@ TEST_CASE testCases[] = {
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_SHA512))
+     !defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
+     !defined(WOLF_CRYPTO_CB_ONLY_ED25519))
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_wc_CryptoCb_registry),
 #endif

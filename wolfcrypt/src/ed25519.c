@@ -207,6 +207,7 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
     return ret;
 }
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ED25519
 /* Reject small-order Ed25519 public keys: h*A vanishes during verification
  * so any (R = [S]B, S) verifies for an arbitrary message. */
 static int ed25519_is_small_order(const byte p[ED25519_PUB_KEY_SIZE])
@@ -264,6 +265,7 @@ static int ed25519_is_small_order(const byte p[ED25519_PUB_KEY_SIZE])
     }
     return 0;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_ED25519 */
 
 #ifdef HAVE_ED25519_MAKE_KEY
 #if FIPS_VERSION3_GE(6,0,0)
@@ -320,10 +322,12 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
                            word32 pubKeySz)
 {
     int   ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_ED25519
     ALIGN16 byte az[ED25519_PRV_KEY_SIZE];
 #if !defined(FREESCALE_LTC_ECC)
     ge_p3 A;
 #endif
+#endif /* !WOLF_CRYPTO_CB_ONLY_ED25519 */
 
     if (key == NULL || pubKey == NULL || pubKeySz != ED25519_PUB_KEY_SIZE)
         ret = BAD_FUNC_ARG;
@@ -332,6 +336,32 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
         ret = ECC_PRIV_KEY_E;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    /* Device-first: offload the public-key derivation. Fall through to the
+     * software path below only when the device reports the operation
+     * unavailable. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed25519MakePub(key, pubKey, pubKeySz);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0)
+                key->pubKeySet = 1;
+            return ret;
+        }
+        ret = 0; /* device declined the offload; fall back */
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_ED25519
+    /* software derivation is stripped and no device handled the op;
+     * fail closed */
+    if (ret == 0)
+        ret = NO_VALID_DEVID;
+#else
     if (ret == 0)
         ret = ed25519_hash(key, key->k, ED25519_KEY_SIZE, az);
     if (ret == 0) {
@@ -354,6 +384,7 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
 
         key->pubKeySet = 1;
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 
     return ret;
 }
@@ -376,7 +407,10 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     key->pubKeySet = 0;
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Ed25519Gen(rng, keySz, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -384,6 +418,9 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_ED25519
+    return NO_VALID_DEVID;
+#else
     ret = wc_RNG_GenerateBlock(rng, key->k, ED25519_KEY_SIZE);
     if (ret != 0)
         return ret;
@@ -407,6 +444,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 #endif
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 }
 #endif /* HAVE_ED25519_MAKE_KEY */
 
@@ -434,6 +472,31 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     (void)contextLen;
     (void)type;
     ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
+#elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+    (void)ed25519Ctx;
+    ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
+                                         (context == NULL && contextLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((type == Ed25519ph) &&
+        (inLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed25519Sign(in, inLen, out, outLen, key, type,
+            context, contextLen);
+    }
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        ret = NO_VALID_DEVID;
+    }
 #else
 #ifdef FREESCALE_LTC_ECC
     ALIGN16 byte tempBuf[ED25519_PRV_KEY_SIZE];
@@ -461,7 +524,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Ed25519Sign(in, inLen, out, outLen, key, type,
             context, contextLen);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -597,9 +663,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     ForceZero(az, sizeof(az));
     ForceZero(nonce, sizeof(nonce));
-#endif /* WOLFSSL_SE050 */
 
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    /* belongs to the software path: orig_k snapshots the key the software
+     * math read, so there is nothing to compare when a device signs */
     if (ret == 0) {
         int  i;
         byte c = 0;
@@ -610,6 +677,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
     ForceZero(orig_k, sizeof(orig_k));
 #endif
+#endif /* WOLFSSL_SE050 */
 
     return ret;
 }
@@ -696,7 +764,7 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
 #endif /* HAVE_ED25519_SIGN */
 
 #ifdef HAVE_ED25519_VERIFY
-#ifndef WOLFSSL_SE050
+#if !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
 
 #ifdef WOLFSSL_CHECK_VER_FAULTS
 static const byte sha512_empty[] = {
@@ -928,7 +996,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 
     return ret;
 }
-#endif /* WOLFSSL_SE050 */
+#endif /* !WOLFSSL_SE050 && !WOLF_CRYPTO_CB_ONLY_ED25519 */
 
 #if defined(WOLFSSL_ED25519_STREAMING_VERIFY) && !defined(WOLFSSL_SE050)
 
@@ -972,6 +1040,30 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     (void)contextLen;
     (void)ed25519Ctx;
     ret = se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
+#elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+    (void)ed25519Ctx;
+    ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    if (sig == NULL || msg == NULL || res == NULL || key == NULL ||
+                                         (context == NULL && contextLen != 0))
+        return BAD_FUNC_ARG;
+
+    if ((type == Ed25519ph) &&
+        (msgLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed25519Verify(sig, sigLen, msg, msgLen, res, key,
+            type, context, contextLen);
+    }
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        ret = NO_VALID_DEVID;
+    }
 #else
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 *sha;
@@ -991,7 +1083,10 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Ed25519Verify(sig, sigLen, msg, msgLen, res, key,
             type, context, contextLen);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -1160,7 +1255,8 @@ int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
 #endif
     key->heap = heap;
 
-#ifndef FREESCALE_LTC_ECC
+/* no field math is linked when all Ed25519 ops route through the callback */
+#if !defined(FREESCALE_LTC_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
     fe_init();
 #endif
 
@@ -1289,6 +1385,23 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
             key->pointY[i] = *(in + 2*ED25519_KEY_SIZE - i);
         }
         XMEMCPY(key->p, key->pointY, ED25519_KEY_SIZE);
+#elif defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+        {
+            /* Compress without the stripped curve math: y crosses reversed
+             * with its top bit replaced by the parity of x. Same byte
+             * transform as ge_compress_key minus the canonical reduction
+             * (as in the ED25519_SMALL variant); the key check below
+             * rejects non-canonical keys. This inlined code avoids pulling
+             * in ge_compress_key(), etc. */
+            const byte* xIn = in + 1;
+            const byte* yIn = in + 1 + ED25519_PUB_KEY_SIZE;
+            int i;
+
+            for (i = 0; i < ED25519_PUB_KEY_SIZE; i++) {
+                key->p[i] = yIn[ED25519_PUB_KEY_SIZE - 1 - i];
+            }
+            key->p[0] = (byte)((key->p[0] & 0x7f) | ((xIn[0] & 1) << 7));
+        }
 #else
         /* pass in (x,y) and store compressed key */
         ret = ge_compress_key(key->p, in+1,
@@ -1566,6 +1679,30 @@ int wc_ed25519_check_key(ed25519_key* key)
         ret = PUBLIC_KEY_E;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    /* Device-first: let a configured device validate the key. Fall through
+     * to the software checks below only when the device reports the
+     * operation unavailable. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed25519CheckKey(key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        ret = 0; /* device declined; fall through to software */
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_ED25519
+    /* Software validation is stripped; the device-first check above either
+     * handled the key or reported the op unavailable, so fail closed rather
+     * than accept an unvalidated key. */
+    if (ret == 0)
+        ret = NO_VALID_DEVID;
+#else
     /* Reject small-order pub key before the priv-vs-pub compare so the
      * diagnostic isn't masked by a "mismatch" error. */
     if ((ret == 0) && ed25519_is_small_order(key->p)) {
@@ -1621,6 +1758,7 @@ int wc_ed25519_check_key(ed25519_key* key)
             }
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 
     return ret;
 }

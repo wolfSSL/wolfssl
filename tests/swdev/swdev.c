@@ -40,6 +40,9 @@
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 #endif
+#ifdef HAVE_ED25519
+#include <wolfssl/wolfcrypt/ed25519.h>
+#endif
 
 static int swdev_initialized = 0;
 
@@ -237,6 +240,83 @@ static int swdev_ecc_check_pub(wc_CryptoInfo* info)
 }
 #endif /* HAVE_ECC_CHECK_KEY */
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_ED25519
+#ifdef HAVE_ED25519_MAKE_KEY
+static int swdev_ed25519_keygen(wc_CryptoInfo* info)
+{
+    return wc_ed25519_make_key(info->pk.ed25519kg.rng,
+        info->pk.ed25519kg.size, info->pk.ed25519kg.key);
+}
+#endif
+
+#ifdef HAVE_ED25519_SIGN
+static int swdev_ed25519_sign(wc_CryptoInfo* info)
+{
+    return wc_ed25519_sign_msg_ex(info->pk.ed25519sign.in,
+        info->pk.ed25519sign.inLen, info->pk.ed25519sign.out,
+        info->pk.ed25519sign.outLen, info->pk.ed25519sign.key,
+        info->pk.ed25519sign.type, info->pk.ed25519sign.context,
+        info->pk.ed25519sign.contextLen);
+}
+#endif
+
+#ifdef HAVE_ED25519_VERIFY
+static int swdev_ed25519_verify(wc_CryptoInfo* info)
+{
+    return wc_ed25519_verify_msg_ex(info->pk.ed25519verify.sig,
+        info->pk.ed25519verify.sigLen, info->pk.ed25519verify.msg,
+        info->pk.ed25519verify.msgLen, info->pk.ed25519verify.res,
+        info->pk.ed25519verify.key, info->pk.ed25519verify.type,
+        info->pk.ed25519verify.context, info->pk.ed25519verify.contextLen);
+}
+#endif
+
+#ifdef HAVE_ED25519_MAKE_KEY
+static int swdev_ed25519_make_pub(wc_CryptoInfo* info)
+{
+    if (info->pk.ed25519makepub.pubOutSz != ED25519_PUB_KEY_SIZE)
+        return BUFFER_E;
+    return wc_ed25519_make_public(info->pk.ed25519makepub.key,
+        info->pk.ed25519makepub.pubOut, info->pk.ed25519makepub.pubOutSz);
+}
+#endif
+
+static int swdev_ed25519_check_key(wc_CryptoInfo* info)
+{
+    ed25519_key* key = info->pk.ed25519checkkey.key;
+    int ret = 0;
+    int validatedFromWire = 0;
+
+#ifdef HAVE_ED25519_KEY_IMPORT
+    {
+        WC_DECLARE_VAR(pubOnly, ed25519_key, 1, key->heap);
+
+        /* vault-style consumption: rebuild a public-only key from the wire
+         * bytes and validate it, proving the serialized form is sufficient.
+         * trusted=0 runs the full public-key validation during import. */
+        WC_ALLOC_VAR(pubOnly, ed25519_key, 1, key->heap);
+        if (!WC_VAR_OK(pubOnly))
+            return MEMORY_E;
+        ret = wc_ed25519_init_ex(pubOnly, key->heap, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_ed25519_import_public_ex(info->pk.ed25519checkkey.pubKey,
+                info->pk.ed25519checkkey.pubKeySz, pubOnly, 0);
+        }
+        wc_ed25519_free(pubOnly);
+        WC_FREE_VAR(pubOnly, key->heap);
+        validatedFromWire = 1;
+    }
+#endif
+    /* private part (and public-only validation when the import path is
+     * unavailable): validate via the key handle */
+    if (ret == 0 && (!validatedFromWire ||
+            info->pk.ed25519checkkey.checkPriv)) {
+        ret = wc_ed25519_check_key(key);
+    }
+    return ret;
+}
+#endif /* HAVE_ED25519 */
 
 #ifndef NO_SHA256
 /* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
@@ -833,7 +913,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         return ret;
 
     switch (info->algo_type) {
-#if !defined(NO_RSA) || defined(HAVE_ECC)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
     #ifndef NO_RSA
@@ -864,6 +944,26 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_ecc_check_pub(info);
     #endif
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        #ifdef HAVE_ED25519_MAKE_KEY
+        case WC_PK_TYPE_ED25519_KEYGEN:
+            return swdev_ed25519_keygen(info);
+        #endif
+        #ifdef HAVE_ED25519_SIGN
+        case WC_PK_TYPE_ED25519_SIGN:
+            return swdev_ed25519_sign(info);
+        #endif
+        #ifdef HAVE_ED25519_VERIFY
+        case WC_PK_TYPE_ED25519_VERIFY:
+            return swdev_ed25519_verify(info);
+        #endif
+        #ifdef HAVE_ED25519_MAKE_KEY
+        case WC_PK_TYPE_ED25519_MAKE_PUB:
+            return swdev_ed25519_make_pub(info);
+        #endif
+        case WC_PK_TYPE_ED25519_CHECK_KEY:
+            return swdev_ed25519_check_key(info);
+    #endif /* HAVE_ED25519 */
         default:
             return CRYPTOCB_UNAVAILABLE;
         }

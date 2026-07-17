@@ -311,6 +311,19 @@ typedef struct wc_CryptoInfo {
                 const byte*  context;
                 byte         contextLen;
             } ed25519verify;
+            struct {
+                ed25519_key* key;      /* routing (devId), heap, private key
+                                        * in key->k (or device-resident)     */
+                byte*        pubOut;   /* [out] compressed public key        */
+                word32       pubOutSz; /* buffer size, ED25519_PUB_KEY_SIZE  */
+            } ed25519makepub;
+            struct {
+                ed25519_key* key;       /* routing, heap, resident/sw priv   */
+                const byte*  pubKey;    /* compressed public key (key->p)    */
+                word32       pubKeySz;  /* ED25519_PUB_KEY_SIZE              */
+                int          checkPriv; /* 1: private key present; also check
+                                         * priv/pub consistency              */
+            } ed25519checkkey;
         #endif
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
             struct {
@@ -817,6 +830,9 @@ WOLFSSL_LOCAL int wc_CryptoCb_Ed25519Sign(const byte* in, word32 inLen,
 WOLFSSL_LOCAL int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res, ed25519_key* key, byte type,
     const byte* context, byte contextLen);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
+    word32 pubKeySz);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 #endif /* HAVE_ED25519 */
 
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
