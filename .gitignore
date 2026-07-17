@@ -494,8 +494,9 @@ wrapper/Ada/obj/
 wolfssl/debug-trace-error-codes.h
 wolfssl/debug-untrace-error-codes.h
 
-AGENTS.md
-CLAUDE.md
+# Local (untracked) agent instruction files
+AGENTS.local.md
+CLAUDE.local.md
 
 # Code navigation files
 compile_commands.json
