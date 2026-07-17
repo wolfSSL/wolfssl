@@ -4570,9 +4570,9 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
 #if defined(__GNUC__)
         "BGE	L_curve25519_bits_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_curve25519_bits\n\t"
+        "BGE.W	L_curve25519_bits\n\t"
 #else
-        "BGE.N	L_curve25519_bits_%=\n\t"
+        "BGE.W	L_curve25519_bits_%=\n\t"
 #endif
         /*   Cycle Count: 166 */
         "LDR	%[n], [sp, #184]\n\t"

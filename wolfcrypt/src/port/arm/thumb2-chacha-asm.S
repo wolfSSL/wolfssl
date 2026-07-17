@@ -253,7 +253,7 @@ L_chacha_thumb2_crypt_loop:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGT	L_chacha_thumb2_crypt_loop
 #else
-	BGT.N	L_chacha_thumb2_crypt_loop
+	BGT.W	L_chacha_thumb2_crypt_loop
 #endif
 	STM	sp, {r8, r9, r10, r11, r12}
 	LDR	lr, [sp, #32]
@@ -296,7 +296,7 @@ L_chacha_thumb2_crypt_loop:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BLT	L_chacha_thumb2_crypt_lt_block
 #else
-	BLT.N	L_chacha_thumb2_crypt_lt_block
+	BLT.W	L_chacha_thumb2_crypt_lt_block
 #endif
 	LDR	r12, [sp, #40]
 	LDR	lr, [sp, #36]
@@ -368,7 +368,7 @@ L_chacha_thumb2_crypt_loop:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_chacha_thumb2_crypt_block
 #else
-	BNE.N	L_chacha_thumb2_crypt_block
+	BNE.W	L_chacha_thumb2_crypt_block
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_chacha_thumb2_crypt_done

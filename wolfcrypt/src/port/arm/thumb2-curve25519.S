@@ -4060,7 +4060,7 @@ L_curve25519_bits:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_bits
 #else
-	BGE.N	L_curve25519_bits
+	BGE.W	L_curve25519_bits
 #endif
 	/*   Cycle Count: 171 */
 	LDR	r1, [sp, #184]

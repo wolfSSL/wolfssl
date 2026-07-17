@@ -71,9 +71,9 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
 #if defined(__GNUC__)
         "BEQ	L_poly1305_thumb2_16_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_poly1305_thumb2_16_done\n\t"
+        "BEQ.W	L_poly1305_thumb2_16_done\n\t"
 #else
-        "BEQ.N	L_poly1305_thumb2_16_done_%=\n\t"
+        "BEQ.W	L_poly1305_thumb2_16_done_%=\n\t"
 #endif
         "ADD	lr, sp, #12\n\t"
         "STM	lr, {%[ctx], %[m], %[len], %[notLast]}\n\t"
