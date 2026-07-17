@@ -1010,6 +1010,18 @@ add_option(WOLFSSL_LMSNOSHA256256
     "Disable the LMS SHA_256_256 standard variant (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_LMSVERIFYONLY
+    "Enable the LMS/HSS verify-only implementation (default: disabled)"
+    "no" "yes;no")
+
+add_option(WOLFSSL_LMSSMALL
+    "Enable the smaller, slower LMS/HSS implementation (default: disabled)"
+    "no" "yes;no")
+
+add_option(WOLFSSL_LMSSHAKE256
+    "Enable the LMS SHAKE256 variant (default: disabled)"
+    "no" "yes;no")
+
 if (WOLFSSL_LMS)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_LMS")
 
@@ -1025,6 +1037,24 @@ if (WOLFSSL_LMS)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_LMS_SHA256_256")
 
         set_wolfssl_definitions("WOLFSSL_NO_LMS_SHA256_256" RESULT)
+    endif()
+
+    if (WOLFSSL_LMSVERIFYONLY)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LMS_VERIFY_ONLY")
+
+        set_wolfssl_definitions("WOLFSSL_LMS_VERIFY_ONLY"   RESULT)
+    endif()
+
+    if (WOLFSSL_LMSSMALL)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WC_LMS_SMALL")
+
+        set_wolfssl_definitions("WOLFSSL_WC_LMS_SMALL"      RESULT)
+    endif()
+
+    if (WOLFSSL_LMSSHAKE256)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LMS_SHAKE256")
+
+        set_wolfssl_definitions("WOLFSSL_LMS_SHAKE256"      RESULT)
     endif()
 endif()
 
@@ -1121,6 +1151,32 @@ add_option(WOLFSSL_LMS
 add_option(WOLFSSL_XMSS
     "Enable the wolfSSL XMSS implementation (default: disabled)"
     "no" "yes;no")
+
+add_option(WOLFSSL_XMSSVERIFYONLY
+    "Enable the XMSS/XMSS^MT verify-only implementation (default: disabled)"
+    "no" "yes;no")
+
+add_option(WOLFSSL_XMSSSMALL
+    "Enable the smaller, slower XMSS/XMSS^MT implementation (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_XMSS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_XMSS")
+
+    set_wolfssl_definitions("WOLFSSL_HAVE_XMSS" RESULT)
+
+    if (WOLFSSL_XMSSVERIFYONLY)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_XMSS_VERIFY_ONLY")
+
+        set_wolfssl_definitions("WOLFSSL_XMSS_VERIFY_ONLY" RESULT)
+    endif()
+
+    if (WOLFSSL_XMSSSMALL)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WC_XMSS_SMALL")
+
+        set_wolfssl_definitions("WOLFSSL_WC_XMSS_SMALL"    RESULT)
+    endif()
+endif()
 
 # SLH-DSA
 add_option(WOLFSSL_SLHDSA
