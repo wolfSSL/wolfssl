@@ -295,6 +295,9 @@ ASN Options:
 #if defined(WOLFSSL_HAVE_SLHDSA)
     #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 #endif
+#if defined(WOLFSSL_HAVE_FRODOKEM)
+    #include <wolfssl/wolfcrypt/wc_frodokem.h>
+#endif
 
 #ifdef WOLFSSL_QNX_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
@@ -4546,9 +4549,19 @@ static int EncodeName(EncodedName* name, const char* nameStr, byte nameTag, byte
 #endif
 #ifdef WOLFSSL_CERT_GEN
 static int SetValidity(byte* output, int daysValid);
-static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng, DsaKey* dsaKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey);
+static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
+                       RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
+                       DsaKey* dsaKey, ed25519_key* ed25519Key,
+                       ed448_key* ed448Key, falcon_key* falconKey,
+                       wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
+                       LmsKey* lmsKey, XmssKey* xmssKey, void* frodoKey);
 #ifdef WOLFSSL_CERT_REQ
-static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey);
+static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
+                       RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
+                       ed25519_key* ed25519Key, ed448_key* ed448Key,
+                       falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
+                       SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey,
+                       void* frodoKey);
 #endif
 #endif
 #endif
@@ -4853,6 +4866,34 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutI
     static const byte keyMlDsa_87Oid[] =
         {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* WOLFSSL_HAVE_MLDSA */
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    /* FrodoKEM / eFrodoKEM key OIDs (ISO/IEC 18033-2, arc 1.0.18033.2.2.7.x).
+     * Only the 976 and 1344 parameter sets are standardised (no 640). */
+    /* frodokem976-shake:    1.0.18033.2.2.7.1 */
+    static const byte keyFrodoKem_976ShakeOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 1};
+    /* frodokem1344-shake:   1.0.18033.2.2.7.2 */
+    static const byte keyFrodoKem_1344ShakeOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 2};
+    /* efrodokem976-shake:   1.0.18033.2.2.7.3 */
+    static const byte keyeFrodoKem_976ShakeOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 3};
+    /* efrodokem1344-shake:  1.0.18033.2.2.7.4 */
+    static const byte keyeFrodoKem_1344ShakeOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 4};
+    /* frodokem976-aes:      1.0.18033.2.2.7.5 */
+    static const byte keyFrodoKem_976AesOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 5};
+    /* frodokem1344-aes:     1.0.18033.2.2.7.6 */
+    static const byte keyFrodoKem_1344AesOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 6};
+    /* efrodokem976-aes:     1.0.18033.2.2.7.7 */
+    static const byte keyeFrodoKem_976AesOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 7};
+    /* efrodokem1344-aes:    1.0.18033.2.2.7.8 */
+    static const byte keyeFrodoKem_1344AesOid[] =
+        {40, 129, 140, 113, 2, 2, 7, 8};
+#endif /* WOLFSSL_HAVE_FRODOKEM */
 #ifdef WOLFSSL_HAVE_SLHDSA
     /* SLH-DSA-SHA2-128s: 2.16.840.1.101.3.4.3.20 */
     static const byte keySlhDsa_Sha2_128sOid[] = {96, 134, 72, 1, 101, 3, 4, 3, 20};
@@ -6189,6 +6230,40 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keySlhDsa_Shake_256fOid);
                     break;
             #endif /* WOLFSSL_HAVE_SLHDSA */
+            #ifdef WOLFSSL_HAVE_FRODOKEM
+                case FRODOKEM_976_SHAKEk:
+                    oid = keyFrodoKem_976ShakeOid;
+                    *oidSz = sizeof(keyFrodoKem_976ShakeOid);
+                    break;
+                case FRODOKEM_1344_SHAKEk:
+                    oid = keyFrodoKem_1344ShakeOid;
+                    *oidSz = sizeof(keyFrodoKem_1344ShakeOid);
+                    break;
+                case EFRODOKEM_976_SHAKEk:
+                    oid = keyeFrodoKem_976ShakeOid;
+                    *oidSz = sizeof(keyeFrodoKem_976ShakeOid);
+                    break;
+                case EFRODOKEM_1344_SHAKEk:
+                    oid = keyeFrodoKem_1344ShakeOid;
+                    *oidSz = sizeof(keyeFrodoKem_1344ShakeOid);
+                    break;
+                case FRODOKEM_976_AESk:
+                    oid = keyFrodoKem_976AesOid;
+                    *oidSz = sizeof(keyFrodoKem_976AesOid);
+                    break;
+                case FRODOKEM_1344_AESk:
+                    oid = keyFrodoKem_1344AesOid;
+                    *oidSz = sizeof(keyFrodoKem_1344AesOid);
+                    break;
+                case EFRODOKEM_976_AESk:
+                    oid = keyeFrodoKem_976AesOid;
+                    *oidSz = sizeof(keyeFrodoKem_976AesOid);
+                    break;
+                case EFRODOKEM_1344_AESk:
+                    oid = keyeFrodoKem_1344AesOid;
+                    *oidSz = sizeof(keyeFrodoKem_1344AesOid);
+                    break;
+            #endif /* WOLFSSL_HAVE_FRODOKEM */
             #ifdef WOLFSSL_HAVE_LMS
                 case HSS_LMSk:
                     oid = keyHssLmsOid;
@@ -7693,6 +7768,37 @@ static word32 fpkiCertPolOid(const byte* oid, word32 oidSz, word32 oidSum) {
     return 0;
 }
 #endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+/* The FrodoKEM key OIDs (1.0.18033.2.2.7.x) old-scheme byte sums (434..441)
+ * collide with the SLH-DSA key OIDs. All FrodoKEM OIDs share the same length
+ * and 7-byte prefix and differ only in the final arc, so match the prefix and
+ * map the final arc to the distinct FrodoKEM sum (100434..100441). Returns 0
+ * when the OID is not FrodoKEM (leaving the byte sum unchanged).
+ * @param [in]  oid    Buffer holding OID content octets.
+ * @param [in]  oidSz  Length of OID data in buffer.
+ */
+static word32 frodoKemKeyOidSum(const byte* oid, word32 oidSz)
+{
+    word32 sum = 0;
+
+    if ((oidSz == (word32)sizeof(keyFrodoKem_976ShakeOid)) &&
+            (XMEMCMP(oid, keyFrodoKem_976ShakeOid, oidSz - 1) == 0)) {
+        switch (oid[oidSz - 1]) {
+            case 1: sum = FRODOKEM_976_SHAKEk; break;
+            case 2: sum = FRODOKEM_1344_SHAKEk; break;
+            case 3: sum = EFRODOKEM_976_SHAKEk; break;
+            case 4: sum = EFRODOKEM_1344_SHAKEk; break;
+            case 5: sum = FRODOKEM_976_AESk; break;
+            case 6: sum = FRODOKEM_1344_AESk; break;
+            case 7: sum = EFRODOKEM_976_AESk; break;
+            case 8: sum = EFRODOKEM_1344_AESk; break;
+            default: break;
+        }
+    }
+
+    return sum;
+}
+#endif /* WOLFSSL_HAVE_FRODOKEM */
 #endif /* WOLFSSL_OLD_OID_SUM */
 
 word32 wc_oid_sum(const byte* input, int length)
@@ -7780,6 +7886,16 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
         *oid = found_collision;
     }
 #endif /* WOLFSSL_FPKI */
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    /* Remap a FrodoKEM key OID off the SLH-DSA byte-sum collision to its
+     * distinct sum so the two do not alias in the old-scheme lookup. */
+    if (oidType == oidKeyType) {
+        word32 fkSum = frodoKemKeyOidSum(actualOid, actualOidSz);
+        if (fkSum != 0) {
+            *oid = fkSum;
+        }
+    }
+#endif /* WOLFSSL_HAVE_FRODOKEM */
 #endif
 
     /* Return the index after the OID data. */
@@ -9160,6 +9276,22 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
                 }
                 break;
         #endif
+        #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+            case FRODOKEM_976_SHAKEk:
+            case FRODOKEM_1344_SHAKEk:
+            case EFRODOKEM_976_SHAKEk:
+            case EFRODOKEM_1344_SHAKEk:
+            case FRODOKEM_976_AESk:
+            case FRODOKEM_1344_AESk:
+            case EFRODOKEM_976_AESk:
+            case EFRODOKEM_1344_AESk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
             /* Other OIDs (DSAk), no parameter validation. */
             default:
                 break;
@@ -9730,6 +9862,52 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     }
     else
 #endif /* WOLFSSL_HAVE_SLHDSA && !WOLFSSL_SLHDSA_VERIFY_ONLY */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+    if ((ks == FRODOKEM_976_SHAKEk) || (ks == FRODOKEM_1344_SHAKEk) ||
+        (ks == EFRODOKEM_976_SHAKEk) || (ks == EFRODOKEM_1344_SHAKEk) ||
+        (ks == FRODOKEM_976_AESk) || (ks == FRODOKEM_1344_AESk) ||
+        (ks == EFRODOKEM_976_AESk) || (ks == EFRODOKEM_1344_AESk)) {
+        /* FrodoKemKey is large (tens of KB); always heap-allocate it to avoid
+         * a big stack frame, as wc_GetKeyOID() does. */
+        FrodoKemKey* key_pair = (FrodoKemKey*)XMALLOC(sizeof(FrodoKemKey),
+            heap, DYNAMIC_TYPE_TMP_BUFFER);
+        word32 keyIdx = 0;
+        word32 pubSz = 0;
+        byte*  pub = NULL;
+
+        if (key_pair == NULL) {
+            return MEMORY_E;
+        }
+        XMEMSET(key_pair, 0, sizeof(FrodoKemKey));
+        key_pair->devId = INVALID_DEVID;
+
+        /* Auto-detect the variant from the private key's OID, derive its
+         * public key and match it against the certificate's public key. */
+        ret = wc_FrodoKemKey_PrivateKeyDecode(key_pair, privKey, privKeySz,
+            &keyIdx);
+        if (ret == 0) {
+            ret = wc_FrodoKemKey_PublicKeySize(key_pair, &pubSz);
+        }
+        if (ret == 0) {
+            pub = (byte*)XMALLOC(pubSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (pub == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_FrodoKemKey_EncodePublicKey(key_pair, pub, pubSz);
+        }
+        if (ret == 0) {
+            WOLFSSL_MSG("Checking FrodoKEM key pair");
+            ret = ((pubKeySz == pubSz) &&
+                   (XMEMCMP(pub, pubKey, pubSz) == 0)) ? 1 : 0;
+        }
+        XFREE(pub, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_FrodoKemKey_Free(key_pair);
+        XFREE(key_pair, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    else
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLFSSL_FRODOKEM_NO_ASN1 */
     {
         ret = 0;
     }
@@ -9984,6 +10162,47 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
 #endif /* HAVE_PKCS8 */
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+/* Map a decoded FrodoKEM key type to its key-OID sum (Key_Sum). Mirrors the
+ * mapping in wc_frodokem.c; 640 has no standardised OID and returns 0. */
+static int frodoKemKeyTypeToSum(int type)
+{
+    int sum = 0;
+
+    switch (type & (FRODOKEM_BASE_MASK | FRODOKEM_AES | FRODOKEM_EPHEMERAL)) {
+        case WC_FRODOKEM_976:
+            sum = FRODOKEM_976_SHAKEk;
+            break;
+        case WC_FRODOKEM_976 | FRODOKEM_EPHEMERAL:
+            sum = EFRODOKEM_976_SHAKEk;
+            break;
+        case WC_FRODOKEM_976 | FRODOKEM_AES:
+            sum = FRODOKEM_976_AESk;
+            break;
+        case WC_FRODOKEM_976 | FRODOKEM_AES | FRODOKEM_EPHEMERAL:
+            sum = EFRODOKEM_976_AESk;
+            break;
+        case WC_FRODOKEM_1344:
+            sum = FRODOKEM_1344_SHAKEk;
+            break;
+        case WC_FRODOKEM_1344 | FRODOKEM_EPHEMERAL:
+            sum = EFRODOKEM_1344_SHAKEk;
+            break;
+        case WC_FRODOKEM_1344 | FRODOKEM_AES:
+            sum = FRODOKEM_1344_AESk;
+            break;
+        case WC_FRODOKEM_1344 | FRODOKEM_AES | FRODOKEM_EPHEMERAL:
+            sum = EFRODOKEM_1344_AESk;
+            break;
+        default:
+            sum = 0;
+            break;
+    }
+
+    return sum;
+}
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLFSSL_FRODOKEM_NO_ASN1 */
 
 int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         int* algoID, void* heap)
@@ -10280,6 +10499,28 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         XFREE(slhDsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* WOLFSSL_HAVE_SLHDSA && !WOLFSSL_SLHDSA_VERIFY_ONLY */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+    if (*algoID == 0) {
+        FrodoKemKey *frodo = (FrodoKemKey *)XMALLOC(sizeof(*frodo), heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (frodo == NULL)
+            return MEMORY_E;
+
+        /* A zeroed object makes wc_FrodoKemKey_PrivateKeyDecode auto-detect the
+         * variant from the OID and initialize the key. */
+        XMEMSET(frodo, 0, sizeof(*frodo));
+        frodo->devId = INVALID_DEVID;
+        tmpIdx = 0;
+        if (wc_FrodoKemKey_PrivateKeyDecode(frodo, key, keySz, &tmpIdx) == 0) {
+            *algoID = frodoKemKeyTypeToSum(frodo->type);
+        }
+        else {
+            WOLFSSL_MSG("Not FrodoKEM DER key");
+        }
+        wc_FrodoKemKey_Free(frodo);
+        XFREE(frodo, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLFSSL_FRODOKEM_NO_ASN1 */
 
     /* if flag is not set then this is not a key that we understand. */
     if (*algoID == 0) {
@@ -12759,7 +13000,8 @@ void wc_FreeDecodedCert(DecodedCert* cert)
 
 #if defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA) || \
-    defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+    defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || \
+    (defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1))
 /* Store the key data under the BIT_STRING in dynamically allocated data.
  *
  * @param [in, out] cert    Certificate object.
@@ -13766,6 +14008,19 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
             ret = StoreKey(cert, source, &srcIdx, maxIdx);
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+        case FRODOKEM_976_SHAKEk:
+        case FRODOKEM_1344_SHAKEk:
+        case EFRODOKEM_976_SHAKEk:
+        case EFRODOKEM_1344_SHAKEk:
+        case FRODOKEM_976_AESk:
+        case FRODOKEM_1344_AESk:
+        case EFRODOKEM_976_AESk:
+        case EFRODOKEM_1344_AESk:
+            cert->pkCurveOID = cert->keyOID;
+            ret = StoreKey(cert, source, &srcIdx, maxIdx);
+            break;
+    #endif /* WOLFSSL_HAVE_FRODOKEM && !WOLFSSL_FRODOKEM_NO_ASN1 */
     #ifdef WOLFSSL_HAVE_SLHDSA
         case SLH_DSA_SHAKE_128Fk:
         case SLH_DSA_SHAKE_192Fk:
@@ -28145,7 +28400,8 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
                            ed25519_key* ed25519Key, ed448_key* ed448Key,
                            DsaKey* dsaKey, falcon_key* falconKey,
                            wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
-                           LmsKey* lmsKey, XmssKey* xmssKey)
+                           LmsKey* lmsKey, XmssKey* xmssKey,
+                           void* frodoKey)
 {
     int ret = 0;
 
@@ -28160,6 +28416,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     (void)slhDsaKey;
     (void)lmsKey;
     (void)xmssKey;
+    (void)frodoKey;
 
     switch (keyType) {
     #ifndef NO_RSA
@@ -28221,6 +28478,15 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
             }
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+        case FRODOKEM_KEY:
+            ret = wc_FrodoKemKey_PublicKeyToDer((FrodoKemKey*)frodoKey, output,
+                                                (word32)outLen, 1);
+            if (ret <= 0) {
+                ret = PUBLIC_KEY_E;
+            }
+            break;
+    #endif /* WOLFSSL_HAVE_FRODOKEM && !WOLFSSL_FRODOKEM_NO_ASN1 */
     #if defined(WOLFSSL_HAVE_SLHDSA)
         case SLH_DSA_SHAKE_128F_KEY:
         case SLH_DSA_SHAKE_192F_KEY:
@@ -29603,7 +29869,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        DsaKey* dsaKey, ed25519_key* ed25519Key,
                        ed448_key* ed448Key, falcon_key* falconKey,
                        wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
-                       LmsKey* lmsKey, XmssKey* xmssKey)
+                       LmsKey* lmsKey, XmssKey* xmssKey, void* frodoKey)
 {
     /* TODO: issRaw and sbjRaw should be NUL terminated. */
     DECL_ASNSETDATA(dataASN, x509CertASN_Length);
@@ -29699,6 +29965,11 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = xmssKey->is_xmssmt ? XMSSMT_KEY : XMSS_KEY;
         }
 #endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+        else if (frodoKey != NULL) {
+            cert->keyType = FRODOKEM_KEY;
+        }
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLFSSL_FRODOKEM_NO_ASN1 */
         else {
             ret = BAD_FUNC_ARG;
         }
@@ -29747,7 +30018,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Calculate public key encoding size. */
         ret = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
                 eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
-                mldsaKey, slhDsaKey, lmsKey, xmssKey);
+                mldsaKey, slhDsaKey, lmsKey, xmssKey, frodoKey);
         publicKeySz = (word32)ret;
     }
     if (ret >= 0) {
@@ -29934,7 +30205,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             (int)dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ]
                            .data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey,
-            falconKey, mldsaKey, slhDsaKey, lmsKey, xmssKey);
+            falconKey, mldsaKey, slhDsaKey, lmsKey, xmssKey,
+            frodoKey);
     }
     if ((ret >= 0) && (!dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].noOut)) {
         /* Encode extensions into buffer. */
@@ -29981,6 +30253,7 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     SlhDsaKey*         slhDsaKey = NULL;
     LmsKey*            lmsKey = NULL;
     XmssKey*           xmssKey = NULL;
+    void*              frodoKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -30032,10 +30305,14 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
             return BAD_FUNC_ARG;
     }
 #endif
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+    else if (keyType == FRODOKEM_TYPE)
+        frodoKey = key;
+#endif
 
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, dsaKey,
                        ed25519Key, ed448Key, falconKey, mldsaKey,
-                       slhDsaKey, lmsKey, xmssKey);
+                       slhDsaKey, lmsKey, xmssKey, frodoKey);
 }
 
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
@@ -30044,7 +30321,7 @@ int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
              ecc_key* eccKey, WC_RNG* rng)
 {
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, NULL,
-                       NULL, NULL, NULL, NULL, NULL, NULL);
+                       NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 
@@ -30112,7 +30389,8 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
                    ed25519_key* ed25519Key, ed448_key* ed448Key,
                    falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
-                   SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey)
+                   SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey,
+                   void* frodoKey)
 {
     DECL_ASNSETDATA(dataASN, certReqBodyASN_Length);
     word32 publicKeySz = 0;
@@ -30207,6 +30485,11 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = xmssKey->is_xmssmt ? XMSSMT_KEY : XMSS_KEY;
         }
 #endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+        else if (frodoKey != NULL) {
+            cert->keyType = FRODOKEM_KEY;
+        }
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLFSSL_FRODOKEM_NO_ASN1 */
         else {
             ret = BAD_FUNC_ARG;
         }
@@ -30229,7 +30512,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         /* Determine encode public key size. */
          ret = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
              eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
-             mldsaKey, slhDsaKey, lmsKey, xmssKey);
+             mldsaKey, slhDsaKey, lmsKey, xmssKey, frodoKey);
          publicKeySz = (word32)ret;
     }
     if (ret >= 0) {
@@ -30349,7 +30632,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.data,
             (int)dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
-            mldsaKey, slhDsaKey, lmsKey, xmssKey);
+            mldsaKey, slhDsaKey, lmsKey, xmssKey, frodoKey);
     }
     if ((ret >= 0 && derBuffer != NULL) &&
             (!dataASN[CERTREQBODYASN_IDX_EXT_BODY].noOut)) {
@@ -30385,6 +30668,7 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     SlhDsaKey*     slhDsaKey = NULL;
     LmsKey*        lmsKey = NULL;
     XmssKey*       xmssKey = NULL;
+    void*          frodoKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -30436,10 +30720,14 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
             return BAD_FUNC_ARG;
     }
 #endif
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+    else if (keyType == FRODOKEM_TYPE)
+        frodoKey = key;
+#endif
 
     return MakeCertReq(cert, derBuffer, derSz, rsaKey, dsaKey, eccKey,
                        ed25519Key, ed448Key, falconKey, mldsaKey,
-                       slhDsaKey, lmsKey, xmssKey);
+                       slhDsaKey, lmsKey, xmssKey, frodoKey);
 }
 
 WOLFSSL_ABI
@@ -30447,7 +30735,7 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, ecc_key* eccKey)
 {
     return MakeCertReq(cert, derBuffer, derSz, rsaKey, NULL, eccKey, NULL,
-                       NULL, NULL, NULL, NULL, NULL, NULL);
+                       NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 #endif /* WOLFSSL_CERT_REQ */
 
@@ -31127,20 +31415,27 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                  ed25519_key* ed25519Key, ed448_key* ed448Key,
                                  falcon_key* falconKey,
                                  wc_MlDsaKey* mldsaKey,
-                                 SlhDsaKey *slhDsaKey, int kid_type)
+                                 SlhDsaKey *slhDsaKey, void* frodoKey,
+                                 int kid_type)
 {
     byte *buf;
     int   bufferSz, ret;
+    word32 bufSz = MAX_PUBLIC_KEY_SZ;
 
     if (cert == NULL ||
         (rsakey == NULL && eckey == NULL && ed25519Key == NULL &&
          ed448Key == NULL && falconKey == NULL && mldsaKey == NULL &&
-         slhDsaKey == NULL) ||
+         slhDsaKey == NULL && frodoKey == NULL) ||
         (kid_type != SKID_TYPE && kid_type != AKID_TYPE))
         return BAD_FUNC_ARG;
 
-    buf = (byte *)XMALLOC(MAX_PUBLIC_KEY_SZ, cert->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+    /* FrodoKEM public keys are far larger than MAX_PUBLIC_KEY_SZ. */
+    if (frodoKey != NULL) {
+        bufSz = FRODOKEM_MAX_PUB_KEY_DER_SIZE;
+    }
+#endif
+    buf = (byte *)XMALLOC(bufSz, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL)
         return MEMORY_E;
 
@@ -31186,6 +31481,12 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                                MAX_PUBLIC_KEY_SZ, 0);
     }
 #endif
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+    if (frodoKey != NULL) {
+        bufferSz = wc_FrodoKemKey_PublicKeyToDer((FrodoKemKey*)frodoKey, buf,
+                                                 bufSz, 0);
+    }
+#endif
 
     if (bufferSz <= 0) {
         XFREE(buf, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -31225,6 +31526,7 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     falcon_key*        falconKey = NULL;
     wc_MlDsaKey*       mldsaKey = NULL;
     SlhDsaKey*         slhDsaKey = NULL;
+    void*              frodoKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -31256,9 +31558,13 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     else if (IsSlhDsaKeyType(keyType))
         slhDsaKey = (SlhDsaKey*)key;
 #endif
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1)
+    else if (keyType == FRODOKEM_TYPE)
+        frodoKey = key;
+#endif
 
     return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
-                                 falconKey, mldsaKey, slhDsaKey,
+                                 falconKey, mldsaKey, slhDsaKey, frodoKey,
                                  SKID_TYPE);
 }
 
@@ -31266,7 +31572,7 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
 int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
     return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL, NULL,
-                                 NULL, SKID_TYPE);
+                                 NULL, NULL, SKID_TYPE);
 }
 
 int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
@@ -31311,7 +31617,7 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
 #endif
 
     return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
-                                 falconKey, mldsaKey, slhDsaKey,
+                                 falconKey, mldsaKey, slhDsaKey, NULL,
                                  AKID_TYPE);
 }
 
@@ -31319,7 +31625,7 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
 int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
     return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL, NULL,
-                                 NULL, AKID_TYPE);
+                                 NULL, NULL, AKID_TYPE);
 }
 
 
@@ -33325,7 +33631,8 @@ enum {
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
-    || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA))
+    || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) \
+    || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM))
 
 
 int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,

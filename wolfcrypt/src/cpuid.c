@@ -154,7 +154,27 @@
 #define CPUID_AARCH64_FEAT_SHA3        ((word64)1 << 32)
 #define CPUID_AARCH64_FEAT_SM3         ((word64)1 << 36)
 #define CPUID_AARCH64_FEAT_SM4         ((word64)1 << 40)
+/* ID_AA64PFR0_EL1.AdvSIMD field [23:20]: 0xf means NEON is NOT implemented. */
 #define CPUID_AARCH64_FEAT_ASIMD       ((word64)0xf << 20)
+/* ID_AA64PFR0_EL1.SVE field [35:32]: non-zero means SVE is implemented. */
+#define CPUID_AARCH64_FEAT_SVE         ((word64)0xf << 32)
+/* ID_AA64PFR1_EL1.SME field [27:24]: non-zero means SME is implemented. */
+#define CPUID_AARCH64_FEAT_SME         ((word64)0xf << 24)
+
+/* SVE and/or SME are guaranteed present when the architecture the code is
+ * compiled for includes them (the ACLE __ARM_FEATURE_* macros). In that case
+ * the flag is set unconditionally: the runtime detection below can be
+ * unavailable or incomplete on some platforms, but the feature is known usable.
+ */
+#if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_SME)
+    #define CPUID_AARCH64_COMPILED     (CPUID_SVE | CPUID_SME)
+#elif defined(__ARM_FEATURE_SVE)
+    #define CPUID_AARCH64_COMPILED     CPUID_SVE
+#elif defined(__ARM_FEATURE_SME)
+    #define CPUID_AARCH64_COMPILED     CPUID_SME
+#else
+    #define CPUID_AARCH64_COMPILED     0
+#endif
 
 #ifdef WOLFSSL_AARCH64_PRIVILEGE_MODE
     /* https://developer.arm.com/documentation/ddi0601/2024-09/AArch64-Registers
@@ -163,22 +183,11 @@
     static WC_INLINE void cpuid_set_flags(void)
     {
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-            cpuid_flags_t new_cpuid_flags = 0,
+            cpuid_flags_t new_cpuid_flags = CPUID_AARCH64_COMPILED,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features;
-
-        #ifndef WOLFSSL_ARMASM_NO_NEON
-            __asm__ __volatile (
-                "mrs    %[feat], ID_AA64PFR0_EL1\n"
-                : [feat] "=r" (features)
-                :
-                :
-            );
-
-            if ((features & CPUID_AARCH64_FEAT_ASIMD) !=
-                    CPUID_AARCH64_FEAT_ASIMD)
-                new_cpuid_flags |= CPUID_ASIMD;
-        #endif
+            word64 pfr0;
+            word64 pfr1;
 
             __asm__ __volatile (
                 "mrs    %[feat], ID_AA64ISAR0_EL1\n"
@@ -186,7 +195,27 @@
                 :
                 :
             );
+            __asm__ __volatile (
+                "mrs    %[feat], ID_AA64PFR0_EL1\n"
+                : [feat] "=r" (pfr0)
+                :
+                :
+            );
+            __asm__ __volatile (
+                "mrs    %[feat], ID_AA64PFR1_EL1\n"
+                : [feat] "=r" (pfr1)
+                :
+                :
+            );
 
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            if ((pfr0 & CPUID_AARCH64_FEAT_ASIMD) != CPUID_AARCH64_FEAT_ASIMD)
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+            if (pfr0 & CPUID_AARCH64_FEAT_SVE)
+                new_cpuid_flags |= CPUID_SVE;
+            if (pfr1 & CPUID_AARCH64_FEAT_SME)
+                new_cpuid_flags |= CPUID_SME;
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             if (features & CPUID_AARCH64_FEAT_AES)
                 new_cpuid_flags |= CPUID_AES;
@@ -232,7 +261,7 @@
     static WC_INLINE void cpuid_set_flags(void)
     {
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-            cpuid_flags_t new_cpuid_flags = 0,
+            cpuid_flags_t new_cpuid_flags = CPUID_AARCH64_COMPILED,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 hwcaps = getauxval(AT_HWCAP);
 
@@ -269,6 +298,15 @@
             if (hwcaps & HWCAP_SM4)
                 new_cpuid_flags |= CPUID_SM4;
         #endif
+        #ifdef HWCAP_SVE
+            if (hwcaps & HWCAP_SVE)
+                new_cpuid_flags |= CPUID_SVE;
+        #endif
+        #ifdef HWCAP2_SME
+            /* SME is reported in the second HWCAP word. */
+            if (getauxval(AT_HWCAP2) & HWCAP2_SME)
+                new_cpuid_flags |= CPUID_SME;
+        #endif
 
             (void)hwcaps;
             (void)wolfSSL_Atomic_Uint_CompareExchange
@@ -284,7 +322,7 @@
     static WC_INLINE void cpuid_set_flags(void)
     {
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-            cpuid_flags_t new_cpuid_flags = 0,
+            cpuid_flags_t new_cpuid_flags = CPUID_AARCH64_COMPILED,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features = android_getCpuFeatures();
 
@@ -324,7 +362,7 @@
     static WC_INLINE void cpuid_set_flags(void)
     {
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-            cpuid_flags_t new_cpuid_flags = 0,
+            cpuid_flags_t new_cpuid_flags = CPUID_AARCH64_COMPILED,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
 
         #ifndef WOLFSSL_ARMASM_NO_NEON
@@ -370,7 +408,7 @@
     static WC_INLINE void cpuid_set_flags(void)
     {
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-            cpuid_flags_t new_cpuid_flags = 0,
+            cpuid_flags_t new_cpuid_flags = CPUID_AARCH64_COMPILED,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features = 0;
 
@@ -486,7 +524,7 @@
     static WC_INLINE void cpuid_set_flags(void)
     {
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-            cpuid_flags_t new_cpuid_flags = 0,
+            cpuid_flags_t new_cpuid_flags = CPUID_AARCH64_COMPILED,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
         #ifndef WOLFSSL_ARMASM_NO_NEON
             new_cpuid_flags |= CPUID_ASIMD;

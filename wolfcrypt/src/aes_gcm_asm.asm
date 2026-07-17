@@ -6459,8 +6459,7 @@ _TEXT ENDS
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_siv_bswap_mask QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_gcm_siv_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask QWORD L_aes_gcm_siv_bswap_mask
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -6825,8 +6824,7 @@ AES_GCMSIV_polyval_aesni ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcmsiv_ctr_aesni_one QWORD \
-     0000000000000001h,  0000000000000000h
+L_aes_gcmsiv_ctr_aesni_one QWORD 0000000000000001h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_aesni_one QWORD L_aes_gcmsiv_ctr_aesni_one
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -12471,8 +12469,7 @@ _TEXT ENDS
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_siv_bswap_mask_avx1 QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_gcm_siv_bswap_mask_avx1 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask_avx1 QWORD L_aes_gcm_siv_bswap_mask_avx1
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -12738,8 +12735,7 @@ AES_GCMSIV_polyval_avx1 ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcmsiv_ctr_avx1_one QWORD \
-     0000000000000001h,  0000000000000000h
+L_aes_gcmsiv_ctr_avx1_one QWORD 0000000000000001h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_avx1_one QWORD L_aes_gcmsiv_ctr_avx1_one
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -25206,8 +25202,7 @@ _TEXT ENDS
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_siv_bswap_mask_vaes QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_gcm_siv_bswap_mask_vaes QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask_vaes QWORD L_aes_gcm_siv_bswap_mask_vaes
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -25743,24 +25738,23 @@ AES_GCMSIV_polyval_vaes ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcmsiv_ctr_inc_vaes QWORD \
-     0000000000000000h,  0000000000000000h,
-     0000000000000001h,  0000000000000000h,
-     0000000000000002h,  0000000000000000h,
-     0000000000000003h,  0000000000000000h,
-     0000000000000004h,  0000000000000000h,
-     0000000000000005h,  0000000000000000h,
-     0000000000000006h,  0000000000000000h,
-     0000000000000007h,  0000000000000000h,
-     0000000000000008h,  0000000000000000h,
-     0000000000000009h,  0000000000000000h,
-     000000000000000ah,  0000000000000000h,
-     000000000000000bh,  0000000000000000h,
-     000000000000000ch,  0000000000000000h,
-     000000000000000dh,  0000000000000000h,
-     000000000000000eh,  0000000000000000h,
-     000000000000000fh,  0000000000000000h,
-     0000000000000010h,  0000000000000000h
+L_aes_gcmsiv_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000001h, 0000000000000000h
+        QWORD 0000000000000002h, 0000000000000000h
+        QWORD 0000000000000003h, 0000000000000000h
+        QWORD 0000000000000004h, 0000000000000000h
+        QWORD 0000000000000005h, 0000000000000000h
+        QWORD 0000000000000006h, 0000000000000000h
+        QWORD 0000000000000007h, 0000000000000000h
+        QWORD 0000000000000008h, 0000000000000000h
+        QWORD 0000000000000009h, 0000000000000000h
+        QWORD 000000000000000ah, 0000000000000000h
+        QWORD 000000000000000bh, 0000000000000000h
+        QWORD 000000000000000ch, 0000000000000000h
+        QWORD 000000000000000dh, 0000000000000000h
+        QWORD 000000000000000eh, 0000000000000000h
+        QWORD 000000000000000fh, 0000000000000000h
+        QWORD 0000000000000010h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_inc_vaes QWORD L_aes_gcmsiv_ctr_inc_vaes
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -25777,10 +25771,10 @@ AES_GCMSIV_ctr_vaes PROC
         vmovdqu	OWORD PTR [rsp+48], xmm9
         vmovdqu	OWORD PTR [rsp+64], xmm10
         vmovdqu	OWORD PTR [rsp+80], xmm11
-        vbroadcasti128	ymm7, [r10]
-        vbroadcasti128	ymm8, [ptr_L_aes_gcmsiv_ctr_inc_vaes+128]
-        vbroadcasti128	ymm9, [ptr_L_aes_gcmsiv_ctr_inc_vaes+32]
-        vbroadcasti128	ymm10, [ptr_L_aes_gcmsiv_ctr_inc_vaes+16]
+        vbroadcasti128	ymm7, OWORD PTR [r10]
+        vbroadcasti128	ymm8, OWORD PTR [ptr_L_aes_gcmsiv_ctr_inc_vaes+128]
+        vbroadcasti128	ymm9, OWORD PTR [ptr_L_aes_gcmsiv_ctr_inc_vaes+32]
+        vbroadcasti128	ymm10, OWORD PTR [ptr_L_aes_gcmsiv_ctr_inc_vaes+16]
         xor	r11d, r11d
         cmp	r8d, 128
         mov	r12d, r8d
@@ -25803,81 +25797,81 @@ L_AES_GCMSIV_ctr_vaes_enc_128:
         vpaddd	ymm6, ymm6, ymm8
         vpaddd	ymm7, ymm7, ymm8
         ; aes_enc_block
-        vbroadcasti128	ymm11, [r9]
+        vbroadcasti128	ymm11, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm11
         vpxor	ymm1, ymm1, ymm11
         vpxor	ymm2, ymm2, ymm11
         vpxor	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+16]
+        vbroadcasti128	ymm11, OWORD PTR [r9+16]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+32]
+        vbroadcasti128	ymm11, OWORD PTR [r9+32]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+48]
+        vbroadcasti128	ymm11, OWORD PTR [r9+48]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+64]
+        vbroadcasti128	ymm11, OWORD PTR [r9+64]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+80]
+        vbroadcasti128	ymm11, OWORD PTR [r9+80]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+96]
+        vbroadcasti128	ymm11, OWORD PTR [r9+96]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+112]
+        vbroadcasti128	ymm11, OWORD PTR [r9+112]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+128]
+        vbroadcasti128	ymm11, OWORD PTR [r9+128]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+144]
+        vbroadcasti128	ymm11, OWORD PTR [r9+144]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
         cmp	eax, 11
-        vbroadcasti128	ymm11, [r9+160]
+        vbroadcasti128	ymm11, OWORD PTR [r9+160]
         jl	L_AES_GCMSIV_ctr_vaes_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+176]
+        vbroadcasti128	ymm11, OWORD PTR [r9+176]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
         cmp	eax, 13
-        vbroadcasti128	ymm11, [r9+192]
+        vbroadcasti128	ymm11, OWORD PTR [r9+192]
         jl	L_AES_GCMSIV_ctr_vaes_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+208]
+        vbroadcasti128	ymm11, OWORD PTR [r9+208]
         vaesenc	ymm0, ymm0, ymm11
         vaesenc	ymm1, ymm1, ymm11
         vaesenc	ymm2, ymm2, ymm11
         vaesenc	ymm3, ymm3, ymm11
-        vbroadcasti128	ymm11, [r9+224]
+        vbroadcasti128	ymm11, OWORD PTR [r9+224]
 L_AES_GCMSIV_ctr_vaes_128_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm11
         vaesenclast	ymm1, ymm1, ymm11
@@ -25908,39 +25902,39 @@ L_AES_GCMSIV_ctr_vaes_enc_32:
         vpaddd	ymm0, ymm7, [ptr_L_aes_gcmsiv_ctr_inc_vaes]
         vpaddd	ymm7, ymm7, ymm9
         ; aes_enc_block
-        vbroadcasti128	ymm11, [r9]
+        vbroadcasti128	ymm11, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+16]
+        vbroadcasti128	ymm11, OWORD PTR [r9+16]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+32]
+        vbroadcasti128	ymm11, OWORD PTR [r9+32]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+48]
+        vbroadcasti128	ymm11, OWORD PTR [r9+48]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+64]
+        vbroadcasti128	ymm11, OWORD PTR [r9+64]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+80]
+        vbroadcasti128	ymm11, OWORD PTR [r9+80]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+96]
+        vbroadcasti128	ymm11, OWORD PTR [r9+96]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+112]
+        vbroadcasti128	ymm11, OWORD PTR [r9+112]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+128]
+        vbroadcasti128	ymm11, OWORD PTR [r9+128]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+144]
+        vbroadcasti128	ymm11, OWORD PTR [r9+144]
         vaesenc	ymm0, ymm0, ymm11
         cmp	eax, 11
-        vbroadcasti128	ymm11, [r9+160]
+        vbroadcasti128	ymm11, OWORD PTR [r9+160]
         jl	L_AES_GCMSIV_ctr_vaes_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+176]
+        vbroadcasti128	ymm11, OWORD PTR [r9+176]
         vaesenc	ymm0, ymm0, ymm11
         cmp	eax, 13
-        vbroadcasti128	ymm11, [r9+192]
+        vbroadcasti128	ymm11, OWORD PTR [r9+192]
         jl	L_AES_GCMSIV_ctr_vaes_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+208]
+        vbroadcasti128	ymm11, OWORD PTR [r9+208]
         vaesenc	ymm0, ymm0, ymm11
-        vbroadcasti128	ymm11, [r9+224]
+        vbroadcasti128	ymm11, OWORD PTR [r9+224]
 L_AES_GCMSIV_ctr_vaes_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm11
         vpxor	ymm0, ymm0, [r13]
@@ -35966,8 +35960,7 @@ _TEXT ENDS
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_siv_bswap_mask_avx512 QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_gcm_siv_bswap_mask_avx512 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask_avx512 QWORD L_aes_gcm_siv_bswap_mask_avx512
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -36702,24 +36695,23 @@ AES_GCMSIV_polyval_avx512 ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcmsiv_ctr_inc_avx512 QWORD \
-     0000000000000000h,  0000000000000000h,
-     0000000000000001h,  0000000000000000h,
-     0000000000000002h,  0000000000000000h,
-     0000000000000003h,  0000000000000000h,
-     0000000000000004h,  0000000000000000h,
-     0000000000000005h,  0000000000000000h,
-     0000000000000006h,  0000000000000000h,
-     0000000000000007h,  0000000000000000h,
-     0000000000000008h,  0000000000000000h,
-     0000000000000009h,  0000000000000000h,
-     000000000000000ah,  0000000000000000h,
-     000000000000000bh,  0000000000000000h,
-     000000000000000ch,  0000000000000000h,
-     000000000000000dh,  0000000000000000h,
-     000000000000000eh,  0000000000000000h,
-     000000000000000fh,  0000000000000000h,
-     0000000000000010h,  0000000000000000h
+L_aes_gcmsiv_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000001h, 0000000000000000h
+        QWORD 0000000000000002h, 0000000000000000h
+        QWORD 0000000000000003h, 0000000000000000h
+        QWORD 0000000000000004h, 0000000000000000h
+        QWORD 0000000000000005h, 0000000000000000h
+        QWORD 0000000000000006h, 0000000000000000h
+        QWORD 0000000000000007h, 0000000000000000h
+        QWORD 0000000000000008h, 0000000000000000h
+        QWORD 0000000000000009h, 0000000000000000h
+        QWORD 000000000000000ah, 0000000000000000h
+        QWORD 000000000000000bh, 0000000000000000h
+        QWORD 000000000000000ch, 0000000000000000h
+        QWORD 000000000000000dh, 0000000000000000h
+        QWORD 000000000000000eh, 0000000000000000h
+        QWORD 000000000000000fh, 0000000000000000h
+        QWORD 0000000000000010h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_inc_avx512 QWORD L_aes_gcmsiv_ctr_inc_avx512
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -36740,32 +36732,32 @@ AES_GCMSIV_ctr_avx512 PROC
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
-        vbroadcasti32x4	zmm7, [r10]
-        vbroadcasti32x4	zmm8, [ptr_L_aes_gcmsiv_ctr_inc_avx512+256]
-        vbroadcasti32x4	zmm9, [ptr_L_aes_gcmsiv_ctr_inc_avx512+64]
-        vbroadcasti32x4	zmm10, [ptr_L_aes_gcmsiv_ctr_inc_avx512+16]
+        vbroadcasti32x4	zmm7, OWORD PTR [r10]
+        vbroadcasti32x4	zmm8, OWORD PTR [ptr_L_aes_gcmsiv_ctr_inc_avx512+256]
+        vbroadcasti32x4	zmm9, OWORD PTR [ptr_L_aes_gcmsiv_ctr_inc_avx512+64]
+        vbroadcasti32x4	zmm10, OWORD PTR [ptr_L_aes_gcmsiv_ctr_inc_avx512+16]
         xor	r11d, r11d
         cmp	r8d, 64
         jl	L_AES_GCMSIV_ctr_avx512_done_64
-        vbroadcasti32x4	zmm12, [r9]
-        vbroadcasti32x4	zmm13, [r9+16]
-        vbroadcasti32x4	zmm14, [r9+32]
-        vbroadcasti32x4	zmm15, [r9+48]
-        vbroadcasti32x4	zmm16, [r9+64]
-        vbroadcasti32x4	zmm17, [r9+80]
-        vbroadcasti32x4	zmm18, [r9+96]
-        vbroadcasti32x4	zmm19, [r9+112]
-        vbroadcasti32x4	zmm20, [r9+128]
-        vbroadcasti32x4	zmm21, [r9+144]
-        vbroadcasti32x4	zmm22, [r9+160]
+        vbroadcasti32x4	zmm12, OWORD PTR [r9]
+        vbroadcasti32x4	zmm13, OWORD PTR [r9+16]
+        vbroadcasti32x4	zmm14, OWORD PTR [r9+32]
+        vbroadcasti32x4	zmm15, OWORD PTR [r9+48]
+        vbroadcasti32x4	zmm16, OWORD PTR [r9+64]
+        vbroadcasti32x4	zmm17, OWORD PTR [r9+80]
+        vbroadcasti32x4	zmm18, OWORD PTR [r9+96]
+        vbroadcasti32x4	zmm19, OWORD PTR [r9+112]
+        vbroadcasti32x4	zmm20, OWORD PTR [r9+128]
+        vbroadcasti32x4	zmm21, OWORD PTR [r9+144]
+        vbroadcasti32x4	zmm22, OWORD PTR [r9+160]
         cmp	eax, 11
         jl	L_AES_GCMSIV_ctr_avx512_key_cached
-        vbroadcasti32x4	zmm23, [r9+176]
-        vbroadcasti32x4	zmm24, [r9+192]
+        vbroadcasti32x4	zmm23, OWORD PTR [r9+176]
+        vbroadcasti32x4	zmm24, OWORD PTR [r9+192]
         cmp	eax, 13
         jl	L_AES_GCMSIV_ctr_avx512_key_cached
-        vbroadcasti32x4	zmm25, [r9+208]
-        vbroadcasti32x4	zmm26, [r9+224]
+        vbroadcasti32x4	zmm25, OWORD PTR [r9+208]
+        vbroadcasti32x4	zmm26, OWORD PTR [r9+224]
 L_AES_GCMSIV_ctr_avx512_key_cached:
         cmp	r8d, 256
         mov	r12d, r8d

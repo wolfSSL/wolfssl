@@ -2488,7 +2488,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

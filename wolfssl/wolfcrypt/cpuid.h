@@ -99,6 +99,8 @@ typedef word32 cpuid_flags_t;
     #define CPUID_SM4         0x0080    /* SM4 enc/dec */
     #define CPUID_SB          0x0100    /* Speculation barrier */
     #define CPUID_ASIMD       0x0200    /* ASIMD - NEON */
+    #define CPUID_SVE         0x0400    /* Scalable Vector Extension */
+    #define CPUID_SME         0x0800    /* Scalable Matrix Extension */
 
     #define IS_AARCH64_AES(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AES)
     #define IS_AARCH64_PMULL(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_PMULL)
@@ -110,6 +112,8 @@ typedef word32 cpuid_flags_t;
     #define IS_AARCH64_SM4(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SM4)
     #define IS_AARCH64_SB(f)      (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SB)
     #define IS_AARCH64_ASIMD(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ASIMD)
+    #define IS_AARCH64_SVE(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SVE)
+    #define IS_AARCH64_SME(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SME)
 
 #elif defined(HAVE_CPUID_PPC64)
 

@@ -1317,7 +1317,7 @@ int wc_CryptoCb_PqcStatefulSigSigsLeft(int type, void* key, word32* sigsLeft)
 }
 #endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
 
-#if defined(WOLFSSL_HAVE_MLKEM)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
 int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
 {
     int devId = INVALID_DEVID;
@@ -1326,9 +1326,16 @@ int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
         return devId;
 
     /* get devId */
+#ifdef WOLFSSL_HAVE_MLKEM
     if (type == WC_PQC_KEM_TYPE_MLKEM) {
         devId = ((MlKemKey*) key)->devId;
     }
+#endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    if (type == WC_PQC_KEM_TYPE_FRODOKEM) {
+        devId = ((FrodoKemKey*) key)->devId;
+    }
+#endif
 
     return devId;
 }
@@ -1436,7 +1443,7 @@ int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM || WOLFSSL_HAVE_FRODOKEM */
 
 #if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
     defined(WOLFSSL_HAVE_SLHDSA)

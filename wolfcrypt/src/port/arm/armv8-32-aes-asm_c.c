@@ -30555,7 +30555,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_base(const unsigned char* in,
 #endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* !NO_AES */
-#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

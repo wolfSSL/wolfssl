@@ -374,6 +374,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "PUSH	{%[L_AES_Thumb2_rcon]}\n\t"
         "MOV	r10, %[L_AES_Thumb2_te]\n\t"
         "MOV	lr, %[L_AES_Thumb2_rcon]\n\t"
         "CMP	%[len], #0x80\n\t"
@@ -632,6 +633,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #else
     "L_AES_set_encrypt_key_end_%=:\n\t"
 #endif
+        "POP	{%[L_AES_Thumb2_rcon]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c),
@@ -926,13 +928,10 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "PUSH	{%[nr], %[L_AES_Thumb2_te_ecb]}\n\t"
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_te_ecb]\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r12, r4\n\t"
-#else
-        "MOV	r12, %[nr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "LDR	r12, [sp]\n\t"
         "PUSH	{%[ks]}\n\t"
         "CMP	r12, #10\n\t"
 #if defined(__GNUC__)
@@ -1763,6 +1762,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
     "L_AES_ECB_encrypt_end_%=:\n\t"
 #endif
         "POP	{%[ks]}\n\t"
+        "POP	{%[nr], %[L_AES_Thumb2_te_ecb]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
@@ -1808,16 +1808,10 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r8, r4\n\t"
-#else
-        "MOV	r8, %[nr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r9, r5\n\t"
-#else
-        "MOV	r9, %[iv]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "PUSH	{%[L_AES_Thumb2_te_ecb]}\n\t"
+        "PUSH	{%[nr], %[iv]}\n\t"
+        "LDR	r8, [sp]\n\t"
+        "LDR	r9, [sp, #4]\n\t"
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_te_ecb]\n\t"
         "LDM	r9, {r4, r5, r6, r7}\n\t"
@@ -2664,6 +2658,8 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
 #endif
         "POP	{%[ks], r9}\n\t"
         "STM	r9, {r4, r5, r6, r7}\n\t"
+        "POP	{%[nr], %[iv]}\n\t"
+        "POP	{%[L_AES_Thumb2_te_ecb]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
@@ -2711,16 +2707,10 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r12, r4\n\t"
-#else
-        "MOV	r12, %[nr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r8, r5\n\t"
-#else
-        "MOV	r8, %[ctr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "PUSH	{%[L_AES_Thumb2_te_ctr]}\n\t"
+        "PUSH	{%[nr], %[ctr]}\n\t"
+        "LDR	r12, [sp]\n\t"
+        "LDR	r8, [sp, #4]\n\t"
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_te_ctr]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
@@ -3588,6 +3578,8 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+        "POP	{%[nr], %[ctr]}\n\t"
+        "POP	{%[L_AES_Thumb2_te_ctr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
@@ -3917,11 +3909,9 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r8, r4\n\t"
-#else
-        "MOV	r8, %[nr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "PUSH	{%[L_AES_Thumb2_td4]}\n\t"
+        "PUSH	{%[nr], %[L_AES_Thumb2_td_ecb]}\n\t"
+        "LDR	r8, [sp]\n\t"
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_td_ecb]\n\t"
         "MOV	r12, %[len]\n\t"
@@ -4751,6 +4741,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
 #else
     "L_AES_ECB_decrypt_end_%=:\n\t"
 #endif
+        "POP	{%[nr], %[L_AES_Thumb2_td_ecb]}\n\t"
+        "POP	{%[L_AES_Thumb2_td4]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c),
@@ -4800,20 +4792,14 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "PUSH	{%[L_AES_Thumb2_td_ecb], %[L_AES_Thumb2_td4]}\n\t"
+        "PUSH	{%[nr], %[iv]}\n\t"
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_td_ecb]\n\t"
         "MOV	r12, %[len]\n\t"
         "MOV	r2, %[L_AES_Thumb2_td4]\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r8, r4\n\t"
-#else
-        "MOV	r8, %[nr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r4, r5\n\t"
-#else
-        "MOV	r4, %[iv]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "LDR	r8, [sp]\n\t"
+        "LDR	r4, [sp, #4]\n\t"
         "PUSH	{%[ks], r4}\n\t"
         "CMP	r8, #10\n\t"
 #if defined(__GNUC__)
@@ -6469,6 +6455,8 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
     "L_AES_CBC_decrypt_end_%=:\n\t"
 #endif
         "POP	{%[ks], r4}\n\t"
+        "POP	{%[nr], %[iv]}\n\t"
+        "POP	{%[L_AES_Thumb2_td_ecb], %[L_AES_Thumb2_td4]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
@@ -6522,6 +6510,7 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "PUSH	{%[L_GCM_gmult_len_r]}\n\t"
         "MOV	lr, %[L_GCM_gmult_len_r]\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -7056,6 +7045,7 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
 #else
         "BNE.W	L_GCM_gmult_len_start_block_%=\n\t"
 #endif
+        "POP	{%[L_GCM_gmult_len_r]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
           [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
@@ -7100,16 +7090,10 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r12, r4\n\t"
-#else
-        "MOV	r12, %[nr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r8, r5\n\t"
-#else
-        "MOV	r8, %[ctr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "PUSH	{%[L_AES_Thumb2_te_gcm]}\n\t"
+        "PUSH	{%[nr], %[ctr]}\n\t"
+        "LDR	r12, [sp]\n\t"
+        "LDR	r8, [sp, #4]\n\t"
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_te_gcm]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
@@ -7968,6 +7952,8 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+        "POP	{%[nr], %[ctr]}\n\t"
+        "POP	{%[L_AES_Thumb2_te_gcm]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
@@ -8018,6 +8004,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "PUSH	{%[L_AES_Thumb2_te_gcm], %[L_AES_GCMSIV_polyval_thumb2_r]}\n\t"
         "MOV	r8, %[L_AES_GCMSIV_polyval_thumb2_r]\n\t"
         "CMP	%[blocks], #0\n\t"
 #if defined(__GNUC__)
@@ -8714,6 +8701,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_polyval_thumb2(unsigned char* s,
 #else
     "L_AES_GCMSIV_polyval_thumb2_done_%=:\n\t"
 #endif
+        "POP	{%[L_AES_Thumb2_te_gcm], %[L_AES_GCMSIV_polyval_thumb2_r]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s), [m] "+r" (m), [data] "+r" (data),
           [blocks] "+r" (blocks),
@@ -8825,16 +8813,10 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r12, r4\n\t"
-#else
-        "MOV	r12, %[nr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r8, r5\n\t"
-#else
-        "MOV	r8, %[ctr]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        "PUSH	{%[L_AES_GCMSIV_ctr_thumb2_te]}\n\t"
+        "PUSH	{%[nr], %[ctr]}\n\t"
+        "LDR	r12, [sp]\n\t"
+        "LDR	r8, [sp, #4]\n\t"
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_GCMSIV_ctr_thumb2_te]\n\t"
         "LDM	r8, {r4, r5, r6, r7}\n\t"
@@ -9708,6 +9690,8 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+        "POP	{%[nr], %[ctr]}\n\t"
+        "POP	{%[L_AES_GCMSIV_ctr_thumb2_te]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [length] "+r" (length),
           [KS] "+r" (KS), [nr] "+r" (nr), [ctr] "+r" (ctr),
@@ -9725,7 +9709,7 @@ WC_OMIT_FRAME_POINTER void AES_GCMSIV_ctr_thumb2(const unsigned char* in,
 
 #endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !NO_AES */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

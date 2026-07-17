@@ -1169,7 +1169,7 @@ WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
 }
 
 #endif /* WOLFSSL_SHA3 */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

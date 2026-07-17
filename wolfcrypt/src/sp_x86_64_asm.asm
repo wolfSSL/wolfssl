@@ -45883,60 +45883,52 @@ _TEXT ENDS
 IFDEF HAVE_INTEL_AVX2
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_order DWORD \
-     00632551h,  01e84f3bh,  03bce6fah,  03ffffffh,
-     03ff0000h,  00000000h,  00000000h,  00000000h,
-     0272b0bfh,  02b69c5eh,  03ffffffh,  000003ffh,
-     003fffffh,  00000000h,  00000000h,  00000000h
+L_sp256_mod_inv_avx2_4_order DWORD 00632551h, 01e84f3bh, 03bce6fah, 03ffffffh
+        DWORD 03ff0000h, 00000000h, 00000000h, 00000000h
+        DWORD 0272b0bfh, 02b69c5eh, 03ffffffh, 000003ffh
+        DWORD 003fffffh, 00000000h, 00000000h, 00000000h
 ptr_L_sp256_mod_inv_avx2_4_order QWORD L_sp256_mod_inv_avx2_4_order
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_one QWORD \
-     0000000000000001h,  0000000000000000h,
-     0000000000000000h,  0000000000000000h
+L_sp256_mod_inv_avx2_4_one QWORD 0000000000000001h, 0000000000000000h
+        QWORD 0000000000000000h, 0000000000000000h
 ptr_L_sp256_mod_inv_avx2_4_one QWORD L_sp256_mod_inv_avx2_4_one
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_all_one DWORD \
-     00000001h,  00000001h,  00000001h,  00000001h,
-     00000001h,  00000001h,  00000001h,  00000001h
+L_sp256_mod_inv_avx2_4_all_one DWORD 00000001h, 00000001h, 00000001h, 00000001h
+        DWORD 00000001h, 00000001h, 00000001h, 00000001h
 ptr_L_sp256_mod_inv_avx2_4_all_one QWORD L_sp256_mod_inv_avx2_4_all_one
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_mask01111 DWORD \
-     00000000h,  00000001h,  00000001h,  00000001h,
-     00000001h,  00000000h,  00000000h,  00000000h
+L_sp256_mod_inv_avx2_4_mask01111 DWORD 00000000h, 00000001h, 00000001h, 00000001h
+        DWORD 00000001h, 00000000h, 00000000h, 00000000h
 ptr_L_sp256_mod_inv_avx2_4_mask01111 QWORD L_sp256_mod_inv_avx2_4_mask01111
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_down_one_dword DWORD \
-     00000001h,  00000002h,  00000003h,  00000004h,
-     00000005h,  00000006h,  00000007h,  00000007h
+L_sp256_mod_inv_avx2_4_down_one_dword DWORD 00000001h, 00000002h, 00000003h, 00000004h
+        DWORD 00000005h, 00000006h, 00000007h, 00000007h
 ptr_L_sp256_mod_inv_avx2_4_down_one_dword QWORD L_sp256_mod_inv_avx2_4_down_one_dword
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_neg DWORD \
-     00000000h,  00000000h,  00000000h,  00000000h,
-     80000000h,  00000000h,  00000000h,  00000000h
+L_sp256_mod_inv_avx2_4_neg DWORD 00000000h, 00000000h, 00000000h, 00000000h
+        DWORD 80000000h, 00000000h, 00000000h, 00000000h
 ptr_L_sp256_mod_inv_avx2_4_neg QWORD L_sp256_mod_inv_avx2_4_neg
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_up_one_dword DWORD \
-     00000007h,  00000000h,  00000001h,  00000002h,
-     00000003h,  00000007h,  00000007h,  00000007h
+L_sp256_mod_inv_avx2_4_up_one_dword DWORD 00000007h, 00000000h, 00000001h, 00000002h
+        DWORD 00000003h, 00000007h, 00000007h, 00000007h
 ptr_L_sp256_mod_inv_avx2_4_up_one_dword QWORD L_sp256_mod_inv_avx2_4_up_one_dword
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_sp256_mod_inv_avx2_4_mask26 DWORD \
-     03ffffffh,  03ffffffh,  03ffffffh,  03ffffffh,
-     03ffffffh,  00000000h,  00000000h,  00000000h
+L_sp256_mod_inv_avx2_4_mask26 DWORD 03ffffffh, 03ffffffh, 03ffffffh, 03ffffffh
+        DWORD 03ffffffh, 00000000h, 00000000h, 00000000h
 ptr_L_sp256_mod_inv_avx2_4_mask26 QWORD L_sp256_mod_inv_avx2_4_mask26
 _DATA ENDS
 ; /* Non-constant time modular inversion.

@@ -3555,10 +3555,10 @@ L_SHA512_transform_len_start:
 	.size	Transform_Sha512_Len_base,.-Transform_Sha512_Len_base
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

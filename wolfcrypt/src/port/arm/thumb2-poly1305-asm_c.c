@@ -441,7 +441,7 @@ WC_OMIT_FRAME_POINTER void poly1305_final(Poly1305* ctx, byte* mac)
 }
 
 #endif /* HAVE_POLY1305 */
-#endif /* WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

@@ -395,6 +395,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFSSL_HAVE_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    #include <wolfssl/wolfcrypt/wc_frodokem.h>
+#endif
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
@@ -974,6 +977,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef WOLFSSL_HAVE_MLKEM
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mlkem_test(void);
 #endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  frodokem_test(void);
+#endif
 #ifdef WOLFSSL_HAVE_MLDSA
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mldsa_test(void);
 #endif
@@ -1474,6 +1480,9 @@ static WC_MAYBE_UNUSED Aes* test_AesGcmNew(void* heap, int declaredDevId,
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(WOLFSSL_STATIC_MEMORY_TEST_SZ)
         static byte gTestMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
+    #elif defined(WOLFSSL_HAVE_FRODOKEM)
+        /* FrodoKEM keys (~44 KB) and decaps matrices (~86 KB) are large. */
+        static byte gTestMemory[1024*1024];
     #elif defined(WOLFSSL_HAVE_MLDSA)
         #if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
             defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && \
@@ -3187,6 +3196,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("MLKEM    test passed!\n");
     PRIVATE_KEY_LOCK();
+#endif
+
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    if ( (ret = frodokem_test()) != 0)
+        TEST_FAIL("FRODOKEM test failed!\n", ret);
+    else
+        TEST_PASS("FRODOKEM test passed!\n");
 #endif
 
 #ifdef WOLFSSL_HAVE_MLDSA
@@ -53563,6 +53579,244 @@ out:
 }
 #endif /* WOLFSSL_HAVE_MLKEM */
 
+#ifdef WOLFSSL_HAVE_FRODOKEM
+/* Basic FrodoKEM test: for each compiled variant generate a key, encapsulate
+ * and decapsulate (shared secrets must match), then confirm an encode/decode
+ * round trip of the private key still decapsulates correctly. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
+{
+    wc_test_ret_t ret = 0;
+#if !defined(WC_NO_RNG) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+    /* ASN.1 key encode/decode is exercised when it has not been disabled. */
+#if !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(WC_ENABLE_ASYM_KEY_IMPORT)
+    #define FRODOKEM_TEST_ASN1
+#endif
+    static const int types[] = {
+    #ifdef WOLFSSL_FRODOKEM_SHAKE
+        #ifdef WOLFSSL_WC_FRODOKEM_640
+        WC_FRODOKEM_640_SHAKE,
+        #endif
+        #ifdef WOLFSSL_WC_FRODOKEM_976
+        WC_FRODOKEM_976_SHAKE,
+        #endif
+        #ifdef WOLFSSL_WC_FRODOKEM_1344
+        WC_FRODOKEM_1344_SHAKE,
+        #endif
+    #endif
+    #ifdef WOLFSSL_FRODOKEM_AES
+        #ifdef WOLFSSL_WC_FRODOKEM_640
+        WC_FRODOKEM_640_AES,
+        #endif
+        #ifdef WOLFSSL_WC_FRODOKEM_976
+        WC_FRODOKEM_976_AES,
+        #endif
+        #ifdef WOLFSSL_WC_FRODOKEM_1344
+        WC_FRODOKEM_1344_AES,
+        #endif
+    #endif
+    #ifdef WOLFSSL_FRODOKEM_EPHEMERAL
+        #ifdef WOLFSSL_FRODOKEM_SHAKE
+            #ifdef WOLFSSL_WC_FRODOKEM_640
+        WC_EFRODOKEM_640_SHAKE,
+            #endif
+            #ifdef WOLFSSL_WC_FRODOKEM_976
+        WC_EFRODOKEM_976_SHAKE,
+            #endif
+            #ifdef WOLFSSL_WC_FRODOKEM_1344
+        WC_EFRODOKEM_1344_SHAKE,
+            #endif
+        #endif
+        #ifdef WOLFSSL_FRODOKEM_AES
+            #ifdef WOLFSSL_WC_FRODOKEM_640
+        WC_EFRODOKEM_640_AES,
+            #endif
+            #ifdef WOLFSSL_WC_FRODOKEM_976
+        WC_EFRODOKEM_976_AES,
+            #endif
+            #ifdef WOLFSSL_WC_FRODOKEM_1344
+        WC_EFRODOKEM_1344_AES,
+            #endif
+        #endif
+    #endif
+        0 /* sentinel so the array is never empty */
+    };
+    int numTypes = (int)(sizeof(types) / sizeof(types[0])) - 1;
+    int i;
+    WC_RNG rng;
+    int rngInit = 0;
+    FrodoKemKey* key = NULL;
+    byte* ct = NULL;
+    byte* pk = NULL;
+    byte* sk = NULL;
+    byte ss[FRODOKEM_MAX_LENSEC];
+    byte ss2[FRODOKEM_MAX_LENSEC];
+    word32 pkLen = 0;
+    word32 skLen = 0;
+    word32 ctLen = 0;
+    word32 ssLen = 0;
+#ifdef FRODOKEM_TEST_ASN1
+    FrodoKemKey* key2 = NULL;
+    byte* der = NULL;
+#endif
+
+    key = (FrodoKemKey*)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ct = (byte*)XMALLOC(FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    pk = (byte*)XMALLOC(FRODOKEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    sk = (byte*)XMALLOC(FRODOKEM_MAX_PRIVATE_KEY_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (ct == NULL) || (pk == NULL) || (sk == NULL)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+#ifdef FRODOKEM_TEST_ASN1
+    key2 = (FrodoKemKey*)XMALLOC(sizeof(*key2), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    /* Zeroize now so key2 is Free-safe on every error path. */
+    if (key2 != NULL) {
+        XMEMSET(key2, 0, sizeof(*key2));
+    }
+    der = (byte*)XMALLOC(FRODOKEM_MAX_PRV_KEY_DER_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key2 == NULL) || (der == NULL)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+#endif
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    rngInit = 1;
+
+    for (i = 0; i < numTypes; i++) {
+        ret = wc_FrodoKemKey_Init(key, types[i], HEAP_HINT, devId);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_PublicKeySize(key, &pkLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_PrivateKeySize(key, &skLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_CipherTextSize(key, &ctLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_SharedSecretSize(key, &ssLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+
+        ret = wc_FrodoKemKey_MakeKey(key, &rng);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_Decapsulate(key, ss2, ct, ctLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        if (XMEMCMP(ss, ss2, ssLen) != 0) {
+            ret = WC_TEST_RET_ENC_NC; break;
+        }
+
+        /* Encode then decode the private key and decapsulate again. */
+        ret = wc_FrodoKemKey_EncodePublicKey(key, pk, pkLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_EncodePrivateKey(key, sk, skLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_DecodePrivateKey(key, sk, skLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        ret = wc_FrodoKemKey_Decapsulate(key, ss2, ct, ctLen);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        if (XMEMCMP(ss, ss2, ssLen) != 0) {
+            ret = WC_TEST_RET_ENC_NC; break;
+        }
+
+#ifdef FRODOKEM_TEST_ASN1
+        /* ASN.1 round trip. The 640 parameter sets have no standardised OID,
+         * so their encoding is expected to be rejected. */
+        if ((types[i] & FRODOKEM_BASE_MASK) != WC_FRODOKEM_640) {
+            word32 idx = 0;
+            int derLen;
+
+            /* Public key: SubjectPublicKeyInfo. Encapsulate to the decoded
+             * public key; the original private key must decapsulate it. */
+            derLen = wc_FrodoKemKey_PublicKeyToDer(key, der,
+                FRODOKEM_MAX_PUB_KEY_DER_SIZE, 1);
+            if (derLen < 0) { ret = WC_TEST_RET_ENC_EC(derLen); break; }
+            ret = wc_FrodoKemKey_Init(key2, types[i], HEAP_HINT, devId);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            ret = wc_FrodoKemKey_PublicKeyDecode(key2, der, (word32)derLen,
+                &idx);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            ret = wc_FrodoKemKey_Encapsulate(key2, ct, ss, &rng);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            ret = wc_FrodoKemKey_Decapsulate(key, ss2, ct, ctLen);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            if (XMEMCMP(ss, ss2, ssLen) != 0) {
+                ret = WC_TEST_RET_ENC_NC; break;
+            }
+            wc_FrodoKemKey_Free(key2);
+
+            /* Private key: PKCS#8. The decoded private key must decapsulate a
+             * ciphertext produced for the original public key. */
+            idx = 0;
+            derLen = wc_FrodoKemKey_PrivateKeyToDer(key, der,
+                FRODOKEM_MAX_PRV_KEY_DER_SIZE);
+            if (derLen < 0) { ret = WC_TEST_RET_ENC_EC(derLen); break; }
+            ret = wc_FrodoKemKey_Init(key2, types[i], HEAP_HINT, devId);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            ret = wc_FrodoKemKey_PrivateKeyDecode(key2, der, (word32)derLen,
+                &idx);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            ret = wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            ret = wc_FrodoKemKey_Decapsulate(key2, ss2, ct, ctLen);
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            if (XMEMCMP(ss, ss2, ssLen) != 0) {
+                ret = WC_TEST_RET_ENC_NC; break;
+            }
+            wc_FrodoKemKey_Free(key2);
+        }
+        else {
+            /* 640 has no standardised OID: encoding must be rejected. */
+            if (wc_FrodoKemKey_PublicKeyToDer(key, der,
+                    FRODOKEM_MAX_PUB_KEY_DER_SIZE, 1) !=
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                ret = WC_TEST_RET_ENC_NC; break;
+            }
+            if (wc_FrodoKemKey_PrivateKeyToDer(key, der,
+                    FRODOKEM_MAX_PRV_KEY_DER_SIZE) !=
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                ret = WC_TEST_RET_ENC_NC; break;
+            }
+        }
+#endif /* FRODOKEM_TEST_ASN1 */
+    }
+
+    /* key is freed once at out:, which covers both the normal loop-exit and
+     * the error-break paths. wc_FrodoKemKey_Init zeroizes the object on
+     * re-entry, so no per-iteration free is needed. */
+out:
+    if (key != NULL)
+        wc_FrodoKemKey_Free(key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef FRODOKEM_TEST_ASN1
+    if (key2 != NULL)
+        wc_FrodoKemKey_Free(key2);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #undef FRODOKEM_TEST_ASN1
+#endif
+#endif /* !WC_NO_RNG */
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_FRODOKEM */
+
 #ifdef WOLFSSL_HAVE_MLDSA
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
 static wc_test_ret_t mldsa_param_vfy_test(int param, const byte* pubKey,
@@ -76463,6 +76717,42 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* WOLFSSL_HAVE_MLKEM */
+    #ifdef WOLFSSL_HAVE_FRODOKEM
+        if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
+            if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
+                (info->pk.pqc_kem_kg.key != NULL)) {
+                FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_kem_kg.key;
+                /* set devId to invalid, so software is used */
+                key->devId = INVALID_DEVID;
+                ret = wc_FrodoKemKey_MakeKey(key, info->pk.pqc_kem_kg.rng);
+                key->devId = devIdArg;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
+            if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
+                (info->pk.pqc_encaps.key != NULL)) {
+                FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_encaps.key;
+                key->devId = INVALID_DEVID;
+                ret = wc_FrodoKemKey_Encapsulate(key,
+                    info->pk.pqc_encaps.ciphertext,
+                    info->pk.pqc_encaps.sharedSecret,
+                    info->pk.pqc_encaps.rng);
+                key->devId = devIdArg;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
+            if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_FRODOKEM) &&
+                (info->pk.pqc_decaps.key != NULL)) {
+                FrodoKemKey* key = (FrodoKemKey*)info->pk.pqc_decaps.key;
+                key->devId = INVALID_DEVID;
+                ret = wc_FrodoKemKey_Decapsulate(key,
+                    info->pk.pqc_decaps.sharedSecret,
+                    info->pk.pqc_decaps.ciphertext,
+                    info->pk.pqc_decaps.ciphertextLen);
+                key->devId = devIdArg;
+            }
+        }
+    #endif /* WOLFSSL_HAVE_FRODOKEM */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
 #if !defined(NO_AES) || !defined(NO_DES3)
@@ -78284,6 +78574,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_HAVE_MLKEM
     if (ret == 0)
         ret = mlkem_test();
+#endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    if (ret == 0)
+        ret = frodokem_test();
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
     if (ret == 0)

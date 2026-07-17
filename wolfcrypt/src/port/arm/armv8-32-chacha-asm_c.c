@@ -1435,7 +1435,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
 
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* HAVE_CHACHA */
-#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
-#endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
+#endif /* WOLFSSL_ARMASM */

@@ -79,6 +79,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/cryptocb.h \
                          wolfssl/wolfcrypt/wc_mldsa.h \
                          wolfssl/wolfcrypt/wc_mlkem.h \
+                         wolfssl/wolfcrypt/wc_frodokem.h \
+                         wolfssl/wolfcrypt/wc_frodokem_mat.h \
                          wolfssl/wolfcrypt/sm2.h \
                          wolfssl/wolfcrypt/sm3.h \
                          wolfssl/wolfcrypt/sm4.h \

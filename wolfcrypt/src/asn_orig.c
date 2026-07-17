@@ -6594,7 +6594,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        DsaKey* dsaKey, ed25519_key* ed25519Key,
                        ed448_key* ed448Key, falcon_key* falconKey,
                        wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
-                       LmsKey* lmsKey, XmssKey* xmssKey)
+                       LmsKey* lmsKey, XmssKey* xmssKey, void* frodoKey)
 {
     int ret;
     WC_DECLARE_VAR(der, DerCert, 1, 0);
@@ -6606,6 +6606,11 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
      * template-only and rejected here with a clear diagnostic. */
     if ((lmsKey != NULL) || (xmssKey != NULL)) {
         WOLFSSL_MSG("LMS/XMSS certificate generation requires "
+                    "WOLFSSL_ASN_TEMPLATE");
+        return ALGO_ID_E;
+    }
+    if (frodoKey != NULL) {
+        WOLFSSL_MSG("FrodoKEM certificate generation requires "
                     "WOLFSSL_ASN_TEMPLATE");
         return ALGO_ID_E;
     }
@@ -7238,7 +7243,8 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
                    ed25519_key* ed25519Key, ed448_key* ed448Key,
                    falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
-                   SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey)
+                   SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey,
+                   void* frodoKey)
 {
     int ret;
     WC_DECLARE_VAR(der, DerCert, 1, 0);
@@ -7247,6 +7253,11 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
      * WOLFSSL_ASN_TEMPLATE. */
     if ((lmsKey != NULL) || (xmssKey != NULL)) {
         WOLFSSL_MSG("LMS/XMSS certificate request generation requires "
+                    "WOLFSSL_ASN_TEMPLATE");
+        return ALGO_ID_E;
+    }
+    if (frodoKey != NULL) {
+        WOLFSSL_MSG("FrodoKEM certificate request generation requires "
                     "WOLFSSL_ASN_TEMPLATE");
         return ALGO_ID_E;
     }

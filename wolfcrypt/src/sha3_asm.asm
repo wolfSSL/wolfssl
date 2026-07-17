@@ -9900,6 +9900,9 @@ ENDIF
 IFDEF WOLFSSL_HAVE_SLHDSA
 wc_masm_cond_0 = 1
 ENDIF
+IFDEF WOLFSSL_HAVE_FRODOKEM
+wc_masm_cond_0 = 1
+ENDIF
 IF wc_masm_cond_0
 _TEXT SEGMENT READONLY PARA
 sha3_blocksx4_avx2 PROC
@@ -15270,6 +15273,18 @@ sha3_blocksx4_avx2 PROC
         ret
 sha3_blocksx4_avx2 ENDP
 _TEXT ENDS
+ENDIF
+wc_masm_cond_1 = 0
+IFDEF WOLFSSL_HAVE_MLKEM
+wc_masm_cond_1 = 1
+ENDIF
+IFDEF WOLFSSL_HAVE_MLDSA
+wc_masm_cond_1 = 1
+ENDIF
+IFDEF WOLFSSL_HAVE_SLHDSA
+wc_masm_cond_1 = 1
+ENDIF
+IF wc_masm_cond_1
 _DATA SEGMENT
 ALIGN 16
 L_sha3_128_blockx4_seed_avx2_end_mark QWORD 8000000000000000h, 8000000000000000h
@@ -20650,6 +20665,5420 @@ sha3_128_blocksx4_seed_avx2 PROC
         add	rsp, 160
         ret
 sha3_128_blocksx4_seed_avx2 ENDP
+_TEXT ENDS
+ENDIF
+IFDEF WOLFSSL_HAVE_FRODOKEM
+_TEXT SEGMENT READONLY PARA
+sha3_blocksx4_out_avx2 PROC
+        push	r12
+        push	r13
+        push	r14
+        push	r15
+        push	rdi
+        push	rsi
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rax, QWORD PTR [ptr_L_sha3_x4_avx2_r]
+        mov	r14d, r8d
+        mov	r11, rdx
+        add	r11, r14
+        mov	r12, r11
+        add	r12, r14
+        mov	r13, r12
+        add	r13, r14
+        shr	r14, 3
+L_sha3_blocksx4_out_avx2_block:
+        vmovdqu	ymm15, YMMWORD PTR [rcx]
+        mov	r9, rcx
+        mov	r10, rcx
+        add	rcx, 128
+        add	r9, 384
+        add	r10, 640
+        ; Round 0
+        ; Calc b[0..4]
+        vmovdqu	ymm11, YMMWORD PTR [rcx+-96]
+        vmovdqu	ymm12, YMMWORD PTR [rcx+-64]
+        vmovdqu	ymm13, YMMWORD PTR [rcx+-32]
+        vmovdqu	ymm14, YMMWORD PTR [rcx]
+        vpxor	ymm10, ymm15, [rcx+32]
+        vpxor	ymm11, ymm11, [rcx+64]
+        vpxor	ymm12, ymm12, [rcx+96]
+        vpxor	ymm13, ymm13, [rcx+128]
+        vpxor	ymm14, ymm14, [r9+-96]
+        vpxor	ymm10, ymm10, [r9+-64]
+        vpxor	ymm11, ymm11, [r9+-32]
+        vpxor	ymm12, ymm12, [r9]
+        vpxor	ymm13, ymm13, [r9+32]
+        vpxor	ymm14, ymm14, [r9+64]
+        vpxor	ymm10, ymm10, [r9+96]
+        vpxor	ymm11, ymm11, [r9+128]
+        vpxor	ymm12, ymm12, [r10+-96]
+        vpxor	ymm13, ymm13, [r10+-64]
+        vpxor	ymm14, ymm14, [r10+-32]
+        vpxor	ymm10, ymm10, [r10]
+        vpxor	ymm11, ymm11, [r10+32]
+        vpxor	ymm12, ymm12, [r10+64]
+        vpxor	ymm13, ymm13, [r10+96]
+        vpxor	ymm14, ymm14, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx+64]
+        vpxor	ymm12, ymm7, [r9]
+        vpxor	ymm13, ymm8, [r10+-64]
+        vpxor	ymm14, ymm9, [r10+128]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+64], ymm1
+        vmovdqu	YMMWORD PTR [r9], ymm2
+        vmovdqu	YMMWORD PTR [r10+-64], ymm3
+        vmovdqu	YMMWORD PTR [r10+128], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx+-32]
+        vpxor	ymm11, ymm9, [r9+-96]
+        vpxor	ymm12, ymm5, [r9+-64]
+        vpxor	ymm13, ymm6, [r9+128]
+        vpxor	ymm14, ymm7, [r10+64]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm0
+        vmovdqu	YMMWORD PTR [r9+-96], ymm1
+        vmovdqu	YMMWORD PTR [r9+-64], ymm2
+        vmovdqu	YMMWORD PTR [r9+128], ymm3
+        vmovdqu	YMMWORD PTR [r10+64], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx+-96]
+        vpxor	ymm11, ymm7, [rcx+96]
+        vpxor	ymm12, ymm8, [r9+32]
+        vpxor	ymm13, ymm9, [r10+-32]
+        vpxor	ymm14, ymm5, [r10]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm0
+        vmovdqu	YMMWORD PTR [rcx+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+32], ymm2
+        vmovdqu	YMMWORD PTR [r10+-32], ymm3
+        vmovdqu	YMMWORD PTR [r10], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx]
+        vpxor	ymm11, ymm5, [rcx+32]
+        vpxor	ymm12, ymm6, [r9+-32]
+        vpxor	ymm13, ymm7, [r10+-96]
+        vpxor	ymm14, ymm8, [r10+96]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx], ymm0
+        vmovdqu	YMMWORD PTR [rcx+32], ymm1
+        vmovdqu	YMMWORD PTR [r9+-32], ymm2
+        vmovdqu	YMMWORD PTR [r10+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10+96], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx+-64]
+        vpxor	ymm11, ymm8, [rcx+128]
+        vpxor	ymm12, ymm9, [r9+64]
+        vpxor	ymm13, ymm5, [r9+96]
+        vpxor	ymm14, ymm6, [r10+32]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm0
+        vmovdqu	YMMWORD PTR [rcx+128], ymm1
+        vmovdqu	YMMWORD PTR [r9+64], ymm2
+        vmovdqu	YMMWORD PTR [r9+96], ymm3
+        vmovdqu	YMMWORD PTR [r10+32], ymm4
+        ; Round 1
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm10, ymm10, [rcx+-96]
+        vpxor	ymm10, ymm10, [rcx+-32]
+        vpxor	ymm10, ymm10, [rcx]
+        vpxor	ymm11, ymm1, [rcx+32]
+        vpxor	ymm11, ymm11, [rcx+64]
+        vpxor	ymm11, ymm11, [rcx+96]
+        vpxor	ymm11, ymm11, [r9+-96]
+        vpxor	ymm12, ymm2, [r9+-64]
+        vpxor	ymm12, ymm12, [r9+-32]
+        vpxor	ymm12, ymm12, [r9]
+        vpxor	ymm12, ymm12, [r9+32]
+        vpxor	ymm13, ymm3, [r9+128]
+        vpxor	ymm13, ymm13, [r10+-96]
+        vpxor	ymm13, ymm13, [r10+-64]
+        vpxor	ymm13, ymm13, [r10+-32]
+        vpxor	ymm14, ymm4, [r10]
+        vpxor	ymm14, ymm14, [r10+64]
+        vpxor	ymm14, ymm14, [r10+96]
+        vpxor	ymm14, ymm14, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9+-96]
+        vpxor	ymm12, ymm7, [r9+32]
+        vpxor	ymm13, ymm8, [r10+-96]
+        vpxor	ymm14, ymm9, [r10+32]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+32]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-96], ymm1
+        vmovdqu	YMMWORD PTR [r9+32], ymm2
+        vmovdqu	YMMWORD PTR [r10+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10+32], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10+-64]
+        vpxor	ymm11, ymm9, [r10+64]
+        vpxor	ymm12, ymm5, [rcx+-96]
+        vpxor	ymm13, ymm6, [rcx+32]
+        vpxor	ymm14, ymm7, [r9+64]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-64], ymm0
+        vmovdqu	YMMWORD PTR [r10+64], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm2
+        vmovdqu	YMMWORD PTR [rcx+32], ymm3
+        vmovdqu	YMMWORD PTR [r9+64], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx+64]
+        vpxor	ymm11, ymm7, [r9+-64]
+        vpxor	ymm12, ymm8, [r10+-32]
+        vpxor	ymm13, ymm9, [r10+96]
+        vpxor	ymm14, ymm5, [rcx+-64]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+64], ymm0
+        vmovdqu	YMMWORD PTR [r9+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10+-32], ymm2
+        vmovdqu	YMMWORD PTR [r10+96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10+128]
+        vpxor	ymm11, ymm5, [rcx+-32]
+        vpxor	ymm12, ymm6, [rcx+96]
+        vpxor	ymm13, ymm7, [r9+-32]
+        vpxor	ymm14, ymm8, [r9+96]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+128], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+96], ymm2
+        vmovdqu	YMMWORD PTR [r9+-32], ymm3
+        vmovdqu	YMMWORD PTR [r9+96], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9]
+        vpxor	ymm11, ymm8, [r9+128]
+        vpxor	ymm12, ymm9, [r10]
+        vpxor	ymm13, ymm5, [rcx]
+        vpxor	ymm14, ymm6, [rcx+128]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9], ymm0
+        vmovdqu	YMMWORD PTR [r9+128], ymm1
+        vmovdqu	YMMWORD PTR [r10], ymm2
+        vmovdqu	YMMWORD PTR [rcx], ymm3
+        vmovdqu	YMMWORD PTR [rcx+128], ymm4
+        ; Round 2
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm12, ymm2, [rcx+-96]
+        vpxor	ymm14, ymm4, [rcx+-64]
+        vpxor	ymm11, ymm1, [rcx+-32]
+        vpxor	ymm13, ymm3, [rcx+32]
+        vpxor	ymm10, ymm10, [rcx+64]
+        vpxor	ymm12, ymm12, [rcx+96]
+        vpxor	ymm11, ymm11, [r9+-96]
+        vpxor	ymm11, ymm11, [r9+-64]
+        vpxor	ymm13, ymm13, [r9+-32]
+        vpxor	ymm12, ymm12, [r9+32]
+        vpxor	ymm14, ymm14, [r9+64]
+        vpxor	ymm14, ymm14, [r9+96]
+        vpxor	ymm13, ymm13, [r10+-96]
+        vpxor	ymm10, ymm10, [r10+-64]
+        vpxor	ymm12, ymm12, [r10+-32]
+        vpxor	ymm14, ymm14, [r10+32]
+        vpxor	ymm11, ymm11, [r10+64]
+        vpxor	ymm13, ymm13, [r10+96]
+        vpxor	ymm10, ymm10, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10+64]
+        vpxor	ymm12, ymm7, [r10+-32]
+        vpxor	ymm13, ymm8, [r9+-32]
+        vpxor	ymm14, ymm9, [rcx+128]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+64]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+64], ymm1
+        vmovdqu	YMMWORD PTR [r10+-32], ymm2
+        vmovdqu	YMMWORD PTR [r9+-32], ymm3
+        vmovdqu	YMMWORD PTR [rcx+128], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10+-96]
+        vpxor	ymm11, ymm9, [r9+64]
+        vpxor	ymm12, ymm5, [rcx+64]
+        vpxor	ymm13, ymm6, [rcx+-32]
+        vpxor	ymm14, ymm7, [r10]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-96], ymm0
+        vmovdqu	YMMWORD PTR [r9+64], ymm1
+        vmovdqu	YMMWORD PTR [rcx+64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm3
+        vmovdqu	YMMWORD PTR [r10], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9+-96]
+        vpxor	ymm11, ymm7, [rcx+-96]
+        vpxor	ymm12, ymm8, [r10+96]
+        vpxor	ymm13, ymm9, [r9+96]
+        vpxor	ymm14, ymm5, [r9]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-96], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm1
+        vmovdqu	YMMWORD PTR [r10+96], ymm2
+        vmovdqu	YMMWORD PTR [r9+96], ymm3
+        vmovdqu	YMMWORD PTR [r9], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10+32]
+        vpxor	ymm11, ymm5, [r10+-64]
+        vpxor	ymm12, ymm6, [r9+-64]
+        vpxor	ymm13, ymm7, [rcx+96]
+        vpxor	ymm14, ymm8, [rcx]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+32], ymm0
+        vmovdqu	YMMWORD PTR [r10+-64], ymm1
+        vmovdqu	YMMWORD PTR [r9+-64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+96], ymm3
+        vmovdqu	YMMWORD PTR [rcx], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9+32]
+        vpxor	ymm11, ymm8, [rcx+32]
+        vpxor	ymm12, ymm9, [rcx+-64]
+        vpxor	ymm13, ymm5, [r10+128]
+        vpxor	ymm14, ymm6, [r9+128]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm2
+        vmovdqu	YMMWORD PTR [r10+128], ymm3
+        vmovdqu	YMMWORD PTR [r9+128], ymm4
+        ; Round 3
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm11, ymm1, [rcx+-96]
+        vpxor	ymm13, ymm3, [rcx+-32]
+        vpxor	ymm14, ymm4, [rcx]
+        vpxor	ymm12, ymm2, [rcx+64]
+        vpxor	ymm13, ymm13, [rcx+96]
+        vpxor	ymm14, ymm14, [rcx+128]
+        vpxor	ymm10, ymm10, [r9+-96]
+        vpxor	ymm12, ymm12, [r9+-64]
+        vpxor	ymm13, ymm13, [r9+-32]
+        vpxor	ymm14, ymm14, [r9]
+        vpxor	ymm11, ymm11, [r9+64]
+        vpxor	ymm13, ymm13, [r9+96]
+        vpxor	ymm10, ymm10, [r10+-96]
+        vpxor	ymm11, ymm11, [r10+-64]
+        vpxor	ymm12, ymm12, [r10+-32]
+        vpxor	ymm14, ymm14, [r10]
+        vpxor	ymm10, ymm10, [r10+32]
+        vpxor	ymm11, ymm11, [r10+64]
+        vpxor	ymm12, ymm12, [r10+96]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9+64]
+        vpxor	ymm12, ymm7, [r10+96]
+        vpxor	ymm13, ymm8, [rcx+96]
+        vpxor	ymm14, ymm9, [r9+128]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+96]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+64], ymm1
+        vmovdqu	YMMWORD PTR [r10+96], ymm2
+        vmovdqu	YMMWORD PTR [rcx+96], ymm3
+        vmovdqu	YMMWORD PTR [r9+128], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9+-32]
+        vpxor	ymm11, ymm9, [r10]
+        vpxor	ymm12, ymm5, [r9+-96]
+        vpxor	ymm13, ymm6, [r10+-64]
+        vpxor	ymm14, ymm7, [rcx+-64]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-32], ymm0
+        vmovdqu	YMMWORD PTR [r10], ymm1
+        vmovdqu	YMMWORD PTR [r9+-96], ymm2
+        vmovdqu	YMMWORD PTR [r10+-64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10+64]
+        vpxor	ymm11, ymm7, [rcx+64]
+        vpxor	ymm12, ymm8, [r9+96]
+        vpxor	ymm13, ymm9, [rcx]
+        vpxor	ymm14, ymm5, [r9+32]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+64], ymm0
+        vmovdqu	YMMWORD PTR [rcx+64], ymm1
+        vmovdqu	YMMWORD PTR [r9+96], ymm2
+        vmovdqu	YMMWORD PTR [rcx], ymm3
+        vmovdqu	YMMWORD PTR [r9+32], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx+128]
+        vpxor	ymm11, ymm5, [r10+-96]
+        vpxor	ymm12, ymm6, [rcx+-96]
+        vpxor	ymm13, ymm7, [r9+-64]
+        vpxor	ymm14, ymm8, [r10+128]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+128], ymm0
+        vmovdqu	YMMWORD PTR [r10+-96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm2
+        vmovdqu	YMMWORD PTR [r9+-64], ymm3
+        vmovdqu	YMMWORD PTR [r10+128], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10+-32]
+        vpxor	ymm11, ymm8, [rcx+-32]
+        vpxor	ymm12, ymm9, [r9]
+        vpxor	ymm13, ymm5, [r10+32]
+        vpxor	ymm14, ymm6, [rcx+32]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm1
+        vmovdqu	YMMWORD PTR [r9], ymm2
+        vmovdqu	YMMWORD PTR [r10+32], ymm3
+        vmovdqu	YMMWORD PTR [rcx+32], ymm4
+        ; Round 4
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm12, ymm2, [rcx+-96]
+        vpxor	ymm14, ymm4, [rcx+-64]
+        vpxor	ymm13, ymm3, [rcx]
+        vpxor	ymm11, ymm1, [rcx+64]
+        vpxor	ymm13, ymm13, [rcx+96]
+        vpxor	ymm10, ymm10, [rcx+128]
+        vpxor	ymm12, ymm12, [r9+-96]
+        vpxor	ymm13, ymm13, [r9+-64]
+        vpxor	ymm10, ymm10, [r9+-32]
+        vpxor	ymm14, ymm14, [r9+32]
+        vpxor	ymm11, ymm11, [r9+64]
+        vpxor	ymm12, ymm12, [r9+96]
+        vpxor	ymm14, ymm14, [r9+128]
+        vpxor	ymm11, ymm11, [r10+-96]
+        vpxor	ymm13, ymm13, [r10+-64]
+        vpxor	ymm11, ymm11, [r10]
+        vpxor	ymm10, ymm10, [r10+64]
+        vpxor	ymm12, ymm12, [r10+96]
+        vpxor	ymm14, ymm14, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10]
+        vpxor	ymm12, ymm7, [r9+96]
+        vpxor	ymm13, ymm8, [r9+-64]
+        vpxor	ymm14, ymm9, [rcx+32]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+128]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10], ymm1
+        vmovdqu	YMMWORD PTR [r9+96], ymm2
+        vmovdqu	YMMWORD PTR [r9+-64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+32], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx+96]
+        vpxor	ymm11, ymm9, [rcx+-64]
+        vpxor	ymm12, ymm5, [r10+64]
+        vpxor	ymm13, ymm6, [r10+-96]
+        vpxor	ymm14, ymm7, [r9]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+96], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10+64], ymm2
+        vmovdqu	YMMWORD PTR [r10+-96], ymm3
+        vmovdqu	YMMWORD PTR [r9], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9+64]
+        vpxor	ymm11, ymm7, [r9+-96]
+        vpxor	ymm12, ymm8, [rcx]
+        vpxor	ymm13, ymm9, [r10+128]
+        vpxor	ymm14, ymm5, [r10+-32]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+64], ymm0
+        vmovdqu	YMMWORD PTR [r9+-96], ymm1
+        vmovdqu	YMMWORD PTR [rcx], ymm2
+        vmovdqu	YMMWORD PTR [r10+128], ymm3
+        vmovdqu	YMMWORD PTR [r10+-32], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9+128]
+        vpxor	ymm11, ymm5, [r9+-32]
+        vpxor	ymm12, ymm6, [rcx+64]
+        vpxor	ymm13, ymm7, [rcx+-96]
+        vpxor	ymm14, ymm8, [r10+32]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+128], ymm0
+        vmovdqu	YMMWORD PTR [r9+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10+32], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10+96]
+        vpxor	ymm11, ymm8, [r10+-64]
+        vpxor	ymm12, ymm9, [r9+32]
+        vpxor	ymm13, ymm5, [rcx+128]
+        vpxor	ymm14, ymm6, [rcx+-32]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+96], ymm0
+        vmovdqu	YMMWORD PTR [r10+-64], ymm1
+        vmovdqu	YMMWORD PTR [r9+32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+128], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm4
+        ; Round 5
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm13, ymm3, [rcx+-96]
+        vpxor	ymm11, ymm1, [rcx+-64]
+        vpxor	ymm12, ymm2, [rcx]
+        vpxor	ymm14, ymm4, [rcx+32]
+        vpxor	ymm12, ymm12, [rcx+64]
+        vpxor	ymm10, ymm10, [rcx+96]
+        vpxor	ymm11, ymm11, [r9+-96]
+        vpxor	ymm13, ymm13, [r9+-64]
+        vpxor	ymm11, ymm11, [r9+-32]
+        vpxor	ymm14, ymm14, [r9]
+        vpxor	ymm10, ymm10, [r9+64]
+        vpxor	ymm12, ymm12, [r9+96]
+        vpxor	ymm10, ymm10, [r9+128]
+        vpxor	ymm13, ymm13, [r10+-96]
+        vpxor	ymm14, ymm14, [r10+-32]
+        vpxor	ymm11, ymm11, [r10]
+        vpxor	ymm14, ymm14, [r10+32]
+        vpxor	ymm12, ymm12, [r10+64]
+        vpxor	ymm13, ymm13, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx+-64]
+        vpxor	ymm12, ymm7, [rcx]
+        vpxor	ymm13, ymm8, [rcx+-96]
+        vpxor	ymm14, ymm9, [rcx+-32]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+160]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm1
+        vmovdqu	YMMWORD PTR [rcx], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9+-64]
+        vpxor	ymm11, ymm9, [r9]
+        vpxor	ymm12, ymm5, [r9+64]
+        vpxor	ymm13, ymm6, [r9+-32]
+        vpxor	ymm14, ymm7, [r9+32]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-64], ymm0
+        vmovdqu	YMMWORD PTR [r9], ymm1
+        vmovdqu	YMMWORD PTR [r9+64], ymm2
+        vmovdqu	YMMWORD PTR [r9+-32], ymm3
+        vmovdqu	YMMWORD PTR [r9+32], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10]
+        vpxor	ymm11, ymm7, [r10+64]
+        vpxor	ymm12, ymm8, [r10+128]
+        vpxor	ymm13, ymm9, [r10+32]
+        vpxor	ymm14, ymm5, [r10+96]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10], ymm0
+        vmovdqu	YMMWORD PTR [r10+64], ymm1
+        vmovdqu	YMMWORD PTR [r10+128], ymm2
+        vmovdqu	YMMWORD PTR [r10+32], ymm3
+        vmovdqu	YMMWORD PTR [r10+96], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx+32]
+        vpxor	ymm11, ymm5, [rcx+96]
+        vpxor	ymm12, ymm6, [r9+-96]
+        vpxor	ymm13, ymm7, [rcx+64]
+        vpxor	ymm14, ymm8, [rcx+128]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+-96], ymm2
+        vmovdqu	YMMWORD PTR [rcx+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+128], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9+96]
+        vpxor	ymm11, ymm8, [r10+-96]
+        vpxor	ymm12, ymm9, [r10+-32]
+        vpxor	ymm13, ymm5, [r9+128]
+        vpxor	ymm14, ymm6, [r10+-64]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+96], ymm0
+        vmovdqu	YMMWORD PTR [r10+-96], ymm1
+        vmovdqu	YMMWORD PTR [r10+-32], ymm2
+        vmovdqu	YMMWORD PTR [r9+128], ymm3
+        vmovdqu	YMMWORD PTR [r10+-64], ymm4
+        ; Round 6
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm13, ymm3, [rcx+-96]
+        vpxor	ymm11, ymm1, [rcx+-64]
+        vpxor	ymm14, ymm4, [rcx+-32]
+        vpxor	ymm12, ymm2, [rcx]
+        vpxor	ymm10, ymm10, [rcx+32]
+        vpxor	ymm13, ymm13, [rcx+64]
+        vpxor	ymm11, ymm11, [rcx+96]
+        vpxor	ymm14, ymm14, [rcx+128]
+        vpxor	ymm12, ymm12, [r9+-96]
+        vpxor	ymm10, ymm10, [r9+-64]
+        vpxor	ymm13, ymm13, [r9+-32]
+        vpxor	ymm11, ymm11, [r9]
+        vpxor	ymm14, ymm14, [r9+32]
+        vpxor	ymm12, ymm12, [r9+64]
+        vpxor	ymm10, ymm10, [r10]
+        vpxor	ymm13, ymm13, [r10+32]
+        vpxor	ymm11, ymm11, [r10+64]
+        vpxor	ymm14, ymm14, [r10+96]
+        vpxor	ymm12, ymm12, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9]
+        vpxor	ymm12, ymm7, [r10+128]
+        vpxor	ymm13, ymm8, [rcx+64]
+        vpxor	ymm14, ymm9, [r10+-64]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+192]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9], ymm1
+        vmovdqu	YMMWORD PTR [r10+128], ymm2
+        vmovdqu	YMMWORD PTR [rcx+64], ymm3
+        vmovdqu	YMMWORD PTR [r10+-64], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx+-96]
+        vpxor	ymm11, ymm9, [r9+32]
+        vpxor	ymm12, ymm5, [r10]
+        vpxor	ymm13, ymm6, [rcx+96]
+        vpxor	ymm14, ymm7, [r10+-32]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm0
+        vmovdqu	YMMWORD PTR [r9+32], ymm1
+        vmovdqu	YMMWORD PTR [r10], ymm2
+        vmovdqu	YMMWORD PTR [rcx+96], ymm3
+        vmovdqu	YMMWORD PTR [r10+-32], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx+-64]
+        vpxor	ymm11, ymm7, [r9+64]
+        vpxor	ymm12, ymm8, [r10+32]
+        vpxor	ymm13, ymm9, [rcx+128]
+        vpxor	ymm14, ymm5, [r9+96]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm0
+        vmovdqu	YMMWORD PTR [r9+64], ymm1
+        vmovdqu	YMMWORD PTR [r10+32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+128], ymm3
+        vmovdqu	YMMWORD PTR [r9+96], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx+-32]
+        vpxor	ymm11, ymm5, [r9+-64]
+        vpxor	ymm12, ymm6, [r10+64]
+        vpxor	ymm13, ymm7, [r9+-96]
+        vpxor	ymm14, ymm8, [r9+128]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm0
+        vmovdqu	YMMWORD PTR [r9+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10+64], ymm2
+        vmovdqu	YMMWORD PTR [r9+-96], ymm3
+        vmovdqu	YMMWORD PTR [r9+128], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx]
+        vpxor	ymm11, ymm8, [r9+-32]
+        vpxor	ymm12, ymm9, [r10+96]
+        vpxor	ymm13, ymm5, [rcx+32]
+        vpxor	ymm14, ymm6, [r10+-96]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx], ymm0
+        vmovdqu	YMMWORD PTR [r9+-32], ymm1
+        vmovdqu	YMMWORD PTR [r10+96], ymm2
+        vmovdqu	YMMWORD PTR [rcx+32], ymm3
+        vmovdqu	YMMWORD PTR [r10+-96], ymm4
+        ; Round 7
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm10, ymm10, [rcx+-96]
+        vpxor	ymm10, ymm10, [rcx+-64]
+        vpxor	ymm10, ymm10, [rcx+-32]
+        vpxor	ymm13, ymm3, [rcx+64]
+        vpxor	ymm13, ymm13, [rcx+96]
+        vpxor	ymm13, ymm13, [rcx+128]
+        vpxor	ymm13, ymm13, [r9+-96]
+        vpxor	ymm11, ymm1, [r9+-64]
+        vpxor	ymm11, ymm11, [r9]
+        vpxor	ymm11, ymm11, [r9+32]
+        vpxor	ymm11, ymm11, [r9+64]
+        vpxor	ymm14, ymm4, [r9+96]
+        vpxor	ymm14, ymm14, [r9+128]
+        vpxor	ymm14, ymm14, [r10+-64]
+        vpxor	ymm14, ymm14, [r10+-32]
+        vpxor	ymm12, ymm2, [r10]
+        vpxor	ymm12, ymm12, [r10+32]
+        vpxor	ymm12, ymm12, [r10+64]
+        vpxor	ymm12, ymm12, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9+32]
+        vpxor	ymm12, ymm7, [r10+32]
+        vpxor	ymm13, ymm8, [r9+-96]
+        vpxor	ymm14, ymm9, [r10+-96]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+224]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+32], ymm1
+        vmovdqu	YMMWORD PTR [r10+32], ymm2
+        vmovdqu	YMMWORD PTR [r9+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10+-96], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx+64]
+        vpxor	ymm11, ymm9, [r10+-32]
+        vpxor	ymm12, ymm5, [rcx+-64]
+        vpxor	ymm13, ymm6, [r9+-64]
+        vpxor	ymm14, ymm7, [r10+96]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+64], ymm0
+        vmovdqu	YMMWORD PTR [r10+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm2
+        vmovdqu	YMMWORD PTR [r9+-64], ymm3
+        vmovdqu	YMMWORD PTR [r10+96], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9]
+        vpxor	ymm11, ymm7, [r10]
+        vpxor	ymm12, ymm8, [rcx+128]
+        vpxor	ymm13, ymm9, [r9+128]
+        vpxor	ymm14, ymm5, [rcx]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9], ymm0
+        vmovdqu	YMMWORD PTR [r10], ymm1
+        vmovdqu	YMMWORD PTR [rcx+128], ymm2
+        vmovdqu	YMMWORD PTR [r9+128], ymm3
+        vmovdqu	YMMWORD PTR [rcx], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10+-64]
+        vpxor	ymm11, ymm5, [rcx+-96]
+        vpxor	ymm12, ymm6, [r9+64]
+        vpxor	ymm13, ymm7, [r10+64]
+        vpxor	ymm14, ymm8, [rcx+32]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-64], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm1
+        vmovdqu	YMMWORD PTR [r9+64], ymm2
+        vmovdqu	YMMWORD PTR [r10+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+32], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10+128]
+        vpxor	ymm11, ymm8, [rcx+96]
+        vpxor	ymm12, ymm9, [r9+96]
+        vpxor	ymm13, ymm5, [rcx+-32]
+        vpxor	ymm14, ymm6, [r9+-32]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+128], ymm0
+        vmovdqu	YMMWORD PTR [rcx+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+96], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm3
+        vmovdqu	YMMWORD PTR [r9+-32], ymm4
+        ; Round 8
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm11, ymm1, [rcx+-96]
+        vpxor	ymm12, ymm2, [rcx+-64]
+        vpxor	ymm14, ymm4, [rcx]
+        vpxor	ymm14, ymm14, [rcx+32]
+        vpxor	ymm10, ymm10, [rcx+64]
+        vpxor	ymm12, ymm12, [rcx+128]
+        vpxor	ymm13, ymm3, [r9+-96]
+        vpxor	ymm13, ymm13, [r9+-64]
+        vpxor	ymm10, ymm10, [r9]
+        vpxor	ymm11, ymm11, [r9+32]
+        vpxor	ymm12, ymm12, [r9+64]
+        vpxor	ymm13, ymm13, [r9+128]
+        vpxor	ymm14, ymm14, [r10+-96]
+        vpxor	ymm10, ymm10, [r10+-64]
+        vpxor	ymm11, ymm11, [r10+-32]
+        vpxor	ymm11, ymm11, [r10]
+        vpxor	ymm12, ymm12, [r10+32]
+        vpxor	ymm13, ymm13, [r10+64]
+        vpxor	ymm14, ymm14, [r10+96]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10+-32]
+        vpxor	ymm12, ymm7, [rcx+128]
+        vpxor	ymm13, ymm8, [r10+64]
+        vpxor	ymm14, ymm9, [r9+-32]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+256]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+128], ymm2
+        vmovdqu	YMMWORD PTR [r10+64], ymm3
+        vmovdqu	YMMWORD PTR [r9+-32], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9+-96]
+        vpxor	ymm11, ymm9, [r10+96]
+        vpxor	ymm12, ymm5, [r9]
+        vpxor	ymm13, ymm6, [rcx+-96]
+        vpxor	ymm14, ymm7, [r9+96]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-96], ymm0
+        vmovdqu	YMMWORD PTR [r10+96], ymm1
+        vmovdqu	YMMWORD PTR [r9], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm3
+        vmovdqu	YMMWORD PTR [r9+96], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9+32]
+        vpxor	ymm11, ymm7, [rcx+-64]
+        vpxor	ymm12, ymm8, [r9+128]
+        vpxor	ymm13, ymm9, [rcx+32]
+        vpxor	ymm14, ymm5, [r10+128]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm1
+        vmovdqu	YMMWORD PTR [r9+128], ymm2
+        vmovdqu	YMMWORD PTR [rcx+32], ymm3
+        vmovdqu	YMMWORD PTR [r10+128], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10+-96]
+        vpxor	ymm11, ymm5, [rcx+64]
+        vpxor	ymm12, ymm6, [r10]
+        vpxor	ymm13, ymm7, [r9+64]
+        vpxor	ymm14, ymm8, [rcx+-32]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-96], ymm0
+        vmovdqu	YMMWORD PTR [rcx+64], ymm1
+        vmovdqu	YMMWORD PTR [r10], ymm2
+        vmovdqu	YMMWORD PTR [r9+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10+32]
+        vpxor	ymm11, ymm8, [r9+-64]
+        vpxor	ymm12, ymm9, [rcx]
+        vpxor	ymm13, ymm5, [r10+-64]
+        vpxor	ymm14, ymm6, [rcx+96]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+32], ymm0
+        vmovdqu	YMMWORD PTR [r9+-64], ymm1
+        vmovdqu	YMMWORD PTR [rcx], ymm2
+        vmovdqu	YMMWORD PTR [r10+-64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+96], ymm4
+        ; Round 9
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm13, ymm3, [rcx+-96]
+        vpxor	ymm11, ymm1, [rcx+-64]
+        vpxor	ymm14, ymm4, [rcx+-32]
+        vpxor	ymm13, ymm13, [rcx+32]
+        vpxor	ymm11, ymm11, [rcx+64]
+        vpxor	ymm12, ymm2, [rcx+128]
+        vpxor	ymm10, ymm10, [r9+-96]
+        vpxor	ymm14, ymm14, [r9+-32]
+        vpxor	ymm12, ymm12, [r9]
+        vpxor	ymm10, ymm10, [r9+32]
+        vpxor	ymm13, ymm13, [r9+64]
+        vpxor	ymm14, ymm14, [r9+96]
+        vpxor	ymm12, ymm12, [r9+128]
+        vpxor	ymm10, ymm10, [r10+-96]
+        vpxor	ymm11, ymm11, [r10+-32]
+        vpxor	ymm12, ymm12, [r10]
+        vpxor	ymm13, ymm13, [r10+64]
+        vpxor	ymm11, ymm11, [r10+96]
+        vpxor	ymm14, ymm14, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10+96]
+        vpxor	ymm12, ymm7, [r9+128]
+        vpxor	ymm13, ymm8, [r9+64]
+        vpxor	ymm14, ymm9, [rcx+96]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+288]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+128], ymm2
+        vmovdqu	YMMWORD PTR [r9+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+96], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10+64]
+        vpxor	ymm11, ymm9, [r9+96]
+        vpxor	ymm12, ymm5, [r9+32]
+        vpxor	ymm13, ymm6, [rcx+64]
+        vpxor	ymm14, ymm7, [rcx]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+64], ymm0
+        vmovdqu	YMMWORD PTR [r9+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10+-32]
+        vpxor	ymm11, ymm7, [r9]
+        vpxor	ymm12, ymm8, [rcx+32]
+        vpxor	ymm13, ymm9, [rcx+-32]
+        vpxor	ymm14, ymm5, [r10+32]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-32], ymm0
+        vmovdqu	YMMWORD PTR [r9], ymm1
+        vmovdqu	YMMWORD PTR [rcx+32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm3
+        vmovdqu	YMMWORD PTR [r10+32], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9+-32]
+        vpxor	ymm11, ymm5, [r9+-96]
+        vpxor	ymm12, ymm6, [rcx+-64]
+        vpxor	ymm13, ymm7, [r10]
+        vpxor	ymm14, ymm8, [r10+-64]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-32], ymm0
+        vmovdqu	YMMWORD PTR [r9+-96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm2
+        vmovdqu	YMMWORD PTR [r10], ymm3
+        vmovdqu	YMMWORD PTR [r10+-64], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx+128]
+        vpxor	ymm11, ymm8, [rcx+-96]
+        vpxor	ymm12, ymm9, [r10+128]
+        vpxor	ymm13, ymm5, [r10+-96]
+        vpxor	ymm14, ymm6, [r9+-64]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+128], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm1
+        vmovdqu	YMMWORD PTR [r10+128], ymm2
+        vmovdqu	YMMWORD PTR [r10+-96], ymm3
+        vmovdqu	YMMWORD PTR [r9+-64], ymm4
+        ; Round 10
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm12, ymm2, [rcx+-64]
+        vpxor	ymm13, ymm3, [rcx+-32]
+        vpxor	ymm14, ymm4, [rcx]
+        vpxor	ymm12, ymm12, [rcx+32]
+        vpxor	ymm13, ymm13, [rcx+64]
+        vpxor	ymm14, ymm14, [rcx+96]
+        vpxor	ymm11, ymm1, [r9+-96]
+        vpxor	ymm10, ymm10, [r9+-32]
+        vpxor	ymm11, ymm11, [r9]
+        vpxor	ymm12, ymm12, [r9+32]
+        vpxor	ymm13, ymm13, [r9+64]
+        vpxor	ymm11, ymm11, [r9+96]
+        vpxor	ymm12, ymm12, [r9+128]
+        vpxor	ymm14, ymm14, [r10+-64]
+        vpxor	ymm10, ymm10, [r10+-32]
+        vpxor	ymm13, ymm13, [r10]
+        vpxor	ymm14, ymm14, [r10+32]
+        vpxor	ymm10, ymm10, [r10+64]
+        vpxor	ymm11, ymm11, [r10+96]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9+96]
+        vpxor	ymm12, ymm7, [rcx+32]
+        vpxor	ymm13, ymm8, [r10]
+        vpxor	ymm14, ymm9, [r9+-64]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+320]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+32], ymm2
+        vmovdqu	YMMWORD PTR [r10], ymm3
+        vmovdqu	YMMWORD PTR [r9+-64], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9+64]
+        vpxor	ymm11, ymm9, [rcx]
+        vpxor	ymm12, ymm5, [r10+-32]
+        vpxor	ymm13, ymm6, [r9+-96]
+        vpxor	ymm14, ymm7, [r10+128]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+64], ymm0
+        vmovdqu	YMMWORD PTR [rcx], ymm1
+        vmovdqu	YMMWORD PTR [r10+-32], ymm2
+        vmovdqu	YMMWORD PTR [r9+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10+128], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10+96]
+        vpxor	ymm11, ymm7, [r9+32]
+        vpxor	ymm12, ymm8, [rcx+-32]
+        vpxor	ymm13, ymm9, [r10+-64]
+        vpxor	ymm14, ymm5, [rcx+128]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+96], ymm0
+        vmovdqu	YMMWORD PTR [r9+32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm2
+        vmovdqu	YMMWORD PTR [r10+-64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+128], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx+96]
+        vpxor	ymm11, ymm5, [r10+64]
+        vpxor	ymm12, ymm6, [r9]
+        vpxor	ymm13, ymm7, [rcx+-64]
+        vpxor	ymm14, ymm8, [r10+-96]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+96], ymm0
+        vmovdqu	YMMWORD PTR [r10+64], ymm1
+        vmovdqu	YMMWORD PTR [r9], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm3
+        vmovdqu	YMMWORD PTR [r10+-96], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9+128]
+        vpxor	ymm11, ymm8, [rcx+64]
+        vpxor	ymm12, ymm9, [r10+32]
+        vpxor	ymm13, ymm5, [r9+-32]
+        vpxor	ymm14, ymm6, [rcx+-96]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+128], ymm0
+        vmovdqu	YMMWORD PTR [rcx+64], ymm1
+        vmovdqu	YMMWORD PTR [r10+32], ymm2
+        vmovdqu	YMMWORD PTR [r9+-32], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm4
+        ; Round 11
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm13, ymm3, [rcx+-64]
+        vpxor	ymm12, ymm2, [rcx+-32]
+        vpxor	ymm11, ymm1, [rcx]
+        vpxor	ymm12, ymm12, [rcx+32]
+        vpxor	ymm10, ymm10, [rcx+96]
+        vpxor	ymm14, ymm4, [rcx+128]
+        vpxor	ymm13, ymm13, [r9+-96]
+        vpxor	ymm14, ymm14, [r9+-64]
+        vpxor	ymm12, ymm12, [r9]
+        vpxor	ymm11, ymm11, [r9+32]
+        vpxor	ymm10, ymm10, [r9+64]
+        vpxor	ymm11, ymm11, [r9+96]
+        vpxor	ymm14, ymm14, [r10+-96]
+        vpxor	ymm13, ymm13, [r10+-64]
+        vpxor	ymm12, ymm12, [r10+-32]
+        vpxor	ymm13, ymm13, [r10]
+        vpxor	ymm11, ymm11, [r10+64]
+        vpxor	ymm10, ymm10, [r10+96]
+        vpxor	ymm14, ymm14, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx]
+        vpxor	ymm12, ymm7, [rcx+-32]
+        vpxor	ymm13, ymm8, [rcx+-64]
+        vpxor	ymm14, ymm9, [rcx+-96]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+352]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10]
+        vpxor	ymm11, ymm9, [r10+128]
+        vpxor	ymm12, ymm5, [r10+96]
+        vpxor	ymm13, ymm6, [r10+64]
+        vpxor	ymm14, ymm7, [r10+32]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10], ymm0
+        vmovdqu	YMMWORD PTR [r10+128], ymm1
+        vmovdqu	YMMWORD PTR [r10+96], ymm2
+        vmovdqu	YMMWORD PTR [r10+64], ymm3
+        vmovdqu	YMMWORD PTR [r10+32], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9+96]
+        vpxor	ymm11, ymm7, [r10+-32]
+        vpxor	ymm12, ymm8, [r10+-64]
+        vpxor	ymm13, ymm9, [r10+-96]
+        vpxor	ymm14, ymm5, [r9+128]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+96], ymm0
+        vmovdqu	YMMWORD PTR [r10+-32], ymm1
+        vmovdqu	YMMWORD PTR [r10+-64], ymm2
+        vmovdqu	YMMWORD PTR [r10+-96], ymm3
+        vmovdqu	YMMWORD PTR [r9+128], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9+-64]
+        vpxor	ymm11, ymm5, [r9+64]
+        vpxor	ymm12, ymm6, [r9+32]
+        vpxor	ymm13, ymm7, [r9]
+        vpxor	ymm14, ymm8, [r9+-32]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-64], ymm0
+        vmovdqu	YMMWORD PTR [r9+64], ymm1
+        vmovdqu	YMMWORD PTR [r9+32], ymm2
+        vmovdqu	YMMWORD PTR [r9], ymm3
+        vmovdqu	YMMWORD PTR [r9+-32], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx+32]
+        vpxor	ymm11, ymm8, [r9+-96]
+        vpxor	ymm12, ymm9, [rcx+128]
+        vpxor	ymm13, ymm5, [rcx+96]
+        vpxor	ymm14, ymm6, [rcx+64]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+32], ymm0
+        vmovdqu	YMMWORD PTR [r9+-96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+128], ymm2
+        vmovdqu	YMMWORD PTR [rcx+96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+64], ymm4
+        ; Round 12
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm14, ymm4, [rcx+-96]
+        vpxor	ymm13, ymm3, [rcx+-64]
+        vpxor	ymm12, ymm2, [rcx+-32]
+        vpxor	ymm11, ymm1, [rcx]
+        vpxor	ymm10, ymm10, [r9+-64]
+        vpxor	ymm14, ymm14, [r9+-32]
+        vpxor	ymm13, ymm13, [r9]
+        vpxor	ymm12, ymm12, [r9+32]
+        vpxor	ymm11, ymm11, [r9+64]
+        vpxor	ymm10, ymm10, [r9+96]
+        vpxor	ymm14, ymm14, [r9+128]
+        vpxor	ymm13, ymm13, [r10+-96]
+        vpxor	ymm12, ymm12, [r10+-64]
+        vpxor	ymm11, ymm11, [r10+-32]
+        vpxor	ymm10, ymm10, [r10]
+        vpxor	ymm14, ymm14, [r10+32]
+        vpxor	ymm13, ymm13, [r10+64]
+        vpxor	ymm12, ymm12, [r10+96]
+        vpxor	ymm11, ymm11, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10+128]
+        vpxor	ymm12, ymm7, [r10+-64]
+        vpxor	ymm13, ymm8, [r9]
+        vpxor	ymm14, ymm9, [rcx+64]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+384]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+128], ymm1
+        vmovdqu	YMMWORD PTR [r10+-64], ymm2
+        vmovdqu	YMMWORD PTR [r9], ymm3
+        vmovdqu	YMMWORD PTR [rcx+64], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx+-64]
+        vpxor	ymm11, ymm9, [r10+32]
+        vpxor	ymm12, ymm5, [r9+96]
+        vpxor	ymm13, ymm6, [r9+64]
+        vpxor	ymm14, ymm7, [rcx+128]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm0
+        vmovdqu	YMMWORD PTR [r10+32], ymm1
+        vmovdqu	YMMWORD PTR [r9+96], ymm2
+        vmovdqu	YMMWORD PTR [r9+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+128], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx]
+        vpxor	ymm11, ymm7, [r10+96]
+        vpxor	ymm12, ymm8, [r10+-96]
+        vpxor	ymm13, ymm9, [r9+-32]
+        vpxor	ymm14, ymm5, [rcx+32]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx], ymm0
+        vmovdqu	YMMWORD PTR [r10+96], ymm1
+        vmovdqu	YMMWORD PTR [r10+-96], ymm2
+        vmovdqu	YMMWORD PTR [r9+-32], ymm3
+        vmovdqu	YMMWORD PTR [rcx+32], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx+-96]
+        vpxor	ymm11, ymm5, [r10]
+        vpxor	ymm12, ymm6, [r10+-32]
+        vpxor	ymm13, ymm7, [r9+32]
+        vpxor	ymm14, ymm8, [rcx+96]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm0
+        vmovdqu	YMMWORD PTR [r10], ymm1
+        vmovdqu	YMMWORD PTR [r10+-32], ymm2
+        vmovdqu	YMMWORD PTR [r9+32], ymm3
+        vmovdqu	YMMWORD PTR [rcx+96], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx+-32]
+        vpxor	ymm11, ymm8, [r10+64]
+        vpxor	ymm12, ymm9, [r9+128]
+        vpxor	ymm13, ymm5, [r9+-64]
+        vpxor	ymm14, ymm6, [r9+-96]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm0
+        vmovdqu	YMMWORD PTR [r10+64], ymm1
+        vmovdqu	YMMWORD PTR [r9+128], ymm2
+        vmovdqu	YMMWORD PTR [r9+-64], ymm3
+        vmovdqu	YMMWORD PTR [r9+-96], ymm4
+        ; Round 13
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm10, ymm10, [rcx+-96]
+        vpxor	ymm10, ymm10, [rcx+-64]
+        vpxor	ymm10, ymm10, [rcx]
+        vpxor	ymm14, ymm4, [rcx+32]
+        vpxor	ymm14, ymm14, [rcx+64]
+        vpxor	ymm14, ymm14, [rcx+96]
+        vpxor	ymm14, ymm14, [rcx+128]
+        vpxor	ymm13, ymm3, [r9+-32]
+        vpxor	ymm13, ymm13, [r9]
+        vpxor	ymm13, ymm13, [r9+32]
+        vpxor	ymm13, ymm13, [r9+64]
+        vpxor	ymm12, ymm2, [r9+96]
+        vpxor	ymm12, ymm12, [r10+-96]
+        vpxor	ymm12, ymm12, [r10+-64]
+        vpxor	ymm12, ymm12, [r10+-32]
+        vpxor	ymm11, ymm1, [r10]
+        vpxor	ymm11, ymm11, [r10+32]
+        vpxor	ymm11, ymm11, [r10+96]
+        vpxor	ymm11, ymm11, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10+32]
+        vpxor	ymm12, ymm7, [r10+-96]
+        vpxor	ymm13, ymm8, [r9+32]
+        vpxor	ymm14, ymm9, [r9+-96]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+416]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+32], ymm1
+        vmovdqu	YMMWORD PTR [r10+-96], ymm2
+        vmovdqu	YMMWORD PTR [r9+32], ymm3
+        vmovdqu	YMMWORD PTR [r9+-96], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9]
+        vpxor	ymm11, ymm9, [rcx+128]
+        vpxor	ymm12, ymm5, [rcx]
+        vpxor	ymm13, ymm6, [r10]
+        vpxor	ymm14, ymm7, [r9+128]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9], ymm0
+        vmovdqu	YMMWORD PTR [rcx+128], ymm1
+        vmovdqu	YMMWORD PTR [rcx], ymm2
+        vmovdqu	YMMWORD PTR [r10], ymm3
+        vmovdqu	YMMWORD PTR [r9+128], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10+128]
+        vpxor	ymm11, ymm7, [r9+96]
+        vpxor	ymm12, ymm8, [r9+-32]
+        vpxor	ymm13, ymm9, [rcx+96]
+        vpxor	ymm14, ymm5, [rcx+-32]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+128], ymm0
+        vmovdqu	YMMWORD PTR [r9+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+-32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx+64]
+        vpxor	ymm11, ymm5, [rcx+-64]
+        vpxor	ymm12, ymm6, [r10+96]
+        vpxor	ymm13, ymm7, [r10+-32]
+        vpxor	ymm14, ymm8, [r9+-64]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+64], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10+96], ymm2
+        vmovdqu	YMMWORD PTR [r10+-32], ymm3
+        vmovdqu	YMMWORD PTR [r9+-64], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10+-64]
+        vpxor	ymm11, ymm8, [r9+64]
+        vpxor	ymm12, ymm9, [rcx+32]
+        vpxor	ymm13, ymm5, [rcx+-96]
+        vpxor	ymm14, ymm6, [r10+64]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-64], ymm0
+        vmovdqu	YMMWORD PTR [r9+64], ymm1
+        vmovdqu	YMMWORD PTR [rcx+32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10+64], ymm4
+        ; Round 14
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm11, ymm1, [rcx+-64]
+        vpxor	ymm14, ymm4, [rcx+-32]
+        vpxor	ymm12, ymm2, [rcx]
+        vpxor	ymm10, ymm10, [rcx+64]
+        vpxor	ymm13, ymm3, [rcx+96]
+        vpxor	ymm11, ymm11, [rcx+128]
+        vpxor	ymm14, ymm14, [r9+-96]
+        vpxor	ymm14, ymm14, [r9+-64]
+        vpxor	ymm12, ymm12, [r9+-32]
+        vpxor	ymm10, ymm10, [r9]
+        vpxor	ymm13, ymm13, [r9+32]
+        vpxor	ymm11, ymm11, [r9+96]
+        vpxor	ymm14, ymm14, [r9+128]
+        vpxor	ymm12, ymm12, [r10+-96]
+        vpxor	ymm13, ymm13, [r10+-32]
+        vpxor	ymm13, ymm13, [r10]
+        vpxor	ymm11, ymm11, [r10+32]
+        vpxor	ymm12, ymm12, [r10+96]
+        vpxor	ymm10, ymm10, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx+128]
+        vpxor	ymm12, ymm7, [r9+-32]
+        vpxor	ymm13, ymm8, [r10+-32]
+        vpxor	ymm14, ymm9, [r10+64]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+448]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+128], ymm1
+        vmovdqu	YMMWORD PTR [r9+-32], ymm2
+        vmovdqu	YMMWORD PTR [r10+-32], ymm3
+        vmovdqu	YMMWORD PTR [r10+64], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9+32]
+        vpxor	ymm11, ymm9, [r9+128]
+        vpxor	ymm12, ymm5, [r10+128]
+        vpxor	ymm13, ymm6, [rcx+-64]
+        vpxor	ymm14, ymm7, [rcx+32]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+32], ymm0
+        vmovdqu	YMMWORD PTR [r9+128], ymm1
+        vmovdqu	YMMWORD PTR [r10+128], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+32], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10+32]
+        vpxor	ymm11, ymm7, [rcx]
+        vpxor	ymm12, ymm8, [rcx+96]
+        vpxor	ymm13, ymm9, [r9+-64]
+        vpxor	ymm14, ymm5, [r10+-64]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+32], ymm0
+        vmovdqu	YMMWORD PTR [rcx], ymm1
+        vmovdqu	YMMWORD PTR [rcx+96], ymm2
+        vmovdqu	YMMWORD PTR [r9+-64], ymm3
+        vmovdqu	YMMWORD PTR [r10+-64], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9+-96]
+        vpxor	ymm11, ymm5, [r9]
+        vpxor	ymm12, ymm6, [r9+96]
+        vpxor	ymm13, ymm7, [r10+96]
+        vpxor	ymm14, ymm8, [rcx+-96]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-96], ymm0
+        vmovdqu	YMMWORD PTR [r9], ymm1
+        vmovdqu	YMMWORD PTR [r9+96], ymm2
+        vmovdqu	YMMWORD PTR [r10+96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10+-96]
+        vpxor	ymm11, ymm8, [r10]
+        vpxor	ymm12, ymm9, [rcx+-32]
+        vpxor	ymm13, ymm5, [rcx+64]
+        vpxor	ymm14, ymm6, [r9+64]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-96], ymm0
+        vmovdqu	YMMWORD PTR [r10], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+64], ymm3
+        vmovdqu	YMMWORD PTR [r9+64], ymm4
+        ; Round 15
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm14, ymm4, [rcx+-96]
+        vpxor	ymm13, ymm3, [rcx+-64]
+        vpxor	ymm11, ymm1, [rcx]
+        vpxor	ymm14, ymm14, [rcx+32]
+        vpxor	ymm12, ymm2, [rcx+96]
+        vpxor	ymm11, ymm11, [rcx+128]
+        vpxor	ymm10, ymm10, [r9+-96]
+        vpxor	ymm13, ymm13, [r9+-64]
+        vpxor	ymm12, ymm12, [r9+-32]
+        vpxor	ymm11, ymm11, [r9]
+        vpxor	ymm10, ymm10, [r9+32]
+        vpxor	ymm12, ymm12, [r9+96]
+        vpxor	ymm11, ymm11, [r9+128]
+        vpxor	ymm14, ymm14, [r10+-64]
+        vpxor	ymm13, ymm13, [r10+-32]
+        vpxor	ymm10, ymm10, [r10+32]
+        vpxor	ymm14, ymm14, [r10+64]
+        vpxor	ymm13, ymm13, [r10+96]
+        vpxor	ymm12, ymm12, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9+128]
+        vpxor	ymm12, ymm7, [rcx+96]
+        vpxor	ymm13, ymm8, [r10+96]
+        vpxor	ymm14, ymm9, [r9+64]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+480]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+128], ymm1
+        vmovdqu	YMMWORD PTR [rcx+96], ymm2
+        vmovdqu	YMMWORD PTR [r10+96], ymm3
+        vmovdqu	YMMWORD PTR [r9+64], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10+-32]
+        vpxor	ymm11, ymm9, [rcx+32]
+        vpxor	ymm12, ymm5, [r10+32]
+        vpxor	ymm13, ymm6, [r9]
+        vpxor	ymm14, ymm7, [rcx+-32]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+32], ymm1
+        vmovdqu	YMMWORD PTR [r10+32], ymm2
+        vmovdqu	YMMWORD PTR [r9], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx+128]
+        vpxor	ymm11, ymm7, [r10+128]
+        vpxor	ymm12, ymm8, [r9+-64]
+        vpxor	ymm13, ymm9, [rcx+-96]
+        vpxor	ymm14, ymm5, [r10+-96]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+128], ymm0
+        vmovdqu	YMMWORD PTR [r10+128], ymm1
+        vmovdqu	YMMWORD PTR [r9+-64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10+-96], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10+64]
+        vpxor	ymm11, ymm5, [r9+32]
+        vpxor	ymm12, ymm6, [rcx]
+        vpxor	ymm13, ymm7, [r9+96]
+        vpxor	ymm14, ymm8, [rcx+64]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+64], ymm0
+        vmovdqu	YMMWORD PTR [r9+32], ymm1
+        vmovdqu	YMMWORD PTR [rcx], ymm2
+        vmovdqu	YMMWORD PTR [r9+96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+64], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9+-32]
+        vpxor	ymm11, ymm8, [rcx+-64]
+        vpxor	ymm12, ymm9, [r10+-64]
+        vpxor	ymm13, ymm5, [r9+-96]
+        vpxor	ymm14, ymm6, [r10]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10+-64], ymm2
+        vmovdqu	YMMWORD PTR [r9+-96], ymm3
+        vmovdqu	YMMWORD PTR [r10], ymm4
+        ; Round 16
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm13, ymm3, [rcx+-96]
+        vpxor	ymm14, ymm4, [rcx+-32]
+        vpxor	ymm12, ymm2, [rcx]
+        vpxor	ymm11, ymm1, [rcx+32]
+        vpxor	ymm14, ymm14, [rcx+64]
+        vpxor	ymm12, ymm12, [rcx+96]
+        vpxor	ymm10, ymm10, [rcx+128]
+        vpxor	ymm12, ymm12, [r9+-64]
+        vpxor	ymm13, ymm13, [r9]
+        vpxor	ymm11, ymm11, [r9+32]
+        vpxor	ymm14, ymm14, [r9+64]
+        vpxor	ymm13, ymm13, [r9+96]
+        vpxor	ymm11, ymm11, [r9+128]
+        vpxor	ymm14, ymm14, [r10+-96]
+        vpxor	ymm10, ymm10, [r10+-32]
+        vpxor	ymm12, ymm12, [r10+32]
+        vpxor	ymm10, ymm10, [r10+64]
+        vpxor	ymm13, ymm13, [r10+96]
+        vpxor	ymm11, ymm11, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx+32]
+        vpxor	ymm12, ymm7, [r9+-64]
+        vpxor	ymm13, ymm8, [r9+96]
+        vpxor	ymm14, ymm9, [r10]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+512]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+32], ymm1
+        vmovdqu	YMMWORD PTR [r9+-64], ymm2
+        vmovdqu	YMMWORD PTR [r9+96], ymm3
+        vmovdqu	YMMWORD PTR [r10], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10+96]
+        vpxor	ymm11, ymm9, [rcx+-32]
+        vpxor	ymm12, ymm5, [rcx+128]
+        vpxor	ymm13, ymm6, [r9+32]
+        vpxor	ymm14, ymm7, [r10+-64]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+96], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+128], ymm2
+        vmovdqu	YMMWORD PTR [r9+32], ymm3
+        vmovdqu	YMMWORD PTR [r10+-64], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9+128]
+        vpxor	ymm11, ymm7, [r10+32]
+        vpxor	ymm12, ymm8, [rcx+-96]
+        vpxor	ymm13, ymm9, [rcx+64]
+        vpxor	ymm14, ymm5, [r9+-32]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+128], ymm0
+        vmovdqu	YMMWORD PTR [r10+32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm2
+        vmovdqu	YMMWORD PTR [rcx+64], ymm3
+        vmovdqu	YMMWORD PTR [r9+-32], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9+64]
+        vpxor	ymm11, ymm5, [r10+-32]
+        vpxor	ymm12, ymm6, [r10+128]
+        vpxor	ymm13, ymm7, [rcx]
+        vpxor	ymm14, ymm8, [r9+-96]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+64], ymm0
+        vmovdqu	YMMWORD PTR [r10+-32], ymm1
+        vmovdqu	YMMWORD PTR [r10+128], ymm2
+        vmovdqu	YMMWORD PTR [rcx], ymm3
+        vmovdqu	YMMWORD PTR [r9+-96], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx+96]
+        vpxor	ymm11, ymm8, [r9]
+        vpxor	ymm12, ymm9, [r10+-96]
+        vpxor	ymm13, ymm5, [r10+64]
+        vpxor	ymm14, ymm6, [rcx+-64]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+96], ymm0
+        vmovdqu	YMMWORD PTR [r9], ymm1
+        vmovdqu	YMMWORD PTR [r10+-96], ymm2
+        vmovdqu	YMMWORD PTR [r10+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm4
+        ; Round 17
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm12, ymm2, [rcx+-96]
+        vpxor	ymm11, ymm1, [rcx+-32]
+        vpxor	ymm13, ymm3, [rcx]
+        vpxor	ymm11, ymm11, [rcx+32]
+        vpxor	ymm13, ymm13, [rcx+64]
+        vpxor	ymm12, ymm12, [rcx+128]
+        vpxor	ymm14, ymm4, [r9+-96]
+        vpxor	ymm12, ymm12, [r9+-64]
+        vpxor	ymm14, ymm14, [r9+-32]
+        vpxor	ymm13, ymm13, [r9+32]
+        vpxor	ymm10, ymm10, [r9+64]
+        vpxor	ymm13, ymm13, [r9+96]
+        vpxor	ymm10, ymm10, [r9+128]
+        vpxor	ymm14, ymm14, [r10+-64]
+        vpxor	ymm11, ymm11, [r10+-32]
+        vpxor	ymm14, ymm14, [r10]
+        vpxor	ymm11, ymm11, [r10+32]
+        vpxor	ymm10, ymm10, [r10+96]
+        vpxor	ymm12, ymm12, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx+-32]
+        vpxor	ymm12, ymm7, [rcx+-96]
+        vpxor	ymm13, ymm8, [rcx]
+        vpxor	ymm14, ymm9, [rcx+-64]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+544]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm2
+        vmovdqu	YMMWORD PTR [rcx], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9+96]
+        vpxor	ymm11, ymm9, [r10+-64]
+        vpxor	ymm12, ymm5, [r9+128]
+        vpxor	ymm13, ymm6, [r10+-32]
+        vpxor	ymm14, ymm7, [r10+-96]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+96], ymm0
+        vmovdqu	YMMWORD PTR [r10+-64], ymm1
+        vmovdqu	YMMWORD PTR [r9+128], ymm2
+        vmovdqu	YMMWORD PTR [r10+-32], ymm3
+        vmovdqu	YMMWORD PTR [r10+-96], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx+32]
+        vpxor	ymm11, ymm7, [rcx+128]
+        vpxor	ymm12, ymm8, [rcx+64]
+        vpxor	ymm13, ymm9, [r9+-96]
+        vpxor	ymm14, ymm5, [rcx+96]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+128], ymm1
+        vmovdqu	YMMWORD PTR [rcx+64], ymm2
+        vmovdqu	YMMWORD PTR [r9+-96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+96], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10]
+        vpxor	ymm11, ymm5, [r10+96]
+        vpxor	ymm12, ymm6, [r10+32]
+        vpxor	ymm13, ymm7, [r10+128]
+        vpxor	ymm14, ymm8, [r10+64]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10], ymm0
+        vmovdqu	YMMWORD PTR [r10+96], ymm1
+        vmovdqu	YMMWORD PTR [r10+32], ymm2
+        vmovdqu	YMMWORD PTR [r10+128], ymm3
+        vmovdqu	YMMWORD PTR [r10+64], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9+-64]
+        vpxor	ymm11, ymm8, [r9+32]
+        vpxor	ymm12, ymm9, [r9+-32]
+        vpxor	ymm13, ymm5, [r9+64]
+        vpxor	ymm14, ymm6, [r9]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-64], ymm0
+        vmovdqu	YMMWORD PTR [r9+32], ymm1
+        vmovdqu	YMMWORD PTR [r9+-32], ymm2
+        vmovdqu	YMMWORD PTR [r9+64], ymm3
+        vmovdqu	YMMWORD PTR [r9], ymm4
+        ; Round 18
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm12, ymm2, [rcx+-96]
+        vpxor	ymm14, ymm4, [rcx+-64]
+        vpxor	ymm11, ymm1, [rcx+-32]
+        vpxor	ymm13, ymm3, [rcx]
+        vpxor	ymm10, ymm10, [rcx+32]
+        vpxor	ymm12, ymm12, [rcx+64]
+        vpxor	ymm14, ymm14, [rcx+96]
+        vpxor	ymm11, ymm11, [rcx+128]
+        vpxor	ymm13, ymm13, [r9+-96]
+        vpxor	ymm10, ymm10, [r9+96]
+        vpxor	ymm12, ymm12, [r9+128]
+        vpxor	ymm14, ymm14, [r10+-96]
+        vpxor	ymm11, ymm11, [r10+-64]
+        vpxor	ymm13, ymm13, [r10+-32]
+        vpxor	ymm10, ymm10, [r10]
+        vpxor	ymm12, ymm12, [r10+32]
+        vpxor	ymm14, ymm14, [r10+64]
+        vpxor	ymm11, ymm11, [r10+96]
+        vpxor	ymm13, ymm13, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10+-64]
+        vpxor	ymm12, ymm7, [rcx+64]
+        vpxor	ymm13, ymm8, [r10+128]
+        vpxor	ymm14, ymm9, [r9]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+576]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-64], ymm1
+        vmovdqu	YMMWORD PTR [rcx+64], ymm2
+        vmovdqu	YMMWORD PTR [r10+128], ymm3
+        vmovdqu	YMMWORD PTR [r9], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx]
+        vpxor	ymm11, ymm9, [r10+-96]
+        vpxor	ymm12, ymm5, [rcx+32]
+        vpxor	ymm13, ymm6, [r10+96]
+        vpxor	ymm14, ymm7, [r9+-32]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx], ymm0
+        vmovdqu	YMMWORD PTR [r10+-96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+32], ymm2
+        vmovdqu	YMMWORD PTR [r10+96], ymm3
+        vmovdqu	YMMWORD PTR [r9+-32], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx+-32]
+        vpxor	ymm11, ymm7, [r9+128]
+        vpxor	ymm12, ymm8, [r9+-96]
+        vpxor	ymm13, ymm9, [r10+64]
+        vpxor	ymm14, ymm5, [r9+-64]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm0
+        vmovdqu	YMMWORD PTR [r9+128], ymm1
+        vmovdqu	YMMWORD PTR [r9+-96], ymm2
+        vmovdqu	YMMWORD PTR [r10+64], ymm3
+        vmovdqu	YMMWORD PTR [r9+-64], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [rcx+-64]
+        vpxor	ymm11, ymm5, [r9+96]
+        vpxor	ymm12, ymm6, [rcx+128]
+        vpxor	ymm13, ymm7, [r10+32]
+        vpxor	ymm14, ymm8, [r9+64]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm0
+        vmovdqu	YMMWORD PTR [r9+96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+128], ymm2
+        vmovdqu	YMMWORD PTR [r10+32], ymm3
+        vmovdqu	YMMWORD PTR [r9+64], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx+-96]
+        vpxor	ymm11, ymm8, [r10+-32]
+        vpxor	ymm12, ymm9, [rcx+96]
+        vpxor	ymm13, ymm5, [r10]
+        vpxor	ymm14, ymm6, [r9+32]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm0
+        vmovdqu	YMMWORD PTR [r10+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+96], ymm2
+        vmovdqu	YMMWORD PTR [r10], ymm3
+        vmovdqu	YMMWORD PTR [r9+32], ymm4
+        ; Round 19
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm10, ymm10, [rcx+-64]
+        vpxor	ymm10, ymm10, [rcx+-32]
+        vpxor	ymm10, ymm10, [rcx]
+        vpxor	ymm12, ymm2, [rcx+32]
+        vpxor	ymm12, ymm12, [rcx+64]
+        vpxor	ymm12, ymm12, [rcx+128]
+        vpxor	ymm12, ymm12, [r9+-96]
+        vpxor	ymm14, ymm4, [r9+-64]
+        vpxor	ymm14, ymm14, [r9+-32]
+        vpxor	ymm14, ymm14, [r9]
+        vpxor	ymm14, ymm14, [r9+64]
+        vpxor	ymm11, ymm1, [r9+96]
+        vpxor	ymm11, ymm11, [r9+128]
+        vpxor	ymm11, ymm11, [r10+-96]
+        vpxor	ymm11, ymm11, [r10+-64]
+        vpxor	ymm13, ymm3, [r10+32]
+        vpxor	ymm13, ymm13, [r10+64]
+        vpxor	ymm13, ymm13, [r10+96]
+        vpxor	ymm13, ymm13, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r10+-96]
+        vpxor	ymm12, ymm7, [r9+-96]
+        vpxor	ymm13, ymm8, [r10+32]
+        vpxor	ymm14, ymm9, [r9+32]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+608]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-96], ymm1
+        vmovdqu	YMMWORD PTR [r9+-96], ymm2
+        vmovdqu	YMMWORD PTR [r10+32], ymm3
+        vmovdqu	YMMWORD PTR [r9+32], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10+128]
+        vpxor	ymm11, ymm9, [r9+-32]
+        vpxor	ymm12, ymm5, [rcx+-32]
+        vpxor	ymm13, ymm6, [r9+96]
+        vpxor	ymm14, ymm7, [rcx+96]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+128], ymm0
+        vmovdqu	YMMWORD PTR [r9+-32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm2
+        vmovdqu	YMMWORD PTR [r9+96], ymm3
+        vmovdqu	YMMWORD PTR [rcx+96], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10+-64]
+        vpxor	ymm11, ymm7, [rcx+32]
+        vpxor	ymm12, ymm8, [r10+64]
+        vpxor	ymm13, ymm9, [r9+64]
+        vpxor	ymm14, ymm5, [rcx+-96]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-64], ymm0
+        vmovdqu	YMMWORD PTR [rcx+32], ymm1
+        vmovdqu	YMMWORD PTR [r10+64], ymm2
+        vmovdqu	YMMWORD PTR [r9+64], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9]
+        vpxor	ymm11, ymm5, [rcx]
+        vpxor	ymm12, ymm6, [r9+128]
+        vpxor	ymm13, ymm7, [rcx+128]
+        vpxor	ymm14, ymm8, [r10]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9], ymm0
+        vmovdqu	YMMWORD PTR [rcx], ymm1
+        vmovdqu	YMMWORD PTR [r9+128], ymm2
+        vmovdqu	YMMWORD PTR [rcx+128], ymm3
+        vmovdqu	YMMWORD PTR [r10], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [rcx+64]
+        vpxor	ymm11, ymm8, [r10+96]
+        vpxor	ymm12, ymm9, [r9+-64]
+        vpxor	ymm13, ymm5, [rcx+-64]
+        vpxor	ymm14, ymm6, [r10+-32]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+64], ymm0
+        vmovdqu	YMMWORD PTR [r10+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+-64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm3
+        vmovdqu	YMMWORD PTR [r10+-32], ymm4
+        ; Round 20
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm14, ymm4, [rcx+-96]
+        vpxor	ymm12, ymm2, [rcx+-32]
+        vpxor	ymm11, ymm1, [rcx]
+        vpxor	ymm11, ymm11, [rcx+32]
+        vpxor	ymm14, ymm14, [rcx+96]
+        vpxor	ymm13, ymm3, [rcx+128]
+        vpxor	ymm12, ymm12, [r9+-96]
+        vpxor	ymm11, ymm11, [r9+-32]
+        vpxor	ymm10, ymm10, [r9]
+        vpxor	ymm14, ymm14, [r9+32]
+        vpxor	ymm13, ymm13, [r9+64]
+        vpxor	ymm13, ymm13, [r9+96]
+        vpxor	ymm12, ymm12, [r9+128]
+        vpxor	ymm11, ymm11, [r10+-96]
+        vpxor	ymm10, ymm10, [r10+-64]
+        vpxor	ymm14, ymm14, [r10]
+        vpxor	ymm13, ymm13, [r10+32]
+        vpxor	ymm12, ymm12, [r10+64]
+        vpxor	ymm10, ymm10, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9+-32]
+        vpxor	ymm12, ymm7, [r10+64]
+        vpxor	ymm13, ymm8, [rcx+128]
+        vpxor	ymm14, ymm9, [r10+-32]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+640]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-32], ymm1
+        vmovdqu	YMMWORD PTR [r10+64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+128], ymm3
+        vmovdqu	YMMWORD PTR [r10+-32], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r10+32]
+        vpxor	ymm11, ymm9, [rcx+96]
+        vpxor	ymm12, ymm5, [r10+-64]
+        vpxor	ymm13, ymm6, [rcx]
+        vpxor	ymm14, ymm7, [r9+-64]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+96], ymm1
+        vmovdqu	YMMWORD PTR [r10+-64], ymm2
+        vmovdqu	YMMWORD PTR [rcx], ymm3
+        vmovdqu	YMMWORD PTR [r9+-64], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r10+-96]
+        vpxor	ymm11, ymm7, [rcx+-32]
+        vpxor	ymm12, ymm8, [r9+64]
+        vpxor	ymm13, ymm9, [r10]
+        vpxor	ymm14, ymm5, [rcx+64]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-96], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm1
+        vmovdqu	YMMWORD PTR [r9+64], ymm2
+        vmovdqu	YMMWORD PTR [r10], ymm3
+        vmovdqu	YMMWORD PTR [rcx+64], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9+32]
+        vpxor	ymm11, ymm5, [r10+128]
+        vpxor	ymm12, ymm6, [rcx+32]
+        vpxor	ymm13, ymm7, [r9+128]
+        vpxor	ymm14, ymm8, [rcx+-64]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+32], ymm0
+        vmovdqu	YMMWORD PTR [r10+128], ymm1
+        vmovdqu	YMMWORD PTR [rcx+32], ymm2
+        vmovdqu	YMMWORD PTR [r9+128], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9+-96]
+        vpxor	ymm11, ymm8, [r9+96]
+        vpxor	ymm12, ymm9, [rcx+-96]
+        vpxor	ymm13, ymm5, [r9]
+        vpxor	ymm14, ymm6, [r10+96]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-96], ymm0
+        vmovdqu	YMMWORD PTR [r9+96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm2
+        vmovdqu	YMMWORD PTR [r9], ymm3
+        vmovdqu	YMMWORD PTR [r10+96], ymm4
+        ; Round 21
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm14, ymm4, [rcx+-64]
+        vpxor	ymm11, ymm1, [rcx+-32]
+        vpxor	ymm13, ymm3, [rcx]
+        vpxor	ymm12, ymm2, [rcx+32]
+        vpxor	ymm14, ymm14, [rcx+64]
+        vpxor	ymm11, ymm11, [rcx+96]
+        vpxor	ymm13, ymm13, [rcx+128]
+        vpxor	ymm14, ymm14, [r9+-64]
+        vpxor	ymm11, ymm11, [r9+-32]
+        vpxor	ymm10, ymm10, [r9+32]
+        vpxor	ymm12, ymm12, [r9+64]
+        vpxor	ymm13, ymm13, [r9+128]
+        vpxor	ymm10, ymm10, [r10+-96]
+        vpxor	ymm12, ymm12, [r10+-64]
+        vpxor	ymm14, ymm14, [r10+-32]
+        vpxor	ymm13, ymm13, [r10]
+        vpxor	ymm10, ymm10, [r10+32]
+        vpxor	ymm12, ymm12, [r10+64]
+        vpxor	ymm11, ymm11, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx+96]
+        vpxor	ymm12, ymm7, [r9+64]
+        vpxor	ymm13, ymm8, [r9+128]
+        vpxor	ymm14, ymm9, [r10+96]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+672]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+96], ymm1
+        vmovdqu	YMMWORD PTR [r9+64], ymm2
+        vmovdqu	YMMWORD PTR [r9+128], ymm3
+        vmovdqu	YMMWORD PTR [r10+96], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx+128]
+        vpxor	ymm11, ymm9, [r9+-64]
+        vpxor	ymm12, ymm5, [r10+-96]
+        vpxor	ymm13, ymm6, [r10+128]
+        vpxor	ymm14, ymm7, [rcx+-96]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+128], ymm0
+        vmovdqu	YMMWORD PTR [r9+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10+-96], ymm2
+        vmovdqu	YMMWORD PTR [r10+128], ymm3
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9+-32]
+        vpxor	ymm11, ymm7, [r10+-64]
+        vpxor	ymm12, ymm8, [r10]
+        vpxor	ymm13, ymm9, [rcx+-64]
+        vpxor	ymm14, ymm5, [r9+-96]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-32], ymm0
+        vmovdqu	YMMWORD PTR [r10+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm3
+        vmovdqu	YMMWORD PTR [r9+-96], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10+-32]
+        vpxor	ymm11, ymm5, [r10+32]
+        vpxor	ymm12, ymm6, [rcx+-32]
+        vpxor	ymm13, ymm7, [rcx+32]
+        vpxor	ymm14, ymm8, [r9]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+-32], ymm0
+        vmovdqu	YMMWORD PTR [r10+32], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm2
+        vmovdqu	YMMWORD PTR [rcx+32], ymm3
+        vmovdqu	YMMWORD PTR [r9], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10+64]
+        vpxor	ymm11, ymm8, [rcx]
+        vpxor	ymm12, ymm9, [rcx+64]
+        vpxor	ymm13, ymm5, [r9+32]
+        vpxor	ymm14, ymm6, [r9+96]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+64], ymm0
+        vmovdqu	YMMWORD PTR [rcx], ymm1
+        vmovdqu	YMMWORD PTR [rcx+64], ymm2
+        vmovdqu	YMMWORD PTR [r9+32], ymm3
+        vmovdqu	YMMWORD PTR [r9+96], ymm4
+        ; Round 22
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm14, ymm4, [rcx+-96]
+        vpxor	ymm13, ymm3, [rcx+-64]
+        vpxor	ymm12, ymm2, [rcx+-32]
+        vpxor	ymm13, ymm13, [rcx+32]
+        vpxor	ymm11, ymm1, [rcx+96]
+        vpxor	ymm10, ymm10, [rcx+128]
+        vpxor	ymm14, ymm14, [r9+-96]
+        vpxor	ymm11, ymm11, [r9+-64]
+        vpxor	ymm10, ymm10, [r9+-32]
+        vpxor	ymm14, ymm14, [r9]
+        vpxor	ymm12, ymm12, [r9+64]
+        vpxor	ymm13, ymm13, [r9+128]
+        vpxor	ymm12, ymm12, [r10+-96]
+        vpxor	ymm11, ymm11, [r10+-64]
+        vpxor	ymm10, ymm10, [r10+-32]
+        vpxor	ymm12, ymm12, [r10]
+        vpxor	ymm11, ymm11, [r10+32]
+        vpxor	ymm14, ymm14, [r10+96]
+        vpxor	ymm13, ymm13, [r10+128]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [r9+-64]
+        vpxor	ymm12, ymm7, [r10]
+        vpxor	ymm13, ymm8, [rcx+32]
+        vpxor	ymm14, ymm9, [r9+96]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+704]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-64], ymm1
+        vmovdqu	YMMWORD PTR [r10], ymm2
+        vmovdqu	YMMWORD PTR [rcx+32], ymm3
+        vmovdqu	YMMWORD PTR [r9+96], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [r9+128]
+        vpxor	ymm11, ymm9, [rcx+-96]
+        vpxor	ymm12, ymm5, [r9+-32]
+        vpxor	ymm13, ymm6, [r10+32]
+        vpxor	ymm14, ymm7, [rcx+64]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+128], ymm0
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm1
+        vmovdqu	YMMWORD PTR [r9+-32], ymm2
+        vmovdqu	YMMWORD PTR [r10+32], ymm3
+        vmovdqu	YMMWORD PTR [rcx+64], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [rcx+96]
+        vpxor	ymm11, ymm7, [r10+-96]
+        vpxor	ymm12, ymm8, [rcx+-64]
+        vpxor	ymm13, ymm9, [r9]
+        vpxor	ymm14, ymm5, [r10+64]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+96], ymm0
+        vmovdqu	YMMWORD PTR [r10+-96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm2
+        vmovdqu	YMMWORD PTR [r9], ymm3
+        vmovdqu	YMMWORD PTR [r10+64], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r10+96]
+        vpxor	ymm11, ymm5, [rcx+128]
+        vpxor	ymm12, ymm6, [r10+-64]
+        vpxor	ymm13, ymm7, [rcx+-32]
+        vpxor	ymm14, ymm8, [r9+32]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10+96], ymm0
+        vmovdqu	YMMWORD PTR [rcx+128], ymm1
+        vmovdqu	YMMWORD PTR [r10+-64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm3
+        vmovdqu	YMMWORD PTR [r9+32], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r9+64]
+        vpxor	ymm11, ymm8, [r10+128]
+        vpxor	ymm12, ymm9, [r9+-96]
+        vpxor	ymm13, ymm5, [r10+-32]
+        vpxor	ymm14, ymm6, [rcx]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+64], ymm0
+        vmovdqu	YMMWORD PTR [r10+128], ymm1
+        vmovdqu	YMMWORD PTR [r9+-96], ymm2
+        vmovdqu	YMMWORD PTR [r10+-32], ymm3
+        vmovdqu	YMMWORD PTR [rcx], ymm4
+        ; Round 23
+        ; Calc b[0..4]
+        vpxor	ymm10, ymm0, ymm15
+        vpxor	ymm11, ymm1, [rcx+-96]
+        vpxor	ymm12, ymm2, [rcx+-64]
+        vpxor	ymm13, ymm3, [rcx+-32]
+        vpxor	ymm13, ymm13, [rcx+32]
+        vpxor	ymm14, ymm4, [rcx+64]
+        vpxor	ymm10, ymm10, [rcx+96]
+        vpxor	ymm11, ymm11, [rcx+128]
+        vpxor	ymm11, ymm11, [r9+-64]
+        vpxor	ymm12, ymm12, [r9+-32]
+        vpxor	ymm13, ymm13, [r9]
+        vpxor	ymm14, ymm14, [r9+32]
+        vpxor	ymm14, ymm14, [r9+96]
+        vpxor	ymm10, ymm10, [r9+128]
+        vpxor	ymm11, ymm11, [r10+-96]
+        vpxor	ymm12, ymm12, [r10+-64]
+        vpxor	ymm12, ymm12, [r10]
+        vpxor	ymm13, ymm13, [r10+32]
+        vpxor	ymm14, ymm14, [r10+64]
+        vpxor	ymm10, ymm10, [r10+96]
+        ; Calc t[0..4]
+        vpsrlq	ymm0, ymm11, 63
+        vpsrlq	ymm1, ymm12, 63
+        vpsrlq	ymm2, ymm13, 63
+        vpsrlq	ymm3, ymm14, 63
+        vpsrlq	ymm4, ymm10, 63
+        vpaddq	ymm5, ymm11, ymm11
+        vpaddq	ymm6, ymm12, ymm12
+        vpaddq	ymm7, ymm13, ymm13
+        vpaddq	ymm8, ymm14, ymm14
+        vpaddq	ymm9, ymm10, ymm10
+        vpor	ymm5, ymm5, ymm0
+        vpor	ymm6, ymm6, ymm1
+        vpor	ymm7, ymm7, ymm2
+        vpor	ymm8, ymm8, ymm3
+        vpor	ymm9, ymm9, ymm4
+        vpxor	ymm5, ymm5, ymm14
+        vpxor	ymm6, ymm6, ymm10
+        vpxor	ymm7, ymm7, ymm11
+        vpxor	ymm8, ymm8, ymm12
+        vpxor	ymm9, ymm9, ymm13
+        ; Row Mix
+        ; Row 0
+        vpxor	ymm10, ymm5, ymm15
+        vpxor	ymm11, ymm6, [rcx+-96]
+        vpxor	ymm12, ymm7, [rcx+-64]
+        vpxor	ymm13, ymm8, [rcx+-32]
+        vpxor	ymm14, ymm9, [rcx]
+        vpsrlq	ymm0, ymm11, 20
+        vpsrlq	ymm1, ymm12, 21
+        vpsrlq	ymm2, ymm13, 43
+        vpsrlq	ymm3, ymm14, 50
+        vpsllq	ymm11, ymm11, 44
+        vpsllq	ymm12, ymm12, 43
+        vpsllq	ymm13, ymm13, 21
+        vpsllq	ymm14, ymm14, 14
+        vpor	ymm11, ymm11, ymm0
+        vpor	ymm12, ymm12, ymm1
+        vpor	ymm13, ymm13, ymm2
+        vpor	ymm14, ymm14, ymm3
+        vpandn	ymm15, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm15, ymm15, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        ; XOR in constant
+        vpxor	ymm15, ymm15, [rax+736]
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+-96], ymm1
+        vmovdqu	YMMWORD PTR [rcx+-64], ymm2
+        vmovdqu	YMMWORD PTR [rcx+-32], ymm3
+        vmovdqu	YMMWORD PTR [rcx], ymm4
+        ; Row 1
+        vpxor	ymm10, ymm8, [rcx+32]
+        vpxor	ymm11, ymm9, [rcx+64]
+        vpxor	ymm12, ymm5, [rcx+96]
+        vpxor	ymm13, ymm6, [rcx+128]
+        vpxor	ymm14, ymm7, [r9+-96]
+        vpsrlq	ymm0, ymm10, 36
+        vpsrlq	ymm1, ymm11, 44
+        vpsrlq	ymm2, ymm12, 61
+        vpsrlq	ymm3, ymm13, 19
+        vpsrlq	ymm4, ymm14, 3
+        vpsllq	ymm10, ymm10, 28
+        vpsllq	ymm11, ymm11, 20
+        vpsllq	ymm12, ymm12, 3
+        vpsllq	ymm13, ymm13, 45
+        vpsllq	ymm14, ymm14, 61
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [rcx+32], ymm0
+        vmovdqu	YMMWORD PTR [rcx+64], ymm1
+        vmovdqu	YMMWORD PTR [rcx+96], ymm2
+        vmovdqu	YMMWORD PTR [rcx+128], ymm3
+        vmovdqu	YMMWORD PTR [r9+-96], ymm4
+        ; Row 2
+        vpxor	ymm10, ymm6, [r9+-64]
+        vpxor	ymm11, ymm7, [r9+-32]
+        vpxor	ymm12, ymm8, [r9]
+        vpxor	ymm13, ymm9, [r9+32]
+        vpxor	ymm14, ymm5, [r9+64]
+        vpsrlq	ymm0, ymm10, 63
+        vpsrlq	ymm1, ymm11, 58
+        vpsrlq	ymm2, ymm12, 39
+        vpsrlq	ymm3, ymm13, 56
+        vpsrlq	ymm4, ymm14, 46
+        vpaddq	ymm10, ymm10, ymm10
+        vpsllq	ymm11, ymm11, 6
+        vpsllq	ymm12, ymm12, 25
+        vpsllq	ymm13, ymm13, 8
+        vpsllq	ymm14, ymm14, 18
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+-64], ymm0
+        vmovdqu	YMMWORD PTR [r9+-32], ymm1
+        vmovdqu	YMMWORD PTR [r9], ymm2
+        vmovdqu	YMMWORD PTR [r9+32], ymm3
+        vmovdqu	YMMWORD PTR [r9+64], ymm4
+        ; Row 3
+        vpxor	ymm10, ymm9, [r9+96]
+        vpxor	ymm11, ymm5, [r9+128]
+        vpxor	ymm12, ymm6, [r10+-96]
+        vpxor	ymm13, ymm7, [r10+-64]
+        vpxor	ymm14, ymm8, [r10+-32]
+        vpsrlq	ymm0, ymm10, 37
+        vpsrlq	ymm1, ymm11, 28
+        vpsrlq	ymm2, ymm12, 54
+        vpsrlq	ymm3, ymm13, 49
+        vpsrlq	ymm4, ymm14, 8
+        vpsllq	ymm10, ymm10, 27
+        vpsllq	ymm11, ymm11, 36
+        vpsllq	ymm12, ymm12, 10
+        vpsllq	ymm13, ymm13, 15
+        vpsllq	ymm14, ymm14, 56
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r9+96], ymm0
+        vmovdqu	YMMWORD PTR [r9+128], ymm1
+        vmovdqu	YMMWORD PTR [r10+-96], ymm2
+        vmovdqu	YMMWORD PTR [r10+-64], ymm3
+        vmovdqu	YMMWORD PTR [r10+-32], ymm4
+        ; Row 4
+        vpxor	ymm10, ymm7, [r10]
+        vpxor	ymm11, ymm8, [r10+32]
+        vpxor	ymm12, ymm9, [r10+64]
+        vpxor	ymm13, ymm5, [r10+96]
+        vpxor	ymm14, ymm6, [r10+128]
+        vpsrlq	ymm0, ymm10, 2
+        vpsrlq	ymm1, ymm11, 9
+        vpsrlq	ymm2, ymm12, 25
+        vpsrlq	ymm3, ymm13, 23
+        vpsrlq	ymm4, ymm14, 62
+        vpsllq	ymm10, ymm10, 62
+        vpsllq	ymm11, ymm11, 55
+        vpsllq	ymm12, ymm12, 39
+        vpsllq	ymm13, ymm13, 41
+        vpsllq	ymm14, ymm14, 2
+        vpor	ymm10, ymm10, ymm0
+        vpor	ymm11, ymm11, ymm1
+        vpor	ymm12, ymm12, ymm2
+        vpor	ymm13, ymm13, ymm3
+        vpor	ymm14, ymm14, ymm4
+        vpandn	ymm0, ymm11, ymm12
+        vpandn	ymm1, ymm12, ymm13
+        vpandn	ymm2, ymm13, ymm14
+        vpandn	ymm3, ymm14, ymm10
+        vpandn	ymm4, ymm10, ymm11
+        vpxor	ymm0, ymm0, ymm10
+        vpxor	ymm1, ymm1, ymm11
+        vpxor	ymm2, ymm2, ymm12
+        vpxor	ymm3, ymm3, ymm13
+        vpxor	ymm4, ymm4, ymm14
+        vmovdqu	YMMWORD PTR [r10], ymm0
+        vmovdqu	YMMWORD PTR [r10+32], ymm1
+        vmovdqu	YMMWORD PTR [r10+64], ymm2
+        vmovdqu	YMMWORD PTR [r10+96], ymm3
+        vmovdqu	YMMWORD PTR [r10+128], ymm4
+        sub	rcx, 128
+        vmovdqu	YMMWORD PTR [rcx], ymm15
+        lea	rdi, QWORD PTR [rcx]
+        mov	r15, 21
+L_sha3_blocksx4_out_avx2_word:
+        mov	rsi, QWORD PTR [rdi]
+        mov	QWORD PTR [rdx], rsi
+        mov	rsi, QWORD PTR [rdi+8]
+        mov	QWORD PTR [r11], rsi
+        mov	rsi, QWORD PTR [rdi+16]
+        mov	QWORD PTR [r12], rsi
+        mov	rsi, QWORD PTR [rdi+24]
+        mov	QWORD PTR [r13], rsi
+        add	rdi, 32
+        add	rdx, 8
+        add	r11, 8
+        add	r12, 8
+        add	r13, 8
+        sub	r14, 1
+        jz	L_sha3_blocksx4_out_avx2_done
+        sub	r15, 1
+        jnz	L_sha3_blocksx4_out_avx2_word
+        jmp	L_sha3_blocksx4_out_avx2_block
+L_sha3_blocksx4_out_avx2_done:
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rsi
+        pop	rdi
+        pop	r15
+        pop	r14
+        pop	r13
+        pop	r12
+        ret
+sha3_blocksx4_out_avx2 ENDP
 _TEXT ENDS
 ENDIF
 IFDEF WOLFSSL_HAVE_MLKEM
@@ -31443,6 +36872,3064 @@ sha3_256_blocksx4_seed_64_avx2 PROC
         ret
 sha3_256_blocksx4_seed_64_avx2 ENDP
 _TEXT ENDS
+ENDIF
+IFDEF HAVE_INTEL_AVX512
+IFDEF WOLFSSL_HAVE_FRODOKEM
+_DATA SEGMENT
+ALIGN 16
+L_sha3_x8_avx512_r QWORD 0000000000000001h, 0000000000000001h
+        QWORD 0000000000000001h, 0000000000000001h
+        QWORD 0000000000000001h, 0000000000000001h
+        QWORD 0000000000000001h, 0000000000000001h
+        QWORD 0000000000008082h, 0000000000008082h
+        QWORD 0000000000008082h, 0000000000008082h
+        QWORD 0000000000008082h, 0000000000008082h
+        QWORD 0000000000008082h, 0000000000008082h
+        QWORD 800000000000808ah, 800000000000808ah
+        QWORD 800000000000808ah, 800000000000808ah
+        QWORD 800000000000808ah, 800000000000808ah
+        QWORD 800000000000808ah, 800000000000808ah
+        QWORD 8000000080008000h, 8000000080008000h
+        QWORD 8000000080008000h, 8000000080008000h
+        QWORD 8000000080008000h, 8000000080008000h
+        QWORD 8000000080008000h, 8000000080008000h
+        QWORD 000000000000808bh, 000000000000808bh
+        QWORD 000000000000808bh, 000000000000808bh
+        QWORD 000000000000808bh, 000000000000808bh
+        QWORD 000000000000808bh, 000000000000808bh
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000000008009h, 8000000000008009h
+        QWORD 8000000000008009h, 8000000000008009h
+        QWORD 8000000000008009h, 8000000000008009h
+        QWORD 8000000000008009h, 8000000000008009h
+        QWORD 000000000000008ah, 000000000000008ah
+        QWORD 000000000000008ah, 000000000000008ah
+        QWORD 000000000000008ah, 000000000000008ah
+        QWORD 000000000000008ah, 000000000000008ah
+        QWORD 0000000000000088h, 0000000000000088h
+        QWORD 0000000000000088h, 0000000000000088h
+        QWORD 0000000000000088h, 0000000000000088h
+        QWORD 0000000000000088h, 0000000000000088h
+        QWORD 0000000080008009h, 0000000080008009h
+        QWORD 0000000080008009h, 0000000080008009h
+        QWORD 0000000080008009h, 0000000080008009h
+        QWORD 0000000080008009h, 0000000080008009h
+        QWORD 000000008000000ah, 000000008000000ah
+        QWORD 000000008000000ah, 000000008000000ah
+        QWORD 000000008000000ah, 000000008000000ah
+        QWORD 000000008000000ah, 000000008000000ah
+        QWORD 000000008000808bh, 000000008000808bh
+        QWORD 000000008000808bh, 000000008000808bh
+        QWORD 000000008000808bh, 000000008000808bh
+        QWORD 000000008000808bh, 000000008000808bh
+        QWORD 800000000000008bh, 800000000000008bh
+        QWORD 800000000000008bh, 800000000000008bh
+        QWORD 800000000000008bh, 800000000000008bh
+        QWORD 800000000000008bh, 800000000000008bh
+        QWORD 8000000000008089h, 8000000000008089h
+        QWORD 8000000000008089h, 8000000000008089h
+        QWORD 8000000000008089h, 8000000000008089h
+        QWORD 8000000000008089h, 8000000000008089h
+        QWORD 8000000000008003h, 8000000000008003h
+        QWORD 8000000000008003h, 8000000000008003h
+        QWORD 8000000000008003h, 8000000000008003h
+        QWORD 8000000000008003h, 8000000000008003h
+        QWORD 8000000000008002h, 8000000000008002h
+        QWORD 8000000000008002h, 8000000000008002h
+        QWORD 8000000000008002h, 8000000000008002h
+        QWORD 8000000000008002h, 8000000000008002h
+        QWORD 8000000000000080h, 8000000000000080h
+        QWORD 8000000000000080h, 8000000000000080h
+        QWORD 8000000000000080h, 8000000000000080h
+        QWORD 8000000000000080h, 8000000000000080h
+        QWORD 000000000000800ah, 000000000000800ah
+        QWORD 000000000000800ah, 000000000000800ah
+        QWORD 000000000000800ah, 000000000000800ah
+        QWORD 000000000000800ah, 000000000000800ah
+        QWORD 800000008000000ah, 800000008000000ah
+        QWORD 800000008000000ah, 800000008000000ah
+        QWORD 800000008000000ah, 800000008000000ah
+        QWORD 800000008000000ah, 800000008000000ah
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000080008081h, 8000000080008081h
+        QWORD 8000000000008080h, 8000000000008080h
+        QWORD 8000000000008080h, 8000000000008080h
+        QWORD 8000000000008080h, 8000000000008080h
+        QWORD 8000000000008080h, 8000000000008080h
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 0000000080000001h, 0000000080000001h
+        QWORD 8000000080008008h, 8000000080008008h
+        QWORD 8000000080008008h, 8000000080008008h
+        QWORD 8000000080008008h, 8000000080008008h
+        QWORD 8000000080008008h, 8000000080008008h
+ptr_L_sha3_x8_avx512_r QWORD L_sha3_x8_avx512_r
+_DATA ENDS
+_TEXT SEGMENT READONLY PARA
+sha3_blocksx8_out_avx512 PROC
+        push	r12
+        push	r13
+        push	r14
+        push	r15
+        push	rdi
+        push	rsi
+        push	rbx
+        push	rbp
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
+        mov	rax, QWORD PTR [ptr_L_sha3_x8_avx512_r]
+        mov	edi, r8d
+        mov	r9, rdx
+        add	r9, rdi
+        mov	r10, r9
+        add	r10, rdi
+        mov	r11, r10
+        add	r11, rdi
+        mov	r12, r11
+        add	r12, rdi
+        mov	r13, r12
+        add	r13, rdi
+        mov	r14, r13
+        add	r14, rdi
+        mov	r15, r14
+        add	r15, rdi
+        shr	rdi, 3
+        vmovdqu64	zmm0, [rcx]
+        vmovdqu64	zmm1, [rcx+64]
+        vmovdqu64	zmm2, [rcx+128]
+        vmovdqu64	zmm3, [rcx+192]
+        vmovdqu64	zmm4, [rcx+256]
+        vmovdqu64	zmm5, [rcx+320]
+        vmovdqu64	zmm6, [rcx+384]
+        vmovdqu64	zmm7, [rcx+448]
+        vmovdqu64	zmm8, [rcx+512]
+        vmovdqu64	zmm9, [rcx+576]
+        vmovdqu64	zmm10, [rcx+640]
+        vmovdqu64	zmm11, [rcx+704]
+        vmovdqu64	zmm12, [rcx+768]
+        vmovdqu64	zmm13, [rcx+832]
+        vmovdqu64	zmm14, [rcx+896]
+        vmovdqu64	zmm15, [rcx+960]
+        vmovdqu64	zmm16, [rcx+1024]
+        vmovdqu64	zmm17, [rcx+1088]
+        vmovdqu64	zmm18, [rcx+1152]
+        vmovdqu64	zmm19, [rcx+1216]
+        vmovdqu64	zmm20, [rcx+1280]
+        vmovdqu64	zmm21, [rcx+1344]
+        vmovdqu64	zmm22, [rcx+1408]
+        vmovdqu64	zmm23, [rcx+1472]
+        vmovdqu64	zmm24, [rcx+1536]
+L_sha3_blocksx8_out_avx512_block:
+        ; Round 0
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm5, zmm10, 150
+        vpternlogq	zmm25, zmm15, zmm20, 150
+        vmovdqu64	zmm26, zmm1
+        vpternlogq	zmm26, zmm6, zmm11, 150
+        vpternlogq	zmm26, zmm16, zmm21, 150
+        vmovdqu64	zmm27, zmm2
+        vpternlogq	zmm27, zmm7, zmm12, 150
+        vpternlogq	zmm27, zmm17, zmm22, 150
+        vmovdqu64	zmm28, zmm3
+        vpternlogq	zmm28, zmm8, zmm13, 150
+        vpternlogq	zmm28, zmm18, zmm23, 150
+        vmovdqu64	zmm29, zmm4
+        vpternlogq	zmm29, zmm9, zmm14, 150
+        vpternlogq	zmm29, zmm19, zmm24, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm1, zmm1, 1
+        vprolq	zmm2, zmm2, 62
+        vprolq	zmm3, zmm3, 28
+        vprolq	zmm4, zmm4, 27
+        vprolq	zmm5, zmm5, 36
+        vprolq	zmm6, zmm6, 44
+        vprolq	zmm7, zmm7, 6
+        vprolq	zmm8, zmm8, 55
+        vprolq	zmm9, zmm9, 20
+        vprolq	zmm10, zmm10, 3
+        vprolq	zmm11, zmm11, 10
+        vprolq	zmm12, zmm12, 43
+        vprolq	zmm13, zmm13, 25
+        vprolq	zmm14, zmm14, 39
+        vprolq	zmm15, zmm15, 41
+        vprolq	zmm16, zmm16, 45
+        vprolq	zmm17, zmm17, 15
+        vprolq	zmm18, zmm18, 21
+        vprolq	zmm19, zmm19, 8
+        vprolq	zmm20, zmm20, 18
+        vprolq	zmm21, zmm21, 2
+        vprolq	zmm22, zmm22, 61
+        vprolq	zmm23, zmm23, 56
+        vprolq	zmm24, zmm24, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm6
+        vpternlogq	zmm0, zmm6, zmm12, 210
+        vpternlogq	zmm6, zmm12, zmm18, 210
+        vpternlogq	zmm12, zmm18, zmm24, 210
+        vpternlogq	zmm18, zmm24, zmm30, 210
+        vpternlogq	zmm24, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm3
+        vmovdqu64	zmm31, zmm9
+        vpternlogq	zmm3, zmm9, zmm10, 210
+        vpternlogq	zmm9, zmm10, zmm16, 210
+        vpternlogq	zmm10, zmm16, zmm22, 210
+        vpternlogq	zmm16, zmm22, zmm30, 210
+        vpternlogq	zmm22, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm1
+        vmovdqu64	zmm31, zmm7
+        vpternlogq	zmm1, zmm7, zmm13, 210
+        vpternlogq	zmm7, zmm13, zmm19, 210
+        vpternlogq	zmm13, zmm19, zmm20, 210
+        vpternlogq	zmm19, zmm20, zmm30, 210
+        vpternlogq	zmm20, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm4
+        vmovdqu64	zmm31, zmm5
+        vpternlogq	zmm4, zmm5, zmm11, 210
+        vpternlogq	zmm5, zmm11, zmm17, 210
+        vpternlogq	zmm11, zmm17, zmm23, 210
+        vpternlogq	zmm17, zmm23, zmm30, 210
+        vpternlogq	zmm23, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm2
+        vmovdqu64	zmm31, zmm8
+        vpternlogq	zmm2, zmm8, zmm14, 210
+        vpternlogq	zmm8, zmm14, zmm15, 210
+        vpternlogq	zmm14, zmm15, zmm21, 210
+        vpternlogq	zmm15, zmm21, zmm30, 210
+        vpternlogq	zmm21, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax]
+        ; Round 1
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm3, zmm1, 150
+        vpternlogq	zmm25, zmm4, zmm2, 150
+        vmovdqu64	zmm26, zmm6
+        vpternlogq	zmm26, zmm9, zmm7, 150
+        vpternlogq	zmm26, zmm5, zmm8, 150
+        vmovdqu64	zmm27, zmm12
+        vpternlogq	zmm27, zmm10, zmm13, 150
+        vpternlogq	zmm27, zmm11, zmm14, 150
+        vmovdqu64	zmm28, zmm18
+        vpternlogq	zmm28, zmm16, zmm19, 150
+        vpternlogq	zmm28, zmm17, zmm15, 150
+        vmovdqu64	zmm29, zmm24
+        vpternlogq	zmm29, zmm22, zmm20, 150
+        vpternlogq	zmm29, zmm23, zmm21, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm6, zmm6, 1
+        vprolq	zmm12, zmm12, 62
+        vprolq	zmm18, zmm18, 28
+        vprolq	zmm24, zmm24, 27
+        vprolq	zmm3, zmm3, 36
+        vprolq	zmm9, zmm9, 44
+        vprolq	zmm10, zmm10, 6
+        vprolq	zmm16, zmm16, 55
+        vprolq	zmm22, zmm22, 20
+        vprolq	zmm1, zmm1, 3
+        vprolq	zmm7, zmm7, 10
+        vprolq	zmm13, zmm13, 43
+        vprolq	zmm19, zmm19, 25
+        vprolq	zmm20, zmm20, 39
+        vprolq	zmm4, zmm4, 41
+        vprolq	zmm5, zmm5, 45
+        vprolq	zmm11, zmm11, 15
+        vprolq	zmm17, zmm17, 21
+        vprolq	zmm23, zmm23, 8
+        vprolq	zmm2, zmm2, 18
+        vprolq	zmm8, zmm8, 2
+        vprolq	zmm14, zmm14, 61
+        vprolq	zmm15, zmm15, 56
+        vprolq	zmm21, zmm21, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm9
+        vpternlogq	zmm0, zmm9, zmm13, 210
+        vpternlogq	zmm9, zmm13, zmm17, 210
+        vpternlogq	zmm13, zmm17, zmm21, 210
+        vpternlogq	zmm17, zmm21, zmm30, 210
+        vpternlogq	zmm21, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm18
+        vmovdqu64	zmm31, zmm22
+        vpternlogq	zmm18, zmm22, zmm1, 210
+        vpternlogq	zmm22, zmm1, zmm5, 210
+        vpternlogq	zmm1, zmm5, zmm14, 210
+        vpternlogq	zmm5, zmm14, zmm30, 210
+        vpternlogq	zmm14, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm6
+        vmovdqu64	zmm31, zmm10
+        vpternlogq	zmm6, zmm10, zmm19, 210
+        vpternlogq	zmm10, zmm19, zmm23, 210
+        vpternlogq	zmm19, zmm23, zmm2, 210
+        vpternlogq	zmm23, zmm2, zmm30, 210
+        vpternlogq	zmm2, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm24
+        vmovdqu64	zmm31, zmm3
+        vpternlogq	zmm24, zmm3, zmm7, 210
+        vpternlogq	zmm3, zmm7, zmm11, 210
+        vpternlogq	zmm7, zmm11, zmm15, 210
+        vpternlogq	zmm11, zmm15, zmm30, 210
+        vpternlogq	zmm15, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm12
+        vmovdqu64	zmm31, zmm16
+        vpternlogq	zmm12, zmm16, zmm20, 210
+        vpternlogq	zmm16, zmm20, zmm4, 210
+        vpternlogq	zmm20, zmm4, zmm8, 210
+        vpternlogq	zmm4, zmm8, zmm30, 210
+        vpternlogq	zmm8, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+64]
+        ; Round 2
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm18, zmm6, 150
+        vpternlogq	zmm25, zmm24, zmm12, 150
+        vmovdqu64	zmm26, zmm9
+        vpternlogq	zmm26, zmm22, zmm10, 150
+        vpternlogq	zmm26, zmm3, zmm16, 150
+        vmovdqu64	zmm27, zmm13
+        vpternlogq	zmm27, zmm1, zmm19, 150
+        vpternlogq	zmm27, zmm7, zmm20, 150
+        vmovdqu64	zmm28, zmm17
+        vpternlogq	zmm28, zmm5, zmm23, 150
+        vpternlogq	zmm28, zmm11, zmm4, 150
+        vmovdqu64	zmm29, zmm21
+        vpternlogq	zmm29, zmm14, zmm2, 150
+        vpternlogq	zmm29, zmm15, zmm8, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm9, zmm9, 1
+        vprolq	zmm13, zmm13, 62
+        vprolq	zmm17, zmm17, 28
+        vprolq	zmm21, zmm21, 27
+        vprolq	zmm18, zmm18, 36
+        vprolq	zmm22, zmm22, 44
+        vprolq	zmm1, zmm1, 6
+        vprolq	zmm5, zmm5, 55
+        vprolq	zmm14, zmm14, 20
+        vprolq	zmm6, zmm6, 3
+        vprolq	zmm10, zmm10, 10
+        vprolq	zmm19, zmm19, 43
+        vprolq	zmm23, zmm23, 25
+        vprolq	zmm2, zmm2, 39
+        vprolq	zmm24, zmm24, 41
+        vprolq	zmm3, zmm3, 45
+        vprolq	zmm7, zmm7, 15
+        vprolq	zmm11, zmm11, 21
+        vprolq	zmm15, zmm15, 8
+        vprolq	zmm12, zmm12, 18
+        vprolq	zmm16, zmm16, 2
+        vprolq	zmm20, zmm20, 61
+        vprolq	zmm4, zmm4, 56
+        vprolq	zmm8, zmm8, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm22
+        vpternlogq	zmm0, zmm22, zmm19, 210
+        vpternlogq	zmm22, zmm19, zmm11, 210
+        vpternlogq	zmm19, zmm11, zmm8, 210
+        vpternlogq	zmm11, zmm8, zmm30, 210
+        vpternlogq	zmm8, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm17
+        vmovdqu64	zmm31, zmm14
+        vpternlogq	zmm17, zmm14, zmm6, 210
+        vpternlogq	zmm14, zmm6, zmm3, 210
+        vpternlogq	zmm6, zmm3, zmm20, 210
+        vpternlogq	zmm3, zmm20, zmm30, 210
+        vpternlogq	zmm20, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm9
+        vmovdqu64	zmm31, zmm1
+        vpternlogq	zmm9, zmm1, zmm23, 210
+        vpternlogq	zmm1, zmm23, zmm15, 210
+        vpternlogq	zmm23, zmm15, zmm12, 210
+        vpternlogq	zmm15, zmm12, zmm30, 210
+        vpternlogq	zmm12, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm21
+        vmovdqu64	zmm31, zmm18
+        vpternlogq	zmm21, zmm18, zmm10, 210
+        vpternlogq	zmm18, zmm10, zmm7, 210
+        vpternlogq	zmm10, zmm7, zmm4, 210
+        vpternlogq	zmm7, zmm4, zmm30, 210
+        vpternlogq	zmm4, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm13
+        vmovdqu64	zmm31, zmm5
+        vpternlogq	zmm13, zmm5, zmm2, 210
+        vpternlogq	zmm5, zmm2, zmm24, 210
+        vpternlogq	zmm2, zmm24, zmm16, 210
+        vpternlogq	zmm24, zmm16, zmm30, 210
+        vpternlogq	zmm16, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+128]
+        ; Round 3
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm17, zmm9, 150
+        vpternlogq	zmm25, zmm21, zmm13, 150
+        vmovdqu64	zmm26, zmm22
+        vpternlogq	zmm26, zmm14, zmm1, 150
+        vpternlogq	zmm26, zmm18, zmm5, 150
+        vmovdqu64	zmm27, zmm19
+        vpternlogq	zmm27, zmm6, zmm23, 150
+        vpternlogq	zmm27, zmm10, zmm2, 150
+        vmovdqu64	zmm28, zmm11
+        vpternlogq	zmm28, zmm3, zmm15, 150
+        vpternlogq	zmm28, zmm7, zmm24, 150
+        vmovdqu64	zmm29, zmm8
+        vpternlogq	zmm29, zmm20, zmm12, 150
+        vpternlogq	zmm29, zmm4, zmm16, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm22, zmm22, 1
+        vprolq	zmm19, zmm19, 62
+        vprolq	zmm11, zmm11, 28
+        vprolq	zmm8, zmm8, 27
+        vprolq	zmm17, zmm17, 36
+        vprolq	zmm14, zmm14, 44
+        vprolq	zmm6, zmm6, 6
+        vprolq	zmm3, zmm3, 55
+        vprolq	zmm20, zmm20, 20
+        vprolq	zmm9, zmm9, 3
+        vprolq	zmm1, zmm1, 10
+        vprolq	zmm23, zmm23, 43
+        vprolq	zmm15, zmm15, 25
+        vprolq	zmm12, zmm12, 39
+        vprolq	zmm21, zmm21, 41
+        vprolq	zmm18, zmm18, 45
+        vprolq	zmm10, zmm10, 15
+        vprolq	zmm7, zmm7, 21
+        vprolq	zmm4, zmm4, 8
+        vprolq	zmm13, zmm13, 18
+        vprolq	zmm5, zmm5, 2
+        vprolq	zmm2, zmm2, 61
+        vprolq	zmm24, zmm24, 56
+        vprolq	zmm16, zmm16, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm14
+        vpternlogq	zmm0, zmm14, zmm23, 210
+        vpternlogq	zmm14, zmm23, zmm7, 210
+        vpternlogq	zmm23, zmm7, zmm16, 210
+        vpternlogq	zmm7, zmm16, zmm30, 210
+        vpternlogq	zmm16, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm11
+        vmovdqu64	zmm31, zmm20
+        vpternlogq	zmm11, zmm20, zmm9, 210
+        vpternlogq	zmm20, zmm9, zmm18, 210
+        vpternlogq	zmm9, zmm18, zmm2, 210
+        vpternlogq	zmm18, zmm2, zmm30, 210
+        vpternlogq	zmm2, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm22
+        vmovdqu64	zmm31, zmm6
+        vpternlogq	zmm22, zmm6, zmm15, 210
+        vpternlogq	zmm6, zmm15, zmm4, 210
+        vpternlogq	zmm15, zmm4, zmm13, 210
+        vpternlogq	zmm4, zmm13, zmm30, 210
+        vpternlogq	zmm13, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm8
+        vmovdqu64	zmm31, zmm17
+        vpternlogq	zmm8, zmm17, zmm1, 210
+        vpternlogq	zmm17, zmm1, zmm10, 210
+        vpternlogq	zmm1, zmm10, zmm24, 210
+        vpternlogq	zmm10, zmm24, zmm30, 210
+        vpternlogq	zmm24, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm19
+        vmovdqu64	zmm31, zmm3
+        vpternlogq	zmm19, zmm3, zmm12, 210
+        vpternlogq	zmm3, zmm12, zmm21, 210
+        vpternlogq	zmm12, zmm21, zmm5, 210
+        vpternlogq	zmm21, zmm5, zmm30, 210
+        vpternlogq	zmm5, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+192]
+        ; Round 4
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm11, zmm22, 150
+        vpternlogq	zmm25, zmm8, zmm19, 150
+        vmovdqu64	zmm26, zmm14
+        vpternlogq	zmm26, zmm20, zmm6, 150
+        vpternlogq	zmm26, zmm17, zmm3, 150
+        vmovdqu64	zmm27, zmm23
+        vpternlogq	zmm27, zmm9, zmm15, 150
+        vpternlogq	zmm27, zmm1, zmm12, 150
+        vmovdqu64	zmm28, zmm7
+        vpternlogq	zmm28, zmm18, zmm4, 150
+        vpternlogq	zmm28, zmm10, zmm21, 150
+        vmovdqu64	zmm29, zmm16
+        vpternlogq	zmm29, zmm2, zmm13, 150
+        vpternlogq	zmm29, zmm24, zmm5, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm14, zmm14, 1
+        vprolq	zmm23, zmm23, 62
+        vprolq	zmm7, zmm7, 28
+        vprolq	zmm16, zmm16, 27
+        vprolq	zmm11, zmm11, 36
+        vprolq	zmm20, zmm20, 44
+        vprolq	zmm9, zmm9, 6
+        vprolq	zmm18, zmm18, 55
+        vprolq	zmm2, zmm2, 20
+        vprolq	zmm22, zmm22, 3
+        vprolq	zmm6, zmm6, 10
+        vprolq	zmm15, zmm15, 43
+        vprolq	zmm4, zmm4, 25
+        vprolq	zmm13, zmm13, 39
+        vprolq	zmm8, zmm8, 41
+        vprolq	zmm17, zmm17, 45
+        vprolq	zmm1, zmm1, 15
+        vprolq	zmm10, zmm10, 21
+        vprolq	zmm24, zmm24, 8
+        vprolq	zmm19, zmm19, 18
+        vprolq	zmm3, zmm3, 2
+        vprolq	zmm12, zmm12, 61
+        vprolq	zmm21, zmm21, 56
+        vprolq	zmm5, zmm5, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm20
+        vpternlogq	zmm0, zmm20, zmm15, 210
+        vpternlogq	zmm20, zmm15, zmm10, 210
+        vpternlogq	zmm15, zmm10, zmm5, 210
+        vpternlogq	zmm10, zmm5, zmm30, 210
+        vpternlogq	zmm5, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm7
+        vmovdqu64	zmm31, zmm2
+        vpternlogq	zmm7, zmm2, zmm22, 210
+        vpternlogq	zmm2, zmm22, zmm17, 210
+        vpternlogq	zmm22, zmm17, zmm12, 210
+        vpternlogq	zmm17, zmm12, zmm30, 210
+        vpternlogq	zmm12, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm14
+        vmovdqu64	zmm31, zmm9
+        vpternlogq	zmm14, zmm9, zmm4, 210
+        vpternlogq	zmm9, zmm4, zmm24, 210
+        vpternlogq	zmm4, zmm24, zmm19, 210
+        vpternlogq	zmm24, zmm19, zmm30, 210
+        vpternlogq	zmm19, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm16
+        vmovdqu64	zmm31, zmm11
+        vpternlogq	zmm16, zmm11, zmm6, 210
+        vpternlogq	zmm11, zmm6, zmm1, 210
+        vpternlogq	zmm6, zmm1, zmm21, 210
+        vpternlogq	zmm1, zmm21, zmm30, 210
+        vpternlogq	zmm21, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm23
+        vmovdqu64	zmm31, zmm18
+        vpternlogq	zmm23, zmm18, zmm13, 210
+        vpternlogq	zmm18, zmm13, zmm8, 210
+        vpternlogq	zmm13, zmm8, zmm3, 210
+        vpternlogq	zmm8, zmm3, zmm30, 210
+        vpternlogq	zmm3, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+256]
+        ; Round 5
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm7, zmm14, 150
+        vpternlogq	zmm25, zmm16, zmm23, 150
+        vmovdqu64	zmm26, zmm20
+        vpternlogq	zmm26, zmm2, zmm9, 150
+        vpternlogq	zmm26, zmm11, zmm18, 150
+        vmovdqu64	zmm27, zmm15
+        vpternlogq	zmm27, zmm22, zmm4, 150
+        vpternlogq	zmm27, zmm6, zmm13, 150
+        vmovdqu64	zmm28, zmm10
+        vpternlogq	zmm28, zmm17, zmm24, 150
+        vpternlogq	zmm28, zmm1, zmm8, 150
+        vmovdqu64	zmm29, zmm5
+        vpternlogq	zmm29, zmm12, zmm19, 150
+        vpternlogq	zmm29, zmm21, zmm3, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm20, zmm20, 1
+        vprolq	zmm15, zmm15, 62
+        vprolq	zmm10, zmm10, 28
+        vprolq	zmm5, zmm5, 27
+        vprolq	zmm7, zmm7, 36
+        vprolq	zmm2, zmm2, 44
+        vprolq	zmm22, zmm22, 6
+        vprolq	zmm17, zmm17, 55
+        vprolq	zmm12, zmm12, 20
+        vprolq	zmm14, zmm14, 3
+        vprolq	zmm9, zmm9, 10
+        vprolq	zmm4, zmm4, 43
+        vprolq	zmm24, zmm24, 25
+        vprolq	zmm19, zmm19, 39
+        vprolq	zmm16, zmm16, 41
+        vprolq	zmm11, zmm11, 45
+        vprolq	zmm6, zmm6, 15
+        vprolq	zmm1, zmm1, 21
+        vprolq	zmm21, zmm21, 8
+        vprolq	zmm23, zmm23, 18
+        vprolq	zmm18, zmm18, 2
+        vprolq	zmm13, zmm13, 61
+        vprolq	zmm8, zmm8, 56
+        vprolq	zmm3, zmm3, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm2
+        vpternlogq	zmm0, zmm2, zmm4, 210
+        vpternlogq	zmm2, zmm4, zmm1, 210
+        vpternlogq	zmm4, zmm1, zmm3, 210
+        vpternlogq	zmm1, zmm3, zmm30, 210
+        vpternlogq	zmm3, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm10
+        vmovdqu64	zmm31, zmm12
+        vpternlogq	zmm10, zmm12, zmm14, 210
+        vpternlogq	zmm12, zmm14, zmm11, 210
+        vpternlogq	zmm14, zmm11, zmm13, 210
+        vpternlogq	zmm11, zmm13, zmm30, 210
+        vpternlogq	zmm13, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm20
+        vmovdqu64	zmm31, zmm22
+        vpternlogq	zmm20, zmm22, zmm24, 210
+        vpternlogq	zmm22, zmm24, zmm21, 210
+        vpternlogq	zmm24, zmm21, zmm23, 210
+        vpternlogq	zmm21, zmm23, zmm30, 210
+        vpternlogq	zmm23, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm5
+        vmovdqu64	zmm31, zmm7
+        vpternlogq	zmm5, zmm7, zmm9, 210
+        vpternlogq	zmm7, zmm9, zmm6, 210
+        vpternlogq	zmm9, zmm6, zmm8, 210
+        vpternlogq	zmm6, zmm8, zmm30, 210
+        vpternlogq	zmm8, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm15
+        vmovdqu64	zmm31, zmm17
+        vpternlogq	zmm15, zmm17, zmm19, 210
+        vpternlogq	zmm17, zmm19, zmm16, 210
+        vpternlogq	zmm19, zmm16, zmm18, 210
+        vpternlogq	zmm16, zmm18, zmm30, 210
+        vpternlogq	zmm18, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+320]
+        ; Round 6
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm10, zmm20, 150
+        vpternlogq	zmm25, zmm5, zmm15, 150
+        vmovdqu64	zmm26, zmm2
+        vpternlogq	zmm26, zmm12, zmm22, 150
+        vpternlogq	zmm26, zmm7, zmm17, 150
+        vmovdqu64	zmm27, zmm4
+        vpternlogq	zmm27, zmm14, zmm24, 150
+        vpternlogq	zmm27, zmm9, zmm19, 150
+        vmovdqu64	zmm28, zmm1
+        vpternlogq	zmm28, zmm11, zmm21, 150
+        vpternlogq	zmm28, zmm6, zmm16, 150
+        vmovdqu64	zmm29, zmm3
+        vpternlogq	zmm29, zmm13, zmm23, 150
+        vpternlogq	zmm29, zmm8, zmm18, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm2, zmm2, 1
+        vprolq	zmm4, zmm4, 62
+        vprolq	zmm1, zmm1, 28
+        vprolq	zmm3, zmm3, 27
+        vprolq	zmm10, zmm10, 36
+        vprolq	zmm12, zmm12, 44
+        vprolq	zmm14, zmm14, 6
+        vprolq	zmm11, zmm11, 55
+        vprolq	zmm13, zmm13, 20
+        vprolq	zmm20, zmm20, 3
+        vprolq	zmm22, zmm22, 10
+        vprolq	zmm24, zmm24, 43
+        vprolq	zmm21, zmm21, 25
+        vprolq	zmm23, zmm23, 39
+        vprolq	zmm5, zmm5, 41
+        vprolq	zmm7, zmm7, 45
+        vprolq	zmm9, zmm9, 15
+        vprolq	zmm6, zmm6, 21
+        vprolq	zmm8, zmm8, 8
+        vprolq	zmm15, zmm15, 18
+        vprolq	zmm17, zmm17, 2
+        vprolq	zmm19, zmm19, 61
+        vprolq	zmm16, zmm16, 56
+        vprolq	zmm18, zmm18, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm12
+        vpternlogq	zmm0, zmm12, zmm24, 210
+        vpternlogq	zmm12, zmm24, zmm6, 210
+        vpternlogq	zmm24, zmm6, zmm18, 210
+        vpternlogq	zmm6, zmm18, zmm30, 210
+        vpternlogq	zmm18, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm1
+        vmovdqu64	zmm31, zmm13
+        vpternlogq	zmm1, zmm13, zmm20, 210
+        vpternlogq	zmm13, zmm20, zmm7, 210
+        vpternlogq	zmm20, zmm7, zmm19, 210
+        vpternlogq	zmm7, zmm19, zmm30, 210
+        vpternlogq	zmm19, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm2
+        vmovdqu64	zmm31, zmm14
+        vpternlogq	zmm2, zmm14, zmm21, 210
+        vpternlogq	zmm14, zmm21, zmm8, 210
+        vpternlogq	zmm21, zmm8, zmm15, 210
+        vpternlogq	zmm8, zmm15, zmm30, 210
+        vpternlogq	zmm15, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm3
+        vmovdqu64	zmm31, zmm10
+        vpternlogq	zmm3, zmm10, zmm22, 210
+        vpternlogq	zmm10, zmm22, zmm9, 210
+        vpternlogq	zmm22, zmm9, zmm16, 210
+        vpternlogq	zmm9, zmm16, zmm30, 210
+        vpternlogq	zmm16, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm4
+        vmovdqu64	zmm31, zmm11
+        vpternlogq	zmm4, zmm11, zmm23, 210
+        vpternlogq	zmm11, zmm23, zmm5, 210
+        vpternlogq	zmm23, zmm5, zmm17, 210
+        vpternlogq	zmm5, zmm17, zmm30, 210
+        vpternlogq	zmm17, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+384]
+        ; Round 7
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm1, zmm2, 150
+        vpternlogq	zmm25, zmm3, zmm4, 150
+        vmovdqu64	zmm26, zmm12
+        vpternlogq	zmm26, zmm13, zmm14, 150
+        vpternlogq	zmm26, zmm10, zmm11, 150
+        vmovdqu64	zmm27, zmm24
+        vpternlogq	zmm27, zmm20, zmm21, 150
+        vpternlogq	zmm27, zmm22, zmm23, 150
+        vmovdqu64	zmm28, zmm6
+        vpternlogq	zmm28, zmm7, zmm8, 150
+        vpternlogq	zmm28, zmm9, zmm5, 150
+        vmovdqu64	zmm29, zmm18
+        vpternlogq	zmm29, zmm19, zmm15, 150
+        vpternlogq	zmm29, zmm16, zmm17, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm12, zmm12, 1
+        vprolq	zmm24, zmm24, 62
+        vprolq	zmm6, zmm6, 28
+        vprolq	zmm18, zmm18, 27
+        vprolq	zmm1, zmm1, 36
+        vprolq	zmm13, zmm13, 44
+        vprolq	zmm20, zmm20, 6
+        vprolq	zmm7, zmm7, 55
+        vprolq	zmm19, zmm19, 20
+        vprolq	zmm2, zmm2, 3
+        vprolq	zmm14, zmm14, 10
+        vprolq	zmm21, zmm21, 43
+        vprolq	zmm8, zmm8, 25
+        vprolq	zmm15, zmm15, 39
+        vprolq	zmm3, zmm3, 41
+        vprolq	zmm10, zmm10, 45
+        vprolq	zmm22, zmm22, 15
+        vprolq	zmm9, zmm9, 21
+        vprolq	zmm16, zmm16, 8
+        vprolq	zmm4, zmm4, 18
+        vprolq	zmm11, zmm11, 2
+        vprolq	zmm23, zmm23, 61
+        vprolq	zmm5, zmm5, 56
+        vprolq	zmm17, zmm17, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm13
+        vpternlogq	zmm0, zmm13, zmm21, 210
+        vpternlogq	zmm13, zmm21, zmm9, 210
+        vpternlogq	zmm21, zmm9, zmm17, 210
+        vpternlogq	zmm9, zmm17, zmm30, 210
+        vpternlogq	zmm17, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm6
+        vmovdqu64	zmm31, zmm19
+        vpternlogq	zmm6, zmm19, zmm2, 210
+        vpternlogq	zmm19, zmm2, zmm10, 210
+        vpternlogq	zmm2, zmm10, zmm23, 210
+        vpternlogq	zmm10, zmm23, zmm30, 210
+        vpternlogq	zmm23, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm12
+        vmovdqu64	zmm31, zmm20
+        vpternlogq	zmm12, zmm20, zmm8, 210
+        vpternlogq	zmm20, zmm8, zmm16, 210
+        vpternlogq	zmm8, zmm16, zmm4, 210
+        vpternlogq	zmm16, zmm4, zmm30, 210
+        vpternlogq	zmm4, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm18
+        vmovdqu64	zmm31, zmm1
+        vpternlogq	zmm18, zmm1, zmm14, 210
+        vpternlogq	zmm1, zmm14, zmm22, 210
+        vpternlogq	zmm14, zmm22, zmm5, 210
+        vpternlogq	zmm22, zmm5, zmm30, 210
+        vpternlogq	zmm5, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm24
+        vmovdqu64	zmm31, zmm7
+        vpternlogq	zmm24, zmm7, zmm15, 210
+        vpternlogq	zmm7, zmm15, zmm3, 210
+        vpternlogq	zmm15, zmm3, zmm11, 210
+        vpternlogq	zmm3, zmm11, zmm30, 210
+        vpternlogq	zmm11, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+448]
+        ; Round 8
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm6, zmm12, 150
+        vpternlogq	zmm25, zmm18, zmm24, 150
+        vmovdqu64	zmm26, zmm13
+        vpternlogq	zmm26, zmm19, zmm20, 150
+        vpternlogq	zmm26, zmm1, zmm7, 150
+        vmovdqu64	zmm27, zmm21
+        vpternlogq	zmm27, zmm2, zmm8, 150
+        vpternlogq	zmm27, zmm14, zmm15, 150
+        vmovdqu64	zmm28, zmm9
+        vpternlogq	zmm28, zmm10, zmm16, 150
+        vpternlogq	zmm28, zmm22, zmm3, 150
+        vmovdqu64	zmm29, zmm17
+        vpternlogq	zmm29, zmm23, zmm4, 150
+        vpternlogq	zmm29, zmm5, zmm11, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm13, zmm13, 1
+        vprolq	zmm21, zmm21, 62
+        vprolq	zmm9, zmm9, 28
+        vprolq	zmm17, zmm17, 27
+        vprolq	zmm6, zmm6, 36
+        vprolq	zmm19, zmm19, 44
+        vprolq	zmm2, zmm2, 6
+        vprolq	zmm10, zmm10, 55
+        vprolq	zmm23, zmm23, 20
+        vprolq	zmm12, zmm12, 3
+        vprolq	zmm20, zmm20, 10
+        vprolq	zmm8, zmm8, 43
+        vprolq	zmm16, zmm16, 25
+        vprolq	zmm4, zmm4, 39
+        vprolq	zmm18, zmm18, 41
+        vprolq	zmm1, zmm1, 45
+        vprolq	zmm14, zmm14, 15
+        vprolq	zmm22, zmm22, 21
+        vprolq	zmm5, zmm5, 8
+        vprolq	zmm24, zmm24, 18
+        vprolq	zmm7, zmm7, 2
+        vprolq	zmm15, zmm15, 61
+        vprolq	zmm3, zmm3, 56
+        vprolq	zmm11, zmm11, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm19
+        vpternlogq	zmm0, zmm19, zmm8, 210
+        vpternlogq	zmm19, zmm8, zmm22, 210
+        vpternlogq	zmm8, zmm22, zmm11, 210
+        vpternlogq	zmm22, zmm11, zmm30, 210
+        vpternlogq	zmm11, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm9
+        vmovdqu64	zmm31, zmm23
+        vpternlogq	zmm9, zmm23, zmm12, 210
+        vpternlogq	zmm23, zmm12, zmm1, 210
+        vpternlogq	zmm12, zmm1, zmm15, 210
+        vpternlogq	zmm1, zmm15, zmm30, 210
+        vpternlogq	zmm15, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm13
+        vmovdqu64	zmm31, zmm2
+        vpternlogq	zmm13, zmm2, zmm16, 210
+        vpternlogq	zmm2, zmm16, zmm5, 210
+        vpternlogq	zmm16, zmm5, zmm24, 210
+        vpternlogq	zmm5, zmm24, zmm30, 210
+        vpternlogq	zmm24, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm17
+        vmovdqu64	zmm31, zmm6
+        vpternlogq	zmm17, zmm6, zmm20, 210
+        vpternlogq	zmm6, zmm20, zmm14, 210
+        vpternlogq	zmm20, zmm14, zmm3, 210
+        vpternlogq	zmm14, zmm3, zmm30, 210
+        vpternlogq	zmm3, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm21
+        vmovdqu64	zmm31, zmm10
+        vpternlogq	zmm21, zmm10, zmm4, 210
+        vpternlogq	zmm10, zmm4, zmm18, 210
+        vpternlogq	zmm4, zmm18, zmm7, 210
+        vpternlogq	zmm18, zmm7, zmm30, 210
+        vpternlogq	zmm7, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+512]
+        ; Round 9
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm9, zmm13, 150
+        vpternlogq	zmm25, zmm17, zmm21, 150
+        vmovdqu64	zmm26, zmm19
+        vpternlogq	zmm26, zmm23, zmm2, 150
+        vpternlogq	zmm26, zmm6, zmm10, 150
+        vmovdqu64	zmm27, zmm8
+        vpternlogq	zmm27, zmm12, zmm16, 150
+        vpternlogq	zmm27, zmm20, zmm4, 150
+        vmovdqu64	zmm28, zmm22
+        vpternlogq	zmm28, zmm1, zmm5, 150
+        vpternlogq	zmm28, zmm14, zmm18, 150
+        vmovdqu64	zmm29, zmm11
+        vpternlogq	zmm29, zmm15, zmm24, 150
+        vpternlogq	zmm29, zmm3, zmm7, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm19, zmm19, 1
+        vprolq	zmm8, zmm8, 62
+        vprolq	zmm22, zmm22, 28
+        vprolq	zmm11, zmm11, 27
+        vprolq	zmm9, zmm9, 36
+        vprolq	zmm23, zmm23, 44
+        vprolq	zmm12, zmm12, 6
+        vprolq	zmm1, zmm1, 55
+        vprolq	zmm15, zmm15, 20
+        vprolq	zmm13, zmm13, 3
+        vprolq	zmm2, zmm2, 10
+        vprolq	zmm16, zmm16, 43
+        vprolq	zmm5, zmm5, 25
+        vprolq	zmm24, zmm24, 39
+        vprolq	zmm17, zmm17, 41
+        vprolq	zmm6, zmm6, 45
+        vprolq	zmm20, zmm20, 15
+        vprolq	zmm14, zmm14, 21
+        vprolq	zmm3, zmm3, 8
+        vprolq	zmm21, zmm21, 18
+        vprolq	zmm10, zmm10, 2
+        vprolq	zmm4, zmm4, 61
+        vprolq	zmm18, zmm18, 56
+        vprolq	zmm7, zmm7, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm23
+        vpternlogq	zmm0, zmm23, zmm16, 210
+        vpternlogq	zmm23, zmm16, zmm14, 210
+        vpternlogq	zmm16, zmm14, zmm7, 210
+        vpternlogq	zmm14, zmm7, zmm30, 210
+        vpternlogq	zmm7, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm22
+        vmovdqu64	zmm31, zmm15
+        vpternlogq	zmm22, zmm15, zmm13, 210
+        vpternlogq	zmm15, zmm13, zmm6, 210
+        vpternlogq	zmm13, zmm6, zmm4, 210
+        vpternlogq	zmm6, zmm4, zmm30, 210
+        vpternlogq	zmm4, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm19
+        vmovdqu64	zmm31, zmm12
+        vpternlogq	zmm19, zmm12, zmm5, 210
+        vpternlogq	zmm12, zmm5, zmm3, 210
+        vpternlogq	zmm5, zmm3, zmm21, 210
+        vpternlogq	zmm3, zmm21, zmm30, 210
+        vpternlogq	zmm21, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm11
+        vmovdqu64	zmm31, zmm9
+        vpternlogq	zmm11, zmm9, zmm2, 210
+        vpternlogq	zmm9, zmm2, zmm20, 210
+        vpternlogq	zmm2, zmm20, zmm18, 210
+        vpternlogq	zmm20, zmm18, zmm30, 210
+        vpternlogq	zmm18, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm8
+        vmovdqu64	zmm31, zmm1
+        vpternlogq	zmm8, zmm1, zmm24, 210
+        vpternlogq	zmm1, zmm24, zmm17, 210
+        vpternlogq	zmm24, zmm17, zmm10, 210
+        vpternlogq	zmm17, zmm10, zmm30, 210
+        vpternlogq	zmm10, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+576]
+        ; Round 10
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm22, zmm19, 150
+        vpternlogq	zmm25, zmm11, zmm8, 150
+        vmovdqu64	zmm26, zmm23
+        vpternlogq	zmm26, zmm15, zmm12, 150
+        vpternlogq	zmm26, zmm9, zmm1, 150
+        vmovdqu64	zmm27, zmm16
+        vpternlogq	zmm27, zmm13, zmm5, 150
+        vpternlogq	zmm27, zmm2, zmm24, 150
+        vmovdqu64	zmm28, zmm14
+        vpternlogq	zmm28, zmm6, zmm3, 150
+        vpternlogq	zmm28, zmm20, zmm17, 150
+        vmovdqu64	zmm29, zmm7
+        vpternlogq	zmm29, zmm4, zmm21, 150
+        vpternlogq	zmm29, zmm18, zmm10, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm23, zmm23, 1
+        vprolq	zmm16, zmm16, 62
+        vprolq	zmm14, zmm14, 28
+        vprolq	zmm7, zmm7, 27
+        vprolq	zmm22, zmm22, 36
+        vprolq	zmm15, zmm15, 44
+        vprolq	zmm13, zmm13, 6
+        vprolq	zmm6, zmm6, 55
+        vprolq	zmm4, zmm4, 20
+        vprolq	zmm19, zmm19, 3
+        vprolq	zmm12, zmm12, 10
+        vprolq	zmm5, zmm5, 43
+        vprolq	zmm3, zmm3, 25
+        vprolq	zmm21, zmm21, 39
+        vprolq	zmm11, zmm11, 41
+        vprolq	zmm9, zmm9, 45
+        vprolq	zmm2, zmm2, 15
+        vprolq	zmm20, zmm20, 21
+        vprolq	zmm18, zmm18, 8
+        vprolq	zmm8, zmm8, 18
+        vprolq	zmm1, zmm1, 2
+        vprolq	zmm24, zmm24, 61
+        vprolq	zmm17, zmm17, 56
+        vprolq	zmm10, zmm10, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm15
+        vpternlogq	zmm0, zmm15, zmm5, 210
+        vpternlogq	zmm15, zmm5, zmm20, 210
+        vpternlogq	zmm5, zmm20, zmm10, 210
+        vpternlogq	zmm20, zmm10, zmm30, 210
+        vpternlogq	zmm10, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm14
+        vmovdqu64	zmm31, zmm4
+        vpternlogq	zmm14, zmm4, zmm19, 210
+        vpternlogq	zmm4, zmm19, zmm9, 210
+        vpternlogq	zmm19, zmm9, zmm24, 210
+        vpternlogq	zmm9, zmm24, zmm30, 210
+        vpternlogq	zmm24, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm23
+        vmovdqu64	zmm31, zmm13
+        vpternlogq	zmm23, zmm13, zmm3, 210
+        vpternlogq	zmm13, zmm3, zmm18, 210
+        vpternlogq	zmm3, zmm18, zmm8, 210
+        vpternlogq	zmm18, zmm8, zmm30, 210
+        vpternlogq	zmm8, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm7
+        vmovdqu64	zmm31, zmm22
+        vpternlogq	zmm7, zmm22, zmm12, 210
+        vpternlogq	zmm22, zmm12, zmm2, 210
+        vpternlogq	zmm12, zmm2, zmm17, 210
+        vpternlogq	zmm2, zmm17, zmm30, 210
+        vpternlogq	zmm17, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm16
+        vmovdqu64	zmm31, zmm6
+        vpternlogq	zmm16, zmm6, zmm21, 210
+        vpternlogq	zmm6, zmm21, zmm11, 210
+        vpternlogq	zmm21, zmm11, zmm1, 210
+        vpternlogq	zmm11, zmm1, zmm30, 210
+        vpternlogq	zmm1, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+640]
+        ; Round 11
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm14, zmm23, 150
+        vpternlogq	zmm25, zmm7, zmm16, 150
+        vmovdqu64	zmm26, zmm15
+        vpternlogq	zmm26, zmm4, zmm13, 150
+        vpternlogq	zmm26, zmm22, zmm6, 150
+        vmovdqu64	zmm27, zmm5
+        vpternlogq	zmm27, zmm19, zmm3, 150
+        vpternlogq	zmm27, zmm12, zmm21, 150
+        vmovdqu64	zmm28, zmm20
+        vpternlogq	zmm28, zmm9, zmm18, 150
+        vpternlogq	zmm28, zmm2, zmm11, 150
+        vmovdqu64	zmm29, zmm10
+        vpternlogq	zmm29, zmm24, zmm8, 150
+        vpternlogq	zmm29, zmm17, zmm1, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm15, zmm15, 1
+        vprolq	zmm5, zmm5, 62
+        vprolq	zmm20, zmm20, 28
+        vprolq	zmm10, zmm10, 27
+        vprolq	zmm14, zmm14, 36
+        vprolq	zmm4, zmm4, 44
+        vprolq	zmm19, zmm19, 6
+        vprolq	zmm9, zmm9, 55
+        vprolq	zmm24, zmm24, 20
+        vprolq	zmm23, zmm23, 3
+        vprolq	zmm13, zmm13, 10
+        vprolq	zmm3, zmm3, 43
+        vprolq	zmm18, zmm18, 25
+        vprolq	zmm8, zmm8, 39
+        vprolq	zmm7, zmm7, 41
+        vprolq	zmm22, zmm22, 45
+        vprolq	zmm12, zmm12, 15
+        vprolq	zmm2, zmm2, 21
+        vprolq	zmm17, zmm17, 8
+        vprolq	zmm16, zmm16, 18
+        vprolq	zmm6, zmm6, 2
+        vprolq	zmm21, zmm21, 61
+        vprolq	zmm11, zmm11, 56
+        vprolq	zmm1, zmm1, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm4
+        vpternlogq	zmm0, zmm4, zmm3, 210
+        vpternlogq	zmm4, zmm3, zmm2, 210
+        vpternlogq	zmm3, zmm2, zmm1, 210
+        vpternlogq	zmm2, zmm1, zmm30, 210
+        vpternlogq	zmm1, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm20
+        vmovdqu64	zmm31, zmm24
+        vpternlogq	zmm20, zmm24, zmm23, 210
+        vpternlogq	zmm24, zmm23, zmm22, 210
+        vpternlogq	zmm23, zmm22, zmm21, 210
+        vpternlogq	zmm22, zmm21, zmm30, 210
+        vpternlogq	zmm21, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm15
+        vmovdqu64	zmm31, zmm19
+        vpternlogq	zmm15, zmm19, zmm18, 210
+        vpternlogq	zmm19, zmm18, zmm17, 210
+        vpternlogq	zmm18, zmm17, zmm16, 210
+        vpternlogq	zmm17, zmm16, zmm30, 210
+        vpternlogq	zmm16, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm10
+        vmovdqu64	zmm31, zmm14
+        vpternlogq	zmm10, zmm14, zmm13, 210
+        vpternlogq	zmm14, zmm13, zmm12, 210
+        vpternlogq	zmm13, zmm12, zmm11, 210
+        vpternlogq	zmm12, zmm11, zmm30, 210
+        vpternlogq	zmm11, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm5
+        vmovdqu64	zmm31, zmm9
+        vpternlogq	zmm5, zmm9, zmm8, 210
+        vpternlogq	zmm9, zmm8, zmm7, 210
+        vpternlogq	zmm8, zmm7, zmm6, 210
+        vpternlogq	zmm7, zmm6, zmm30, 210
+        vpternlogq	zmm6, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+704]
+        ; Round 12
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm20, zmm15, 150
+        vpternlogq	zmm25, zmm10, zmm5, 150
+        vmovdqu64	zmm26, zmm4
+        vpternlogq	zmm26, zmm24, zmm19, 150
+        vpternlogq	zmm26, zmm14, zmm9, 150
+        vmovdqu64	zmm27, zmm3
+        vpternlogq	zmm27, zmm23, zmm18, 150
+        vpternlogq	zmm27, zmm13, zmm8, 150
+        vmovdqu64	zmm28, zmm2
+        vpternlogq	zmm28, zmm22, zmm17, 150
+        vpternlogq	zmm28, zmm12, zmm7, 150
+        vmovdqu64	zmm29, zmm1
+        vpternlogq	zmm29, zmm21, zmm16, 150
+        vpternlogq	zmm29, zmm11, zmm6, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm4, zmm4, 1
+        vprolq	zmm3, zmm3, 62
+        vprolq	zmm2, zmm2, 28
+        vprolq	zmm1, zmm1, 27
+        vprolq	zmm20, zmm20, 36
+        vprolq	zmm24, zmm24, 44
+        vprolq	zmm23, zmm23, 6
+        vprolq	zmm22, zmm22, 55
+        vprolq	zmm21, zmm21, 20
+        vprolq	zmm15, zmm15, 3
+        vprolq	zmm19, zmm19, 10
+        vprolq	zmm18, zmm18, 43
+        vprolq	zmm17, zmm17, 25
+        vprolq	zmm16, zmm16, 39
+        vprolq	zmm10, zmm10, 41
+        vprolq	zmm14, zmm14, 45
+        vprolq	zmm13, zmm13, 15
+        vprolq	zmm12, zmm12, 21
+        vprolq	zmm11, zmm11, 8
+        vprolq	zmm5, zmm5, 18
+        vprolq	zmm9, zmm9, 2
+        vprolq	zmm8, zmm8, 61
+        vprolq	zmm7, zmm7, 56
+        vprolq	zmm6, zmm6, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm24
+        vpternlogq	zmm0, zmm24, zmm18, 210
+        vpternlogq	zmm24, zmm18, zmm12, 210
+        vpternlogq	zmm18, zmm12, zmm6, 210
+        vpternlogq	zmm12, zmm6, zmm30, 210
+        vpternlogq	zmm6, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm2
+        vmovdqu64	zmm31, zmm21
+        vpternlogq	zmm2, zmm21, zmm15, 210
+        vpternlogq	zmm21, zmm15, zmm14, 210
+        vpternlogq	zmm15, zmm14, zmm8, 210
+        vpternlogq	zmm14, zmm8, zmm30, 210
+        vpternlogq	zmm8, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm4
+        vmovdqu64	zmm31, zmm23
+        vpternlogq	zmm4, zmm23, zmm17, 210
+        vpternlogq	zmm23, zmm17, zmm11, 210
+        vpternlogq	zmm17, zmm11, zmm5, 210
+        vpternlogq	zmm11, zmm5, zmm30, 210
+        vpternlogq	zmm5, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm1
+        vmovdqu64	zmm31, zmm20
+        vpternlogq	zmm1, zmm20, zmm19, 210
+        vpternlogq	zmm20, zmm19, zmm13, 210
+        vpternlogq	zmm19, zmm13, zmm7, 210
+        vpternlogq	zmm13, zmm7, zmm30, 210
+        vpternlogq	zmm7, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm3
+        vmovdqu64	zmm31, zmm22
+        vpternlogq	zmm3, zmm22, zmm16, 210
+        vpternlogq	zmm22, zmm16, zmm10, 210
+        vpternlogq	zmm16, zmm10, zmm9, 210
+        vpternlogq	zmm10, zmm9, zmm30, 210
+        vpternlogq	zmm9, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+768]
+        ; Round 13
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm2, zmm4, 150
+        vpternlogq	zmm25, zmm1, zmm3, 150
+        vmovdqu64	zmm26, zmm24
+        vpternlogq	zmm26, zmm21, zmm23, 150
+        vpternlogq	zmm26, zmm20, zmm22, 150
+        vmovdqu64	zmm27, zmm18
+        vpternlogq	zmm27, zmm15, zmm17, 150
+        vpternlogq	zmm27, zmm19, zmm16, 150
+        vmovdqu64	zmm28, zmm12
+        vpternlogq	zmm28, zmm14, zmm11, 150
+        vpternlogq	zmm28, zmm13, zmm10, 150
+        vmovdqu64	zmm29, zmm6
+        vpternlogq	zmm29, zmm8, zmm5, 150
+        vpternlogq	zmm29, zmm7, zmm9, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm24, zmm24, 1
+        vprolq	zmm18, zmm18, 62
+        vprolq	zmm12, zmm12, 28
+        vprolq	zmm6, zmm6, 27
+        vprolq	zmm2, zmm2, 36
+        vprolq	zmm21, zmm21, 44
+        vprolq	zmm15, zmm15, 6
+        vprolq	zmm14, zmm14, 55
+        vprolq	zmm8, zmm8, 20
+        vprolq	zmm4, zmm4, 3
+        vprolq	zmm23, zmm23, 10
+        vprolq	zmm17, zmm17, 43
+        vprolq	zmm11, zmm11, 25
+        vprolq	zmm5, zmm5, 39
+        vprolq	zmm1, zmm1, 41
+        vprolq	zmm20, zmm20, 45
+        vprolq	zmm19, zmm19, 15
+        vprolq	zmm13, zmm13, 21
+        vprolq	zmm7, zmm7, 8
+        vprolq	zmm3, zmm3, 18
+        vprolq	zmm22, zmm22, 2
+        vprolq	zmm16, zmm16, 61
+        vprolq	zmm10, zmm10, 56
+        vprolq	zmm9, zmm9, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm21
+        vpternlogq	zmm0, zmm21, zmm17, 210
+        vpternlogq	zmm21, zmm17, zmm13, 210
+        vpternlogq	zmm17, zmm13, zmm9, 210
+        vpternlogq	zmm13, zmm9, zmm30, 210
+        vpternlogq	zmm9, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm12
+        vmovdqu64	zmm31, zmm8
+        vpternlogq	zmm12, zmm8, zmm4, 210
+        vpternlogq	zmm8, zmm4, zmm20, 210
+        vpternlogq	zmm4, zmm20, zmm16, 210
+        vpternlogq	zmm20, zmm16, zmm30, 210
+        vpternlogq	zmm16, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm24
+        vmovdqu64	zmm31, zmm15
+        vpternlogq	zmm24, zmm15, zmm11, 210
+        vpternlogq	zmm15, zmm11, zmm7, 210
+        vpternlogq	zmm11, zmm7, zmm3, 210
+        vpternlogq	zmm7, zmm3, zmm30, 210
+        vpternlogq	zmm3, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm6
+        vmovdqu64	zmm31, zmm2
+        vpternlogq	zmm6, zmm2, zmm23, 210
+        vpternlogq	zmm2, zmm23, zmm19, 210
+        vpternlogq	zmm23, zmm19, zmm10, 210
+        vpternlogq	zmm19, zmm10, zmm30, 210
+        vpternlogq	zmm10, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm18
+        vmovdqu64	zmm31, zmm14
+        vpternlogq	zmm18, zmm14, zmm5, 210
+        vpternlogq	zmm14, zmm5, zmm1, 210
+        vpternlogq	zmm5, zmm1, zmm22, 210
+        vpternlogq	zmm1, zmm22, zmm30, 210
+        vpternlogq	zmm22, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+832]
+        ; Round 14
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm12, zmm24, 150
+        vpternlogq	zmm25, zmm6, zmm18, 150
+        vmovdqu64	zmm26, zmm21
+        vpternlogq	zmm26, zmm8, zmm15, 150
+        vpternlogq	zmm26, zmm2, zmm14, 150
+        vmovdqu64	zmm27, zmm17
+        vpternlogq	zmm27, zmm4, zmm11, 150
+        vpternlogq	zmm27, zmm23, zmm5, 150
+        vmovdqu64	zmm28, zmm13
+        vpternlogq	zmm28, zmm20, zmm7, 150
+        vpternlogq	zmm28, zmm19, zmm1, 150
+        vmovdqu64	zmm29, zmm9
+        vpternlogq	zmm29, zmm16, zmm3, 150
+        vpternlogq	zmm29, zmm10, zmm22, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm21, zmm21, 1
+        vprolq	zmm17, zmm17, 62
+        vprolq	zmm13, zmm13, 28
+        vprolq	zmm9, zmm9, 27
+        vprolq	zmm12, zmm12, 36
+        vprolq	zmm8, zmm8, 44
+        vprolq	zmm4, zmm4, 6
+        vprolq	zmm20, zmm20, 55
+        vprolq	zmm16, zmm16, 20
+        vprolq	zmm24, zmm24, 3
+        vprolq	zmm15, zmm15, 10
+        vprolq	zmm11, zmm11, 43
+        vprolq	zmm7, zmm7, 25
+        vprolq	zmm3, zmm3, 39
+        vprolq	zmm6, zmm6, 41
+        vprolq	zmm2, zmm2, 45
+        vprolq	zmm23, zmm23, 15
+        vprolq	zmm19, zmm19, 21
+        vprolq	zmm10, zmm10, 8
+        vprolq	zmm18, zmm18, 18
+        vprolq	zmm14, zmm14, 2
+        vprolq	zmm5, zmm5, 61
+        vprolq	zmm1, zmm1, 56
+        vprolq	zmm22, zmm22, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm8
+        vpternlogq	zmm0, zmm8, zmm11, 210
+        vpternlogq	zmm8, zmm11, zmm19, 210
+        vpternlogq	zmm11, zmm19, zmm22, 210
+        vpternlogq	zmm19, zmm22, zmm30, 210
+        vpternlogq	zmm22, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm13
+        vmovdqu64	zmm31, zmm16
+        vpternlogq	zmm13, zmm16, zmm24, 210
+        vpternlogq	zmm16, zmm24, zmm2, 210
+        vpternlogq	zmm24, zmm2, zmm5, 210
+        vpternlogq	zmm2, zmm5, zmm30, 210
+        vpternlogq	zmm5, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm21
+        vmovdqu64	zmm31, zmm4
+        vpternlogq	zmm21, zmm4, zmm7, 210
+        vpternlogq	zmm4, zmm7, zmm10, 210
+        vpternlogq	zmm7, zmm10, zmm18, 210
+        vpternlogq	zmm10, zmm18, zmm30, 210
+        vpternlogq	zmm18, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm9
+        vmovdqu64	zmm31, zmm12
+        vpternlogq	zmm9, zmm12, zmm15, 210
+        vpternlogq	zmm12, zmm15, zmm23, 210
+        vpternlogq	zmm15, zmm23, zmm1, 210
+        vpternlogq	zmm23, zmm1, zmm30, 210
+        vpternlogq	zmm1, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm17
+        vmovdqu64	zmm31, zmm20
+        vpternlogq	zmm17, zmm20, zmm3, 210
+        vpternlogq	zmm20, zmm3, zmm6, 210
+        vpternlogq	zmm3, zmm6, zmm14, 210
+        vpternlogq	zmm6, zmm14, zmm30, 210
+        vpternlogq	zmm14, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+896]
+        ; Round 15
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm13, zmm21, 150
+        vpternlogq	zmm25, zmm9, zmm17, 150
+        vmovdqu64	zmm26, zmm8
+        vpternlogq	zmm26, zmm16, zmm4, 150
+        vpternlogq	zmm26, zmm12, zmm20, 150
+        vmovdqu64	zmm27, zmm11
+        vpternlogq	zmm27, zmm24, zmm7, 150
+        vpternlogq	zmm27, zmm15, zmm3, 150
+        vmovdqu64	zmm28, zmm19
+        vpternlogq	zmm28, zmm2, zmm10, 150
+        vpternlogq	zmm28, zmm23, zmm6, 150
+        vmovdqu64	zmm29, zmm22
+        vpternlogq	zmm29, zmm5, zmm18, 150
+        vpternlogq	zmm29, zmm1, zmm14, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm8, zmm8, 1
+        vprolq	zmm11, zmm11, 62
+        vprolq	zmm19, zmm19, 28
+        vprolq	zmm22, zmm22, 27
+        vprolq	zmm13, zmm13, 36
+        vprolq	zmm16, zmm16, 44
+        vprolq	zmm24, zmm24, 6
+        vprolq	zmm2, zmm2, 55
+        vprolq	zmm5, zmm5, 20
+        vprolq	zmm21, zmm21, 3
+        vprolq	zmm4, zmm4, 10
+        vprolq	zmm7, zmm7, 43
+        vprolq	zmm10, zmm10, 25
+        vprolq	zmm18, zmm18, 39
+        vprolq	zmm9, zmm9, 41
+        vprolq	zmm12, zmm12, 45
+        vprolq	zmm15, zmm15, 15
+        vprolq	zmm23, zmm23, 21
+        vprolq	zmm1, zmm1, 8
+        vprolq	zmm17, zmm17, 18
+        vprolq	zmm20, zmm20, 2
+        vprolq	zmm3, zmm3, 61
+        vprolq	zmm6, zmm6, 56
+        vprolq	zmm14, zmm14, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm16
+        vpternlogq	zmm0, zmm16, zmm7, 210
+        vpternlogq	zmm16, zmm7, zmm23, 210
+        vpternlogq	zmm7, zmm23, zmm14, 210
+        vpternlogq	zmm23, zmm14, zmm30, 210
+        vpternlogq	zmm14, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm19
+        vmovdqu64	zmm31, zmm5
+        vpternlogq	zmm19, zmm5, zmm21, 210
+        vpternlogq	zmm5, zmm21, zmm12, 210
+        vpternlogq	zmm21, zmm12, zmm3, 210
+        vpternlogq	zmm12, zmm3, zmm30, 210
+        vpternlogq	zmm3, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm8
+        vmovdqu64	zmm31, zmm24
+        vpternlogq	zmm8, zmm24, zmm10, 210
+        vpternlogq	zmm24, zmm10, zmm1, 210
+        vpternlogq	zmm10, zmm1, zmm17, 210
+        vpternlogq	zmm1, zmm17, zmm30, 210
+        vpternlogq	zmm17, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm22
+        vmovdqu64	zmm31, zmm13
+        vpternlogq	zmm22, zmm13, zmm4, 210
+        vpternlogq	zmm13, zmm4, zmm15, 210
+        vpternlogq	zmm4, zmm15, zmm6, 210
+        vpternlogq	zmm15, zmm6, zmm30, 210
+        vpternlogq	zmm6, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm11
+        vmovdqu64	zmm31, zmm2
+        vpternlogq	zmm11, zmm2, zmm18, 210
+        vpternlogq	zmm2, zmm18, zmm9, 210
+        vpternlogq	zmm18, zmm9, zmm20, 210
+        vpternlogq	zmm9, zmm20, zmm30, 210
+        vpternlogq	zmm20, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+960]
+        ; Round 16
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm19, zmm8, 150
+        vpternlogq	zmm25, zmm22, zmm11, 150
+        vmovdqu64	zmm26, zmm16
+        vpternlogq	zmm26, zmm5, zmm24, 150
+        vpternlogq	zmm26, zmm13, zmm2, 150
+        vmovdqu64	zmm27, zmm7
+        vpternlogq	zmm27, zmm21, zmm10, 150
+        vpternlogq	zmm27, zmm4, zmm18, 150
+        vmovdqu64	zmm28, zmm23
+        vpternlogq	zmm28, zmm12, zmm1, 150
+        vpternlogq	zmm28, zmm15, zmm9, 150
+        vmovdqu64	zmm29, zmm14
+        vpternlogq	zmm29, zmm3, zmm17, 150
+        vpternlogq	zmm29, zmm6, zmm20, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm16, zmm16, 1
+        vprolq	zmm7, zmm7, 62
+        vprolq	zmm23, zmm23, 28
+        vprolq	zmm14, zmm14, 27
+        vprolq	zmm19, zmm19, 36
+        vprolq	zmm5, zmm5, 44
+        vprolq	zmm21, zmm21, 6
+        vprolq	zmm12, zmm12, 55
+        vprolq	zmm3, zmm3, 20
+        vprolq	zmm8, zmm8, 3
+        vprolq	zmm24, zmm24, 10
+        vprolq	zmm10, zmm10, 43
+        vprolq	zmm1, zmm1, 25
+        vprolq	zmm17, zmm17, 39
+        vprolq	zmm22, zmm22, 41
+        vprolq	zmm13, zmm13, 45
+        vprolq	zmm4, zmm4, 15
+        vprolq	zmm15, zmm15, 21
+        vprolq	zmm6, zmm6, 8
+        vprolq	zmm11, zmm11, 18
+        vprolq	zmm2, zmm2, 2
+        vprolq	zmm18, zmm18, 61
+        vprolq	zmm9, zmm9, 56
+        vprolq	zmm20, zmm20, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm5
+        vpternlogq	zmm0, zmm5, zmm10, 210
+        vpternlogq	zmm5, zmm10, zmm15, 210
+        vpternlogq	zmm10, zmm15, zmm20, 210
+        vpternlogq	zmm15, zmm20, zmm30, 210
+        vpternlogq	zmm20, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm23
+        vmovdqu64	zmm31, zmm3
+        vpternlogq	zmm23, zmm3, zmm8, 210
+        vpternlogq	zmm3, zmm8, zmm13, 210
+        vpternlogq	zmm8, zmm13, zmm18, 210
+        vpternlogq	zmm13, zmm18, zmm30, 210
+        vpternlogq	zmm18, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm16
+        vmovdqu64	zmm31, zmm21
+        vpternlogq	zmm16, zmm21, zmm1, 210
+        vpternlogq	zmm21, zmm1, zmm6, 210
+        vpternlogq	zmm1, zmm6, zmm11, 210
+        vpternlogq	zmm6, zmm11, zmm30, 210
+        vpternlogq	zmm11, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm14
+        vmovdqu64	zmm31, zmm19
+        vpternlogq	zmm14, zmm19, zmm24, 210
+        vpternlogq	zmm19, zmm24, zmm4, 210
+        vpternlogq	zmm24, zmm4, zmm9, 210
+        vpternlogq	zmm4, zmm9, zmm30, 210
+        vpternlogq	zmm9, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm7
+        vmovdqu64	zmm31, zmm12
+        vpternlogq	zmm7, zmm12, zmm17, 210
+        vpternlogq	zmm12, zmm17, zmm22, 210
+        vpternlogq	zmm17, zmm22, zmm2, 210
+        vpternlogq	zmm22, zmm2, zmm30, 210
+        vpternlogq	zmm2, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1024]
+        ; Round 17
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm23, zmm16, 150
+        vpternlogq	zmm25, zmm14, zmm7, 150
+        vmovdqu64	zmm26, zmm5
+        vpternlogq	zmm26, zmm3, zmm21, 150
+        vpternlogq	zmm26, zmm19, zmm12, 150
+        vmovdqu64	zmm27, zmm10
+        vpternlogq	zmm27, zmm8, zmm1, 150
+        vpternlogq	zmm27, zmm24, zmm17, 150
+        vmovdqu64	zmm28, zmm15
+        vpternlogq	zmm28, zmm13, zmm6, 150
+        vpternlogq	zmm28, zmm4, zmm22, 150
+        vmovdqu64	zmm29, zmm20
+        vpternlogq	zmm29, zmm18, zmm11, 150
+        vpternlogq	zmm29, zmm9, zmm2, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm5, zmm5, 1
+        vprolq	zmm10, zmm10, 62
+        vprolq	zmm15, zmm15, 28
+        vprolq	zmm20, zmm20, 27
+        vprolq	zmm23, zmm23, 36
+        vprolq	zmm3, zmm3, 44
+        vprolq	zmm8, zmm8, 6
+        vprolq	zmm13, zmm13, 55
+        vprolq	zmm18, zmm18, 20
+        vprolq	zmm16, zmm16, 3
+        vprolq	zmm21, zmm21, 10
+        vprolq	zmm1, zmm1, 43
+        vprolq	zmm6, zmm6, 25
+        vprolq	zmm11, zmm11, 39
+        vprolq	zmm14, zmm14, 41
+        vprolq	zmm19, zmm19, 45
+        vprolq	zmm24, zmm24, 15
+        vprolq	zmm4, zmm4, 21
+        vprolq	zmm9, zmm9, 8
+        vprolq	zmm7, zmm7, 18
+        vprolq	zmm12, zmm12, 2
+        vprolq	zmm17, zmm17, 61
+        vprolq	zmm22, zmm22, 56
+        vprolq	zmm2, zmm2, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm3
+        vpternlogq	zmm0, zmm3, zmm1, 210
+        vpternlogq	zmm3, zmm1, zmm4, 210
+        vpternlogq	zmm1, zmm4, zmm2, 210
+        vpternlogq	zmm4, zmm2, zmm30, 210
+        vpternlogq	zmm2, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm15
+        vmovdqu64	zmm31, zmm18
+        vpternlogq	zmm15, zmm18, zmm16, 210
+        vpternlogq	zmm18, zmm16, zmm19, 210
+        vpternlogq	zmm16, zmm19, zmm17, 210
+        vpternlogq	zmm19, zmm17, zmm30, 210
+        vpternlogq	zmm17, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm5
+        vmovdqu64	zmm31, zmm8
+        vpternlogq	zmm5, zmm8, zmm6, 210
+        vpternlogq	zmm8, zmm6, zmm9, 210
+        vpternlogq	zmm6, zmm9, zmm7, 210
+        vpternlogq	zmm9, zmm7, zmm30, 210
+        vpternlogq	zmm7, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm20
+        vmovdqu64	zmm31, zmm23
+        vpternlogq	zmm20, zmm23, zmm21, 210
+        vpternlogq	zmm23, zmm21, zmm24, 210
+        vpternlogq	zmm21, zmm24, zmm22, 210
+        vpternlogq	zmm24, zmm22, zmm30, 210
+        vpternlogq	zmm22, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm10
+        vmovdqu64	zmm31, zmm13
+        vpternlogq	zmm10, zmm13, zmm11, 210
+        vpternlogq	zmm13, zmm11, zmm14, 210
+        vpternlogq	zmm11, zmm14, zmm12, 210
+        vpternlogq	zmm14, zmm12, zmm30, 210
+        vpternlogq	zmm12, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1088]
+        ; Round 18
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm15, zmm5, 150
+        vpternlogq	zmm25, zmm20, zmm10, 150
+        vmovdqu64	zmm26, zmm3
+        vpternlogq	zmm26, zmm18, zmm8, 150
+        vpternlogq	zmm26, zmm23, zmm13, 150
+        vmovdqu64	zmm27, zmm1
+        vpternlogq	zmm27, zmm16, zmm6, 150
+        vpternlogq	zmm27, zmm21, zmm11, 150
+        vmovdqu64	zmm28, zmm4
+        vpternlogq	zmm28, zmm19, zmm9, 150
+        vpternlogq	zmm28, zmm24, zmm14, 150
+        vmovdqu64	zmm29, zmm2
+        vpternlogq	zmm29, zmm17, zmm7, 150
+        vpternlogq	zmm29, zmm22, zmm12, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm3, zmm3, 1
+        vprolq	zmm1, zmm1, 62
+        vprolq	zmm4, zmm4, 28
+        vprolq	zmm2, zmm2, 27
+        vprolq	zmm15, zmm15, 36
+        vprolq	zmm18, zmm18, 44
+        vprolq	zmm16, zmm16, 6
+        vprolq	zmm19, zmm19, 55
+        vprolq	zmm17, zmm17, 20
+        vprolq	zmm5, zmm5, 3
+        vprolq	zmm8, zmm8, 10
+        vprolq	zmm6, zmm6, 43
+        vprolq	zmm9, zmm9, 25
+        vprolq	zmm7, zmm7, 39
+        vprolq	zmm20, zmm20, 41
+        vprolq	zmm23, zmm23, 45
+        vprolq	zmm21, zmm21, 15
+        vprolq	zmm24, zmm24, 21
+        vprolq	zmm22, zmm22, 8
+        vprolq	zmm10, zmm10, 18
+        vprolq	zmm13, zmm13, 2
+        vprolq	zmm11, zmm11, 61
+        vprolq	zmm14, zmm14, 56
+        vprolq	zmm12, zmm12, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm18
+        vpternlogq	zmm0, zmm18, zmm6, 210
+        vpternlogq	zmm18, zmm6, zmm24, 210
+        vpternlogq	zmm6, zmm24, zmm12, 210
+        vpternlogq	zmm24, zmm12, zmm30, 210
+        vpternlogq	zmm12, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm4
+        vmovdqu64	zmm31, zmm17
+        vpternlogq	zmm4, zmm17, zmm5, 210
+        vpternlogq	zmm17, zmm5, zmm23, 210
+        vpternlogq	zmm5, zmm23, zmm11, 210
+        vpternlogq	zmm23, zmm11, zmm30, 210
+        vpternlogq	zmm11, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm3
+        vmovdqu64	zmm31, zmm16
+        vpternlogq	zmm3, zmm16, zmm9, 210
+        vpternlogq	zmm16, zmm9, zmm22, 210
+        vpternlogq	zmm9, zmm22, zmm10, 210
+        vpternlogq	zmm22, zmm10, zmm30, 210
+        vpternlogq	zmm10, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm2
+        vmovdqu64	zmm31, zmm15
+        vpternlogq	zmm2, zmm15, zmm8, 210
+        vpternlogq	zmm15, zmm8, zmm21, 210
+        vpternlogq	zmm8, zmm21, zmm14, 210
+        vpternlogq	zmm21, zmm14, zmm30, 210
+        vpternlogq	zmm14, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm1
+        vmovdqu64	zmm31, zmm19
+        vpternlogq	zmm1, zmm19, zmm7, 210
+        vpternlogq	zmm19, zmm7, zmm20, 210
+        vpternlogq	zmm7, zmm20, zmm13, 210
+        vpternlogq	zmm20, zmm13, zmm30, 210
+        vpternlogq	zmm13, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1152]
+        ; Round 19
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm4, zmm3, 150
+        vpternlogq	zmm25, zmm2, zmm1, 150
+        vmovdqu64	zmm26, zmm18
+        vpternlogq	zmm26, zmm17, zmm16, 150
+        vpternlogq	zmm26, zmm15, zmm19, 150
+        vmovdqu64	zmm27, zmm6
+        vpternlogq	zmm27, zmm5, zmm9, 150
+        vpternlogq	zmm27, zmm8, zmm7, 150
+        vmovdqu64	zmm28, zmm24
+        vpternlogq	zmm28, zmm23, zmm22, 150
+        vpternlogq	zmm28, zmm21, zmm20, 150
+        vmovdqu64	zmm29, zmm12
+        vpternlogq	zmm29, zmm11, zmm10, 150
+        vpternlogq	zmm29, zmm14, zmm13, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm18, zmm18, 1
+        vprolq	zmm6, zmm6, 62
+        vprolq	zmm24, zmm24, 28
+        vprolq	zmm12, zmm12, 27
+        vprolq	zmm4, zmm4, 36
+        vprolq	zmm17, zmm17, 44
+        vprolq	zmm5, zmm5, 6
+        vprolq	zmm23, zmm23, 55
+        vprolq	zmm11, zmm11, 20
+        vprolq	zmm3, zmm3, 3
+        vprolq	zmm16, zmm16, 10
+        vprolq	zmm9, zmm9, 43
+        vprolq	zmm22, zmm22, 25
+        vprolq	zmm10, zmm10, 39
+        vprolq	zmm2, zmm2, 41
+        vprolq	zmm15, zmm15, 45
+        vprolq	zmm8, zmm8, 15
+        vprolq	zmm21, zmm21, 21
+        vprolq	zmm14, zmm14, 8
+        vprolq	zmm1, zmm1, 18
+        vprolq	zmm19, zmm19, 2
+        vprolq	zmm7, zmm7, 61
+        vprolq	zmm20, zmm20, 56
+        vprolq	zmm13, zmm13, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm17
+        vpternlogq	zmm0, zmm17, zmm9, 210
+        vpternlogq	zmm17, zmm9, zmm21, 210
+        vpternlogq	zmm9, zmm21, zmm13, 210
+        vpternlogq	zmm21, zmm13, zmm30, 210
+        vpternlogq	zmm13, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm24
+        vmovdqu64	zmm31, zmm11
+        vpternlogq	zmm24, zmm11, zmm3, 210
+        vpternlogq	zmm11, zmm3, zmm15, 210
+        vpternlogq	zmm3, zmm15, zmm7, 210
+        vpternlogq	zmm15, zmm7, zmm30, 210
+        vpternlogq	zmm7, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm18
+        vmovdqu64	zmm31, zmm5
+        vpternlogq	zmm18, zmm5, zmm22, 210
+        vpternlogq	zmm5, zmm22, zmm14, 210
+        vpternlogq	zmm22, zmm14, zmm1, 210
+        vpternlogq	zmm14, zmm1, zmm30, 210
+        vpternlogq	zmm1, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm12
+        vmovdqu64	zmm31, zmm4
+        vpternlogq	zmm12, zmm4, zmm16, 210
+        vpternlogq	zmm4, zmm16, zmm8, 210
+        vpternlogq	zmm16, zmm8, zmm20, 210
+        vpternlogq	zmm8, zmm20, zmm30, 210
+        vpternlogq	zmm20, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm6
+        vmovdqu64	zmm31, zmm23
+        vpternlogq	zmm6, zmm23, zmm10, 210
+        vpternlogq	zmm23, zmm10, zmm2, 210
+        vpternlogq	zmm10, zmm2, zmm19, 210
+        vpternlogq	zmm2, zmm19, zmm30, 210
+        vpternlogq	zmm19, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1216]
+        ; Round 20
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm24, zmm18, 150
+        vpternlogq	zmm25, zmm12, zmm6, 150
+        vmovdqu64	zmm26, zmm17
+        vpternlogq	zmm26, zmm11, zmm5, 150
+        vpternlogq	zmm26, zmm4, zmm23, 150
+        vmovdqu64	zmm27, zmm9
+        vpternlogq	zmm27, zmm3, zmm22, 150
+        vpternlogq	zmm27, zmm16, zmm10, 150
+        vmovdqu64	zmm28, zmm21
+        vpternlogq	zmm28, zmm15, zmm14, 150
+        vpternlogq	zmm28, zmm8, zmm2, 150
+        vmovdqu64	zmm29, zmm13
+        vpternlogq	zmm29, zmm7, zmm1, 150
+        vpternlogq	zmm29, zmm20, zmm19, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm17, zmm17, 1
+        vprolq	zmm9, zmm9, 62
+        vprolq	zmm21, zmm21, 28
+        vprolq	zmm13, zmm13, 27
+        vprolq	zmm24, zmm24, 36
+        vprolq	zmm11, zmm11, 44
+        vprolq	zmm3, zmm3, 6
+        vprolq	zmm15, zmm15, 55
+        vprolq	zmm7, zmm7, 20
+        vprolq	zmm18, zmm18, 3
+        vprolq	zmm5, zmm5, 10
+        vprolq	zmm22, zmm22, 43
+        vprolq	zmm14, zmm14, 25
+        vprolq	zmm1, zmm1, 39
+        vprolq	zmm12, zmm12, 41
+        vprolq	zmm4, zmm4, 45
+        vprolq	zmm16, zmm16, 15
+        vprolq	zmm8, zmm8, 21
+        vprolq	zmm20, zmm20, 8
+        vprolq	zmm6, zmm6, 18
+        vprolq	zmm23, zmm23, 2
+        vprolq	zmm10, zmm10, 61
+        vprolq	zmm2, zmm2, 56
+        vprolq	zmm19, zmm19, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm11
+        vpternlogq	zmm0, zmm11, zmm22, 210
+        vpternlogq	zmm11, zmm22, zmm8, 210
+        vpternlogq	zmm22, zmm8, zmm19, 210
+        vpternlogq	zmm8, zmm19, zmm30, 210
+        vpternlogq	zmm19, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm21
+        vmovdqu64	zmm31, zmm7
+        vpternlogq	zmm21, zmm7, zmm18, 210
+        vpternlogq	zmm7, zmm18, zmm4, 210
+        vpternlogq	zmm18, zmm4, zmm10, 210
+        vpternlogq	zmm4, zmm10, zmm30, 210
+        vpternlogq	zmm10, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm17
+        vmovdqu64	zmm31, zmm3
+        vpternlogq	zmm17, zmm3, zmm14, 210
+        vpternlogq	zmm3, zmm14, zmm20, 210
+        vpternlogq	zmm14, zmm20, zmm6, 210
+        vpternlogq	zmm20, zmm6, zmm30, 210
+        vpternlogq	zmm6, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm13
+        vmovdqu64	zmm31, zmm24
+        vpternlogq	zmm13, zmm24, zmm5, 210
+        vpternlogq	zmm24, zmm5, zmm16, 210
+        vpternlogq	zmm5, zmm16, zmm2, 210
+        vpternlogq	zmm16, zmm2, zmm30, 210
+        vpternlogq	zmm2, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm9
+        vmovdqu64	zmm31, zmm15
+        vpternlogq	zmm9, zmm15, zmm1, 210
+        vpternlogq	zmm15, zmm1, zmm12, 210
+        vpternlogq	zmm1, zmm12, zmm23, 210
+        vpternlogq	zmm12, zmm23, zmm30, 210
+        vpternlogq	zmm23, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1280]
+        ; Round 21
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm21, zmm17, 150
+        vpternlogq	zmm25, zmm13, zmm9, 150
+        vmovdqu64	zmm26, zmm11
+        vpternlogq	zmm26, zmm7, zmm3, 150
+        vpternlogq	zmm26, zmm24, zmm15, 150
+        vmovdqu64	zmm27, zmm22
+        vpternlogq	zmm27, zmm18, zmm14, 150
+        vpternlogq	zmm27, zmm5, zmm1, 150
+        vmovdqu64	zmm28, zmm8
+        vpternlogq	zmm28, zmm4, zmm20, 150
+        vpternlogq	zmm28, zmm16, zmm12, 150
+        vmovdqu64	zmm29, zmm19
+        vpternlogq	zmm29, zmm10, zmm6, 150
+        vpternlogq	zmm29, zmm2, zmm23, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm11, zmm11, 1
+        vprolq	zmm22, zmm22, 62
+        vprolq	zmm8, zmm8, 28
+        vprolq	zmm19, zmm19, 27
+        vprolq	zmm21, zmm21, 36
+        vprolq	zmm7, zmm7, 44
+        vprolq	zmm18, zmm18, 6
+        vprolq	zmm4, zmm4, 55
+        vprolq	zmm10, zmm10, 20
+        vprolq	zmm17, zmm17, 3
+        vprolq	zmm3, zmm3, 10
+        vprolq	zmm14, zmm14, 43
+        vprolq	zmm20, zmm20, 25
+        vprolq	zmm6, zmm6, 39
+        vprolq	zmm13, zmm13, 41
+        vprolq	zmm24, zmm24, 45
+        vprolq	zmm5, zmm5, 15
+        vprolq	zmm16, zmm16, 21
+        vprolq	zmm2, zmm2, 8
+        vprolq	zmm9, zmm9, 18
+        vprolq	zmm15, zmm15, 2
+        vprolq	zmm1, zmm1, 61
+        vprolq	zmm12, zmm12, 56
+        vprolq	zmm23, zmm23, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm7
+        vpternlogq	zmm0, zmm7, zmm14, 210
+        vpternlogq	zmm7, zmm14, zmm16, 210
+        vpternlogq	zmm14, zmm16, zmm23, 210
+        vpternlogq	zmm16, zmm23, zmm30, 210
+        vpternlogq	zmm23, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm8
+        vmovdqu64	zmm31, zmm10
+        vpternlogq	zmm8, zmm10, zmm17, 210
+        vpternlogq	zmm10, zmm17, zmm24, 210
+        vpternlogq	zmm17, zmm24, zmm1, 210
+        vpternlogq	zmm24, zmm1, zmm30, 210
+        vpternlogq	zmm1, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm11
+        vmovdqu64	zmm31, zmm18
+        vpternlogq	zmm11, zmm18, zmm20, 210
+        vpternlogq	zmm18, zmm20, zmm2, 210
+        vpternlogq	zmm20, zmm2, zmm9, 210
+        vpternlogq	zmm2, zmm9, zmm30, 210
+        vpternlogq	zmm9, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm19
+        vmovdqu64	zmm31, zmm21
+        vpternlogq	zmm19, zmm21, zmm3, 210
+        vpternlogq	zmm21, zmm3, zmm5, 210
+        vpternlogq	zmm3, zmm5, zmm12, 210
+        vpternlogq	zmm5, zmm12, zmm30, 210
+        vpternlogq	zmm12, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm22
+        vmovdqu64	zmm31, zmm4
+        vpternlogq	zmm22, zmm4, zmm6, 210
+        vpternlogq	zmm4, zmm6, zmm13, 210
+        vpternlogq	zmm6, zmm13, zmm15, 210
+        vpternlogq	zmm13, zmm15, zmm30, 210
+        vpternlogq	zmm15, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1344]
+        ; Round 22
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm8, zmm11, 150
+        vpternlogq	zmm25, zmm19, zmm22, 150
+        vmovdqu64	zmm26, zmm7
+        vpternlogq	zmm26, zmm10, zmm18, 150
+        vpternlogq	zmm26, zmm21, zmm4, 150
+        vmovdqu64	zmm27, zmm14
+        vpternlogq	zmm27, zmm17, zmm20, 150
+        vpternlogq	zmm27, zmm3, zmm6, 150
+        vmovdqu64	zmm28, zmm16
+        vpternlogq	zmm28, zmm24, zmm2, 150
+        vpternlogq	zmm28, zmm5, zmm13, 150
+        vmovdqu64	zmm29, zmm23
+        vpternlogq	zmm29, zmm1, zmm9, 150
+        vpternlogq	zmm29, zmm12, zmm15, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm14, zmm14, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm15, zmm15, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm7, zmm7, 1
+        vprolq	zmm14, zmm14, 62
+        vprolq	zmm16, zmm16, 28
+        vprolq	zmm23, zmm23, 27
+        vprolq	zmm8, zmm8, 36
+        vprolq	zmm10, zmm10, 44
+        vprolq	zmm17, zmm17, 6
+        vprolq	zmm24, zmm24, 55
+        vprolq	zmm1, zmm1, 20
+        vprolq	zmm11, zmm11, 3
+        vprolq	zmm18, zmm18, 10
+        vprolq	zmm20, zmm20, 43
+        vprolq	zmm2, zmm2, 25
+        vprolq	zmm9, zmm9, 39
+        vprolq	zmm19, zmm19, 41
+        vprolq	zmm21, zmm21, 45
+        vprolq	zmm3, zmm3, 15
+        vprolq	zmm5, zmm5, 21
+        vprolq	zmm12, zmm12, 8
+        vprolq	zmm22, zmm22, 18
+        vprolq	zmm4, zmm4, 2
+        vprolq	zmm6, zmm6, 61
+        vprolq	zmm13, zmm13, 56
+        vprolq	zmm15, zmm15, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm10
+        vpternlogq	zmm0, zmm10, zmm20, 210
+        vpternlogq	zmm10, zmm20, zmm5, 210
+        vpternlogq	zmm20, zmm5, zmm15, 210
+        vpternlogq	zmm5, zmm15, zmm30, 210
+        vpternlogq	zmm15, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm16
+        vmovdqu64	zmm31, zmm1
+        vpternlogq	zmm16, zmm1, zmm11, 210
+        vpternlogq	zmm1, zmm11, zmm21, 210
+        vpternlogq	zmm11, zmm21, zmm6, 210
+        vpternlogq	zmm21, zmm6, zmm30, 210
+        vpternlogq	zmm6, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm7
+        vmovdqu64	zmm31, zmm17
+        vpternlogq	zmm7, zmm17, zmm2, 210
+        vpternlogq	zmm17, zmm2, zmm12, 210
+        vpternlogq	zmm2, zmm12, zmm22, 210
+        vpternlogq	zmm12, zmm22, zmm30, 210
+        vpternlogq	zmm22, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm23
+        vmovdqu64	zmm31, zmm8
+        vpternlogq	zmm23, zmm8, zmm18, 210
+        vpternlogq	zmm8, zmm18, zmm3, 210
+        vpternlogq	zmm18, zmm3, zmm13, 210
+        vpternlogq	zmm3, zmm13, zmm30, 210
+        vpternlogq	zmm13, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm14
+        vmovdqu64	zmm31, zmm24
+        vpternlogq	zmm14, zmm24, zmm9, 210
+        vpternlogq	zmm24, zmm9, zmm19, 210
+        vpternlogq	zmm9, zmm19, zmm4, 210
+        vpternlogq	zmm19, zmm4, zmm30, 210
+        vpternlogq	zmm4, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1408]
+        ; Round 23
+        ; Theta - column parity
+        vmovdqu64	zmm25, zmm0
+        vpternlogq	zmm25, zmm16, zmm7, 150
+        vpternlogq	zmm25, zmm23, zmm14, 150
+        vmovdqu64	zmm26, zmm10
+        vpternlogq	zmm26, zmm1, zmm17, 150
+        vpternlogq	zmm26, zmm8, zmm24, 150
+        vmovdqu64	zmm27, zmm20
+        vpternlogq	zmm27, zmm11, zmm2, 150
+        vpternlogq	zmm27, zmm18, zmm9, 150
+        vmovdqu64	zmm28, zmm5
+        vpternlogq	zmm28, zmm21, zmm12, 150
+        vpternlogq	zmm28, zmm3, zmm19, 150
+        vmovdqu64	zmm29, zmm15
+        vpternlogq	zmm29, zmm6, zmm22, 150
+        vpternlogq	zmm29, zmm13, zmm4, 150
+        ; Theta - D and apply in place
+        vprolq	zmm30, zmm26, 1
+        vpxorq	zmm30, zmm30, zmm29
+        vpxorq	zmm0, zmm0, zmm30
+        vpxorq	zmm16, zmm16, zmm30
+        vpxorq	zmm7, zmm7, zmm30
+        vpxorq	zmm23, zmm23, zmm30
+        vpxorq	zmm14, zmm14, zmm30
+        vprolq	zmm30, zmm27, 1
+        vpxorq	zmm30, zmm30, zmm25
+        vpxorq	zmm10, zmm10, zmm30
+        vpxorq	zmm1, zmm1, zmm30
+        vpxorq	zmm17, zmm17, zmm30
+        vpxorq	zmm8, zmm8, zmm30
+        vpxorq	zmm24, zmm24, zmm30
+        vprolq	zmm30, zmm28, 1
+        vpxorq	zmm30, zmm30, zmm26
+        vpxorq	zmm20, zmm20, zmm30
+        vpxorq	zmm11, zmm11, zmm30
+        vpxorq	zmm2, zmm2, zmm30
+        vpxorq	zmm18, zmm18, zmm30
+        vpxorq	zmm9, zmm9, zmm30
+        vprolq	zmm30, zmm29, 1
+        vpxorq	zmm30, zmm30, zmm27
+        vpxorq	zmm5, zmm5, zmm30
+        vpxorq	zmm21, zmm21, zmm30
+        vpxorq	zmm12, zmm12, zmm30
+        vpxorq	zmm3, zmm3, zmm30
+        vpxorq	zmm19, zmm19, zmm30
+        vprolq	zmm30, zmm25, 1
+        vpxorq	zmm30, zmm30, zmm28
+        vpxorq	zmm15, zmm15, zmm30
+        vpxorq	zmm6, zmm6, zmm30
+        vpxorq	zmm22, zmm22, zmm30
+        vpxorq	zmm13, zmm13, zmm30
+        vpxorq	zmm4, zmm4, zmm30
+        ; Rho - rotate each lane in place
+        vprolq	zmm10, zmm10, 1
+        vprolq	zmm20, zmm20, 62
+        vprolq	zmm5, zmm5, 28
+        vprolq	zmm15, zmm15, 27
+        vprolq	zmm16, zmm16, 36
+        vprolq	zmm1, zmm1, 44
+        vprolq	zmm11, zmm11, 6
+        vprolq	zmm21, zmm21, 55
+        vprolq	zmm6, zmm6, 20
+        vprolq	zmm7, zmm7, 3
+        vprolq	zmm17, zmm17, 10
+        vprolq	zmm2, zmm2, 43
+        vprolq	zmm12, zmm12, 25
+        vprolq	zmm22, zmm22, 39
+        vprolq	zmm23, zmm23, 41
+        vprolq	zmm8, zmm8, 45
+        vprolq	zmm18, zmm18, 15
+        vprolq	zmm3, zmm3, 21
+        vprolq	zmm13, zmm13, 8
+        vprolq	zmm14, zmm14, 18
+        vprolq	zmm24, zmm24, 2
+        vprolq	zmm9, zmm9, 61
+        vprolq	zmm19, zmm19, 56
+        vprolq	zmm4, zmm4, 14
+        ; Pi - relabel logical -> physical
+        ; Chi - per row, in place, fused with vpternlogq (imm 0xd2)
+        vmovdqu64	zmm30, zmm0
+        vmovdqu64	zmm31, zmm1
+        vpternlogq	zmm0, zmm1, zmm2, 210
+        vpternlogq	zmm1, zmm2, zmm3, 210
+        vpternlogq	zmm2, zmm3, zmm4, 210
+        vpternlogq	zmm3, zmm4, zmm30, 210
+        vpternlogq	zmm4, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm5
+        vmovdqu64	zmm31, zmm6
+        vpternlogq	zmm5, zmm6, zmm7, 210
+        vpternlogq	zmm6, zmm7, zmm8, 210
+        vpternlogq	zmm7, zmm8, zmm9, 210
+        vpternlogq	zmm8, zmm9, zmm30, 210
+        vpternlogq	zmm9, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm10
+        vmovdqu64	zmm31, zmm11
+        vpternlogq	zmm10, zmm11, zmm12, 210
+        vpternlogq	zmm11, zmm12, zmm13, 210
+        vpternlogq	zmm12, zmm13, zmm14, 210
+        vpternlogq	zmm13, zmm14, zmm30, 210
+        vpternlogq	zmm14, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm15
+        vmovdqu64	zmm31, zmm16
+        vpternlogq	zmm15, zmm16, zmm17, 210
+        vpternlogq	zmm16, zmm17, zmm18, 210
+        vpternlogq	zmm17, zmm18, zmm19, 210
+        vpternlogq	zmm18, zmm19, zmm30, 210
+        vpternlogq	zmm19, zmm30, zmm31, 210
+        vmovdqu64	zmm30, zmm20
+        vmovdqu64	zmm31, zmm21
+        vpternlogq	zmm20, zmm21, zmm22, 210
+        vpternlogq	zmm21, zmm22, zmm23, 210
+        vpternlogq	zmm22, zmm23, zmm24, 210
+        vpternlogq	zmm23, zmm24, zmm30, 210
+        vpternlogq	zmm24, zmm30, zmm31, 210
+        ; Iota
+        vpxorq	zmm0, zmm0, [rax+1472]
+        vmovdqu64	[rcx], zmm0
+        vmovdqu64	[rcx+64], zmm1
+        vmovdqu64	[rcx+128], zmm2
+        vmovdqu64	[rcx+192], zmm3
+        vmovdqu64	[rcx+256], zmm4
+        vmovdqu64	[rcx+320], zmm5
+        vmovdqu64	[rcx+384], zmm6
+        vmovdqu64	[rcx+448], zmm7
+        vmovdqu64	[rcx+512], zmm8
+        vmovdqu64	[rcx+576], zmm9
+        vmovdqu64	[rcx+640], zmm10
+        vmovdqu64	[rcx+704], zmm11
+        vmovdqu64	[rcx+768], zmm12
+        vmovdqu64	[rcx+832], zmm13
+        vmovdqu64	[rcx+896], zmm14
+        vmovdqu64	[rcx+960], zmm15
+        vmovdqu64	[rcx+1024], zmm16
+        vmovdqu64	[rcx+1088], zmm17
+        vmovdqu64	[rcx+1152], zmm18
+        vmovdqu64	[rcx+1216], zmm19
+        vmovdqu64	[rcx+1280], zmm20
+        vmovdqu64	[rcx+1344], zmm21
+        vmovdqu64	[rcx+1408], zmm22
+        vmovdqu64	[rcx+1472], zmm23
+        vmovdqu64	[rcx+1536], zmm24
+        mov	rbx, rcx
+        mov	rsi, 21
+L_sha3_blocksx8_out_avx512_word:
+        mov	rbp, QWORD PTR [rbx]
+        mov	QWORD PTR [rdx], rbp
+        mov	rbp, QWORD PTR [rbx+8]
+        mov	QWORD PTR [r9], rbp
+        mov	rbp, QWORD PTR [rbx+16]
+        mov	QWORD PTR [r10], rbp
+        mov	rbp, QWORD PTR [rbx+24]
+        mov	QWORD PTR [r11], rbp
+        mov	rbp, QWORD PTR [rbx+32]
+        mov	QWORD PTR [r12], rbp
+        mov	rbp, QWORD PTR [rbx+40]
+        mov	QWORD PTR [r13], rbp
+        mov	rbp, QWORD PTR [rbx+48]
+        mov	QWORD PTR [r14], rbp
+        mov	rbp, QWORD PTR [rbx+56]
+        mov	QWORD PTR [r15], rbp
+        add	rbx, 64
+        add	rdx, 8
+        add	r9, 8
+        add	r10, 8
+        add	r11, 8
+        add	r12, 8
+        add	r13, 8
+        add	r14, 8
+        add	r15, 8
+        sub	rdi, 1
+        jz	L_sha3_blocksx8_out_avx512_done
+        sub	rsi, 1
+        jnz	L_sha3_blocksx8_out_avx512_word
+        jmp	L_sha3_blocksx8_out_avx512_block
+L_sha3_blocksx8_out_avx512_done:
+        vzeroupper
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
+        pop	rbp
+        pop	rbx
+        pop	rsi
+        pop	rdi
+        pop	r15
+        pop	r14
+        pop	r13
+        pop	r12
+        ret
+sha3_blocksx8_out_avx512 ENDP
+_TEXT ENDS
+ENDIF
 ENDIF
 ENDIF
 END

@@ -1,0 +1,31 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+# These are experimental FrodoKEM test fixtures. Distribute them only when
+# FrodoKEM is enabled: keeping them out of the default (FrodoKEM-off) tarball
+# keeps the single-line $(DISTFILES) that "make dist" passes to the shell under
+# the kernel's per-argument limit (MAX_ARG_STRLEN) in out-of-tree builds.
+if BUILD_WC_FRODOKEM
+EXTRA_DIST += \
+		 certs/frodokem/README.txt \
+		 certs/frodokem/gen_frodokem.c \
+		 certs/frodokem/frodokem-ca-ecc-key.der \
+		 certs/frodokem/frodokem-ca-ecc-key.pem \
+		 certs/frodokem/frodokem-ca-ecc-cert.der \
+		 certs/frodokem/frodokem-ca-ecc-cert.pem \
+		 certs/frodokem/frodokem976-key.der \
+		 certs/frodokem/frodokem976-key.pem \
+		 certs/frodokem/frodokem976_pub-spki.der \
+		 certs/frodokem/frodokem976-cert.der \
+		 certs/frodokem/frodokem976-cert.pem \
+		 certs/frodokem/frodokem976-req.der \
+		 certs/frodokem/frodokem976-req.pem \
+		 certs/frodokem/frodokem1344-key.der \
+		 certs/frodokem/frodokem1344-key.pem \
+		 certs/frodokem/frodokem1344_pub-spki.der \
+		 certs/frodokem/frodokem1344-cert.der \
+		 certs/frodokem/frodokem1344-cert.pem \
+		 certs/frodokem/frodokem1344-req.der \
+		 certs/frodokem/frodokem1344-req.pem
+endif

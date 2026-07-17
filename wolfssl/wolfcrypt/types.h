@@ -1588,7 +1588,7 @@ enum wc_PkType {
     WC_PK_TYPE_CURVE25519_KEYGEN = 16,
     WC_PK_TYPE_RSA_GET_SIZE = 17,
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_RSA_GET_SIZE
-#if defined(WOLFSSL_HAVE_MLKEM)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
     WC_PK_TYPE_PQC_KEM_KEYGEN = 18,
     WC_PK_TYPE_PQC_KEM_ENCAPS = 19,
     WC_PK_TYPE_PQC_KEM_DECAPS = 20,
@@ -1626,7 +1626,7 @@ enum wc_PkType {
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
-#if defined(WOLFSSL_HAVE_MLKEM)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
     /* Post quantum KEM algorithms */
     enum wc_PqcKemType {
         WC_PQC_KEM_TYPE_NONE = 0,
@@ -1634,6 +1634,9 @@ enum wc_PkType {
         WC_PQC_KEM_TYPE_MLKEM = 1,
         #undef _WC_PQC_KEM_TYPE_MAX
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_MLKEM
+        WC_PQC_KEM_TYPE_FRODOKEM = 2,
+        #undef _WC_PQC_KEM_TYPE_MAX
+        #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_FRODOKEM
         WC_PQC_KEM_TYPE_MAX = _WC_PQC_KEM_TYPE_MAX
     };
 

@@ -235,6 +235,7 @@
 #include <tests/api/test_curve448.h>
 #include <tests/api/test_ed448.h>
 #include <tests/api/test_mlkem.h>
+#include <tests/api/test_frodokem.h>
 #include <tests/api/test_mldsa.h>
 #include <tests/api/test_slhdsa.h>
 #include <tests/api/test_signature.h>
@@ -36979,6 +36980,7 @@ TEST_CASE testCases[] = {
     TEST_ED448_DECLS,
     /* Kyber */
     TEST_MLKEM_DECLS,
+    TEST_FRODOKEM_DECLS,
     /* Dilithium */
     TEST_MLDSA_DECLS,
     /* SLH-DSA */
