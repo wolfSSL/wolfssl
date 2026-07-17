@@ -80,13 +80,18 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
     register word16* L_mlkem_thumb2_ntt_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_thumb2_ntt_zetas;
 #else
-    register word16* L_mlkem_thumb2_ntt_zetas_c =
-        (word16*)&L_mlkem_thumb2_ntt_zetas;
+    void* L_asm_args[2] = {(void*)(size_t)r,
+        (void*)(size_t)&L_mlkem_thumb2_ntt_zetas
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #8\n\t"
-        "MOV	r1, %[L_mlkem_thumb2_ntt_zetas]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
         "MOVT	r12, #0xcff\n\t"
@@ -100,14 +105,14 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
 #endif
         "STR	r2, [sp]\n\t"
         "LDRH	lr, [r1, #2]\n\t"
-        "LDR	r2, [%[r]]\n\t"
-        "LDR	r3, [%[r], #64]\n\t"
-        "LDR	r4, [%[r], #128]\n\t"
-        "LDR	r5, [%[r], #192]\n\t"
-        "LDR	r6, [%[r], #256]\n\t"
-        "LDR	r7, [%[r], #320]\n\t"
-        "LDR	r8, [%[r], #384]\n\t"
-        "LDR	r9, [%[r], #448]\n\t"
+        "LDR	r2, [r0]\n\t"
+        "LDR	r3, [r0, #64]\n\t"
+        "LDR	r4, [r0, #128]\n\t"
+        "LDR	r5, [r0, #192]\n\t"
+        "LDR	r6, [r0, #256]\n\t"
+        "LDR	r7, [r0, #320]\n\t"
+        "LDR	r8, [r0, #384]\n\t"
+        "LDR	r9, [r0, #448]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SMULBB	r10, lr, r6\n\t"
         "SMULBT	r6, lr, r6\n\t"
@@ -519,17 +524,17 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
         "BFI	r9, r11, #0, #16\n\t"
         "BFI	r8, r10, #0, #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STR	r2, [%[r]]\n\t"
-        "STR	r3, [%[r], #64]\n\t"
-        "STR	r4, [%[r], #128]\n\t"
-        "STR	r5, [%[r], #192]\n\t"
-        "STR	r6, [%[r], #256]\n\t"
-        "STR	r7, [%[r], #320]\n\t"
-        "STR	r8, [%[r], #384]\n\t"
-        "STR	r9, [%[r], #448]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #64]\n\t"
+        "STR	r4, [r0, #128]\n\t"
+        "STR	r5, [r0, #192]\n\t"
+        "STR	r6, [r0, #256]\n\t"
+        "STR	r7, [r0, #320]\n\t"
+        "STR	r8, [r0, #384]\n\t"
+        "STR	r9, [r0, #448]\n\t"
         "LDR	r2, [sp]\n\t"
         "SUBS	r2, r2, #1\n\t"
-        "ADD	%[r], %[r], #4\n\t"
+        "ADD	r0, r0, #4\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_ntt_loop_123_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -537,7 +542,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
 #else
         "BNE.N	L_mlkem_thumb2_ntt_loop_123_%=\n\t"
 #endif
-        "SUB	%[r], %[r], #0x40\n\t"
+        "SUB	r0, r0, #0x40\n\t"
         "MOV	r3, #0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -556,14 +561,14 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
     "L_mlkem_thumb2_ntt_loop_4_i_%=:\n\t"
 #endif
         "STR	r2, [sp]\n\t"
-        "LDR	r2, [%[r]]\n\t"
-        "LDR	r3, [%[r], #16]\n\t"
-        "LDR	r4, [%[r], #32]\n\t"
-        "LDR	r5, [%[r], #48]\n\t"
-        "LDR	r6, [%[r], #64]\n\t"
-        "LDR	r7, [%[r], #80]\n\t"
-        "LDR	r8, [%[r], #96]\n\t"
-        "LDR	r9, [%[r], #112]\n\t"
+        "LDR	r2, [r0]\n\t"
+        "LDR	r3, [r0, #16]\n\t"
+        "LDR	r4, [r0, #32]\n\t"
+        "LDR	r5, [r0, #48]\n\t"
+        "LDR	r6, [r0, #64]\n\t"
+        "LDR	r7, [r0, #80]\n\t"
+        "LDR	r8, [r0, #96]\n\t"
+        "LDR	r9, [r0, #112]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SMULBB	r10, lr, r4\n\t"
         "SMULBT	r4, lr, r4\n\t"
@@ -700,17 +705,17 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
         "BFI	r9, r11, #0, #16\n\t"
         "BFI	r7, r10, #0, #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STR	r2, [%[r]]\n\t"
-        "STR	r3, [%[r], #16]\n\t"
-        "STR	r4, [%[r], #32]\n\t"
-        "STR	r5, [%[r], #48]\n\t"
-        "STR	r6, [%[r], #64]\n\t"
-        "STR	r7, [%[r], #80]\n\t"
-        "STR	r8, [%[r], #96]\n\t"
-        "STR	r9, [%[r], #112]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #16]\n\t"
+        "STR	r4, [r0, #32]\n\t"
+        "STR	r5, [r0, #48]\n\t"
+        "STR	r6, [r0, #64]\n\t"
+        "STR	r7, [r0, #80]\n\t"
+        "STR	r8, [r0, #96]\n\t"
+        "STR	r9, [r0, #112]\n\t"
         "LDRD	r2, r3, [sp]\n\t"
         "SUBS	r2, r2, #1\n\t"
-        "ADD	%[r], %[r], #4\n\t"
+        "ADD	r0, r0, #4\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_ntt_loop_4_i_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -720,7 +725,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
 #endif
         "ADD	r3, r3, #0x40\n\t"
         "RSBS	r10, r3, #0x100\n\t"
-        "ADD	%[r], %[r], #0x70\n\t"
+        "ADD	r0, r0, #0x70\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_ntt_loop_4_j_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -728,7 +733,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
 #else
         "BNE.N	L_mlkem_thumb2_ntt_loop_4_j_%=\n\t"
 #endif
-        "SUB	%[r], %[r], #0x200\n\t"
+        "SUB	r0, r0, #0x200\n\t"
         "MOV	r3, #0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -739,14 +744,14 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
         "ADD	lr, r1, r3, LSR #3\n\t"
         "STR	r3, [sp, #4]\n\t"
         "LDRH	lr, [lr, #32]\n\t"
-        "LDR	r2, [%[r]]\n\t"
-        "LDR	r3, [%[r], #4]\n\t"
-        "LDR	r4, [%[r], #8]\n\t"
-        "LDR	r5, [%[r], #12]\n\t"
-        "LDR	r6, [%[r], #16]\n\t"
-        "LDR	r7, [%[r], #20]\n\t"
-        "LDR	r8, [%[r], #24]\n\t"
-        "LDR	r9, [%[r], #28]\n\t"
+        "LDR	r2, [r0]\n\t"
+        "LDR	r3, [r0, #4]\n\t"
+        "LDR	r4, [r0, #8]\n\t"
+        "LDR	r5, [r0, #12]\n\t"
+        "LDR	r6, [r0, #16]\n\t"
+        "LDR	r7, [r0, #20]\n\t"
+        "LDR	r8, [r0, #24]\n\t"
+        "LDR	r9, [r0, #28]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SMULBB	r10, lr, r6\n\t"
         "SMULBT	r6, lr, r6\n\t"
@@ -1343,18 +1348,18 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
         "MOV	r12, #0xd01\n\t"
         "MOVT	r12, #0xcff\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STR	r2, [%[r]]\n\t"
-        "STR	r3, [%[r], #4]\n\t"
-        "STR	r4, [%[r], #8]\n\t"
-        "STR	r5, [%[r], #12]\n\t"
-        "STR	r6, [%[r], #16]\n\t"
-        "STR	r7, [%[r], #20]\n\t"
-        "STR	r8, [%[r], #24]\n\t"
-        "STR	r9, [%[r], #28]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #4]\n\t"
+        "STR	r4, [r0, #8]\n\t"
+        "STR	r5, [r0, #12]\n\t"
+        "STR	r6, [r0, #16]\n\t"
+        "STR	r7, [r0, #20]\n\t"
+        "STR	r8, [r0, #24]\n\t"
+        "STR	r9, [r0, #28]\n\t"
         "LDR	r3, [sp, #4]\n\t"
         "ADD	r3, r3, #16\n\t"
         "RSBS	r10, r3, #0x100\n\t"
-        "ADD	%[r], %[r], #32\n\t"
+        "ADD	r0, r0, #32\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -1363,18 +1368,26 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
         "BNE.N	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
 #endif
         "ADD	sp, sp, #8\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
           [L_mlkem_thumb2_ntt_zetas] "+r" (L_mlkem_thumb2_ntt_zetas_c)
         :
-#else
-        :
-        : [r] "r" (r),
-          [L_mlkem_thumb2_ntt_zetas] "r" (L_mlkem_thumb2_ntt_zetas_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword16*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 XALIGNED(4) static const word16 L_mlkem_invntt_zetas_inv[] = {
@@ -1407,13 +1420,18 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
     register word16* L_mlkem_invntt_zetas_inv_c __asm__ ("r1") =
         (word16*)&L_mlkem_invntt_zetas_inv;
 #else
-    register word16* L_mlkem_invntt_zetas_inv_c =
-        (word16*)&L_mlkem_invntt_zetas_inv;
+    void* L_asm_args[2] = {(void*)(size_t)r,
+        (void*)(size_t)&L_mlkem_invntt_zetas_inv
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "SUB	sp, sp, #8\n\t"
-        "MOV	r1, %[L_mlkem_invntt_zetas_inv]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
         "MOVT	r12, #0xcff\n\t"
@@ -1427,14 +1445,14 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #endif
         "ADD	lr, r1, r3, LSR #1\n\t"
         "STR	r3, [sp, #4]\n\t"
-        "LDR	r2, [%[r]]\n\t"
-        "LDR	r3, [%[r], #4]\n\t"
-        "LDR	r4, [%[r], #8]\n\t"
-        "LDR	r5, [%[r], #12]\n\t"
-        "LDR	r6, [%[r], #16]\n\t"
-        "LDR	r7, [%[r], #20]\n\t"
-        "LDR	r8, [%[r], #24]\n\t"
-        "LDR	r9, [%[r], #28]\n\t"
+        "LDR	r2, [r0]\n\t"
+        "LDR	r3, [r0, #4]\n\t"
+        "LDR	r4, [r0, #8]\n\t"
+        "LDR	r5, [r0, #12]\n\t"
+        "LDR	r6, [r0, #16]\n\t"
+        "LDR	r7, [r0, #20]\n\t"
+        "LDR	r8, [r0, #24]\n\t"
+        "LDR	r9, [r0, #28]\n\t"
         "LDR	lr, [lr]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SSUB16	r10, r2, r3\n\t"
@@ -2003,18 +2021,18 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
         "LSR	r11, r11, #16\n\t"
         "BFI	r5, r11, #16, #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STR	r2, [%[r]]\n\t"
-        "STR	r3, [%[r], #4]\n\t"
-        "STR	r4, [%[r], #8]\n\t"
-        "STR	r5, [%[r], #12]\n\t"
-        "STR	r6, [%[r], #16]\n\t"
-        "STR	r7, [%[r], #20]\n\t"
-        "STR	r8, [%[r], #24]\n\t"
-        "STR	r9, [%[r], #28]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #4]\n\t"
+        "STR	r4, [r0, #8]\n\t"
+        "STR	r5, [r0, #12]\n\t"
+        "STR	r6, [r0, #16]\n\t"
+        "STR	r7, [r0, #20]\n\t"
+        "STR	r8, [r0, #24]\n\t"
+        "STR	r9, [r0, #28]\n\t"
         "LDR	r3, [sp, #4]\n\t"
         "ADD	r3, r3, #16\n\t"
         "RSBS	r10, r3, #0x100\n\t"
-        "ADD	%[r], %[r], #32\n\t"
+        "ADD	r0, r0, #32\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_invntt_loop_765_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2022,7 +2040,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #else
         "BNE.N	L_mlkem_invntt_loop_765_%=\n\t"
 #endif
-        "SUB	%[r], %[r], #0x200\n\t"
+        "SUB	r0, r0, #0x200\n\t"
         "MOV	r3, #0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2041,14 +2059,14 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
     "L_mlkem_invntt_loop_4_i_%=:\n\t"
 #endif
         "STR	r2, [sp]\n\t"
-        "LDR	r2, [%[r]]\n\t"
-        "LDR	r3, [%[r], #16]\n\t"
-        "LDR	r4, [%[r], #32]\n\t"
-        "LDR	r5, [%[r], #48]\n\t"
-        "LDR	r6, [%[r], #64]\n\t"
-        "LDR	r7, [%[r], #80]\n\t"
-        "LDR	r8, [%[r], #96]\n\t"
-        "LDR	r9, [%[r], #112]\n\t"
+        "LDR	r2, [r0]\n\t"
+        "LDR	r3, [r0, #16]\n\t"
+        "LDR	r4, [r0, #32]\n\t"
+        "LDR	r5, [r0, #48]\n\t"
+        "LDR	r6, [r0, #64]\n\t"
+        "LDR	r7, [r0, #80]\n\t"
+        "LDR	r8, [r0, #96]\n\t"
+        "LDR	r9, [r0, #112]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SSUB16	r10, r2, r4\n\t"
         "SADD16	r2, r2, r4\n\t"
@@ -2205,17 +2223,17 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
         "MLA	r9, r12, r11, r9\n\t"
         "BFI	r9, r10, #0, #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STR	r2, [%[r]]\n\t"
-        "STR	r3, [%[r], #16]\n\t"
-        "STR	r4, [%[r], #32]\n\t"
-        "STR	r5, [%[r], #48]\n\t"
-        "STR	r6, [%[r], #64]\n\t"
-        "STR	r7, [%[r], #80]\n\t"
-        "STR	r8, [%[r], #96]\n\t"
-        "STR	r9, [%[r], #112]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #16]\n\t"
+        "STR	r4, [r0, #32]\n\t"
+        "STR	r5, [r0, #48]\n\t"
+        "STR	r6, [r0, #64]\n\t"
+        "STR	r7, [r0, #80]\n\t"
+        "STR	r8, [r0, #96]\n\t"
+        "STR	r9, [r0, #112]\n\t"
         "LDRD	r2, r3, [sp]\n\t"
         "SUBS	r2, r2, #1\n\t"
-        "ADD	%[r], %[r], #4\n\t"
+        "ADD	r0, r0, #4\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_invntt_loop_4_i_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2225,7 +2243,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #endif
         "ADD	r3, r3, #0x40\n\t"
         "RSBS	r10, r3, #0x100\n\t"
-        "ADD	%[r], %[r], #0x70\n\t"
+        "ADD	r0, r0, #0x70\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_invntt_loop_4_j_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2233,7 +2251,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #else
         "BNE.N	L_mlkem_invntt_loop_4_j_%=\n\t"
 #endif
-        "SUB	%[r], %[r], #0x200\n\t"
+        "SUB	r0, r0, #0x200\n\t"
         "MOV	r2, #16\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2243,14 +2261,14 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #endif
         "STR	r2, [sp]\n\t"
         "LDRH	lr, [r1, #2]\n\t"
-        "LDR	r2, [%[r]]\n\t"
-        "LDR	r3, [%[r], #64]\n\t"
-        "LDR	r4, [%[r], #128]\n\t"
-        "LDR	r5, [%[r], #192]\n\t"
-        "LDR	r6, [%[r], #256]\n\t"
-        "LDR	r7, [%[r], #320]\n\t"
-        "LDR	r8, [%[r], #384]\n\t"
-        "LDR	r9, [%[r], #448]\n\t"
+        "LDR	r2, [r0]\n\t"
+        "LDR	r3, [r0, #64]\n\t"
+        "LDR	r4, [r0, #128]\n\t"
+        "LDR	r5, [r0, #192]\n\t"
+        "LDR	r6, [r0, #256]\n\t"
+        "LDR	r7, [r0, #320]\n\t"
+        "LDR	r8, [r0, #384]\n\t"
+        "LDR	r9, [r0, #448]\n\t"
         "LDR	lr, [r1, #240]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SSUB16	r10, r2, r3\n\t"
@@ -3038,17 +3056,17 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
         "MLA	r9, r12, r11, r9\n\t"
         "BFI	r9, r10, #0, #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STR	r2, [%[r]]\n\t"
-        "STR	r3, [%[r], #64]\n\t"
-        "STR	r4, [%[r], #128]\n\t"
-        "STR	r5, [%[r], #192]\n\t"
-        "STR	r6, [%[r], #256]\n\t"
-        "STR	r7, [%[r], #320]\n\t"
-        "STR	r8, [%[r], #384]\n\t"
-        "STR	r9, [%[r], #448]\n\t"
+        "STR	r2, [r0]\n\t"
+        "STR	r3, [r0, #64]\n\t"
+        "STR	r4, [r0, #128]\n\t"
+        "STR	r5, [r0, #192]\n\t"
+        "STR	r6, [r0, #256]\n\t"
+        "STR	r7, [r0, #320]\n\t"
+        "STR	r8, [r0, #384]\n\t"
+        "STR	r9, [r0, #448]\n\t"
         "LDR	r2, [sp]\n\t"
         "SUBS	r2, r2, #1\n\t"
-        "ADD	%[r], %[r], #4\n\t"
+        "ADD	r0, r0, #4\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_invntt_loop_321_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3057,18 +3075,26 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
         "BNE.N	L_mlkem_invntt_loop_321_%=\n\t"
 #endif
         "ADD	sp, sp, #8\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
           [L_mlkem_invntt_zetas_inv] "+r" (L_mlkem_invntt_zetas_inv_c)
         :
-#else
-        :
-        : [r] "r" (r),
-          [L_mlkem_invntt_zetas_inv] "r" (L_mlkem_invntt_zetas_inv_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword16*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 XALIGNED(4) static const word16 L_mlkem_basemul_mont_zetas[] = {
@@ -3105,12 +3131,17 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r,
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
-    register word16* L_mlkem_basemul_mont_zetas_c =
-        (word16*)&L_mlkem_basemul_mont_zetas;
+    void* L_asm_args[4] = {(void*)(size_t)r, (void*)(size_t)a, (void*)(size_t)b,
+        (void*)(size_t)&L_mlkem_basemul_mont_zetas
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "MOV	r3, %[L_mlkem_basemul_mont_zetas]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "ADD	r3, r3, #0x80\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
@@ -3123,8 +3154,8 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r,
 #else
     "L_mlkem_basemul_mont_loop_%=:\n\t"
 #endif
-        "LDM	%[a]!, {r4, r5}\n\t"
-        "LDM	%[b]!, {r6, r7}\n\t"
+        "LDM	r1!, {r4, r5}\n\t"
+        "LDM	r2!, {r6, r7}\n\t"
         "LDR	lr, [r3, r8]\n\t"
         "ADD	r8, r8, #2\n\t"
         "PUSH	{r8}\n\t"
@@ -3222,7 +3253,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r,
         "ORR	r4, r9, r8, LSR #16\n\t"
         "ORR	r5, r11, r10, LSR #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STM	%[r]!, {r4, r5}\n\t"
+        "STM	r0!, {r4, r5}\n\t"
         "POP	{r8}\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_basemul_mont_loop_%=\n\t"
@@ -3231,18 +3262,28 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r,
 #else
         "BNE.N	L_mlkem_basemul_mont_loop_%=\n\t"
 #endif
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b),
-          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword16*)(size_t)L_asm_args[0];
+    a = (const sword16*)(size_t)L_asm_args[1];
+    b = (const sword16*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3260,12 +3301,17 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
-    register word16* L_mlkem_basemul_mont_zetas_c =
-        (word16*)&L_mlkem_basemul_mont_zetas;
+    void* L_asm_args[4] = {(void*)(size_t)r, (void*)(size_t)a, (void*)(size_t)b,
+        (void*)(size_t)&L_mlkem_basemul_mont_zetas
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "MOV	r3, %[L_mlkem_basemul_mont_zetas]\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "ADD	r3, r3, #0x80\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
@@ -3278,8 +3324,8 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
 #else
     "L_mlkem_thumb2_basemul_mont_add_loop_%=:\n\t"
 #endif
-        "LDM	%[a]!, {r4, r5}\n\t"
-        "LDM	%[b]!, {r6, r7}\n\t"
+        "LDM	r1!, {r4, r5}\n\t"
+        "LDM	r2!, {r6, r7}\n\t"
         "LDR	lr, [r3, r8]\n\t"
         "ADD	r8, r8, #2\n\t"
         "PUSH	{r8}\n\t"
@@ -3308,7 +3354,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
         "SMULTB	r7, r12, r11\n\t"
         "SMLABB	r9, r12, r6, r9\n\t"
         "SMLABB	r11, r12, r7, r11\n\t"
-        "LDM	%[r], {r4, r5}\n\t"
+        "LDM	r0, {r4, r5}\n\t"
         "PKHTB	r9, r9, r8, ASR #16\n\t"
         "PKHTB	r11, r11, r10, ASR #16\n\t"
         "SADD16	r4, r4, r9\n\t"
@@ -3375,7 +3421,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
         "SBFX	r5, r7, #0, #16\n\t"
         "MLA	r9, r12, r4, r9\n\t"
         "MLA	r11, r12, r5, r11\n\t"
-        "LDM	%[r], {r4, r5}\n\t"
+        "LDM	r0, {r4, r5}\n\t"
         "BFC	r9, #0, #16\n\t"
         "BFC	r11, #0, #16\n\t"
         "ORR	r9, r9, r8, LSR #16\n\t"
@@ -3389,7 +3435,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
         "BFI	r4, r8, #0, #16\n\t"
         "BFI	r5, r10, #0, #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STM	%[r]!, {r4, r5}\n\t"
+        "STM	r0!, {r4, r5}\n\t"
         "POP	{r8}\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_basemul_mont_add_loop_%=\n\t"
@@ -3398,18 +3444,28 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
 #else
         "BNE.N	L_mlkem_thumb2_basemul_mont_add_loop_%=\n\t"
 #endif
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-#else
-        :
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b),
-          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    r = (sword16*)(size_t)L_asm_args[0];
+    a = (const sword16*)(size_t)L_asm_args[1];
+    b = (const sword16*)(size_t)L_asm_args[2];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3423,11 +3479,17 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
-    register word16* L_mlkem_basemul_mont_zetas_c =
-        (word16*)&L_mlkem_basemul_mont_zetas;
+    void* L_asm_args[2] = {(void*)(size_t)p,
+        (void*)(size_t)&L_mlkem_basemul_mont_zetas
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	r11, #0xd01\n\t"
         "MOV	r12, #0xd01\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
@@ -3442,7 +3504,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
 #else
     "L_mlkem_thumb2_csubq_loop_%=:\n\t"
 #endif
-        "LDM	%[p], {r2, r3, r4, r5}\n\t"
+        "LDM	r0, {r2, r3, r4, r5}\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SSUB16	r2, r2, r12\n\t"
         "SSUB16	r3, r3, r12\n\t"
@@ -3506,7 +3568,7 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
         "ADD	r5, r5, r9\n\t"
         "BFI	r5, r10, #0, #16\n\t"
 #endif /* !WOLFSSL_ARM_ARCH_7M */
-        "STM	%[p]!, {r2, r3, r4, r5}\n\t"
+        "STM	r0!, {r2, r3, r4, r5}\n\t"
         "SUBS	r1, r1, #8\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_csubq_loop_%=\n\t"
@@ -3515,18 +3577,26 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
 #else
         "BNE.N	L_mlkem_thumb2_csubq_loop_%=\n\t"
 #endif
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-#else
-        :
-        : [p] "r" (p),
-          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    p = (sword16*)(size_t)L_asm_args[0];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3545,11 +3615,18 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r4") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
-    register word16* L_mlkem_basemul_mont_zetas_c =
-        (word16*)&L_mlkem_basemul_mont_zetas;
+    void* L_asm_args[5] = {(void*)(size_t)p, (void*)(size_t)len,
+        (void*)(size_t)r, (void*)(size_t)rLen,
+        (void*)(size_t)&L_mlkem_basemul_mont_zetas
+    };
+    void** L_asm_args_p = L_asm_args;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "PUSH	{%[L_asm_args]}\n\t"
+        "LDM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	r8, #0xd01\n\t"
         "MOV	r9, #0\n\t"
         "\n"
@@ -3558,7 +3635,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
     "L_mlkem_thumb2_rej_uniform_loop_no_fail_%=:\n\t"
 #endif
-        "CMP	%[len], #8\n\t"
+        "CMP	r1, #8\n\t"
 #if defined(__GNUC__)
         "BLT	L_mlkem_thumb2_rej_uniform_done_no_fail_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3566,58 +3643,58 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BLT.N	L_mlkem_thumb2_rej_uniform_done_no_fail_%=\n\t"
 #endif
-        "LDM	%[r]!, {r4, r5, r6}\n\t"
+        "LDM	r2!, {r4, r5, r6}\n\t"
         "UBFX	r7, r4, #0, #12\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
         "UBFX	r7, r4, #12, #12\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
         "UBFX	r7, r4, #24, #8\n\t"
         "BFI	r7, r5, #8, #4\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
         "UBFX	r7, r5, #4, #12\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
         "UBFX	r7, r5, #16, #12\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
         "UBFX	r7, r5, #28, #4\n\t"
         "BFI	r7, r6, #4, #8\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
         "UBFX	r7, r6, #8, #12\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
         "UBFX	r7, r6, #20, #12\n\t"
-        "STRH	r7, [%[p], r9]\n\t"
+        "STRH	r7, [r0, r9]\n\t"
         "SUB	r10, r7, r8\n\t"
         "LSR	r10, r10, #31\n\t"
-        "SUB	%[len], %[len], r10\n\t"
+        "SUB	r1, r1, r10\n\t"
         "ADD	r9, r9, r10, LSL #1\n\t"
-        "SUBS	%[rLen], %[rLen], #12\n\t"
+        "SUBS	r3, r3, #12\n\t"
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_rej_uniform_loop_no_fail_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3638,7 +3715,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
     "L_mlkem_thumb2_rej_uniform_done_no_fail_%=:\n\t"
 #endif
-        "CMP	%[len], #0\n\t"
+        "CMP	r1, #0\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3652,7 +3729,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
     "L_mlkem_thumb2_rej_uniform_loop_%=:\n\t"
 #endif
-        "LDM	%[r]!, {r4, r5, r6}\n\t"
+        "LDM	r2!, {r4, r5, r6}\n\t"
         "UBFX	r7, r4, #0, #12\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
@@ -3662,8 +3739,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_0_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3687,8 +3764,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_1_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3713,8 +3790,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_2_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3738,8 +3815,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_3_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3763,8 +3840,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_4_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3789,8 +3866,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_5_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3814,8 +3891,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_6_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3839,8 +3916,8 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
         "BGE.N	L_mlkem_thumb2_rej_uniform_fail_7_%=\n\t"
 #endif
-        "STRH	r7, [%[p], r9]\n\t"
-        "SUBS	%[len], %[len], #1\n\t"
+        "STRH	r7, [r0, r9]\n\t"
+        "SUBS	r1, r1, #1\n\t"
         "ADD	r9, r9, #2\n\t"
 #if defined(__GNUC__)
         "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
@@ -3855,7 +3932,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
 #else
     "L_mlkem_thumb2_rej_uniform_fail_7_%=:\n\t"
 #endif
-        "SUBS	%[rLen], %[rLen], #12\n\t"
+        "SUBS	r3, r3, #12\n\t"
 #if defined(__GNUC__)
         "BGT	L_mlkem_thumb2_rej_uniform_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -3870,17 +3947,28 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     "L_mlkem_thumb2_rej_uniform_done_%=:\n\t"
 #endif
         "LSR	r0, r9, #1\n\t"
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+        "POP	{%[L_asm_args]}\n\t"
+        "STM	%[L_asm_args], {r0, r1, r2, r3, r4}\n\t"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-#else
-        :
-        : [p] "r" (p), [len] "r" (len), [r] "r" (r), [rLen] "r" (rLen),
-          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10"
+#else
+        : [L_asm_args] "+r" (L_asm_args_p)
+        :
+        : "memory", "cc", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11", "lr"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    p = (sword16*)(size_t)L_asm_args[0];
+    len = (unsigned int)(size_t)L_asm_args[1];
+    r = (const byte*)(size_t)L_asm_args[2];
+    rLen = (unsigned int)(size_t)L_asm_args[3];
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     return (word32)(size_t)p;
 }
 
