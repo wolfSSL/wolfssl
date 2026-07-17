@@ -33167,7 +33167,17 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(pv)) {
             byte type = server_hello;
-            return DoTls13ServerHello(ssl, input, inOutIdx, helloSz, &type);
+            ret = DoTls13ServerHello(ssl, input, inOutIdx, helloSz, &type);
+            if (ret != 0 &&
+                    ssl->alert_history.last_tx.level != alert_fatal) {
+                int alertType = TranslateErrorToAlert(ret);
+                if (alertType != invalid_alert) {
+                    if (SendAlert(ssl, alert_fatal, alertType) ==
+                            WC_NO_ERR_TRACE(SOCKET_ERROR_E))
+                        ret = SOCKET_ERROR_E;
+                }
+            }
+            return ret;
         }
 #endif
 

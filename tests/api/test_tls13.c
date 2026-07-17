@@ -6446,16 +6446,18 @@ int test_tls13_hrr_recognized_ext_downgrade(void)
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
         (const char *)hrr_sni_no_sv, sizeof(hrr_sni_no_sv)), 0);
 
-    /* Handshake must fail with EXT_NOT_ALLOWED (server_name is not permitted in
-     * a HelloRetryRequest), not UNSUPPORTED_EXTENSION. */
+    /* Handshake must fail because the mandatory supported_versions extension
+     * is absent from the HelloRetryRequest. The HRR is rejected before the
+     * downgrade reparses the remaining (server_name) extension, so the result
+     * is the missing mandatory extension (INCOMPLETE_DATA). */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
-        WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+        WC_NO_ERR_TRACE(INCOMPLETE_DATA));
 
-    /* RFC 8446 Sec. 4.2: the client MUST abort with illegal_parameter (47),
-     * not unsupported_extension (110). */
+    /* RFC 8446 Sec. 4.1.4/4.2: a mandatory-but-absent extension MUST abort with
+     * a missing_extension (109) alert. */
     ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
-    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.code, missing_extension);
     ExpectIntEQ(h.last_tx.level, alert_fatal);
 
     wolfSSL_free(ssl_c);
