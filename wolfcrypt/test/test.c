@@ -27881,11 +27881,9 @@ static wc_test_ret_t rsa_decode_test(RsaKey* keyPub)
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-#if defined(USE_INTEGER_HEAP_MATH)
-    #define RSA_RAW_BADLEN_EXPECT 0
-#else
+    /* All math backends now reject a negative/oversized length in
+     * mp_read_unsigned_bin, so a (word32)-1 length fails consistently. */
     #define RSA_RAW_BADLEN_EXPECT WC_NO_ERR_TRACE(ASN_GETINT_E)
-#endif
     ret = wc_RsaPublicKeyDecodeRaw(n, (word32)-1, e, sizeof(e), keyPub);
     if (ret != RSA_RAW_BADLEN_EXPECT) {
         ret = WC_TEST_RET_ENC_EC(ret);

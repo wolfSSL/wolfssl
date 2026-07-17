@@ -2587,8 +2587,8 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
     *len = 0;
 
     /* Check there is at least one byte available containing length information.
-     */
-    if ((idx + 1) > maxIdx) {
+     * Use >= to avoid a word32 wrap when idx is near UINT_MAX. */
+    if (idx >= maxIdx) {
         WOLFSSL_MSG("GetLength - bad index on input");
         return BUFFER_E;
     }
@@ -2621,7 +2621,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         }
 
         /* Check the number of bytes required are available. */
-        if ((idx + (word32)bytes) > maxIdx) {
+        if ((word32)bytes > (maxIdx - idx)) {
             WOLFSSL_MSG("GetLength - bad long length");
             return BUFFER_E;
         }
@@ -2646,7 +2646,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
     }
 
     /* When requested, check the buffer has at least length bytes left. */
-    if (check && ((idx + length) > maxIdx)) {
+    if (check && (length > (maxIdx - idx))) {
         WOLFSSL_MSG("GetLength - value exceeds buffer length");
         return BUFFER_E;
     }
