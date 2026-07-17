@@ -12111,6 +12111,7 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
             ret = ECC_PRIV_KEY_E;
         }
 
+        mp_clear(order);
         WC_FREE_VAR_EX(order, key->heap, DYNAMIC_TYPE_ECC);
     }
 #endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
