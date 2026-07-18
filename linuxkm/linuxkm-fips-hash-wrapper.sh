@@ -50,13 +50,14 @@ if [[ ! -v COREKEY ]]; then
         LIBWOLFSSL=./libwolfssl-user-build/src/.libs/libwolfssl.so
     fi
     read -a coreKey_a < <("${READELF-readelf}" --symbols --wide "$LIBWOLFSSL" | grep --max-count=1 -E -e '[[:space:]]coreKey$') || exit $?
-    if [[ ${#coreKey_a[@]} != 8 || "${coreKey_a[2]}" != "65" ]]; then
+    if [[ ${#coreKey_a[@]} != 8 || ("${coreKey_a[2]}" != "65" && "${coreKey_a[2]}" != "257") ]]; then
         echo "unexpected readelf output: \"${coreKey_a[*]}\" (${#coreKey_a[@]})" >&2
         exit 1
     fi
+    corekey_length=$(( ${coreKey_a[2]} - 1))
     coreKey_offset=$((0x${coreKey_a[1]}))
-    COREKEY=$(dd if="$LIBWOLFSSL" bs=64 iflag=skip_bytes,count_bytes skip="$coreKey_offset" count=64 status=none) || exit $?
-    if [[ "$COREKEY" =~ ^[0-9A-Fa-f]{64}$ ]]; then
+    COREKEY=$(dd if="$LIBWOLFSSL" bs="$corekey_length" iflag=skip_bytes,count_bytes skip="$coreKey_offset" count="$corekey_length" status=none) || exit $?
+    if [[ "${#COREKEY}" == "$corekey_length" && "$COREKEY" =~ ^[0-9A-Fa-f]+$ ]]; then
         :
     else
         echo "unexpected value for coreKey \"${COREKEY}\"." >&2
