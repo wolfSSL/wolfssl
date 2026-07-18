@@ -1620,7 +1620,6 @@ then
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
     test "$enable_md5" = "" && enable_md5=yes
-    test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_rng_bank" = "" && enable_rng_bank=yes
 
@@ -1665,6 +1664,12 @@ then
         test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
         test "$enable_cryptocb" = "" && enable_cryptocb=yes
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
+    fi
+
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        # "Anonymous suite requires DH."
+        test "$enable_anon" = "" && enable_anon=yes
     fi
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
@@ -6167,13 +6172,21 @@ then
 fi
 
 
+if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+then
+    ENABLED_DH_DEFAULT=yes
+else
+    ENABLED_DH_DEFAULT=no
+fi
+
 # DH
 AC_ARG_ENABLE([dh],
     [AS_HELP_STRING([--enable-dh],[Enable DH (default: enabled). Set to "nonblock" to enable non-blocking DH key agreement via SP small mod_exp_nb])],
     [ ENABLED_DH=$enableval ],
-    [ ENABLED_DH=yes ]
+    [ ENABLED_DH=$ENABLED_DH_DEFAULT ]
     )
 
+# note, this will be forced back off for FIPS v7+ below.
 if test "$ENABLED_OPENSSH" = "yes" && test "$ENABLED_DH" = "no"
 then
     ENABLED_DH="yes"
@@ -6214,8 +6227,9 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
-   test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" = "yes"
+if (test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
+    test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" = "yes") && \
+    (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7)
 then
     ENABLED_ANON=yes
 fi
@@ -6816,6 +6830,10 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_RSAPSS" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_rsapss" != "no")],
             [ENABLED_RSAPSS="yes"; AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+
+        AS_IF([test "$ENABLED_DH" != "no" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_dh" != "yes")],
+            [enable_dh="no"; ENABLED_DH="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
 
         AS_IF([test "$ENABLED_ECC" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ecc" != "no")],
