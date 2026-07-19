@@ -6,6 +6,7 @@ New features:
 
 - Add DH::prime_size() to query the DH prime size, which is the minimum output
   buffer size DH::shared_secret() requires
+- Add ChaCha20Poly1305::finalize_verify()
 
 Fixes and improvements:
 
