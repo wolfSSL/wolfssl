@@ -738,6 +738,9 @@ const char* wc_GetErrorString(int error)
     case FIPS_WRONG_API_E:
         return "Requested API is not allowed in FIPS mode";
 
+    case KMAC_MIN_KEYLEN_E:
+        return "FIPS Mode KMAC Minimum Key Length error";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

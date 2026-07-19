@@ -821,10 +821,11 @@ void BlockSha3(word64* s)
  * p     Number of 64-bit numbers in a block of data to process.
  * returns 0 on success.
  */
-static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
+static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 {
     word32 i;
     word32 blocks;
+    int ret = 0;
 #ifdef WC_SHA3_FAULT_HARDEN
     word32 check = 0;
     word32 total_check = 0;
@@ -835,13 +836,19 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
         word64 c) = SHA3_BLOCK_N;
 #endif
+#endif /* USE_INTEL_SPEEDUP */
 
+    if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
+        return BAD_STATE_E;
+
+#ifdef USE_INTEL_SPEEDUP
     if (SHA3_BLOCK_VREGS(sha3_block)) {
-        int ret = SAVE_VECTOR_REGISTERS2();
+        ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
 #ifdef WC_C_DYNAMIC_FALLBACK
             sha3_block = BlockSha3;
             sha3_block_n = NULL;
+            ret = 0;
 #else
             return ret;
 #endif
@@ -851,9 +858,14 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 
     if (sha3->i > 0) {
         byte *t;
-        byte l = (byte)(p * 8 - sha3->i);
+        word32 l;
+        if (p * 8 < sha3->i) {
+            ret = BAD_STATE_E;
+            goto out;
+        }
+        l = (p * 8 - sha3->i);
         if (l > len) {
-            l = (byte)len;
+            l = len;
         }
 
         t = &sha3->t[sha3->i];
@@ -865,13 +877,14 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         }
     #ifdef WC_SHA3_FAULT_HARDEN
         if (check != l) {
-            return BAD_COND_E;
+            ret = BAD_COND_E;
+            goto out;
         }
         total_check += l;
     #endif
         data += i;
         len -= i;
-        sha3->i = (byte)(sha3->i + i);
+        sha3->i += i;
 
         if (sha3->i == p * 8) {
     #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
@@ -885,7 +898,8 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
             }
         #ifdef WC_SHA3_FAULT_HARDEN
             if (check != p + l) {
-                return BAD_COND_E;
+                ret = BAD_COND_E;
+                goto out;
             }
             total_check += p;
         #endif
@@ -922,7 +936,8 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         }
     #ifdef WC_SHA3_FAULT_HARDEN
         if (check != total_check - ((blocks - 1) * p)) {
-            return BAD_COND_E;
+            ret = BAD_COND_E;
+            goto out;
         }
     #endif
 #endif
@@ -936,20 +951,27 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     }
 #ifdef WC_SHA3_FAULT_HARDEN
     if (check != total_check) {
-        return BAD_COND_E;
+        ret = BAD_COND_E;
+        goto out;
     }
 #endif
+
+out:
+
 #ifdef USE_INTEL_SPEEDUP
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         RESTORE_VECTOR_REGISTERS();
     }
 #endif
-    if (len > 0) {
-        XMEMCPY(sha3->t, data, len);
-    }
-    sha3->i = (byte)(sha3->i + len);
 
-    return 0;
+    if (ret == 0) {
+        if (len > 0) {
+            XMEMCPY(sha3->t, data, len);
+        }
+        sha3->i += len;
+    }
+
+    return ret;
 }
 
 /* Calculate the SHA-3 hash based on all the message data seen.
@@ -960,7 +982,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
  * len   Number of bytes in output.
  * returns 0 on success.
  */
-static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
+static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l)
 {
     word32 rate = p * 8U;
     word32 j;
@@ -968,11 +990,16 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     word32 i;
 #endif
 #ifdef WC_SHA3_FAULT_HARDEN
-    int check = 0;
+    word32 check = 0;
 #endif
 #if defined(WC_C_DYNAMIC_FALLBACK) && defined(USE_INTEL_SPEEDUP)
     void (*sha3_block)(word64 *s) = SHA3_BLOCK;
 #endif
+
+    if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
+        return BAD_STATE_E;
+    if (sha3->i >= rate)
+        return BAD_STATE_E;
 
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
     xorbuf(sha3->s, sha3->t, sha3->i);
@@ -992,7 +1019,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 #endif
     sha3->t[sha3->i ]  = padChar;
     sha3->t[rate - 1] |= 0x80;
-    if (rate - 1 > (word32)sha3->i + 1) {
+    if (rate - 1 > sha3->i + 1) {
         XMEMSET(sha3->t + sha3->i + 1, 0, rate - 1U - (sha3->i + 1U));
     }
     for (i = 0; i < p; i++) {
@@ -1070,7 +1097,7 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
     return 0;
 }
 
-static int Stm32GetAlgo(byte p)
+static int Stm32GetAlgo(word32 p)
 {
     switch(p) {
         case WC_SHA3_224_COUNT:
@@ -1086,7 +1113,7 @@ static int Stm32GetAlgo(byte p)
     return WC_SHA3_224_COUNT;
 }
 
-static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
+static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 {
     int ret = 0;
 
@@ -1110,7 +1137,7 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     return ret;
 }
 
-static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
+static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
 {
     int ret = 0;
 
@@ -1151,7 +1178,7 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
     return ret;
 }
 
-static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
+static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 {
     int ret;
 
@@ -1176,7 +1203,7 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     return ret;
 }
 
-static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
+static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
 {
     int ret;
 
@@ -1247,7 +1274,7 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
  * p     Number of 64-bit numbers in a block of data to process.
  * returns 0 on success.
  */
-static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
+static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 {
     int ret;
 
@@ -1317,7 +1344,7 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
  * len   Number of bytes in output.
  * returns 0 on success.
  */
-static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
+static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
 {
     int ret;
 
@@ -1485,7 +1512,7 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
  * len   Number of bytes in output.
  * returns 0 on success.
  */
-static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
+static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
 {
     int ret;
     WC_DECLARE_VAR(tmpSha3, wc_Sha3, 1, sha3 ? sha3->heap : NULL);
@@ -2508,7 +2535,7 @@ static word32 KmacRightEncode(byte* out, word64 value)
  * @return  0 on success.
  * @return  Negative error code from the sponge update on failure.
  */
-static int CshakeBytePad(wc_Sha3* shake, byte count, word32 rate)
+static int CshakeBytePad(wc_Sha3* shake, word32 count, word32 rate)
 {
     int    ret = 0;
     word32 pad = (rate - shake->i) % rate;
@@ -2517,7 +2544,7 @@ static int CshakeBytePad(wc_Sha3* shake, byte count, word32 rate)
         /* Zero the rest of the block in place and flush it - a zero-length
          * update with i == rate triggers the XOR-in and permutation. */
         XMEMSET(shake->t + shake->i, 0, pad);
-        shake->i = (byte)rate;
+        shake->i = rate;
         ret = Sha3Update(shake, shake->t, 0, count);
     }
     return ret;
@@ -2543,10 +2570,10 @@ static int CshakeBytePad(wc_Sha3* shake, byte count, word32 rate)
  * @return  0 on success.
  * @return  Negative error code from the sponge update on failure.
  */
-static int CshakeAbsorbBlock(wc_Sha3* shake, byte count, const byte* name,
+static int CshakeAbsorbBlock(wc_Sha3* shake, word32 count, const byte* name,
     word32 nameLen, const byte* custom, word32 customLen)
 {
-    word32 rate = (word32)count * 8U;
+    word32 rate = count * 8U;
     byte   enc[9];
     word32 e;
     word32 h;
@@ -2576,11 +2603,11 @@ static int CshakeAbsorbBlock(wc_Sha3* shake, byte count, const byte* name,
             XMEMCPY(shake->t + h, custom, customLen);
             h += customLen;
         }
-        shake->i = (byte)h;
+        shake->i = h;
     }
     else {
         /* name and/or custom cross a block boundary - absorb them. */
-        shake->i = (byte)h;
+        shake->i = h;
         if (nameLen > 0) {
             ret = Sha3Update(shake, name, nameLen, count);
         }
@@ -2621,7 +2648,7 @@ static int CshakeAbsorbBlock(wc_Sha3* shake, byte count, const byte* name,
  * @return  BAD_FUNC_ARG when a NULL pointer has a non-zero length.
  * @return  Negative error code from the sponge update on failure.
  */
-static int KmacInit(wc_Kmac* kmac, byte count, const byte* key, word32 keyLen,
+static int KmacInit(wc_Kmac* kmac, word32 count, const byte* key, word32 keyLen,
     const byte* custom, word32 customLen, void* heap, int devId)
 {
     /* The KMAC function name string "KMAC". */
@@ -2633,9 +2660,14 @@ static int KmacInit(wc_Kmac* kmac, byte count, const byte* key, word32 keyLen,
             ((custom == NULL) && (customLen != 0))) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef HAVE_FIPS
+    else if (keyLen < KMAC_FIPS_MIN_KEY) {
+        ret = KMAC_MIN_KEYLEN_E;
+    }
+#endif
     else {
         kmac->count = count;
-        rate = (word32)count * 8U;
+        rate = count * 8U;
         ret = wc_InitSha3(&kmac->shake, heap, devId);
 
         /* bytepad(encode_string("KMAC") || encode_string(custom), rate) */
@@ -2652,7 +2684,7 @@ static int KmacInit(wc_Kmac* kmac, byte count, const byte* key, word32 keyLen,
 
             h  = KmacLeftEncode(kmac->shake.t, (word64)rate);
             h += KmacLeftEncode(kmac->shake.t + h, (word64)keyLen * 8);
-            kmac->shake.i = (byte)h;
+            kmac->shake.i = h;
 
             if (keyLen > 0) {
                 /* Copy a key that fits into the block straight in and flush
@@ -2722,17 +2754,27 @@ static int KmacFinal(wc_Kmac* kmac, byte* out, word32 outLen, int xof)
     if ((kmac == NULL) || (out == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef HAVE_FIPS
+    else if ((xof == 0) && (outLen < KMAC_FIPS_MIN_OUTPUT)) {
+        ret = BAD_LENGTH_E;
+    }
+#endif
+    else if ((kmac->count < WC_SHA3_512_COUNT) ||
+             (kmac->count > WC_SHA3_128_COUNT) ||
+             (kmac->shake.i >= kmac->count * 8U)) {
+        ret = BAD_STATE_E;
+    }
     else {
         /* right_encode(outLen * 8), or right_encode(0) for the XOF. */
         word64 v = xof ? (word64)0 : (word64)outLen * 8;
-        rate = (word32)kmac->count * 8U;
+        rate = kmac->count * 8U;
 
         /* The encoding is at most 9 bytes; when that many fit in the current
          * block, write it straight into the block buffer, otherwise use a
          * temporary and Sha3Update (which handles crossing the boundary). */
-        if ((word32)kmac->shake.i + 9 < rate) {
+        if (kmac->shake.i + 9 < rate) {
             word32 l = KmacRightEncode(kmac->shake.t + kmac->shake.i, v);
-            kmac->shake.i = (byte)(kmac->shake.i + l);
+            kmac->shake.i += l;
         }
         else {
             byte   enc[9];
@@ -2798,7 +2840,7 @@ static int KmacCopy(wc_Kmac* src, wc_Kmac* dst)
  * @return  BAD_FUNC_ARG when a NULL pointer has a non-zero length.
  * @return  Negative error code from the sponge update on failure.
  */
-static int CshakeInit(wc_Cshake* cshake, byte count, const byte* name,
+static int CshakeInit(wc_Cshake* cshake, word32 count, const byte* name,
     word32 nameLen, const byte* custom, word32 customLen, void* heap, int devId)
 {
     int ret;
