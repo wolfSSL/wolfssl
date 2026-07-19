@@ -1668,6 +1668,8 @@ then
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
     then
+        # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
         # "Anonymous suite requires DH."
         test "$enable_anon" = "" && enable_anon=yes
     fi
@@ -1697,8 +1699,6 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
 
-    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable all parsing features for ASN */
@@ -1766,8 +1766,11 @@ then
         test "$enable_shake256" = "" && test "$enable_sha3" = "yes" && enable_shake256=yes
         test "$enable_compkey" = "" && enable_compkey=yes
     fi
-    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    fi
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
@@ -6777,12 +6780,7 @@ AS_CASE([$FIPS_VERSION],
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
             -DHAVE_ECC521 \
-            -DWOLFSSL_VALIDATE_FFC_IMPORT \
-            -DHAVE_FFDHE_Q \
-            -DHAVE_FFDHE_3072 \
-            -DHAVE_FFDHE_4096 \
-            -DHAVE_FFDHE_6144 \
-            -DHAVE_FFDHE_8192"
+            -DWOLFSSL_VALIDATE_FFC_IMPORT"
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and don't use seed callback
         AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
