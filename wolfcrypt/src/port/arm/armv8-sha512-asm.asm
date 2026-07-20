@@ -25,6 +25,7 @@
 ;   ruby ./sha2/sha512.rb arm64 \
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.asm
 	IF :DEF:WOLFSSL_SHA512 :LOR: :DEF:WOLFSSL_SHA384
+	IF :LNOT::DEF:WOLFSSL_ARMASM_NO_NEON
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	16
 L_SHA512_transform_neon_len_k
@@ -1566,6 +1567,7 @@ L_sha512_len_crypto_begin
 	ldp	x29, x30, [sp], #0x50
 	ret
 	ENDP
+	ENDIF
 	ENDIF
 	ENDIF
 	END
