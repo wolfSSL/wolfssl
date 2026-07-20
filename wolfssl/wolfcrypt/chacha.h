@@ -95,6 +95,7 @@ typedef struct ChaCha {
 #elif defined(USE_RISCV_CHACHA_SPEEDUP)
     ALIGN8 word32 over[CHACHA_CHUNK_WORDS];
 #endif
+    WC_BITFIELD keySet:1;                    /* set to 1 once a key is set */
 } ChaCha;
 
 /**
