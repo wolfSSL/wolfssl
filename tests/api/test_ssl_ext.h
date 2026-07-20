@@ -50,6 +50,7 @@ int test_wolfSSL_CTX_set_TicketEncCb_inval_ext(void);
 int test_wolfSSL_SessionTicket_inval_ext(void);
 int test_wolfSSL_CTX_set_servername_arg_inval_ext(void);
 int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void);
+int test_wolfSSL_dual_alg_cks_parse_ext(void);
 
 #define TEST_SSL_EXT_DECLS                                                     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_NoTicketTLSv12_ext),           \
@@ -90,6 +91,8 @@ int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void);
         TEST_DECL_GROUP("ssl_ext",                                            \
             test_wolfSSL_CTX_set_servername_arg_inval_ext),                   \
         TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_CTX_set_alpn_protos_inval_ext)
+            test_wolfSSL_CTX_set_alpn_protos_inval_ext),                      \
+        TEST_DECL_GROUP("ssl_ext",                                            \
+            test_wolfSSL_dual_alg_cks_parse_ext)
 
 #endif /* TESTS_API_SSL_EXT_H */
