@@ -83,6 +83,12 @@
         #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
     #endif /* _MSC_VER */
 
+    /* i386 kernel: <asm/ptrace-abi.h> #defines EAX/EBX/ECX/EDX as ptrace
+     * register indices, clashing with the cpuid array indices below. */
+    #undef EAX
+    #undef EBX
+    #undef ECX
+    #undef EDX
     #define EAX 0
     #define EBX 1
     #define ECX 2

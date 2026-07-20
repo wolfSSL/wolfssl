@@ -75,7 +75,9 @@ enum FipsCastId {
     FIPS_CAST_RSA_SIGN_PKCS1v15 =  7,
     FIPS_CAST_ECC_CDH           =  8,
     FIPS_CAST_ECC_PRIMITIVE_Z   =  9,
-    FIPS_CAST_DH_PRIMITIVE_Z    = 10,
+    FIPS_CAST_DH_PRIMITIVE_Z    = 10, /* RETIRED (v7+): classic DH left the
+                                       * module boundary.  Kept for ABI; do
+                                       * not reuse this id. */
     FIPS_CAST_ECDSA             = 11,
     FIPS_CAST_KDF_TLS12         = 12,
     FIPS_CAST_KDF_TLS13         = 13,

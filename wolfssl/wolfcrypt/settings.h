@@ -530,7 +530,11 @@
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)
         #define WC_FIPS_186_4
-    #elif FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
+    #elif FIPS_VERSION3_GE(7,0,0)
+        /* FIPS 186-5 governs the v7+ module, including fips-ready/fips-dev
+         * builds that track the in-development v7 source.  Its sec 6.1.1
+         * signature-digest floor (SHA-224 and larger for ECDSA/DSA signing)
+         * must apply to all of them, so do not exclude WOLFSSL_FIPS_READY. */
         #define WC_FIPS_186_5
     #else
         #define WC_FIPS_186_4
@@ -545,6 +549,15 @@
 #endif
 #if defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_5_PLUS)
     #define WC_FIPS_186_5_PLUS
+#endif
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-56A Rev3 sec 5.6.2.2: an ECC public key used for key agreement
+     * shall be validated on import.  configure enables this for FIPS builds;
+     * force it for v7+ so user_settings.h OEs (kernel/Windows) validate too. */
+    #ifndef WOLFSSL_VALIDATE_ECC_IMPORT
+        #define WOLFSSL_VALIDATE_ECC_IMPORT
+    #endif
 #endif
 
 /*------------------------------------------------------------*/
@@ -565,6 +578,14 @@
     #endif
     /* blinding adds API not available yet in FIPS mode */
     #undef WC_RSA_BLINDING
+
+    /* NIST SP 800-38A sec 6.2: CBC plaintext must be a multiple of the block
+     * size, and the cipher does not pad.  Force the block-alignment check so
+     * an unaligned length returns BAD_LENGTH_E rather than silently
+     * truncating to the largest aligned prefix. */
+    #ifndef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        #define WOLFSSL_AES_CBC_LENGTH_CHECKS
+    #endif
 #endif
 
 /* old FIPS has only AES_BLOCK_SIZE. */

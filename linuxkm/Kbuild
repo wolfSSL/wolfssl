@@ -111,6 +111,9 @@ $(LIBWOLFSSL_NAME)-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/modu
 
 ifeq "$(FIPS_OPTEST)" "1"
     $(LIBWOLFSSL_NAME)-y += linuxkm/optest-140-3/linuxkm_optest_wrapper.o
+    # The optest wrapper's AES invalid-input tests exceed the i386 2048-byte
+    # frame warning; relax it for the wrapper only (outside the FIPS boundary).
+    $(obj)/linuxkm/optest-140-3/linuxkm_optest_wrapper.o: ccflags-y += -Wframe-larger-than=4096
 endif
 
 WOLFSSL_CFLAGS_NO_VECTOR_INSNS := $(CFLAGS_SIMD_DISABLE) $(CFLAGS_FPU_DISABLE)
@@ -138,6 +141,10 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
             $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
           endif
         endif
+      endif
+      ifeq ($(KERNEL_ARCH),i386)
+        NO_PIE_FLAG := 1
+        $(info Note: disabling -fPIE on 32-bit x86 -- i386 -fPIE routes every local symbol through the GOT (R_386_GOTOFF), which the wolfCrypt PIE containerization forbids.)
       endif
     endif
 
@@ -230,6 +237,18 @@ $(obj)/wolfcrypt/src/wc_mlkem_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_F
 $(obj)/wolfcrypt/src/wc_mlkem_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
+
+# The kernel forces its own baseline -march, which rejects the port/arm/*.S
+# crypto+NEON instructions.  Supply the right -march per kernel arch.
+ifeq ($(CONFIG_ARM64),y)
+    WOLFSSL_ARM_ASM_MARCH := -march=armv8-a+crypto
+else ifeq ($(CONFIG_ARM),y)
+    WOLFSSL_ARM_ASM_MARCH := -march=armv8-a -mfpu=crypto-neon-fp-armv8
+endif
+ifdef WOLFSSL_ARM_ASM_MARCH
+$(obj)/wolfcrypt/src/port/arm/%.o: asflags-y := $(WOLFSSL_ASFLAGS) $(WOLFSSL_ARM_ASM_MARCH)
+$(obj)/wolfcrypt/src/port/arm/%.o: OBJECT_FILES_NON_STANDARD := y
+endif
 
 ifndef READELF
     READELF := readelf
@@ -339,7 +358,7 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 			next;						\
 		    }							\
 		    else if ($$4 == "OBJECT") {				\
-			if (! ($$7 in wolfcrypt_data_sections)) {	\
+			if (! ($$7 in wolfcrypt_data_sections) && ! ($$7 in wolfcrypt_text_sections)) {	\
 			    if ((other_sections[$$7] == ".printk_index") || \
 				(($$8 ~ /^_entry\.[0-9]+$$|^kernel_read_file_str$$/) &&		\
 				 (other_sections[$$7] == ".data.rel.ro.local"))) \

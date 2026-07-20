@@ -1302,6 +1302,16 @@ AC_ARG_ENABLE([all],
     [ ENABLED_ALL=$enableval ],
     [ ENABLED_ALL=no ]
     )
+
+# --enable-all turns on algorithms and options that sit outside the validated
+# FIPS module boundary (e.g. deterministic ECDSA per RFC 6979, which has no
+# CAST), so it must not be combined with a validation-targeted FIPS build.
+# Only the in-development 'dev' flavor is exempt.
+AS_IF([test "$ENABLED_ALL" = "yes"],
+    [AS_CASE([$FIPS_VERSION],
+        [""|none|disabled|dev], [],
+        [AC_MSG_ERROR([--enable-all cannot be combined with --enable-fips=$FIPS_VERSION: it enables algorithms outside the FIPS module boundary. Use --enable-fips=dev for development, or drop --enable-all.])])])
+
 if test "$ENABLED_ALL" = "yes"
 then
     test "$enable_all_crypto" = "" && enable_all_crypto=yes
@@ -1563,6 +1573,11 @@ fi
 # RISC-V asm now supports WOLFSSL_AESGCM_STREAM: all tiers (base/scalar/vector)
 # have dedicated streaming assembly (AES_GCM_*_RISCV64).  (Previously disabled
 # here.)
+
+# Capture explicit --enable-dh/--enable-dsa before any default sets them: the
+# v7 out-of-scope guard hard-errors only on an explicit request.
+explicit_enable_dsa="$enable_dsa"
+explicit_enable_dh="$enable_dh"
 
 # All wolfCrypt features:
 AC_ARG_ENABLE([all-crypto],
@@ -4122,13 +4137,15 @@ then
             AC_MSG_NOTICE([32bit ARMv4 found])
             ;;
         *)
-            AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8 -marm"
+            # ARMv8-A crypto extensions are OPTIONAL, so the armv8-32-*-asm.S
+            # crypto instructions need an explicit -march=armv8-a+crypto.
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv8-a+crypto -mfpu=crypto-neon-fp-armv8 -marm"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
             ENABLED_ARMASM_NEON=yes
             ENABLED_ARM_32=yes
-            AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8])
+            AC_MSG_NOTICE([32bit ARMv8 found, setting -march=armv8-a+crypto + mfpu=crypto-neon-fp-armv8])
             ;;
         esac
     esac
@@ -6200,6 +6217,10 @@ if test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
 then
     ENABLED_ANON=yes
 fi
+# Anonymous ciphers require classic DH, which is out of scope for the locked
+# FIPS 140-3 v7 module, so force anon off there however it was enabled.
+AS_IF([test "$FIPS_VERSION" = "v7"],
+    [ENABLED_ANON=no])
 if test "x$ENABLED_ANON" = "xyes"
 then
     if test "$ENABLED_DH" = "no"
@@ -6743,13 +6764,7 @@ AS_CASE([$FIPS_VERSION],
             -DWC_RSA_NO_PADDING \
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
-            -DHAVE_ECC521 \
-            -DWOLFSSL_VALIDATE_FFC_IMPORT \
-            -DHAVE_FFDHE_Q \
-            -DHAVE_FFDHE_3072 \
-            -DHAVE_FFDHE_4096 \
-            -DHAVE_FFDHE_6144 \
-            -DHAVE_FFDHE_8192"
+            -DHAVE_ECC521"
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and don't use seed callback
         AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
@@ -6763,6 +6778,23 @@ AS_CASE([$FIPS_VERSION],
                 -DHAVE_ECC256"])
 
         DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
+
+# Classic DH/DSA scope by FIPS mode: v7 puts them out of scope (hard-error on an
+# explicit --enable-dh/--enable-dsa); dev/ready default off but allow opt-in.
+        AS_IF([test "$FIPS_VERSION" = "v7"],
+            [AS_IF([test "$explicit_enable_dh" = "yes"],
+                 [AC_MSG_ERROR([--enable-dh is not supported with --enable-fips=v7. Classic finite-field DH is out of scope for the FIPS 140-3 v7 PQ module. Use --enable-fips=v6 if you need DH support.])],
+                 [test "$ENABLED_DH" != "no"],
+                 [ENABLED_DH="no"; enable_dh="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
+             AS_IF([test "$explicit_enable_dsa" = "yes"],
+                 [AC_MSG_ERROR([--enable-dsa is not supported with --enable-fips=v7. DSA is retired by FIPS 186-5 and is out of scope for the FIPS 140-3 v7 PQ module. Use --enable-fips=v6 if you need DSA support.])],
+                 [test "$ENABLED_DSA" != "no"],
+                 [ENABLED_DSA="no"; enable_dsa="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DSA"])],
+            [AS_IF([test "$explicit_enable_dh" != "yes" && test "x$enable_all" != "xyes"],
+                 [ENABLED_DH="no"; enable_dh="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
+             AS_IF([test "$explicit_enable_dsa" != "yes" && test "x$enable_all" != "xyes"],
+                 [ENABLED_DSA="no"; enable_dsa="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DSA"])])
+
 # optimizations section
 
 # protocol section
@@ -9354,8 +9386,15 @@ then
     fi
     if test "x$ENABLED_DH" = "xno"
     then
-        ENABLED_DH="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+        # JNI normally auto-enables DH for legacy TLS suites; DH is out of
+        # scope for FIPS v7+, so report and skip rather than re-enabling it.
+        if test "$FIPS_VERSION" = "v7" || test "$FIPS_VERSION" = "ready" || test "$FIPS_VERSION" = "dev"
+        then
+            AC_MSG_NOTICE([JNI enabled but FIPS is $FIPS_VERSION, NOT turning on DH with this module])
+        else
+            ENABLED_DH="yes"
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+        fi
     fi
     if test "x$ENABLED_PSK" = "xno"
     then

@@ -23,8 +23,20 @@
 /* included by linuxkm/module_hooks.c */
 #ifndef WC_SKIP_INCLUDED_C_FILES
 
-#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
-    #error x86_vector_register_glue.c included in non-vectorized/non-x86 project.
+#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || \
+    !(defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+    #error vector register glue included in non-vectorized or unsupported-arch project.
+#endif
+
+/* Arch-neutral per-CPU tracker; only the SIMD claim/release differs: x86
+ * kernel_fpu_*, ARM/ARM64 kernel_neon_*.  wc_*_x86 names kept on all arches. */
+#if defined(CONFIG_X86)
+    #define WC_LINUXKM_FPU_BEGIN() kernel_fpu_begin()
+    #define WC_LINUXKM_FPU_END()   kernel_fpu_end()
+#elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+    #include <asm/neon.h>
+    #define WC_LINUXKM_FPU_BEGIN() kernel_neon_begin()
+    #define WC_LINUXKM_FPU_END()   kernel_neon_end()
 #endif
 
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
@@ -70,9 +82,10 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
             wc_linuxkm_fpu_states_n_tracked * sizeof(wc_linuxkm_fpu_states[0]));
 
     if (! wc_linuxkm_fpu_states) {
+        /* cast to match %lu: the product's type is arch-dependent. */
         pr_err("ERROR: allocation of %lu bytes for "
                "wc_linuxkm_fpu_states failed.\n",
-               nr_cpu_ids * sizeof(wc_linuxkm_fpu_states[0]));
+               (unsigned long)(nr_cpu_ids * sizeof(wc_linuxkm_fpu_states[0])));
         return MEMORY_E;
     }
 
@@ -454,10 +467,10 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         #if IS_ENABLED(CONFIG_PREEMPT_RT)
         preempt_disable();
         #endif
-        kernel_fpu_begin();
+        WC_LINUXKM_FPU_BEGIN();
         pstate = wc_linuxkm_fpu_state_assoc(1, 1);
         if (pstate == NULL) {
-            kernel_fpu_end();
+            WC_LINUXKM_FPU_END();
             #if IS_ENABLED(CONFIG_PREEMPT_RT)
             preempt_enable();
             #endif
@@ -521,7 +534,7 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 
     if (pstate->fpu_state == 0U) {
         wc_linuxkm_fpu_state_release(pstate);
-        kernel_fpu_end();
+        WC_LINUXKM_FPU_END();
         #if IS_ENABLED(CONFIG_PREEMPT_RT)
         preempt_enable();
         #endif

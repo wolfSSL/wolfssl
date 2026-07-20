@@ -54,6 +54,7 @@ include IDE/VisualDSP/include.am
 include IDE/VS-ARM/include.am
 include IDE/VS-AZURE-SPHERE/include.am
 include IDE/WICED-STUDIO/include.am
+include IDE/WIN-PQ-FIPSv7/include.am
 include IDE/WIN-SGX/include.am
 include IDE/WIN-SRTP-KDF-140-3/include.am
 include IDE/WIN/include.am
