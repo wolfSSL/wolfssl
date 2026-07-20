@@ -7050,6 +7050,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
 
 #if defined(WOLFSSL_RISCV_ASM)
+        if (aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return BAD_FUNC_ARG;
+        }
         AES_CBC_encrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
             (int)aes->rounds);
         (void)blocks;
@@ -7287,6 +7291,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
 
 #if defined(WOLFSSL_RISCV_ASM)
+        if (aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return BAD_FUNC_ARG;
+        }
         AES_CBC_decrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
             (int)aes->rounds);
         (void)blocks;
