@@ -2137,7 +2137,8 @@ int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm, const char* file,
  * @param [in] cm       Certificate manager.
  * @param [in] options  Options for using OCSP. Valid flags:
  *                        WOLFSSL_OCSP_URL_OVERRIDE, WOLFSSL_OCSP_NO_NONCE,
- *                        WOLFSSL_OCSP_CHECKALL.
+ *                        WOLFSSL_OCSP_CHECKALL,
+ *                        WOLFSSL_OCSP_FAIL_IF_NOT_SUPPORTED.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  0 when initializing the OCSP object fails.
  * @return  BAD_FUNC_ARG when cm is NULL.
@@ -2200,6 +2201,10 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
         /* Set all OCSP checks on if requested. */
         if (options & WOLFSSL_OCSP_CHECKALL) {
             cm->ocspCheckAll = 1;
+        }
+        /* Fail closed on certs that advertise no OCSP responder if requested. */
+        if (options & WOLFSSL_OCSP_FAIL_IF_NOT_SUPPORTED) {
+            cm->ocspFailIfNotSupported = 1;
         }
     #ifndef WOLFSSL_USER_IO
         /* Set built-in OCSP lookup. */
@@ -2446,7 +2451,12 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
             }
             /* Do OCSP checks with decoded certificate. */
             else if ((ret = CheckCertOCSP(cm->ocsp, cert)) != 0) {
-                WOLFSSL_MSG("CheckCertOCSP failed");
+                /* Apply the caller's policy for a cert that advertises no
+                 * responder rather than reporting a lookup failure. */
+                if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+                    ret = OcspNoUrlPolicy(cm);
+                if (ret != 0)
+                    WOLFSSL_MSG("CheckCertOCSP failed");
             }
 
             /* Dispose of dynamically allocated memory. */

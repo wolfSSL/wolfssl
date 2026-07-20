@@ -16499,6 +16499,8 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
             return 1;
         }
     #endif
+        if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+            ret = OcspNoUrlPolicy(SSL_CM(ssl));
         doLookup = (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN));
         if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Lookup not ok");
@@ -17485,6 +17487,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 goto exit_ppc;
                             }
                         #endif
+                            if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+                                ret = OcspNoUrlPolicy(SSL_CM(ssl));
                             if (ret != 0) {
                                 WOLFSSL_ERROR_VERBOSE(ret);
                                 WOLFSSL_MSG("\tOCSP Lookup not ok");
@@ -26232,9 +26236,12 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
                                ssl->heap);
 
         /* Suppressing soft-fail responder errors. OCSP_CERT_REVOKED is an
-         * explicit positive assertion of revocation and must not be ignored. */
+         * explicit positive assertion of revocation and must not be ignored.
+         * OCSP_NO_URL just means there is no responder to staple from;
+         * stapling stays best-effort. */
         if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
-            ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL)) {
+            ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
+            ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
             ret = 0;
         }
     }
@@ -27221,9 +27228,12 @@ int SendCertificateStatus(WOLFSSL* ssl)
                             /* Suppressing soft-fail responder errors.
                              * OCSP_CERT_REVOKED is an explicit positive
                              * assertion of revocation and must not be
-                             * ignored. */
+                             * ignored. OCSP_NO_URL just means there is no
+                             * responder to staple from; stapling stays
+                             * best-effort. */
                             if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
-                                ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL)) {
+                                ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
+                                ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
                                 ret = 0;
                             }
 
@@ -27252,9 +27262,12 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
                     /* Suppressing soft-fail responder errors.
                      * OCSP_CERT_REVOKED is an explicit positive assertion of
-                     * revocation and must not be ignored. */
+                     * revocation and must not be ignored. OCSP_NO_URL just
+                     * means there is no responder to staple from; stapling
+                     * stays best-effort. */
                     if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
-                        ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL)) {
+                        ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL) ||
+                        ret == WC_NO_ERR_TRACE(OCSP_NO_URL)) {
                         ret = 0;
                     }
                 }
@@ -28691,6 +28704,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case OCSP_NEED_URL:
         return "OCSP need URL";
+
+    case OCSP_NO_URL:
+        return "Cert has no OCSP responder URL";
 
     case OCSP_CERT_UNKNOWN:
         return "OCSP Cert unknown";
@@ -41454,6 +41470,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                  * Run OCSP if the CertManager has it enabled. */
                 if (ret == 0 && SSL_CM(ssl)->ocspEnabled) {
                     ret = CheckCertOCSP_ex(SSL_CM(ssl)->ocsp, dCert, ssl);
+                    if (ret == WC_NO_ERR_TRACE(OCSP_NO_URL))
+                        ret = OcspNoUrlPolicy(SSL_CM(ssl));
                 }
             #endif
             #ifdef HAVE_CRL

@@ -33,6 +33,7 @@ int test_ocsp_tls_cert_cb(void);
 int test_ocsp_status_request_v2_multi_revoked_single(void);
 int test_ocsp_cert_unknown_crl_fallback(void);
 int test_ocsp_cert_unknown_crl_fallback_nonleaf(void);
+int test_ocsp_no_url_policy(void);
 int test_tls13_nonblock_ocsp_low_mfl(void);
 int test_ocsp_responder(void);
 int test_ocsp_ancestor_responder_rejected(void);
