@@ -15363,7 +15363,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 ret = ecc_ctx_encrypt_advance(ctx);
             return ret;
         }
-        ret = 0; /* fall-through to software */
+        /* fall-through to software (ret is reassigned below) */
     }
 #endif
 
@@ -15860,7 +15860,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 ret = ecc_ctx_decrypt_advance(ctx);
             return ret;
         }
-        ret = 0; /* fall-through to software */
+        /* fall-through to software (ret is reassigned below) */
     }
 #endif
 
