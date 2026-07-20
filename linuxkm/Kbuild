@@ -230,6 +230,12 @@ $(obj)/wolfcrypt/src/wc_mlkem_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_F
 $(obj)/wolfcrypt/src/wc_mlkem_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
+# Native Falcon fpr backend: scalar double math on SSE2 (mulsd/divsd/sqrtsd,
+# no x87), so it needs the vector insns enabled in the assembler like the other
+# _asm.o here. The vector registers are saved at run time by the SAVE_VECTOR_
+# REGISTERS2() wrapping in falcon.c around signing and keygen.
+$(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 ifndef READELF
     READELF := readelf
