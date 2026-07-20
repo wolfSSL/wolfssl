@@ -154,7 +154,6 @@ sha3_block_bmi2 PROC
         push	r15
         push	rdi
         push	rsi
-        sub	rsp, 8
         mov	rsi, QWORD PTR [rcx]
         add	rcx, 96
         ; Round 0
@@ -4573,7 +4572,6 @@ sha3_block_bmi2 PROC
         mov	QWORD PTR [rcx+88], r14
         mov	QWORD PTR [rcx+96], r15
         mov	QWORD PTR [rcx+-96], rsi
-        add	rsp, 8
         pop	rsi
         pop	rdi
         pop	r15
@@ -4593,7 +4591,6 @@ sha3_block_n_bmi2 PROC
         push	rsi
         push	rbx
         push	rbp
-        sub	rsp, 8
         push	r9
         mov	rbp, r9
         mov	r9, QWORD PTR [rcx]
@@ -9266,7 +9263,6 @@ L_sha3_block_n_bmi2_rounds:
         jg	L_sha3_block_n_bmi2_start
         mov	QWORD PTR [rcx+-96], r9
         pop	rbp
-        add	rsp, 8
         pop	rbp
         pop	rbx
         pop	rsi

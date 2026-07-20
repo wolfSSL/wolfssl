@@ -1475,7 +1475,10 @@ static int Transform_Sha512_Len_C(wc_Sha512* sha512, const byte* data,
     return ret;
 }
 
-#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
+/* The SHA-512 crypto instructions operate on SIMD registers, so the assembly
+ * only defines these when NEON is available - see armv8-sha512-asm.S and the
+ * prototype guard in sha512.h. */
+#if defined(WOLFSSL_ARMASM_CRYPTO_SHA512) && !defined(WOLFSSL_ARMASM_NO_NEON)
 static int Transform_Sha512_crypto_aarch64(wc_Sha512* sha512, const byte* data)
 {
     Transform_Sha512_Len_crypto(sha512, data, WC_SHA512_BLOCK_SIZE);
@@ -1519,7 +1522,7 @@ static void Sha512_SetTransform(void)
 
     cpuid_get_flags_atomic(&cpuid_flags);
 
-#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
+#if defined(WOLFSSL_ARMASM_CRYPTO_SHA512) && !defined(WOLFSSL_ARMASM_NO_NEON)
     if (IS_AARCH64_SHA512(cpuid_flags)) {
         Transform_Sha512_p     = Transform_Sha512_crypto_aarch64;
         Transform_Sha512_Len_p = Transform_Sha512_Len_crypto_aarch64;

@@ -5128,8 +5128,8 @@ AES_XTS_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
         vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
         ; aes_enc_block
         vpxor	xmm8, xmm8, [r9]
@@ -5452,7 +5452,7 @@ L_AES_XTS_encrypt_avx512_done_64:
         ; aes_enc_32
         lea	rcx, QWORD PTR [rdi+r13]
         lea	rdx, QWORD PTR [rsi+r13]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -5484,7 +5484,7 @@ L_AES_XTS_encrypt_avx512_done_64:
 L_AES_XTS_encrypt_avx512_aes_enc_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r13d, 32
 L_AES_XTS_encrypt_avx512_done_32:
@@ -5649,8 +5649,8 @@ AES_XTS_encrypt_update_avx512 PROC
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
         vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
         xor	r12d, r12d
         cmp	eax, 32
@@ -5938,7 +5938,7 @@ L_AES_XTS_encrypt_update_avx512_done_64:
         ; aes_enc_32
         lea	rcx, QWORD PTR [rdi+r12]
         lea	rdx, QWORD PTR [rsi+r12]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -5970,7 +5970,7 @@ L_AES_XTS_encrypt_update_avx512_done_64:
 L_AES_XTS_encrypt_update_avx512_aes_enc_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r12d, 32
 L_AES_XTS_encrypt_update_avx512_done_32:
@@ -6137,8 +6137,8 @@ AES_XTS_decrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
         vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
         ; aes_enc_block
         vpxor	xmm8, xmm8, [r9]
@@ -6501,7 +6501,7 @@ L_AES_XTS_decrypt_avx512_mul16_32:
         ; aes_dec_32
         lea	rcx, QWORD PTR [rdi+r13]
         lea	rdx, QWORD PTR [rsi+r13]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -6533,7 +6533,7 @@ L_AES_XTS_decrypt_avx512_mul16_32:
 L_AES_XTS_decrypt_avx512_aes_dec_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r13d, 32
 L_AES_XTS_decrypt_avx512_done_32:
@@ -6742,8 +6742,8 @@ AES_XTS_decrypt_update_avx512 PROC
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
         vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
-        vmovdqu64	zmm14, ptr_L_avx512_aes_xts_shl
-        vmovdqu64	zmm15, ptr_L_avx512_aes_xts_shr
+        vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
+        vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
         xor	r12d, r12d
         mov	r11d, eax
@@ -7071,7 +7071,7 @@ L_AES_XTS_decrypt_update_avx512_mul16_32:
         ; aes_dec_32
         lea	rcx, QWORD PTR [rdi+r12]
         lea	rdx, QWORD PTR [rsi+r12]
-        vmovdqu64	ymm0, [rcx]
+        vmovdqu64	ymm0, YMMWORD PTR [rcx]
         vshufi64x2	zmm5, zmm8, zmm8, 0
         vpsrlvq	zmm6, zmm5, zmm15
         vpclmulqdq	zmm7, zmm6, zmm13, 1
@@ -7103,7 +7103,7 @@ L_AES_XTS_decrypt_update_avx512_mul16_32:
 L_AES_XTS_decrypt_update_avx512_aes_dec_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vpxorq	ymm0, ymm0, ymm4
-        vmovdqu64	[rdx], ymm0
+        vmovdqu64	YMMWORD PTR [rdx], ymm0
         vextracti32x4	xmm8, zmm4, 2
         add	r12d, 32
 L_AES_XTS_decrypt_update_avx512_done_32:

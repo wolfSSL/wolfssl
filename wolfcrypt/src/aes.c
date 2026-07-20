@@ -8154,8 +8154,19 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 #endif
 #endif /* !FREESCALE_LTC_AES_GCM */
 
-#if !defined(WOLFSSL_ARMASM) || defined(__aarch64__) || \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+/* Alignment for the GHASH tag held on the stack.
+ *
+ * The tag is a byte array to the C code, but the assembly implementations
+ * transfer it a machine word at a time - the AArch32 and Thumb-2
+ * GCM_gmult_len write it back with stm, which faults on an unaligned address
+ * whatever SCTLR.A says - so it has to be aligned to the word size of the
+ * platform rather than left at the natural alignment of a byte array. */
+#ifdef WC_64BIT_CPU
+    #define ALIGN_GCM_TAG   ALIGN8
+#else
+    #define ALIGN_GCM_TAG   ALIGN4
+#endif
+
 #if defined(GCM_SMALL) || defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
 
 static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
@@ -8309,7 +8320,6 @@ void GenerateM0(Gcm* gcm)
 }
 
 #endif /* GCM_TABLE */
-#endif
 
 #if defined(WOLFSSL_AESNI) && defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1
@@ -8339,6 +8349,34 @@ void GCM_generate_m0_avx2(const unsigned char *h, unsigned char *m)
                           XASM_LINK("GCM_generate_m0_avx2");
 #endif
 #endif /* WOLFSSL_AESNI && GCM_TABLE_4BIT && WC_C_DYNAMIC_FALLBACK */
+
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(HAVE_AESGCM)
+/* Reflect the bits of each byte of a hash subkey, in place.
+ *
+ * AES_GCM_set_key_AARCH32 produces H in reflected form - what the PMULL bulk
+ * assembly wants - but the portable GHASH used for AES-GCM streaming needs
+ * plain H.  So the stored aes->gcm.H is un-reflected once at key set, and each
+ * bulk assembly call reflects its own copy.  The operation is its own inverse,
+ * so the same function serves both directions.
+ *
+ * @param [in, out] h  Hash subkey to reflect.
+ */
+static WC_INLINE void GcmReflectH(byte* h)
+{
+    int i;
+    int j;
+    for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
+        byte b = h[i];
+        byte r = 0;
+        for (j = 0; j < 8; j++) {
+            r = (byte)((r << 1) | (b & 1));
+            b >>= 1;
+        }
+        h[i] = r;
+    }
+}
+#endif
 
 /* Software AES - GCM SetKey */
 int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
@@ -8420,6 +8458,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)
         AES_GCM_set_key_AARCH32(iv, (byte*)aes->key, aes->gcm.H, aes->rounds);
+        /* Undo the reflection the assembly applied, so the stored H is plain
+         * H for the portable streaming GHASH and for GenerateM0 below.  Each
+         * bulk assembly call reflects its own copy. */
+        GcmReflectH(aes->gcm.H);
+        #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+        GenerateM0(&aes->gcm);
+        #endif
     #else
         if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
             AES_GCM_set_key_AARCH64(iv, (byte*)aes->key, aes->gcm.H,
@@ -8626,8 +8671,6 @@ void AES_GCM_decrypt_vaes(const unsigned char *in, unsigned char *out,
 
 #endif /* WOLFSSL_AESNI */
 
-#if !defined(WOLFSSL_ARMASM) || defined(__aarch64__) || \
-    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 #if defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM) && defined(HAVE_AESGCM) && \
     !defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
 /* GHASH using the RISC-V scalar carryless-multiply (Zbc) helper.  Vector crypto
@@ -8744,7 +8787,7 @@ static void GMULT(byte* X, byte* Y)
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
     byte* h;
@@ -8820,7 +8863,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
 #if defined(WOLFSSL_ARMASM) && (!defined(__aarch64__) || \
     defined(WOLFSSL_ARMASM_NO_NEON))
-static void GCM_gmult_len_armasm_C(
+/* Unused when the batch GHASH is done in assembly (32-bit ARMv8 crypto), which
+ * only pulls in the streaming software GMULT. */
+static WC_MAYBE_UNUSED void GCM_gmult_len_armasm_C(
     byte* x, const byte* h, const unsigned char* a, unsigned long len)
 {
     byte Z[AES_BLOCK_SIZE];
@@ -9076,7 +9121,7 @@ static void GMULT(byte *x, byte m[256][WC_AES_BLOCK_SIZE])
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
 
@@ -9161,6 +9206,18 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  */
 #define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
+#ifdef GCM_GMULT_LEN
+/* GHASH one block of data.
+ *
+ * Defer to the length-based implementation with a length of one block - it
+ * does the XOR into the tag as well as the multiply.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK_SW(aes, block)                                  \
+   GCM_GMULT_LEN(&(aes)->gcm, AES_TAG(aes), block, WC_AES_BLOCK_SIZE)
+#else
 /* GHASH one block of data..
  *
  * XOR block into tag and GMULT with H using pre-computed table.
@@ -9174,6 +9231,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         GMULT(AES_TAG(aes), aes->gcm.M0);               \
     }                                                   \
     while (0)
+#endif
 #endif /* WOLFSSL_AESGCM_STREAM */
 /* end GCM_TABLE */
 #elif defined(GCM_TABLE_4BIT)
@@ -9564,7 +9622,7 @@ static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
 
@@ -9651,6 +9709,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
 #ifdef GCM_GMULT_LEN
 /* GHASH one block of data.
+ *
+ * Defer to the length-based implementation with a length of one block - it
+ * does the XOR into the tag as well as the multiply.
  *
  * @param [in, out] aes    AES GCM object.
  * @param [in]      block  Block of AAD or cipher text.
@@ -10229,7 +10290,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #endif /* LITTLE_ENDIAN_ORDER */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* end GCM_WORD32 */
-#endif
 
 #if !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
 #ifdef WOLFSSL_AESGCM_STREAM
@@ -10830,7 +10890,7 @@ static int AES_GCM_encrypt_ASM(Aes* aes, byte* out, const byte* in,
     word32 partial;
     byte counter[WC_AES_BLOCK_SIZE];
     byte initialCounter[WC_AES_BLOCK_SIZE];
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
 
     XMEMSET(initialCounter, 0, WC_AES_BLOCK_SIZE);
@@ -11091,9 +11151,18 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(WOLFSSL_ARMASM)
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #if !defined(__aarch64__)
-    AES_GCM_encrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
-        authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp, (byte*)aes->reg,
-        aes->rounds);
+    {
+        /* Reflect a copy of H into the form the PMULL assembly wants - the
+         * stored H must stay un-reflected for the portable GHASH. */
+        byte h[WC_AES_BLOCK_SIZE];
+
+        XMEMCPY(h, aes->gcm.H, WC_AES_BLOCK_SIZE);
+        GcmReflectH(h);
+        AES_GCM_encrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
+            authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
+            (byte*)aes->reg, aes->rounds);
+        ForceZero(h, sizeof(h));
+    }
     ret = 0;
 #else
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
@@ -11662,7 +11731,7 @@ static int AES_GCM_decrypt_ASM(Aes* aes, byte* out, const byte* in,
     byte counter[WC_AES_BLOCK_SIZE];
     byte initialCounter[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
-    byte x[WC_AES_BLOCK_SIZE];
+    ALIGN_GCM_TAG byte x[WC_AES_BLOCK_SIZE];
 
     XMEMSET(initialCounter, 0, WC_AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
@@ -11895,11 +11964,20 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     {
     #ifdef OPENSSL_EXTRA
         word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
+    #endif
+        /* Reflect a copy of H into the form the PMULL assembly wants - the
+         * stored H must stay un-reflected for the portable GHASH. */
+        byte h[WC_AES_BLOCK_SIZE];
+
+    #ifdef OPENSSL_EXTRA
         XMEMCPY(reg, aes->reg, sizeof(reg));
     #endif
+        XMEMCPY(h, aes->gcm.H, WC_AES_BLOCK_SIZE);
+        GcmReflectH(h);
         ret = AES_GCM_decrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
-            authIn, authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp,
+            authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
             (byte*)aes->reg, aes->rounds);
+        ForceZero(h, sizeof(h));
     #ifdef OPENSSL_EXTRA
         XMEMCPY(aes->reg, reg, sizeof(reg));
     #endif
