@@ -336,6 +336,24 @@ static int swdev_curve25519(wc_CryptoInfo* info)
         info->pk.curve25519.outlen, info->pk.curve25519.endian);
 }
 #endif /* HAVE_CURVE25519_SHARED_SECRET */
+
+static int swdev_curve25519_make_pub(wc_CryptoInfo* info)
+{
+    return wc_curve25519_make_pub((int)info->pk.curve25519makepub.pubSz,
+        info->pk.curve25519makepub.pub,
+        (int)info->pk.curve25519makepub.privSz,
+        info->pk.curve25519makepub.priv);
+}
+
+static int swdev_curve25519_generic(wc_CryptoInfo* info)
+{
+    return wc_curve25519_generic((int)info->pk.curve25519generic.pubSz,
+        info->pk.curve25519generic.pub,
+        (int)info->pk.curve25519generic.privSz,
+        info->pk.curve25519generic.priv,
+        (int)info->pk.curve25519generic.basepointSz,
+        info->pk.curve25519generic.basepoint);
+}
 #endif /* HAVE_CURVE25519 */
 
 #ifndef NO_SHA256
@@ -992,6 +1010,10 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_CURVE25519:
             return swdev_curve25519(info);
         #endif
+        case WC_PK_TYPE_CURVE25519_MAKE_PUB:
+            return swdev_curve25519_make_pub(info);
+        case WC_PK_TYPE_CURVE25519_GENERIC:
+            return swdev_curve25519_generic(info);
     #endif /* HAVE_CURVE25519 */
         default:
             return CRYPTOCB_UNAVAILABLE;
