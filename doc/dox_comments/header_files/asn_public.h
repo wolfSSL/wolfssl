@@ -2830,9 +2830,47 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 outLen,
     \endcode
 
     \sa wc_Ed25519PrivateKeyToDer
+    \sa wc_Ed25519PrivateKeyDecode_ex
 */
 int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                 ed25519_key* key, word32 inSz);
+
+/*!
+    \ingroup Ed25519
+    \brief Decodes Ed25519 private key from DER format with control over
+    validation of a bundled public key. When the DER contains a public key
+    and trusted is 0, the public key is validated with
+    wc_ed25519_check_key(), including a check that it matches the private
+    key. When trusted is 1 all validation of the bundled public key is
+    skipped, so trusted should only be set with known-good key material.
+    wc_Ed25519PrivateKeyDecode() behaves as trusted set to 0.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Ed25519 private key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Ed25519 key structure to store key
+    \param inSz Size of input buffer
+    \param trusted Indicates whether the bundled public key data is trusted.
+    When 0, the public key is validated with wc_ed25519_check_key().
+    When 1, the public key is imported without any validation.
+
+    _Example_
+    \code
+    ed25519_key key;
+    word32 idx = 0;
+    // key material comes from this application's own storage
+    int ret = wc_Ed25519PrivateKeyDecode_ex(derBuf, &idx, &key,
+                                            derSz, 1);
+    \endcode
+
+    \sa wc_Ed25519PrivateKeyDecode
+    \sa wc_Ed25519PrivateKeyToDer
+    \sa wc_ed25519_import_private_key_ex
+*/
+int wc_Ed25519PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
+                                  ed25519_key* key, word32 inSz, int trusted);
 
 /*!
     \ingroup Ed25519
@@ -2952,9 +2990,47 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
     \endcode
 
     \sa wc_Ed448PrivateKeyToDer
+    \sa wc_Ed448PrivateKeyDecode_ex
 */
 int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
                               ed448_key* key, word32 inSz);
+
+/*!
+    \ingroup Ed448
+    \brief Decodes Ed448 private key from DER format with control over
+    validation of a bundled public key. When the DER contains a public key
+    and trusted is 0, the public key is validated with wc_ed448_check_key(),
+    including a check that it matches the private key. When trusted is 1
+    all validation of the bundled public key is skipped, so trusted should
+    only be set with known-good key material. wc_Ed448PrivateKeyDecode()
+    behaves as trusted set to 0.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Ed448 private key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Ed448 key structure to store key
+    \param inSz Size of input buffer
+    \param trusted Indicates whether the bundled public key data is trusted.
+    When 0, the public key is validated with wc_ed448_check_key().
+    When 1, the public key is imported without any validation.
+
+    _Example_
+    \code
+    ed448_key key;
+    word32 idx = 0;
+    // key material comes from this application's own storage
+    int ret = wc_Ed448PrivateKeyDecode_ex(derBuf, &idx, &key,
+                                          derSz, 1);
+    \endcode
+
+    \sa wc_Ed448PrivateKeyDecode
+    \sa wc_Ed448PrivateKeyToDer
+    \sa wc_ed448_import_private_key_ex
+*/
+int wc_Ed448PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
+                                ed448_key* key, word32 inSz, int trusted);
 
 /*!
     \ingroup Ed448
