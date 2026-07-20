@@ -145,12 +145,15 @@ static const char* GetPkTypeStr(int pk)
 {
     switch (pk) {
         case WC_PK_TYPE_RSA: return "RSA";
+        case WC_PK_TYPE_RSA_PSS_VERIFY: return "RSA-PSS-Verify";
         case WC_PK_TYPE_DH: return "DH";
         case WC_PK_TYPE_ECDH: return "ECDH";
         case WC_PK_TYPE_ECDSA_SIGN: return "ECDSA-Sign";
         case WC_PK_TYPE_ECDSA_VERIFY: return "ECDSA-Verify";
         case WC_PK_TYPE_ED25519_SIGN: return "ED25519-Sign";
         case WC_PK_TYPE_ED25519_VERIFY: return "ED25519-Verify";
+        case WC_PK_TYPE_ED448: return "ED448-Sign";
+        case WC_PK_TYPE_ED448_VERIFY: return "ED448-Verify";
         case WC_PK_TYPE_CURVE25519: return "CURVE25519";
         case WC_PK_TYPE_RSA_KEYGEN: return "RSA KeyGen";
         case WC_PK_TYPE_EC_KEYGEN: return "ECC KeyGen";
@@ -621,6 +624,42 @@ int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
         cryptoInfo.pk.rsa.key = key;
         cryptoInfo.pk.rsa.rng = rng;
         cryptoInfo.pk.rsa.padding = padding;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+/* Verify an RSA-PSS signature on the device (padding included). Passes both the
+ * signature and digest so the device does the whole verify and returns a verdict. */
+int wc_CryptoCb_RsaPssVerify(const byte* sig, word32 sigSz, const byte* digest,
+    word32 digestSz, enum wc_HashType hash, int mgf, int saltLen, RsaKey* key,
+    int* res)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_RSA_PSS_VERIFY;
+        cryptoInfo.pk.rsa_pss_verify.sig = sig;
+        cryptoInfo.pk.rsa_pss_verify.sigSz = sigSz;
+        cryptoInfo.pk.rsa_pss_verify.digest = digest;
+        cryptoInfo.pk.rsa_pss_verify.digestSz = digestSz;
+        cryptoInfo.pk.rsa_pss_verify.hash = hash;
+        cryptoInfo.pk.rsa_pss_verify.mgf = mgf;
+        cryptoInfo.pk.rsa_pss_verify.saltLen = saltLen;
+        cryptoInfo.pk.rsa_pss_verify.key = key;
+        cryptoInfo.pk.rsa_pss_verify.res = res;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -1226,6 +1265,73 @@ int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_ED25519 */
+
+#ifdef HAVE_ED448
+int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen, byte* out,
+    word32 *outLen, ed448_key* key, byte type, const byte* context,
+    byte contextLen)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED448;
+        cryptoInfo.pk.ed448sign.in = in;
+        cryptoInfo.pk.ed448sign.inLen = inLen;
+        cryptoInfo.pk.ed448sign.out = out;
+        cryptoInfo.pk.ed448sign.outLen = outLen;
+        cryptoInfo.pk.ed448sign.key = key;
+        cryptoInfo.pk.ed448sign.type = type;
+        cryptoInfo.pk.ed448sign.context = context;
+        cryptoInfo.pk.ed448sign.contextLen = contextLen;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Ed448Verify(const byte* sig, word32 sigLen,
+    const byte* msg, word32 msgLen, int* res, ed448_key* key, byte type,
+    const byte* context, byte contextLen)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED448_VERIFY;
+        cryptoInfo.pk.ed448verify.sig = sig;
+        cryptoInfo.pk.ed448verify.sigLen = sigLen;
+        cryptoInfo.pk.ed448verify.msg = msg;
+        cryptoInfo.pk.ed448verify.msgLen = msgLen;
+        cryptoInfo.pk.ed448verify.res = res;
+        cryptoInfo.pk.ed448verify.key = key;
+        cryptoInfo.pk.ed448verify.type = type;
+        cryptoInfo.pk.ed448verify.context = context;
+        cryptoInfo.pk.ed448verify.contextLen = contextLen;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_ED448 */
 
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
 int wc_CryptoCb_PqcStatefulSigGetDevId(int type, void* key)

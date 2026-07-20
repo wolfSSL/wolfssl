@@ -1623,8 +1623,11 @@ enum wc_PkType {
     WC_PK_TYPE_EC_CHECK_PUB_KEY = 35,
     WC_PK_TYPE_ED25519_MAKE_PUB  = 36,
     WC_PK_TYPE_ED25519_CHECK_KEY = 37,
+    WC_PK_TYPE_RSA_PSS_VERIFY   = 38,
+    /* Ed448 sign reuses WC_PK_TYPE_ED448 (12); verify needs its own type. */
+    WC_PK_TYPE_ED448_VERIFY     = 39,
     #undef _WC_PK_TYPE_MAX
-    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED25519_CHECK_KEY
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_VERIFY
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 

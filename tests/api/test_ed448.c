@@ -30,6 +30,9 @@
 
 #include <wolfssl/wolfcrypt/ed448.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_ed448.h>
 
@@ -1369,3 +1372,126 @@ int test_wc_ed448_check_key_decisions(void)
     return EXPECT_RESULT();
 } /* END test_wc_ed448_check_key_decisions */
 
+/* Test Ed448 sign/verify routed through a crypto callback (CryptoCb) device. */
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY) && \
+    !defined(WC_NO_RNG)
+typedef struct ed448SpyCtx {
+    int signSeen;
+    int verifySeen;
+} ed448SpyCtx;
+
+/* Spy device: services Ed448 sign/verify in software (devId cleared) and counts
+ * each; declines everything else so make_key runs in software. */
+static int ed448_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    ed448SpyCtx* spy = (ed448SpyCtx*)ctx;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)devIdArg;
+
+    if (info == NULL || spy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+    #ifdef HAVE_ED448_SIGN
+        if (info->pk.type == WC_PK_TYPE_ED448) {
+            int save = info->pk.ed448sign.key->devId;
+            info->pk.ed448sign.key->devId = INVALID_DEVID;
+            ret = wc_ed448_sign_msg_ex(
+                info->pk.ed448sign.in, info->pk.ed448sign.inLen,
+                info->pk.ed448sign.out, info->pk.ed448sign.outLen,
+                info->pk.ed448sign.key, info->pk.ed448sign.type,
+                info->pk.ed448sign.context, info->pk.ed448sign.contextLen);
+            info->pk.ed448sign.key->devId = save;
+            spy->signSeen++;
+        }
+    #endif
+    #ifdef HAVE_ED448_VERIFY
+        if (info->pk.type == WC_PK_TYPE_ED448_VERIFY) {
+            int save = info->pk.ed448verify.key->devId;
+            info->pk.ed448verify.key->devId = INVALID_DEVID;
+            ret = wc_ed448_verify_msg_ex(
+                info->pk.ed448verify.sig, info->pk.ed448verify.sigLen,
+                info->pk.ed448verify.msg, info->pk.ed448verify.msgLen,
+                info->pk.ed448verify.res, info->pk.ed448verify.key,
+                info->pk.ed448verify.type, info->pk.ed448verify.context,
+                info->pk.ed448verify.contextLen);
+            info->pk.ed448verify.key->devId = save;
+            spy->verifySeen++;
+        }
+    #endif
+    }
+
+    return ret;
+}
+#endif
+
+int test_wc_ed448_cryptocb(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY) && \
+    !defined(WC_NO_RNG)
+    int devId = 4448;
+    ed448SpyCtx spy;
+    WC_RNG rng;
+    byte   msg[32];
+    word32 sigLen = ED448_SIG_SIZE;
+    int    verify = 0;
+    WC_DECLARE_VAR(key, ed448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, ED448_SIG_SIZE, HEAP_HINT);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&spy, 0, sizeof(spy));
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    WC_ALLOC_VAR(key, ed448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(sig, byte, ED448_SIG_SIZE, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(key);
+    ExpectNotNull(sig);
+#endif
+    if (WC_VAR_OK(sig)) {
+        XMEMSET(sig, 0, ED448_SIG_SIZE);
+    }
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_test_crypto_cb, &spy),
+                0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_init_ex(key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, key), 0);
+
+    /* Sign routes through the device callback. */
+    ExpectIntEQ(wc_ed448_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen, key,
+                                  NULL, 0), 0);
+    ExpectIntGE(spy.signSeen, 1);
+
+    /* Verify routes through the device callback. */
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+                                    &verify, key, NULL, 0), 0);
+    ExpectIntGE(spy.verifySeen, 1);
+    ExpectIntEQ(verify, 1);
+
+    /* Negative: corrupt the signature.  Ed448 reports a bad signature as
+     * SIG_VERIFY_E, exercising the device verify error path (verify == 0). */
+    if (WC_VAR_OK(sig)) {
+        sig[0] ^= 0xFF;
+    }
+    verify = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+                                    &verify, key, NULL, 0),
+                WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntGE(spy.verifySeen, 2);
+    ExpectIntEQ(verify, 0);
+
+    wc_ed448_free(key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+
+    WC_FREE_VAR(sig, HEAP_HINT);
+    WC_FREE_VAR(key, HEAP_HINT);
+#endif
+    return EXPECT_RESULT();
+}

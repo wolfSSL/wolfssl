@@ -414,6 +414,8 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inLen,
                                            const byte* sig, word32 sigSz,
                                            enum wc_HashType hashType,
                                            int saltLen, int bits, void* heap);
+/* Crypto callback (WOLF_CRYPTO_CB_RSA_PAD) path: a positive return still means
+ * success but *out is set to NULL, so callers must not dereference *out. */
 WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                                const byte* digest, word32 digentLen,
                                enum wc_HashType hash, int mgf,

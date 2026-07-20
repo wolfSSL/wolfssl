@@ -720,3 +720,80 @@ int test_wc_AesCmacVerify_CryptoCb_LenMismatch(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesCmacVerify_CryptoCb_LenMismatch */
 
+/* Test that wc_CmacFree() dispatches a WC_ALGO_TYPE_FREE / WC_ALGO_TYPE_CMAC
+ * request to a registered crypto callback (CryptoCb) device. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+/* Spy device: declines every request (software handles the work) but counts
+ * CMAC free dispatches. */
+static int cmac_free_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* freeSeen = (int*)ctx;
+
+    (void)devIdArg;
+
+    if (info == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_FREE &&
+            info->free.algo == WC_ALGO_TYPE_CMAC) {
+        if (freeSeen != NULL) {
+            (*freeSeen)++;
+        }
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+int test_wc_CryptoCb_CmacFree(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+    int    devId = 4460;
+    int    freeSeen = 0;
+    byte   key16[16] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10
+    };
+    byte   in[16] = {
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00
+    };
+    byte   tag[WC_AES_BLOCK_SIZE];
+    word32 tagSz = (word32)sizeof(tag);
+    WC_DECLARE_VAR(cmac, Cmac, 1, HEAP_HINT);
+
+    WC_ALLOC_VAR(cmac, Cmac, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(cmac);
+#endif
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, cmac_free_test_crypto_cb,
+                                           &freeSeen), 0);
+
+    /* wc_CmacFinal() internally frees the Cmac -> free dispatched to device. */
+    ExpectIntEQ(wc_InitCmac_ex(cmac, key16, (word32)sizeof(key16), WC_CMAC_AES,
+                               NULL, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_CmacUpdate(cmac, in, (word32)sizeof(in)), 0);
+    freeSeen = 0;
+    ExpectIntEQ(wc_CmacFinal(cmac, tag, &tagSz), 0);
+    ExpectIntGE(freeSeen, 1);
+
+    /* Explicit wc_CmacFree() also dispatches to the device. */
+    tagSz = (word32)sizeof(tag);
+    ExpectIntEQ(wc_InitCmac_ex(cmac, key16, (word32)sizeof(key16), WC_CMAC_AES,
+                               NULL, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_CmacUpdate(cmac, in, (word32)sizeof(in)), 0);
+    freeSeen = 0;
+    ExpectIntEQ(wc_CmacFree(cmac), 0);
+    ExpectIntGE(freeSeen, 1);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+
+    WC_FREE_VAR(cmac, HEAP_HINT);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_CryptoCb_CmacFree */
