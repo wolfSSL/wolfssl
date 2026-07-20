@@ -1,39 +1,75 @@
 # vim:ft=automake
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
+#
+# IDE integration project trees are distributed one directory at a time
+# (a single EXTRA_DIST entry per directory, which automake copies
+# recursively) rather than by enumerating every file. Enumerating them
+# made the top-level DISTFILES large enough that automake's non-recursive
+# "distdir" recipe - which inlines the whole file list into a single shell
+# argument - exceeded the Linux MAX_ARG_STRLEN (128 KB) exec limit, so
+# "make dist" failed with "Argument list too long".
 
-include IDE/Android/include.am
+EXTRA_DIST+= IDE/Android
+EXTRA_DIST+= IDE/ARDUINO
+EXTRA_DIST+= IDE/AURIX
+EXTRA_DIST+= IDE/CRYPTOCELL
+EXTRA_DIST+= IDE/CSBENCH
+EXTRA_DIST+= IDE/ECLIPSE
+EXTRA_DIST+= IDE/Espressif
+EXTRA_DIST+= IDE/Gaisler-BCC
+EXTRA_DIST+= IDE/GCC-ARM
+EXTRA_DIST+= IDE/HEXAGON
+EXTRA_DIST+= IDE/HEXIWEAR
+EXTRA_DIST+= IDE/IAR-EWARM
+EXTRA_DIST+= IDE/IAR-MSP430
+EXTRA_DIST+= IDE/Infineon
+EXTRA_DIST+= IDE/INTIME-RTOS
+EXTRA_DIST+= IDE/iotsafe
+EXTRA_DIST+= IDE/KDS
+EXTRA_DIST+= IDE/LINUX-SGX
+EXTRA_DIST+= IDE/LPCXPRESSO
+EXTRA_DIST+= IDE/M68K
+EXTRA_DIST+= IDE/MCUEXPRESSO
+EXTRA_DIST+= IDE/MDK-ARM
+EXTRA_DIST+= IDE/MDK5-ARM
+EXTRA_DIST+= IDE/MQX
+EXTRA_DIST+= IDE/MSVS-2019-AZSPHERE
+EXTRA_DIST+= IDE/mynewt
+EXTRA_DIST+= IDE/MYSQL
+EXTRA_DIST+= IDE/NETOS
+EXTRA_DIST+= IDE/PlatformIO
+EXTRA_DIST+= IDE/QNX
+EXTRA_DIST+= IDE/RISCV
+EXTRA_DIST+= IDE/ROWLEY-CROSSWORKS-ARM
+EXTRA_DIST+= IDE/SimplicityStudio
+EXTRA_DIST+= IDE/STARCORE
+EXTRA_DIST+= IDE/STM32Cube
+EXTRA_DIST+= IDE/TRUESTUDIO
+EXTRA_DIST+= IDE/VisualDSP
+EXTRA_DIST+= IDE/VS-ARM
+EXTRA_DIST+= IDE/VS-AZURE-SPHERE
+EXTRA_DIST+= IDE/WICED-STUDIO
+EXTRA_DIST+= IDE/WIN
+EXTRA_DIST+= IDE/WIN-SGX
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3
+EXTRA_DIST+= IDE/WIN10
+EXTRA_DIST+= IDE/WINCE
+EXTRA_DIST+= IDE/WORKBENCH
+EXTRA_DIST+= IDE/XCODE
+EXTRA_DIST+= IDE/XCODE-FIPSv2
+EXTRA_DIST+= IDE/XCODE-FIPSv5
+EXTRA_DIST+= IDE/XCODE-FIPSv6
+EXTRA_DIST+= IDE/XilinxSDK
+EXTRA_DIST+= IDE/zephyr
+
+# These IDE directories intentionally omit some tracked files (private
+# IDE configs, .gitkeep placeholders, helper scripts), so they stay
+# enumerated file-by-file rather than shipped wholesale.
 include IDE/apple-universal/include.am
-include IDE/ARDUINO/include.am
-include IDE/AURIX/include.am
-include IDE/CRYPTOCELL/include.am
-include IDE/CSBENCH/include.am
-include IDE/ECLIPSE/DEOS/include.am
-include IDE/ECLIPSE/MICRIUM/include.am
-include IDE/ECLIPSE/RTTHREAD/include.am
-include IDE/ECLIPSE/SIFIVE/include.am
-include IDE/Espressif/include.am
-include IDE/GCC-ARM/include.am
-include IDE/Gaisler-BCC/include.am
-include IDE/HEXAGON/include.am
-include IDE/IAR-MSP430/include.am
-include IDE/Infineon/include.am
-include IDE/INTIME-RTOS/include.am
-include IDE/iotsafe/include.am
-include IDE/KDS/include.am
-include IDE/LINUX-SGX/include.am
-include IDE/M68K/include.am
-include IDE/MCUEXPRESSO/include.am
-include IDE/MDK5-ARM/include.am
 include IDE/MPLABX16/include.am
 include IDE/MPLABX16/wolfcrypt_test.X/nbproject/include.am
 include IDE/MPLABX16/wolfssl.X/nbproject/include.am
-include IDE/MQX/include.am
-include IDE/MSVS-2019-AZSPHERE/include.am
-include IDE/mynewt/include.am
-include IDE/NETOS/include.am
-include IDE/PlatformIO/include.am
-include IDE/QNX/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/DK-S7G2/include.am
 include IDE/Renesas/e2studio/Projects/include.am
@@ -44,34 +80,10 @@ include IDE/Renesas/e2studio/RX65N/RSK/include.am
 include IDE/Renesas/e2studio/RX72N/EnvisionKit/include.am
 include IDE/Renesas/e2studio/RZN2L/include.am
 include IDE/Renesas/e2studio/SK-S7G2/include.am
-include IDE/RISCV/include.am
-include IDE/ROWLEY-CROSSWORKS-ARM/include.am
-include IDE/SimplicityStudio/include.am
-include IDE/STARCORE/include.am
-include IDE/STM32Cube/include.am
-include IDE/TRUESTUDIO/include.am
-include IDE/VisualDSP/include.am
-include IDE/VS-ARM/include.am
-include IDE/VS-AZURE-SPHERE/include.am
-include IDE/WICED-STUDIO/include.am
-include IDE/WIN-SGX/include.am
-include IDE/WIN-SRTP-KDF-140-3/include.am
-include IDE/WIN/include.am
-include IDE/WIN10/include.am
-include IDE/WINCE/include.am
-include IDE/WORKBENCH/include.am
-include IDE/XCODE-FIPSv2/include.am
-include IDE/XCODE-FIPSv5/include.am
-include IDE/XCODE-FIPSv6/include.am
-include IDE/XCODE/include.am
-include IDE/XilinxSDK/include.am
-include IDE/zephyr/include.am
 
-EXTRA_DIST+= IDE/Espressif
-EXTRA_DIST+= IDE/HEXIWEAR
-EXTRA_DIST+= IDE/IAR-EWARM
-EXTRA_DIST+= IDE/LPCXPRESSO
-EXTRA_DIST+= IDE/MDK-ARM
-EXTRA_DIST+= IDE/MYSQL
+# Single-file IDE entry (only the README is distributed).
 EXTRA_DIST+= IDE/OPENSTM32/README.md
-EXTRA_DIST+= IDE/PlatformIO
+
+# Build-output directory produced by the iotsafe project, cleaned by
+# distclean (was declared in the removed IDE/iotsafe/include.am).
+DISTCLEANFILES+= IDE/iotsafe/build
