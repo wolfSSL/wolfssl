@@ -228,18 +228,32 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 61
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x1fffffffffffffffL;
         s = 61U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 61U) <= (word32)DIGIT_BIT) {
             s += 61U;
             r[j] &= 0x1fffffffffffffffL;
@@ -247,14 +261,18 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -3805,18 +3823,32 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 57
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x1ffffffffffffffL;
         s = 57U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 57U) <= (word32)DIGIT_BIT) {
             s += 57U;
             r[j] &= 0x1ffffffffffffffL;
@@ -3824,14 +3856,18 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -7367,18 +7403,32 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 60
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0xfffffffffffffffL;
         s = 60U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 60U) <= (word32)DIGIT_BIT) {
             s += 60U;
             r[j] &= 0xfffffffffffffffL;
@@ -7386,14 +7436,18 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -10875,18 +10929,32 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 57
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x1ffffffffffffffL;
         s = 57U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 57U) <= (word32)DIGIT_BIT) {
             s += 57U;
             r[j] &= 0x1ffffffffffffffL;
@@ -10894,14 +10962,18 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -14622,18 +14694,32 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 59
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x7ffffffffffffffL;
         s = 59U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 59U) <= (word32)DIGIT_BIT) {
             s += 59U;
             r[j] &= 0x7ffffffffffffffL;
@@ -14641,14 +14727,18 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -18028,18 +18118,32 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 53
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x1fffffffffffffL;
         s = 53U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 53U) <= (word32)DIGIT_BIT) {
             s += 53U;
             r[j] &= 0x1fffffffffffffL;
@@ -18047,14 +18151,18 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -22212,18 +22320,32 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 52
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0xfffffffffffffL;
         s = 52U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 52U) <= (word32)DIGIT_BIT) {
             s += 52U;
             r[j] &= 0xfffffffffffffL;
@@ -22231,14 +22353,18 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -28921,18 +29047,32 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 55
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x7fffffffffffffL;
         s = 55U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 55U) <= (word32)DIGIT_BIT) {
             s += 55U;
             r[j] &= 0x7fffffffffffffL;
@@ -28940,14 +29080,18 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -36326,18 +36470,32 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 58
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x3ffffffffffffffL;
         s = 58U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 58U) <= (word32)DIGIT_BIT) {
             s += 58U;
             r[j] &= 0x3ffffffffffffffL;
@@ -36345,14 +36503,18 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
@@ -44171,18 +44333,32 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
 #elif DIGIT_BIT > 57
     unsigned int i;
     int j = 0;
+    int o = 0;
     word32 s = 0;
+    /* Digit holder and mask are full mp_digit width (the type of a->dp[]) so
+     * the wide-digit split shifts below are not truncated when DIGIT_BIT is
+     * wider than the sp word (e.g. sp_c32.c over a 64-bit mp_digit). */
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero. It is recomputed at the end of each iteration and reused: it
+     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * advances the read index only while another digit remains, so o never
+     * reads past the last valid digit. The first digit is always valid, so mask
+     * starts as all ones and no pre-loop calculation is needed. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i] << s);
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; j < size; i++) {
+        d = a->dp[o] & mask;
+        r[j] |= (sp_digit)(d << s);
         r[j] &= 0x1ffffffffffffffL;
         s = 57U - s;
         if (j + 1 >= size) {
             break;
         }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        r[++j] = (sp_digit)(d >> s);
         while ((s + 57U) <= (word32)DIGIT_BIT) {
             s += 57U;
             r[j] &= 0x1ffffffffffffffL;
@@ -44190,14 +44366,18 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
                 break;
             }
             if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+                r[++j] = (sp_digit)(d >> s);
             }
             else {
                 r[++j] = (sp_digit)0;
             }
         }
         s = (word32)DIGIT_BIT - s;
+        /* Recompute mask for the next read index, then advance o by -mask
+         * (0 or 1) so it only moves while another digit remains. */
+        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
+            (sizeof(mp_digit) * 8 - 1));
+        o += (int)((mp_digit)0 - mask);
     }
 
     for (j++; j < size; j++) {
