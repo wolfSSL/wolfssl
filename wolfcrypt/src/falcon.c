@@ -28,11 +28,238 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/random.h>
-/* Retained internal headers: fpr/fft/poly stay external (shared with the
- * separate AVX2/NEON backends). The other Falcon internals are static below. */
-#include <wolfssl/wolfcrypt/wc_falcon_fpr.h>
-#include <wolfssl/wolfcrypt/wc_falcon_fft.h>
-#include <wolfssl/wolfcrypt/wc_falcon_poly.h>
+/* fpr / FFT / poly seam declarations, folded in from the former internal
+ * wc_falcon_{fpr,fft,poly}.h so the native Falcon implementation is a single
+ * translation unit (the AVX2/NEON FFT backends at the end of this file
+ * reference these directly, as the SHA-2 / ChaCha SIMD backends do). */
+#ifndef WOLF_CRYPT_WC_FALCON_FPR_H
+#define WOLF_CRYPT_WC_FALCON_FPR_H
+
+#include <wolfssl/wolfcrypt/types.h>
+
+#if defined(HAVE_FALCON)
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+/* Backend selection. The emulated backend is the default; the native/asm
+ * backend is opt-in and currently still carries the fpr value as a bit
+ * pattern in a word64 so the seam type is uniform across translation units. */
+typedef word64 fpr;
+
+/* -- Constructors / conversions / arithmetic / predicates --------------- */
+
+/* Guard against selecting the native-double backend on a 32-bit ARM target that
+ * has no double-precision FPU (Cortex-M0/M3/M4/M23/M33 are single-precision or
+ * FPU-less). There, C double maps onto slow libgcc soft-double, so FPR_DOUBLE is
+ * a pessimization -- the default emulated integer backend is faster. __ARM_FP
+ * bit 3 (0x08) marks a hardware double FPU; AArch64 (which always has one) does
+ * not define __arm__, so it is unaffected. */
+#if defined(WOLFSSL_FALCON_FPR_DOUBLE) && defined(__arm__) && \
+    (!defined(__ARM_FP) || (((__ARM_FP) & 0x08) == 0))
+    #warning "WOLFSSL_FALCON_FPR_DOUBLE on a target without a double-precision FPU falls back to slow soft-double; the default integer fpr backend is faster on Cortex-M."
+#endif
+
+#if defined(WOLFSSL_FALCON_FPR_DOUBLE)
+/* Inline native-double backend (opt-in). Maps the fpr seam onto the C double
+ * type so the FFT/poly/sampler INLINE these scalar ops and keep values in FP
+ * registers -- eliminating the per-op function call + GPR<->XMM shuffle that
+ * dominate the out-of-line emulated/asm backends (~8x faster FP math, the bulk
+ * of signing). Correctly-rounded IEEE-754 like the asm backend, with the same
+ * constant-time-on-normals caveat: Falcon stays within normal range and the
+ * caller must keep round-to-nearest-even (no FTZ/DAZ). fpr_expm_p63 and the fpr
+ * constants still come from wc_falcon_fpr.c (which sees these inlines). */
+#include <math.h>
+static WC_INLINE double fpr__getd(fpr x) { double d; XMEMCPY(&d, &x, sizeof(d)); return d; }
+static WC_INLINE fpr fpr__setd(double d) { fpr x; XMEMCPY(&x, &d, sizeof(x)); return x; }
+static WC_INLINE fpr fpr_of(sword64 i)          { return fpr__setd((double)i); }
+static WC_INLINE fpr fpr_scaled(sword64 i, int sc) { return fpr__setd(ldexp((double)i, sc)); }
+static WC_INLINE sword64 fpr_rint(fpr x)        { double d = fpr__getd(x); return (sword64)llrint(d); }
+static WC_INLINE sword64 fpr_floor(fpr x)       { double d = floor(fpr__getd(x)); return (sword64)d; }
+static WC_INLINE sword64 fpr_trunc(fpr x)       { double d = trunc(fpr__getd(x)); return (sword64)d; }
+static WC_INLINE fpr fpr_add(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) + fpr__getd(y)); }
+static WC_INLINE fpr fpr_sub(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) - fpr__getd(y)); }
+static WC_INLINE fpr fpr_neg(fpr x)             { return fpr__setd(-fpr__getd(x)); }
+static WC_INLINE fpr fpr_half(fpr x)            { return fpr__setd(fpr__getd(x) * 0.5); }
+static WC_INLINE fpr fpr_double(fpr x)          { return fpr__setd(fpr__getd(x) + fpr__getd(x)); }
+static WC_INLINE fpr fpr_mul(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) * fpr__getd(y)); }
+static WC_INLINE fpr fpr_sqr(fpr x)             { double d = fpr__getd(x); return fpr__setd(d * d); }
+static WC_INLINE fpr fpr_inv(fpr x)             { return fpr__setd(1.0 / fpr__getd(x)); }
+static WC_INLINE fpr fpr_div(fpr x, fpr y)      { return fpr__setd(fpr__getd(x) / fpr__getd(y)); }
+static WC_INLINE fpr fpr_sqrt(fpr x)            { return fpr__setd(sqrt(fpr__getd(x))); }
+static WC_INLINE int fpr_lt(fpr x, fpr y)       { return fpr__getd(x) < fpr__getd(y); }
+#else
+/* Convert a signed integer to fpr (exact for |i| < 2^53). */
+WOLFSSL_LOCAL fpr fpr_of(sword64 i);
+/* Convert i*2^sc to fpr. */
+WOLFSSL_LOCAL fpr fpr_scaled(sword64 i, int sc);
+/* Round to nearest integer (ties to even); toward -inf; toward zero. */
+WOLFSSL_LOCAL sword64 fpr_rint(fpr x);
+WOLFSSL_LOCAL sword64 fpr_floor(fpr x);
+WOLFSSL_LOCAL sword64 fpr_trunc(fpr x);
+WOLFSSL_LOCAL fpr fpr_add(fpr x, fpr y);
+WOLFSSL_LOCAL fpr fpr_sub(fpr x, fpr y);
+WOLFSSL_LOCAL fpr fpr_neg(fpr x);
+WOLFSSL_LOCAL fpr fpr_half(fpr x);
+WOLFSSL_LOCAL fpr fpr_double(fpr x);
+WOLFSSL_LOCAL fpr fpr_mul(fpr x, fpr y);
+WOLFSSL_LOCAL fpr fpr_sqr(fpr x);
+WOLFSSL_LOCAL fpr fpr_inv(fpr x);
+WOLFSSL_LOCAL fpr fpr_div(fpr x, fpr y);
+WOLFSSL_LOCAL fpr fpr_sqrt(fpr x);
+/* Returns 1 if x < y, else 0. Must be constant-time w.r.t. operand values. */
+WOLFSSL_LOCAL int fpr_lt(fpr x, fpr y);
+#endif /* WOLFSSL_FALCON_FPR_DOUBLE */
+
+/* -- Sampler support ---------------------------------------------------- */
+
+/* Compute, in fixed point (scaled by 2^63), ccs * exp(-x), for the
+ * Gaussian-sampler Bernoulli test (BerExp). x and ccs are non-negative and
+ * x stays in a bounded range guaranteed by the caller. */
+WOLFSSL_LOCAL word64 fpr_expm_p63(fpr x, fpr ccs);
+
+/* -- Named constants (defined by the active backend) -------------------- */
+
+extern const fpr fpr_zero;
+extern const fpr fpr_one;
+extern const fpr fpr_two;
+extern const fpr fpr_onehalf;
+extern const fpr fpr_invsqrt2;
+extern const fpr fpr_invsqrt8;
+extern const fpr fpr_ptwo31;       /*  2^31            */
+extern const fpr fpr_ptwo31m1;     /*  2^31 - 1        */
+extern const fpr fpr_mtwo31m1;     /* -(2^31 - 1)      */
+extern const fpr fpr_ptwo63m1;     /*  2^63 - 1        */
+extern const fpr fpr_mtwo63m1;     /* -(2^63 - 1)      */
+extern const fpr fpr_ptwo63;       /*  2^63            */
+
+#ifdef __cplusplus
+    }    /* extern "C" */
+#endif
+
+#endif /* HAVE_FALCON */
+#endif /* WOLF_CRYPT_WC_FALCON_FPR_H */
+#ifndef WOLF_CRYPT_WC_FALCON_FFT_H
+#define WOLF_CRYPT_WC_FALCON_FFT_H
+
+#include <wolfssl/wolfcrypt/types.h>
+
+#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY)
+
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+/* Twiddle-factor table (correctly-rounded IEEE-754), shared with the poly_*
+ * split/merge operations. falcon_gm_tab[2p+0]=cos, [2p+1]=sin. */
+WOLFSSL_LOCAL extern const fpr falcon_gm_tab[2048];
+
+/* In-place forward FFT: coefficient representation -> FFT representation. */
+WOLFSSL_LOCAL void falcon_FFT(fpr* f, unsigned logn);
+/* In-place inverse FFT: FFT representation -> coefficient representation. */
+WOLFSSL_LOCAL void falcon_iFFT(fpr* f, unsigned logn);
+
+#ifdef __cplusplus
+    }    /* extern "C" */
+#endif
+
+#endif /* HAVE_FALCON && !WOLFSSL_FALCON_VERIFY_ONLY */
+#endif /* WOLF_CRYPT_WC_FALCON_FFT_H */
+#ifndef WOLF_CRYPT_WC_FALCON_POLY_H
+#define WOLF_CRYPT_WC_FALCON_POLY_H
+
+#include <wolfssl/wolfcrypt/types.h>
+
+#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY)
+
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+/* a <- a + b (coefficient-wise; valid in both coefficient and FFT domain). */
+WOLFSSL_LOCAL void falcon_poly_add(fpr* a, const fpr* b, unsigned logn);
+/* a <- a - b. */
+WOLFSSL_LOCAL void falcon_poly_sub(fpr* a, const fpr* b, unsigned logn);
+/* a <- -a. */
+WOLFSSL_LOCAL void falcon_poly_neg(fpr* a, unsigned logn);
+/* a <- adj(a): Hermitian adjoint (complex conjugate) in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_adj_fft(fpr* a, unsigned logn);
+/* a <- a * b (pointwise complex product) in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_mul_fft(fpr* a, const fpr* b, unsigned logn);
+/* a <- a * adj(b) (pointwise a * conj(b)) in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_muladj_fft(fpr* a, const fpr* b, unsigned logn);
+/* a <- a * adj(a) (real-valued result) in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_mulselfadj_fft(fpr* a, unsigned logn);
+/* a <- a * x (scalar multiply by fpr constant). */
+WOLFSSL_LOCAL void falcon_poly_mulconst(fpr* a, fpr x, unsigned logn);
+/* a <- a / b (pointwise complex divide) in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_div_fft(fpr* a, const fpr* b, unsigned logn);
+/* d <- 1 / (|a|^2 + |b|^2) (real-valued) in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_invnorm2_fft(fpr* d, const fpr* a, const fpr* b,
+    unsigned logn);
+/* d <- F*adj(f) + G*adj(g) in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_add_muladj_fft(fpr* d, const fpr* F,
+    const fpr* G, const fpr* f, const fpr* g, unsigned logn);
+/* a <- a * b where b is a self-adjoint (real) polynomial in FFT
+ * representation; b is stored with only its real (lower) half meaningful. */
+WOLFSSL_LOCAL void falcon_poly_mul_autoadj_fft(fpr* a, const fpr* b,
+    unsigned logn);
+/* a <- a / b where b is a self-adjoint (real) polynomial in FFT
+ * representation; b is stored with only its real (lower) half meaningful. */
+WOLFSSL_LOCAL void falcon_poly_div_autoadj_fft(fpr* a, const fpr* b,
+    unsigned logn);
+/* In-place LDL decomposition of the 2x2 Hermitian Gram matrix
+ * [[g00, adj(g01)], [g01, g11]]: on output g11 holds D[1][1] and g01 holds
+ * L[1][0]; g00 (= D[0][0]) is left unchanged. */
+WOLFSSL_LOCAL void falcon_poly_LDL_fft(const fpr* g00, fpr* g01, fpr* g11,
+    unsigned logn);
+/* Same factorization as falcon_poly_LDL_fft but writing the results to
+ * separate output buffers (d11, l10), leaving the inputs untouched. */
+WOLFSSL_LOCAL void falcon_poly_LDLmv_fft(fpr* d11, fpr* l10, const fpr* g00,
+    const fpr* g01, const fpr* g11, unsigned logn);
+/* Split f (degree n) into the two half-degree polynomials f0, f1 (degree n/2)
+ * in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_split_fft(fpr* f0, fpr* f1, const fpr* f,
+    unsigned logn);
+/* Inverse of falcon_poly_split_fft: merge f0, f1 (degree n/2) into f (degree n)
+ * in FFT representation. */
+WOLFSSL_LOCAL void falcon_poly_merge_fft(fpr* f, const fpr* f0, const fpr* f1,
+    unsigned logn);
+
+#if defined(WOLFSSL_FALCON_FFT_AVX2)
+/* AVX2 (__m256d + FMA) variants of the hot pointwise ops, defined in the
+ * folded AVX2 backend at the end of this file. The generic functions above
+ * delegate to these when the AVX2 backend is selected. Semantically identical
+ * to their scalar twins (FMA rounding differences are acceptable on the
+ * signing FFT path). */
+WOLFSSL_LOCAL void falcon_poly_mul_fft_avx2(fpr* a, const fpr* b, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_add_avx2(fpr* a, const fpr* b, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_sub_avx2(fpr* a, const fpr* b, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_mulconst_avx2(fpr* a, fpr x, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_muladj_fft_avx2(fpr* a, const fpr* b,
+    unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_mulselfadj_fft_avx2(fpr* a, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_invnorm2_fft_avx2(fpr* d, const fpr* a,
+    const fpr* b, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_add_muladj_fft_avx2(fpr* d, const fpr* F,
+    const fpr* G, const fpr* f, const fpr* g, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_LDLmv_fft_avx2(fpr* d11, fpr* l10,
+    const fpr* g00, const fpr* g01, const fpr* g11, unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_split_fft_avx2(fpr* f0, fpr* f1, const fpr* f,
+    unsigned logn);
+WOLFSSL_LOCAL void falcon_poly_merge_fft_avx2(fpr* f, const fpr* f0,
+    const fpr* f1, unsigned logn);
+#endif /* WOLFSSL_FALCON_FFT_AVX2 */
+
+#ifdef __cplusplus
+    }    /* extern "C" */
+#endif
+
+#endif /* HAVE_FALCON && !WOLFSSL_FALCON_VERIFY_ONLY */
+#endif /* WOLF_CRYPT_WC_FALCON_POLY_H */
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -40,8 +267,10 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-/* ==== Native Falcon core (merged from the former wc_falcon_*.c). Portable C
-   only; AVX2/NEON and the fpr x86-64 asm remain separate backends. ==== */
+/* ==== Native Falcon core (merged from the former wc_falcon_*.c). The AVX2 and
+   NEON FFT backends are folded in at the end of this file (gated by
+   WOLFSSL_FALCON_FFT_AVX2 / _NEON); only the generated fpr x86-64 asm
+   (wc_falcon_fpr_x86_64_asm.S) stays a separate file. ==== */
 #if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON)
 #ifndef WOLF_CRYPT_WC_FALCON_BIGINT_H
 #define WOLF_CRYPT_WC_FALCON_BIGINT_H
@@ -1006,7 +1235,7 @@ const fpr fpr_ptwo63    = 4890909195324358656U;   /*  2^63           */
 
 /* falcon_gm_tab[2*p+0]=cos, [2*p+1]=sin; angle=pi*(2*brev_u(i)+1)/(2m).
  * Generated table of correctly-rounded IEEE-754 twiddle factors, n<=1024.
- * Exported (declared in wc_falcon_fft.h) for use by the poly_split/merge ops. */
+ * Shared with the poly_split/merge ops (fpr/FFT seam declared above). */
 const fpr falcon_gm_tab[2048] = {
     0x0000000000000000ULL, 0x0000000000000000ULL,     0x0000000000000000ULL, 0x0000000000000000ULL,
     0x3FE6A09E667F3BCDULL, 0x3FE6A09E667F3BCCULL,     0xBFE6A09E667F3BCCULL, 0x3FE6A09E667F3BCDULL,
@@ -1523,8 +1752,9 @@ const fpr falcon_gm_tab[2048] = {
 };
 
 #if !defined(WOLFSSL_FALCON_FFT_AVX2) && !defined(WOLFSSL_FALCON_FFT_NEON)
-/* When the AVX2 backend is selected, falcon_FFT/falcon_iFFT are provided by
- * wc_falcon_fft_avx2.c instead; the twiddle table above is still shared. */
+/* When the AVX2 or NEON backend is selected, falcon_FFT/falcon_iFFT are
+ * provided by the folded SIMD block at the end of this file instead; the
+ * twiddle table above is still shared. */
 
 /* In-place forward FFT: coefficient representation -> FFT representation. */
 void falcon_FFT(fpr* f, unsigned logn)
@@ -4265,7 +4495,7 @@ int falcon_sampler_init(falcon_sampler_ctx* spc, int logn, WC_RNG* rng)
 
 /* IEEE-754 binary64 bit patterns (the fpr seam carries doubles as word64).
  * These mirror the named constants in the reference fpr.h that are not part of
- * the public wc_falcon_fpr.h API. */
+ * the fpr seam declared above. */
 static const fpr fpr_q         = 4667981563525332992ULL; /* (double)12289      */
 static const fpr fpr_bnorm_max = 4670353323383631276ULL; /* 1.17^2 * q bound   */
 
@@ -6140,8 +6370,8 @@ unsigned long falcon_sign_restart_count = 0;
 
 /* IEEE-754 binary64 bit patterns (the fpr seam carries doubles as word64).
  * These mirror named constants from the reference fpr.h that are not part of
- * the public wc_falcon_fpr.h API. fpr_invsqrt2 / fpr_invsqrt8 ARE exported by
- * the seam and are used directly. */ /* (double)12289   */
+ * the fpr seam declared above. fpr_invsqrt2 / fpr_invsqrt8 ARE part of the seam
+ * and are used directly. */ /* (double)12289   */
 static const fpr fpr_inverse_of_q  = 4545632735260551042ULL; /* 1/12289         */
 
 /* 1/sigma, indexed by logn (1..10). Ported from the reference fpr.h. */
@@ -9326,4 +9556,827 @@ int wc_Falcon_PrivateKeyToDer(falcon_key* key, byte* output, word32 inLen)
 
     return BAD_FUNC_ARG;
 }
+
+/* ==== AVX2 (__m256d + FMA) FFT/poly backend, folded from the former
+   wc_falcon_fft_avx2.c. Self-guarded and self-scheduled via per-function
+   target attributes, so it needs no special per-file CFLAGS. ==== */
+/* AVX2 (__m256d + FMA) FFT backend for the native Falcon signing path.
+ *
+ * This is a vectorization of the scalar FFT in wc_falcon_fft.c and the hot
+ * FFT-domain pointwise polynomial operations in wc_falcon_poly.c. It processes
+ * 4 doubles per 256-bit vector and uses fused multiply-add for the complex
+ * butterflies. The algorithm and twiddle-table (falcon_gm_tab) layout are
+ * unchanged from the scalar backend; only the butterfly inner loops (and the
+ * pointwise poly ops) are widened.
+ *
+ * Representation (see the fpr/FFT seam above): a degree-n real polynomial is carried as
+ * n fpr (= IEEE-754 bit patterns in a word64) = n/2 complex evaluations; real
+ * parts live in [0, n/2), imaginary parts in [n/2, n). Because an fpr IS the
+ * bit pattern of a double, the fpr arrays are loaded directly with
+ * _mm256_loadu_pd((const double*)ptr).
+ *
+ * CORRECTNESS NOTE: unlike the rest of the fpr seam, this backend does NOT
+ * promise bit-identical (round-to-nearest-even, no-FMA) results. FMA fuses the
+ * multiply-add with a single rounding, so the FFT output differs in the last
+ * ULPs from the scalar backend. This is intentional and safe: the signing FFT
+ * only needs to produce a short vector that passes the norm bound and verifies;
+ * it is never required to be reproducible against the scalar path. The Gaussian
+ * sampler's determinism depends only on the fpr_* scalar ops (unchanged), and
+ * verification is integer-only and unaffected.
+ *
+ * TARGET ISA: every externally-visible function and every intrinsic helper is
+ * annotated with __attribute__((target("avx2,fma"))) on GCC/Clang, so the TU
+ * compiles and runs correctly even when the surrounding build uses only a
+ * baseline (e.g. SSE2) -march. The annotation is harmless if the build ALSO
+ * passes -mavx2 -mfma per file. On compilers without the target attribute
+ * (e.g. MSVC) the TU must be compiled with the appropriate /arch:AVX2 flag.
+ */
+
+
+#if defined(HAVE_FALCON) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+    defined(WOLFSSL_FALCON_FFT_AVX2)
+
+
+#include <immintrin.h>
+
+#if defined(__GNUC__) || defined(__clang__)
+    #define FALCON_AVX2_TARGET __attribute__((target("avx2,fma")))
+#else
+    #define FALCON_AVX2_TARGET
+#endif
+
+/* Reinterpret an fpr (word64 bit pattern) as a double without aliasing UB:
+ * the fpr arrays are word64 but hold IEEE-754 doubles, so a value-preserving
+ * load through (const double*) is what the SIMD path needs. */
+static WC_INLINE double falcon_avx2_d(fpr x)
+{
+    double d;
+    XMEMCPY(&d, &x, sizeof(d));
+    return d;
+}
+
+/* Scalar (inline-double) complex helpers for the small-stride tail levels.
+ * These match the scalar backend exactly (no FMA) for the few coefficients
+ * where SIMD would not pay off. The scalar core defined FPC_* earlier in this
+ * file with a different (alias-safe) form, so undef before redefining -- the
+ * same per-backend macro discipline as sha512.c's SHA_METHOD. */
+#undef FPC_MUL
+#undef FPC_ADD
+#undef FPC_SUB
+#define FPC_MUL(d_re, d_im, a_re, a_im, b_re, b_im) do { \
+        fpr _ar = (a_re), _ai = (a_im), _br = (b_re), _bi = (b_im); \
+        (d_re) = fpr_sub(fpr_mul(_ar, _br), fpr_mul(_ai, _bi)); \
+        (d_im) = fpr_add(fpr_mul(_ar, _bi), fpr_mul(_ai, _br)); \
+    } while (0)
+#define FPC_ADD(d_re, d_im, a_re, a_im, b_re, b_im) do { \
+        (d_re) = fpr_add((a_re), (b_re)); \
+        (d_im) = fpr_add((a_im), (b_im)); \
+    } while (0)
+#define FPC_SUB(d_re, d_im, a_re, a_im, b_re, b_im) do { \
+        (d_re) = fpr_sub((a_re), (b_re)); \
+        (d_im) = fpr_sub((a_im), (b_im)); \
+    } while (0)
+
+/* Vector complex multiply: (yr + i yi) <- (yr + i yi) * (sr + i si).
+ * Uses FMA: re = yr*sr - yi*si, im = yr*si + yi*sr. */
+#define FALCON_VCMUL(out_re, out_im, yr, yi, sr, si) do { \
+        __m256d _t0 = _mm256_mul_pd((yi), (si)); \
+        __m256d _t1 = _mm256_mul_pd((yi), (sr)); \
+        (out_re) = _mm256_fmsub_pd((yr), (sr), _t0); \
+        (out_im) = _mm256_fmadd_pd((yr), (si), _t1); \
+    } while (0)
+
+/* ------------------------------------------------------------------------- */
+/* Forward FFT                                                               */
+/* ------------------------------------------------------------------------- */
+
+FALCON_AVX2_TARGET
+void falcon_FFT(fpr* f, unsigned logn)
+{
+    double* fd = (double*)f;
+    unsigned u;
+    size_t t, n, hn, m;
+
+    n = (size_t)1 << logn;
+    hn = n >> 1;
+    t = hn;
+    for (u = 1, m = 2; u < logn; u++, m <<= 1) {
+        size_t ht = t >> 1, hm = m >> 1, i1, j1;
+        for (i1 = 0, j1 = 0; i1 < hm; i1++, j1 += t) {
+            size_t j, j2 = j1 + ht;
+            fpr s_re = falcon_gm_tab[((m + i1) << 1) + 0];
+            fpr s_im = falcon_gm_tab[((m + i1) << 1) + 1];
+            if (ht >= 4) {
+                __m256d vsr = _mm256_set1_pd(falcon_avx2_d(s_re));
+                __m256d vsi = _mm256_set1_pd(falcon_avx2_d(s_im));
+                for (j = j1; j < j2; j += 4) {
+                    __m256d xr = _mm256_loadu_pd(fd + j);
+                    __m256d xi = _mm256_loadu_pd(fd + j + hn);
+                    __m256d yr = _mm256_loadu_pd(fd + j + ht);
+                    __m256d yi = _mm256_loadu_pd(fd + j + ht + hn);
+                    __m256d tr, ti;
+                    FALCON_VCMUL(tr, ti, yr, yi, vsr, vsi);
+                    _mm256_storeu_pd(fd + j,           _mm256_add_pd(xr, tr));
+                    _mm256_storeu_pd(fd + j + hn,      _mm256_add_pd(xi, ti));
+                    _mm256_storeu_pd(fd + j + ht,      _mm256_sub_pd(xr, tr));
+                    _mm256_storeu_pd(fd + j + ht + hn, _mm256_sub_pd(xi, ti));
+                }
+            }
+            else {
+                /* small-stride tail (ht == 1 or 2): scalar inline-double */
+                for (j = j1; j < j2; j++) {
+                    fpr x_re = f[j], x_im = f[j + hn];
+                    fpr y_re = f[j + ht], y_im = f[j + ht + hn];
+                    FPC_MUL(y_re, y_im, y_re, y_im, s_re, s_im);
+                    FPC_ADD(f[j], f[j + hn], x_re, x_im, y_re, y_im);
+                    FPC_SUB(f[j + ht], f[j + ht + hn], x_re, x_im, y_re, y_im);
+                }
+            }
+        }
+        t = ht;
+    }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Inverse FFT                                                               */
+/* ------------------------------------------------------------------------- */
+
+FALCON_AVX2_TARGET
+void falcon_iFFT(fpr* f, unsigned logn)
+{
+    double* fd = (double*)f;
+    int u;
+    size_t n = (size_t)1 << logn, hn = n >> 1;
+
+    for (u = (int)logn - 1; u >= 1; u--) {
+        size_t m = (size_t)1 << u, hm = m >> 1;
+        size_t t = hn >> u;             /* butterfly stride */
+        size_t i1, j1;
+        for (i1 = 0, j1 = 0; i1 < hm; i1++, j1 += (t << 1)) {
+            size_t j, j2 = j1 + t;
+            fpr s_re = falcon_gm_tab[((m + i1) << 1) + 0];
+            fpr s_im = fpr_neg(falcon_gm_tab[((m + i1) << 1) + 1]);
+            if (t >= 4) {
+                __m256d vsr = _mm256_set1_pd(falcon_avx2_d(s_re));
+                __m256d vsi = _mm256_set1_pd(falcon_avx2_d(s_im));
+                for (j = j1; j < j2; j += 4) {
+                    __m256d ar = _mm256_loadu_pd(fd + j);
+                    __m256d ai = _mm256_loadu_pd(fd + j + hn);
+                    __m256d br = _mm256_loadu_pd(fd + j + t);
+                    __m256d bi = _mm256_loadu_pd(fd + j + t + hn);
+                    __m256d dr = _mm256_sub_pd(ar, br);
+                    __m256d di = _mm256_sub_pd(ai, bi);
+                    __m256d pr, pi;
+                    _mm256_storeu_pd(fd + j,      _mm256_add_pd(ar, br));
+                    _mm256_storeu_pd(fd + j + hn, _mm256_add_pd(ai, bi));
+                    FALCON_VCMUL(pr, pi, dr, di, vsr, vsi);
+                    _mm256_storeu_pd(fd + j + t,      pr);
+                    _mm256_storeu_pd(fd + j + t + hn, pi);
+                }
+            }
+            else {
+                for (j = j1; j < j2; j++) {
+                    fpr a_re = f[j], a_im = f[j + hn];
+                    fpr b_re = f[j + t], b_im = f[j + t + hn];
+                    fpr d_re, d_im;
+                    FPC_ADD(f[j], f[j + hn], a_re, a_im, b_re, b_im);
+                    FPC_SUB(d_re, d_im, a_re, a_im, b_re, b_im);
+                    FPC_MUL(f[j + t], f[j + t + hn], d_re, d_im, s_re, s_im);
+                }
+            }
+        }
+    }
+    /* final scale by 1 / 2^(logn-1) */
+    {
+        fpr ni = fpr_inv(fpr_of((sword64)hn));
+        if (n >= 4) {
+            __m256d vni = _mm256_set1_pd(falcon_avx2_d(ni));
+            size_t j;
+            for (j = 0; j < n; j += 4) {
+                _mm256_storeu_pd(fd + j,
+                    _mm256_mul_pd(_mm256_loadu_pd(fd + j), vni));
+            }
+        }
+        else {
+            size_t j;
+            for (j = 0; j < n; j++) {
+                f[j] = fpr_mul(f[j], ni);
+            }
+        }
+    }
+}
+
+/* ------------------------------------------------------------------------- */
+/* FFT-domain pointwise polynomial operations (hot in signing)               */
+/* ------------------------------------------------------------------------- */
+
+/* a <- a * b (pointwise complex product) over [0, hn). */
+FALCON_AVX2_TARGET
+void falcon_poly_mul_fft_avx2(fpr* a, const fpr* b, unsigned logn)
+{
+    double* ad = (double*)a;
+    const double* bd = (const double*)b;
+    size_t n = (size_t)1 << logn, hn = n >> 1, u;
+
+    if (hn >= 4) {
+        for (u = 0; u < hn; u += 4) {
+            __m256d ar = _mm256_loadu_pd(ad + u);
+            __m256d ai = _mm256_loadu_pd(ad + u + hn);
+            __m256d br = _mm256_loadu_pd(bd + u);
+            __m256d bi = _mm256_loadu_pd(bd + u + hn);
+            __m256d t0 = _mm256_mul_pd(ai, bi);
+            __m256d t1 = _mm256_mul_pd(ai, br);
+            __m256d re = _mm256_fmsub_pd(ar, br, t0); /* ar*br - ai*bi */
+            __m256d im = _mm256_fmadd_pd(ar, bi, t1); /* ar*bi + ai*br */
+            _mm256_storeu_pd(ad + u,      re);
+            _mm256_storeu_pd(ad + u + hn, im);
+        }
+    }
+    else {
+        for (u = 0; u < hn; u++) {
+            fpr a_re = a[u], a_im = a[u + hn];
+            fpr b_re = b[u], b_im = b[u + hn];
+            FPC_MUL(a[u], a[u + hn], a_re, a_im, b_re, b_im);
+        }
+    }
+}
+
+/* a <- a + b over [0, n). */
+FALCON_AVX2_TARGET
+void falcon_poly_add_avx2(fpr* a, const fpr* b, unsigned logn)
+{
+    double* ad = (double*)a;
+    const double* bd = (const double*)b;
+    size_t n = (size_t)1 << logn, u;
+
+    if (n >= 4) {
+        for (u = 0; u < n; u += 4) {
+            _mm256_storeu_pd(ad + u,
+                _mm256_add_pd(_mm256_loadu_pd(ad + u), _mm256_loadu_pd(bd + u)));
+        }
+    }
+    else {
+        for (u = 0; u < n; u++) {
+            a[u] = fpr_add(a[u], b[u]);
+        }
+    }
+}
+
+/* a <- a - b over [0, n). */
+FALCON_AVX2_TARGET
+void falcon_poly_sub_avx2(fpr* a, const fpr* b, unsigned logn)
+{
+    double* ad = (double*)a;
+    const double* bd = (const double*)b;
+    size_t n = (size_t)1 << logn, u;
+
+    if (n >= 4) {
+        for (u = 0; u < n; u += 4) {
+            _mm256_storeu_pd(ad + u,
+                _mm256_sub_pd(_mm256_loadu_pd(ad + u), _mm256_loadu_pd(bd + u)));
+        }
+    }
+    else {
+        for (u = 0; u < n; u++) {
+            a[u] = fpr_sub(a[u], b[u]);
+        }
+    }
+}
+
+/* a <- a * x (scalar fpr constant) over [0, n). */
+FALCON_AVX2_TARGET
+void falcon_poly_mulconst_avx2(fpr* a, fpr x, unsigned logn)
+{
+    double* ad = (double*)a;
+    size_t n = (size_t)1 << logn, u;
+
+    if (n >= 4) {
+        __m256d vx = _mm256_set1_pd(falcon_avx2_d(x));
+        for (u = 0; u < n; u += 4) {
+            _mm256_storeu_pd(ad + u, _mm256_mul_pd(_mm256_loadu_pd(ad + u), vx));
+        }
+    }
+    else {
+        for (u = 0; u < n; u++) {
+            a[u] = fpr_mul(a[u], x);
+        }
+    }
+}
+
+/* a <- a * adj(b): pointwise a * conj(b) over [0, hn). */
+FALCON_AVX2_TARGET
+void falcon_poly_muladj_fft_avx2(fpr* a, const fpr* b, unsigned logn)
+{
+    double* ad = (double*)a;
+    const double* bd = (const double*)b;
+    size_t n = (size_t)1 << logn, hn = n >> 1, u;
+
+    if (hn >= 4) {
+        for (u = 0; u < hn; u += 4) {
+            __m256d ar = _mm256_loadu_pd(ad + u);
+            __m256d ai = _mm256_loadu_pd(ad + u + hn);
+            __m256d br = _mm256_loadu_pd(bd + u);
+            __m256d bi = _mm256_loadu_pd(bd + u + hn);
+            /* re = ar*br + ai*bi ; im = ai*br - ar*bi */
+            __m256d re = _mm256_fmadd_pd(ar, br, _mm256_mul_pd(ai, bi));
+            __m256d im = _mm256_fmsub_pd(ai, br, _mm256_mul_pd(ar, bi));
+            _mm256_storeu_pd(ad + u,      re);
+            _mm256_storeu_pd(ad + u + hn, im);
+        }
+    }
+    else {
+        for (u = 0; u < hn; u++) {
+            fpr a_re = a[u], a_im = a[u + hn];
+            fpr b_re = b[u], b_im = fpr_neg(b[u + hn]);
+            FPC_MUL(a[u], a[u + hn], a_re, a_im, b_re, b_im);
+        }
+    }
+}
+
+/* a <- a * adj(a) = |a|^2 (real) over [0, hn); imag half set to zero. */
+FALCON_AVX2_TARGET
+void falcon_poly_mulselfadj_fft_avx2(fpr* a, unsigned logn)
+{
+    double* ad = (double*)a;
+    size_t n = (size_t)1 << logn, hn = n >> 1, u;
+
+    if (hn >= 4) {
+        __m256d zero = _mm256_setzero_pd();
+        for (u = 0; u < hn; u += 4) {
+            __m256d ar = _mm256_loadu_pd(ad + u);
+            __m256d ai = _mm256_loadu_pd(ad + u + hn);
+            __m256d re = _mm256_fmadd_pd(ar, ar, _mm256_mul_pd(ai, ai));
+            _mm256_storeu_pd(ad + u,      re);
+            _mm256_storeu_pd(ad + u + hn, zero);
+        }
+    }
+    else {
+        for (u = 0; u < hn; u++) {
+            fpr a_re = a[u], a_im = a[u + hn];
+            a[u] = fpr_add(fpr_mul(a_re, a_re), fpr_mul(a_im, a_im));
+            a[u + hn] = fpr_zero;
+        }
+    }
+}
+
+/* d <- 1 / (|a|^2 + |b|^2) (real) over [0, hn). */
+FALCON_AVX2_TARGET
+void falcon_poly_invnorm2_fft_avx2(fpr* d, const fpr* a, const fpr* b,
+        unsigned logn)
+{
+    double* dd = (double*)d;
+    const double* ad = (const double*)a;
+    const double* bd = (const double*)b;
+    size_t n = (size_t)1 << logn, hn = n >> 1, u;
+
+    if (hn >= 4) {
+        __m256d one = _mm256_set1_pd(1.0);
+        for (u = 0; u < hn; u += 4) {
+            __m256d ar = _mm256_loadu_pd(ad + u);
+            __m256d ai = _mm256_loadu_pd(ad + u + hn);
+            __m256d br = _mm256_loadu_pd(bd + u);
+            __m256d bi = _mm256_loadu_pd(bd + u + hn);
+            __m256d s = _mm256_fmadd_pd(ar, ar, _mm256_mul_pd(ai, ai));
+            s = _mm256_fmadd_pd(br, br, s);
+            s = _mm256_fmadd_pd(bi, bi, s);
+            _mm256_storeu_pd(dd + u, _mm256_div_pd(one, s));
+        }
+    }
+    else {
+        for (u = 0; u < hn; u++) {
+            fpr a_re = a[u], a_im = a[u + hn];
+            fpr b_re = b[u], b_im = b[u + hn];
+            d[u] = fpr_inv(fpr_add(
+                fpr_add(fpr_mul(a_re, a_re), fpr_mul(a_im, a_im)),
+                fpr_add(fpr_mul(b_re, b_re), fpr_mul(b_im, b_im))));
+        }
+    }
+}
+
+/* d <- F*adj(f) + G*adj(g) over [0, hn). */
+FALCON_AVX2_TARGET
+void falcon_poly_add_muladj_fft_avx2(fpr* d, const fpr* F, const fpr* G,
+        const fpr* f, const fpr* g, unsigned logn)
+{
+    double* dd = (double*)d;
+    const double* Fd = (const double*)F;
+    const double* Gd = (const double*)G;
+    const double* fd = (const double*)f;
+    const double* gd = (const double*)g;
+    size_t n = (size_t)1 << logn, hn = n >> 1, u;
+
+    if (hn >= 4) {
+        for (u = 0; u < hn; u += 4) {
+            __m256d Fr = _mm256_loadu_pd(Fd + u), Fi = _mm256_loadu_pd(Fd + u + hn);
+            __m256d Gr = _mm256_loadu_pd(Gd + u), Gi = _mm256_loadu_pd(Gd + u + hn);
+            __m256d fr = _mm256_loadu_pd(fd + u), fi = _mm256_loadu_pd(fd + u + hn);
+            __m256d gr = _mm256_loadu_pd(gd + u), gi = _mm256_loadu_pd(gd + u + hn);
+            /* F*conj(f): re=Fr*fr+Fi*fi, im=Fi*fr-Fr*fi */
+            __m256d are = _mm256_fmadd_pd(Fr, fr, _mm256_mul_pd(Fi, fi));
+            __m256d aim = _mm256_fmsub_pd(Fi, fr, _mm256_mul_pd(Fr, fi));
+            __m256d bre = _mm256_fmadd_pd(Gr, gr, _mm256_mul_pd(Gi, gi));
+            __m256d bim = _mm256_fmsub_pd(Gi, gr, _mm256_mul_pd(Gr, gi));
+            _mm256_storeu_pd(dd + u,      _mm256_add_pd(are, bre));
+            _mm256_storeu_pd(dd + u + hn, _mm256_add_pd(aim, bim));
+        }
+    }
+    else {
+        for (u = 0; u < hn; u++) {
+            fpr F_re = F[u], F_im = F[u + hn];
+            fpr G_re = G[u], G_im = G[u + hn];
+            fpr f_re = f[u], f_im = f[u + hn];
+            fpr g_re = g[u], g_im = g[u + hn];
+            fpr a_re, a_im, b_re, b_im;
+            FPC_MUL(a_re, a_im, F_re, F_im, f_re, fpr_neg(f_im));
+            FPC_MUL(b_re, b_im, G_re, G_im, g_re, fpr_neg(g_im));
+            d[u] = fpr_add(a_re, b_re);
+            d[u + hn] = fpr_add(a_im, b_im);
+        }
+    }
+}
+
+/* LDL of the 2x2 Hermitian Gram matrix, results to d11/l10 (inputs untouched).
+ *   mu = g01 / g00 ; d11 = g11 - mu*adj(g01) ; l10 = adj(mu) */
+FALCON_AVX2_TARGET
+void falcon_poly_LDLmv_fft_avx2(fpr* d11, fpr* l10, const fpr* g00,
+        const fpr* g01, const fpr* g11, unsigned logn)
+{
+    double* d11d = (double*)d11;
+    double* l10d = (double*)l10;
+    const double* g00d = (const double*)g00;
+    const double* g01d = (const double*)g01;
+    const double* g11d = (const double*)g11;
+    size_t n = (size_t)1 << logn, hn = n >> 1, u;
+
+    if (hn >= 4) {
+        __m256d one = _mm256_set1_pd(1.0);
+        __m256d neg = _mm256_set1_pd(-0.0);
+        for (u = 0; u < hn; u += 4) {
+            __m256d ar = _mm256_loadu_pd(g01d + u),  ai = _mm256_loadu_pd(g01d + u + hn);
+            __m256d br = _mm256_loadu_pd(g00d + u),  bi = _mm256_loadu_pd(g00d + u + hn);
+            __m256d c11r = _mm256_loadu_pd(g11d + u), c11i = _mm256_loadu_pd(g11d + u + hn);
+            /* mu = g01 / g00 */
+            __m256d den = _mm256_fmadd_pd(br, br, _mm256_mul_pd(bi, bi));
+            __m256d m = _mm256_div_pd(one, den);
+            __m256d mur = _mm256_mul_pd(_mm256_fmadd_pd(ar, br, _mm256_mul_pd(ai, bi)), m);
+            __m256d mui = _mm256_mul_pd(_mm256_fmsub_pd(ai, br, _mm256_mul_pd(ar, bi)), m);
+            /* xx = mu * adj(g01) : adj(g01) = (ar, -ai)
+             *   re = mur*ar + mui*ai ; im = mui*ar - mur*ai */
+            __m256d xxr = _mm256_fmadd_pd(mur, ar, _mm256_mul_pd(mui, ai));
+            __m256d xxi = _mm256_fmsub_pd(mui, ar, _mm256_mul_pd(mur, ai));
+            _mm256_storeu_pd(d11d + u,      _mm256_sub_pd(c11r, xxr));
+            _mm256_storeu_pd(d11d + u + hn, _mm256_sub_pd(c11i, xxi));
+            _mm256_storeu_pd(l10d + u,      mur);
+            _mm256_storeu_pd(l10d + u + hn, _mm256_xor_pd(mui, neg)); /* -mu_im */
+        }
+    }
+    else {
+        for (u = 0; u < hn; u++) {
+            fpr g00_re = g00[u], g00_im = g00[u + hn];
+            fpr g01_re = g01[u], g01_im = g01[u + hn];
+            fpr g11_re = g11[u], g11_im = g11[u + hn];
+            fpr mu_re, mu_im, xx_re, xx_im, m;
+            m = fpr_inv(fpr_add(fpr_mul(g00_re, g00_re), fpr_mul(g00_im, g00_im)));
+            mu_re = fpr_mul(fpr_add(fpr_mul(g01_re, g00_re),
+                fpr_mul(g01_im, g00_im)), m);
+            mu_im = fpr_mul(fpr_sub(fpr_mul(g01_im, g00_re),
+                fpr_mul(g01_re, g00_im)), m);
+            FPC_MUL(xx_re, xx_im, mu_re, mu_im, g01_re, fpr_neg(g01_im));
+            d11[u] = fpr_sub(g11_re, xx_re);
+            d11[u + hn] = fpr_sub(g11_im, xx_im);
+            l10[u] = mu_re;
+            l10[u + hn] = fpr_neg(mu_im);
+        }
+    }
+}
+
+/* Deinterleave two contiguous vectors v0=[x0..x3], v1=[x4..x7] into
+ * evens=[x0,x2,x4,x6] and odds=[x1,x3,x5,x7]. */
+FALCON_AVX2_TARGET
+static WC_INLINE void falcon_deint(__m256d v0, __m256d v1,
+        __m256d* evens, __m256d* odds)
+{
+    __m256d lo = _mm256_unpacklo_pd(v0, v1); /* [x0,x4,x2,x6] */
+    __m256d hi = _mm256_unpackhi_pd(v0, v1); /* [x1,x5,x3,x7] */
+    *evens = _mm256_permute4x64_pd(lo, _MM_SHUFFLE(3, 1, 2, 0));
+    *odds  = _mm256_permute4x64_pd(hi, _MM_SHUFFLE(3, 1, 2, 0));
+}
+
+/* Interleave evens=[x0,x2,x4,x6], odds=[x1,x3,x5,x7] back into
+ * v0=[x0,x1,x2,x3], v1=[x4,x5,x6,x7]. */
+FALCON_AVX2_TARGET
+static WC_INLINE void falcon_int(__m256d evens, __m256d odds,
+        __m256d* v0, __m256d* v1)
+{
+    __m256d e = _mm256_permute4x64_pd(evens, _MM_SHUFFLE(3, 1, 2, 0));
+    __m256d o = _mm256_permute4x64_pd(odds,  _MM_SHUFFLE(3, 1, 2, 0));
+    *v0 = _mm256_unpacklo_pd(e, o);
+    *v1 = _mm256_unpackhi_pd(e, o);
+}
+
+/* Split f (degree n) into half-degree f0, f1 in FFT representation. */
+FALCON_AVX2_TARGET
+void falcon_poly_split_fft_avx2(fpr* f0, fpr* f1, const fpr* f, unsigned logn)
+{
+    size_t n = (size_t)1 << logn, hn = n >> 1, qn = hn >> 1, u;
+    const double* fd = (const double*)f;
+    double* f0d = (double*)f0;
+    double* f1d = (double*)f1;
+    const double* gm = (const double*)falcon_gm_tab;
+
+    f0[0] = f[0];
+    f1[0] = f[hn];
+    if (qn >= 4) {
+        __m256d half = _mm256_set1_pd(0.5);
+        for (u = 0; u < qn; u += 4) {
+            __m256d ar, ai, br, bi, gcos, gsin, tr, ti, sr, si, xr, xi;
+            /* deinterleave real parts: f[2u..2u+7] -> a_re(even), b_re(odd) */
+            falcon_deint(_mm256_loadu_pd(fd + 2*u),
+                        _mm256_loadu_pd(fd + 2*u + 4), &ar, &br);
+            falcon_deint(_mm256_loadu_pd(fd + 2*u + hn),
+                        _mm256_loadu_pd(fd + 2*u + hn + 4), &ai, &bi);
+            /* twiddles gm[2*(hn+u) ..] -> cos(even), sin(odd) */
+            falcon_deint(_mm256_loadu_pd(gm + 2*(hn + u)),
+                        _mm256_loadu_pd(gm + 2*(hn + u) + 4), &gcos, &gsin);
+            /* f0 = half(a + b) */
+            _mm256_storeu_pd(f0d + u,      _mm256_mul_pd(_mm256_add_pd(ar, br), half));
+            _mm256_storeu_pd(f0d + u + qn, _mm256_mul_pd(_mm256_add_pd(ai, bi), half));
+            /* t = a - b ; s = t * conj(gm) ; f1 = half(s) */
+            tr = _mm256_sub_pd(ar, br);
+            ti = _mm256_sub_pd(ai, bi);
+            /* conj: (gcos, -gsin): sr=tr*gcos+ti*gsin, si=ti*gcos-tr*gsin */
+            sr = _mm256_fmadd_pd(tr, gcos, _mm256_mul_pd(ti, gsin));
+            si = _mm256_fmsub_pd(ti, gcos, _mm256_mul_pd(tr, gsin));
+            xr = _mm256_mul_pd(sr, half);
+            xi = _mm256_mul_pd(si, half);
+            _mm256_storeu_pd(f1d + u,      xr);
+            _mm256_storeu_pd(f1d + u + qn, xi);
+        }
+    }
+    else {
+        for (u = 0; u < qn; u++) {
+            fpr a_re = f[(u << 1) + 0], a_im = f[(u << 1) + 0 + hn];
+            fpr b_re = f[(u << 1) + 1], b_im = f[(u << 1) + 1 + hn];
+            fpr t_re, t_im;
+            FPC_ADD(t_re, t_im, a_re, a_im, b_re, b_im);
+            f0[u] = fpr_half(t_re);
+            f0[u + qn] = fpr_half(t_im);
+            FPC_SUB(t_re, t_im, a_re, a_im, b_re, b_im);
+            FPC_MUL(t_re, t_im, t_re, t_im,
+                falcon_gm_tab[((u + hn) << 1) + 0],
+                fpr_neg(falcon_gm_tab[((u + hn) << 1) + 1]));
+            f1[u] = fpr_half(t_re);
+            f1[u + qn] = fpr_half(t_im);
+        }
+    }
+}
+
+/* Merge f0, f1 (degree n/2) into f (degree n) in FFT representation. */
+FALCON_AVX2_TARGET
+void falcon_poly_merge_fft_avx2(fpr* f, const fpr* f0, const fpr* f1,
+        unsigned logn)
+{
+    size_t n = (size_t)1 << logn, hn = n >> 1, qn = hn >> 1, u;
+    double* fd = (double*)f;
+    const double* f0d = (const double*)f0;
+    const double* f1d = (const double*)f1;
+    const double* gm = (const double*)falcon_gm_tab;
+
+    f[0] = f0[0];
+    f[hn] = f1[0];
+    if (qn >= 4) {
+        for (u = 0; u < qn; u += 4) {
+            __m256d ar, ai, c1r, c1i, gcos, gsin, br, bi, tr, ti, v0, v1;
+            ar = _mm256_loadu_pd(f0d + u);
+            ai = _mm256_loadu_pd(f0d + u + qn);
+            c1r = _mm256_loadu_pd(f1d + u);
+            c1i = _mm256_loadu_pd(f1d + u + qn);
+            falcon_deint(_mm256_loadu_pd(gm + 2*(hn + u)),
+                        _mm256_loadu_pd(gm + 2*(hn + u) + 4), &gcos, &gsin);
+            /* b = f1 * gm : br=c1r*gcos-c1i*gsin, bi=c1r*gsin+c1i*gcos */
+            br = _mm256_fmsub_pd(c1r, gcos, _mm256_mul_pd(c1i, gsin));
+            bi = _mm256_fmadd_pd(c1r, gsin, _mm256_mul_pd(c1i, gcos));
+            /* even (index 2u) = a + b ; odd (index 2u+1) = a - b */
+            tr = _mm256_add_pd(ar, br);   /* even real */
+            ti = _mm256_sub_pd(ar, br);   /* odd real  */
+            falcon_int(tr, ti, &v0, &v1);
+            _mm256_storeu_pd(fd + 2*u,     v0);
+            _mm256_storeu_pd(fd + 2*u + 4, v1);
+            tr = _mm256_add_pd(ai, bi);   /* even imag */
+            ti = _mm256_sub_pd(ai, bi);   /* odd imag  */
+            falcon_int(tr, ti, &v0, &v1);
+            _mm256_storeu_pd(fd + 2*u + hn,     v0);
+            _mm256_storeu_pd(fd + 2*u + hn + 4, v1);
+        }
+    }
+    else {
+        for (u = 0; u < qn; u++) {
+            fpr a_re = f0[u], a_im = f0[u + qn];
+            fpr b_re, b_im, t_re, t_im;
+            FPC_MUL(b_re, b_im, f1[u], f1[u + qn],
+                falcon_gm_tab[((u + hn) << 1) + 0],
+                falcon_gm_tab[((u + hn) << 1) + 1]);
+            FPC_ADD(t_re, t_im, a_re, a_im, b_re, b_im);
+            f[(u << 1) + 0] = t_re;
+            f[(u << 1) + 0 + hn] = t_im;
+            FPC_SUB(t_re, t_im, a_re, a_im, b_re, b_im);
+            f[(u << 1) + 1] = t_re;
+            f[(u << 1) + 1 + hn] = t_im;
+        }
+    }
+}
+
+#endif /* HAVE_FALCON && !WOLFSSL_FALCON_VERIFY_ONLY &&
+        * WOLFSSL_FALCON_FFT_AVX2 */
+
+/* ==== AArch64 NEON (float64x2_t + FMA) FFT backend, folded from the former
+   wc_falcon_fft_neon.c. AdvSIMD is AArch64 baseline, so no per-file
+   CFLAGS are needed. ==== */
+/* AArch64 NEON (float64x2_t + FMA) FFT backend for the native Falcon
+ * signing path. This is the 2-wide-double counterpart of the AVX2 backend
+ * above: it processes two doubles per 128-bit vector and uses
+ * fused multiply-add for the complex butterflies. The algorithm and the
+ * twiddle-table (falcon_gm_tab) layout are unchanged from the scalar backend
+ * (wc_falcon_fft.c); only the butterfly inner loops are widened.
+ *
+ * On ARMv8-A, Advanced SIMD (including float64x2_t) is part of the baseline, so
+ * no per-function target attribute is required. NEON double is only available
+ * on AArch64, so this backend is gated on __aarch64__.
+ *
+ * CORRECTNESS NOTE: like the AVX2 backend, this does NOT promise bit-identical
+ * (no-FMA) results versus the scalar fpr path -- FMA fuses the multiply-add with
+ * a single rounding, so the FFT output differs in the last ULPs. This is safe:
+ * the signing FFT only needs to produce a short vector that passes the norm
+ * bound and verifies. The Gaussian sampler's determinism depends only on the
+ * scalar fpr_* ops (unchanged), and verification is integer-only.
+ */
+
+
+#if defined(HAVE_FALCON) && !defined(WOLF_CRYPTO_CB_ONLY_FALCON) && \
+    !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+    defined(WOLFSSL_FALCON_FFT_NEON) && defined(__aarch64__)
+
+
+#include <arm_neon.h>
+
+/* Reinterpret an fpr (word64 bit pattern) as a double without aliasing UB. */
+static WC_INLINE double falcon_neon_d(fpr x)
+{
+    double d;
+    XMEMCPY(&d, &x, sizeof(d));
+    return d;
+}
+
+/* Scalar (inline-double) complex helpers for the small-stride tail level
+ * (ht == 1), matching the scalar backend exactly. Undef before redefining, as
+ * in the AVX2 block above. */
+#undef FPC_MUL
+#undef FPC_ADD
+#undef FPC_SUB
+#define FPC_MUL(d_re, d_im, a_re, a_im, b_re, b_im) do { \
+        fpr _ar = (a_re), _ai = (a_im), _br = (b_re), _bi = (b_im); \
+        (d_re) = fpr_sub(fpr_mul(_ar, _br), fpr_mul(_ai, _bi)); \
+        (d_im) = fpr_add(fpr_mul(_ar, _bi), fpr_mul(_ai, _br)); \
+    } while (0)
+#define FPC_ADD(d_re, d_im, a_re, a_im, b_re, b_im) do { \
+        (d_re) = fpr_add((a_re), (b_re)); \
+        (d_im) = fpr_add((a_im), (b_im)); \
+    } while (0)
+#define FPC_SUB(d_re, d_im, a_re, a_im, b_re, b_im) do { \
+        (d_re) = fpr_sub((a_re), (b_re)); \
+        (d_im) = fpr_sub((a_im), (b_im)); \
+    } while (0)
+
+/* Vector complex multiply: (yr + i yi) <- (yr + i yi) * (sr + i si).
+ * re = yr*sr - yi*si, im = yr*si + yi*sr. vfmsq(a,b,c)=a-b*c, vfmaq(a,b,c)=a+b*c. */
+#define FALCON_VCMUL(out_re, out_im, yr, yi, sr, si) do { \
+        (out_re) = vfmsq_f64(vmulq_f64((yr), (sr)), (yi), (si)); \
+        (out_im) = vfmaq_f64(vmulq_f64((yr), (si)), (yi), (sr)); \
+    } while (0)
+
+/* Aliasing-safe vector load/store.  fpr is a word64 IEEE-754 bit pattern, so
+ * the backing store's real object type is the 64-bit integer, not double.
+ * Load/store through uint64_t (the actual type) and reinterpret the vector
+ * register to/from f64 -- casting fpr* to double* and using vld1q_f64/vst1q_f64
+ * would be a strict-aliasing violation that can miscompile at -O2/-O3. */
+#define FALCON_VLD(pf) \
+    vreinterpretq_f64_u64(vld1q_u64((const uint64_t*)(const void*)(pf)))
+#define FALCON_VST(pf, v) \
+    vst1q_u64((uint64_t*)(void*)(pf), vreinterpretq_u64_f64(v))
+
+/* ------------------------------------------------------------------------- */
+/* Forward FFT                                                               */
+/* ------------------------------------------------------------------------- */
+
+void falcon_FFT(fpr* f, unsigned logn)
+{
+    unsigned u;
+    size_t t, n, hn, m;
+
+    n = (size_t)1 << logn;
+    hn = n >> 1;
+    t = hn;
+    for (u = 1, m = 2; u < logn; u++, m <<= 1) {
+        size_t ht = t >> 1, hm = m >> 1, i1, j1;
+        for (i1 = 0, j1 = 0; i1 < hm; i1++, j1 += t) {
+            size_t j, j2 = j1 + ht;
+            fpr s_re = falcon_gm_tab[((m + i1) << 1) + 0];
+            fpr s_im = falcon_gm_tab[((m + i1) << 1) + 1];
+            if (ht >= 2) {
+                float64x2_t vsr = vdupq_n_f64(falcon_neon_d(s_re));
+                float64x2_t vsi = vdupq_n_f64(falcon_neon_d(s_im));
+                for (j = j1; j < j2; j += 2) {
+                    float64x2_t xr = FALCON_VLD(f + j);
+                    float64x2_t xi = FALCON_VLD(f + j + hn);
+                    float64x2_t yr = FALCON_VLD(f + j + ht);
+                    float64x2_t yi = FALCON_VLD(f + j + ht + hn);
+                    float64x2_t tr, ti;
+                    FALCON_VCMUL(tr, ti, yr, yi, vsr, vsi);
+                    FALCON_VST(f + j, vaddq_f64(xr, tr));
+                    FALCON_VST(f + j + hn, vaddq_f64(xi, ti));
+                    FALCON_VST(f + j + ht, vsubq_f64(xr, tr));
+                    FALCON_VST(f + j + ht + hn, vsubq_f64(xi, ti));
+                }
+            }
+            else {
+                /* small-stride tail (ht == 1): scalar inline-double */
+                for (j = j1; j < j2; j++) {
+                    fpr x_re = f[j], x_im = f[j + hn];
+                    fpr y_re = f[j + ht], y_im = f[j + ht + hn];
+                    FPC_MUL(y_re, y_im, y_re, y_im, s_re, s_im);
+                    FPC_ADD(f[j], f[j + hn], x_re, x_im, y_re, y_im);
+                    FPC_SUB(f[j + ht], f[j + ht + hn], x_re, x_im, y_re, y_im);
+                }
+            }
+        }
+        t = ht;
+    }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Inverse FFT                                                               */
+/* ------------------------------------------------------------------------- */
+
+void falcon_iFFT(fpr* f, unsigned logn)
+{
+    int u;
+    size_t n = (size_t)1 << logn, hn = n >> 1;
+
+    for (u = (int)logn - 1; u >= 1; u--) {
+        size_t m = (size_t)1 << u, hm = m >> 1;
+        size_t t = hn >> u;             /* butterfly stride */
+        size_t i1, j1;
+        for (i1 = 0, j1 = 0; i1 < hm; i1++, j1 += (t << 1)) {
+            size_t j, j2 = j1 + t;
+            fpr s_re = falcon_gm_tab[((m + i1) << 1) + 0];
+            fpr s_im = fpr_neg(falcon_gm_tab[((m + i1) << 1) + 1]);
+            if (t >= 2) {
+                float64x2_t vsr = vdupq_n_f64(falcon_neon_d(s_re));
+                float64x2_t vsi = vdupq_n_f64(falcon_neon_d(s_im));
+                for (j = j1; j < j2; j += 2) {
+                    float64x2_t ar = FALCON_VLD(f + j);
+                    float64x2_t ai = FALCON_VLD(f + j + hn);
+                    float64x2_t br = FALCON_VLD(f + j + t);
+                    float64x2_t bi = FALCON_VLD(f + j + t + hn);
+                    float64x2_t dr = vsubq_f64(ar, br);
+                    float64x2_t di = vsubq_f64(ai, bi);
+                    float64x2_t pr, pi;
+                    FALCON_VST(f + j, vaddq_f64(ar, br));
+                    FALCON_VST(f + j + hn, vaddq_f64(ai, bi));
+                    FALCON_VCMUL(pr, pi, dr, di, vsr, vsi);
+                    FALCON_VST(f + j + t, pr);
+                    FALCON_VST(f + j + t + hn, pi);
+                }
+            }
+            else {
+                for (j = j1; j < j2; j++) {
+                    fpr a_re = f[j], a_im = f[j + hn];
+                    fpr b_re = f[j + t], b_im = f[j + t + hn];
+                    fpr d_re, d_im;
+                    FPC_ADD(f[j], f[j + hn], a_re, a_im, b_re, b_im);
+                    FPC_SUB(d_re, d_im, a_re, a_im, b_re, b_im);
+                    FPC_MUL(f[j + t], f[j + t + hn], d_re, d_im, s_re, s_im);
+                }
+            }
+        }
+    }
+    /* final scale by 1 / 2^(logn-1) */
+    {
+        fpr ni = fpr_inv(fpr_of((sword64)hn));
+        if (n >= 2) {
+            float64x2_t vni = vdupq_n_f64(falcon_neon_d(ni));
+            size_t j;
+            for (j = 0; j < n; j += 2) {
+                FALCON_VST(f + j, vmulq_f64(FALCON_VLD(f + j), vni));
+            }
+        }
+        else {
+            f[0] = fpr_mul(f[0], ni);
+        }
+    }
+}
+
+#endif /* HAVE_FALCON && !WOLF_CRYPTO_CB_ONLY_FALCON &&
+        * !WOLFSSL_FALCON_VERIFY_ONLY && WOLFSSL_FALCON_FFT_NEON && __aarch64__ */
+
 #endif /* HAVE_FALCON */
