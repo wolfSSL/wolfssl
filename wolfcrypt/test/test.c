@@ -900,6 +900,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesgcm_siv_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  gmac_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesccm_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aeskeywrap_test(void);
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aeskeywrap_pad_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  camellia_test(void);
 #ifdef WOLFSSL_SM4
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sm4_test(void);
@@ -2949,6 +2952,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("AES Key Wrap test failed!\n", ret);
     else
         TEST_PASS("AES Key Wrap test passed!\n");
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    if ( (ret = aeskeywrap_pad_test()) != 0)
+        TEST_FAIL("AES Key Wrap Pad test failed!\n", ret);
+    else
+        TEST_PASS("AES Key Wrap Pad test passed!\n");
+#endif
 #endif
 #if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
     if ( (ret = aes_siv_test()) != 0)
@@ -23056,8 +23065,587 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
             return WC_TEST_RET_ENC_EC(plainSz);
     }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* Drive wc_AesKeyWrap_ex/wc_AesKeyUnWrap_ex directly with a caller Aes; the
+     * KAT loop above already covers every vector via the key-based wrappers. */
+    {
+        Aes* aes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
+        if (aes == NULL)
+            return WC_TEST_RET_ENC_NC;
+
+        XMEMSET(output, 0, sizeof(output));
+        XMEMSET(plain,  0, sizeof(plain));
+
+        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
+                         AES_ENCRYPTION) != 0) {
+            wc_AesFree(aes);
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        wrapSz = wc_AesKeyWrap_ex(aes, test_wrap[0].data, test_wrap[0].dataLen,
+                                  output, sizeof(output), NULL);
+        wc_AesFree(aes);
+        if ( (wrapSz < 0) || (wrapSz != (int)test_wrap[0].verifyLen) ||
+             XMEMCMP(output, test_wrap[0].verify, test_wrap[0].verifyLen) != 0) {
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
+                         AES_DECRYPTION) != 0) {
+            wc_AesFree(aes);
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz,
+                                     plain, sizeof(plain), NULL);
+        wc_AesFree(aes);
+        XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+        if ( (plainSz < 0) || (plainSz != (int)test_wrap[0].dataLen) ||
+             XMEMCMP(plain, test_wrap[0].data, test_wrap[0].dataLen) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    /* In-place round-trip (in == out): wrap then unwrap a single buffer.
+     * Exercises the XMEMMOVE staging in wc_AesKeyWrap_ex / AesKeyUnWrapRaw. */
+    {
+        XMEMSET(output, 0, sizeof(output));
+        XMEMCPY(output, test_wrap[0].data, test_wrap[0].dataLen);
+
+        wrapSz = wc_AesKeyWrap(test_wrap[0].kek, test_wrap[0].kekLen,
+                               output, test_wrap[0].dataLen,
+                               output, sizeof(output), NULL);
+        if ( (wrapSz < 0) || (wrapSz != (int)test_wrap[0].verifyLen) )
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(output, test_wrap[0].verify, test_wrap[0].verifyLen) != 0)
+            return WC_TEST_RET_ENC_NC;
+
+        plainSz = wc_AesKeyUnWrap(test_wrap[0].kek, test_wrap[0].kekLen,
+                                  output, (word32)wrapSz,
+                                  output, sizeof(output), NULL);
+        if ( (plainSz < 0) || (plainSz != (int)test_wrap[0].dataLen) )
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(output, test_wrap[0].data, test_wrap[0].dataLen) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+
     return 0;
 }
+
+#if defined(WOLFSSL_AES_KEYWRAP_PADDING)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
+{
+    int wrapSz, plainSz, kwpSz, i;
+    byte output[MAX_KEYWRAP_TEST_OUTLEN];
+    byte plain [MAX_KEYWRAP_TEST_PLAINLEN];
+
+    /* RFC 5649 padded key wrap vectors: RFC 5649 s6 for 192-bit, OpenSSL
+     * aes-wrap-pad for 128/256 (cross-checked).  20-octet = loop, 7 = ECB. */
+
+    /* shared plaintexts */
+    /* 20 octets -> 32-byte wrap (RFC 3394 loop path) */
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpData1[] = {
+        0xc3, 0x7b, 0x7e, 0x64, 0x92, 0x58, 0x43, 0x40,
+        0xbe, 0xd1, 0x22, 0x07, 0x80, 0x89, 0x41, 0x15,
+        0x50, 0x68, 0xf7, 0x38
+    };
+    /* 7 octets -> 16-byte wrap (single-block ECB path) */
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpData2[] = {
+        0x46, 0x6f, 0x72, 0x50, 0x61, 0x73, 0x69
+    };
+
+#ifdef WOLFSSL_AES_128
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpKek128[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpVerify128_1[] = {
+        0xe1, 0xf7, 0x17, 0x6e, 0xcb, 0xd7, 0x5d, 0x42,
+        0xe8, 0x2b, 0x24, 0xf9, 0x89, 0xa2, 0x81, 0x6c,
+        0x20, 0x9c, 0x6e, 0xf2, 0xd1, 0xaa, 0x94, 0xd2,
+        0xa3, 0xe6, 0x02, 0x84, 0x90, 0x0d, 0x03, 0xa2
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpVerify128_2[] = {
+        0xbe, 0x80, 0x53, 0x5e, 0x12, 0xe9, 0x39, 0x4c,
+        0x8f, 0x8d, 0xf2, 0x6b, 0xd9, 0x52, 0x8a, 0x35
+    };
+#endif
+#ifdef WOLFSSL_AES_192
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpKek192[] = {
+        0x58, 0x40, 0xdf, 0x6e, 0x29, 0xb0, 0x2a, 0xf1,
+        0xab, 0x49, 0x3b, 0x70, 0x5b, 0xf1, 0x6e, 0xa1,
+        0xae, 0x83, 0x38, 0xf4, 0xdc, 0xc1, 0x76, 0xa8
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpVerify192_1[] = {
+        0x13, 0x8b, 0xde, 0xaa, 0x9b, 0x8f, 0xa7, 0xfc,
+        0x61, 0xf9, 0x77, 0x42, 0xe7, 0x22, 0x48, 0xee,
+        0x5a, 0xe6, 0xae, 0x53, 0x60, 0xd1, 0xae, 0x6a,
+        0x5f, 0x54, 0xf3, 0x73, 0xfa, 0x54, 0x3b, 0x6a
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpVerify192_2[] = {
+        0xaf, 0xbe, 0xb0, 0xf0, 0x7d, 0xfb, 0xf5, 0x41,
+        0x92, 0x00, 0xf2, 0xcc, 0xb5, 0x0b, 0xb2, 0x4f
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpKek256[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpVerify256_1[] = {
+        0x29, 0xb7, 0xfa, 0x19, 0x1c, 0x21, 0x65, 0x68,
+        0x43, 0x74, 0xee, 0xe9, 0xf7, 0x45, 0x95, 0xe2,
+        0xa4, 0x2b, 0xac, 0xe7, 0x5c, 0x42, 0x5b, 0x30,
+        0x53, 0xef, 0xa2, 0x6f, 0xfe, 0x1b, 0xb3, 0x2f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte kwpVerify256_2[] = {
+        0x44, 0x3b, 0x17, 0x83, 0x7b, 0xb3, 0x93, 0x48,
+        0x61, 0x0d, 0x19, 0x20, 0x2d, 0xf8, 0xa1, 0xf9
+    };
+#endif
+    const keywrapVector test_kwp[] = {
+    #ifdef WOLFSSL_AES_128
+        {kwpKek128, kwpData1, kwpVerify128_1, sizeof(kwpKek128),
+         sizeof(kwpData1), sizeof(kwpVerify128_1)},
+        {kwpKek128, kwpData2, kwpVerify128_2, sizeof(kwpKek128),
+         sizeof(kwpData2), sizeof(kwpVerify128_2)},
+    #endif
+    #ifdef WOLFSSL_AES_192
+        {kwpKek192, kwpData1, kwpVerify192_1, sizeof(kwpKek192),
+         sizeof(kwpData1), sizeof(kwpVerify192_1)},
+        {kwpKek192, kwpData2, kwpVerify192_2, sizeof(kwpKek192),
+         sizeof(kwpData2), sizeof(kwpVerify192_2)},
+    #endif
+    #ifdef WOLFSSL_AES_256
+        {kwpKek256, kwpData1, kwpVerify256_1, sizeof(kwpKek256),
+         sizeof(kwpData1), sizeof(kwpVerify256_1)},
+        {kwpKek256, kwpData2, kwpVerify256_2, sizeof(kwpKek256),
+         sizeof(kwpData2), sizeof(kwpVerify256_2)},
+    #endif
+    };
+
+    WOLFSSL_ENTER("aeskeywrap_pad_test");
+
+    kwpSz = (int)(sizeof(test_kwp) / sizeof(keywrapVector));
+
+    for (i = 0; i < kwpSz; i++) {
+        XMEMSET(output, 0, sizeof(output));
+        XMEMSET(plain,  0, sizeof(plain));
+
+        wrapSz = wc_AesKeyWrap_Pad(test_kwp[i].kek, test_kwp[i].kekLen,
+                                   test_kwp[i].data, test_kwp[i].dataLen,
+                                   output, sizeof(output), NULL);
+        if ( (wrapSz < 0) || (wrapSz != (int)test_kwp[i].verifyLen) ) {
+            return WC_TEST_RET_ENC_I(i);
+        }
+
+        if (XMEMCMP(output, test_kwp[i].verify, test_kwp[i].verifyLen) != 0) {
+            return WC_TEST_RET_ENC_I(i);
+        }
+
+        plainSz = wc_AesKeyUnWrap_Pad(test_kwp[i].kek, test_kwp[i].kekLen,
+                                      output, (word32)wrapSz,
+                                      plain, sizeof(plain), NULL);
+        if ( (plainSz < 0) || (plainSz != (int)test_kwp[i].dataLen) ) {
+            return WC_TEST_RET_ENC_I(i);
+        }
+
+        if (XMEMCMP(plain, test_kwp[i].data, test_kwp[i].dataLen) != 0) {
+            return WC_TEST_RET_ENC_I(i);
+        }
+    }
+
+    /* Everything below indexes test_kwp[0]; when no AES key size is enabled
+     * test_kwp[] is empty (kwpSz == 0), so skip it to stay in-bounds. */
+    if (kwpSz == 0)
+        return 0;
+
+    /* Negative test: corrupted wrapped data must be rejected with
+     * BAD_KEYWRAP_IV_E. */
+    wrapSz = wc_AesKeyWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen,
+                               test_kwp[0].data, test_kwp[0].dataLen,
+                               output, sizeof(output), NULL);
+    if (wrapSz < 0) {
+        return WC_TEST_RET_ENC_EC(wrapSz);
+    }
+
+    output[0] ^= 0x01;
+
+    plainSz = wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen,
+                                  output, (word32)wrapSz,
+                                  plain, sizeof(plain), NULL);
+    if (plainSz != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E)) {
+        return WC_TEST_RET_ENC_EC(plainSz);
+    }
+
+    /* Negative: invalid arguments must be rejected with BAD_FUNC_ARG. */
+    if (wc_AesKeyWrap_Pad(NULL, test_kwp[0].kekLen, test_kwp[0].data,
+            test_kwp[0].dataLen, output, sizeof(output), NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_AesKeyWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, NULL,
+            test_kwp[0].dataLen, output, sizeof(output), NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_AesKeyWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, test_kwp[0].data,
+            0, output, sizeof(output), NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_AesKeyWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, test_kwp[0].data,
+            test_kwp[0].dataLen, NULL, sizeof(output), NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    /* output buffer too small: 7 octets need 16 wrapped bytes, give 8 */
+    if (wc_AesKeyWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, kwpData2,
+            (word32)sizeof(kwpData2), output, 8, NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_AesKeyUnWrap_Pad(NULL, test_kwp[0].kekLen, output, 16, plain,
+            sizeof(plain), NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, NULL, 16, plain,
+            sizeof(plain), NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    /* ciphertext length must be a multiple of 8 and at least 16 octets */
+    if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, output, 8, plain,
+            sizeof(plain), NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, output, 17,
+            plain, sizeof(plain), NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    /* unwrap output buffer smaller than the recovered padded plaintext */
+    if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, output, 16,
+            plain, 4, NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    /* an inSz that would overflow ceil(inSz/8)+1 blocks is rejected up front */
+    if (wc_AesKeyWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, test_kwp[0].data,
+            0xFFFFFFF1U, output, sizeof(output), NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    /* Negative: an invalid KEK size drives the SetKey-failure path in the
+     * wrappers (20 octets is not a valid AES key length). */
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte badKek[20] = {
+            0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,
+            0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c
+        };
+        if (wc_AesKeyWrap_Pad(badKek, (word32)sizeof(badKek), kwpData2,
+                (word32)sizeof(kwpData2), output, sizeof(output), NULL)
+                != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+        if (wc_AesKeyUnWrap_Pad(badKek, (word32)sizeof(badKek), output, 16,
+                plain, sizeof(plain), NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    /* IV override: a custom 4-byte AIV round-trips, and the same blob is
+     * rejected under the default AIV (check 1, AIV-constant mismatch). */
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte altIv[4] = {
+            0x12, 0x34, 0x56, 0x78
+        };
+        XMEMSET(output, 0, sizeof(output));
+        XMEMSET(plain,  0, sizeof(plain));
+        wrapSz = wc_AesKeyWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, kwpData2,
+                     (word32)sizeof(kwpData2), output, sizeof(output), altIv);
+        if (wrapSz < 0)
+            return WC_TEST_RET_ENC_EC(wrapSz);
+        plainSz = wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen,
+                     output, (word32)wrapSz, plain, sizeof(plain), altIv);
+        if ((plainSz != (int)sizeof(kwpData2)) ||
+            (XMEMCMP(plain, kwpData2, sizeof(kwpData2)) != 0))
+            return WC_TEST_RET_ENC_NC;
+        if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, output,
+                (word32)wrapSz, plain, sizeof(plain), NULL)
+                != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E))
+            return WC_TEST_RET_ENC_NC;
+    }
+
+#if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+    defined(WOLFSSL_AES_256)
+    /* Boundary-size KATs (pyca/cryptography, reproduces RFC 5649 s6) plus an
+     * exhaustive 1..31 round-trip across every enabled key size. */
+    {
+#ifdef WOLFSSL_AES_128
+        WOLFSSL_SMALL_STACK_STATIC const byte kb128_1[]  = {
+            0xdc, 0x0c, 0xed, 0x32, 0x50, 0xa4, 0x92, 0x77, 0x59, 0xb4, 0xe9, 0x28,
+            0x73, 0x2e, 0x16, 0x8a };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb128_8[]  = {
+            0x23, 0xe1, 0xcd, 0x73, 0x92, 0xf0, 0xcc, 0x69, 0xdc, 0x20, 0xdf, 0x56,
+            0x48, 0x9f, 0xfd, 0xd7 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb128_9[]  = {
+            0xe6, 0xe7, 0x6a, 0xfc, 0xf1, 0xf7, 0x1f, 0x43, 0x63, 0x4b, 0x96, 0x91,
+            0x9c, 0x1e, 0x36, 0xa9, 0x5b, 0xf7, 0xb0, 0x26, 0x0f, 0x51, 0x9b, 0x4b };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb128_16[] = {
+            0xa7, 0x41, 0x46, 0x28, 0x3b, 0x00, 0x85, 0x06, 0x23, 0xd3, 0x02, 0xf4,
+            0x57, 0xb1, 0x8c, 0x96, 0xac, 0xe5, 0xb5, 0xd3, 0x64, 0x7c, 0xc2, 0xf1 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb128_17[] = {
+            0x8d, 0x69, 0xe5, 0xc5, 0x01, 0x98, 0x70, 0xd3, 0x50, 0x37, 0x3a, 0x00,
+            0xa8, 0xe3, 0xa5, 0x32, 0xdf, 0xce, 0x76, 0x8a, 0x6b, 0x79, 0xef, 0x2c,
+            0x34, 0xcf, 0xed, 0x5c, 0xb4, 0x09, 0xff, 0xf4 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb128_31[] = {
+            0x50, 0x3e, 0xc4, 0xff, 0x2e, 0xd3, 0x01, 0x14, 0xfa, 0x5a, 0x02, 0x47,
+            0x9f, 0x20, 0x4c, 0xb1, 0xd8, 0xcb, 0xa2, 0xa3, 0xa3, 0x7d, 0x7b, 0xa5,
+            0x60, 0x77, 0x01, 0x46, 0xd6, 0x03, 0x93, 0xe0, 0xf0, 0x01, 0xf7, 0x88,
+            0xb0, 0x4b, 0xc6, 0xb2 };
+#endif
+#ifdef WOLFSSL_AES_192
+        WOLFSSL_SMALL_STACK_STATIC const byte kb192_1[]  = {
+            0x95, 0xf7, 0xba, 0x0a, 0x72, 0x6e, 0xed, 0x9a, 0x90, 0xa9, 0x90, 0x00,
+            0x94, 0xc5, 0xd9, 0x2d };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb192_8[]  = {
+            0xaa, 0x6f, 0x7d, 0x3b, 0xab, 0x34, 0x91, 0xcc, 0xd9, 0x52, 0xc9, 0x86,
+            0x64, 0x42, 0x8c, 0x40 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb192_9[]  = {
+            0x52, 0xa0, 0xf3, 0xda, 0x5a, 0x48, 0xaf, 0xe9, 0xac, 0x1e, 0x8f, 0x96,
+            0x84, 0x25, 0x93, 0x8e, 0xd5, 0x35, 0xaa, 0xe9, 0xbc, 0xe1, 0x0b, 0x52 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb192_16[] = {
+            0xe8, 0xba, 0xab, 0xb4, 0xa1, 0xf3, 0x57, 0x6e, 0x72, 0xe4, 0x71, 0xca,
+            0x51, 0x2b, 0x5b, 0x64, 0xfb, 0x25, 0x25, 0x97, 0xfc, 0x80, 0x75, 0xe3 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb192_17[] = {
+            0xaf, 0x1e, 0xc0, 0xdf, 0x04, 0xef, 0xde, 0xb6, 0x0d, 0xa4, 0xdf, 0xf5,
+            0x89, 0x84, 0x14, 0x91, 0x11, 0xdf, 0xda, 0x2d, 0xef, 0xc1, 0x30, 0x6e,
+            0x54, 0x46, 0x2e, 0xc3, 0xac, 0x57, 0xf7, 0x8a };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb192_31[] = {
+            0x1d, 0x59, 0x4c, 0x1a, 0x06, 0x03, 0x33, 0x60, 0x03, 0x12, 0x1e, 0x69,
+            0x81, 0xd8, 0xbe, 0xc6, 0x0a, 0xef, 0x71, 0x7f, 0x62, 0x1e, 0x95, 0xb1,
+            0xfb, 0x29, 0x96, 0x61, 0x39, 0x78, 0xbb, 0x5f, 0x52, 0xee, 0xc6, 0xda,
+            0xed, 0xd8, 0x48, 0x97 };
+#endif
+#ifdef WOLFSSL_AES_256
+        WOLFSSL_SMALL_STACK_STATIC const byte kb256_1[]  = {
+            0xcc, 0xc4, 0x9f, 0xbf, 0x20, 0xf2, 0xac, 0xe7, 0xeb, 0x31, 0xa8, 0xdd,
+            0xe2, 0x26, 0x50, 0x6a };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb256_8[]  = {
+            0xea, 0x91, 0xdd, 0x60, 0xe5, 0x9b, 0xd6, 0x8b, 0xad, 0x0d, 0x6e, 0x25,
+            0x4b, 0x5e, 0x1c, 0x39 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb256_9[]  = {
+            0xc9, 0x72, 0x2a, 0x95, 0x51, 0xdf, 0xa2, 0x83, 0x2a, 0xa1, 0xca, 0xe4,
+            0x87, 0x82, 0x1e, 0x06, 0x99, 0x12, 0x94, 0xae, 0xbc, 0xe0, 0x98, 0x48 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb256_16[] = {
+            0xb3, 0x33, 0x58, 0x13, 0x95, 0xce, 0xdf, 0x83, 0x56, 0xdc, 0x35, 0x6c,
+            0x1c, 0xc7, 0x9e, 0x9a, 0x88, 0x5c, 0xb4, 0x98, 0x8e, 0xd6, 0x29, 0xb8 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb256_17[] = {
+            0x18, 0x58, 0x36, 0x63, 0x5d, 0xea, 0xaf, 0x4d, 0xa8, 0x27, 0x0c, 0x04,
+            0x89, 0x09, 0xae, 0xbf, 0xe9, 0x21, 0x11, 0x66, 0xca, 0x2f, 0xdb, 0x34,
+            0xa0, 0x93, 0x69, 0xfe, 0x9b, 0xb8, 0x6b, 0x04 };
+        WOLFSSL_SMALL_STACK_STATIC const byte kb256_31[] = {
+            0x16, 0x44, 0xf1, 0x8b, 0x57, 0xc7, 0xb3, 0xf1, 0x85, 0x51, 0xbe, 0x73,
+            0xff, 0xd0, 0x9c, 0xa7, 0x42, 0xf7, 0xf1, 0x56, 0x26, 0x1d, 0x58, 0x95,
+            0xaa, 0xc0, 0x97, 0xc4, 0xb6, 0x4e, 0x02, 0x80, 0xfc, 0x80, 0xbd, 0xac,
+            0x45, 0x2c, 0x90, 0x10 };
+#endif
+        WOLFSSL_SMALL_STACK_STATIC const word32 bsz[] = {  1,  8,  9, 16, 17, 31 };
+        WOLFSSL_SMALL_STACK_STATIC const word32 bes[] = { 16, 16, 24, 24, 32, 40 };
+        struct { const byte* kek; word32 kekSz; const byte* exp[6]; } ek[] = {
+#ifdef WOLFSSL_AES_128
+            { kwpKek128, (word32)sizeof(kwpKek128),
+              { kb128_1, kb128_8, kb128_9, kb128_16, kb128_17, kb128_31 } },
+#endif
+#ifdef WOLFSSL_AES_192
+            { kwpKek192, (word32)sizeof(kwpKek192),
+              { kb192_1, kb192_8, kb192_9, kb192_16, kb192_17, kb192_31 } },
+#endif
+#ifdef WOLFSSL_AES_256
+            { kwpKek256, (word32)sizeof(kwpKek256),
+              { kb256_1, kb256_8, kb256_9, kb256_16, kb256_17, kb256_31 } },
+#endif
+        };
+        byte rtin[32];
+        int  ekSz = (int)(sizeof(ek) / sizeof(ek[0]));
+        int  bSz  = (int)(sizeof(bsz) / sizeof(bsz[0]));
+        int  ki, bi, s, t;
+
+        for (t = 0; t < (int)sizeof(rtin); t++)
+            rtin[t] = (byte)(0xA0 + t);
+
+        for (ki = 0; ki < ekSz; ki++) {
+            /* boundary-size known-answer + round-trip */
+            for (bi = 0; bi < bSz; bi++) {
+                XMEMSET(output, 0, sizeof(output));
+                XMEMSET(plain,  0, sizeof(plain));
+                wrapSz = wc_AesKeyWrap_Pad(ek[ki].kek, ek[ki].kekSz,
+                             rtin, bsz[bi], output, sizeof(output), NULL);
+                if ((wrapSz < 0) || (wrapSz != (int)bes[bi]))
+                    return WC_TEST_RET_ENC_I(ki * 100 + bi);
+                if (XMEMCMP(output, ek[ki].exp[bi], bes[bi]) != 0)
+                    return WC_TEST_RET_ENC_I(ki * 100 + bi);
+                plainSz = wc_AesKeyUnWrap_Pad(ek[ki].kek, ek[ki].kekSz, output,
+                             (word32)wrapSz, plain, sizeof(plain), NULL);
+                if ((plainSz != (int)bsz[bi]) ||
+                    (XMEMCMP(plain, rtin, bsz[bi]) != 0))
+                    return WC_TEST_RET_ENC_I(ki * 100 + bi);
+            }
+
+            /* exhaustive round-trip for every input size 1..31 */
+            for (s = 1; s <= (int)sizeof(rtin) - 1; s++) {
+                int ew = (((s + 7) / 8) * 8) + 8;
+                XMEMSET(output, 0, sizeof(output));
+                XMEMSET(plain,  0, sizeof(plain));
+                wrapSz = wc_AesKeyWrap_Pad(ek[ki].kek, ek[ki].kekSz,
+                             rtin, (word32)s, output, sizeof(output), NULL);
+                if (wrapSz != ew)
+                    return WC_TEST_RET_ENC_I(ki * 100 + 30 + s);
+                plainSz = wc_AesKeyUnWrap_Pad(ek[ki].kek, ek[ki].kekSz, output,
+                             (word32)wrapSz, plain, sizeof(plain), NULL);
+                if ((plainSz != s) ||
+                    (XMEMCMP(plain, rtin, (word32)s) != 0))
+                    return WC_TEST_RET_ENC_I(ki * 100 + 30 + s);
+            }
+        }
+    }
+#endif /* WOLFSSL_AES_128 || WOLFSSL_AES_192 || WOLFSSL_AES_256 */
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* Drive wc_AesKeyWrap_Pad_ex/wc_AesKeyUnWrap_Pad_ex directly with a caller
+     * Aes; the KAT loop above already covers every vector via the wrappers. */
+    {
+        Aes* aes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
+        if (aes == NULL)
+            return WC_TEST_RET_ENC_NC;
+
+        XMEMSET(output, 0, sizeof(output));
+        XMEMSET(plain,  0, sizeof(plain));
+
+        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_AesSetKey(aes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
+                         AES_ENCRYPTION) != 0) {
+            wc_AesFree(aes);
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        wrapSz = wc_AesKeyWrap_Pad_ex(aes, test_kwp[0].data, test_kwp[0].dataLen,
+                                      output, sizeof(output), NULL);
+        wc_AesFree(aes);
+        if ( (wrapSz < 0) || (wrapSz != (int)test_kwp[0].verifyLen) ||
+             XMEMCMP(output, test_kwp[0].verify, test_kwp[0].verifyLen) != 0) {
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        if (wc_AesSetKey(aes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
+                         AES_DECRYPTION) != 0) {
+            wc_AesFree(aes);
+            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+        plainSz = wc_AesKeyUnWrap_Pad_ex(aes, output, (word32)wrapSz,
+                                         plain, sizeof(plain), NULL);
+        wc_AesFree(aes);
+        XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+        if ( (plainSz < 0) || (plainSz != (int)test_kwp[0].dataLen) ||
+             XMEMCMP(plain, test_kwp[0].data, test_kwp[0].dataLen) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    /* In-place round-trip (in == out) for every vector: covers the single-block
+     * and RFC 3394 loop paths, exercising the XMEMMOVE staging. */
+    for (i = 0; i < kwpSz; i++) {
+        XMEMSET(output, 0, sizeof(output));
+        XMEMCPY(output, test_kwp[i].data, test_kwp[i].dataLen);
+
+        wrapSz = wc_AesKeyWrap_Pad(test_kwp[i].kek, test_kwp[i].kekLen,
+                                   output, test_kwp[i].dataLen,
+                                   output, sizeof(output), NULL);
+        if ( (wrapSz < 0) || (wrapSz != (int)test_kwp[i].verifyLen) )
+            return WC_TEST_RET_ENC_I(i);
+        if (XMEMCMP(output, test_kwp[i].verify, test_kwp[i].verifyLen) != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        plainSz = wc_AesKeyUnWrap_Pad(test_kwp[i].kek, test_kwp[i].kekLen,
+                                      output, (word32)wrapSz,
+                                      output, sizeof(output), NULL);
+        if ( (plainSz < 0) || (plainSz != (int)test_kwp[i].dataLen) )
+            return WC_TEST_RET_ENC_I(i);
+        if (XMEMCMP(output, test_kwp[i].data, test_kwp[i].dataLen) != 0)
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    /* Forge decrypted blocks AIV(8)|P(8) to drive unwrap checks 2 (MLI range)
+     * and 3 (nonzero pad); ECB-encrypting a chosen block fixes what unwrap sees. */
+    {
+        Aes* faes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
+        byte forgeBlk[WC_AES_BLOCK_SIZE];
+        byte forged[WC_AES_BLOCK_SIZE];
+        int  fr;
+
+        if (faes == NULL)
+            return WC_TEST_RET_ENC_NC;
+
+        /* check 2: correct AIV constant but MLI = 0 */
+        XMEMSET(forgeBlk, 0, sizeof(forgeBlk));
+        forgeBlk[0] = 0xa6; forgeBlk[1] = 0x59; forgeBlk[2] = 0x59;
+        forgeBlk[3] = 0xa6;
+        forgeBlk[8] = 0x11; /* arbitrary recovered plaintext octet */
+        fr = wc_AesInit(faes, HEAP_HINT, devId);
+        if (fr == 0)
+            fr = wc_AesSetKey(faes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
+                              AES_ENCRYPTION);
+        if (fr == 0)
+            fr = wc_AesEncryptDirect(faes, forged, forgeBlk);
+        wc_AesFree(faes);
+        if (fr != 0) {
+            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_EC(fr);
+        }
+        if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, forged, 16,
+                plain, sizeof(plain), NULL)
+                != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E)) {
+            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        /* check 3: correct AIV constant, MLI = 1, but a nonzero pad octet */
+        XMEMSET(forgeBlk, 0, sizeof(forgeBlk));
+        forgeBlk[0] = 0xa6; forgeBlk[1] = 0x59; forgeBlk[2] = 0x59;
+        forgeBlk[3] = 0xa6;
+        forgeBlk[7] = 0x01; /* MLI = 1 */
+        forgeBlk[8] = 0x41; /* the one real octet... */
+        forgeBlk[9] = 0xff; /* ...followed by a nonzero pad octet -> rejected */
+        fr = wc_AesInit(faes, HEAP_HINT, devId);
+        if (fr == 0)
+            fr = wc_AesSetKey(faes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
+                              AES_ENCRYPTION);
+        if (fr == 0)
+            fr = wc_AesEncryptDirect(faes, forged, forgeBlk);
+        wc_AesFree(faes);
+        if (fr != 0) {
+            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_EC(fr);
+        }
+        if (wc_AesKeyUnWrap_Pad(test_kwp[0].kek, test_kwp[0].kekLen, forged, 16,
+                plain, sizeof(plain), NULL)
+                != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E)) {
+            XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
+    }
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+
+    return 0;
+}
+#endif /* WOLFSSL_AES_KEYWRAP_PADDING */
 #endif /* HAVE_AES_KEYWRAP */
 
 #endif /* !NO_AES */
@@ -77335,6 +77923,67 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* HAVE_AES_ECB */
+    #ifdef HAVE_AES_KEYWRAP
+        if (info->cipher.type == WC_CIPHER_AES_KEYWRAP) {
+            int kwRet;
+
+            /* set devId to invalid, so software is used */
+            info->cipher.aeskeywrap.aes->devId = INVALID_DEVID;
+
+            if (info->cipher.enc) {
+            #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+                if (info->cipher.aeskeywrap.pad)
+                    kwRet = wc_AesKeyWrap_Pad_ex(
+                        info->cipher.aeskeywrap.aes,
+                        info->cipher.aeskeywrap.in,
+                        info->cipher.aeskeywrap.inSz,
+                        info->cipher.aeskeywrap.out,
+                        info->cipher.aeskeywrap.outSz,
+                        info->cipher.aeskeywrap.iv);
+                else
+            #endif
+                    kwRet = wc_AesKeyWrap_ex(
+                        info->cipher.aeskeywrap.aes,
+                        info->cipher.aeskeywrap.in,
+                        info->cipher.aeskeywrap.inSz,
+                        info->cipher.aeskeywrap.out,
+                        info->cipher.aeskeywrap.outSz,
+                        info->cipher.aeskeywrap.iv);
+            }
+            else {
+            #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+                if (info->cipher.aeskeywrap.pad)
+                    kwRet = wc_AesKeyUnWrap_Pad_ex(
+                        info->cipher.aeskeywrap.aes,
+                        info->cipher.aeskeywrap.in,
+                        info->cipher.aeskeywrap.inSz,
+                        info->cipher.aeskeywrap.out,
+                        info->cipher.aeskeywrap.outSz,
+                        info->cipher.aeskeywrap.iv);
+                else
+            #endif
+                    kwRet = wc_AesKeyUnWrap_ex(
+                        info->cipher.aeskeywrap.aes,
+                        info->cipher.aeskeywrap.in,
+                        info->cipher.aeskeywrap.inSz,
+                        info->cipher.aeskeywrap.out,
+                        info->cipher.aeskeywrap.outSz,
+                        info->cipher.aeskeywrap.iv);
+            }
+
+            /* reset devId */
+            info->cipher.aeskeywrap.aes->devId = devIdArg;
+
+            if (kwRet < 0) {
+                ret = kwRet;
+            }
+            else {
+                /* report produced length back to the dispatcher */
+                info->cipher.aeskeywrap.outResSz = (word32)kwRet;
+                ret = 0;
+            }
+        }
+    #endif /* HAVE_AES_KEYWRAP */
     #if defined(WOLFSSL_AES_COUNTER) && !defined(HAVE_FIPS) && \
         !defined(HAVE_SELFTEST)
         if (info->cipher.type == WC_CIPHER_AES_CTR) {
@@ -79133,6 +79782,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = aesccm_test();
     #endif
+    #ifdef HAVE_AES_KEYWRAP
+    if (ret == 0)
+        ret = aeskeywrap_test();
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    if (ret == 0)
+        ret = aeskeywrap_pad_test();
+    #endif
+    #endif /* HAVE_AES_KEYWRAP */
 #endif /* !NO_AES && !WOLF_CRYPTO_CB_ONLY_AES */
 #ifndef NO_DES3
     if (ret == 0)

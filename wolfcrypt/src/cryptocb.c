@@ -173,6 +173,7 @@ static const char* GetCipherTypeStr(int cipher)
         case WC_CIPHER_AES_XTS: return "AES XTS";
         case WC_CIPHER_AES_CFB: return "AES CFB";
         case WC_CIPHER_AES_OFB: return "AES OFB";
+        case WC_CIPHER_AES_KEYWRAP: return "AES KeyWrap";
         case WC_CIPHER_DES3: return "DES3";
         case WC_CIPHER_DES: return "DES";
         case WC_CIPHER_CHACHA: return "ChaCha20";
@@ -2141,6 +2142,89 @@ int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT || WOLF_CRYPTO_CB_ONLY_AES */
+
+#ifdef HAVE_AES_KEYWRAP
+/* On success returns the number of output bytes produced (the callback reports
+ * it via aeskeywrap.outResSz), otherwise a negative error or
+ * CRYPTOCB_UNAVAILABLE. pad selects RFC 5649 (1) vs RFC 3394 (0). */
+int wc_CryptoCb_AesKeyWrap(Aes* aes, const byte* in, word32 inSz, byte* out,
+    word32 outSz, const byte* iv, int pad)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_KEYWRAP;
+        cryptoInfo.cipher.enc = 1;
+        cryptoInfo.cipher.aeskeywrap.aes = aes;
+        cryptoInfo.cipher.aeskeywrap.in = in;
+        cryptoInfo.cipher.aeskeywrap.inSz = inSz;
+        cryptoInfo.cipher.aeskeywrap.out = out;
+        cryptoInfo.cipher.aeskeywrap.outSz = outSz;
+        cryptoInfo.cipher.aeskeywrap.iv = iv;
+        cryptoInfo.cipher.aeskeywrap.pad = pad;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+        if (ret == 0) {
+            /* device reports the wrapped length */
+            return (int)cryptoInfo.cipher.aeskeywrap.outResSz;
+        }
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_AesKeyUnWrap(Aes* aes, const byte* in, word32 inSz, byte* out,
+    word32 outSz, const byte* iv, int pad)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_KEYWRAP;
+        cryptoInfo.cipher.enc = 0;
+        cryptoInfo.cipher.aeskeywrap.aes = aes;
+        cryptoInfo.cipher.aeskeywrap.in = in;
+        cryptoInfo.cipher.aeskeywrap.inSz = inSz;
+        cryptoInfo.cipher.aeskeywrap.out = out;
+        cryptoInfo.cipher.aeskeywrap.outSz = outSz;
+        cryptoInfo.cipher.aeskeywrap.iv = iv;
+        cryptoInfo.cipher.aeskeywrap.pad = pad;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+        if (ret == 0) {
+            /* device reports the recovered length */
+            return (int)cryptoInfo.cipher.aeskeywrap.outResSz;
+        }
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_AES_KEYWRAP */
 
 #ifdef WOLF_CRYPTO_CB_AES_SETKEY
 int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz)

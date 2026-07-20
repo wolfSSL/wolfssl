@@ -791,6 +791,62 @@ static int swdev_aes_ecb(wc_CryptoInfo* info)
 }
 #endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT */
 
+#if defined(HAVE_AES_KEYWRAP) && !defined(SWDEV_AES_ONLYECB)
+/* AES Key Wrap (RFC 3394) and, when built, Key Wrap with Padding (RFC 5649).
+ * enc selects wrap (forward cipher) vs unwrap (inverse cipher); pad selects the
+ * RFC 5649 variant. The wrap/unwrap helpers return the produced byte count,
+ * which the cryptocb contract reports via outResSz with a 0 return.  Gated like
+ * swdev_aes_gcm so SWDEV_AES_ONLYECB instead forces the parent's CB_ONLY_AES
+ * host-side key wrap (block ops dispatch back through cryptocb ECB). */
+static int swdev_aes_keywrap(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aeskeywrap.aes;
+    const byte* in = info->cipher.aeskeywrap.in;
+    word32 inSz = info->cipher.aeskeywrap.inSz;
+    byte* out = info->cipher.aeskeywrap.out;
+    word32 outSz = info->cipher.aeskeywrap.outSz;
+    const byte* iv = info->cipher.aeskeywrap.iv;
+    Aes shadow;
+    int ret;
+    int dir;
+
+    if (info->cipher.enc)
+        dir = AES_ENCRYPTION;
+    else
+        dir = AES_DECRYPTION;
+
+    ret = swdev_aes_shadow_init(&shadow, aes, dir);
+    if (ret != 0)
+        return ret;
+
+    if (info->cipher.enc) {
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (info->cipher.aeskeywrap.pad)
+            ret = wc_AesKeyWrap_Pad_ex(&shadow, in, inSz, out, outSz, iv);
+        else
+#endif
+            ret = wc_AesKeyWrap_ex(&shadow, in, inSz, out, outSz, iv);
+    }
+    else {
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (info->cipher.aeskeywrap.pad)
+            ret = wc_AesKeyUnWrap_Pad_ex(&shadow, in, inSz, out, outSz, iv);
+        else
+#endif
+            ret = wc_AesKeyUnWrap_ex(&shadow, in, inSz, out, outSz, iv);
+    }
+
+    wc_AesFree(&shadow);
+
+    if (ret < 0)
+        return ret;
+
+    /* success: report produced length; cryptocb returns outResSz on ret==0 */
+    info->cipher.aeskeywrap.outResSz = (word32)ret;
+    return 0;
+}
+#endif /* HAVE_AES_KEYWRAP && !SWDEV_AES_ONLYECB */
+
 /* SWDEV_AES_ONLYECB: when defined, swdev's AES backend returns
  * CRYPTOCB_UNAVAILABLE for AES-GCM so the parent's CB_ONLY_AES host-side
  * GCM software path runs (GHASH on the host; AES-CTR blocks dispatch back
@@ -1032,6 +1088,10 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     #ifdef HAVE_AESCCM
         case WC_CIPHER_AES_CCM:
             return swdev_aes_ccm(info);
+    #endif
+    #if defined(HAVE_AES_KEYWRAP) && !defined(SWDEV_AES_ONLYECB)
+        case WC_CIPHER_AES_KEYWRAP:
+            return swdev_aes_keywrap(info);
     #endif
         default:
             return CRYPTOCB_UNAVAILABLE;

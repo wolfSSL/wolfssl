@@ -6751,11 +6751,30 @@ AC_ARG_ENABLE([entropy-memuse],
     )
 
 # AES key wrap
+# Accepts a comma-separated value list; "padding" adds RFC 5649 key wrap with
+# padding on top of the base RFC 3394 key wrap.
 AC_ARG_ENABLE([aeskeywrap],
-    [AS_HELP_STRING([--enable-aeskeywrap],[Enable AES key wrap support (default: disabled)])],
+    [AS_HELP_STRING([--enable-aeskeywrap],[Enable AES key wrap support, optionally with RFC 5649 padding via "=padding" (default: disabled)])],
     [ ENABLED_AESKEYWRAP=$enableval ],
     [ ENABLED_AESKEYWRAP=no ]
     )
+
+ENABLED_AESKEYWRAP_PADDING=no
+for v in `echo $ENABLED_AESKEYWRAP | tr "," " "`
+do
+    case $v in
+    yes | no)
+        ;;
+    padding)
+        # padding (RFC 5649) builds on the base key wrap support
+        ENABLED_AESKEYWRAP_PADDING=yes
+        ENABLED_AESKEYWRAP=yes
+        ;;
+    *)
+        AC_MSG_ERROR([Invalid aeskeywrap option. Valid are: yes, no, padding. Seen: $ENABLED_AESKEYWRAP.])
+        ;;
+    esac
+done
 
 # FIPS feature and macro setup
 
@@ -11398,6 +11417,11 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
 fi
 
+if test "$ENABLED_AESKEYWRAP_PADDING" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_KEYWRAP_PADDING"
+fi
+
 
 # Old name support for backwards compatibility
 AC_ARG_ENABLE([oldnames],
@@ -13378,6 +13402,7 @@ echo "   * AES-GCM-SIV:                $ENABLED_AESGCMSIV"
 echo "   * AES-EAX:                    $ENABLED_AESEAX"
 echo "   * AES Bitspliced:             $ENABLED_AESBS"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
+echo "   * AES Key Wrap Padding:       $ENABLED_AESKEYWRAP_PADDING"
 echo "   * ARIA:                       $ENABLED_ARIA"
 echo "   * ASCON:                      $ENABLED_ASCON"
 echo "   * DES3:                       $ENABLED_DES3"
