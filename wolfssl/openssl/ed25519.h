@@ -42,7 +42,8 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
                            const unsigned char *pub, unsigned int pubSz,
                            const unsigned char *sig, unsigned int sigSz);
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
 #ifndef WC_ED25519KEY_TYPE_DEFINED
     typedef struct ed25519_key ed25519_key;
     #define WC_ED25519KEY_TYPE_DEFINED

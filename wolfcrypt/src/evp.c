@@ -3826,6 +3826,10 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
             #ifdef HAVE_CURVE448
                  ctx->pkey->type != WC_EVP_PKEY_X448 &&
             #endif
+            #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+                defined(HAVE_ED25519_MAKE_KEY)
+                 ctx->pkey->type != WC_EVP_PKEY_ED25519 &&
+            #endif
                  ctx->pkey->type != WC_EVP_PKEY_DH)) {
             WOLFSSL_MSG("Key not set or key type not supported");
             return WOLFSSL_FAILURE;
@@ -3935,6 +3939,53 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
             if (wc_curve448_make_key(&pkey->rng, CURVE448_KEY_SIZE,
                     pkey->curve448) == 0) {
                 ret = WOLFSSL_SUCCESS;
+            }
+            break;
+#endif
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY)
+        case WC_EVP_PKEY_ED25519:
+            if (pkey->ed25519 == NULL) {
+                pkey->ed25519 = wolfSSL_ED25519_new(pkey->heap, INVALID_DEVID);
+                if (pkey->ed25519 == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+                pkey->ownEd25519 = 1;
+            }
+            /* Reuse the RNG already initialized on the EVP_PKEY. */
+            if (wc_ed25519_make_key(&pkey->rng, ED25519_KEY_SIZE,
+                    pkey->ed25519) == 0) {
+                /* Cache the PKCS#8 PrivateKeyInfo DER so the EVP/SSL paths
+                 * (use_PrivateKey, EVP_PKEY2PKCS8) can load and serialize the
+                 * key, mirroring the state the decode path produces. */
+                int edDerSz = wc_Ed25519PrivateKeyToDer(pkey->ed25519, NULL, 0);
+                if (edDerSz > 0) {
+                    byte* edDer = (byte*)XMALLOC((size_t)edDerSz, pkey->heap,
+                        DYNAMIC_TYPE_OPENSSL);
+                    if (edDer != NULL) {
+                        if (wc_Ed25519PrivateKeyToDer(pkey->ed25519, edDer,
+                                (word32)edDerSz) == edDerSz) {
+                            XFREE(pkey->pkey.ptr, pkey->heap,
+                                DYNAMIC_TYPE_OPENSSL);
+                            pkey->pkey.ptr = (char*)edDer;
+                            pkey->pkey_sz = edDerSz;
+                            ret = WOLFSSL_SUCCESS;
+                        }
+                        else {
+                            XFREE(edDer, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        }
+                    }
+                }
+            }
+            /* If the key was generated but could not be fully cached (DER
+             * export failed), do not leave a half-initialized key behind on a
+             * FAILURE return: the cleanup below only runs when we own pkey, so
+             * free the key we allocated here. */
+            if (ret != WOLFSSL_SUCCESS && pkey->ownEd25519) {
+                wolfSSL_ED25519_free(pkey->ed25519);
+                pkey->ed25519 = NULL;
+                pkey->ownEd25519 = 0;
             }
             break;
 #endif

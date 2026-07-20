@@ -63,6 +63,9 @@
     || defined(OPENSSL_EXTRA_X509_SMALL)                    \
     || defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN))
     #include <wolfssl/openssl/evp.h>
+    /* ed25519 compat helpers (wolfSSL_ED25519_new/free) are used by the X509
+     * Ed25519 paths, which also build under OPENSSL_EXTRA_X509_SMALL. */
+    #include <wolfssl/openssl/ed25519.h>
     /* openssl headers end, wolfssl internal headers next */
 #endif
 

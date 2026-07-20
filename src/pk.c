@@ -5518,8 +5518,8 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
 
 #endif /* OPENSSL_EXTRA && HAVE_ED25519 */
 
-#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
-    defined(HAVE_ED25519)
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)) && defined(HAVE_ED25519)
 /* Allocate and initialize a new ed25519_key.
  *
  * @param [in] heap   Heap hint for memory allocation.
@@ -5570,7 +5570,8 @@ void wolfSSL_ED25519_free(ed25519_key* key)
     #endif
     }
 }
-#endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && HAVE_ED25519 */
+#endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || OPENSSL_EXTRA_X509_SMALL) &&
+        * HAVE_ED25519 */
 
 /*******************************************************************************
  * END OF ED25519 API
@@ -7378,6 +7379,30 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         algId = DHk;
         curveOid = NULL;
         oidSz = 0;
+    }
+#endif
+#if defined(HAVE_ED25519)
+    else if (pkey->type == WC_EVP_PKEY_ED25519) {
+    #if defined(HAVE_ED25519_KEY_EXPORT)
+        /* Build the PKCS#8 PrivateKeyInfo from the key object. A public-only
+         * key (e.g. from wolfSSL_X509_get_pubkey()) has no private half to
+         * encode (privKeySet == 0) and is rejected. */
+        if (keySz == NULL || pkey->ed25519 == NULL ||
+                !pkey->ed25519->privKeySet)
+            return BAD_FUNC_ARG;
+
+        ret = wc_Ed25519PrivateKeyToDer(pkey->ed25519, NULL, 0);
+        if (ret <= 0)
+            return (ret < 0) ? ret : BAD_FUNC_ARG;
+
+        *keySz = (word32)ret;
+        if (key == NULL)
+            return LENGTH_ONLY_E;
+
+        return wc_Ed25519PrivateKeyToDer(pkey->ed25519, key, *keySz);
+    #else
+        return NOT_COMPILED_IN;
+    #endif /* HAVE_ED25519_KEY_EXPORT */
     }
 #endif
     else {
