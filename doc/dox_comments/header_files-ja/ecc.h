@@ -232,6 +232,7 @@ void wc_ecc_key_free(ecc_key* key);
     \return MP_MULMOD_E 共有鍵の計算中にエラーがある場合に返される可能性があります
     \return MP_TO_E 共有鍵の計算中にエラーがある場合に返される可能性があります
     \return MP_MEM 共有鍵の計算中にエラーがある場合に返される可能性があります
+    \return ECC_INF_E 計算された共有秘密鍵が無限遠点である場合に返されます
 
     \param private_key ローカル秘密鍵を含むecc_key構造体へのポインタ
     \param public_key 受信した公開鍵を含むecc_key構造体へのポインタ
