@@ -1564,9 +1564,9 @@ fi
 # have dedicated streaming assembly (AES_GCM_*_RISCV64).  (Previously disabled
 # here.)
 
-# All wolfCrypt features:
+# All wolfCrypt features except quantum-resistant asymmetric:
 AC_ARG_ENABLE([all-crypto],
-    [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms (default: disabled)])],
+    [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms except quantum-resistant asymmetric (default: disabled)])],
     [ ENABLED_ALL_CRYPT=$enableval ],
     [ ENABLED_ALL_CRYPT=no ]
     )
@@ -1620,7 +1620,6 @@ then
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
     test "$enable_md5" = "" && enable_md5=yes
-    test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_rng_bank" = "" && enable_rng_bank=yes
 
@@ -1667,6 +1666,14 @@ then
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
     fi
 
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+        # "Anonymous suite requires DH."
+        test "$enable_anon" = "" && enable_anon=yes
+    fi
+
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
         test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
@@ -1674,11 +1681,15 @@ then
         test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
-        test "$enable_cshake" = "" && enable_cshake=yes
-        test "$enable_kmac" = "" && enable_kmac=yes
         test "$enable_compkey" = "" && enable_compkey=yes
         # AFALG lacks AES-ECB
         test "$enable_srtp_kdf" = "" && test "$enable_afalg" != "yes" && enable_srtp_kdf=yes
+    fi
+
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 7
+    then
+        test "$enable_cshake" = "" && enable_cshake=yes
+        test "$enable_kmac" = "" && enable_kmac=yes
     fi
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 5; then
@@ -1688,8 +1699,6 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
 
-    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable all parsing features for ASN */
@@ -1706,6 +1715,21 @@ then
 
     # Enable onestep KDF from NIST SP 800 56c option 1.
     AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
+fi
+
+# All native quantum-resistant asymmetric algorithms:
+AC_ARG_ENABLE([all-quantum-crypto],
+    [AS_HELP_STRING([--enable-all-quantum-crypto],[Enable all quantum-resistant asymmetric algorithms (default: disabled)])],
+    [ ENABLED_ALL_QUANTUM_CRYPT=$enableval ],
+    [ ENABLED_ALL_QUANTUM_CRYPT=no ]
+    )
+if test "$ENABLED_ALL_QUANTUM_CRYPT" = "yes"
+then
+    test "$enable_mlkem" = "" && enable_mlkem=yes
+    test "$enable_mldsa" = "" && enable_mldsa=yes
+    test "$enable_xmss" = "" && enable_xmss=yes
+    test "$enable_lms" = "" && enable_lms=yes
+    test "$enable_slhdsa" = "" && enable_slhdsa='yes,sha2'
 fi
 
 # kernel-appropriate settings, also in enable-all-crypto above:
@@ -1742,8 +1766,11 @@ then
         test "$enable_shake256" = "" && test "$enable_sha3" = "yes" && enable_shake256=yes
         test "$enable_compkey" = "" && enable_compkey=yes
     fi
-    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    then
+        # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    fi
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
@@ -6148,13 +6175,21 @@ then
 fi
 
 
+if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+then
+    ENABLED_DH_DEFAULT=yes
+else
+    ENABLED_DH_DEFAULT=no
+fi
+
 # DH
 AC_ARG_ENABLE([dh],
     [AS_HELP_STRING([--enable-dh],[Enable DH (default: enabled). Set to "nonblock" to enable non-blocking DH key agreement via SP small mod_exp_nb])],
     [ ENABLED_DH=$enableval ],
-    [ ENABLED_DH=yes ]
+    [ ENABLED_DH=$ENABLED_DH_DEFAULT ]
     )
 
+# note, this will be forced back off for FIPS v7+ below.
 if test "$ENABLED_OPENSSH" = "yes" && test "$ENABLED_DH" = "no"
 then
     ENABLED_DH="yes"
@@ -6195,8 +6230,9 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
-   test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" = "yes"
+if (test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
+    test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" = "yes") && \
+    (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7)
 then
     ENABLED_ANON=yes
 fi
@@ -6744,12 +6780,7 @@ AS_CASE([$FIPS_VERSION],
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
             -DHAVE_ECC521 \
-            -DWOLFSSL_VALIDATE_FFC_IMPORT \
-            -DHAVE_FFDHE_Q \
-            -DHAVE_FFDHE_3072 \
-            -DHAVE_FFDHE_4096 \
-            -DHAVE_FFDHE_6144 \
-            -DHAVE_FFDHE_8192"
+            -DWOLFSSL_VALIDATE_FFC_IMPORT"
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and don't use seed callback
         AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
@@ -6797,6 +6828,10 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_RSAPSS" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_rsapss" != "no")],
             [ENABLED_RSAPSS="yes"; AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+
+        AS_IF([test "$ENABLED_DH" != "no" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_dh" != "yes")],
+            [enable_dh="no"; ENABLED_DH="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
 
         AS_IF([test "$ENABLED_ECC" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ecc" != "no")],

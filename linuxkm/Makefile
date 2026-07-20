@@ -361,17 +361,18 @@ module-update-fips-hash: $(LIBWOLFSSL_NAME).ko
 	@if test -z '$(FIPS_HASH)'; then echo '	 $$FIPS_HASH is unset' >&2; exit 1; fi
 	@if [[ ! '$(FIPS_HASH)' =~ [0-9a-fA-F]{64} ]]; then echo '  $$FIPS_HASH is malformed' >&2; exit 1; fi
 	@readarray -t rodata_segment < <($(READELF) --wide --sections "$<" | \
-	    sed -E -n 's/^[[:space:]]*\[[[:space:]]*([0-9]+)\][[:space:]]+\.rodata_wolfcrypt[[:space:]]+PROGBITS[[:space:]]+[0-9a-fA-F]+[[:space:]]+([0-9a-fA-F]+)[[:space:]].*$$/\1\n\2/p'); \
-	if [[ $${#rodata_segment[@]} != 2 ]]; then echo '  unexpected rodata_segment.' >&2; exit 1; fi; \
+	    sed -E -n 's/^[[:space:]]*\[[[:space:]]*([0-9]+)\][[:space:]]+\.rodata_wolfcrypt[[:space:]]+PROGBITS[[:space:]]+[0-9a-fA-F]+[[:space:]]+([0-9a-fA-F]+)[[:space:]].*$$/\1\n\2/p')
+	if [[ $${#rodata_segment[@]} != 2 ]]; then echo '  unexpected rodata_segment.' >&2; exit 1; fi
 	readarray -t verifyCore_attrs < <($(READELF) --wide --symbols "$<" | \
 	    sed -E -n 's/^[[:space:]]*[0-9]+: ([0-9a-fA-F]+)[[:space:]]+([0-9]+)[[:space:]]+OBJECT[[:space:]]+[A-Z]+[[:space:]]+[A-Z]+[[:space:]]+'"$${rodata_segment[0]}"'[[:space:]]+verifyCore$$/\1\n\2/p'); \
-	if [[ $${#verifyCore_attrs[@]} != 2 ]]; then echo '  unexpected verifyCore_attrs.' >&2; exit 1; fi; \
-	if [[ "$${verifyCore_attrs[1]}" != "65" ]]; then echo "	 verifyCore has unexpected length $${verifyCore_attrs[1]}." >&2; exit 1; fi; \
-	verifyCore_offset=$$((0x$${rodata_segment[1]} + 0x$${verifyCore_attrs[0]})); \
-	current_verifyCore=$$(dd bs=1 if="$<" skip=$$verifyCore_offset count=64 status=none); \
-	if [[ ! "$$current_verifyCore" =~ [0-9a-fA-F]{64} ]]; then echo "  verifyCore at offset $$verifyCore_offset has unexpected value." >&2; exit 1; fi; \
-	if [[ '$(FIPS_HASH)' == "$$current_verifyCore" ]]; then echo '	Supplied FIPS_HASH matches existing verifyCore -- no update needed.'; exit 0; fi; \
-	echo -n '$(FIPS_HASH)' | dd bs=1 conv=notrunc of="$<" seek=$$verifyCore_offset count=64 status=none && \
+	if [[ $${#verifyCore_attrs[@]} != 2 ]]; then echo '  unexpected verifyCore_attrs.' >&2; exit 1; fi
+	verifyCore_size=$$(("$${verifyCore_attrs[1]}" - 1))
+	if [[ "$$verifyCore_size" != "64" && "$$verifyCore_size" != "128" ]]; then echo "	 verifyCore has unexpected length $${verifyCore_size}." >&2; exit 1; fi
+	verifyCore_offset=$$((0x$${rodata_segment[1]} + 0x$${verifyCore_attrs[0]}))
+	current_verifyCore=$$(dd bs=1 if="$<" skip=$$verifyCore_offset count=$$verifyCore_size status=none)
+	if [[ ! "$$current_verifyCore" =~ [0-9a-fA-F]{64} ]]; then echo "  verifyCore at offset $$verifyCore_offset has unexpected value." >&2; exit 1; fi
+	if [[ '$(FIPS_HASH)' == "$$current_verifyCore" ]]; then echo '	Supplied FIPS_HASH matches existing verifyCore -- no update needed.'; exit 0; fi
+	echo -n '$(FIPS_HASH)' | dd bs=1 conv=notrunc of="$<" seek=$$verifyCore_offset count=$$verifyCore_size status=none && \
 	echo "	FIPS verifyCore updated successfully." && \
             if [[ -f '$(LIBWOLFSSL_NAME).ko.signed' ]]; then $(MAKE) $(QFLAG) --no-print-directory $(NO_SILENT) -C . '$(LIBWOLFSSL_NAME).ko.signed'; fi
 

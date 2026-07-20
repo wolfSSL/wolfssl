@@ -2566,4 +2566,8 @@ enum Max_ASN {
     }   /* extern "C" */
 #endif
 
+#ifndef BUILDING_WOLFSSL
+    #include <wolfssl/wolfcrypt/wc_compat.h>
+#endif
+
 #endif /* WOLF_CRYPT_TYPES_H */

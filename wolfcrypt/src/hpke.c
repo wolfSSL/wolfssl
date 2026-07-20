@@ -45,6 +45,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/wc_compat.h>
+
 static const char* KEM_STR = "KEM";
 static const int   KEM_STR_LEN = 3;
 

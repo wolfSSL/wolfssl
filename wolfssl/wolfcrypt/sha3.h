@@ -96,7 +96,14 @@ enum {
         WC_SHAKE256          = WC_HASH_TYPE_SHAKE256,
     #endif
 
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_SHA3)
+    KMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum, per SP 800-185
+                               * section 8.4.1. */
+
+    KMAC_FIPS_MIN_OUTPUT = 4  /* 32 bit output length minimum, per SP 800-185
+                               * section 8.4.2, which further establishes that
+                               * 4-7 byte output requires "careful risk
+                               * analysis", and is permitted here to delegate
+                               * that analysis to the caller. */
 };
 
 #ifndef NO_OLD_WC_NAMES
@@ -146,7 +153,7 @@ struct wc_Sha3 {
     /* Unprocessed message data. */
     byte   t[200];
     /* Index into unprocessed data to place next message byte. */
-    byte   i;
+    word32 i;
 
     void*  heap;
 
@@ -288,7 +295,7 @@ WOLFSSL_API int wc_Shake256_Copy(wc_Shake* src, wc_Sha3* dst);
  * (0x04 when customized, 0x1f when it reduces to plain SHAKE). */
 struct wc_Cshake {
     wc_Shake shake;
-    byte     count;
+    word32   count;
     byte     pad;
 };
 
@@ -303,7 +310,7 @@ struct wc_Kmac {
     wc_Shake shake;
     /* Number of 64-bit words in a KECCAK block (rate / 8) - selects the
      * KMAC128 (SHAKE128) or KMAC256 (SHAKE256) variant. */
-    byte     count;
+    word32   count;
 };
 
 #ifndef WC_KMAC_TYPE_DEFINED

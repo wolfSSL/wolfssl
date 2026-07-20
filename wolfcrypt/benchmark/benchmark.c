@@ -80,6 +80,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/wc_compat.h>
 
 #ifdef WOLFSSL_LINUXKM
     /* remap current_time() -- collides with a function in kernel linux/fs.h */

@@ -73,8 +73,8 @@
 
 /* Pseudo Random Function for MD5, SHA-1, SHA-256, SHA-384, or SHA-512 */
 int wc_PRF(byte* result, word32 resLen, const byte* secret,
-                  word32 secLen, const byte* seed, word32 seedLen, int hash,
-                  void* heap, int devId)
+                  word32 secLen, const byte* seed, word32 seedLen,
+                  int hash_type, void* heap, int devId)
 {
     word32 len = P_HASH_MAX_SIZE;
     word32 times;
@@ -89,45 +89,45 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     Hmac   hmac[1];
 #endif
 
-    switch (hash) {
+    switch (hash_type) {
     #ifndef NO_MD5
         case md5_mac:
-            hash = WC_MD5;
+            hash_type = WC_MD5;
             len  = WC_MD5_DIGEST_SIZE;
         break;
     #endif
 
     #ifndef NO_SHA256
         case sha256_mac:
-            hash = WC_SHA256;
+            hash_type = WC_SHA256;
             len  = WC_SHA256_DIGEST_SIZE;
         break;
     #endif
 
     #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            hash = WC_SHA384;
+            hash_type = WC_SHA384;
             len  = WC_SHA384_DIGEST_SIZE;
         break;
     #endif
 
     #ifdef WOLFSSL_SHA512
         case sha512_mac:
-            hash = WC_SHA512;
+            hash_type = WC_SHA512;
             len  = WC_SHA512_DIGEST_SIZE;
         break;
     #endif
 
     #ifdef WOLFSSL_SM3
         case sm3_mac:
-            hash = WC_SM3;
+            hash_type = WC_SM3;
             len  = WC_SM3_DIGEST_SIZE;
         break;
     #endif
 
     #ifndef NO_SHA
         case sha_mac:
-            hash = WC_SHA;
+            hash_type = WC_SHA;
             len  = WC_SHA_DIGEST_SIZE;
         break;
     #endif
@@ -165,7 +165,7 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
 
     ret = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
-        ret = wc_HmacSetKey(hmac, hash, secret, secLen);
+        ret = wc_HmacSetKey(hmac, hash_type, secret, secLen);
         if (ret == 0)
             ret = wc_HmacUpdate(hmac, seed, seedLen); /* A0 = seed */
         if (ret == 0)

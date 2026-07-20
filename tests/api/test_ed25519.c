@@ -979,6 +979,7 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
         &verify_ok, &key, ctx, sizeof(ctx)), 0);
     ExpectIntEQ(verify_ok, 1);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
     /* Ed25519ph length check true side: wrong-size "hash" input. */
     sigLen = sizeof(sig);
     ExpectIntEQ(wc_ed25519_sign_msg_ex(hash, sizeof(hash) - 1, sig, &sigLen,
@@ -988,6 +989,7 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
     ExpectIntEQ(wc_ed25519_verify_msg_ex(sig, sizeof(sig), hash,
         sizeof(hash) - 1, &verify_ok, &key, (byte)Ed25519ph, ctx,
         sizeof(ctx)), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
 
     /* context==NULL && contextLen!=0 compound: TRUE side, direct low-level
      * calls (the ctx/ph wrappers above always pass a real, non-NULL
@@ -1054,8 +1056,10 @@ int test_wc_ed25519_verify_streaming(void)
     /* init: NULL args. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(NULL, sigLen, &key, (byte)Ed25519,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, NULL, (byte)Ed25519,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     /* init: sigLen wrong. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen - 1, &key,
         (byte)Ed25519, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -1069,8 +1073,10 @@ int test_wc_ed25519_verify_streaming(void)
     /* update: NULL msgSegment, then NULL key (independent operand). */
     ExpectIntEQ(wc_ed25519_verify_msg_update(NULL, 4, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_update(msg, 4, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     /* init: context==NULL/contextLen!=0 compound, explicit both-sides
      * pairing within this function (type left as plain Ed25519 so the
@@ -1092,8 +1098,10 @@ int test_wc_ed25519_verify_streaming(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, NULL, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     /* final: sigLen wrong. */
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen - 1, &verify_ok,
         &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));

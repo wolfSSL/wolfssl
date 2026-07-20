@@ -38,6 +38,7 @@
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/pkcs12.h>
+#include <wolfssl/wolfcrypt/wc_compat.h>
 
 #if defined(HAVE_OCSP) || defined(HAVE_CRL) || (defined(WOLFSSL_CUSTOM_OID) && \
     defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_OID_DECODING)) || \

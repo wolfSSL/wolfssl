@@ -3399,7 +3399,8 @@ int test_wc_AesGcmEncryptDecrypt(void)
      * bound on the IV length. */
 #if (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
-    !defined(WOLFSSL_AES_GCM_FIXED_IV_AAD)
+    !defined(WOLFSSL_AES_GCM_FIXED_IV_AAD) && \
+    !defined(WC_TEST_AES_GCM_ENCRYPT_NO_NONSTD_IV)
     ExpectIntEQ(wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
         sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT), a, sizeof(a)),
         0);

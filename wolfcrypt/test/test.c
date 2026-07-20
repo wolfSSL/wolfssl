@@ -57,6 +57,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/wc_compat.h>
+
 #if defined(HAVE_WOLFCRYPT_TEST_OPTIONS)
     #include <wolfssl/ssl.h>
     #define err_sys err_sys_remap /* remap err_sys */
