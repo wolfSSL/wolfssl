@@ -5044,6 +5044,15 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             err = ecc_map_ex(result, curve->prime, mp, 1);
         }
         if (err == MP_OKAY) {
+            /* SP 800-56Ar3 5.7.1.2: a real scalar must not produce a shared
+             * secret at the point at infinity. A zero scalar (e.g. a key whose
+             * private value is held in secure hardware) is not a computed
+             * secret, so leave that case to the offload path. */
+            if (!mp_iszero(k) && wc_ecc_point_is_at_infinity(result)) {
+                err = ECC_INF_E;
+            }
+        }
+        if (err == MP_OKAY) {
             x = mp_unsigned_bin_size(curve->prime);
             if (*outlen < (word32)x || x < mp_unsigned_bin_size(result->x)) {
                 err = BUFFER_E;

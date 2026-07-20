@@ -36,6 +36,7 @@ int test_wc_ecc_size(void);
 int test_wc_ecc_params(void);
 int test_wc_ecc_signVerify_hash(void);
 int test_wc_ecc_shared_secret(void);
+int test_wc_ecc_shared_secret_at_infinity(void);
 int test_wc_ecc_shared_secret_size_bounds(void);
 int test_wc_ecc_export_x963(void);
 int test_wc_ecc_export_x963_ex(void);
@@ -79,6 +80,7 @@ int test_wc_EccDecisionCoverage4(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_params),                         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_signVerify_hash),                \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret),                  \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_at_infinity),      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_size_bounds),      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_export_x963),                    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_export_x963_ex),                 \
