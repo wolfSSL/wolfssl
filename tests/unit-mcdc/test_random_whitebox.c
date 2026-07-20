@@ -48,6 +48,25 @@
  *     sizeof(reseedCtr)) that always satisfy the guard, so the false side
  *     needs a direct call with mismatched/zero lengths.
  *
+ * Two further GAPS.md residual classes remain justified SKIPS, deliberately
+ * NOT chased by this white-box (per the campaign's no-fault-injection
+ * convention -- same class as the documented rsa/sp-math residuals):
+ *
+ *   - Hash_gen()/Hash512_gen()'s "data == NULL || digest == NULL" XMALLOC
+ *     guard (only compiled under WOLFSSL_SMALL_STACK &&
+ *     !WOLFSSL_SMALL_STACK_CACHE): reaching either operand's true side needs
+ *     the shared allocator to fail on one of two back-to-back XMALLOC()
+ *     calls; this campaign injects no allocation-failure fault (same
+ *     documented residual class as the rsa/sp-math allocation-failure
+ *     branches -- see db/modules.json's "random" entry).
+ *   - Hash_DRBG_Init()/Hash512_DRBG_Init()'s chained
+ *     "Hash_df(...)==DRBG_SUCCESS && Hash_df(...)==DRBG_SUCCESS" (resp.
+ *     Hash512_df) compound: showing either operand's false side needs
+ *     wc_Sha256Update()/wc_Sha256Final() (resp. SHA-512) to fail mid-
+ *     operation on a live call with valid buffers, which does not happen
+ *     under normal library operation (same transform-failure class as the
+ *     sha module's residuals) and is not forced here.
+ *
  * This white-box #includes random.c directly to reach these file-static
  * helpers and drives both sides of each leaf in the same binary (a single
  * clang MC/DC bitmap does not merge independence pairs across separately
@@ -205,6 +224,288 @@ static void wb_hash512_gen_outsz(void)
 
 #endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 */
 
+/* ---- Additional file-static leaves reached only by direct call ---- */
+
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256)
+
+/* Hash_df()'s per-block loop: the "len" iteration count derives from outSz,
+ * and the copy-out "outSz > OUTPUT_BLOCK_LEN" branch is true on every block
+ * but the last and false on the tail. A DRBG_SEED_LEN (55-byte) request
+ * spans two SHA-256 blocks, so it drives both sides in one call; a
+ * single-block request drives only the false (tail) side. The inB/inC
+ * "!= NULL && Sz > 0" operand guards are exercised with present and absent
+ * operands. All buffers are sized to outSz, so the copy-out is memory-safe. */
+static void wb_hash_df_multiblock(void)
+{
+    DRBG_internal drbg;
+    byte out[DRBG_SEED_LEN];
+    byte in[16];
+    word32 i;
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    for (i = 0; i < (word32)sizeof(in); i++)
+        in[i] = (byte)(i + 5);
+
+    /* Multi-block (len == 2): true then false side of "outSz>OUTPUT_BLOCK_LEN",
+     * with both inB and inC present (their "!= NULL && Sz > 0" true side). */
+    ret = Hash_df(&drbg, out, (word32)sizeof(out), drbgInitV,
+                  in, (word32)sizeof(in), in, (word32)sizeof(in),
+                  in, (word32)sizeof(in));
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Hash_df multi-block call failed");
+        wb_fail = 1;
+    }
+
+    /* Single-block (len == 1): tail-only copy, with inB/inC absent (the
+     * "inB != NULL" / "inC != NULL" false side) -- independence baseline. */
+    ret = Hash_df(&drbg, out, WC_SHA256_DIGEST_SIZE, drbgReseed,
+                  in, (word32)sizeof(in), NULL, 0, NULL, 0);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Hash_df single-block call failed");
+        wb_fail = 1;
+    }
+}
+
+/* Hash_DRBG_Generate()'s "drbg->reseedCtr >= WC_RESEED_INTERVAL" decision:
+ * drive the false side (a real generate) and the true side (early
+ * DRBG_NEED_RESEED return) in the same binary on one instantiated DRBG. */
+static void wb_hash_drbg_generate_reseed(void)
+{
+    DRBG_internal drbg;
+    byte seed[48];
+    byte nonce[16];
+    byte out[32];
+    word32 i;
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)(i + 1);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)(i + 2);
+
+    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+        nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Instantiate failed; skip Hash_DRBG_Generate reseed check");
+        return;
+    }
+
+    /* False side: reseedCtr below the interval -> generate proceeds. */
+    drbg.reseedCtr = 1;
+    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Hash_DRBG_Generate (below interval) failed");
+        wb_fail = 1;
+    }
+
+    /* True side: reseedCtr at the interval -> early DRBG_NEED_RESEED. */
+    drbg.reseedCtr = WC_RESEED_INTERVAL;
+    ret = Hash_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    if (ret != DRBG_NEED_RESEED) {
+        WB_NOTE("Hash_DRBG_Generate did not signal DRBG_NEED_RESEED");
+        wb_fail = 1;
+    }
+
+    (void)Hash_DRBG_Uninstantiate(&drbg);
+}
+
+/* wc_RNG_HealthTest_ex_internal()'s argument guards:
+ *   "seedA == NULL || output == NULL"   -> each operand alone
+ *   "reseed != 0 && seedB == NULL"      -> each operand alone
+ *   "outputSz != RNG_HEALTH_TEST_CHECK_SIZE"  -> wrong size vs correct size
+ * plus the full pass path. drbg is only touched after all guards pass, so the
+ * early-return calls are memory-safe with a zeroed drbg. */
+static void wb_rng_healthtest_internal(void)
+{
+    DRBG_internal drbg;
+    byte output[RNG_HEALTH_TEST_CHECK_SIZE];
+    byte seedB[16];
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    XMEMSET(output, 0, sizeof(output));
+    XMEMSET(seedB, 9, sizeof(seedB));
+
+    /* seedA == NULL (1st operand true). */
+    ret = wc_RNG_HealthTest_ex_internal(&drbg, 0, NULL, 0,
+            NULL, 0, NULL, 0, output, (word32)sizeof(output),
+            NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("health-test seedA==NULL not rejected");
+        wb_fail = 1;
+    }
+
+    /* output == NULL (2nd operand true, 1st false). */
+    ret = wc_RNG_HealthTest_ex_internal(&drbg, 0, NULL, 0,
+            seedA_data, (word32)sizeof(seedA_data), NULL, 0,
+            NULL, (word32)sizeof(output), NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("health-test output==NULL not rejected");
+        wb_fail = 1;
+    }
+
+    /* reseed != 0 && seedB == NULL (both operands true). */
+    ret = wc_RNG_HealthTest_ex_internal(&drbg, 1, NULL, 0,
+            seedA_data, (word32)sizeof(seedA_data), NULL, 0,
+            output, (word32)sizeof(output), NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("health-test reseed w/ seedB==NULL not rejected");
+        wb_fail = 1;
+    }
+
+    /* Wrong outputSz (outputSz != RNG_HEALTH_TEST_CHECK_SIZE true side). */
+    ret = wc_RNG_HealthTest_ex_internal(&drbg, 0, NULL, 0,
+            seedA_data, (word32)sizeof(seedA_data), NULL, 0,
+            output, 16, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        WB_NOTE("health-test accepted wrong outputSz");
+        wb_fail = 1;
+    }
+
+    /* Full valid pass (all guards false, correct size): KAT self-test. */
+    ret = wc_RNG_HealthTest_ex_internal(&drbg, 0, NULL, 0,
+            seedA_data, (word32)sizeof(seedA_data), NULL, 0,
+            output, RNG_HEALTH_TEST_CHECK_SIZE, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        WB_NOTE("health-test valid pass unexpectedly failed");
+        wb_fail = 1;
+    }
+    (void)seedB;
+}
+
+#else
+
+static void wb_hash_df_multiblock(void)
+{ WB_NOTE("HAVE_HASHDRBG/!NO_SHA256 off; skipped Hash_df multiblock"); }
+static void wb_hash_drbg_generate_reseed(void)
+{ WB_NOTE("HAVE_HASHDRBG/!NO_SHA256 off; skipped Hash_DRBG_Generate reseed"); }
+static void wb_rng_healthtest_internal(void)
+{ WB_NOTE("HAVE_HASHDRBG/!NO_SHA256 off; skipped health-test internal"); }
+
+#endif /* HAVE_HASHDRBG && !NO_SHA256 */
+
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512)
+
+/* SHA-512 counterparts of the leaves above. */
+static void wb_hash512_df_multiblock(void)
+{
+    DRBG_SHA512_internal drbg;
+    byte out[128];
+    byte in[16];
+    word32 i;
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    for (i = 0; i < (word32)sizeof(in); i++)
+        in[i] = (byte)(i + 6);
+
+    /* outSz(100) > OUTPUT_BLOCK_LEN(64): multi-block true then tail false. */
+    ret = Hash512_df(&drbg, out, 100, drbgInitV,
+                     in, (word32)sizeof(in), in, (word32)sizeof(in),
+                     in, (word32)sizeof(in));
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Hash512_df multi-block call failed");
+        wb_fail = 1;
+    }
+
+    /* Single-block tail with inB/inC absent (independence baseline). */
+    ret = Hash512_df(&drbg, out, WC_SHA512_DIGEST_SIZE, drbgReseed,
+                     in, (word32)sizeof(in), NULL, 0, NULL, 0);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Hash512_df single-block call failed");
+        wb_fail = 1;
+    }
+}
+
+static void wb_hash512_drbg_generate_reseed(void)
+{
+    DRBG_SHA512_internal drbg;
+    byte seed[32];
+    byte nonce[16];
+    byte out[32];
+    word32 i;
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)(i + 3);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)(i + 4);
+
+    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+        nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Instantiate512 failed; skip Hash512_DRBG_Generate reseed");
+        return;
+    }
+
+    drbg.reseedCtr = 1;                       /* false side */
+    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Hash512_DRBG_Generate (below interval) failed");
+        wb_fail = 1;
+    }
+
+    drbg.reseedCtr = WC_RESEED_INTERVAL;      /* true side */
+    ret = Hash512_DRBG_Generate(&drbg, out, (word32)sizeof(out), NULL, 0);
+    if (ret != DRBG_NEED_RESEED) {
+        WB_NOTE("Hash512_DRBG_Generate did not signal DRBG_NEED_RESEED");
+        wb_fail = 1;
+    }
+
+    (void)Hash512_DRBG_Uninstantiate(&drbg);
+}
+
+static void wb_rng_healthtest512_internal(void)
+{
+    DRBG_SHA512_internal drbg;
+    byte output[RNG_HEALTH_TEST_CHECK_SIZE_SHA512];
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    XMEMSET(output, 0, sizeof(output));
+
+    /* seedA == NULL. */
+    ret = wc_RNG_HealthTest_SHA512_ex_internal(&drbg, 0, NULL, 0, NULL, 0,
+            NULL, 0, NULL, 0, NULL, 0, NULL, 0,
+            output, (word32)sizeof(output), NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("health-test512 seedA==NULL not rejected");
+        wb_fail = 1;
+    }
+
+    /* reseed != 0 && seedB == NULL. */
+    ret = wc_RNG_HealthTest_SHA512_ex_internal(&drbg, 1, NULL, 0, NULL, 0,
+            seedA_data, (word32)sizeof(seedA_data), NULL, 0, NULL, 0, NULL, 0,
+            output, (word32)sizeof(output), NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("health-test512 reseed w/ seedB==NULL not rejected");
+        wb_fail = 1;
+    }
+
+    /* Wrong outputSz. */
+    ret = wc_RNG_HealthTest_SHA512_ex_internal(&drbg, 0, NULL, 0, NULL, 0,
+            seedA_data, (word32)sizeof(seedA_data), NULL, 0, NULL, 0, NULL, 0,
+            output, 16, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        WB_NOTE("health-test512 accepted wrong outputSz");
+        wb_fail = 1;
+    }
+}
+
+#else
+
+static void wb_hash512_df_multiblock(void)
+{ WB_NOTE("WOLFSSL_DRBG_SHA512 off; skipped Hash512_df multiblock"); }
+static void wb_hash512_drbg_generate_reseed(void)
+{ WB_NOTE("WOLFSSL_DRBG_SHA512 off; skipped Hash512_DRBG_Generate reseed"); }
+static void wb_rng_healthtest512_internal(void)
+{ WB_NOTE("WOLFSSL_DRBG_SHA512 off; skipped health-test512 internal"); }
+
+#endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 */
+
 int main(void)
 {
     printf("random.c white-box supplement\n");
@@ -215,6 +516,12 @@ int main(void)
     wb_hash_gen_outsz();
     wb_array_add();
     wb_hash512_gen_outsz();
+    wb_hash_df_multiblock();
+    wb_hash_drbg_generate_reseed();
+    wb_rng_healthtest_internal();
+    wb_hash512_df_multiblock();
+    wb_hash512_drbg_generate_reseed();
+    wb_rng_healthtest512_internal();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
      * campaign treats a nonzero exit as a failed variant and discards its

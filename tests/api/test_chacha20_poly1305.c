@@ -1006,3 +1006,305 @@ int test_wc_ChaCha20Poly1305_CrossCipher(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ChaCha20Poly1305_CrossCipher */
+
+/*******************************************************************************
+ * ChaCha20-Poly1305 residual MC/DC decision coverage
+ *
+ * The rest of the suite above already flips both sides of: every one-shot
+ * Encrypt/Decrypt NULL-pointer arg check except the plaintext/ciphertext
+ * NULL-with-zero-length independence pair; the streaming Init/UpdateAad/
+ * UpdateData/Final state-machine transitions (MidStreamState); the AAD/data
+ * padding true/false split; isEncrypt; and the tag-compare success/failure
+ * paths (AeadEdgeCases). What remains is closed here:
+ *
+ *   - wc_ChaCha20Poly1305_Encrypt/Decrypt: the "(len > 0 && ptr == NULL)"
+ *     check's false-side independence pair (NULL pointer + zero length must
+ *     SUCCEED, not fail) - the true side is already covered elsewhere.
+ *   - wc_ChaCha20Poly1305_CheckTag: neither NULL operand is exercised
+ *     anywhere else in the suite (only ever called with two valid buffers).
+ *   - wc_ChaCha20Poly1305_UpdateAad: NULL inAAD + non-zero inAADLen called
+ *     DIRECTLY (the one-shot API only ever forwards a NULL aad with length
+ *     0); valid pointer + zero length (the block-guard's false side, state
+ *     must stay READY rather than advancing to AAD).
+ *   - wc_ChaCha20Poly1305_UpdateData: NULL inData / NULL outData - never
+ *     exercised (every existing call uses two valid buffers).
+ *   - wc_ChaCha20Poly1305_Final: NULL outAuthTag - never exercised (only the
+ *     NULL-aead operand of that same check is tested elsewhere).
+ *   - wc_ChaCha20Poly1305_UpdateAad / UpdateData: the CHACHA_POLY_OVERFLOW
+ *     true branch is never taken anywhere else (every AAD/data length used
+ *     is tiny). The overflow comparison runs before the buffer is ever
+ *     dereferenced, so a real (small) buffer pointer paired with an
+ *     out-of-range word32 length is safe to pass.
+ ******************************************************************************/
+int test_wc_ChaCha20Poly1305_DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    static const byte key[CHACHA20_POLY1305_AEAD_KEYSIZE] = {
+        0x80,0x81,0x82,0x83, 0x84,0x85,0x86,0x87,
+        0x88,0x89,0x8a,0x8b, 0x8c,0x8d,0x8e,0x8f,
+        0x90,0x91,0x92,0x93, 0x94,0x95,0x96,0x97,
+        0x98,0x99,0x9a,0x9b, 0x9c,0x9d,0x9e,0x9f
+    };
+    static const byte iv[CHACHA20_POLY1305_AEAD_IV_SIZE] = {
+        0x07,0x00,0x00,0x00, 0x40,0x41,0x42,0x43, 0x44,0x45,0x46,0x47
+    };
+    static const byte aad[12] = {
+        0x50,0x51,0x52,0x53, 0xc0,0xc1,0xc2,0xc3, 0xc4,0xc5,0xc6,0xc7
+    };
+    static const byte data[4] = { 0x00, 0x01, 0x02, 0x03 };
+    ChaChaPoly_Aead aead;
+    byte tag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    byte dummyOut[1];
+    byte emptyBuf[1];
+    byte outBuf[4];
+
+    XMEMSET(&aead, 0, sizeof(aead));
+    XMEMSET(tag,     0, sizeof(tag));
+    XMEMSET(dummyOut, 0, sizeof(dummyOut));
+    XMEMSET(emptyBuf, 0, sizeof(emptyBuf));
+    XMEMSET(outBuf,   0, sizeof(outBuf));
+
+    /* --- One-shot Encrypt/Decrypt: NULL plaintext/ciphertext + zero length.
+     * Independence pair (holding "inPlaintext == NULL" fixed true) for the
+     * "inPlaintextLen > 0" operand of "(inPlaintextLen > 0 &&
+     * inPlaintext == NULL)": with inPlaintextLen == 0 this specific
+     * AND-term evaluates false, so the top-level arg check no longer
+     * returns BAD_FUNC_ARG directly from *this* line - control instead
+     * reaches the internal wc_ChaCha20Poly1305_UpdateData() call, whose OWN
+     * arg check rejects a NULL inData/outData pointer unconditionally
+     * regardless of length, so the end-to-end return code is still
+     * BAD_FUNC_ARG (via a different source line). The true side (non-zero
+     * length + NULL pointer, caught directly by the top-level check) is
+     * already covered by test_wc_ChaCha20Poly1305_aead. */
+    ExpectIntEQ(wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+        NULL, 0, dummyOut, tag), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad),
+        NULL, 0, tag, dummyOut), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- One-shot Encrypt/Decrypt: zero-length plaintext/ciphertext with a
+     * valid (non-NULL) pointer must SUCCEED - the one-shot wrapper supports
+     * an empty AEAD message when given a real (if unused) buffer; only the
+     * streaming API's empty-message case is covered elsewhere
+     * (AeadEdgeCases). */
+    ExpectIntEQ(wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+        emptyBuf, 0, dummyOut, tag), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad),
+        emptyBuf, 0, tag, dummyOut), 0);
+
+    /* --- wc_ChaCha20Poly1305_CheckTag: NULL operand independence pairs. */
+    ExpectIntEQ(wc_ChaCha20Poly1305_CheckTag(NULL, tag),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ChaCha20Poly1305_CheckTag(tag, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_ChaCha20Poly1305_UpdateAad: NULL inAAD + non-zero inAADLen,
+     * called directly while state == READY. */
+    ExpectIntEQ(wc_ChaCha20Poly1305_Init(&aead, key, iv,
+        CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateAad(&aead, NULL, 5),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Arg-check failure must not have advanced the state - still READY. */
+    ExpectIntEQ(aead.state, CHACHA20_POLY1305_STATE_READY);
+
+    /* --- wc_ChaCha20Poly1305_UpdateAad: valid pointer + zero length ->
+     * success, and the "inAAD && inAADLen > 0" block-guard false branch is
+     * taken - state must stay READY (not advance to AAD). */
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateAad(&aead, aad, 0), 0);
+    ExpectIntEQ(aead.state, CHACHA20_POLY1305_STATE_READY);
+
+    /* --- wc_ChaCha20Poly1305_UpdateData: NULL inData / NULL outData. */
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, NULL, outBuf,
+        sizeof(data)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, data, NULL,
+        sizeof(data)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_ChaCha20Poly1305_Final: NULL outAuthTag. */
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_ChaCha20Poly1305_UpdateAad: CHACHA_POLY_OVERFLOW true branch.
+     * Never exercised elsewhere: every existing AAD length is tiny. The
+     * overflow check runs before inAAD is dereferenced, so a real (small)
+     * buffer paired with an out-of-range length value is safe. */
+    ExpectIntEQ(wc_ChaCha20Poly1305_Init(&aead, key, iv,
+        CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateAad(&aead, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateAad(&aead, aad,
+        CHACHA20_POLY1305_MAX), WC_NO_ERR_TRACE(CHACHA_POLY_OVERFLOW));
+
+    /* --- wc_ChaCha20Poly1305_UpdateData: CHACHA_POLY_OVERFLOW true branch,
+     * same reasoning as above but for the data-length accumulator. */
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, data, outBuf,
+        sizeof(data)), 0);
+    ExpectIntEQ(wc_ChaCha20Poly1305_UpdateData(&aead, data, outBuf,
+        CHACHA20_POLY1305_MAX), WC_NO_ERR_TRACE(CHACHA_POLY_OVERFLOW));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ChaCha20Poly1305_DecisionCoverage */
+
+/*******************************************************************************
+ * XChaCha20-Poly1305 residual MC/DC decision coverage
+ *
+ *   - wc_XChaCha20Poly1305_Init: NULL aead - never reachable through the
+ *     Encrypt/Decrypt one-shot wrappers, which always pass an internal,
+ *     valid aead pointer; ad == NULL + ad_len == 0 success - independence
+ *     pair (holding ad == NULL fixed) for the ad_len operand of
+ *     "(ad == NULL && ad_len > 0)". The true side of that AND, and the
+ *     ad-pointer operand's own independence pair, are already exercised via
+ *     test_wc_XChaCha20Poly1305_aead's bad-arg Encrypt calls.
+ *   - wc_XChaCha20Poly1305_Decrypt: src_len < POLY1305_DIGEST_SIZE, the
+ *     decrypt-too-short branch of the internal crypt_oneshot helper - never
+ *     exercised (every existing decrypt call uses a >= 16-byte ciphertext).
+ *   - wc_XChaCha20Poly1305_Encrypt: dst_space < dst_len -> BUFFER_E - never
+ *     exercised (every existing call sizes the output buffer generously).
+ *   - internal crypt_oneshot helper: the ad_len/nonce_len/key_len >
+ *     WOLFSSL_MAX_32BIT truncation-guard OR-chain - never exercised (every
+ *     existing call uses in-range lengths); each operand's independence
+ *     pair is shown on a 64-bit CPU (the only width where a size_t value
+ *     can exceed WOLFSSL_MAX_32BIT).
+ ******************************************************************************/
+int test_wc_XChaCha20Poly1305_DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_POLY1305) && defined(HAVE_XCHACHA)
+    static const byte key[CHACHA20_POLY1305_AEAD_KEYSIZE] = {
+        0x80,0x81,0x82,0x83, 0x84,0x85,0x86,0x87,
+        0x88,0x89,0x8a,0x8b, 0x8c,0x8d,0x8e,0x8f,
+        0x90,0x91,0x92,0x93, 0x94,0x95,0x96,0x97,
+        0x98,0x99,0x9a,0x9b, 0x9c,0x9d,0x9e,0x9f
+    };
+    static const byte nonce[XCHACHA20_POLY1305_AEAD_NONCE_SIZE] = {
+        0x40,0x41,0x42,0x43, 0x44,0x45,0x46,0x47,
+        0x48,0x49,0x4a,0x4b, 0x4c,0x4d,0x4e,0x4f,
+        0x50,0x51,0x52,0x53, 0x54,0x55,0x56,0x57
+    };
+    static const byte aad[12] = {
+        0x50,0x51,0x52,0x53, 0xc0,0xc1,0xc2,0xc3, 0xc4,0xc5,0xc6,0xc7
+    };
+    static const byte plaintext[16] = {
+        0x4c,0x61,0x64,0x69, 0x65,0x73,0x20,0x61,
+        0x6e,0x64,0x20,0x47, 0x65,0x6e,0x74,0x73
+    };
+    ChaChaPoly_Aead aead;
+    byte out[sizeof(plaintext) + POLY1305_DIGEST_SIZE];
+    byte shortCt[8];
+    byte small[4];
+
+    XMEMSET(&aead,   0, sizeof(aead));
+    XMEMSET(out,     0, sizeof(out));
+    XMEMSET(shortCt, 0, sizeof(shortCt));
+    XMEMSET(small,   0, sizeof(small));
+
+    /* --- wc_XChaCha20Poly1305_Init: NULL aead. */
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(NULL, aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key), 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_XChaCha20Poly1305_Init: ad == NULL, ad_len == 0 -> success. */
+    ExpectIntEQ(wc_XChaCha20Poly1305_Init(&aead, NULL, 0,
+        nonce, sizeof(nonce), key, sizeof(key), 1), 0);
+
+    /* --- wc_XChaCha20Poly1305_Decrypt: src_len < POLY1305_DIGEST_SIZE. */
+    ExpectIntEQ(wc_XChaCha20Poly1305_Decrypt(small, sizeof(small),
+        shortCt, POLY1305_DIGEST_SIZE - 1, aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- wc_XChaCha20Poly1305_Encrypt: dst_space < dst_len -> BUFFER_E. */
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(out, sizeof(plaintext),
+        plaintext, sizeof(plaintext), aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* --- Internal crypt_oneshot helper's length sanity check:
+     * "(ad_len > WOLFSSL_MAX_32BIT) || (nonce_len > WOLFSSL_MAX_32BIT) ||
+     * (key_len > WOLFSSL_MAX_32BIT)". Only expressible where size_t is
+     * wider than 32 bits (on a 32-bit CPU no size_t value can exceed
+     * WOLFSSL_MAX_32BIT, so the decision is a permanent, always-false
+     * residual there). Each call flips exactly one operand above
+     * WOLFSSL_MAX_32BIT while the other two stay at their valid, in-range
+     * sizes; the "all in range" false side is exercised throughout the
+     * rest of this file's successful Encrypt/Decrypt calls. None of these
+     * huge lengths are ever dereferenced: the check fires before the ad/
+     * nonce/key buffers are touched. */
+#if defined(WC_64BIT_CPU)
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(out, sizeof(out),
+        plaintext, sizeof(plaintext), aad, (size_t)WOLFSSL_MAX_32BIT + 1,
+        nonce, sizeof(nonce), key, sizeof(key)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(out, sizeof(out),
+        plaintext, sizeof(plaintext), aad, sizeof(aad),
+        nonce, (size_t)WOLFSSL_MAX_32BIT + 1, key, sizeof(key)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(out, sizeof(out),
+        plaintext, sizeof(plaintext), aad, sizeof(aad),
+        nonce, sizeof(nonce), key, (size_t)WOLFSSL_MAX_32BIT + 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif /* WC_64BIT_CPU */
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_XChaCha20Poly1305_DecisionCoverage */
+
+/*
+ * XChaCha20-Poly1305 large-buffer round trip: forces the internal
+ * crypt_oneshot helper's 16384-byte chunking ternary
+ * "(src_len_rem > 16384) ? 16384 : (word32)src_len_rem" true branch (input
+ * > 16384 bytes -> more than one wc_Chacha_Process/wc_Poly1305Update
+ * iteration), never hit by any other test in the suite (all use buffers
+ * well under 16 KB).
+ */
+int test_wc_XChaCha20Poly1305_LargeBuffer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_POLY1305) && defined(HAVE_XCHACHA)
+    static const byte key[CHACHA20_POLY1305_AEAD_KEYSIZE] = {
+        0x80,0x81,0x82,0x83, 0x84,0x85,0x86,0x87,
+        0x88,0x89,0x8a,0x8b, 0x8c,0x8d,0x8e,0x8f,
+        0x90,0x91,0x92,0x93, 0x94,0x95,0x96,0x97,
+        0x98,0x99,0x9a,0x9b, 0x9c,0x9d,0x9e,0x9f
+    };
+    static const byte nonce[XCHACHA20_POLY1305_AEAD_NONCE_SIZE] = {
+        0x40,0x41,0x42,0x43, 0x44,0x45,0x46,0x47,
+        0x48,0x49,0x4a,0x4b, 0x4c,0x4d,0x4e,0x4f,
+        0x50,0x51,0x52,0x53, 0x54,0x55,0x56,0x57
+    };
+    static const byte aad[12] = {
+        0x50,0x51,0x52,0x53, 0xc0,0xc1,0xc2,0xc3, 0xc4,0xc5,0xc6,0xc7
+    };
+    #define LARGE_BUF_LEN (16384 + 256)
+    byte* plain;
+    byte* ct;
+    byte* back;
+    word32 i;
+
+    plain = (byte*)XMALLOC(LARGE_BUF_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ct    = (byte*)XMALLOC(LARGE_BUF_LEN + POLY1305_DIGEST_SIZE, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+    back  = (byte*)XMALLOC(LARGE_BUF_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(plain);
+    ExpectNotNull(ct);
+    ExpectNotNull(back);
+
+    if (plain != NULL && ct != NULL && back != NULL) {
+        for (i = 0; i < LARGE_BUF_LEN; i++)
+            plain[i] = (byte)i;
+        XMEMSET(ct,   0, LARGE_BUF_LEN + POLY1305_DIGEST_SIZE);
+        XMEMSET(back, 0, LARGE_BUF_LEN);
+
+        ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(ct,
+            LARGE_BUF_LEN + POLY1305_DIGEST_SIZE, plain, LARGE_BUF_LEN,
+            aad, sizeof(aad), nonce, sizeof(nonce), key, sizeof(key)), 0);
+        ExpectIntEQ(wc_XChaCha20Poly1305_Decrypt(back, LARGE_BUF_LEN,
+            ct, LARGE_BUF_LEN + POLY1305_DIGEST_SIZE,
+            aad, sizeof(aad), nonce, sizeof(nonce), key, sizeof(key)), 0);
+        ExpectBufEQ(back, plain, LARGE_BUF_LEN);
+    }
+
+    XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ct,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(back,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #undef LARGE_BUF_LEN
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_XChaCha20Poly1305_LargeBuffer */

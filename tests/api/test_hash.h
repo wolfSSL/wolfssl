@@ -36,6 +36,9 @@ int test_wc_HashGetFlags(void);
 int test_wc_Hash_Algs(void);
 int test_wc_HashGetOID(void);
 int test_wc_OidGetHash(void);
+int test_wc_HashTypeConvert(void);
+int test_wc_HashDecisionCoverage(void);
+int test_wc_HashFeatureCoverage(void);
 
 #define TEST_HASH_DECLS                                 \
     TEST_DECL_GROUP("hash", test_wc_HashInit),          \
@@ -49,6 +52,9 @@ int test_wc_OidGetHash(void);
     TEST_DECL_GROUP("hash", test_wc_HashGetFlags),      \
     TEST_DECL_GROUP("hash", test_wc_Hash_Algs),         \
     TEST_DECL_GROUP("hash", test_wc_HashGetOID),        \
-    TEST_DECL_GROUP("hash", test_wc_OidGetHash)
+    TEST_DECL_GROUP("hash", test_wc_OidGetHash),        \
+    TEST_DECL_GROUP("hash", test_wc_HashTypeConvert),   \
+    TEST_DECL_GROUP("hash", test_wc_HashDecisionCoverage), \
+    TEST_DECL_GROUP("hash", test_wc_HashFeatureCoverage)
 
 #endif /* WOLFCRYPT_TEST_HASH_H */

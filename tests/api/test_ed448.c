@@ -53,6 +53,21 @@ int test_wc_ed448_make_key(void)
 
     ExpectIntEQ(wc_ed448_make_public(&key, pubkey, sizeof(pubkey)),
         WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    /* MC/DC: wc_ed448_make_public()'s (key == NULL || pubKey == NULL ||
+     * pubKeySz != ED448_PUB_KEY_SIZE) arg check. The call above (valid key,
+     * valid pubkey, correct size) is the all-FALSE baseline; each call
+     * below flips exactly one operand TRUE while holding the other two at
+     * their baseline (FALSE) value, closing all three operands'
+     * independence pairs. They also give the (ret == 0) FALSE side of the
+     * (ret == 0) && (!key->privKeySet) check immediately below it. */
+    ExpectIntEQ(wc_ed448_make_public(NULL, pubkey, sizeof(pubkey)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_make_public(&key, NULL, sizeof(pubkey)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_make_public(&key, pubkey, sizeof(pubkey) - 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
     ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_ed448_make_key(NULL, ED448_KEY_SIZE, &key),
@@ -238,6 +253,51 @@ int test_wc_ed448_import_public(void)
     ExpectIntEQ(wc_ed448_import_public(in, inlen - 1, &pubKey),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* MC/DC: wc_ed448_import_public_ex()'s tri-state length check
+     * (inLen != PUB_KEY_SIZE && inLen != PUB_KEY_SIZE+1 &&
+     *  inLen != 2*PUB_KEY_SIZE+1) -- close the third operand's FALSE side
+     * (inLen == 115) by falling through with a 115-byte input below, which
+     * also exercises the compressed-prefix (in[0] == 0x40 &&
+     * inLen > PUB_KEY_SIZE) and uncompressed-prefix (in[0] == 0x04 &&
+     * inLen > 2*PUB_KEY_SIZE) branches that no other test reaches. */
+    {
+        byte compressed[ED448_PUB_KEY_SIZE + 1];
+        byte uncompressed[2 * ED448_PUB_KEY_SIZE + 1];
+
+        /* in[0] == 0x40, inLen (58) > PUB_KEY_SIZE (57): compressed-prefix
+         * branch TRUE side. */
+        compressed[0] = 0x40;
+        XMEMCPY(compressed + 1, in, ED448_PUB_KEY_SIZE);
+        ExpectIntEQ(wc_ed448_import_public_ex(compressed,
+            (word32)sizeof(compressed), &pubKey, 1), 0);
+
+        /* in[0] == 0x40, inLen (57) == PUB_KEY_SIZE: compressed-prefix
+         * branch's length operand FALSE side -- falls through to the
+         * "inLen == PUB_KEY_SIZE" plain-copy branch instead. */
+        ExpectIntEQ(wc_ed448_import_public_ex(compressed,
+            ED448_PUB_KEY_SIZE, &pubKey, 1), 0);
+
+        /* in[0] == 0x04, inLen (115 == 2*PUB_KEY_SIZE+1) > 2*PUB_KEY_SIZE:
+         * uncompressed-prefix branch TRUE side, and the tri-state length
+         * OR's third operand FALSE side (with the first two held TRUE).
+         * ge448_compress_key() does not validate that (x, y) is on the
+         * curve, so arbitrary x/y bytes exercise the branch safely under
+         * a trusted import. */
+        uncompressed[0] = 0x04;
+        XMEMSET(uncompressed + 1, 0x24, ED448_PUB_KEY_SIZE);       /* x */
+        XMEMCPY(uncompressed + 1 + ED448_PUB_KEY_SIZE, in,
+            ED448_PUB_KEY_SIZE);                                   /* y */
+        ExpectIntEQ(wc_ed448_import_public_ex(uncompressed,
+            (word32)sizeof(uncompressed), &pubKey, 1), 0);
+
+        /* in[0] == 0x04, inLen (57) == PUB_KEY_SIZE: uncompressed-prefix
+         * branch's length operand FALSE side -- also falls through to the
+         * plain-copy branch (the leading 0x04 becomes part of the
+         * "compressed" key bytes copied verbatim). */
+        ExpectIntEQ(wc_ed448_import_public_ex(uncompressed,
+            ED448_PUB_KEY_SIZE, &pubKey, 1), 0);
+    }
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&pubKey);
 #endif
@@ -360,6 +420,42 @@ int test_wc_ed448_export(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ed448_export_private_only(&key, priv, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+
+    /* MC/DC: the (ret == 0) && (*outLen < <size>) BUFFER_E checks in
+     * wc_ed448_export_public(), wc_ed448_export_private_only() and
+     * wc_ed448_export_private(). Each pair holds the size operand at a
+     * fixed too-small value across a NULL-key call (ret == 0 FALSE) and a
+     * valid-key call (ret == 0 TRUE), closing both operands. */
+    {
+        word32 tinyPubLen = ED448_PUB_KEY_SIZE - 1;
+        ExpectIntEQ(wc_ed448_export_public(NULL, pub, &tinyPubLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        tinyPubLen = ED448_PUB_KEY_SIZE - 1;
+        ExpectIntEQ(wc_ed448_export_public(&key, pub, &tinyPubLen),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(tinyPubLen, ED448_PUB_KEY_SIZE);
+    }
+
+    PRIVATE_KEY_UNLOCK();
+    {
+        word32 tinyPrivLen = ED448_KEY_SIZE - 1;
+        ExpectIntEQ(wc_ed448_export_private_only(NULL, priv, &tinyPrivLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        tinyPrivLen = ED448_KEY_SIZE - 1;
+        ExpectIntEQ(wc_ed448_export_private_only(&key, priv, &tinyPrivLen),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(tinyPrivLen, ED448_KEY_SIZE);
+    }
+    {
+        word32 tinyBothLen = ED448_PRV_KEY_SIZE - 1;
+        ExpectIntEQ(wc_ed448_export_private(NULL, priv, &tinyBothLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        tinyBothLen = ED448_PRV_KEY_SIZE - 1;
+        ExpectIntEQ(wc_ed448_export_private(&key, priv, &tinyBothLen),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(tinyBothLen, ED448_PRV_KEY_SIZE);
+    }
     PRIVATE_KEY_LOCK();
 
 #ifdef HAVE_ED448_KEY_IMPORT
@@ -887,4 +983,389 @@ int test_wc_ed448_reject_small_order_keys(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for wolfcrypt/src/ed448.c decisions the pre-existing
+ * ed448 API tests never drive: the sign/verify (context == NULL && contextLen
+ * != 0) compound and its "context != NULL" hash-update branches, the explicit
+ * wc_ed448_sign_msg_ex/verify_msg_ex type path, and the Ed448ph (prehash)
+ * sign/verify branches including the (type == Ed448ph && inLen !=
+ * ED448_PREHASH_SIZE) length check.
+ */
+int test_wc_Ed448DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    ed448_key key;
+    ed448_key key2;
+    WC_RNG    rng;
+    byte      msg[]     = "ed448 decision coverage message";
+    byte      ctx[]     = "ed448-context";
+    byte      sig[ED448_SIG_SIZE];
+    byte      hash[ED448_PREHASH_SIZE];
+    byte      badhash[ED448_PREHASH_SIZE - 1];
+    word32    sigLen = sizeof(sig);
+    word32    msgLen = sizeof(msg);
+    byte      ctxLen = (byte)(sizeof(ctx) - 1);
+    int       verify = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(hash, 0x5a, sizeof(hash));
+    XMEMSET(badhash, 0x5a, sizeof(badhash));
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* MC/DC: the (ret == 0) && (context != NULL) hash-update guards in
+     * wc_ed448_sign_msg_ex() (both the nonce and the R/S hash phases share
+     * the same `ret` chain). A freshly-initialized key (pubKeySet == 0)
+     * with a non-NULL context makes the (ret == 0) operand FALSE while
+     * holding "context != NULL" at the same TRUE value used by the
+     * successful sign-with-context call below, closing that operand's
+     * independence pair without needing to force an internal hash
+     * failure. */
+    ExpectIntEQ(wc_ed448_init(&key2), 0);
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key2, ctx,
+        ctxLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_ed448_free(&key2);
+
+    /* Sign/verify with a non-NULL context: exercises the "context != NULL"
+     * side of the (context == NULL && contextLen != 0) compound plus the
+     * "context != NULL" hash-update branches in both sign and verify. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, ctx, ctxLen),
+        0);
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigLen, msg, msgLen, &verify, &key,
+        ctx, ctxLen), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* context == NULL && contextLen != 0: compound TRUE -> BAD_FUNC_ARG, in
+     * both the sign and verify sanity checks. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, NULL, 5),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sizeof(sig), msg, msgLen, &verify,
+        &key, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Explicit wc_ed448_sign_msg_ex/verify_msg_ex with type == Ed448. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key,
+        (byte)Ed448, ctx, ctxLen), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg_ex(sig, sigLen, msg, msgLen, &verify, &key,
+        (byte)Ed448, ctx, ctxLen), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Ed448ph: type == Ed448ph path through sign_msg_ex (prehash then sign)
+     * and the matching verify, without and with a context. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_msg(msg, msgLen, sig, &sigLen, &key, NULL, 0),
+        0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448ph_verify_msg(sig, sigLen, msg, msgLen, &verify, &key,
+        NULL, 0), 0);
+    ExpectIntEQ(verify, 1);
+
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_msg(msg, msgLen, sig, &sigLen, &key, ctx,
+        ctxLen), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448ph_verify_msg(sig, sigLen, msg, msgLen, &verify, &key,
+        ctx, ctxLen), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Ed448ph prehash sign/verify with a correctly sized hash. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_hash(hash, sizeof(hash), sig, &sigLen, &key,
+        NULL, 0), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448ph_verify_hash(sig, sigLen, hash, sizeof(hash), &verify,
+        &key, NULL, 0), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* type == Ed448ph && inLen != ED448_PREHASH_SIZE -> BAD_LENGTH_E
+     * (sign_hash forwards hashLen as inLen with type Ed448ph). */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448ph_sign_hash(badhash, sizeof(badhash), sig, &sigLen,
+        &key, NULL, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    /* MC/DC: wc_ed448_verify_msg_ex()'s (type == Ed448ph &&
+     * msgLen != ED448_PREHASH_SIZE) check, verify side. Paired with the
+     * regular (non-ph) verify calls above (type == Ed448ph FALSE, msgLen
+     * != PREHASH_SIZE TRUE) for the type operand, and with the
+     * correctly-sized Ed448ph verify_hash call above (type == Ed448ph
+     * TRUE, msgLen != PREHASH_SIZE FALSE) for the length operand. */
+    ExpectIntEQ(wc_ed448ph_verify_hash(sig, sigLen, badhash, sizeof(badhash),
+        &verify, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Ed448DecisionCoverage */
+
+/*
+ * Feature coverage for the ed448 streaming verify API
+ * (wc_ed448_verify_msg_init/update/final): positive multi-chunk verification
+ * (loop true-sides) without and with a context, plus the update NULL-segment
+ * and init/final NULL argument guards. Guarded identically to the streaming
+ * verify code under test so it auto-skips where the feature is compiled out.
+ */
+int test_wc_Ed448FeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
+    defined(HAVE_ED448_VERIFY) && defined(WOLFSSL_ED448_STREAMING_VERIFY)
+    ed448_key key;
+    WC_RNG    rng;
+    byte      msg[]  = "streaming multi-chunk ed448 verify message body";
+    byte      ctx[]  = "stream-ctx";
+    byte      sig[ED448_SIG_SIZE];
+    word32    sigLen = sizeof(sig);
+    word32    msgLen = sizeof(msg);
+    byte      ctxLen = (byte)(sizeof(ctx) - 1);
+    int       verify = 0;
+    word32    off;
+    word32    chunk = 7;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* Sign the whole message (no context), then verify it through the
+     * streaming init/update(x N)/final API a few bytes at a time. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, NULL, 0), 0);
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, NULL,
+        0), 0);
+    for (off = 0; off < msgLen; off += chunk) {
+        word32 n = (msgLen - off < chunk) ? (msgLen - off) : chunk;
+        ExpectIntEQ(wc_ed448_verify_msg_update(msg + off, n, &key), 0);
+    }
+    ExpectIntEQ(wc_ed448_verify_msg_final(sig, sigLen, &verify, &key), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Same, but with a non-NULL context supplied at init. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msgLen, sig, &sigLen, &key, ctx, ctxLen),
+        0);
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, ctx,
+        ctxLen), 0);
+    for (off = 0; off < msgLen; off += chunk) {
+        word32 n = (msgLen - off < chunk) ? (msgLen - off) : chunk;
+        ExpectIntEQ(wc_ed448_verify_msg_update(msg + off, n, &key), 0);
+    }
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg_final(sig, sigLen, &verify, &key), 0);
+    ExpectIntEQ(verify, 1);
+
+    /* Negative decisions in the streaming path: init NULL sig, update NULL
+     * segment (ed448_verify_msg_update_with_sha's msgSegment == NULL guard),
+     * final NULL res. */
+    ExpectIntEQ(wc_ed448_verify_msg_init(NULL, sigLen, &key, (byte)Ed448, NULL,
+        0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, NULL,
+        0), 0);
+    ExpectIntEQ(wc_ed448_verify_msg_update(NULL, msgLen, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_verify_msg_update(msg, msgLen, &key), 0);
+    /* MC/DC: ed448_verify_msg_final_with_sha()'s sig == NULL operand
+     * (reachable only through the streaming final() API, since
+     * wc_ed448_verify_msg_ex() always calls the init step -- which itself
+     * rejects a NULL sig -- before ever reaching the final step). */
+    ExpectIntEQ(wc_ed448_verify_msg_final(NULL, sigLen, &verify, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_verify_msg_final(sig, sigLen, NULL, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Ed448FeatureCoverage */
+
+/*
+ * MC/DC decision coverage for wolfcrypt/src/ed448.c's
+ * wc_ed448_import_private_only(): the (priv == NULL || key == NULL) arg
+ * check, the (ret == 0 && privSz != ED448_KEY_SIZE) length check, the
+ * (ret == 0 && key->pubKeySet) validate-against-public-key branch, and the
+ * (ret != 0 && key != NULL) error-cleanup guard. No existing test called
+ * this function at all before this addition.
+ */
+int test_wc_ed448_import_private_only(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT)
+    ed448_key key;
+    ed448_key key2;
+    WC_RNG    rng;
+    byte      priv[ED448_KEY_SIZE];
+    byte      privOnly[ED448_KEY_SIZE];
+    word32    privOnlySz = sizeof(privOnly);
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(priv, 0x11, sizeof(priv));
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_init(&key2), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private_only(&key, privOnly, &privOnlySz), 0);
+    PRIVATE_KEY_LOCK();
+
+    /* Baseline: key2 has neither key set. Valid priv + correct size ->
+     * success. Gives (ret == 0) TRUE with (privSz != SIZE) FALSE, and
+     * (key->pubKeySet) FALSE with (ret == 0) TRUE. */
+    ExpectIntEQ(wc_ed448_import_private_only(priv, ED448_KEY_SIZE, &key2), 0);
+
+    /* (ret == 0) && (privSz != ED448_KEY_SIZE): TRUE side, holding the
+     * arg-NULL operands FALSE (priv/key both valid). */
+    ExpectIntEQ(wc_ed448_import_private_only(priv, ED448_KEY_SIZE - 1, &key2),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* priv == NULL, with the same too-small privSz held constant across
+     * the pair: (ret == 0) FALSE here (short-circuited by the arg check)
+     * vs TRUE above -> closes the (ret == 0) operand of the privSz check.
+     * Also priv == NULL with key != NULL (held valid across this call and
+     * the baseline) closes the arg-check OR's priv-operand. */
+    ExpectIntEQ(wc_ed448_import_private_only(NULL, ED448_KEY_SIZE - 1, &key2),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* key == NULL, with priv held valid/non-NULL across this call and the
+     * baseline: closes the arg-check OR's key-operand. Also gives
+     * (ret != 0) && (key == NULL) for the error-cleanup guard below, which
+     * must not dereference key. */
+    ExpectIntEQ(wc_ed448_import_private_only(priv, ED448_KEY_SIZE, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* (ret == 0) && key->pubKeySet: TRUE side. `key` already has
+     * pubKeySet == 1 from wc_ed448_make_key() above; re-importing its own
+     * exported private key recomputes a matching public key, so
+     * wc_ed448_check_key() succeeds and ret stays 0. */
+    ExpectIntEQ(wc_ed448_import_private_only(privOnly, ED448_KEY_SIZE, &key),
+        0);
+
+    /* (ret == 0) FALSE with key->pubKeySet held TRUE (same `key`, still
+     * pubKeySet == 1): a bad privSz trips the length check first, so the
+     * pubKeySet branch is never reached with ret == 0 -- closes that
+     * operand's independence pair. This call's (ret != 0) && (key != NULL)
+     * also closes the error-cleanup guard's independence pairs alongside
+     * the baseline (ret == 0) and key == NULL (above) calls. */
+    ExpectIntEQ(wc_ed448_import_private_only(priv, ED448_KEY_SIZE - 1, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+    wc_ed448_free(&key2);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_import_private_only */
+
+/*
+ * MC/DC decision coverage for wolfcrypt/src/ed448.c's wc_ed448_check_key():
+ * the (ret == 0 && !key->pubKeySet) "have a public key" gate, the
+ * (ret == 0) operand of the (ret == 0 && ed448_is_small_order(...)) defence
+ * (the is_small_order VALUE operand's independence is already shown by
+ * test_wc_ed448_reject_small_order_keys()), the (ret == 0 &&
+ * XMEMCMP(...) != 0) recomputed-vs-stored public key mismatch check in the
+ * have-private-key branch, and the deep Y-range check's final byte compare.
+ */
+int test_wc_ed448_check_key_decisions(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    ed448_key key;
+    ed448_key freshKey;
+    WC_RNG    rng;
+    byte      near_p[ED448_PUB_KEY_SIZE];
+    int       rc;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&freshKey, 0, sizeof(freshKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    /* key == NULL: (ret == 0) FALSE side (short-circuited before any key
+     * dereference). */
+    ExpectIntEQ(wc_ed448_check_key(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Freshly-initialized key: key != NULL (ret == 0 TRUE) but pubKeySet
+     * == 0 -> PUBLIC_KEY_E. Closes the pubKeySet operand's TRUE side and,
+     * paired against the NULL call above, the (ret == 0) operand of this
+     * same decision. Also gives the (ret == 0) FALSE side of the
+     * small-order check below it (ret is already PUBLIC_KEY_E by the time
+     * that line runs, so it short-circuits without touching key->p). */
+    ExpectIntEQ(wc_ed448_init(&freshKey), 0);
+    ExpectIntEQ(wc_ed448_check_key(&freshKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed448_free(&freshKey);
+
+    /* Real key pair: pubKeySet == 1 (closes the pubKeySet operand's FALSE
+     * side), not small order, private key matches public key -> success.
+     * Gives the (ret == 0) TRUE side of the small-order check (paired
+     * against the fresh-key call above) and the FALSE side of the
+     * recomputed-public-key-mismatch compare below. */
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    ExpectIntEQ(wc_ed448_check_key(&key), 0);
+
+    /* Tamper with the stored public key while keeping the private key:
+     * wc_ed448_make_public() recomputes the real public key from key->k,
+     * which will now differ from the corrupted key->p -> XMEMCMP(...) != 0
+     * TRUE -> PUBLIC_KEY_E. Closes the mismatch operand's TRUE side. */
+    key.p[0] = (byte)(key.p[0] ^ 0xff);
+    ExpectIntEQ(wc_ed448_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    /* Restore so wc_ed448_free()'s zeroize-check doesn't care either way.*/
+    key.p[0] = (byte)(key.p[0] ^ 0xff);
+
+    /* Deep Y-range check: a Y value that is not one of
+     * ed448_is_small_order()'s tabulated points but still forces both
+     * range-check loops all the way down to the final byte compare (every
+     * byte except p[0] matches the encoded field prime p). Only reachable
+     * via a trusted import, which skips wc_ed448_check_key() at import
+     * time so the crafted (curve-invalid) point can be handed to a
+     * *direct* wc_ed448_check_key() call below -- same technique as
+     * test_wc_ed448_reject_small_order_keys(). Whatever the later
+     * curve-decode step decides is fine; the range-check decision itself
+     * is what's targeted here. */
+    XMEMSET(near_p, 0xff, sizeof(near_p));
+    near_p[28] = 0xfe;
+    near_p[0]  = 0x00;
+    ExpectIntEQ(wc_ed448_init(&freshKey), 0);
+    ExpectIntEQ(wc_ed448_import_public_ex(near_p, ED448_PUB_KEY_SIZE,
+        &freshKey, 1), 0);
+    rc = wc_ed448_check_key(&freshKey);
+    ExpectTrue((rc == 0) || (rc == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
+    wc_ed448_free(&freshKey);
+
+    /* Same construction but with an extra byte (p[1]) perturbed so the
+     * second range-check loop exits early with ret == 0 before the final
+     * byte compare runs -- closes that compare's PUBLIC_KEY_E
+     * guard operand's FALSE side. */
+    near_p[1] = 0x00;
+    ExpectIntEQ(wc_ed448_init(&freshKey), 0);
+    ExpectIntEQ(wc_ed448_import_public_ex(near_p, ED448_PUB_KEY_SIZE,
+        &freshKey, 1), 0);
+    rc = wc_ed448_check_key(&freshKey);
+    ExpectTrue((rc == 0) || (rc == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
+    wc_ed448_free(&freshKey);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_check_key_decisions */
 

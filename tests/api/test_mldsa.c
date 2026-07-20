@@ -30135,6 +30135,7 @@ int test_mldsa_pkcs12(void)
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS12) && \
     defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     !defined(NO_TLS) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
     !defined(NO_CERTS) && !defined(NO_DES3) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
@@ -30588,5 +30589,714 @@ int test_dilithium_hash(void)
     wc_MlDsaKey_Free(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
+    return EXPECT_RESULT();
+}
+
+/* =====================================================================
+ * MC/DC coverage supplements (ISO 26262 per-module campaign).
+ *
+ * test_wc_MldsaDecisionCoverage: one negative call per public-entry
+ * argument / state check, each asserting the specific error, driving both
+ * halves of the argument-validation decisions in wc_MlDsaKey_Init /
+ * SetParams / GetParams / MakeKey / Get{Pub,Priv,Sig}Len / SignCtx /
+ * VerifyCtx (unique-cause: exactly one operand invalid at a time, plus the
+ * all-valid fall-through).
+ *
+ * test_wc_MldsaFeatureCoverage: positive keygen + sign + verify round trip
+ * (ML-DSA-44, the smallest param set, to bound runtime) exercising the
+ * verify true-branch (good signature -> res == 1) and false-branch
+ * (tampered signature -> res == 0), plus the positive length getters.
+ * ===================================================================== */
+
+int test_wc_MldsaDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA)
+    wc_MlDsaKey key;
+    byte level = 0;
+    int len = 0;
+    int inited = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* wc_MlDsaKey_Init: key == NULL (TRUE) vs valid (FALSE). */
+    ExpectIntEQ(wc_MlDsaKey_Init(NULL, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        inited = 1;
+    }
+
+    /* wc_MlDsaKey_SetParams: key == NULL. */
+    ExpectIntEQ(wc_MlDsaKey_SetParams(NULL, WC_ML_DSA_44),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Bad level (not 2/3/5): the level-match compound is all-FALSE -> else. */
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, (byte)0x7f),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Each valid level arm of the (level==44)||(level==65)||(level==87)
+     * decision. Only the arms whose param set is compiled in exist. */
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+#endif
+
+    /* wc_MlDsaKey_GetParams: key == NULL, level == NULL (independence of the
+     * (key==NULL)||(level==NULL) compound). */
+    ExpectIntEQ(wc_MlDsaKey_GetParams(NULL, &level),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_GetParams(&key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Valid: level was set to a real value above -> success. */
+    ExpectIntEQ(wc_MlDsaKey_GetParams(&key, &level), 0);
+
+    /* wc_MlDsaKey_MakeKey: key == NULL and rng == NULL independence of the
+     * (key==NULL)||(rng==NULL) compound. A real RNG is not needed since these
+     * short-circuit before use. */
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(NULL, (WC_RNG*)&key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
+    /* Length getters with a NULL key -> underlying *Size returns BAD_FUNC_ARG
+     * (< 0) so the getter propagates it (the *len < 0 decision TRUE side). */
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    len = 0;
+    ExpectIntEQ(wc_MlDsaKey_GetPubLen(NULL, &len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Valid key with a level set -> *len >= 0, decision FALSE side, ret 0. */
+    len = 0;
+    ExpectIntEQ(wc_MlDsaKey_GetPubLen(&key, &len), 0);
+    ExpectIntGT(len, 0);
+#endif
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+    len = 0;
+    ExpectIntEQ(wc_MlDsaKey_GetPrivLen(NULL, &len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    len = 0;
+    ExpectIntEQ(wc_MlDsaKey_GetPrivLen(&key, &len), 0);
+    ExpectIntGT(len, 0);
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    len = 0;
+    ExpectIntEQ(wc_MlDsaKey_GetSigLen(NULL, &len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    len = 0;
+    ExpectIntEQ(wc_MlDsaKey_GetSigLen(&key, &len), 0);
+    ExpectIntGT(len, 0);
+#endif
+
+    /* wc_MlDsaKey_SignCtx: independence of the four-way NULL OR. Hold three
+     * operands valid and make exactly one NULL. */
+#if !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+    {
+        byte sig[16];
+        word32 sigLen = (word32)sizeof(sig);
+        byte msg[4];
+        byte ctx[2];
+
+        XMEMSET(sig, 0, sizeof(sig));
+        XMEMSET(msg, 'M', sizeof(msg));
+        XMEMSET(ctx, 'C', sizeof(ctx));
+
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(NULL, NULL, 0, sig, &sigLen,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 0, NULL, &sigLen,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, NULL,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen,
+            NULL, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* All four non-NULL (first compound FALSE), but ctx==NULL && ctxLen>0
+         * TRUE -> BAD_FUNC_ARG (independence of the ctxLen>0 operand). */
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 1, sig, &sigLen,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* ctx non-NULL so that compound is FALSE, and key not a private key
+         * yet -> the !prvKeySet decision TRUE -> BAD_FUNC_ARG. */
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, ctx, (byte)sizeof(ctx), sig,
+            &sigLen, msg, (word32)sizeof(msg), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+
+    /* wc_MlDsaKey_VerifyCtx: independence of the four-way NULL OR + the
+     * ctxLen>0 and oversized-msgLen guards. */
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    {
+        byte sig[16];
+        byte msg[4];
+        byte ctx[2];
+        int res = -1;
+
+        XMEMSET(sig, 0, sizeof(sig));
+        XMEMSET(msg, 'M', sizeof(msg));
+        XMEMSET(ctx, 'C', sizeof(ctx));
+
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(NULL, sig, (word32)sizeof(sig),
+            NULL, 0, msg, (word32)sizeof(msg), &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, NULL, (word32)sizeof(sig),
+            NULL, 0, msg, (word32)sizeof(msg), &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, (word32)sizeof(sig),
+            NULL, 0, NULL, (word32)sizeof(msg), &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, (word32)sizeof(sig),
+            NULL, 0, msg, (word32)sizeof(msg), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* ctx==NULL && ctxLen>0 -> BAD_FUNC_ARG. */
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, (word32)sizeof(sig),
+            NULL, 1, msg, (word32)sizeof(msg), &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* Oversized msgLen guard TRUE side. */
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, (word32)sizeof(sig),
+            NULL, 0, msg, 0xFFFFFFFFU, &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+
+    if (inited) {
+        wc_MlDsaKey_Free(&key);
+    }
+#endif /* WOLFSSL_HAVE_MLDSA */
+    return EXPECT_RESULT();
+}
+
+int test_wc_MldsaFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
+    WC_RNG rng;
+    int inited = 0;
+    int rngInited = 0;
+    int sigLenI = 0;
+    int pubLenI = 0;
+    int privLenI = 0;
+    word32 sigLen = 0;
+    byte* sig = NULL;
+    int res = 0;
+    byte msg[32];
+    /* Smallest available param set to bound runtime. */
+#ifndef WOLFSSL_NO_ML_DSA_44
+    const byte level = WC_ML_DSA_44;
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    const byte level = WC_ML_DSA_65;
+#else
+    const byte level = WC_ML_DSA_87;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(msg, 'A', sizeof(msg));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInited = 1;
+    }
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        inited = 1;
+    }
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, level), 0);
+
+    /* Positive length getters (decision FALSE sides: *len >= 0). */
+    ExpectIntEQ(wc_MlDsaKey_GetSigLen(&key, &sigLenI), 0);
+    ExpectIntGT(sigLenI, 0);
+    ExpectIntEQ(wc_MlDsaKey_GetPubLen(&key, &pubLenI), 0);
+    ExpectIntGT(pubLenI, 0);
+    ExpectIntEQ(wc_MlDsaKey_GetPrivLen(&key, &privLenI), 0);
+    ExpectIntGT(privLenI, 0);
+
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+
+    if (EXPECT_SUCCESS() && (sigLenI > 0)) {
+        sigLen = (word32)sigLenI;
+        sig = (byte*)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(sig);
+    }
+
+    if (sig != NULL) {
+        XMEMSET(sig, 0, sigLen);
+        /* Sign with an empty context (FIPS 204 compliant). */
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen,
+            msg, (word32)sizeof(msg), &rng), 0);
+
+        /* Verify true-branch: good signature -> res == 1. */
+        res = 0;
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0,
+            msg, (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 1);
+
+        /* Verify false-branch: tamper one byte -> res == 0 (still ret 0). */
+        sig[0] ^= 0xFF;
+        res = 1;
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0,
+            msg, (word32)sizeof(msg), &res), 0);
+        ExpectIntEQ(res, 0);
+
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    if (inited) {
+        wc_MlDsaKey_Free(&key);
+    }
+    if (rngInited) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+#endif /* WOLFSSL_HAVE_MLDSA && sign+verify+makekey */
+    return EXPECT_RESULT();
+}
+
+int test_wc_MldsaDecisionCoverage2(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA)
+    wc_MlDsaKey key;
+    int inited = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) {
+        inited = 1;
+    }
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
+#else
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+#endif
+
+    /* wc_MlDsaKey_MakeKeyFromSeed: independence of the
+     * (key==NULL)||(seed==NULL) compound. */
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    {
+        byte seed[MLDSA_SEED_SZ];
+
+        XMEMSET(seed, 0, sizeof(seed));
+        ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(NULL, seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(&key, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+
+    /* wc_MlDsaKey_SignCtxHash / SignCtxWithSeed / SignCtxHashWithSeed /
+     * SignMuWithSeed: independence of each four/five-way NULL OR and the
+     * ctxLen>0/muLen!=MU_SZ guards. Hold all other operands valid and
+     * make exactly one NULL/invalid at a time. Also drives the sign
+     * path's too-small sigLen buffer guard (BUFFER_E). */
+#if !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+    {
+        byte sig[16];
+        word32 sigLen;
+        byte hash[64]; /* WC_SHA3_512_DIGEST_SIZE */
+        byte msg[4];
+        byte ctx[2];
+        byte seed[MLDSA_RND_SZ];
+        byte mu[MLDSA_MU_SZ];
+        WC_RNG rng;
+        int rngInited = 0;
+
+        XMEMSET(sig, 0, sizeof(sig));
+        XMEMSET(hash, 'H', sizeof(hash));
+        XMEMSET(msg, 'M', sizeof(msg));
+        XMEMSET(ctx, 'C', sizeof(ctx));
+        XMEMSET(seed, 0, sizeof(seed));
+        XMEMSET(mu, 0, sizeof(mu));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        if (EXPECT_SUCCESS()) {
+            rngInited = 1;
+        }
+
+        /* wc_MlDsaKey_SignCtxHash: four-way NULL OR + ctx/ctxLen. */
+        sigLen = (word32)sizeof(sig);
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHash(NULL, NULL, 0, sig, &sigLen,
+            hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHash(&key, NULL, 0, NULL, &sigLen,
+            hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHash(&key, NULL, 0, sig, NULL,
+            hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHash(&key, NULL, 0, sig, &sigLen,
+            NULL, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* All four non-NULL, ctx==NULL && ctxLen>0 -> BAD_FUNC_ARG. */
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHash(&key, NULL, 1, sig, &sigLen,
+            hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* wc_MlDsaKey_SignCtxWithSeed: four-way NULL OR + ctx/ctxLen. */
+        sigLen = (word32)sizeof(sig);
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(NULL, NULL, 0, sig, &sigLen,
+            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, NULL, &sigLen,
+            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, NULL,
+            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
+            NULL, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 1, sig, &sigLen,
+            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* wc_MlDsaKey_SignCtxHashWithSeed: five-way NULL OR (incl. seed)
+         * + ctx/ctxLen. */
+        sigLen = (word32)sizeof(sig);
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(NULL, NULL, 0, sig,
+            &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, NULL,
+            &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
+            NULL, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
+            &sigLen, NULL, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
+            &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 1, sig,
+            &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* wc_MlDsaKey_SignMuWithSeed: five-way NULL OR + muLen!=MU_SZ. */
+        sigLen = (word32)sizeof(sig);
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(NULL, sig, &sigLen, mu,
+            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, NULL, &sigLen, mu,
+            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, NULL, mu,
+            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, NULL,
+            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
+            sizeof(mu), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* All five non-NULL, muLen != MLDSA_MU_SZ -> BAD_FUNC_ARG. */
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
+            sizeof(mu) - 1, seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Sign path's too-small sigLen buffer guard (*sigLen <
+         * params->sigSz -> BUFFER_E), independent of the muLen guard
+         * above (all args otherwise valid). */
+        sigLen = 1;
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
+            sizeof(mu), seed), WC_NO_ERR_TRACE(BUFFER_E));
+
+        if (rngInited) {
+            DoExpectIntEQ(wc_FreeRng(&rng), 0);
+        }
+    }
+#endif /* !WOLFSSL_MLDSA_VERIFY_ONLY && !WOLFSSL_MLDSA_NO_SIGN */
+
+    /* wc_MlDsaKey_VerifyCtxHash: four-way NULL OR + ctx/ctxLen. */
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    {
+        byte sig[16];
+        byte hash[64];
+        int res = -1;
+
+        XMEMSET(sig, 0, sizeof(sig));
+        XMEMSET(hash, 'H', sizeof(hash));
+
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(NULL, sig, (word32)sizeof(sig),
+            NULL, 0, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(&key, NULL, (word32)sizeof(sig),
+            NULL, 0, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(&key, sig, (word32)sizeof(sig),
+            NULL, 0, NULL, sizeof(hash), WC_HASH_TYPE_SHA3_512, &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(&key, sig, (word32)sizeof(sig),
+            NULL, 0, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(&key, sig, (word32)sizeof(sig),
+            NULL, 1, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &res),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* wc_MlDsaKey_VerifyMu: five-way NULL OR (incl. key->params) +
+         * muLen != MU_SZ. */
+        {
+            byte mu[MLDSA_MU_SZ];
+            wc_MlDsaKey noParamsKey;
+
+            XMEMSET(mu, 0, sizeof(mu));
+            XMEMSET(&noParamsKey, 0, sizeof(noParamsKey));
+
+            ExpectIntEQ(wc_MlDsaKey_VerifyMu(NULL, sig, (word32)sizeof(sig),
+                mu, sizeof(mu), &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* key->params == NULL (level never set on this key). */
+            ExpectIntEQ(wc_MlDsaKey_VerifyMu(&noParamsKey, sig,
+                (word32)sizeof(sig), mu, sizeof(mu), &res),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_MlDsaKey_VerifyMu(&key, NULL, (word32)sizeof(sig),
+                mu, sizeof(mu), &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_MlDsaKey_VerifyMu(&key, sig, (word32)sizeof(sig),
+                NULL, sizeof(mu), &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_MlDsaKey_VerifyMu(&key, sig, (word32)sizeof(sig),
+                mu, sizeof(mu), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            /* All five non-NULL, muLen != MLDSA_MU_SZ -> BAD_FUNC_ARG. */
+            ExpectIntEQ(wc_MlDsaKey_VerifyMu(&key, sig, (word32)sizeof(sig),
+                mu, sizeof(mu) - 1, &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+    }
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
+
+    /* wc_MlDsaKey_InitId / InitLabel: NULL guards and length guards. */
+#ifdef WOLF_PRIVATE_KEY_ID
+    {
+        wc_MlDsaKey idKey;
+        byte id[4];
+        byte oversizeId[MLDSA_MAX_ID_LEN + 1];
+        char oversizeLabel[MLDSA_MAX_LABEL_LEN + 2];
+
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        XMEMSET(id, 'I', sizeof(id));
+        XMEMSET(oversizeId, 'I', sizeof(oversizeId));
+        XMEMSET(oversizeLabel, 'L', sizeof(oversizeLabel) - 1);
+        oversizeLabel[sizeof(oversizeLabel) - 1] = '\0';
+
+        /* InitId: key == NULL. */
+        ExpectIntEQ(wc_MlDsaKey_InitId(NULL, id, (int)sizeof(id), NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* InitId: len < 0. */
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, id, -1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        /* InitId: len > MLDSA_MAX_ID_LEN. */
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, oversizeId,
+            (int)sizeof(oversizeId), NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        /* InitId: valid, id != NULL && len != 0 -> copied in. */
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, id, (int)sizeof(id), NULL,
+            INVALID_DEVID), 0);
+        wc_MlDsaKey_Free(&idKey);
+        /* InitId: valid, len == 0 (independence of id!=NULL&&len!=0). */
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_MlDsaKey_InitId(&idKey, id, 0, NULL, INVALID_DEVID),
+            0);
+        wc_MlDsaKey_Free(&idKey);
+
+        /* InitLabel: key == NULL / label == NULL. */
+        XMEMSET(&idKey, 0, sizeof(idKey));
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(NULL, "label", NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(&idKey, NULL, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* InitLabel: labelLen == 0. */
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(&idKey, "", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        /* InitLabel: labelLen > MLDSA_MAX_LABEL_LEN. */
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(&idKey, oversizeLabel, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        /* InitLabel: valid. */
+        ExpectIntEQ(wc_MlDsaKey_InitLabel(&idKey, "label", NULL,
+            INVALID_DEVID), 0);
+        wc_MlDsaKey_Free(&idKey);
+    }
+#endif /* WOLF_PRIVATE_KEY_ID */
+
+    /* wc_MlDsaKey_CheckKey: independence of !prvKeySet and !pubKeySet
+     * (the x!=0 mismatch pair is already exercised by
+     * test_mldsa_check_key). */
+#if defined(WOLFSSL_MLDSA_CHECK_KEY) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_NO_ML_DSA_44)
+    {
+        wc_MlDsaKey ckKey;
+        byte privBuf[WC_MLDSA_44_KEY_SIZE];
+
+        XMEMSET(&ckKey, 0, sizeof(ckKey));
+        XMEMSET(privBuf, 0, sizeof(privBuf));
+        ExpectIntEQ(wc_MlDsaKey_Init(&ckKey, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&ckKey, WC_ML_DSA_44), 0);
+
+        /* Neither key set yet -> !prvKeySet TRUE -> BAD_FUNC_ARG
+         * (independent of pubKeySet, never reached). */
+        ExpectIntEQ(wc_MlDsaKey_CheckKey(&ckKey),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        /* Private key set, public key not -> !prvKeySet FALSE,
+         * !pubKeySet TRUE -> PUBLIC_KEY_E. */
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(&ckKey, privBuf,
+            (word32)sizeof(privBuf)), 0);
+        ExpectIntEQ(wc_MlDsaKey_CheckKey(&ckKey),
+            WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+#endif
+
+        wc_MlDsaKey_Free(&ckKey);
+    }
+#endif /* WOLFSSL_MLDSA_CHECK_KEY && WOLFSSL_MLDSA_PRIVATE_KEY &&
+        * !WOLFSSL_NO_ML_DSA_44 */
+
+    /* wc_MlDsaKey_ExportPubRaw / ImportPubRaw: NULL guards. */
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    {
+        byte buf[8];
+        word32 bufLen = (word32)sizeof(buf);
+
+        XMEMSET(buf, 0, sizeof(buf));
+        ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(NULL, buf, &bufLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&key, NULL, &bufLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&key, buf, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(NULL, buf, bufLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(&key, NULL, bufLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
+
+    /* wc_MlDsaKey_ImportPrivRaw / ImportKey / ExportPrivRaw / KeyToDer. */
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_NO_ML_DSA_44)
+    {
+        byte privBuf[WC_MLDSA_44_KEY_SIZE];
+        word32 outLen;
+        wc_MlDsaKey badLevelKey;
+
+        XMEMSET(privBuf, 0, sizeof(privBuf));
+        XMEMSET(&badLevelKey, 0, sizeof(badLevelKey));
+
+        /* ImportPrivRaw: priv == NULL || key == NULL. */
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(NULL, privBuf,
+            (word32)sizeof(privBuf)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(&key, NULL,
+            (word32)sizeof(privBuf)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* ImportPrivRaw: key->level not one of 44/65/87 (bypass
+         * SetParams to reach the standalone level-range guard). */
+        ExpectIntEQ(wc_MlDsaKey_Init(&badLevelKey, NULL, INVALID_DEVID), 0);
+        badLevelKey.level = 0x7F;
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(&badLevelKey, privBuf,
+            (word32)sizeof(privBuf)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_MlDsaKey_Free(&badLevelKey);
+
+        /* ImportPrivRaw: valid -> private key set (zero-filled s1/s2 are
+         * within the eta range check). */
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(&key, privBuf,
+            (word32)sizeof(privBuf)), 0);
+
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        /* ImportKey: pub == NULL (independence of the (ret==0)&&
+         * (pub!=NULL) operand; only private key is imported). */
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(&key, privBuf,
+            (word32)sizeof(privBuf), NULL, 0), 0);
+#endif
+
+        /* ExportPrivRaw: buffer too small -> BUFFER_E. */
+        outLen = 1;
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&key, privBuf, &outLen),
+            WC_NO_ERR_TRACE(BUFFER_E));
+
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+        /* wc_MlDsaKey_KeyToDer: independence of prvKeySet/pubKeySet.
+         * Private-only key (prvKeySet TRUE, pubKeySet FALSE) ->
+         * BAD_FUNC_ARG. */
+        {
+            byte der[16];
+            byte pubBuf[WC_MLDSA_44_PUB_KEY_SIZE];
+            wc_MlDsaKey pubOnlyKey;
+
+            XMEMSET(der, 0, sizeof(der));
+            ExpectIntEQ(wc_MlDsaKey_KeyToDer(&key, der, (word32)sizeof(der)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+            /* Public-only key (prvKeySet FALSE, pubKeySet TRUE) ->
+             * BAD_FUNC_ARG (independence of the prvKeySet operand, held
+             * against the same pubKeySet==TRUE value used by the fully
+             * set key exercised in test_wc_MldsaFeatureCoverage /
+             * test_mldsa_der). */
+            XMEMSET(pubBuf, 0, sizeof(pubBuf));
+            XMEMSET(&pubOnlyKey, 0, sizeof(pubOnlyKey));
+            ExpectIntEQ(wc_MlDsaKey_Init(&pubOnlyKey, NULL, INVALID_DEVID),
+                0);
+            ExpectIntEQ(wc_MlDsaKey_SetParams(&pubOnlyKey, WC_ML_DSA_44), 0);
+            ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(&pubOnlyKey, pubBuf,
+                (word32)sizeof(pubBuf)), 0);
+            ExpectIntEQ(wc_MlDsaKey_KeyToDer(&pubOnlyKey, der,
+                (word32)sizeof(der)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            wc_MlDsaKey_Free(&pubOnlyKey);
+        }
+#endif
+    }
+#endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
+
+    if (inited) {
+        wc_MlDsaKey_Free(&key);
+    }
+#endif /* WOLFSSL_HAVE_MLDSA */
+    return EXPECT_RESULT();
+}
+
+int test_wc_MldsaDerDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_NO_ML_DSA_44)
+    wc_MlDsaKey key;
+    word32 idx;
+
+    /* SEQUENCE (len 15) { SEQUENCE (len 11) { OID (len 9) } BIT STRING
+     * (len 0) }. Reaches the "length == 0" BIT STRING guard. */
+    static const byte derZeroLenBitStr[] = {
+        0x30, 0x0F,
+              0x30, 0x0B,
+                    0x06, 0x09,
+                          0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+                          0x11,
+              0x03, 0x00
+    };
+    /* SEQUENCE (len 18, one byte more than the inner content actually
+     * uses) { SEQUENCE (len 11) { OID (len 9) } BIT STRING (len 2:
+     * 0x00 pad + one payload byte) <trailing junk byte inside the
+     * outer SEQUENCE's declared length> }. Reaches the
+     * "(idx + length) != outerEnd" BIT STRING guard. */
+    static const byte derLenMismatch[] = {
+        0x30, 0x12,
+              0x30, 0x0B,
+                    0x06, 0x09,
+                          0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+                          0x11,
+              0x03, 0x02, 0x00, 0xAB,
+              0xFF /* trailing junk, inside outer length but outside the
+                    * BIT STRING's own declared content */
+    };
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, derZeroLenBitStr,
+        (word32)sizeof(derZeroLenBitStr), &idx),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    wc_MlDsaKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(&key, derLenMismatch,
+        (word32)sizeof(derLenMismatch), &idx),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    wc_MlDsaKey_Free(&key);
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_NO_ASN1 && ... */
     return EXPECT_RESULT();
 }

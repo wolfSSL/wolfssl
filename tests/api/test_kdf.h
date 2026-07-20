@@ -1,4 +1,4 @@
-/* test_signature.h
+/* test_kdf.h
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -19,22 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef WOLFCRYPT_TEST_SIGNATURE_H
-#define WOLFCRYPT_TEST_SIGNATURE_H
+#ifndef WOLFCRYPT_TEST_KDF_H
+#define WOLFCRYPT_TEST_KDF_H
 
 #include <tests/api/api_decl.h>
 
-int test_wc_SignatureGetSize_ecc(void);
-int test_wc_SignatureGetSize_rsa(void);
-int test_wc_falcon_sign_verify(void);
-int test_wc_SignatureDecisionCoverage(void);
-int test_wc_SignatureFeatureCoverage(void);
+int test_wc_KdfDecisionCoverage(void);
+int test_wc_KdfFeatureCoverage(void);
 
-#define TEST_SIGNATURE_DECLS                                       \
-    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc),    \
-    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_rsa),    \
-    TEST_DECL_GROUP("signature", test_wc_falcon_sign_verify),      \
-    TEST_DECL_GROUP("signature", test_wc_SignatureDecisionCoverage), \
-    TEST_DECL_GROUP("signature", test_wc_SignatureFeatureCoverage)
+#define TEST_KDF_DECLS                                       \
+    TEST_DECL_GROUP("kdf", test_wc_KdfDecisionCoverage),      \
+    TEST_DECL_GROUP("kdf", test_wc_KdfFeatureCoverage)
 
-#endif /* WOLFCRYPT_TEST_SIGNATURE_H */
+#endif /* WOLFCRYPT_TEST_KDF_H */

@@ -297,6 +297,22 @@ int test_wc_GenerateSeed(void)
     /* Different configurations have different paths and different errors or
      * no error at all. */
 #ifdef TEST_WC_GENERATE_SEED_PARAMS
+    /* NOTE (GAPS.md residual, line ~5525 "os == NULL || output == NULL"):
+     * TEST_WC_GENERATE_SEED_PARAMS is not defined by any variant in
+     * configs/random/ today. Its header comment cites a real historical
+     * bug -- the generic Linux getrandom()/dev-urandom wc_GenerateSeed()
+     * arm's vDSO getrandom() fast path used to segfault on a NULL output
+     * buffer instead of returning an error. That bug was fixed by
+     * "random: reject NULL output in Unix wc_GenerateSeed" (adds this
+     * exact "os == NULL || output == NULL" guard ahead of any backend
+     * dispatch), and empirically (native --enable-all build, getrandom()
+     * backend) both wc_GenerateSeed(NULL, output, sz) and
+     * wc_GenerateSeed(os, NULL, sz) now return BAD_FUNC_ARG cleanly with no
+     * crash. Defining TEST_WC_GENERATE_SEED_PARAMS in
+     * configs/random/user_settings.base.h (none of this module's variants
+     * select a different OS/HW entropy backend) would safely close this
+     * residual; left undefined here since gap-closing tasks don't modify
+     * the shared campaign config headers -- flagged for the orchestrator. */
     /* Bad parameters. */
     ExpectIntEQ(wc_GenerateSeed(NULL, NULL  , 16),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -1173,5 +1189,156 @@ int test_wc_Entropy_Get(void)
     /* valid call: bits == MAX_ENTROPY_BITS */
     ExpectIntEQ(wc_Entropy_Get(MAX_ENTROPY_BITS, entropy, sizeof(entropy)), 0);
 #endif /* HAVE_ENTROPY_MEMUSE */
+    return EXPECT_RESULT();
+}
+
+/* Consolidated MC/DC decision coverage for the public Hash_DRBG argument
+ * checks that gate the generate/reseed paths: each compound guard is driven
+ * with an independence pair (vary one operand at a time) and paired with a
+ * passing baseline call in the same run. Guarded off for the frozen
+ * FIPS/self-test random.c: several of these argument-rejection paths and the
+ * "sz == 0" early success were added after the v4.1.0 module boundary, so
+ * asserting them there would diverge (frozen-module lesson). */
+int test_wc_DrbgDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    WC_RNG rng;
+    byte   output[24];
+    byte   seed[32];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(output, 0, sizeof(output));
+    XMEMSET(seed, 7, sizeof(seed));
+
+    /* wc_RNG_GenerateByte() delegates to wc_RNG_GenerateBlock(rng, b, 1):
+     * "rng == NULL || output == NULL" -- flip each operand alone. */
+    ExpectIntEQ(wc_RNG_GenerateByte(NULL, output),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                 /* rng NULL */
+
+    ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+
+    ExpectIntEQ(wc_RNG_GenerateByte(&rng, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                 /* output NULL */
+    ExpectIntEQ(wc_RNG_GenerateByte(&rng, output), 0);  /* both non-NULL */
+
+    /* wc_RNG_GenerateBlock(): NULL rng rejected; "sz == 0" is the early
+     * success that never enters the DRBG generate path; a non-zero request
+     * takes the generate path. */
+    ExpectIntEQ(wc_RNG_GenerateBlock(NULL, output, sizeof(output)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, output, 0), 0);          /* sz==0 */
+    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, output, sizeof(output)), 0);
+
+    /* wc_RNG_DRBG_Reseed(): "rng == NULL || seed == NULL" independence pair
+     * then a valid reseed on the initialised RNG (success side). */
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(NULL, seed, sizeof(seed)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, NULL, sizeof(seed)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(&rng, seed, sizeof(seed)), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Positive-path feature coverage that drives the Hash_DRBG_Generate output
+ * loop and the reseed-interval-exceeded decision through the public API.
+ * Varying the requested size exercises the per-block copy-out branch
+ * ("outSz > OUTPUT_BLOCK_LEN" true for multi-block, false for a sub-block
+ * tail); the reseed-interval-exceeded (DRBG_NEED_RESEED -> PollAndReSeed)
+ * branch is forced by setting the active DRBG's reseedCtr to
+ * WC_RESEED_INTERVAL - 1 before a generate (same idiom as
+ * test_wc_RNG_ReseedBoundary) -- the default interval (1,000,000) is far
+ * beyond a bounded test loop, so a simple burst would NOT reach it.
+ * Repeated under both DRBG hash widths when SHA-512 is compiled in. */
+int test_wc_DrbgFeatureCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    WC_RNG rng;
+    byte   big[256];
+    static const word32 sizes[] = { 1, 15, 16, 31, 32, 55, 64, 120, 250 };
+    word32 i;
+    int    j;
+
+    for (j = 0; j < 2; j++) {
+    #if defined(WOLFSSL_DRBG_SHA512) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+        /* j==0: SHA-256 width (disable SHA-512); j==1: SHA-512 width. */
+        if (j == 0)
+            (void)wc_Sha512Drbg_Disable();
+        else
+            (void)wc_Sha256Drbg_Disable();
+    #else
+        if (j == 1)
+            break; /* only one width compiled in */
+    #endif
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID), 0);
+
+        for (i = 0; i < (word32)(sizeof(sizes) / sizeof(sizes[0])); i++) {
+            XMEMSET(big, 0, sizeof(big));
+            ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, sizes[i]), 0);
+        }
+        /* Force the reseed-interval-exceeded path. The default
+         * WC_RESEED_INTERVAL (1,000,000) is unreachable in a bounded loop, so
+         * set the active DRBG's reseedCtr just below the limit and generate
+         * across it, taking DRBG_NEED_RESEED -> PollAndReSeed (same idiom as
+         * test_wc_RNG_ReseedBoundary). Guarded via a probe generate so configs
+         * that bypass the Hash_DRBG path (e.g. --enable-intelrand) skip it. */
+    #ifndef NO_SHA256
+        if (rng.drbgType == WC_DRBG_SHA256) {
+            struct DRBG_internal* drbg = (struct DRBG_internal*)rng.drbg;
+            if (drbg != NULL && rng.status == WC_DRBG_OK) {
+            #ifdef WORD64_AVAILABLE
+                word64 startCtr = drbg->reseedCtr;
+            #else
+                word32 startCtr = drbg->reseedCtr;
+            #endif
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                if (drbg->reseedCtr == startCtr + 1) {
+                    drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg->reseedCtr == 2);
+                }
+            }
+        }
+    #endif
+    #ifdef WOLFSSL_DRBG_SHA512
+        if (rng.drbgType == WC_DRBG_SHA512) {
+            struct DRBG_SHA512_internal* drbg512 =
+                (struct DRBG_SHA512_internal*)rng.drbg512;
+            if (drbg512 != NULL && rng.status == WC_DRBG_OK) {
+                word64 startCtr = drbg512->reseedCtr;
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                if (drbg512->reseedCtr == startCtr + 1) {
+                    drbg512->reseedCtr = WC_RESEED_INTERVAL - 1;
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg512->reseedCtr == WC_RESEED_INTERVAL);
+                    ExpectIntEQ(wc_RNG_GenerateBlock(&rng, big, 32), 0);
+                    ExpectTrue(drbg512->reseedCtr == 2);
+                }
+            }
+        }
+    #endif
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+    #if defined(WOLFSSL_DRBG_SHA512) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+        /* Restore both widths for later tests sharing this process. */
+        (void)wc_Sha256Drbg_Enable();
+        (void)wc_Sha512Drbg_Enable();
+    #endif
+    }
+#endif
     return EXPECT_RESULT();
 }

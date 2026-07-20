@@ -1026,4 +1026,3 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 } /* End test_wc_SpIntExptGcdDecisionCoverage */
-

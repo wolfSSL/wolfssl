@@ -490,3 +490,322 @@ int test_wc_Curve448PrivateKeyToDer_oneasymkey_version(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * MC/DC decision coverage for wolfcrypt/src/curve448.c. Split into several
+ * small functions (rather than one large one) to keep each function's own
+ * locals small, matching the lesson learned on the ecc.c/curve25519.c MC/DC
+ * waves (a single large function tripped a stack-corrupting crash under
+ * -fcoverage-mcdc + -O0).
+ */
+
+/*
+ * wc_curve448_make_pub argument-check decisions (never called directly by
+ * the pre-existing tests): the (pub == NULL || priv == NULL) OR and the
+ * (public_size != PUB || private_size != KEY) OR, each operand independently.
+ */
+int test_wc_curve448_make_pub_argchecks(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448)
+    curve448_key key;
+    WC_RNG       rng;
+    byte         pub[CURVE448_PUB_KEY_SIZE];
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_curve448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key), 0);
+
+    /* all-false: valid direct call. */
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pub), pub,
+        (int)sizeof(key.k), key.k), 0);
+    /* pub == NULL || priv == NULL: each operand's TRUE side (the other
+     * kept valid so the OR does not already short-circuit). */
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pub), NULL,
+        (int)sizeof(key.k), key.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pub), pub,
+        (int)sizeof(key.k), NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* public_size != PUB || private_size != KEY: each operand's TRUE side. */
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pub) - 1, pub,
+        (int)sizeof(key.k), key.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pub), pub,
+        (int)sizeof(key.k) - 1, key.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_make_pub_argchecks */
+
+/*
+ * wc_curve448_check_public little-endian branch: NULL/size guards, the
+ * (i == 0 && (pub[0] == 0 || pub[0] == 1)) low-value compound, the
+ * (i == 28 && pub[28] == 0xff) order rejection, and the
+ * (i == 28 && pub[28] == 0xfe) -> (i == 0 && pub[0] >= 0xfe) high-value
+ * compound, plus their false sides.
+ */
+int test_wc_curve448_check_public_le(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
+    byte buf[CURVE448_PUB_KEY_SIZE];
+
+    /* pub == NULL. */
+    ExpectIntEQ(wc_curve448_check_public(NULL, CURVE448_PUB_KEY_SIZE,
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* pubSz == 0. */
+    ExpectIntEQ(wc_curve448_check_public(buf, 0, EC448_LITTLE_ENDIAN),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    /* pubSz != CURVE448_PUB_KEY_SIZE. */
+    ExpectIntEQ(wc_curve448_check_public(buf, CURVE448_PUB_KEY_SIZE - 1,
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    /* value == 0: i walks down to 0, pub[0] == 0. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* value == 1: i walks down to 0, pub[0] == 1. */
+    XMEMSET(buf, 0, sizeof(buf));
+    buf[0] = 1;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* i reaches 0 but pub[0] is neither 0 nor 1: low compound false side,
+     * and a small value so the order checks also pass -> valid (0). */
+    XMEMSET(buf, 0, sizeof(buf));
+    buf[0] = 2;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), 0);
+    /* order-1 or higher: bytes 55..28 all 0xff -> loop stops at i == 28 with
+     * pub[28] == 0xff -> reject. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* pub[28] == 0xfe with the remaining low bytes all 0xff and
+     * pub[0] >= 0xfe -> inner reject fires. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[28] = 0xfe;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* pub[28] == 0xfe but a lower byte breaks the 0xff run (pub[10] = 0), so
+     * the inner ">= 0xfe at i == 0" reject does NOT fire: false side -> 0. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[28] = 0xfe;
+    buf[10] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), 0);
+    /* i still lands on 28 (bytes 55..29 all 0xff), but pub[28] is neither
+     * 0xff nor 0xfe: independence pair (false side) for the "pub[28] ==
+     * 0xfe" operand of the high-value compound -> no inner check, valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[28] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), 0);
+    /* pub[28] == 0xfe (enters the inner check, i lands on 0 with the low
+     * bytes still all 0xff) but pub[0] is below the 0xfe threshold:
+     * independence pair (false side) for the inner "pub[0] >= 0xfe"
+     * operand -> valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[28] = 0xfe;
+    buf[0] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_LITTLE_ENDIAN), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_check_public_le */
+
+/*
+ * wc_curve448_check_public big-endian branch (the else-side mirror of the
+ * little-endian decisions above).
+ */
+int test_wc_curve448_check_public_be(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
+    byte buf[CURVE448_PUB_KEY_SIZE];
+
+    /* value == 0: i walks up to SIZE-1, pub[SIZE-1] == 0. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* value == 1: pub[SIZE-1] == 1. */
+    XMEMSET(buf, 0, sizeof(buf));
+    buf[CURVE448_PUB_KEY_SIZE - 1] = 1;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* i reaches SIZE-1 but value neither 0 nor 1: low compound false -> 0. */
+    XMEMSET(buf, 0, sizeof(buf));
+    buf[CURVE448_PUB_KEY_SIZE - 1] = 2;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), 0);
+    /* order-1 or higher: bytes 0..27 all 0xff -> loop stops at i == 27 with
+     * pub[27] == 0xff -> reject. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* pub[27] == 0xfe, remaining tail all 0xff, pub[SIZE-1] >= 0xfe ->
+     * inner reject fires. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[27] = 0xfe;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* pub[27] == 0xfe but a tail byte breaks the 0xff run (pub[54] = 0):
+     * inner reject does NOT fire -> 0. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[27] = 0xfe;
+    buf[CURVE448_PUB_KEY_SIZE - 2] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), 0);
+    /* i still lands on 27 (bytes 0..26 all 0xff), but pub[27] is neither
+     * 0xff nor 0xfe: independence pair (false side) for the "pub[27] ==
+     * 0xfe" operand of the high-value compound -> no inner check, valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[27] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), 0);
+    /* pub[27] == 0xfe (enters the inner check, i lands on SIZE-1 with the
+     * tail still all 0xff) but pub[SIZE-1] is below the 0xfe threshold:
+     * independence pair (false side) for the inner "pub[SIZE-1] >= 0xfe"
+     * operand -> valid. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[27] = 0xfe;
+    buf[CURVE448_PUB_KEY_SIZE - 1] = 0x00;
+    ExpectIntEQ(wc_curve448_check_public(buf, sizeof(buf),
+        EC448_BIG_ENDIAN), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_check_public_be */
+
+/*
+ * wc_curve448_shared_secret_ex populated-key compound decision:
+ * (!private_key->privSet || !public_key->pubSet), each operand's TRUE side
+ * individually against otherwise-valid, non-NULL key structs, plus the
+ * little-endian output branch as the all-false side.
+ */
+int test_wc_curve448_shared_secret_keyset_checks(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_SHARED_SECRET)
+    curve448_key priv;
+    curve448_key pub;
+    curve448_key unset_priv;
+    curve448_key unset_pub;
+    WC_RNG       rng;
+    byte         out[CURVE448_KEY_SIZE];
+    word32       outLen;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_curve448_init(&priv), 0);
+    ExpectIntEQ(wc_curve448_init(&pub), 0);
+    ExpectIntEQ(wc_curve448_init(&unset_priv), 0);
+    ExpectIntEQ(wc_curve448_init(&unset_pub), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &priv), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &pub), 0);
+
+    /* !privSet TRUE (fresh unset_priv), pub valid. */
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_curve448_shared_secret_ex(&unset_priv, &pub, out, &outLen,
+        EC448_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* !pubSet TRUE (fresh unset_pub), priv valid. */
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_curve448_shared_secret_ex(&priv, &unset_pub, out, &outLen,
+        EC448_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* all-false: valid call, little-endian output branch. */
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_curve448_shared_secret_ex(&priv, &pub, out, &outLen,
+        EC448_LITTLE_ENDIAN), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve448_free(&priv);
+    wc_curve448_free(&pub);
+    wc_curve448_free(&unset_priv);
+    wc_curve448_free(&unset_pub);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_shared_secret_keyset_checks */
+
+/*
+ * wc_curve448_import_public_ex argument checks: the (key == NULL || in ==
+ * NULL) compound each operand, the inLen size check, and both endian
+ * branches as the all-false side.
+ */
+int test_wc_curve448_import_public_ex_argchecks(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
+    curve448_key key;
+    byte         in[CURVE448_PUB_KEY_SIZE];
+
+    XMEMSET(in, 7, sizeof(in));
+    ExpectIntEQ(wc_curve448_init(&key), 0);
+
+    /* key == NULL || in == NULL: each operand's TRUE side. */
+    ExpectIntEQ(wc_curve448_import_public_ex(in, sizeof(in), NULL,
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_curve448_import_public_ex(NULL, sizeof(in), &key,
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* inLen != CURVE448_PUB_KEY_SIZE. */
+    ExpectIntEQ(wc_curve448_import_public_ex(in, sizeof(in) - 1, &key,
+        EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* all-false, both endians (LE XMEMCPY branch + BE byte-reverse loop). */
+    ExpectIntEQ(wc_curve448_import_public_ex(in, sizeof(in), &key,
+        EC448_LITTLE_ENDIAN), 0);
+    ExpectIntEQ(wc_curve448_import_public_ex(in, sizeof(in), &key,
+        EC448_BIG_ENDIAN), 0);
+    ExpectIntEQ(wc_curve448_import_public(in, sizeof(in), &key), 0);
+
+    wc_curve448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_import_public_ex_argchecks */
+
+/*
+ * Little-endian export/import branches (the non-BIG_ENDIAN XMEMCPY sides of
+ * wc_curve448_export_private_raw_ex/export_public_ex/import_private_ex) and
+ * the wc_curve448_export_public_ex "!pubSet -> internal make_pub" branch.
+ */
+int test_wc_curve448_export_import_endian(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT) && \
+    defined(HAVE_CURVE448_KEY_IMPORT)
+    curve448_key key;
+    curve448_key imp;
+    WC_RNG       rng;
+    byte         priv[CURVE448_KEY_SIZE] = {0};
+    byte         pub[CURVE448_PUB_KEY_SIZE] = {0};
+    word32       privSz = sizeof(priv);
+    word32       pubSz = sizeof(pub);
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_curve448_init(&key), 0);
+    ExpectIntEQ(wc_curve448_init(&imp), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key), 0);
+
+    /* Little-endian export branches. */
+    ExpectIntEQ(wc_curve448_export_private_raw_ex(&key, priv, &privSz,
+        EC448_LITTLE_ENDIAN), 0);
+    ExpectIntEQ(wc_curve448_export_public_ex(&key, pub, &pubSz,
+        EC448_LITTLE_ENDIAN), 0);
+    /* Little-endian import branch (+ clamp). */
+    ExpectIntEQ(wc_curve448_import_private_ex(priv, privSz, &imp,
+        EC448_LITTLE_ENDIAN), 0);
+
+    /* export_public_ex with !pubSet: a private-only key forces the internal
+     * wc_curve448_make_pub path that computes and sets key->p. */
+    wc_curve448_free(&imp);
+    ExpectIntEQ(wc_curve448_init(&imp), 0);
+    ExpectIntEQ(wc_curve448_import_private_ex(priv, privSz, &imp,
+        EC448_LITTLE_ENDIAN), 0);
+    pubSz = sizeof(pub);
+    ExpectIntEQ(wc_curve448_export_public_ex(&imp, pub, &pubSz,
+        EC448_BIG_ENDIAN), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve448_free(&key);
+    wc_curve448_free(&imp);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve448_export_import_endian */
+

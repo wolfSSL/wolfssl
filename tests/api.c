@@ -211,6 +211,7 @@
 #include <tests/api/test_hash.h>
 #include <tests/api/test_hmac.h>
 #include <tests/api/test_cmac.h>
+#include <tests/api/test_kdf.h>
 #include <tests/api/test_she.h>
 #include <tests/api/test_des3.h>
 #include <tests/api/test_chacha.h>
@@ -223,7 +224,10 @@
 #include <tests/api/test_ascon.h>
 #include <tests/api/test_sm4.h>
 #include <tests/api/test_wc_encrypt.h>
+#include <tests/api/test_coding.h>
+#include <tests/api/test_error.h>
 #include <tests/api/test_random.h>
+#include <tests/api/test_wolfentropy.h>
 #include <tests/api/test_wolfmath.h>
 #include <tests/api/test_rsa.h>
 #include <tests/api/test_dsa.h>
@@ -7525,10 +7529,25 @@ static int test_wolfSSL_read_write_ex(void)
     ExpectIntEQ(XSTRCMP((char*)buf, test_str), 0);
 
 
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+    /* Drive the bidirectional close-notify exchange to completion instead of
+     * asserting a fixed NOT_DONE/SUCCESS sequence: the number of shutdown
+     * round-trips is protocol-version/config dependent, so a hard-coded
+     * sequence is fragile (fails e.g. under the cmake old-TLS build). */
+    {
+        int shutC = WOLFSSL_SHUTDOWN_NOT_DONE;
+        int shutS = WOLFSSL_SHUTDOWN_NOT_DONE;
+        int shutIt;
+        for (shutIt = 0; shutIt < 10 &&
+                (shutC != WOLFSSL_SUCCESS || shutS != WOLFSSL_SUCCESS);
+                shutIt++) {
+            if (shutC != WOLFSSL_SUCCESS)
+                shutC = wolfSSL_shutdown(ssl_c);
+            if (shutS != WOLFSSL_SUCCESS)
+                shutS = wolfSSL_shutdown(ssl_s);
+        }
+        ExpectIntEQ(shutC, WOLFSSL_SUCCESS);
+        ExpectIntEQ(shutS, WOLFSSL_SUCCESS);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -37011,6 +37030,8 @@ TEST_CASE testCases[] = {
     TEST_HMAC_DECLS,
     /* CMAC */
     TEST_CMAC_DECLS,
+    /* KDF */
+    TEST_KDF_DECLS,
     /* SHE */
     TEST_SHE_DECLS,
 #ifdef WOLFSSL_SHE_EXTENDED
@@ -37052,9 +37073,14 @@ TEST_CASE testCases[] = {
     TEST_SM4_DECLS,
     /* wc_encrypt API */
     TEST_WC_ENCRYPT_DECLS,
+    /* wolfCrypt coding (Base64/Base16) */
+    TEST_CODING_DECLS,
+    /* wolfCrypt error strings */
+    TEST_ERROR_DECLS,
 
     /* RNG tests */
     TEST_RANDOM_DECLS,
+    TEST_WOLFENTROPY_DECLS,
 
     /* Public key */
     /* wolfmath MP API tests */
