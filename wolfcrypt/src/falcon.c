@@ -267,6 +267,19 @@ WOLFSSL_LOCAL void falcon_poly_merge_fft_avx2(fpr* f, const fpr* f0,
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* Every fpr backend except the default integer-emulated one runs on the
+ * FP/vector register file: the scalar-double backend and the generated x86-64
+ * fpr asm use x87/SSE (xmm), and the AVX2/NEON FFT uses ymm / Q vector
+ * registers. Such a build must save and restore those registers around signing
+ * and keygen -- for kernel FPU state under WOLFSSL_LINUXKM and for the
+ * DEBUG_VECTOR_REGISTER_ACCESS check. The emulated backend is integer-only and
+ * needs none of this. (AVX2/NEON imply FPR_DOUBLE, but list them for builds
+ * that set the FFT backend directly via user_settings.h.) */
+#if defined(WOLFSSL_FALCON_FPR_DOUBLE) || defined(WOLFSSL_FALCON_FPR_ASM) || \
+    defined(WOLFSSL_FALCON_FFT_AVX2)   || defined(WOLFSSL_FALCON_FFT_NEON)
+    #define WOLFSSL_FALCON_SAVE_VREGS
+#endif
+
 /* ==== Native Falcon core (merged from the former wc_falcon_*.c). The AVX2 and
    NEON FFT backends are folded in at the end of this file (gated by
    WOLFSSL_FALCON_FFT_AVX2 / _NEON); only the generated fpr x86-64 asm
@@ -8170,7 +8183,19 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
         goto out;
     }
 
+    /* falcon_keygen runs the vectorized (AVX2/NEON) FFT for the Gram/norm
+     * checks; hold the vector registers just for that call (kernel FPU state
+     * and the vector-register access check). The encoding below is integer. */
+#ifdef WOLFSSL_FALCON_SAVE_VREGS
+    ret = SAVE_VECTOR_REGISTERS2();
+    if (ret != 0) {
+        goto out;
+    }
+#endif
     ret = falcon_keygen(rng, f, g, F, G, h, logn);
+#ifdef WOLFSSL_FALCON_SAVE_VREGS
+    RESTORE_VECTOR_REGISTERS();
+#endif
     if (ret != 0) {
         goto out;
     }
@@ -8222,6 +8247,9 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     void* heap;
     int attempt, haveSpc = 0;
     size_t compLen = 0;
+#ifdef WOLFSSL_FALCON_SAVE_VREGS
+    int svr = 0;                    /* vector registers held for the FFT path */
+#endif
 
     if ((in == NULL && inLen != 0) || out == NULL || outLen == NULL ||
             key == NULL || rng == NULL) {
@@ -8291,6 +8319,18 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     if (ret != 0) {
         goto out;
     }
+#ifdef WOLFSSL_FALCON_SAVE_VREGS
+    /* The key completion, ffLDL tree build and ffSampling below run the
+     * vectorized (AVX2/NEON) FFT and pointwise kernels. Hold the vector
+     * registers for the whole region: required for kernel FPU state and for the
+     * vector-register access check. Nested saves inside SHAKE256 are
+     * reference-counted, so this outer save is the only real one. */
+    ret = SAVE_VECTOR_REGISTERS2();
+    if (ret != 0) {
+        goto out;
+    }
+    svr = 1;
+#endif
     ret = falcon_complete_private(G, f, g, F, logn, heap);
     if (ret != 0) {
         goto out;
@@ -8350,6 +8390,11 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     *outLen = (word32)(1 + FALCON_NONCE_SIZE + compLen);
 
 out:
+#ifdef WOLFSSL_FALCON_SAVE_VREGS
+    if (svr) {
+        RESTORE_VECTOR_REGISTERS();
+    }
+#endif
     /* Free the sampler's SHAKE256 context before zeroizing. wc_Shake256_Free
      * releases the async device context allocated by wc_InitShake256 in
      * WOLFSSL_ASYNC_CRYPT builds; without it that context leaks on every sign.
