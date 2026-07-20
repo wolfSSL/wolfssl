@@ -257,6 +257,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 #endif
 
     ctx->left = 0; /* resets state */
+    ctx->keySet = 1;
 
     return 0;
 }
@@ -369,6 +370,9 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 {
     if (ctx == NULL || input == NULL || output == NULL)
         return BAD_FUNC_ARG;
+
+    if (!ctx->keySet)
+        return MISSING_KEY;
 
 #ifdef USE_INTEL_CHACHA_SPEEDUP
     /* handle left overs */

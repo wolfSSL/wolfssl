@@ -32,6 +32,7 @@ int test_wc_Chacha_CounterOverflow(void);
 int test_wc_Chacha_InPlace(void);
 int test_wc_Chacha_UnalignedBuffers(void);
 int test_wc_Chacha_XChachaSetKey(void);
+int test_wc_Chacha_MissingKey(void);
 
 #define TEST_CHACHA_DECLS                                               \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_SetKey),                   \
@@ -41,6 +42,7 @@ int test_wc_Chacha_XChachaSetKey(void);
     TEST_DECL_GROUP("chacha", test_wc_Chacha_CounterOverflow),          \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_InPlace),                  \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_UnalignedBuffers),         \
-    TEST_DECL_GROUP("chacha", test_wc_Chacha_XChachaSetKey)
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_XChachaSetKey),            \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_MissingKey)
 
 #endif /* WOLFCRYPT_TEST_CHACHA_H */
