@@ -3969,6 +3969,10 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   int j = 0;
   int x;
 
+  if (c < 0) {
+      return FP_VAL;
+  }
+
   for (x=c-1; x >= 0 && i < a->used; x--) {
      b[x] = (unsigned char)(a->dp[i] >> j);
      j += 8;
@@ -3989,6 +3993,10 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 #else
   int     x;
    WC_DECLARE_VAR(t, fp_int, 1, 0);
+
+  if (c < 0) {
+      return FP_VAL;
+  }
 
    WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
@@ -4071,7 +4079,7 @@ int fp_is_bit_set (fp_int *a, fp_digit b)
 {
     fp_digit i;
 
-    if (b > FP_MAX_BITS)
+    if (b >= FP_MAX_BITS)
         return FP_VAL;
 
     i = b/DIGIT_BIT;
@@ -4087,7 +4095,7 @@ int fp_set_bit (fp_int * a, fp_digit b)
 {
     fp_digit i;
 
-    if (b > FP_MAX_BITS)
+    if (b >= FP_MAX_BITS)
         return FP_VAL;
 
     i = b/DIGIT_BIT;
