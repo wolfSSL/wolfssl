@@ -5557,39 +5557,42 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     if ((args->idx - args->begin) + OPAQUE16_LEN > helloSz) {
+        /* Fewer than OPAQUE16_LEN bytes remain after the compression method, so
+         * there is no complete extensions length field. */
+        if ((args->idx - args->begin) < helloSz) {
+            /* A partial extensions length field is genuinely malformed: report
+             * it as a decode error regardless of message type. */
+            WOLFSSL_MSG("Truncated extensions length in ServerHello");
+            return BUFFER_ERROR;
+        }
+
+        /* No extensions field at all. */
+        if (args->extMsgType == hello_retry_request) {
+            /* The sentinel Random (RFC 8446 4.1.3) identifies this as a TLS 1.3
+             * HelloRetryRequest, which MUST carry supported_versions
+             * (4.2.1/9.2). Its complete absence is a missing mandatory
+             * extension, so - consistently with the extensions-present case
+             * handled later - report it as missing_extension (via
+             * INCOMPLETE_DATA), regardless of whether a downgrade would
+             * otherwise be allowed. Reject here before DoServerHello would
+             * reinterpret the sentinel as a plain TLS 1.2 ServerHello.Random. */
+            WOLFSSL_MSG("HelloRetryRequest with no supported_versions");
+            WOLFSSL_ERROR_VERBOSE(INCOMPLETE_DATA);
+            return INCOMPLETE_DATA;
+        }
+
         if (!ssl->options.downgrade) {
-            /* Fewer than OPAQUE16_LEN bytes remain after the compression
-             * method, so there is no complete extensions length field. */
-            if ((args->idx - args->begin) < helloSz) {
-                /* A partial extensions length field is genuinely malformed:
-                 * report it as a decode error. */
-                WOLFSSL_MSG("Truncated extensions length in ServerHello");
-                return BUFFER_ERROR;
-            }
-            /* No extensions field at all, so the server is not offering TLS 1.3
-             * (no supported_versions extension - see RFC 8446 4.2.1) but TLS 1.2
-             * or below. This is a well-formed message, so a TLS 1.3-only client
-             * (downgrade disabled) must reject it as a version mismatch, not as
-             * a malformed message. Returning VERSION_ERROR makes the caller send
-             * a protocol_version alert (RFC 8446 6.2) rather than decode_error. */
+            /* A plain ServerHello with no extensions is not offering TLS 1.3
+             * (no supported_versions extension - see RFC 8446 4.2.1) but TLS
+             * 1.2 or below. This is a well-formed message, so a TLS 1.3-only
+             * client (downgrade disabled) must reject it as a version mismatch,
+             * not as a malformed message. Returning VERSION_ERROR makes the
+             * caller send a protocol_version alert (RFC 8446 6.2) rather than
+             * decode_error. */
             WOLFSSL_MSG("Server offered TLS 1.2 (no supported_versions ext) "
                         "but downgrade not allowed");
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
-        }
-
-        if (args->extMsgType == hello_retry_request) {
-            /* The sentinel Random (RFC 8446 4.1.3) identifies this as a TLS 1.3
-             * HelloRetryRequest, which MUST carry supported_versions
-             * (4.1.4/4.2.1). Reaching this downgrade branch means it does not,
-             * so the HRR is malformed. Reject it before DoServerHello would
-             * reinterpret the sentinel as a plain TLS 1.2 ServerHello.Random.
-             * The sentinel has already identified this as an HRR, so report it
-             * uniformly as an invalid HRR; INVALID_PARAMETER maps to the
-             * illegal_parameter alert. */
-            WOLFSSL_MSG("HelloRetryRequest with no supported_versions");
-            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
-            return INVALID_PARAMETER;
         }
 #ifndef WOLFSSL_NO_TLS12
         /* Force client hello version 1.2 to work for static RSA. */

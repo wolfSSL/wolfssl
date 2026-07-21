@@ -6354,8 +6354,9 @@ int test_tls13_warning_alert_is_fatal(void)
 /* Regression test for a malformed HelloRetryRequest sent to a downgrade capable
  * (TLS 1.2 and TLS 1.3) client. Both crafted messages bear the HelloRetryRequest
  * sentinel Random but omit supported_versions, which an HRR MUST carry, so the
- * client must reject them with illegal_parameter (RFC 8446 Sec. 4.1.4/4.2)
- * rather than downgrading to TLS 1.2 and losing the HRR context:
+ * client must reject them with missing_extension (RFC 8446 Sec. 4.1.4/4.2.1/9.2
+ * - a missing mandatory extension) rather than downgrading to TLS 1.2 and losing
+ * the HRR context:
  *   1. has-extensions form: carries a server_name extension (recognized but not
  *      permitted in an HRR). Before the fix the downgrade reparsed it as a plain
  *      server_hello, where server_name is allowed, and the client wrongly sent
@@ -6466,7 +6467,7 @@ int test_tls13_hrr_recognized_ext_downgrade(void)
     ctx_c = NULL;
 
     /* Scenario 2: HelloRetryRequest sentinel with no extensions field at all.
-     * Must also be rejected with illegal_parameter rather than downgraded. */
+     * Must also be rejected with missing_extension rather than downgraded. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     XMEMSET(&h, 0, sizeof(h));
 
@@ -6476,14 +6477,15 @@ int test_tls13_hrr_recognized_ext_downgrade(void)
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
         (const char *)hrr_no_ext, sizeof(hrr_no_ext)), 0);
 
-    /* No offending extension is present here, so the client reports the message
-     * as an invalid HRR; the wire alert is still illegal_parameter. */
+    /* An HRR with no extensions field at all is still missing the mandatory
+     * supported_versions extension, so - consistently with scenario 1 - the
+     * client aborts with missing_extension (RFC 8446 4.2.1/9.2). */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
-        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+        WC_NO_ERR_TRACE(INCOMPLETE_DATA));
 
     ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
-    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.code, missing_extension);
     ExpectIntEQ(h.last_tx.level, alert_fatal);
 
     wolfSSL_free(ssl_c);
