@@ -9240,7 +9240,11 @@ int test_wc_AesGcmArgMcdc(void)
         ExpectIntEQ(wc_AesGcmSetIV(&aes, 10, NULL, 0, &rng),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, NULL, 0, &rng),
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+            WC_FIPS_NOT_APPROVED);
+#else
             0);
+#endif
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, &rng),
             0);
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, NULL, 0, &rng),
