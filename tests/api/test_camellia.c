@@ -77,8 +77,11 @@ int test_wc_CamelliaSetKey(void)
     ExpectIntEQ(wc_CamelliaSetKey(&camellia, key32, (word32)sizeof(key32),
         NULL), 0);
 
-    /* Bad args. */
+    /* Bad args. MC/DC: exercise each operand of (cam == NULL || key == NULL)
+     * independently so both short-circuit halves are covered. */
     ExpectIntEQ(wc_CamelliaSetKey(NULL, key32, (word32)sizeof(key32), iv),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_CamelliaSetKey(&camellia, NULL, (word32)sizeof(key32), iv),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
     return EXPECT_RESULT();

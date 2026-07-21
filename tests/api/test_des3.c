@@ -292,6 +292,76 @@ int test_wc_Des3_EcbEncrypt(void)
     return EXPECT_RESULT();
 } /* END test_wc_Des3_EcbEncrypt */
 
+/*
+ * MC/DC coverage for the single-DES (wc_Des_*) API. The 3DES tests above never
+ * touch single DES, leaving the per-operand NULL checks in wc_Des_CbcEncrypt /
+ * wc_Des_CbcDecrypt / wc_Des_EcbEncrypt and the (des && iv) decision in
+ * wc_Des_SetIV uncovered. Exercise each operand's independence pair plus a
+ * round trip.
+ */
+int test_wc_Des_CbcEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_DES3
+    Des        des;
+    byte       cipher[DES_BLOCK_SIZE];
+    byte       plain[DES_BLOCK_SIZE];
+    const byte key[DES_BLOCK_SIZE] =
+        { 0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef };
+    const byte iv[DES_BLOCK_SIZE] =
+        { 0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef };
+    const byte vector[DES_BLOCK_SIZE] =
+        { 0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74 };
+
+    XMEMSET(&des, 0, sizeof(Des));
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ExpectIntEQ(wc_Des_SetKey(&des, key, iv, DES_ENCRYPTION), 0);
+
+    /* wc_Des_CbcEncrypt: each operand of (des == NULL || out == NULL ||
+     * in == NULL) driven false individually so all three short-circuit halves
+     * are covered. */
+    ExpectIntEQ(wc_Des_CbcEncrypt(NULL, cipher, vector, sizeof(vector)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcEncrypt(&des, NULL, vector, sizeof(vector)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcEncrypt(&des, cipher, NULL, sizeof(vector)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcEncrypt(&des, cipher, vector, sizeof(vector)), 0);
+
+    /* wc_Des_CbcDecrypt: same three operands + round-trip check. */
+    ExpectIntEQ(wc_Des_CbcDecrypt(NULL, plain, cipher, sizeof(cipher)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcDecrypt(&des, NULL, cipher, sizeof(cipher)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_CbcDecrypt(&des, plain, NULL, sizeof(cipher)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_SetKey(&des, key, iv, DES_DECRYPTION), 0);
+    ExpectIntEQ(wc_Des_CbcDecrypt(&des, plain, cipher, sizeof(cipher)), 0);
+    ExpectBufEQ(plain, vector, sizeof(vector));
+
+#ifdef WOLFSSL_DES_ECB
+    /* wc_Des_EcbEncrypt: same three operands + a good case. */
+    ExpectIntEQ(wc_Des_EcbEncrypt(NULL, cipher, vector, sizeof(vector)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_EcbEncrypt(&des, NULL, vector, sizeof(vector)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_EcbEncrypt(&des, cipher, NULL, sizeof(vector)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Des_EcbEncrypt(&des, cipher, vector, sizeof(vector)), 0);
+#endif
+
+    /* wc_Des_SetIV: (des && iv) both operands. True case, then each half
+     * driven false (des == NULL, then iv == NULL). Returns void; called for
+     * decision coverage only. */
+    wc_Des_SetIV(&des, iv);
+    wc_Des_SetIV(NULL, iv);
+    wc_Des_SetIV(&des, NULL);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Des_CbcEncryptDecrypt */
+
 
 #include <wolfssl/wolfcrypt/random.h>
 
