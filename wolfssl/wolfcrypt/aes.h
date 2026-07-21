@@ -331,14 +331,21 @@ struct Aes {
         #define WC_FLAG_DONT_USE_VECTOR_OPS 2
     #endif
 #endif /* WOLFSSL_AESNI */
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+/* Run-time implementation-selection flags.  Present when a hardware-crypto and
+ * a fallback implementation are both compiled in and chosen at run time: always
+ * on AArch64, and on 32-bit Arm unless the base fallback is dropped
+ * (WOLFSSL_ARMASM_NO_BASE_IMPL) or crypto is disabled. */
+#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    (defined(__aarch64__) || !defined(WOLFSSL_ARMASM_NO_BASE_IMPL))
     byte use_aes_hw_crypto;
 #ifdef HAVE_AESGCM
     byte use_pmull_hw_crypto;
+#ifdef __aarch64__
     byte use_sha3_hw_crypto;
 #endif
-#endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
+#endif /* WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO &&
+        * (__aarch64__ || !WOLFSSL_ARMASM_NO_BASE_IMPL) */
 #if defined(WOLF_CRYPTO_CB)
     int    devId;
     void*  devCtx;  /* Opaque handle for CryptoCB device */
@@ -937,7 +944,11 @@ WOLFSSL_API int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz);
 #endif
 
 #if defined(WOLFSSL_ARMASM)
-#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+/* Base (table) AES is available on AArch64, in a no-crypto build, and in a
+ * 32-bit crypto build that keeps the base fallback for run-time selection
+ * (i.e. unless WOLFSSL_ARMASM_NO_BASE_IMPL drops it). */
+#if defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+    !defined(WOLFSSL_ARMASM_NO_BASE_IMPL)
 WOLFSSL_LOCAL void AES_set_encrypt_key(const unsigned char* key, word32 len,
     unsigned char* ks);
 WOLFSSL_LOCAL void AES_invert_key(unsigned char* ks, word32 rounds);
