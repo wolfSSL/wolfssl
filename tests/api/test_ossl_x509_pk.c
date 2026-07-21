@@ -342,6 +342,66 @@ int test_wolfSSL_X509_set_pubkey(void)
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && !defined(WOLFSSL_NO_ML_DSA_44)
+    {
+        WOLFSSL_BIO* bio = NULL;
+        WOLFSSL_EVP_PKEY* pubkey = NULL;
+
+        /* EVP_PKEY with no key data */
+        ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+        if (pkey != NULL) {
+            pkey->type = WC_EVP_PKEY_DILITHIUM;
+        }
+        ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_FAILURE);
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+
+        /* ML-DSA key loaded from file */
+        ExpectNotNull(bio = wolfSSL_BIO_new_file(
+            "./certs/mldsa/mldsa44-key.pem", "rb"));
+        ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL,
+            NULL));
+        wolfSSL_BIO_free(bio);
+        bio = NULL;
+        ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_SUCCESS);
+
+        /* public key can be retrieved and has the right type */
+        ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pubkey), WC_EVP_PKEY_DILITHIUM);
+        wolfSSL_EVP_PKEY_free(pubkey);
+        pubkey = NULL;
+
+    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_PWDBASED) && \
+        !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+        /* sign and verify round trip with the ML-DSA key */
+        {
+            WOLFSSL_X509_NAME* name = NULL;
+
+            ExpectNotNull(name = wolfSSL_X509_NAME_new());
+            ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "CN",
+                MBSTRING_UTF8, (const byte*)"mldsa-test", -1, -1, 0),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name),
+                WOLFSSL_SUCCESS);
+            wolfSSL_X509_NAME_free(name);
+
+            ExpectIntGT(wolfSSL_X509_sign(x509, pkey, wolfSSL_EVP_sha256()),
+                0);
+            ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+            ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
+            wolfSSL_EVP_PKEY_free(pubkey);
+            pubkey = NULL;
+        }
+    #endif
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif /* WOLFSSL_HAVE_MLDSA */
 
     wolfSSL_X509_free(x509);
 #endif
