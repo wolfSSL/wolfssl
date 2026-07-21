@@ -9152,6 +9152,10 @@ int wc_falcon_export_private_only(falcon_key* key, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
     }
 
+    if (!key->prvKeySet) {
+        return BAD_FUNC_ARG;
+    }
+
     /* check and set up out length */
     if ((key->level == 1) && (*outLen < FALCON_LEVEL1_KEY_SIZE)) {
         *outLen = FALCON_LEVEL1_KEY_SIZE;
@@ -9192,6 +9196,10 @@ int wc_falcon_export_private(falcon_key* key, byte* out, word32* outLen)
     }
 
     if ((key->level != 1) && (key->level != 5)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (!key->prvKeySet) {
         return BAD_FUNC_ARG;
     }
 

@@ -755,6 +755,13 @@ int test_wc_falcon_error_paths(void)
     outLen = (word32)sizeof(out);
     ExpectIntEQ(wc_falcon_export_public(&key, out, &outLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* level set but no private key -> BAD_FUNC_ARG. */
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private_only(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     wc_falcon_free(&key);
 
     /* check_key / size: NULL. */
