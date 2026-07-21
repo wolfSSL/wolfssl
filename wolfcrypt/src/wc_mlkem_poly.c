@@ -5073,18 +5073,22 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             sword16 t14 = TO_COMP_WORD_10(v, i, j, 14);
             sword16 t15 = TO_COMP_WORD_10(v, i, j, 15);
 
-            word32* r32 = (word32*)r;
             /* Pack sixteen 10-bit values into byte array. */
-            r32[0] =  (word32)t0         | ((word32)t1  << 10) |
-                     ((word32)t2  << 20) | ((word32)t3  << 30);
-            r32[1] = ((word32)t3  >>  2) | ((word32)t4  <<  8) |
-                     ((word32)t5  << 18) | ((word32)t6  << 28);
-            r32[2] = ((word32)t6  >>  4) | ((word32)t7  <<  6) |
-                     ((word32)t8  << 16) | ((word32)t9  << 26);
-            r32[3] = ((word32)t9  >>  6) | ((word32)t10 <<  4) |
-                     ((word32)t11 << 14) | ((word32)t12 << 24);
-            r32[4] = ((word32)t12 >>  8) | ((word32)t13 <<  2) |
-                     ((word32)t14 << 12) | ((word32)t15 << 22);
+            writeUnalignedWord32(r +  0,
+                 (word32)t0         | ((word32)t1  << 10) |
+                ((word32)t2  << 20) | ((word32)t3  << 30));
+            writeUnalignedWord32(r +  4,
+                ((word32)t3  >>  2) | ((word32)t4  <<  8) |
+                ((word32)t5  << 18) | ((word32)t6  << 28));
+            writeUnalignedWord32(r +  8,
+                ((word32)t6  >>  4) | ((word32)t7  <<  6) |
+                ((word32)t8  << 16) | ((word32)t9  << 26));
+            writeUnalignedWord32(r + 12,
+                ((word32)t9  >>  6) | ((word32)t10 <<  4) |
+                ((word32)t11 << 14) | ((word32)t12 << 24));
+            writeUnalignedWord32(r + 16,
+                ((word32)t12 >>  8) | ((word32)t13 <<  2) |
+                ((word32)t14 << 12) | ((word32)t15 << 22));
 
             /* Move over set bytes. */
             r += 20;
