@@ -387,8 +387,8 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
 {
     int ret = 0;
 #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
-    /* SE050 TLS users store a word32 at id, need to cast back */
-    word32* keyPtr = NULL;
+    /* SE050 TLS users store a word32 at id, need to read it back */
+    word32 keyId = 0;
 #endif
 
     if (key == NULL)
@@ -403,8 +403,8 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
     #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         /* Set SE050 ID from word32, populate RsaKey with public from SE050 */
         if (len == (int)sizeof(word32)) {
-            keyPtr = (word32*)key->id;
-            ret = wc_RsaUseKeyId(key, *keyPtr, 0);
+            keyId = readUnalignedWord32(key->id);
+            ret = wc_RsaUseKeyId(key, keyId, 0);
         }
     #endif
     }
