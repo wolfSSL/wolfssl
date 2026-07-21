@@ -153,6 +153,10 @@ int test_mp_rand(void)
     ExpectIntEQ(mp_rand(&a, digits, NULL), WC_NO_ERR_TRACE(MISSING_RNG_E));
     ExpectIntEQ(mp_rand(NULL, digits, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(mp_rand(&a, 0, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* digits greater than the mp_int's capacity (a->size / FP_SIZE) is
+     * rejected: drives the "digits > size" operand of that guard true (the
+     * valid call below drives it false). Backend-agnostic: expect any error. */
+    ExpectIntNE(mp_rand(&a, 100000, &rng), 0);
     ExpectIntEQ(mp_rand(&a, digits, &rng), 0);
 
     mp_clear(&a);
@@ -180,6 +184,12 @@ int test_wc_export_int(void)
     ExpectIntEQ(mp_set(&mp, 1234), 0);
 
     ExpectIntEQ(wc_export_int(NULL, buf, &len, keySz, WC_TYPE_UNSIGNED_BIN),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Drive the buf==NULL and len==NULL operands of the NULL guard
+     * individually (the mp==NULL operand above already covers the first). */
+    ExpectIntEQ(wc_export_int(&mp, NULL, &len, keySz, WC_TYPE_UNSIGNED_BIN),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_export_int(&mp, buf, NULL, keySz, WC_TYPE_UNSIGNED_BIN),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     len = sizeof(buf)-1;
     ExpectIntEQ(wc_export_int(&mp, buf, &len, keySz, WC_TYPE_UNSIGNED_BIN),
