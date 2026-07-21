@@ -2463,6 +2463,31 @@ int test_tls13_cipher_suites(void)
     return EXPECT_RESULT();
 }
 
+int test_tls13_cipher_list_no_tls13_ctx(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    WOLFSSL_CTX* ctx = NULL;
+
+    /* ctx->method caps the connection at TLS 1.2, so a cipher list that
+     * names only TLS 1.3 suites can never take effect on it. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+#ifdef WOLFSSL_STRICT_CIPHER_LIST
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES128-GCM-SHA256"),
+        WOLFSSL_FAILURE);
+#else
+    /* Default OpenSSL-compat behavior: succeed but leave ctx->suites
+     * untouched since the TLS 1.3-only list is unusable on this ctx. */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+#endif
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)\
     && !defined(NO_PSK)
