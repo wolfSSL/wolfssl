@@ -899,6 +899,13 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
     }
 
     InitDecodedCRL(dcrl, crl->heap);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (crl->cm != NULL) {
+        dcrl->unknownExtCallback      = crl->cm->crlUnknownExtCallback;
+        dcrl->unknownExtCallbackEx    = crl->cm->crlUnknownExtCallbackEx;
+        dcrl->unknownExtCallbackExCtx = crl->cm->crlUnknownExtCallbackExCtx;
+    }
+#endif
     ret = ParseCRL(currentEntry->certs, dcrl, myBuffer, (word32)sz,
                    verify, crl->cm);
 
@@ -1224,6 +1231,13 @@ int GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
     }
 
     InitDecodedCRL(dcrl, crl->heap);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (crl->cm != NULL) {
+        dcrl->unknownExtCallback      = crl->cm->crlUnknownExtCallback;
+        dcrl->unknownExtCallbackEx    = crl->cm->crlUnknownExtCallbackEx;
+        dcrl->unknownExtCallbackExCtx = crl->cm->crlUnknownExtCallbackExCtx;
+    }
+#endif
     ret = ParseCRL(crle->certs, dcrl, myBuffer, (word32)sz,
                    0, crl->cm);
     if (ret != 0 && !(ret == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E))) {
