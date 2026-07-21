@@ -830,9 +830,7 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
     byte* pub, word32 *pubSz);
 #endif
 
-#ifndef WOLFSSL_MLDSA_NO_ASN1
 WOLFSSL_LOCAL int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat);
-#endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)

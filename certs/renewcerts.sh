@@ -1287,6 +1287,45 @@ EOF
 
         rm -f mldsa/ecc-leaf-mldsa44.csr mldsa/ecc-leaf.ext mldsa/mldsa44-cert.srl
         echo "End of ecc-leaf-mldsa44 section"
+
+        # Cross-level chain (ML-DSA-65 leaf signed by an ML-DSA-87 CA); tests
+        # that verification uses the verifying key's own ML-DSA level, not
+        # the leaf's.
+        echo "Generating mldsa87-ca / mldsa65-leaf87ca cross-level chain..."
+
+        "$OPENSSL3" genpkey -algorithm ML-DSA-87 -out mldsa/mldsa87-ca-key.pem
+        check_result $? "mldsa87-ca key generation"
+
+        "$OPENSSL3" req -x509 -new -key mldsa/mldsa87-ca-key.pem -days 3650 \
+            -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/CN=ML-DSA-87 CA" \
+            -out mldsa/mldsa87-ca-cert.pem
+        check_result $? "mldsa87-ca certificate generation"
+
+        "$OPENSSL3" genpkey -algorithm ML-DSA-65 \
+            -out mldsa/mldsa65-leaf87ca-key.pem
+        check_result $? "mldsa65-leaf87ca key generation"
+
+        "$OPENSSL3" req -new -key mldsa/mldsa65-leaf87ca-key.pem \
+            -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/CN=ML-DSA-65 leaf signed by ML-DSA-87" \
+            -out mldsa/leaf87ca.csr
+        check_result $? "mldsa65-leaf87ca request"
+
+        "$OPENSSL3" x509 -req -in mldsa/leaf87ca.csr \
+            -CA mldsa/mldsa87-ca-cert.pem -CAkey mldsa/mldsa87-ca-key.pem \
+            -CAcreateserial -days 3650 \
+            -out mldsa/mldsa65-leaf87ca-cert.pem
+        check_result $? "mldsa65-leaf87ca certificate generation"
+
+        "$OPENSSL3" x509 -in mldsa/mldsa87-ca-cert.pem -outform DER \
+            -out mldsa/mldsa87-ca-cert.der
+        check_result $? "mldsa87-ca DER conversion"
+
+        "$OPENSSL3" x509 -in mldsa/mldsa65-leaf87ca-cert.pem -outform DER \
+            -out mldsa/mldsa65-leaf87ca-cert.der
+        check_result $? "mldsa65-leaf87ca DER conversion"
+
+        rm -f mldsa/leaf87ca.csr mldsa/mldsa87-ca-cert.srl
+        echo "End of cross-level chain section"
         echo "---------------------------------------------------------------------"
     else
         echo "Skipping ML-DSA cert generation (no OpenSSL 3.5+ built-in ML-DSA provider found)"

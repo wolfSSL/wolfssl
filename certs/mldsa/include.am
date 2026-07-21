@@ -38,6 +38,12 @@ EXTRA_DIST += \
 		 certs/mldsa/mldsa87-key.der \
 		 certs/mldsa/mldsa87-cert.pem \
 		 certs/mldsa/mldsa87-cert.der \
+		 certs/mldsa/mldsa87-ca-key.pem \
+		 certs/mldsa/mldsa87-ca-cert.pem \
+		 certs/mldsa/mldsa87-ca-cert.der \
+		 certs/mldsa/mldsa65-leaf87ca-key.pem \
+		 certs/mldsa/mldsa65-leaf87ca-cert.pem \
+		 certs/mldsa/mldsa65-leaf87ca-cert.der \
 		 certs/mldsa/bench_mldsa_44_key.der \
 		 certs/mldsa/bench_mldsa_44_pubkey.der \
 		 certs/mldsa/bench_mldsa_65_key.der \

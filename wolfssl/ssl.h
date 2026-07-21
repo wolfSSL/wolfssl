@@ -634,6 +634,9 @@ struct WOLFSSL_EVP_PKEY {
 #ifdef HAVE_ECC
     int pkey_curve;
 #endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    wolfSSL_Atomic_Int mldsaOID;
+#endif
     word16 pkcs8HeaderSz;
 
     /* option bits */

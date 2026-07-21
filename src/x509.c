@@ -6430,8 +6430,15 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
         #ifdef WOLFSSL_HAVE_MLDSA
             else if (x509->pubKeyOID == ML_DSA_44k ||
                      x509->pubKeyOID == ML_DSA_65k ||
-                     x509->pubKeyOID == ML_DSA_87k) {
+                     x509->pubKeyOID == ML_DSA_87k
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                     || x509->pubKeyOID == DILITHIUM_LEVEL2k ||
+                     x509->pubKeyOID == DILITHIUM_LEVEL3k ||
+                     x509->pubKeyOID == DILITHIUM_LEVEL5k
+        #endif
+                     ) {
                 key->type = WC_EVP_PKEY_DILITHIUM;
+                WOLFSSL_ATOMIC_STORE(key->mldsaOID, x509->pubKeyOID);
             }
         #endif
             else {
@@ -8987,6 +8994,16 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         case WC_EVP_PKEY_DSA:
             type = DSAk;
             break;
+
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        case WC_EVP_PKEY_DILITHIUM:
+            type = WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID);
+            if (type == 0) {
+                WOLFSSL_MSG("ML-DSA pkey missing key OID");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            break;
+    #endif
 
         default:
             WOLFSSL_MSG("Unknown pkey key type");
