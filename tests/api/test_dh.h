@@ -27,6 +27,7 @@
 int test_wc_DhPublicKeyDecode(void);
 int test_wc_DhAgree_subgroup_check(void);
 int test_wc_DhSetKey(void);
+int test_wc_DhSetKey_ex_pseudoprime(void);
 int test_wc_DhSetNamedKey_and_helpers(void);
 int test_wc_DhGenerateKeyPair_bad_args(void);
 int test_wc_DhGenerateKeyPair_and_Agree(void);
@@ -42,6 +43,7 @@ int test_wc_DhGenerateKeyPair_CheckDhLN(void);
     TEST_DECL_GROUP("dh", test_wc_DhPublicKeyDecode),               \
     TEST_DECL_GROUP("dh", test_wc_DhAgree_subgroup_check),          \
     TEST_DECL_GROUP("dh", test_wc_DhSetKey),                        \
+    TEST_DECL_GROUP("dh", test_wc_DhSetKey_ex_pseudoprime),         \
     TEST_DECL_GROUP("dh", test_wc_DhSetNamedKey_and_helpers),       \
     TEST_DECL_GROUP("dh", test_wc_DhGenerateKeyPair_bad_args),      \
     TEST_DECL_GROUP("dh", test_wc_DhGenerateKeyPair_and_Agree),     \
