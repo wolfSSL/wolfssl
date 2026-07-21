@@ -554,6 +554,7 @@ int test_wc_Ed25519PublicKeyToDer(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     ed25519_key key;
     byte        derBuf[1024];
@@ -611,6 +612,7 @@ int test_wc_Ed25519KeyToDer(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     byte        output[ONEK_BUF];
     ed25519_key ed25519Key;
@@ -651,6 +653,7 @@ int test_wc_Ed25519PrivateKeyToDer(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     byte        output[ONEK_BUF];
     ed25519_key ed25519PrivKey;
@@ -690,7 +693,8 @@ int test_wc_Ed25519KeyToDer_oneasymkey_version(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
-    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN)
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WOLFSSL_KEY_GEN)
     ed25519_key key;
     ed25519_key key2;
     WC_RNG rng;
@@ -1308,7 +1312,7 @@ int test_wc_ed25519_import_variants(void)
         wc_ed25519_free(&privKey);
     }
 
-#ifdef HAVE_ED25519_KEY_EXPORT
+#if defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_MAKE_KEY)
     /* wc_ed25519_import_private_key_ex: pub==NULL branch. */
     {
         WC_RNG      rng;
