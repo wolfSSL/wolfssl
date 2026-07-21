@@ -1496,6 +1496,13 @@ static int wc_PKCS7_SignerInfoSetSID(wc_PKCS7* pkcs7, byte* in, int inSz)
 }
 
 
+#if !defined(NO_PKCS7_STREAM) && (!defined(NO_DES3) || !defined(NO_AES))
+/* defined later in this file; needed here to release a decrypt context left
+ * initialized by an abandoned streaming decode */
+static void wc_PKCS7_DecryptContentFree(wc_PKCS7* pkcs7, word32 encryptOID,
+    void* heap);
+#endif
+
 /* releases any memory allocated by a PKCS7 initializer */
 void wc_PKCS7_Free(wc_PKCS7* pkcs7)
 {
@@ -1503,6 +1510,28 @@ void wc_PKCS7_Free(wc_PKCS7* pkcs7)
         return;
 
 #ifndef NO_PKCS7_STREAM
+    /* A streaming EnvelopedData decode that was abandoned mid-message (e.g. it
+     * returned WC_PKCS7_WANT_READ_E and was never resumed) leaves the
+     * content-decryption context allocated by wc_PKCS7_DecryptContentInit().
+     * Release it before tearing down the stream so it is not leaked. Only the
+     * EnvelopedData decode path allocates decryptKey, and only there does the
+     * stream's first saved var hold the content cipher OID, so gate on a
+     * pending context: when decryptKey is NULL there is nothing to free and
+     * the (unrelated) saved var of another streaming decode must not be
+     * interpreted as a cipher OID. */
+#if !defined(NO_DES3) || !defined(NO_AES)
+    if (pkcs7->stream != NULL &&
+    #ifndef NO_AES
+            pkcs7->decryptKey.aes != NULL
+    #else
+            pkcs7->decryptKey.des3 != NULL
+    #endif
+       ) {
+        word32 encOID = 0;
+        wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
+        wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
+    }
+#endif
     wc_PKCS7_FreeStream(pkcs7);
 #endif
 
@@ -5641,20 +5670,25 @@ static int wc_PKCS7_MlDsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
 /* build SignedData digest, both in PKCS#7 DigestInfo format and
  * as plain digest for CMS.
  *
- * pkcs7          - pointer to initialized PKCS7 struct
- * signedAttrib   - signed attributes
- * signedAttribSz - size of signedAttrib, octets
- * pkcs7Digest    - [OUT] PKCS#7 DigestInfo
- * pkcs7DigestSz  - [IN/OUT] size of pkcs7Digest
- * plainDigest    - [OUT] pointer to plain digest, offset into pkcs7Digest
- * plainDigestSz  - [OUT] size of digest at plainDigest
+ * pkcs7            - pointer to initialized PKCS7 struct
+ * signedAttrib     - signed attributes
+ * signedAttribSz   - size of signedAttrib, octets
+ * pkcs7Digest      - [OUT] PKCS#7 DigestInfo
+ * pkcs7DigestSz    - [IN/OUT] size of pkcs7Digest
+ * plainDigest      - [OUT] pointer to plain digest, offset into pkcs7Digest
+ * plainDigestSz    - [OUT] size of digest at plainDigest
+ * hashParamsAbsent - if non-zero, omit the NULL parameters in the DigestInfo
+ *                    AlgorithmIdentifier; if zero, include them. This is the
+ *                    DigestInfo encoding (RFC 8017), which is independent of
+ *                    the SignerInfo digestAlgorithm parameters (RFC 5652/5754).
  *
  * returns 0 on success, negative on error */
 static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
                                       word32 signedAttribSz, byte* pkcs7Digest,
                                       word32* pkcs7DigestSz, byte** plainDigest,
                                       word32* plainDigestSz,
-                                      const byte* hashBuf, word32 hashBufSz)
+                                      const byte* hashBuf, word32 hashBufSz,
+                                      byte hashParamsAbsent)
 {
     int ret = 0, digIdx = 0;
     word32 attribSetSz = 0, hashSz = 0;
@@ -5739,9 +5773,10 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
         }
     }
 
-    /* Set algoID, match whatever was input to match either NULL or absent */
+    /* Set algoID, using the requested DigestInfo parameter encoding (NULL
+     * present or absent) so the caller can try both against the signature. */
     algoIdSz = SetAlgoIDEx(pkcs7->hashOID, algoId, oidHashType,
-                            0, pkcs7->hashParamsAbsent);
+                            0, hashParamsAbsent);
 
     digestStrSz = SetOctetString(hashSz, digestStr);
     digestInfoSeqSz = SetSequence(algoIdSz + digestStrSz + hashSz,
@@ -5946,11 +5981,13 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
         }
     }
 
-    /* build hash to verify against */
+    /* build hash to verify against, mirroring the SignerInfo digestAlgorithm
+     * parameter encoding as parsed */
     ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
                                          signedAttribSz, pkcs7Digest,
                                          &pkcs7DigestSz, &plainDigest,
-                                         &plainDigestSz, hashBuf, hashSz);
+                                         &plainDigestSz, hashBuf, hashSz,
+                                         pkcs7->hashParamsAbsent);
     if (ret < 0) {
         WC_FREE_VAR_EX(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
@@ -6043,12 +6080,37 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
 
 #ifndef NO_RSA
         case RSAk:
+            /* Try the DigestInfo built with the SignerInfo digestAlgorithm
+             * parameter encoding as parsed. */
             ret = wc_PKCS7_RsaVerify(pkcs7, sig, (int)sigSz, pkcs7Digest,
                                      pkcs7DigestSz);
             if (ret < 0) {
+                /* Some signers place the raw digest (no DigestInfo) in the
+                 * signature. */
                 WOLFSSL_MSG("PKCS#7 verification failed, trying CMS");
                 ret = wc_PKCS7_RsaVerify(pkcs7, sig, (int)sigSz, plainDigest,
                                          plainDigestSz);
+            }
+            if (ret < 0) {
+                /* The DigestInfo AlgorithmIdentifier inside a PKCS#1 v1.5
+                 * signature (RFC 8017) is encoded independently of the
+                 * SignerInfo digestAlgorithm parameters (RFC 5652/5754): a
+                 * signer may omit the NULL in one and include it in the other
+                 * (e.g. Go's crypto/rsa signs a NULL-present DigestInfo while
+                 * omitting the NULL in the SignerInfo). Rebuild the DigestInfo
+                 * with the opposite parameter encoding and try once more. This
+                 * overwrites pkcs7Digest/plainDigest, so it must run after the
+                 * plain-digest attempt above. */
+                WOLFSSL_MSG("PKCS#7 verification failed, trying flipped params");
+                ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
+                                            signedAttribSz, pkcs7Digest,
+                                            &pkcs7DigestSz, &plainDigest,
+                                            &plainDigestSz, hashBuf, hashSz,
+                                            (byte)(!pkcs7->hashParamsAbsent));
+                if (ret == 0) {
+                    ret = wc_PKCS7_RsaVerify(pkcs7, sig, (int)sigSz, pkcs7Digest,
+                                             pkcs7DigestSz);
+                }
             }
             break;
 
@@ -14201,6 +14263,9 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     byte tag = 0;
     byte padCheck = 0;
     int padIndex;
+    word32 peekIdx = 0;
+    int innerSz = 0;
+    byte innerTag = 0;
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -14471,6 +14536,33 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
+            /* A definite-length constructed [0] wrapping a single
+             * definite-length OCTET STRING (as emitted by Go's crypto/pkcs7,
+             * e.g. micromdm/scep) is not BER-fragmented content. Unwrap the
+             * inner OCTET STRING and decode it like the primitive [0] case so
+             * the fragmented-OCTET-STRING loop, which expects an indefinite
+             * EOC terminator, is not entered. The inner length is parsed with
+             * NO_USER_CHECK because the full ciphertext may not be buffered
+             * yet in streaming mode; the size equality below validates it. The
+             * equality is computed in word32: innerSz is >= 0 here (from the
+             * GetLength_ex check) but NO_USER_CHECK lets it reach INT_MAX, so a
+             * signed addition could overflow (undefined behavior) on crafted
+             * input. Unsigned arithmetic is well-defined and, for the valid
+             * innerSz range, does not wrap. */
+            if (ret == 0 && explicitOctet && encryptedContentTotalSz > 0) {
+                peekIdx = idx;
+                if (GetASNTag(pkiMsg, &peekIdx, &innerTag, pkiMsgSz) == 0 &&
+                        innerTag == ASN_OCTET_STRING &&
+                        GetLength_ex(pkiMsg, &peekIdx, &innerSz, pkiMsgSz,
+                                     NO_USER_CHECK) >= 0 &&
+                        (word32)innerSz + (peekIdx - idx) ==
+                        (word32)encryptedContentTotalSz) {
+                    idx = peekIdx;
+                    encryptedContentTotalSz = innerSz;
+                    explicitOctet = 0;
+                }
+            }
+
         #ifdef NO_PKCS7_STREAM
             if (ret == 0 && encryptedContentTotalSz > (int)(pkiMsgSz - idx)) {
                 /* In non-streaming mode, ensure the content fits in the buffer.
@@ -14662,6 +14754,18 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                             break;
                         }
                     }
+                #ifdef NO_PKCS7_STREAM
+                    /* Non-streaming has no resume path. If an error was flagged
+                     * (e.g. a definite-length constructed [0] whose OCTET
+                     * STRINGs were consumed without an indefinite EOC
+                     * terminator, so the scan ran off the end of the buffer)
+                     * stop here instead of re-reading past the end forever.
+                     * The streaming build breaks on error above; this is the
+                     * equivalent exit for the non-streaming loop. */
+                    if (ret != 0) {
+                        break;
+                    }
+                #endif
                 #ifndef NO_PKCS7_STREAM
                     pkcs7->stream->expected = MAX_OCTET_STR_SZ;
                     if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &localIdx,

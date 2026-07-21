@@ -72,11 +72,13 @@ int test_wc_PKCS7_SetOriDecryptCtx(void);
 int test_wc_PKCS7_DecodeCompressedData(void);
 int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void);
 int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void);
+int test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet(void);
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void);
 int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
 int test_wc_PKCS7_VerifySignedData_TruncEContentTag(void);
 int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void);
+int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -130,7 +132,8 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_IndefLenOOB), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncEContentTag), \
-    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncCertSetTag)
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncCertSetTag), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDigestParams)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \
@@ -149,6 +152,7 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_SetOriDecryptCtx),            \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen), \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeAuthEnvelopedData_truncated)
 
 #define TEST_PKCS7_SIGNED_ENCRYPTED_DATA_DECLS                              \
