@@ -1078,8 +1078,6 @@ XGETPASSWD
 XMSS_CALL_PRF_KEYGEN
 XPAR_VERSAL_CIPS_0_PSPMC_0_PSV_CORTEXA72_0_TIMESTAMP_CLK_FREQ
 XSECURE_CACHE_DISABLE
-fipsCastStatus_get
-wc_Des3_SetKey
 _ABI64
 _ABIO64
 _ARCH_PPC64
@@ -1262,8 +1260,10 @@ __xtensa__
 byte
 configTICK_RATE_HZ
 fallthrough
+fipsCastStatus_get
 noinline
 ssize_t
 sun
 versal
+wc_Des3_SetKey
 wc_Tls13_HKDF_Expand_Label
