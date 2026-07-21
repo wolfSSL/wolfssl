@@ -31,6 +31,7 @@ int test_wc_ecc_get_curve_id_from_dp_params(void);
 int test_wc_ecc_make_key(void);
 int test_wc_ecc_init(void);
 int test_wc_ecc_check_key(void);
+int test_wc_ecc_check_key_invalid_pubkey(void);
 int test_wc_ecc_get_generator(void);
 int test_wc_ecc_size(void);
 int test_wc_ecc_params(void);
@@ -75,6 +76,7 @@ int test_wc_EccDecisionCoverage4(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_make_key),                       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_init),                           \
     TEST_DECL_GROUP("ecc", test_wc_ecc_check_key),                      \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_check_key_invalid_pubkey),       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_get_generator),                  \
     TEST_DECL_GROUP("ecc", test_wc_ecc_size),                           \
     TEST_DECL_GROUP("ecc", test_wc_ecc_params),                         \
