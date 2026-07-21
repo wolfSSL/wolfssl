@@ -18062,10 +18062,14 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #ifdef WOLFSSL_TLS13
         /* RFC 8446 4.4.2: extensions in a Certificate message MUST
          * correspond to ones offered in our prior ClientHello (client) or
-         * CertificateRequest (server). Reject anything we did not offer. */
+         * CertificateRequest (server). Reject anything we did not offer, but a
+         * CTX-level API leaves the extension on ctx->extensions, so look there
+         * too before concluding it was never offered. */
         if (msgType == certificate &&
             IsAtLeastTLSv1_3(ssl->version) &&
-            TLSX_Find(ssl->extensions, (TLSX_Type)type) == NULL) {
+            TLSX_Find(ssl->extensions, (TLSX_Type)type) == NULL &&
+            (ssl->ctx == NULL ||
+             TLSX_Find(ssl->ctx->extensions, (TLSX_Type)type) == NULL)) {
             WOLFSSL_MSG("Cert-msg extension not offered in CH/CR");
             SendAlert(ssl, alert_fatal, unsupported_extension);
             WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
