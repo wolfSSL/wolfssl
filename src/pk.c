@@ -6558,6 +6558,18 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
                 type = WC_EVP_PKEY_ED448;
                 break;
         #endif
+        #ifdef WOLFSSL_HAVE_MLDSA
+            case ML_DSA_44k:
+            case ML_DSA_65k:
+            case ML_DSA_87k:
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+            case DILITHIUM_LEVEL2k:
+            case DILITHIUM_LEVEL3k:
+            case DILITHIUM_LEVEL5k:
+            #endif
+                type = WC_EVP_PKEY_DILITHIUM;
+                break;
+        #endif
             default:
                 type = WOLFSSL_FATAL_ERROR;
                 break;
@@ -6713,6 +6725,18 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY **key,
         #ifdef HAVE_ED448
             case ED448k:
                 type = WC_EVP_PKEY_ED448;
+                break;
+        #endif
+        #ifdef WOLFSSL_HAVE_MLDSA
+            case ML_DSA_44k:
+            case ML_DSA_65k:
+            case ML_DSA_87k:
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+            case DILITHIUM_LEVEL2k:
+            case DILITHIUM_LEVEL3k:
+            case DILITHIUM_LEVEL5k:
+            #endif
+                type = WC_EVP_PKEY_DILITHIUM;
                 break;
         #endif
             default:

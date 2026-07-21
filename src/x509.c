@@ -12271,6 +12271,35 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
                     return WOLFSSL_FAILURE;
             }
         }
+    #ifdef WOLFSSL_HAVE_MLDSA
+        else if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+            /* ML-DSA does not use a separate hash; ignore md. */
+            switch (WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
+                case ML_DSA_44k:
+                    sigType = CTC_ML_DSA_LEVEL2;
+                    break;
+                case ML_DSA_65k:
+                    sigType = CTC_ML_DSA_LEVEL3;
+                    break;
+                case ML_DSA_87k:
+                    sigType = CTC_ML_DSA_LEVEL5;
+                    break;
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                case DILITHIUM_LEVEL2k:
+                    sigType = CTC_DILITHIUM_LEVEL2;
+                    break;
+                case DILITHIUM_LEVEL3k:
+                    sigType = CTC_DILITHIUM_LEVEL3;
+                    break;
+                case DILITHIUM_LEVEL5k:
+                    sigType = CTC_DILITHIUM_LEVEL5;
+                    break;
+            #endif
+                default:
+                    return WOLFSSL_FAILURE;
+            }
+        }
+    #endif /* WOLFSSL_HAVE_MLDSA */
         else
             return WOLFSSL_FAILURE;
         return sigType;
@@ -12752,6 +12781,10 @@ cleanup:
         int type = -1;
         int sigType;
         WC_RNG rng;
+    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+        MlDsaKey* mldsa = NULL;
+    #endif
 
         (void)req;
         WOLFSSL_ENTER("wolfSSL_X509_resign_cert");
@@ -12776,14 +12809,83 @@ cleanup:
             key = pkey->ecc->internal;
         }
     #endif
+    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+        if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+            /* Decode the ML-DSA private key held as DER in pkey.ptr. */
+            word32 idx = 0;
+            byte level = 0;
+
+            mldsa = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), NULL,
+                    DYNAMIC_TYPE_MLDSA);
+            if (mldsa == NULL)
+                return WOLFSSL_FATAL_ERROR;
+            if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            if (wc_MlDsaKey_PrivateKeyDecode(mldsa,
+                    (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
+                    &idx) != 0 ||
+                    wc_MlDsaKey_GetParams(mldsa, &level) != 0) {
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            switch (level) {
+                case WC_ML_DSA_44:
+                    type = ML_DSA_LEVEL2_TYPE;
+                    break;
+                case WC_ML_DSA_65:
+                    type = ML_DSA_LEVEL3_TYPE;
+                    break;
+                case WC_ML_DSA_87:
+                    type = ML_DSA_LEVEL5_TYPE;
+                    break;
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                case WC_ML_DSA_44_DRAFT:
+                    type = DILITHIUM_LEVEL2_TYPE;
+                    break;
+                case WC_ML_DSA_65_DRAFT:
+                    type = DILITHIUM_LEVEL3_TYPE;
+                    break;
+                case WC_ML_DSA_87_DRAFT:
+                    type = DILITHIUM_LEVEL5_TYPE;
+                    break;
+            #endif
+                default:
+                    wc_MlDsaKey_Free(mldsa);
+                    XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+                    return WOLFSSL_FATAL_ERROR;
+            }
+            key = mldsa;
+        }
+    #endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PRIVATE_KEY &&
+            * !WOLFSSL_MLDSA_NO_ASN1 && !WOLFSSL_MLDSA_NO_SIGN */
 
         /* Sign the certificate (request) body. */
         ret = wc_InitRng(&rng);
-        if (ret != 0)
+        if (ret != 0) {
+        #if defined(WOLFSSL_HAVE_MLDSA) && \
+            defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+            !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+            if (mldsa != NULL) {
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+            }
+        #endif
             return ret;
+        }
         ret = wc_SignCert_ex(certBodySz, sigType, der, (word32)derSz, type, key,
             &rng);
         wc_FreeRng(&rng);
+    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+        if (mldsa != NULL) {
+            wc_MlDsaKey_Free(mldsa);
+            XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+        }
+    #endif
         if (ret < 0) {
             WOLFSSL_LEAVE("wolfSSL_X509_resign_cert", ret);
             return ret;
@@ -12850,7 +12952,13 @@ cleanup:
 
 #ifndef WC_MAX_X509_GEN
     /* able to override max size until dynamic buffer created */
-    #define WC_MAX_X509_GEN 4096
+    #ifdef WOLFSSL_HAVE_MLDSA
+        /* ML-DSA public keys and signatures are large (ML-DSA-87:
+         * 2592 byte public key, 4627 byte signature). */
+        #define WC_MAX_X509_GEN 20480
+    #else
+        #define WC_MAX_X509_GEN 4096
+    #endif
 #endif
 
 /* returns the size of signature on success */
@@ -16378,6 +16486,90 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
         }
         break;
 #endif
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    case WC_EVP_PKEY_DILITHIUM:
+        {
+            /* Decode key DER (private or public) and export public part. */
+            MlDsaKey* mldsa;
+            word32 idx = 0;
+            byte level = 0;
+            int decodeOk = 0;
+
+            mldsa = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), cert->heap,
+                    DYNAMIC_TYPE_MLDSA);
+            if (mldsa == NULL)
+                return WOLFSSL_FAILURE;
+            if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+                XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FAILURE;
+            }
+        #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+            if (wc_MlDsaKey_PrivateKeyDecode(mldsa,
+                    (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
+                    &idx) == 0) {
+                decodeOk = 1;
+            }
+        #endif
+            if (!decodeOk) {
+                idx = 0;
+                if (wc_MlDsaKey_PublicKeyDecode(mldsa,
+                        (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
+                        &idx) != 0) {
+                    wc_MlDsaKey_Free(mldsa);
+                    XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                    return WOLFSSL_FAILURE;
+                }
+            }
+            if (wc_MlDsaKey_GetParams(mldsa, &level) != 0) {
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FAILURE;
+            }
+
+            derSz = MLDSA_MAX_PUB_KEY_SIZE + MAX_ALGO_SZ + MAX_SEQ_SZ * 2;
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL) {
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FAILURE;
+            }
+            derSz = wc_MlDsaKey_PublicKeyToDer(mldsa, p, (word32)derSz, 1);
+            wc_MlDsaKey_Free(mldsa);
+            XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+            if (derSz <= 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
+            switch (level) {
+                case WC_ML_DSA_44:
+                    cert->pubKeyOID = ML_DSA_44k;
+                    break;
+                case WC_ML_DSA_65:
+                    cert->pubKeyOID = ML_DSA_65k;
+                    break;
+                case WC_ML_DSA_87:
+                    cert->pubKeyOID = ML_DSA_87k;
+                    break;
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                case WC_ML_DSA_44_DRAFT:
+                    cert->pubKeyOID = DILITHIUM_LEVEL2k;
+                    break;
+                case WC_ML_DSA_65_DRAFT:
+                    cert->pubKeyOID = DILITHIUM_LEVEL3k;
+                    break;
+                case WC_ML_DSA_87_DRAFT:
+                    cert->pubKeyOID = DILITHIUM_LEVEL5k;
+                    break;
+            #endif
+                default:
+                    XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    return WOLFSSL_FAILURE;
+            }
+        }
+        break;
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY &&
+        * !WOLFSSL_MLDSA_NO_ASN1 && WC_ENABLE_ASYM_KEY_EXPORT */
     default:
         return WOLFSSL_FAILURE;
     }
@@ -16727,8 +16919,8 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                           const WOLFSSL_EVP_MD *md)
 {
     int ret;
-    WC_DECLARE_VAR(der, byte, 2048, 0);
-    int derSz = 2048;
+    WC_DECLARE_VAR(der, byte, WC_MAX_X509_GEN, 0);
+    int derSz = WC_MAX_X509_GEN;
 
     if (req == NULL || pkey == NULL || md == NULL) {
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", BAD_FUNC_ARG);
@@ -16748,7 +16940,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_X509_resign_cert(req, 1, der, 2048, derSz,
+    if (wolfSSL_X509_resign_cert(req, 1, der, WC_MAX_X509_GEN, derSz,
             (WOLFSSL_EVP_MD*)md, pkey) <= 0) {
         WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
