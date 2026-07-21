@@ -3213,6 +3213,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         WOLFSSL_MSG("\tCan't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
+    /* Enforced by default. ALLOW_INVALID_CERTSIGN is a deliberate,
+     * RFC-non-conformant opt-out for interop with deployed certs that carry
+     * malformed keyUsage; see the macro list at the top of
+     * wolfcrypt/src/asn.c. */
 #ifndef ALLOW_INVALID_CERTSIGN
     else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
         !cert->selfSigned && cert->extKeyUsageSet &&

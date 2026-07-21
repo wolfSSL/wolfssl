@@ -18037,6 +18037,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             #endif /* KEEP_PEER_CERT */
 
+            /* Enforced by default (RFC 5280 4.2.1.3 / RFC 8446 4.4.2.4:
+             * keyEncipherment/digitalSignature and serverAuth/clientAuth EKU
+             * on TLS certs). IGNORE_KEY_EXTENSIONS is a deliberate,
+             * RFC-non-conformant opt-out; see the macro list at the top of
+             * wolfcrypt/src/asn.c. */
             #ifndef IGNORE_KEY_EXTENSIONS
                 #if defined(OPENSSL_EXTRA)
                   /* when compatibility layer is turned on and no verify is
