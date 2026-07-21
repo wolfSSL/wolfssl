@@ -16947,17 +16947,20 @@ void wolfSSL_FIPS_drbg_free(WOLFSSL_DRBG_CTX *ctx)
 {
     if (ctx != NULL) {
         int locked = 0;
+        int haveMutex = 1;
         /* As safety check if free'ing the default drbg, then mark global NULL.
          * Technically the user should not call free on the default drbg. */
     #ifndef WOLFSSL_MUTEX_INITIALIZER
         /* wolfSSL_Cleanup may free the mutex before this runs. */
-        if ((globalRNGMutex_valid == 1) && (wc_LockMutex(&globalRNGMutex) == 0))
-    #else
-        if (wc_LockMutex(&globalRNGMutex) == 0)
+        haveMutex = (globalRNGMutex_valid == 1);
     #endif
+        if (haveMutex && (wc_LockMutex(&globalRNGMutex) == 0))
             locked = 1;
-        if (ctx == gDrbgDefCtx) {
-            gDrbgDefCtx = NULL;
+        /* Touch the global under the lock, or unlocked only when no mutex. */
+        if (locked || !haveMutex) {
+            if (ctx == gDrbgDefCtx) {
+                gDrbgDefCtx = NULL;
+            }
         }
         if (locked)
             wc_UnLockMutex(&globalRNGMutex);
@@ -16968,14 +16971,16 @@ void wolfSSL_FIPS_drbg_free(WOLFSSL_DRBG_CTX *ctx)
 WOLFSSL_DRBG_CTX* wolfSSL_FIPS_get_default_drbg(void)
 {
     int locked = 0;
+    int haveMutex = 1;
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if ((globalRNGMutex_valid == 1) && (wc_LockMutex(&globalRNGMutex) == 0))
-#else
-    if (wc_LockMutex(&globalRNGMutex) == 0)
+    haveMutex = (globalRNGMutex_valid == 1);
 #endif
+    if (haveMutex && (wc_LockMutex(&globalRNGMutex) == 0))
         locked = 1;
-    if (gDrbgDefCtx == NULL) {
-        gDrbgDefCtx = wolfSSL_FIPS_drbg_new(0, 0);
+    if (locked || !haveMutex) {
+        if (gDrbgDefCtx == NULL) {
+            gDrbgDefCtx = wolfSSL_FIPS_drbg_new(0, 0);
+        }
     }
     if (locked)
         wc_UnLockMutex(&globalRNGMutex);
