@@ -15313,7 +15313,7 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
     \ingroup Setup
 
     \brief Enable or disable TLS 1.3 certificate authentication with external
-    PSK (RFC8773bis) on a context.
+    PSK (RFC 9973) on a context.
 
     When enabled, wolfSSL advertises and accepts the
     `tls_cert_with_extern_psk` extension for TLS 1.3 handshakes using external
@@ -15348,7 +15348,7 @@ int wolfSSL_CTX_set_cert_with_extern_psk(WOLFSSL_CTX* ctx, int state);
     \ingroup Setup
 
     \brief Enable or disable TLS 1.3 certificate authentication with external
-    PSK (RFC8773bis) on a connection.
+    PSK (RFC 9973) on a connection.
 
     This call applies to a single WOLFSSL object. Any non-zero \p state value
     enables the feature and zero disables it.

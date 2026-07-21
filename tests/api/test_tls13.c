@@ -1206,7 +1206,7 @@ int test_tls13_cert_with_extern_psk_rejects_resumption(void)
     ssl_s = NULL;
 
     /* Step 2: attempt to resume while also offering cert_with_extern_psk.
-     * RFC 8773bis Sect. 5.1 requires all PSKs offered alongside
+     * RFC 9973 Sect. 5.1 requires all PSKs offered alongside
      * cert_with_extern_psk to be external PSKs.  The client MUST therefore
      * suppress the resumption ticket identity from the pre_shared_key
      * extension.  The handshake succeeds as a cert_with_extern_psk handshake
@@ -8648,6 +8648,55 @@ int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void)
     ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
             "TLS13-AES128-CCM-8-SHA256", 0, 0x016A09E6, wolfssl_aes_ccm),
             TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 4.7.3: a sending implementation MUST NOT allow its number of
+ * key updates to exceed 2^48-1. Establish a TLS 1.3 connection and exercise both
+ * sides of the boundary: one update seeded just below the ceiling must succeed
+ * and advance the sender count to exactly 2^48-1, and a further update once the
+ * count has reached the ceiling must be refused with BAD_STATE_E without
+ * advancing the count. The count is inspected directly because
+ * SendTls13KeyUpdate enforces the limit before touching the transport. */
+int test_tls13_KeyUpdate_sender_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        w64wrapper ceiling;
+
+        ceiling = w64From32(TLS13_KEY_UPDATE_MAX_HI32, TLS13_KEY_UPDATE_MAX_LO32);
+
+        /* One below the ceiling: the update is allowed and must advance the
+         * sender count by one, reaching exactly 2^48-1. */
+        ssl_c->keys.keyUpdateCount = w64From32(TLS13_KEY_UPDATE_MAX_HI32,
+                                               TLS13_KEY_UPDATE_MAX_LO32 - 1);
+        ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+        ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, ceiling));
+
+        /* At the ceiling: a further update must be refused rather than
+         * advancing the count past 2^48-1. */
+        ExpectIntEQ(wolfSSL_update_keys(ssl_c), WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, ceiling));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

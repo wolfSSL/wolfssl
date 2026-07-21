@@ -2966,6 +2966,7 @@ typedef struct Keys {
 #ifdef WOLFSSL_TLS13
     byte   updateResponseReq;     /* KeyUpdate response from peer required. */
     byte   keyUpdateRespond;      /* KeyUpdate is to be responded to. */
+    w64wrapper keyUpdateCount;    /* Sending key updates performed (RFC 9846). */
 #endif
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
 
@@ -2978,6 +2979,12 @@ typedef struct Keys {
     FSPSM_HMAC_WKEY fspsm_server_write_MAC_secret;
 #endif
 } Keys;
+
+/* RFC 9846 Section 4.7.3: a TLS 1.3 sender MUST NOT allow its number of key
+ * updates to exceed 2^48-1. Receivers MUST NOT enforce this. Expressed as the
+ * high and low 32-bit halves of a w64wrapper. */
+#define TLS13_KEY_UPDATE_MAX_HI32 0x0000FFFFU
+#define TLS13_KEY_UPDATE_MAX_LO32 0xFFFFFFFFU
 
 /* Forward declare opaque pointer to make available for func def */
 typedef struct Options Options;
@@ -3001,7 +3008,7 @@ typedef struct Options Options;
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
 #define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
-#define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 8773bis */
+#define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 9973 */
 #define TLSXT_SESSION_TICKET             0x0023
 #define TLSXT_PRE_SHARED_KEY             0x0029
 #define TLSXT_EARLY_DATA                 0x002a

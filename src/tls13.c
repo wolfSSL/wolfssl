@@ -72,6 +72,7 @@
  *                            (no ciphersuite requires it currently)
  * WOLFSSL_ERROR_CODE_OPENSSL: Use OpenSSL-compatible error codes  default: off
  * WOLFSSL_SSLKEYLOGFILE_OUTPUT: Set key log output file path      default: off
+ * WOLFSSL_SSLKEYLOGFILE_USE_ENV: Use SSLKEYLOGFILE env var path   default: off
  * WOLFSSL_RW_THREADED:      Enable read/write threading support   default: off
  * WOLFSSL_ASYNC_IO:         Enable async I/O operations           default: off
  * WOLFSSL_NONBLOCK_OCSP:    Non-blocking OCSP processing          default: off
@@ -6004,12 +6005,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
             if (ssl->options.certWithExternPsk && psk->resumption) {
-                /* RFC8773bis mode requires external PSK, not ticket resumption. */
+                /* RFC 9973 mode requires external PSK, not ticket resumption. */
                 WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
                 return PSK_KEY_ERROR;
             }
             if (ssl->options.certWithExternPsk && ssl->options.shSentKeyShare == 0) {
-                /* RFC8773bis Sec. 3: cert_with_extern_psk requires psk_dhe_ke;
+                /* RFC 9973 Sect. 3: cert_with_extern_psk requires psk_dhe_ke;
                  * a ServerHello without a key_share confirms only psk_ke. */
                 WOLFSSL_MSG("cert_with_extern_psk: ServerHello missing key_share");
                 WOLFSSL_ERROR_VERBOSE(EXT_MISSING);
@@ -6244,8 +6245,10 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     *inOutIdx += OPAQUE16_LEN;
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
-    if (len == 0)
-        return INVALID_PARAMETER;
+    /* RFC 9846 Section 4.4.2: CertificateRequest.extensions has a lower bound of
+     * 0, so an empty extensions block is parsed rather than rejected here. A
+     * request missing the mandatory signature_algorithms extension is caught by
+     * the check below. */
     if ((ret = TLSX_Parse(ssl, input + *inOutIdx, len, certificate_request,
                                                                 &peerSuites))) {
         return ret;
@@ -6554,7 +6557,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         }
         if (ret == WOLFSSL_TICKET_RET_OK) {
 #if defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && defined(HAVE_SESSION_TICKET)
-            /* RFC 8773bis Sect. 5.1: all PSKs listed alongside
+            /* RFC 9973 Sect. 5.1: all PSKs listed alongside
              * tls_cert_with_extern_psk MUST be external PSKs.  A successfully
              * decrypted session ticket identity is a resumption PSK, so the
              * server MUST abort with illegal_parameter regardless of whether
@@ -6879,7 +6882,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         extEarlyData = TLSX_Find(ssl->extensions, TLSX_EARLY_DATA);
         if (extEarlyData != NULL) {
             /* Check if accepting early data and first PSK.
-             * RFC 8773bis: early_data is not compatible with
+             * RFC 9973: early_data is not compatible with
              * cert_with_extern_psk, so skip key derivation in that case. */
             if (ssl->earlyData != no_early_data && first
                 && ssl->options.maxEarlyDataSz > 0
@@ -6949,7 +6952,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
             ssl->options.sendVerify = SEND_CERT;
             certExt->resp = 1;
         #ifdef WOLFSSL_EARLY_DATA
-            /* RFC 8773bis: early_data is not compatible with
+            /* RFC 9973: early_data is not compatible with
              * cert_with_extern_psk.  TLSX_Parse already rejects the
              * combination in the ClientHello, but clear the response flag
              * here as a defense-in-depth measure. */
@@ -12401,6 +12404,19 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
+    if (!ssl->options.dtls) {
+        /* RFC 9846 Section 4.7.3: a sending implementation MUST NOT allow its
+         * number of key updates to exceed 2^48-1. Receivers MUST NOT enforce
+         * this on the peer. */
+        if (w64GTE(ssl->keys.keyUpdateCount,
+                   w64From32(TLS13_KEY_UPDATE_MAX_HI32,
+                             TLS13_KEY_UPDATE_MAX_LO32))) {
+            WOLFSSL_MSG("TLS 1.3 key update count at maximum; refusing "
+                        "KeyUpdate");
+            return BAD_STATE_E;
+        }
+    }
+
     outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
@@ -12472,6 +12488,9 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
             return ret;
         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
+
+        /* Count this key update against the RFC 9846 sender limit. */
+        w64Increment(&ssl->keys.keyUpdateCount);
     }
 
 
@@ -16419,10 +16438,25 @@ int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
     byte clientRandom[RAN_LEN];
     int clientRandomSz;
     XFILE fp;
+#if defined(WOLFSSL_SSLKEYLOGFILE_OUTPUT) && defined(WOLFSSL_SSLKEYLOGFILE_USE_ENV)
+    const char* keyLogFile;
+#endif
 
     (void) ctx;
 #ifdef WOLFSSL_SSLKEYLOGFILE_OUTPUT
+#ifdef WOLFSSL_SSLKEYLOGFILE_USE_ENV
+    /* RFC 9850: prefer the SSLKEYLOGFILE environment variable so tools such as
+     * curl and Wireshark can share the path, else use the compile-time path.
+     * XGETENV resolves to NULL where environment access is unavailable. Opt-in
+     * so a build with the variable exported for other applications is not
+     * affected. */
+    keyLogFile = XGETENV("SSLKEYLOGFILE");
+    if (keyLogFile == NULL || keyLogFile[0] == '\0')
+        keyLogFile = WOLFSSL_SSLKEYLOGFILE_OUTPUT;
+    fp = XFOPEN(keyLogFile, "ab");
+#else
     fp = XFOPEN(WOLFSSL_SSLKEYLOGFILE_OUTPUT, "ab");
+#endif
     if (fp == XBADFILE) {
         return BAD_FUNC_ARG;
     }

@@ -3722,7 +3722,18 @@ int tlsShowSecrets(WOLFSSL* ssl, void* secret, int secretSz,
 
     #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_SSLKEYLOGFILE)
     {
-        FILE* f = XFOPEN(WOLFSSL_SSLKEYLOGFILE_OUTPUT, "a");
+        const char* keyLogFile = WOLFSSL_SSLKEYLOGFILE_OUTPUT;
+        FILE* f;
+    #ifdef WOLFSSL_SSLKEYLOGFILE_USE_ENV
+        /* RFC 9850: prefer the SSLKEYLOGFILE environment variable so other
+         * tools can share the path, else use the compile-time path. XGETENV is
+         * NULL where environment access is unavailable. Opt-in so a build with
+         * the variable exported for other applications is not affected. */
+        const char* keyLogEnv = XGETENV("SSLKEYLOGFILE");
+        if (keyLogEnv != NULL && keyLogEnv[0] != '\0')
+            keyLogFile = keyLogEnv;
+    #endif
+        f = XFOPEN(keyLogFile, "a");
         if (f != XBADFILE) {
             XFWRITE(pmsBuf, 1, pmsPos, f);
             XFCLOSE(f);

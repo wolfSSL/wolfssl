@@ -7582,7 +7582,10 @@ static int parseKeyLogFile(const char* fileName, char* error)
     /* 2 chars for Hexadecimal representation, plus null terminator */
     char clientRandomHex[2 * CLIENT_RANDOM_LENGTH + 1] = {0};
     char secretHex[2 * SECRET_LENGTH + 1] = {0};
-
+    /* One keylog record. RFC 9850 requires line based parsing so that comment
+     * and malformed lines cannot desynchronize the fields. Sized to hold the
+     * longest valid line plus separators and terminator. */
+    char line[256];
 
     file = fopen(fileName, "r");
     if (file == NULL) {
@@ -7591,10 +7594,27 @@ static int parseKeyLogFile(const char* fileName, char* error)
         return WOLFSSL_SNIFFER_ERROR;
     }
 
-    /* Format specifiers for each column should be:
-     * MAX_PREFIX_LENGTH, 2*CLIENT_RANDOM_LENGTH, and 2*SECRET_LENGTH */
-    while (fscanf(file, "%31s %64s %96s", prefix, clientRandomHex, secretHex)
-            == 3) {
+    while (fgets(line, (int)sizeof(line), file) != NULL) {
+        /* RFC 9850 Section 1: ignore empty lines and lines whose first
+         * character is the octothorpe ('#') comment marker. */
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r' ||
+                line[0] == '\0') {
+            continue;
+        }
+
+        /* Clear the field buffers so that a short field on one line cannot
+         * pick up stale bytes left by a previous line. */
+        XMEMSET(prefix, 0, sizeof(prefix));
+        XMEMSET(clientRandomHex, 0, sizeof(clientRandomHex));
+        XMEMSET(secretHex, 0, sizeof(secretHex));
+
+        /* RFC 9850 Section 2: silently ignore lines that do not conform to the
+         * "label SP random SP secret" format so that secrets can still be
+         * recovered from a corrupted file. */
+        if (sscanf(line, "%31s %64s %96s", prefix, clientRandomHex, secretHex)
+                != 3) {
+            continue;
+        }
 
         if (XSTRCMP(prefix, "CLIENT_RANDOM") == 0) {
             type = SNIFFER_SECRET_TLS12_MASTER_SECRET;
@@ -7621,6 +7641,14 @@ static int parseKeyLogFile(const char* fileName, char* error)
             continue;
         }
 
+        /* The client random is always CLIENT_RANDOM_LENGTH bytes. Reject a
+         * line whose random field is not the exact expected length. The secret
+         * length is left variable because it depends on the negotiated hash. */
+        if (XSTRLEN(clientRandomHex) != (size_t)(2 * CLIENT_RANDOM_LENGTH)) {
+            fprintf(stderr, "malformed client random for prefix: %s\n", prefix);
+            continue;
+        }
+
         hexToBin(clientRandomHex, clientRandom, CLIENT_RANDOM_LENGTH);
         hexToBin(secretHex, secret, SECRET_LENGTH);
         ret = addSecretNode(clientRandom, type, secret, error);
@@ -7629,6 +7657,7 @@ static int parseKeyLogFile(const char* fileName, char* error)
             fclose(file);
             ForceZero(secret, SECRET_LENGTH);
             ForceZero(secretHex, sizeof(secretHex));
+            ForceZero(line, sizeof(line));
             return ret;
         }
     }
@@ -7636,6 +7665,7 @@ static int parseKeyLogFile(const char* fileName, char* error)
 
     ForceZero(secret, SECRET_LENGTH);
     ForceZero(secretHex, sizeof(secretHex));
+    ForceZero(line, sizeof(line));
     return 0;
 }
 
