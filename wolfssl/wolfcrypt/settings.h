@@ -3899,6 +3899,32 @@
     #endif
 #endif
 
+#if defined(HAVE_FIPS)
+    #if FIPS_VERSION3_EQ(5, 2, 4)
+        /* support RFC 4106 IPsec ESP 64 bit tags */
+       #undef WOLFSSL_MIN_AUTH_TAG_SZ
+       #define WOLFSSL_MIN_AUTH_TAG_SZ 8
+    #else
+        /* No short (<96 bit) tags per SP 800-38D 2026 revision in process. */
+        #if WOLFSSL_MIN_AUTH_TAG_SZ < 12
+            #undef WOLFSSL_MIN_AUTH_TAG_SZ
+            #define WOLFSSL_MIN_AUTH_TAG_SZ 12
+        #endif
+    #endif
+#elif defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || defined(CONFIG_CRYPTO_SELFTESTS_FULL)
+    /* The Linux kernel native crypto fuzzer expects small AES-GCM tag sizes to succeed. */
+    #if WOLFSSL_MIN_AUTH_TAG_SZ > 4
+        #undef WOLFSSL_MIN_AUTH_TAG_SZ
+        #define WOLFSSL_MIN_AUTH_TAG_SZ 4
+    #endif
+#elif defined(WOLFSSL_LINUXKM)
+    /* support RFC 4106 IPsec ESP */
+    #if WOLFSSL_MIN_AUTH_TAG_SZ > 8
+        #undef WOLFSSL_MIN_AUTH_TAG_SZ
+        #define WOLFSSL_MIN_AUTH_TAG_SZ 8
+    #endif
+#endif
+
 #if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && FIPS_VERSION3_LT(7,0,0) && \
     defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED) && \
     !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
@@ -4369,32 +4395,6 @@
             #define WOLFSSL_NO_PUBLIC_FFDHE
         #endif
         #undef HAVE_PUBLIC_FFDHE
-    #endif
-
-    #if defined(HAVE_FIPS)
-        #if FIPS_VERSION3_LT(7, 0, 0)
-            /* support RFC 4106 IPsec ESP 64 bit tags */
-           #undef WOLFSSL_MIN_AUTH_TAG_SZ
-           #define WOLFSSL_MIN_AUTH_TAG_SZ 8
-        #else
-            /* No short (<96 bit) tags per SP 800-38D 2026 revision in process. */
-            #if WOLFSSL_MIN_AUTH_TAG_SZ < 12
-                #undef WOLFSSL_MIN_AUTH_TAG_SZ
-                #define WOLFSSL_MIN_AUTH_TAG_SZ 12
-            #endif
-        #endif
-    #elif defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || defined(CONFIG_CRYPTO_SELFTESTS_FULL)
-        /* The Linux kernel native crypto fuzzer expects small AES-GCM tag sizes to succeed. */
-        #if WOLFSSL_MIN_AUTH_TAG_SZ > 4
-            #undef WOLFSSL_MIN_AUTH_TAG_SZ
-            #define WOLFSSL_MIN_AUTH_TAG_SZ 4
-        #endif
-    #else
-        /* support RFC 4106 IPsec ESP */
-        #if WOLFSSL_MIN_AUTH_TAG_SZ > 8
-            #undef WOLFSSL_MIN_AUTH_TAG_SZ
-            #define WOLFSSL_MIN_AUTH_TAG_SZ 8
-        #endif
     #endif
 
     #if defined(LINUXKM_LKCAPI_REGISTER) && !defined(WOLFSSL_ASN_INT_LEAD_0_ANY)
