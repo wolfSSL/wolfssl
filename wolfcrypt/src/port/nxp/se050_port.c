@@ -2850,25 +2850,42 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
-            kSSS_CipherType_Binary,
+            kSSS_CipherType_HMAC,
             keySize,
             kKeyObject_Mode_Transient);
+    }
+    if (status == kStatus_SSS_Success) {
+        byte keyBuf[MAX_ECC_BYTES];
+
+        /* Try to delete existing key first, ignore return since will
+         * fail if no key exists yet */
+        sss_key_store_erase_key(&host_keystore, &deriveKey);
+
+        /* SE05x applet 7.2 and later stores the ECDH result into an
+         * existing HMACKey object whose size must equal the shared
+         * secret exactly, so the object must be created before the
+         * derive (returns SW 0x6985 otherwise) */
+        XMEMSET(keyBuf, 0, sizeof(keyBuf));
+        status = sss_key_store_set_key(&host_keystore, &deriveKey,
+            keyBuf, keySize, keySize * 8, NULL, 0);
+        if (status == kStatus_SSS_Success) {
+            deriveKeyCreated = 1;
+        }
     }
     if (status == kStatus_SSS_Success) {
         status = sss_derive_key_context_init(&ctx_derive_key, cfg_se050_i2c_pi,
                                     &ref_private_key, kAlgorithm_SSS_ECDH,
                                     kMode_SSS_ComputeSharedSecret);
         if (status == kStatus_SSS_Success) {
-            /* Try to delete existing key first, ignore return since will
-             * fail if no key exists yet */
-            sss_key_store_erase_key(&host_keystore, &deriveKey);
             status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key,
                 &deriveKey);
         }
         if (status == kStatus_SSS_Success) {
             size_t outlenSz = (size_t)*outlen;
             size_t outlenSzBits = outlenSz * 8;
-            deriveKeyCreated = 1;
+            /* sss_key_store_get_key has no HMAC read case, so read the
+             * object back as AES type (both are a plain ReadObject) */
+            deriveKey.cipherType = kSSS_CipherType_AES;
             /* derived key export */
             status = sss_key_store_get_key(&host_keystore, &deriveKey,
                 out, &outlenSz, &outlenSzBits);
@@ -3445,9 +3462,24 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
-            kSSS_CipherType_Binary,
+            kSSS_CipherType_HMAC,
             keySize,
             kKeyObject_Mode_Transient);
+    }
+    if (status == kStatus_SSS_Success) {
+        byte keyBuf[CURVE25519_KEYSIZE];
+
+        /* Try to delete existing key first, ignore return since will
+         * fail if no key exists yet */
+        sss_key_store_erase_key(&host_keystore, &deriveKey);
+
+        /* SE05x applet 7.2 and later stores the ECDH result into an
+         * existing HMACKey object whose size must equal the shared
+         * secret exactly, so the object must be created before the
+         * derive (returns SW 0x6985 otherwise) */
+        XMEMSET(keyBuf, 0, sizeof(keyBuf));
+        status = sss_key_store_set_key(&host_keystore, &deriveKey,
+            keyBuf, keySize, keySize * 8, NULL, 0);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_derive_key_context_init(&ctx_derive_key, cfg_se050_i2c_pi,
@@ -3460,6 +3492,9 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         if (status == kStatus_SSS_Success) {
             size_t outlenSz = sizeof(out->point);
             size_t outlenSzBits = outlenSz * 8;
+            /* sss_key_store_get_key has no HMAC read case, so read the
+             * object back as AES type (both are a plain ReadObject) */
+            deriveKey.cipherType = kSSS_CipherType_AES;
             /* derived key export */
             status = sss_key_store_get_key(&host_keystore, &deriveKey,
                 out->point, &outlenSz, &outlenSzBits);
