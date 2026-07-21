@@ -104,6 +104,22 @@ static int do_acert_verify_test(const char * acert_file,
 
     return 0;
 }
+
+#if !defined(NO_ASN_TIME) && !defined(NO_ASN_TIME_CHECK)
+/* Return a fixed time after the notAfter date of certs/acert/acert.pem
+ * (2028-01-01), used to exercise attribute certificate validity period
+ * enforcement without depending on the real system clock. */
+static time_t acert_expired_time_cb(time_t* t)
+{
+    time_t expired = (time_t)1893456000; /* 2030-01-01 00:00:00 UTC */
+
+    if (t != NULL) {
+        *t = expired;
+    }
+
+    return expired;
+}
+#endif /* !NO_ASN_TIME && !NO_ASN_TIME_CHECK */
 #endif
 
 int test_wolfSSL_X509_ACERT_verify(void)
@@ -140,6 +156,17 @@ int test_wolfSSL_X509_ACERT_verify(void)
     }
 
     ExpectIntEQ(rc, 0);
+
+#if !defined(NO_ASN_TIME) && !defined(NO_ASN_TIME_CHECK)
+    /* Override the current time to be past the acert's notAfter date. A
+     * cert with a valid signature must now fail verification because its
+     * validity period no longer includes the current time (RFC 5755). */
+    ExpectIntEQ(wc_SetTimeCb(acert_expired_time_cb), 0);
+    ExpectIntEQ(do_acert_verify_test(acerts[0], pkeys[0], 0), 0);
+    /* Always restore the real time source, even if the check above failed,
+     * so subsequent tests are unaffected. */
+    wc_SetTimeCb(NULL);
+#endif /* !NO_ASN_TIME && !NO_ASN_TIME_CHECK */
 #endif
     return EXPECT_RESULT();
 }

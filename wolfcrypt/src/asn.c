@@ -40309,7 +40309,7 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
         if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE) &&
             (! AsnSkipDateCheck))
         {
-            badDate = ASN_BEFORE_DATE_E;
+            badDate = ASN_AFTER_DATE_E;
         }
     }
 
@@ -40609,6 +40609,16 @@ int VerifyX509Acert(const byte* der, word32 derSz,
         ret = ASN_PARSE_E;
     }
     #endif
+
+    /* Enforce the attribute certificate validity period (RFC 5755 section
+     * 5.4). CheckDate returns the appropriate date error, or 0, and honors
+     * the runtime skip-date control internally. */
+    if (ret == 0) {
+        ret = CheckDate(&dataASN[ACERT_IDX_ACINFO_VALIDITY_NOTB_GT], ASN_BEFORE);
+    }
+    if (ret == 0) {
+        ret = CheckDate(&dataASN[ACERT_IDX_ACINFO_VALIDITY_NOTA_GT], ASN_AFTER);
+    }
 
     if (ret == 0) {
         /* Finally, do the verification. */
