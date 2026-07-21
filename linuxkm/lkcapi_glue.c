@@ -460,6 +460,9 @@ static int linuxkm_lkcapi_register(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCCM
     REGISTER_ALG(ccmAesAead, aead, linuxkm_test_aesccm);
 #endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
+    REGISTER_ALG(cmacAesAlg, shash, linuxkm_test_aescmac);
+#endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     REGISTER_ALG(xtsAesAlg, skcipher, linuxkm_test_aesxts);
 #endif
@@ -849,6 +852,9 @@ static int linuxkm_lkcapi_unregister(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309
     UNREGISTER_ALG(ccmAesAead_rfc4309, aead);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
+    UNREGISTER_ALG(cmacAesAlg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     UNREGISTER_ALG(xtsAesAlg, skcipher);

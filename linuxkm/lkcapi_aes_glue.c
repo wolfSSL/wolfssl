@@ -44,6 +44,7 @@
     defined(LINUXKM_LKCAPI_REGISTER_AESCTR) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESECB) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESCMAC) || \
     defined(LINUXKM_LKCAPI_REGISTER_AES_ALL)
 
     #ifdef NO_AES
@@ -95,6 +96,7 @@
 #define WOLFKM_AESCTR_NAME   "ctr(aes)"
 #define WOLFKM_AESOFB_NAME   "ofb(aes)"
 #define WOLFKM_AESECB_NAME   "ecb(aes)"
+#define WOLFKM_AESCMAC_NAME  "cmac(aes)"
 
 #if defined(WOLFSSL_X86_64_BUILD) && (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES))
     #if !defined(NO_AVX512_SUPPORT)
@@ -125,6 +127,7 @@
 #define WOLFKM_AESCTR_DRIVER ("ctr-aes" WOLFKM_AES_DRIVER_SUFFIX)
 #define WOLFKM_AESOFB_DRIVER ("ofb-aes" WOLFKM_AES_DRIVER_SUFFIX)
 #define WOLFKM_AESECB_DRIVER ("ecb-aes" WOLFKM_AES_DRIVER_SUFFIX)
+#define WOLFKM_AESCMAC_DRIVER ("cmac-aes" WOLFKM_AES_DRIVER_SUFFIX)
 
 #ifdef HAVE_AES_CBC
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
@@ -252,6 +255,25 @@
     #endif
     #undef LINUXKM_LKCAPI_REGISTER_AESECB
 #endif
+#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_DIRECT)
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         defined(LINUXKM_LKCAPI_REGISTER_AES_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CMAC))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESCMAC) &&              \
+        !defined(LINUXKM_LKCAPI_REGISTER_AESCMAC)
+        #define LINUXKM_LKCAPI_REGISTER_AESCMAC
+    #endif
+#else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_CMAC) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_AESCMAC)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_CMAC, but module is missing WOLFSSL_CMAC and/or WOLFSSL_AES_DIRECT.
+    #endif
+    #undef LINUXKM_LKCAPI_REGISTER_AESCMAC
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
+    #include <wolfssl/wolfcrypt/cmac.h>
+#endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCBC
     static int  linuxkm_test_aescbc(void);
@@ -282,6 +304,9 @@
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
     static int  linuxkm_test_aesecb(void);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
+    static int  linuxkm_test_aescmac(void);
 #endif
 
 #if defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
@@ -4980,6 +5005,655 @@ static int linuxkm_test_aesecb(void) {
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AESECB */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+    #define WC_LINUXKM_CMAC_HAVE_CMACFREE
+#endif
+
+/* The transient-copy design below struct-copies a keyed Cmac, which is sound
+ * only while the embedded Aes owns no heap allocations in module
+ * configurations: wc_AesFree()'s only mainstream XFREE() target is the
+ * GCM-streaming streamData buffer, which the CMAC path never allocates.
+ * _CRYPTO_CB per-instance contexts would break that invariant.
+ */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    #error LINUXKM_LKCAPI_REGISTER_AESCMAC is incompatible with WOLF_CRYPTO_CB_FREE.
+#endif
+
+/* Per-tfm state -- a pristine keyed Cmac, built at km_AesCmacSetKey() and
+ * owned by the tfm, whose lifecycle (unlike a desc's) has a guaranteed
+ * exit_tfm.  descs never own heap: the kernel's desc ctx contract permits
+ * memcpy, poisoning, and discard-without-final (cf. testmgr_poison() between
+ * export and import in crypto/testmgr.c), under which any desc-owned
+ * allocation is structurally leak-prone.
+  */
+struct km_AesCmacTfmCtx {
+    Cmac *pristine;
+};
+
+/* Serialized mid-stream state for .export/.import, and also the entire
+ * per-desc state, held inline: pure POD, so poison/memcpy/discard are all
+ * safe by construction.  Deliberately excludes all key material (raw key,
+ * schedule, k1/k2 subkeys) -- ops rematerialize those by struct-copying the
+ * tfm-owned pristine Cmac, so the blob that transits caller-owned memory
+ * (e.g. AF_ALG state transport) carries only chaining state.  The format is
+ * private to this driver: export/import always round-trips within a single
+ * tfm, so no cross-implementation compatibility obtains, and native
+ * endianness and widths are correct by construction.
+ */
+struct km_AesCmacExportState {
+    byte digest[WC_AES_BLOCK_SIZE];
+    byte buffer[WC_AES_BLOCK_SIZE];
+    word32 bufferSz;
+    word32 totalSz;
+};
+
+struct km_AesCmacDescCtx {
+    struct km_AesCmacExportState st;
+};
+
+/* The state shuttling reaches into struct Cmac internals by field name -- no
+ * cryptographic substance, but width-sensitive.  Pin the assumptions at
+ * compile time so any divergence across FIPS-boundary or config variants of
+ * cmac.h fails the build rather than the runtime.
+ */
+wc_static_assert(sizeof(((Cmac *)0)->digest) == WC_AES_BLOCK_SIZE);
+wc_static_assert(sizeof(((Cmac *)0)->buffer) == WC_AES_BLOCK_SIZE);
+wc_static_assert(sizeof(((Cmac *)0)->bufferSz) == sizeof(word32));
+wc_static_assert(sizeof(((Cmac *)0)->totalSz) == sizeof(word32));
+/* No implicit padding: statesize-sized exports must be fully written, lest
+ * uninitialized kernel bytes leak to userspace through AF_ALG.
+ */
+wc_static_assert(sizeof(struct km_AesCmacExportState) ==
+                 (2 * WC_AES_BLOCK_SIZE) + (2 * sizeof(word32)));
+wc_static_assert(sizeof(struct km_AesCmacDescCtx) ==
+                 sizeof(struct km_AesCmacExportState));
+
+/* full teardown of a live, fully-initialized Cmac. */
+static void km_AesCmacDispose(Cmac **cmac)
+{
+#ifdef WC_LINUXKM_CMAC_HAVE_CMACFREE
+    (void)wc_CmacFree(*cmac);
+#else
+    byte discard[WC_CMAC_TAG_MAX_SZ];
+    word32 discard_sz = (word32)sizeof(discard);
+    (void)wc_CmacFinal(*cmac, discard, &discard_sz);
+    ForceZero(discard, sizeof(discard));
+#endif
+    free(*cmac);
+    *cmac = NULL;
+}
+
+static int km_AesCmacSetKey(struct crypto_shash *tfm, const u8 *key,
+                            unsigned int keylen)
+{
+    struct km_AesCmacTfmCtx *t_ctx =
+        (struct km_AesCmacTfmCtx *)crypto_shash_ctx(tfm);
+    Cmac *new_pristine;
+    int ret;
+
+    if ((keylen != AES_128_KEY_SIZE) &&
+        (keylen != AES_192_KEY_SIZE) &&
+        (keylen != AES_256_KEY_SIZE))
+    {
+        return -EINVAL;
+    }
+
+    new_pristine = (Cmac *)malloc(sizeof(*new_pristine));
+    if (! new_pristine)
+        return -ENOMEM;
+
+    ret = wc_InitCmac(new_pristine, key, (word32)keylen, WC_CMAC_AES,
+                      NULL /* unused */);
+    if (ret != 0) {
+        /* wc_InitCmac() zeroizes the Cmac before use, but doesn't release the
+         * embedded Aes on post-wc_AesInit() failures.
+         */
+#ifdef WC_LINUXKM_CMAC_HAVE_CMACFREE
+        (void)wc_CmacFree(new_pristine);
+#else
+        /* no wc_CmacFree() in the boundary -- a failed-init Cmac holds no
+         * allocations in pre-v6 FIPS configurations, so zeroization suffices.
+         */
+        ForceZero(new_pristine, sizeof(*new_pristine));
+#endif
+        free(new_pristine);
+        /* fail closed on rekey failure -- the kernel re-flags NEED_KEY, and a
+         * stale pristine would misattribute subsequent traffic to the old
+         * key.
+         */
+        if (t_ctx->pristine)
+            km_AesCmacDispose(&t_ctx->pristine);
+        return -EINVAL;
+    }
+
+    if (t_ctx->pristine)
+        km_AesCmacDispose(&t_ctx->pristine);
+    t_ctx->pristine = new_pristine;
+
+    return 0;
+}
+
+static void km_AesCmacExitTfm(struct crypto_shash *tfm)
+{
+    struct km_AesCmacTfmCtx *t_ctx =
+        (struct km_AesCmacTfmCtx *)crypto_shash_ctx(tfm);
+    if (t_ctx->pristine)
+        km_AesCmacDispose(&t_ctx->pristine);
+    return;
+}
+
+/* Materialize a transient working Cmac: struct copy of the tfm-owned pristine
+ * (rederiving nothing -- schedule and k1/k2 come along in the image), then
+ * install the desc's streaming state.  The transient shares only the value
+ * image, never ownership, with the pristine.
+ */
+static int km_AesCmacMaterialize(struct crypto_shash *tfm,
+                                 const struct km_AesCmacExportState *st,
+                                 Cmac **cmac_out)
+{
+    struct km_AesCmacTfmCtx *t_ctx =
+        (struct km_AesCmacTfmCtx *)crypto_shash_ctx(tfm);
+    Cmac *cmac;
+
+    if (t_ctx->pristine == NULL)
+        return -ENOKEY;
+
+    cmac = (Cmac *)malloc(sizeof(*cmac));
+    if (! cmac)
+        return -ENOMEM;
+
+    XMEMCPY(cmac, t_ctx->pristine, sizeof(*cmac));
+
+    XMEMCPY(cmac->digest, st->digest, WC_AES_BLOCK_SIZE);
+    XMEMCPY(cmac->buffer, st->buffer, WC_AES_BLOCK_SIZE);
+    cmac->bufferSz = st->bufferSz;
+    cmac->totalSz  = st->totalSz;
+
+    *cmac_out = cmac;
+    return 0;
+}
+
+static void km_AesCmacExtract(const Cmac *cmac,
+                              struct km_AesCmacExportState *st)
+{
+    XMEMCPY(st->digest, cmac->digest, WC_AES_BLOCK_SIZE);
+    XMEMCPY(st->buffer, cmac->buffer, WC_AES_BLOCK_SIZE);
+    st->bufferSz = cmac->bufferSz;
+    st->totalSz  = cmac->totalSz;
+}
+
+static int km_AesCmacInit(struct shash_desc *desc)
+{
+    struct km_AesCmacDescCtx *d_ctx =
+        (struct km_AesCmacDescCtx *)shash_desc_ctx(desc);
+    struct km_AesCmacTfmCtx *t_ctx =
+        (struct km_AesCmacTfmCtx *)crypto_shash_ctx(desc->tfm);
+
+    if (t_ctx->pristine == NULL)
+        return -ENOKEY;
+
+    /* The all-zero state is exactly the streaming state of a freshly
+     * wc_InitCmac()ed Cmac.
+     */
+    XMEMSET(&d_ctx->st, 0, sizeof(d_ctx->st));
+
+    return 0;
+}
+
+/* Note, inefficiency here in Update() is to accommodate the LKCAPI's lack of a
+ * cleanup hook for the desc ctx.  Otherwise, we could cache a heap-allocated
+ * live Cmac object, accessed via a pointer in the shash_desc_ctx(), and just
+ * pass it to wc_CmacUpdate() in each call to km_AesCmacUpdate().  If a
+ * performance requirement materializes, this is still possible, awkwardly,
+ * e.g. by using kmem_cache, or adding a thread-synchronized linked list
+ * accessible via the tfm object, assuring deallocation at worst when
+ * km_AesCmacExitTfm() is called.
+ */
+static int km_AesCmacUpdate(struct shash_desc *desc, const u8 *data,
+                            unsigned int len)
+{
+    struct km_AesCmacDescCtx *d_ctx =
+        (struct km_AesCmacDescCtx *)shash_desc_ctx(desc);
+    Cmac *cmac;
+    int ret;
+
+    ret = km_AesCmacMaterialize(desc->tfm, &d_ctx->st, &cmac);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_CmacUpdate(cmac, data, len);
+    if (ret == 0)
+        km_AesCmacExtract(cmac, &d_ctx->st);
+
+    km_AesCmacDispose(&cmac);
+
+    return (ret == 0) ? 0 : -EINVAL;
+}
+
+static int km_AesCmacFinal(struct shash_desc *desc, u8 *out)
+{
+    struct km_AesCmacDescCtx *d_ctx =
+        (struct km_AesCmacDescCtx *)shash_desc_ctx(desc);
+    Cmac *cmac;
+    int ret;
+
+    ret = km_AesCmacMaterialize(desc->tfm, &d_ctx->st, &cmac);
+    if (ret != 0)
+        return ret;
+
+    {
+        word32 outSz = WC_AES_BLOCK_SIZE;
+        ret = wc_CmacFinal(cmac, out, &outSz);
+    }
+
+    /* wc_CmacFinal() zeroizes and releases the Cmac unconditionally, on all
+     * supported FIPS and non-FIPS code paths -- only the container allocation
+     * remains to be freed.
+     */
+    free(cmac);
+
+    /* scrub the spent streaming state. */
+    ForceZero(&d_ctx->st, sizeof(d_ctx->st));
+
+    return (ret == 0) ? 0 : -EINVAL;
+}
+
+static int km_AesCmacFinup(struct shash_desc *desc, const u8 *data,
+                           unsigned int len, u8 *out)
+{
+    struct km_AesCmacDescCtx *d_ctx =
+        (struct km_AesCmacDescCtx *)shash_desc_ctx(desc);
+    Cmac *cmac;
+    int ret;
+
+    /* single materialization for the combined update+final. */
+    ret = km_AesCmacMaterialize(desc->tfm, &d_ctx->st, &cmac);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_CmacUpdate(cmac, data, len);
+
+    if (ret != 0) {
+        km_AesCmacDispose(&cmac);
+        return -EINVAL;
+    }
+
+    {
+        word32 outSz = WC_AES_BLOCK_SIZE;
+        ret = wc_CmacFinal(cmac, out, &outSz);
+    }
+    free(cmac);
+
+    ForceZero(&d_ctx->st, sizeof(d_ctx->st));
+
+    return (ret == 0) ? 0 : -EINVAL;
+}
+
+static int km_AesCmacDigest(struct shash_desc *desc, const u8 *data,
+                            unsigned int len, u8 *out)
+{
+    int ret = km_AesCmacInit(desc);
+    if (ret != 0)
+        return ret;
+    return km_AesCmacFinup(desc, data, len, out);
+}
+
+static int km_AesCmacExport(struct shash_desc *desc, void *out)
+{
+    struct km_AesCmacDescCtx *d_ctx =
+        (struct km_AesCmacDescCtx *)shash_desc_ctx(desc);
+
+    /* non-destructive -- the desc remains live and can continue streaming. */
+    XMEMCPY(out, &d_ctx->st, sizeof(d_ctx->st));
+
+    return 0;
+}
+
+static int km_AesCmacImport(struct shash_desc *desc, const void *in)
+{
+    struct km_AesCmacDescCtx *d_ctx =
+        (struct km_AesCmacDescCtx *)shash_desc_ctx(desc);
+    const struct km_AesCmacExportState *st =
+        (const struct km_AesCmacExportState *)in;
+
+    /* An out-of-range bufferSz would underflow the remaining-space
+     * calculation in the wc_CmacUpdate() buffering path -- reject before
+     * installing anything.
+     */
+    if (st->bufferSz > WC_AES_BLOCK_SIZE)
+        return -EINVAL;
+
+    /* Like .init, .import overwrites the desc ctx unconditionally -- the
+     * prior contents are the caller's responsibility and may be uninitialized
+     * or deliberately poisoned (c.f. testmgr_poison() in crypto/testmgr.c).
+     * As pure inline POD, they hold nothing to interpret, free, or zeroize.
+     */
+    XMEMCPY(&d_ctx->st, st, sizeof(d_ctx->st));
+
+    return 0;
+}
+
+static struct shash_alg cmacAesAlg =
+{
+    .digestsize     =       WC_AES_BLOCK_SIZE,
+    .init           =       km_AesCmacInit,
+    .update         =       km_AesCmacUpdate,
+    .final          =       km_AesCmacFinal,
+    .finup          =       km_AesCmacFinup,
+    .digest         =       km_AesCmacDigest,
+    .setkey         =       km_AesCmacSetKey,
+    .export         =       km_AesCmacExport,
+    .import         =       km_AesCmacImport,
+    .exit_tfm       =       km_AesCmacExitTfm,
+    .descsize       =       sizeof(struct km_AesCmacDescCtx),
+    .statesize      =       sizeof(struct km_AesCmacExportState),
+    .base           =       {
+        .cra_name        =      WOLFKM_AESCMAC_NAME,
+        .cra_driver_name =      WOLFKM_AESCMAC_DRIVER,
+        .cra_priority    =      WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
+        .cra_blocksize   =      WC_AES_BLOCK_SIZE,
+        .cra_ctxsize     =      sizeof(struct km_AesCmacTfmCtx),
+        .cra_module      =      THIS_MODULE
+    }
+};
+static int cmacAesAlg_loaded = 0;
+
+static int linuxkm_test_aescmac(void)
+{
+    wc_test_ret_t wc_ret;
+    int ret = 0;
+    struct crypto_shash *tfm = NULL;
+    struct shash_desc *desc = NULL;
+    struct shash_desc *desc2 = NULL;
+    struct km_AesCmacExportState export_state;
+    size_t desc_size = 0;
+
+    /* SP 800-38B / RFC 4493 example vectors */
+    static const byte key128[AES_128_KEY_SIZE] =
+    {
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    };
+    static const byte key256[AES_256_KEY_SIZE] =
+    {
+        0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
+        0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+        0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7,
+        0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4
+    };
+    static const byte m_vector[40] =
+    {
+        0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+        0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
+        0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c,
+        0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
+        0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11
+    };
+    /* CMAC-AES128, Mlen=128 (first block of m_vector) */
+    static const byte tag128_m16[WC_AES_BLOCK_SIZE] =
+    {
+        0x07, 0x0a, 0x16, 0xb4, 0x6b, 0x4d, 0x41, 0x44,
+        0xf7, 0x9b, 0xdd, 0x9d, 0xd0, 0x4a, 0x28, 0x7c
+    };
+    /* CMAC-AES128, Mlen=320 */
+    static const byte tag128_m40[WC_AES_BLOCK_SIZE] =
+    {
+        0xdf, 0xa6, 0x67, 0x47, 0xde, 0x9a, 0xe6, 0x30,
+        0x30, 0xca, 0x32, 0x61, 0x14, 0x97, 0xc8, 0x27
+    };
+    /* CMAC-AES256, Mlen=320 */
+    static const byte tag256_m40[WC_AES_BLOCK_SIZE] =
+    {
+        0xaa, 0xf3, 0xd8, 0xf1, 0xde, 0x56, 0x40, 0xc2,
+        0x32, 0xf5, 0xb1, 0x69, 0xb9, 0xc9, 0x11, 0xe6
+    };
+    byte tag[WC_AES_BLOCK_SIZE];
+
+    /* First, the wolfCrypt-native KATs. */
+    wc_ret = cmac_test();
+    if (wc_ret < 0) {
+        wc_test_render_error_message("cmac_test failed: ", wc_ret);
+        return WC_TEST_RET_DEC_EC(wc_ret);
+    }
+
+    /* Now the kernel crypto part. */
+
+    tfm = crypto_alloc_shash(WOLFKM_AESCMAC_NAME, 0, 0);
+    if (IS_ERR(tfm)) {
+        ret = (int)PTR_ERR(tfm);
+        pr_err("ERROR: allocating shash algorithm %s failed: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        tfm = NULL;
+        goto test_cmac_end;
+    }
+
+    ret = check_shash_driver_masking(tfm, WOLFKM_AESCMAC_NAME,
+                                     WOLFKM_AESCMAC_DRIVER);
+    if (ret)
+        goto test_cmac_end;
+
+    if (crypto_shash_digestsize(tfm) != WC_AES_BLOCK_SIZE) {
+        pr_err("ERROR: shash algorithm %s crypto_shash_digestsize()"
+               " returned %d but expected %d\n",
+               WOLFKM_AESCMAC_DRIVER, crypto_shash_digestsize(tfm),
+               WC_AES_BLOCK_SIZE);
+        ret = -EINVAL;
+        goto test_cmac_end;
+    }
+
+    desc_size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
+    desc = (struct shash_desc *)malloc(desc_size);
+    if (! desc) {
+        pr_err("ERROR: malloc failed\n");
+        ret = -ENOMEM;
+        goto test_cmac_end;
+    }
+    XMEMSET(desc, 0, desc_size);
+    desc->tfm = tfm;
+
+    /* Undersized/oversized keys must be rejected at setkey time. */
+    if (crypto_shash_setkey(tfm, key256, AES_256_KEY_SIZE - 1) == 0) {
+        pr_err("ERROR: crypto_shash_setkey for %s accepted an invalid"
+               " key length.\n", WOLFKM_AESCMAC_NAME);
+        ret = -EINVAL;
+        goto test_cmac_end;
+    }
+
+    ret = crypto_shash_setkey(tfm, key128, sizeof(key128));
+    if (ret) {
+        pr_err("ERROR: crypto_shash_setkey for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+
+    /* One-shot digest, single-block message. */
+    ret = crypto_shash_digest(desc, m_vector, WC_AES_BLOCK_SIZE, tag);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_digest for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    if (XMEMCMP(tag, tag128_m16, sizeof(tag)) != 0) {
+        pr_err("ERROR: %s one-shot KAT mismatch (AES-128, Mlen=128)\n",
+               WOLFKM_AESCMAC_DRIVER);
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto test_cmac_end;
+    }
+
+    /* Incremental init/update/final, with an unaligned split that straddles
+     * a block boundary, exercising the Cmac buffering path.
+     */
+    ret = crypto_shash_init(desc);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_init for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    ret = crypto_shash_update(desc, m_vector, 7);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, m_vector + 7, sizeof(m_vector) - 7);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_update for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    ret = crypto_shash_final(desc, tag);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_final for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    if (XMEMCMP(tag, tag128_m40, sizeof(tag)) != 0) {
+        pr_err("ERROR: %s incremental KAT mismatch (AES-128, Mlen=320)\n",
+               WOLFKM_AESCMAC_DRIVER);
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto test_cmac_end;
+    }
+
+    /* Re-init over a live mid-stream desc: under the kernel's desc ctx
+     * contract this discards the prior state without final, which must be
+     * loss-free by construction (nothing desc-owned to leak).
+     */
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, m_vector, 7);
+    if (ret == 0)
+        ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, m_vector, sizeof(m_vector));
+    if (ret == 0)
+        ret = crypto_shash_final(desc, tag);
+    if (ret) {
+        pr_err("ERROR: shash re-init sequence for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    if (XMEMCMP(tag, tag128_m40, sizeof(tag)) != 0) {
+        pr_err("ERROR: %s re-init KAT mismatch (AES-128, Mlen=320)\n",
+               WOLFKM_AESCMAC_DRIVER);
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto test_cmac_end;
+    }
+
+    /* Export/import round trip: export desc mid-stream, import into a second,
+     * deliberately poisoned desc, and finish both independently.  This
+     * validates true cross-desc snapshot semantics, which testmgr's same-desc
+     * reimport sequencing cannot distinguish from pointer aliasing.
+     */
+    if (crypto_shash_statesize(tfm) !=
+        sizeof(struct km_AesCmacExportState))
+    {
+        pr_err("ERROR: shash algorithm %s crypto_shash_statesize()"
+               " returned %d but expected %d\n",
+               WOLFKM_AESCMAC_DRIVER, crypto_shash_statesize(tfm),
+               (int)sizeof(struct km_AesCmacExportState));
+        ret = -EINVAL;
+        goto test_cmac_end;
+    }
+
+    desc2 = (struct shash_desc *)malloc(desc_size);
+    if (! desc2) {
+        pr_err("ERROR: malloc failed\n");
+        ret = -ENOMEM;
+        goto test_cmac_end;
+    }
+    XMEMSET(desc2, 0xa5, desc_size); /* poison, a la testmgr */
+    desc2->tfm = tfm;
+
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, m_vector, 7);
+    if (ret == 0)
+        ret = crypto_shash_export(desc, &export_state);
+    if (ret) {
+        pr_err("ERROR: shash export sequence for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+
+    ret = crypto_shash_import(desc2, &export_state);
+    if (ret == 0)
+        ret = crypto_shash_update(desc2, m_vector + 7, sizeof(m_vector) - 7);
+    if (ret == 0)
+        ret = crypto_shash_final(desc2, tag);
+    if (ret) {
+        pr_err("ERROR: shash import sequence for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    if (XMEMCMP(tag, tag128_m40, sizeof(tag)) != 0) {
+        pr_err("ERROR: %s import-continuation KAT mismatch"
+               " (AES-128, Mlen=320)\n", WOLFKM_AESCMAC_DRIVER);
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto test_cmac_end;
+    }
+
+    /* The exporting desc must remain live and correct. */
+    ret = crypto_shash_update(desc, m_vector + 7, sizeof(m_vector) - 7);
+    if (ret == 0)
+        ret = crypto_shash_final(desc, tag);
+    if (ret) {
+        pr_err("ERROR: shash post-export continuation for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    if (XMEMCMP(tag, tag128_m40, sizeof(tag)) != 0) {
+        pr_err("ERROR: %s post-export continuation KAT mismatch"
+               " (AES-128, Mlen=320)\n", WOLFKM_AESCMAC_DRIVER);
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto test_cmac_end;
+    }
+
+    /* Malformed state must be rejected before installation. */
+    export_state.bufferSz = WC_AES_BLOCK_SIZE + 1;
+    if (crypto_shash_import(desc2, &export_state) == 0) {
+        pr_err("ERROR: crypto_shash_import for %s accepted an"
+               " out-of-range bufferSz.\n", WOLFKM_AESCMAC_NAME);
+        ret = -EINVAL;
+        goto test_cmac_end;
+    }
+
+    /* Rekey with AES-256 and confirm one-shot. */
+    ret = crypto_shash_setkey(tfm, key256, sizeof(key256));
+    if (ret) {
+        pr_err("ERROR: crypto_shash_setkey for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    ret = crypto_shash_digest(desc, m_vector, sizeof(m_vector), tag);
+    if (ret) {
+        pr_err("ERROR: crypto_shash_digest for %s returned: %d\n",
+               WOLFKM_AESCMAC_NAME, ret);
+        goto test_cmac_end;
+    }
+    if (XMEMCMP(tag, tag256_m40, sizeof(tag)) != 0) {
+        pr_err("ERROR: %s one-shot KAT mismatch (AES-256, Mlen=320)\n",
+               WOLFKM_AESCMAC_DRIVER);
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto test_cmac_end;
+    }
+
+test_cmac_end:
+
+    ForceZero(&export_state, sizeof(export_state));
+    if (desc2) {
+        ForceZero(desc2, desc_size);
+        free(desc2);
+    }
+    if (desc) {
+        ForceZero(desc, desc_size);
+        free(desc);
+    }
+    if (tfm)
+        crypto_free_shash(tfm);
+
+    return ret;
+}
+
+#endif /* LINUXKM_LKCAPI_REGISTER_AESCMAC */
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AES */
 
