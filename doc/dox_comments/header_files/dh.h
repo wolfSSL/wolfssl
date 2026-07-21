@@ -1050,6 +1050,14 @@ int wc_DhSetCheckKey(DhKey* key, const byte* p, word32 pSz,
 
 /*!
     \ingroup Diffie-Hellman
+
+    \note Parameters that are not one of the built-in FFDHE groups are
+    untrusted, so the modulus is tested for primality with random
+    Miller-Rabin witnesses. This function takes no RNG, so it instantiates a
+    temporary one, which allocates memory and consumes entropy on every such
+    call. When neither is available the test falls back to fixed witness
+    bases, which a purpose-built composite can defeat. Call
+    wc_DhSetCheckKey() with an initialized WC_RNG to supply your own.
 */
 int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz,
                         const byte* g, word32 gSz, const byte* q, word32 qSz);
