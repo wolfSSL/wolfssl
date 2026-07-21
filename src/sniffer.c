@@ -564,15 +564,27 @@ typedef struct SnifferSession {
 } SnifferSession;
 
 
+/* The session, server, and keylog secret tables below are qualified
+ * THREAD_LS_T. When thread-local storage is genuinely available each thread
+ * owns a private copy of these tables, so their lookups and list mutations
+ * need no mutex. THREAD_LS_T is only a real thread-local qualifier when
+ * HAVE_THREAD_LS is defined and NO_THREAD_LS is not; otherwise the tables are
+ * process-shared globals that must be locked. HAVE_C___ATOMIC by itself does
+ * not make the tables thread-local, so the lock elision is gated on both. */
+#if defined(HAVE_C___ATOMIC) && defined(HAVE_THREAD_LS) && \
+    !defined(NO_THREAD_LS)
+    #define SNIFFER_LOCKLESS_TABLES
+#endif
+
 /* Sniffer Server List and mutex */
 static THREAD_LS_T SnifferServer* ServerList = NULL;
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
 static WC_THREADSHARED wolfSSL_Mutex ServerListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ServerListMutex);
 #endif
 
 /* Session Hash Table, mutex, and count */
 static THREAD_LS_T SnifferSession* SessionTable[HASH_SIZE];
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
 static WC_THREADSHARED wolfSSL_Mutex SessionMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(SessionMutex);
 #endif
 static THREAD_LS_T int SessionCount = 0;
@@ -641,7 +653,7 @@ static void UpdateMissedDataSessions(void)
         NOLOCK_INC_STAT(x); UNLOCK_STAT(); } while (0)
 #endif /* WOLFSSL_SNIFFER_STATS */
 
-#ifdef HAVE_C___ATOMIC
+#ifdef SNIFFER_LOCKLESS_TABLES
     #define LOCK_SESSION() WC_DO_NOTHING
     #define UNLOCK_SESSION() WC_DO_NOTHING
     #define LOCK_SERVER_LIST() WC_DO_NOTHING
@@ -682,7 +694,7 @@ void ssl_InitSniffer_ex(int devId)
 {
     wolfSSL_Init();
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
     wc_InitMutex(&ServerListMutex);
     wc_InitMutex(&SessionMutex);
 #endif
@@ -908,7 +920,7 @@ void ssl_FreeSniffer(void)
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
     wc_FreeMutex(&RecoveryMutex);
 #endif
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
     wc_FreeMutex(&SessionMutex);
     wc_FreeMutex(&ServerListMutex);
 #endif
@@ -5222,14 +5234,14 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     SnifferSession* previous = 0;
     SnifferSession* current;
     word32          row = rowHint;
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
     int             haveLock = 0;
 #endif
     Trace(REMOVE_SESSION_STR);
 
     if (ipInfo && tcpInfo)
         row = SessionHash(ipInfo, tcpInfo);
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
     else
         haveLock = 1;
 #endif
@@ -5237,7 +5249,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     if (row >= HASH_SIZE)
         return;
 
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
     if (!haveLock) {
         LOCK_SESSION();
     }
@@ -5259,7 +5271,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
         current  = current->next;
     }
 
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
     if (!haveLock) {
         UNLOCK_SESSION();
     }
@@ -7439,13 +7451,13 @@ typedef struct SecretNode {
 static THREAD_LS_T
 SecretNode*
 secretHashTable[WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE] = {NULL};
-#ifndef HAVE_C___ATOMIC
+#ifndef SNIFFER_LOCKLESS_TABLES
 static WC_THREADSHARED wolfSSL_Mutex secretListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(secretListMutex);
 #endif
 
 static unsigned int secretHashFunction(unsigned char* clientRandom);
 
-#ifdef HAVE_C___ATOMIC
+#ifdef SNIFFER_LOCKLESS_TABLES
     #define LOCK_SECRET_LIST() WC_DO_NOTHING
     #define UNLOCK_SECRET_LIST() WC_DO_NOTHING
 #else
