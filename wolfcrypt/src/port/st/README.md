@@ -83,6 +83,21 @@ The TinyAES IP exposes a single key-size bit (128/256 only), so wolfSSL auto-def
 
 Some newer families (H5/H7S/U3/U5/WBA/C5/N6, plus the L562 sub-variant) expose a Secure AES (SAES) instance in addition to (or instead of) a regular AES block. Define `WOLFSSL_STM32_USE_SAES` to route all wolfcrypt AES traffic through SAES via the `WC_STM32_AES_INST` indirection macro. This is required when the regular AES block is TrustZone-gated (H7S3) and is also a prerequisite for DHUK key-wrap on the families in the `WC_STM32_HAS_DHUK` gate (U3/U5/H5/WBA/C5).
 
+### AES via crypto callback (`WOLF_CRYPTO_CB_ONLY_AES`)
+
+`WOLF_CRYPTO_CB_ONLY_AES` strips the software AES core (to shrink code) and routes every AES operation through the `WOLF_CRYPTO_CB` framework. On the CubeMX/HAL build, register the STM32 CubeMX AES device so those callbacks reach the HAL AES hardware:
+
+```
+#define WOLFSSL_STM32_CUBEMX
+#define WOLF_CRYPTO_CB
+#define WOLF_CRYPTO_CB_ONLY_AES
+...
+wc_Stm32_CubeAesRegister(devId);   /* once */
+wc_AesInit(&aes, NULL, devId);     /* per Aes; then use wc_AesGcm* as normal */
+```
+
+The device services AES-ECB on the HAL, which is what `wc_AesGcmSetKey` needs to derive the GHASH subkey; AES-GCM then runs on the native HAL GCM engine, all with the normal plaintext key. When `WOLFSSL_STM32_CCB` is enabled, `wc_Stm32_DhukRegister` dispatches these ciphers too, so a single devId serves both CCB ECDSA and AES. Worked example: [`STM32_Bare_Test/src/main_cubeaes.c`](https://github.com/wolfSSL/wolfssl-examples-stm32) (validated on NUCLEO-U385RG-Q).
+
 ### Coding
 
 Include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers. If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` and adding your own `user_settings.h`. A reference is in `IDE/GCC-ARM/Header/user_settings.h`.

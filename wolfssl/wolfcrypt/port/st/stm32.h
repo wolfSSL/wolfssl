@@ -471,8 +471,11 @@
     #endif
 #endif
 
-/* HAL-legacy macros that the existing direct-register HASH path depends on.
- * Without HAL these aren't otherwise visible. */
+/* HAL-legacy macros the direct-register HASH path depends on. ST's
+ * stm32XXxx_hal_hash.h also defines these HASH_ALGOSELECTION_* / HASH_ALGOMODE_*
+ * / HASH_DATATYPE_8B names, so each is wrapped in #ifndef: when the Cube HAL
+ * headers reach this TU (e.g. a Zephyr build) the HAL's copy wins (same register
+ * bits) instead of causing a redefinition; otherwise we define our own. */
 #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
     defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32H7S) || \
     defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32C5)
@@ -486,16 +489,30 @@
         #define WC_STM32_HASH_INSTANCE_HRA
     #endif
     /* 4-bit ALGO field at bits 20:17 */
-    #define HASH_ALGOSELECTION_SHA1       0u
-    #define HASH_ALGOSELECTION_SHA224     HASH_CR_ALGO_1
-    #define HASH_ALGOSELECTION_SHA256     (HASH_CR_ALGO_0 | HASH_CR_ALGO_1)
-    #define HASH_ALGOSELECTION_SHA384     (HASH_CR_ALGO_2 | HASH_CR_ALGO_3)
-    #define HASH_ALGOSELECTION_SHA512     (HASH_CR_ALGO_0 | HASH_CR_ALGO_1 | \
-                                           HASH_CR_ALGO_2 | HASH_CR_ALGO_3)
-    #define HASH_ALGOSELECTION_SHA512_224 (HASH_CR_ALGO_0 | HASH_CR_ALGO_2 | \
-                                           HASH_CR_ALGO_3)
-    #define HASH_ALGOSELECTION_SHA512_256 (HASH_CR_ALGO_1 | HASH_CR_ALGO_2 | \
-                                           HASH_CR_ALGO_3)
+    #ifndef HASH_ALGOSELECTION_SHA1
+        #define HASH_ALGOSELECTION_SHA1       0u
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA224
+        #define HASH_ALGOSELECTION_SHA224     HASH_CR_ALGO_1
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA256
+        #define HASH_ALGOSELECTION_SHA256     (HASH_CR_ALGO_0 | HASH_CR_ALGO_1)
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA384
+        #define HASH_ALGOSELECTION_SHA384     (HASH_CR_ALGO_2 | HASH_CR_ALGO_3)
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA512
+        #define HASH_ALGOSELECTION_SHA512     (HASH_CR_ALGO_0 | HASH_CR_ALGO_1 | \
+                                               HASH_CR_ALGO_2 | HASH_CR_ALGO_3)
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA512_224
+        #define HASH_ALGOSELECTION_SHA512_224 (HASH_CR_ALGO_0 | HASH_CR_ALGO_2 | \
+                                               HASH_CR_ALGO_3)
+    #endif
+    #ifndef HASH_ALGOSELECTION_SHA512_256
+        #define HASH_ALGOSELECTION_SHA512_256 (HASH_CR_ALGO_1 | HASH_CR_ALGO_2 | \
+                                               HASH_CR_ALGO_3)
+    #endif
 #else
     /* Older HASH IP (F4/F7/L4 family) ALGO bit mapping (per HAL):
      *   SHA1   = 0
@@ -503,49 +520,63 @@
      *   SHA224 = ALGO_1
      *   SHA256 = ALGO_0 | ALGO_1
      */
-    #define HASH_ALGOSELECTION_SHA1       0u
-    #define HASH_ALGOSELECTION_MD5        HASH_CR_ALGO_0
+    #ifndef HASH_ALGOSELECTION_SHA1
+        #define HASH_ALGOSELECTION_SHA1       0u
+    #endif
+    #ifndef HASH_ALGOSELECTION_MD5
+        #define HASH_ALGOSELECTION_MD5        HASH_CR_ALGO_0
+    #endif
     #ifdef HASH_CR_ALGO_1
-        #define HASH_ALGOSELECTION_SHA224 HASH_CR_ALGO_1
-        #define HASH_ALGOSELECTION_SHA256 (HASH_CR_ALGO_0 | HASH_CR_ALGO_1)
+        #ifndef HASH_ALGOSELECTION_SHA224
+            #define HASH_ALGOSELECTION_SHA224 HASH_CR_ALGO_1
+        #endif
+        #ifndef HASH_ALGOSELECTION_SHA256
+            #define HASH_ALGOSELECTION_SHA256 (HASH_CR_ALGO_0 | HASH_CR_ALGO_1)
+        #endif
     #endif
 #endif
 
 /* Legacy CamelCase aliases */
-#ifdef HASH_ALGOSELECTION_SHA1
+#if defined(HASH_ALGOSELECTION_SHA1) && !defined(HASH_AlgoSelection_SHA1)
     #define HASH_AlgoSelection_SHA1       HASH_ALGOSELECTION_SHA1
 #endif
-#ifdef HASH_ALGOSELECTION_SHA224
+#if defined(HASH_ALGOSELECTION_SHA224) && !defined(HASH_AlgoSelection_SHA224)
     #define HASH_AlgoSelection_SHA224     HASH_ALGOSELECTION_SHA224
 #endif
-#ifdef HASH_ALGOSELECTION_SHA256
+#if defined(HASH_ALGOSELECTION_SHA256) && !defined(HASH_AlgoSelection_SHA256)
     #define HASH_AlgoSelection_SHA256     HASH_ALGOSELECTION_SHA256
 #endif
-#ifdef HASH_ALGOSELECTION_SHA384
+#if defined(HASH_ALGOSELECTION_SHA384) && !defined(HASH_AlgoSelection_SHA384)
     #define HASH_AlgoSelection_SHA384     HASH_ALGOSELECTION_SHA384
 #endif
-#ifdef HASH_ALGOSELECTION_SHA512
+#if defined(HASH_ALGOSELECTION_SHA512) && !defined(HASH_AlgoSelection_SHA512)
     #define HASH_AlgoSelection_SHA512     HASH_ALGOSELECTION_SHA512
 #endif
-#ifdef HASH_ALGOSELECTION_SHA512_224
+#if defined(HASH_ALGOSELECTION_SHA512_224) && \
+    !defined(HASH_AlgoSelection_SHA512_224)
     #define HASH_AlgoSelection_SHA512_224 HASH_ALGOSELECTION_SHA512_224
 #endif
-#ifdef HASH_ALGOSELECTION_SHA512_256
+#if defined(HASH_ALGOSELECTION_SHA512_256) && \
+    !defined(HASH_AlgoSelection_SHA512_256)
     #define HASH_AlgoSelection_SHA512_256 HASH_ALGOSELECTION_SHA512_256
 #endif
-#ifdef HASH_ALGOSELECTION_MD5
+#if defined(HASH_ALGOSELECTION_MD5) && !defined(HASH_AlgoSelection_MD5)
     #define HASH_AlgoSelection_MD5        HASH_ALGOSELECTION_MD5
 #endif
 
-#define HASH_ALGOMODE_HASH              0u
-#ifdef HASH_CR_MODE
-    #define HASH_ALGOMODE_HMAC          HASH_CR_MODE
+#ifndef HASH_ALGOMODE_HASH
+    #define HASH_ALGOMODE_HASH             0u
+#endif
+#if defined(HASH_CR_MODE) && !defined(HASH_ALGOMODE_HMAC)
+    #define HASH_ALGOMODE_HMAC             HASH_CR_MODE
 #endif
 /* Byte-stream input (auto byte-swap) */
-#ifdef HASH_CR_DATATYPE_1
-    #define HASH_DATATYPE_8B            HASH_CR_DATATYPE_1
-#elif defined(HASH_CR_DATATYPE_0)
-    #define HASH_DATATYPE_8B            HASH_CR_DATATYPE_0
+#ifndef HASH_DATATYPE_8B
+    #ifdef HASH_CR_DATATYPE_1
+        #define HASH_DATATYPE_8B           HASH_CR_DATATYPE_1
+    #elif defined(HASH_CR_DATATYPE_0)
+        #define HASH_DATATYPE_8B           HASH_CR_DATATYPE_0
+    #endif
 #endif
 
 #endif /* WOLFSSL_STM32_BARE */
@@ -967,6 +998,15 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
     defined(WOLF_CRYPTO_CB)
     int  wc_Stm32_DhukRegister(int devId);
     void wc_Stm32_DhukUnRegister(int devId);
+#endif
+
+/* CubeMX/HAL AES crypto-callback device. Register at a devId, then init an Aes
+ * with it (wc_AesInit) to run AES on the HAL through the crypto callback -- this
+ * makes WOLF_CRYPTO_CB_ONLY_AES work on the HAL build. With WOLFSSL_STM32_CCB
+ * enabled, wc_Stm32_DhukRegister already covers AES too (same devId). */
+#if defined(WOLFSSL_STM32_CUBEMX) && defined(WOLF_CRYPTO_CB)
+    int  wc_Stm32_CubeAesRegister(int devId);
+    void wc_Stm32_CubeAesUnRegister(int devId);
 #endif
 
 /* CCB (Coupling and Chaining Bridge) HW-protected DHUK->PKA ECDSA -- STM32U3
