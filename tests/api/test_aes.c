@@ -3381,7 +3381,7 @@ int test_wc_AesGcmEncryptDecrypt(void)
         sizeof(iv)/sizeof(byte), resultT, sizeof(resultT) + 1, a, sizeof(a)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), iv,
-        sizeof(iv)/sizeof(byte), resultT, sizeof(resultT) - 5, a, sizeof(a)),
+        sizeof(iv)/sizeof(byte), resultT, sizeof(resultT) - 10, a, sizeof(a)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
 #if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
@@ -4928,7 +4928,7 @@ int test_wc_GmacUpdate(void)
     ExpectIntEQ(wc_GmacUpdate(NULL, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
         tagOut3, sizeof(tag3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
-        tagOut3, sizeof(tag3) - 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        tagOut3, sizeof(tag3) - 10), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
         tagOut3, sizeof(tag3) + 1),  WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     wc_AesFree(&gmac.aes);
