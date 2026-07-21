@@ -10171,7 +10171,16 @@ static int test_wolfSSL_SCR_check_enabled(void)
     ExpectIntEQ(1, wolfSSL_CTX_get_scr_check_enabled(ctx_c));
     ExpectIntEQ(1, wolfSSL_get_scr_check_enabled(ssl_c));
     ExpectIntEQ(0, test_memio_do_handshake(ssl_c, ssl_s, 10, NULL));
+    /* The negotiated state lives in the extension list, and
+     * FreeHandshakeResources() frees that list once the handshake is done
+     * unless the build keeps it for post-handshake querying - so the getter
+     * only still reports the negotiation in those builds. */
+#if defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLFSSL_DTLS_CID) || \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     ExpectIntNE(0, (int)wolfSSL_SSL_get_secure_renegotiation_support(ssl_c));
+#else
+    ExpectIntEQ(0, (int)wolfSSL_SSL_get_secure_renegotiation_support(ssl_c));
+#endif
 
     wolfSSL_free(ssl_c);
     ssl_c = NULL;
