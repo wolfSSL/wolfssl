@@ -91,7 +91,7 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
 
     if ((result == NULL && resLen != 0) || (secret == NULL && secLen != 0) ||
        (seed == NULL && seedLen != 0))
-      return BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
 
     switch (hash_type) {
     #ifndef NO_MD5
