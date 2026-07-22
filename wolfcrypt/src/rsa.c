@@ -5418,7 +5418,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     int err;
 
 #if !defined(WOLFSSL_CRYPTOCELL) && \
-    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA) || \
+     defined(WOLFSSL_SE050_ONLY_KEY_ID)) && \
     !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)

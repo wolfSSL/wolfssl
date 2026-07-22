@@ -30403,9 +30403,9 @@ exit_rsa_certreq:
         * WOLFSSL_CERT_REQ && !WOLFSSL_NO_MALLOC */
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
-    !defined(WOLFSSL_SE050_NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA_VERIFY) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_SE050_NO_RSA) && \
+    !defined(WOLFSSL_SE050_NO_RSA_VERIFY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 
 /* SE050 key ID for the ONLY_KEY_ID RSA test. Must be < SE050_KEYID_START. */
 #define SE050_ONLYKEYID_TEST_RSA_ID 51
@@ -30437,6 +30437,15 @@ static wc_test_ret_t rsa_se050_onlykeyid_test(WC_RNG* rng)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     swInit = 1;
+
+    /* An invalid key size must fail cleanly. This drives the early 'goto out'
+     * cleanup in wc_MakeRsaKey(), which under WOLFSSL_CHECK_MEM_ZERO must not
+     * scan the never-initialized stack temporaries. */
+    ret = wc_MakeRsaKey(&swKey, 0, WC_RSA_EXPONENT, rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
 
     /* Key generation must produce a software key (keyIdSet == 0). */
     ret = wc_MakeRsaKey(&swKey, 2048, WC_RSA_EXPONENT, rng);
@@ -30878,9 +30887,9 @@ ta100_rsa_pss_only:
 #endif
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
-    !defined(WOLFSSL_SE050_NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA_VERIFY) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_SE050_NO_RSA) && \
+    !defined(WOLFSSL_SE050_NO_RSA_VERIFY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
     ret = rsa_se050_onlykeyid_test(&rng);
     if (ret != 0) {
         printf("rsa_se050_onlykeyid_test failed!\n");
@@ -43985,6 +43994,20 @@ static wc_test_ret_t ecc_se050_onlykeyid_test(WC_RNG* rng)
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
     if (verify != 1) { ret = WC_TEST_RET_ENC_NC; goto done; }
 
+    /* A corrupted signature must be rejected on the hardware route. The SE050
+     * port reports a failed hardware verify as WC_HW_E with res still 0 (the
+     * SSS API does not distinguish a bad signature from an operation failure),
+     * matching the always-offload SE050 build's error mapping. */
+    sigHw[10] ^= 0x01;
+    verify = 1;
+    ret = wc_ecc_verify_hash(sigHw, sigHwSz, hash, (word32)sizeof(hash),
+                             &verify, &hwKey);
+    sigHw[10] ^= 0x01;
+    if (ret != WC_NO_ERR_TRACE(WC_HW_E) || verify != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+    ret = 0;
+
 #if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_SE050_NO_ECDHE)
     {
         /* ECDH with the software key must match ECDH with the same key after it
@@ -44011,6 +44034,12 @@ static wc_test_ret_t ecc_se050_onlykeyid_test(WC_RNG* rng)
 
         ret = wc_ecc_shared_secret(&hwKey, &peer, secretHw, &secretHwSz);
         if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto ecdh_done; }
+
+        /* The peer was and must remain a software key (keyIdSet == 0) */
+        if (peer.keyIdSet != 0) {
+            ret = WC_TEST_RET_ENC_NC;
+            goto ecdh_done;
+        }
 
         if (secretSwSz != secretHwSz ||
                 XMEMCMP(secretSw, secretHw, secretSwSz) != 0) {
