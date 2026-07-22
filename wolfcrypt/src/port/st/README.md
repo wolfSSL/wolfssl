@@ -83,20 +83,25 @@ The TinyAES IP exposes a single key-size bit (128/256 only), so wolfSSL auto-def
 
 Some newer families (H5/H7S/U3/U5/WBA/C5/N6, plus the L562 sub-variant) expose a Secure AES (SAES) instance in addition to (or instead of) a regular AES block. Define `WOLFSSL_STM32_USE_SAES` to route all wolfcrypt AES traffic through SAES via the `WC_STM32_AES_INST` indirection macro. This is required when the regular AES block is TrustZone-gated (H7S3) and is also a prerequisite for DHUK key-wrap on the families in the `WC_STM32_HAS_DHUK` gate (U3/U5/H5/WBA/C5).
 
-### AES via crypto callback (`WOLF_CRYPTO_CB_ONLY_AES`)
+### HW crypto via crypto callback (`WOLF_CRYPTO_CB_ONLY_AES` / `_ECC`)
 
-`WOLF_CRYPTO_CB_ONLY_AES` strips the software AES core (to shrink code) and routes every AES operation through the `WOLF_CRYPTO_CB` framework. On the CubeMX/HAL build, register the STM32 CubeMX AES device so those callbacks reach the HAL AES hardware:
+`WOLF_CRYPTO_CB_ONLY_AES` and `WOLF_CRYPTO_CB_ONLY_ECC` strip the software AES / ECC cores (to shrink code) and route those operations through the `WOLF_CRYPTO_CB` framework. On the CubeMX/HAL build the STM32 crypto-callback device services them in hardware:
+
+- **AES** (ECB, and GCM via the HAL GCM engine) with the normal plaintext key.
+- **ECDSA sign + verify** on the HW PKA (`WOLFSSL_STM32_PKA`), plus CCB-protected sign (`WOLFSSL_STM32_CCB`) via `HAL_CCB`. This makes `WOLF_CRYPTO_CB_ONLY_ECC` usable on CubeMX -- that macro compiles out the direct `ecc.c` PKA path, so the callback provides HW ECDSA instead.
 
 ```
 #define WOLFSSL_STM32_CUBEMX
+#define WOLFSSL_STM32_PKA          /* HW ECC sign/verify */
 #define WOLF_CRYPTO_CB
+#define WOLFSSL_STM32_CCB          /* optional: CCB-protected ECDSA */
 #define WOLF_CRYPTO_CB_ONLY_AES
+#define WOLF_CRYPTO_CB_ONLY_ECC
 ...
-wc_Stm32_CubeAesRegister(devId);   /* once */
-wc_AesInit(&aes, NULL, devId);     /* per Aes; then use wc_AesGcm* as normal */
+wc_Stm32_DhukRegister(devId);      /* once; serves AES + ECDSA (+ CCB) */
 ```
 
-The device services AES-ECB on the HAL, which is what `wc_AesGcmSetKey` needs to derive the GHASH subkey; AES-GCM then runs on the native HAL GCM engine, all with the normal plaintext key. When `WOLFSSL_STM32_CCB` is enabled, `wc_Stm32_DhukRegister` dispatches these ciphers too, so a single devId serves both CCB ECDSA and AES. Worked example: [`STM32_Bare_Test/src/main_cubeaes.c`](https://github.com/wolfSSL/wolfssl-examples-stm32) (validated on NUCLEO-U385RG-Q).
+(For an AES-only build without CCB/ECC, `wc_Stm32_CubeAesRegister(devId)` registers a cipher-only device.) HW PKA on the HAL build requires the application to build/link ST's `stm32XXxx_hal_pka.c` and provide a `PKA_HandleTypeDef hpka;` initialized with `HAL_PKA_Init(&hpka)` (a CubeMX `MX_PKA_Init`); wolfSSL references `hpka` as `extern`. Note: CCB key *provisioning* (`wc_ecc_make_key`) derives the scalar in software, so it needs a build without `WOLF_CRYPTO_CB_ONLY_ECC` -- provision the CCB blob there, after which CCB *sign* runs under the stripped config. Worked examples in [`STM32_Bare_Test`](https://github.com/wolfSSL/wolfssl-examples-stm32): `main_cubeaes.c` (AES) and `main_cubecrypto.c` (ECC + CCB + AES), validated on NUCLEO-U385RG-Q.
 
 ### Coding
 
