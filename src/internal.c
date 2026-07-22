@@ -3519,6 +3519,16 @@ void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
     int tls1_3, int keySz, word16* len)
 {
     word16 idx = 0;
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1))
+    /* RFC 9155 deprecates SHA-1 signatures for TLS 1.2. Offer them only for a
+     * TLS 1.0/1.1 handshake unless the operator opts in with
+     * WOLFSSL_ALLOW_TLS_SHA1. */
+    #ifdef WOLFSSL_ALLOW_TLS_SHA1
+    int offerSha1Sig = 1;
+    #else
+    int offerSha1Sig = !tls1_2;
+    #endif
+#endif
 
     (void)tls1_2;
     (void)tls1_3;
@@ -3559,7 +3569,10 @@ void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
     #endif
     #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                                             defined(WOLFSSL_ALLOW_TLS_SHA1))
-        AddSuiteHashSigAlgo(hashSigAlgo, sha_mac, ecc_dsa_sa_algo, keySz, &idx);
+        if (offerSha1Sig) {
+            AddSuiteHashSigAlgo(hashSigAlgo, sha_mac, ecc_dsa_sa_algo, keySz,
+                &idx);
+        }
     #endif
 #endif
     #ifdef HAVE_ED25519
@@ -3625,7 +3638,9 @@ void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
     #endif
     #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                                             defined(WOLFSSL_ALLOW_TLS_SHA1))
-        AddSuiteHashSigAlgo(hashSigAlgo, sha_mac, rsa_sa_algo, keySz, &idx);
+        if (offerSha1Sig) {
+            AddSuiteHashSigAlgo(hashSigAlgo, sha_mac, rsa_sa_algo, keySz, &idx);
+        }
     #endif
     }
 
