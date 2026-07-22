@@ -5062,8 +5062,18 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (((c = (mp_int *)XMALLOC(sizeof(*c), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
-        ((d = (mp_int *)XMALLOC(sizeof(*d), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL))
+    c = (mp_int *)XMALLOC(sizeof(*c), NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    d = (mp_int *)XMALLOC(sizeof(*d), NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    /* Zero any struct that was allocated so the cleanup path's mp_clear()/
+     * mp_forcezero() are safe even when the sibling allocation fails and the
+     * mp_init_multi() below is skipped on MEMORY_E. Without this, clearing an
+     * allocated-but-uninitialized mp_int reads a garbage ->used and corrupts
+     * the heap. */
+    if (c != NULL)
+        XMEMSET(c, 0, sizeof(*c));
+    if (d != NULL)
+        XMEMSET(d, 0, sizeof(*d));
+    if (c == NULL || d == NULL)
         ret = MEMORY_E;
     else
         ret = 0;
@@ -5205,8 +5215,17 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
     *isPrime = MP_NO;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (((tmp1 = (mp_int *)XMALLOC(sizeof(*tmp1), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
-        ((tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)) {
+    tmp1 = (mp_int *)XMALLOC(sizeof(*tmp1), NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    /* Zero any allocated struct so the notOkay cleanup's mp_forcezero()/
+     * mp_clear() are safe when the sibling allocation fails and the
+     * mp_init_multi() below is skipped: clearing an allocated-but-
+     * uninitialized mp_int reads a garbage ->used and corrupts the heap. */
+    if (tmp1 != NULL)
+        XMEMSET(tmp1, 0, sizeof(*tmp1));
+    if (tmp2 != NULL)
+        XMEMSET(tmp2, 0, sizeof(*tmp2));
+    if (tmp1 == NULL || tmp2 == NULL) {
         ret = MEMORY_E;
         goto notOkay;
     }
@@ -5309,9 +5328,20 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
 
 #ifdef WOLFSSL_SMALL_STACK
 
-    if (((p = (mp_int *)XMALLOC(sizeof(*p), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
-        ((q = (mp_int *)XMALLOC(sizeof(*q), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
-        ((e = (mp_int *)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL))
+    p = (mp_int *)XMALLOC(sizeof(*p), NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    q = (mp_int *)XMALLOC(sizeof(*q), NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    e = (mp_int *)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    /* Zero any allocated struct so the cleanup path's mp_forcezero()/
+     * mp_clear() are safe when a later allocation in the chain fails and the
+     * mp_init_multi() below is skipped on MEMORY_E: clearing an allocated-but-
+     * uninitialized mp_int reads a garbage ->used and corrupts the heap. */
+    if (p != NULL)
+        XMEMSET(p, 0, sizeof(*p));
+    if (q != NULL)
+        XMEMSET(q, 0, sizeof(*q));
+    if (e != NULL)
+        XMEMSET(e, 0, sizeof(*e));
+    if (p == NULL || q == NULL || e == NULL)
         ret = MEMORY_E;
     else
         ret = 0;
