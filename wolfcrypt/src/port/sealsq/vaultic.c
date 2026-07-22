@@ -114,11 +114,11 @@ int WOLFSSL_VAULTIC_EccVerifyCb(WOLFSSL* ssl,
 
     (void)ssl;
     (void)ctx;
-    *result = 0;
 
     if (keyDer == NULL || sig == NULL || hash == NULL || result == NULL) {
         return BAD_FUNC_ARG;
     }
+    *result = 0;
 
     if ((err = wc_ecc_init(&key)) != 0) {
         WOLFSSL_MSG("wc_ecc_init");
@@ -369,7 +369,9 @@ int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx)
     }
 
     WOLFSSL_MSG("[Device certificate]");
+#ifdef WOLFSSL_VAULTIC_DEBUG
     WOLFSSL_BUFFER(device_cert, sizeof_device_cert);
+#endif
 
     /* Read CA certificate in VaultIC */
     WOLFSSL_MSG("Read CA Certificate in VaultIC");
@@ -391,19 +393,23 @@ int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx)
     }
 
     WOLFSSL_MSG("[CA certificate]");
+#ifdef WOLFSSL_VAULTIC_DEBUG
     WOLFSSL_BUFFER(ca_cert, sizeof_ca_cert);
+#endif
 
     /* Load CA certificate into WOLFSSL_CTX */
-    if ((ret = wolfSSL_CTX_load_verify_buffer(ctx, ca_cert,
-            sizeof_ca_cert, WOLFSSL_FILETYPE_ASN1)) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_CTX_load_verify_buffer(ctx, ca_cert,
+            sizeof_ca_cert, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("failed to load CA certificate");
+        ret = WC_HW_E;
         goto free_cert_buffers;
     }
 
     /* Load Device certificate into WOLFSSL_CTX */
-    if ((ret = wolfSSL_CTX_use_certificate_buffer(ctx, device_cert,
-            sizeof_device_cert, WOLFSSL_FILETYPE_ASN1)) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_CTX_use_certificate_buffer(ctx, device_cert,
+            sizeof_device_cert, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("failed to load Device certificate");
+        ret = WC_HW_E;
         goto free_cert_buffers;
     }
 

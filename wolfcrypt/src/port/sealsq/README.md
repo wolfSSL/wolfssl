@@ -145,7 +145,7 @@ controller base addresses for the Pi 2/3 (`0x3f804000`) and Pi 4
 ### Raspberry Pi 5 (RP1 / DesignWare I2C) - use a bit-banged bus
 
 The Pi 5 does not work with the SDK's built-in bitrate control: its I2C
-controller lives in the RP1 chip (a Synopsys DesignWare controller behind
+controller lives in the RP1 chip (a DesignWare I2C controller behind
 PCIe) at a different address, so the SDK's `/dev/mem` register poke targets a
 controller that is not there and has no effect. Worse, the RP1 DesignWare
 controller itself hangs on the VaultIC's clock stretching during longer
