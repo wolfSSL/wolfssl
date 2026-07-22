@@ -4108,7 +4108,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     \code
     int ret = 0;
     // Unknown extension callback prototype
-    int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
+    int myUnknownExtCallback(const word32* oid, word32 oidSz, int crit,
                              const unsigned char* der, word32 derSz);
 
     // Register it
@@ -4122,7 +4122,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     // crit: Whether the extension was mark critical.
     // der: The der encoding of the content of the extension.
     // derSz: The size in bytes of the der encoding.
-    int myCustomExtCallback(const word16* oid, word32 oidSz, int crit,
+    int myCustomExtCallback(const word32* oid, word32 oidSz, int crit,
                             const unsigned char* der, word32 derSz) {
 
         // Logic to parse extension goes here.

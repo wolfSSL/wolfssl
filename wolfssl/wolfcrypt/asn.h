@@ -1831,13 +1831,12 @@ typedef struct WOLFSSL_AIA_ENTRY {
     word32      uriSz;  /* Length of URI data. */
 } WOLFSSL_AIA_ENTRY;
 #endif /* WOLFSSL_AIA_ENTRY_DEFINED */
-
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
-                                     const unsigned char* der, word32 derSz);
-typedef int (*wc_UnknownExtCallbackEx)(const word16* oid, word32 oidSz,
-                                       int crit, const unsigned char* der,
-                                       word32 derSz, void *ctx);
+    typedef int (*wc_UnknownExtCallback)(const word32* oid, word32 oidSz,
+                            int crit, const unsigned char* der, word32 derSz);
+    typedef int (*wc_UnknownExtCallbackEx)(const word32* oid, word32 oidSz,
+                                           int crit, const unsigned char* der,
+                                           word32 derSz, void *ctx);
 #endif
 
 struct DecodedCert {
@@ -2449,6 +2448,7 @@ typedef enum MimeStatus
     #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
         defined(OPENSSL_ALL)
         #define DecodeObjectId wc_DecodeObjectId
+        #define DecodeObjectId_ex wc_DecodeObjectId_ex
     #endif
     #if defined(WOLFSSL_AKID_NAME) && !defined(GetCAByAKID)
         /* GetCAByAKID() has two implementations, a full implementation in
@@ -2693,15 +2693,21 @@ WOLFSSL_ASN_API int GetASNInt(const byte* input, word32* inOutIdx, int* len,
 WOLFSSL_LOCAL word32 wc_oid_sum(const byte* input, int length);
 
 #ifdef HAVE_OID_ENCODING
-    WOLFSSL_API int wc_EncodeObjectId(const word16* in, word32 inSz,
+    WOLFSSL_API int wc_EncodeObjectId(const word32* in, word32 inSz,
         byte* out, word32* outSz);
+    WOLFSSL_LOCAL int EncodeObjectId_ex(const word32* in, word32 inSz,
+        byte* out, word32* outSz);
+    /* Unchangeable due to being called from FIPS code expecting word16 in */
     WOLFSSL_LOCAL int EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
 #endif
 #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
     defined(OPENSSL_ALL)
+    /* Unchangeable due to being called from FIPS code expecting word16 out */
     WOLFSSL_TEST_VIS int DecodeObjectId(const byte* in, word32 inSz,
         word16* out, word32* outSz);
+    WOLFSSL_TEST_VIS int DecodeObjectId_ex(const byte* in, word32 inSz,
+        word32* out, word32* outSz);
 #endif
 WOLFSSL_LOCAL int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
                                  word32 maxIdx);

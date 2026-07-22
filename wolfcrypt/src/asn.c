@@ -7367,18 +7367,119 @@ static int CheckCurve(word32 oid)
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when buffer too small.
  */
-int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
+int wc_EncodeObjectId(const word32* in, word32 inSz,
+        byte* out, word32* outSz)
 {
-    return EncodeObjectId(in, inSz, out, outSz);
+    return EncodeObjectId_ex(in, inSz, out, outSz);
 }
 
-int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
+int EncodeObjectId_ex(const word32* in, word32 inSz,
+        byte* out, word32* outSz)
 {
     int i, x, len;
     word32 d, t;
 
     /* check args */
-    if (in == NULL || outSz == NULL || inSz <= 0) {
+    if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* guard against word32 overflow of the combined first arc:
+     * ((in[0] * 40) + in[1]) is computed below in both the length and
+     * encode passes, so rejecting it here covers both. */
+    if (in[1] > 0xFFFFFFFFU - (in[0] * 40)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* compute length of encoded OID */
+    d = ((word32)in[0] * 40) + in[1];
+    len = 0;
+    for (i = 1; i < (int)inSz; i++) {
+        x = 0;
+        t = d;
+        while (t) {
+            x++;
+            t >>= 1;
+        }
+        len += (x / 7) + ((x % 7) ? 1 : 0) + (d == 0 ? 1 : 0);
+
+        if (i < (int)inSz - 1) {
+            d = in[i + 1];
+        }
+    }
+
+    if (out) {
+        /* verify length */
+        if ((int)*outSz < len) {
+            return BUFFER_E; /* buffer provided is not large enough */
+        }
+
+        /* calc first byte */
+        d = ((word32)in[0] * 40) + in[1];
+
+        /* encode bytes */
+        x = 0;
+        for (i = 1; i < (int)inSz; i++) {
+            if (d) {
+                int y = x, z;
+                byte mask = 0;
+                while (d) {
+                    out[x++] = (byte)((d & 0x7F) | mask);
+                    d     >>= 7;
+                    mask  |= 0x80;  /* upper bit is set on all but the last byte */
+                }
+                /* now swap bytes y...x-1 */
+                z = x - 1;
+                while (y < z) {
+                    mask = out[y];
+                    out[y] = out[z];
+                    out[z] = mask;
+                    ++y;
+                    --z;
+                }
+            }
+            else {
+              out[x++] = 0x00; /* zero value */
+            }
+
+            /* next word */
+            if (i < (int)inSz - 1) {
+                d = in[i + 1];
+            }
+        }
+    }
+
+    /* return length */
+    *outSz = (word32)len;
+
+    return 0;
+}
+
+/* Encode dotted form of OID into byte array version.
+ *
+ * Uses word16 for OIDs and can cause OIDs to be truncated.
+ * Do not use this for new code unless necessary. (use wc_EncodeObjectId
+ * or EncodeObjectId_ex)
+ * We cannot change this function because FIPS code expects
+ * this signature.
+ *
+ * @param [in]      in     Dotted form of OID.
+ * @param [in]      inSz   Count of numbers in dotted form.
+ * @param [in]      out    Buffer to hold OID.
+ * @param [in, out] outSz  On in, size of buffer.
+ *                         On out, number of bytes in buffer.
+ * @return  0 on success
+ * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BUFFER_E when buffer too small.
+ */
+int EncodeObjectId(const word16* in, word32 inSz,
+        byte* out, word32* outSz)
+{
+    int i, x, len;
+    word32 d, t;
+
+    /* check args */
+    if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2) {
         return BAD_FUNC_ARG;
     }
 
@@ -7448,7 +7549,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 #endif /* HAVE_OID_ENCODING */
 
 #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
-/* Encode dotted form of OID into byte array version.
+/* Decode DER encoded form of OID into word16 OID dot separated.
  *
  * @param [in]      in     Byte array containing OID.
  * @param [in]      inSz   Size of OID in bytes.
@@ -7459,7 +7560,8 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when dotted form buffer too small.
  */
-int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
+int DecodeObjectId(const byte* in, word32 inSz,
+        word16* out, word32* outSz)
 {
     int x = 0, y = 0;
     word32 t = 0;
@@ -7469,6 +7571,9 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
     if (in == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    if (*outSz < 2)
+        return BUFFER_E;
 
     /* decode bytes */
     while (inSz--) {
@@ -7481,8 +7586,14 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
                 if ((int)*outSz < 2) {
                     return BUFFER_E;
                 }
-                out[0] = (word16)(t / 40);
-                out[1] = (word16)(t % 40);
+                if (t < 80) {
+                    out[0] = (word16)(t / 40);
+                    out[1] = (word16)(t % 40);
+                }
+                else {
+                    out[0] = 2;
+                    out[1] = (word16)(t - 80);
+                }
                 y = 2;
             }
             else {
@@ -7493,6 +7604,72 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
             }
             t = 0; /* reset tmp */
             cnt = 0;
+        }
+        x++;
+    }
+
+    /* return length */
+    *outSz = (word32)y;
+
+    return 0;
+}
+
+/* Decode DER encoded form of OID into word32 OID dot separated.
+ *
+ * Same as DecodeObjectId() but outputs to a word32 array so that OID
+ * arc values larger than a word16 are not truncated.
+ *
+ * @param [in]      in     Byte array containing OID.
+ * @param [in]      inSz   Size of OID in bytes.
+ * @param [in]      out    Array to hold dotted form of OID.
+ * @param [in, out] outSz  On in, number of elements in array.
+ *                         On out, count of numbers in dotted form.
+ * @return  0 on success
+ * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BUFFER_E when dotted form buffer too small.
+ */
+int DecodeObjectId_ex(const byte* in, word32 inSz,
+        word32* out, word32* outSz)
+{
+    int x = 0, y = 0;
+    word32 t = 0;
+
+    /* check args */
+    if (in == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (*outSz < 2)
+        return BUFFER_E;
+
+    /* decode bytes */
+    while (inSz--) {
+        if (t > 0xFFFFFFFFU >> 7) {
+            return ASN_OBJECT_ID_E;
+        }
+        t = (t << 7) | (in[x] & 0x7F);
+        if (!(in[x] & 0x80)) {
+            if (y == 0) {
+                if ((int)*outSz < 2) {
+                    return BUFFER_E;
+                }
+                if (t < 80) {
+                    out[0] = t / 40;
+                    out[1] = t % 40;
+                }
+                else {
+                    out[0] = 2;
+                    out[1] = t - 80;
+                }
+                y = 2;
+            }
+            else {
+                if (y >= (int)*outSz) {
+                    return BUFFER_E;
+                }
+                out[y++] = t;
+            }
+            t = 0; /* reset tmp */
         }
         x++;
     }
@@ -7584,14 +7761,14 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 
     #ifdef HAVE_OID_DECODING
     {
-        word16 decOid[MAX_OID_SZ];
+        word32 decOid[MAX_OID_SZ];
         word32 decOidSz = MAX_OID_SZ;
         /* Decode the OID into dotted form. */
-        ret = DecodeObjectId(oidData, oidSz, decOid, &decOidSz);
+        ret = DecodeObjectId_ex(oidData, oidSz, decOid, &decOidSz);
         if (ret == 0) {
-            printf("  Decoded (Sz %d): ", decOidSz);
+            printf("  Decoded (Sz %u): ", decOidSz);
             for (i=0; i<decOidSz; i++) {
-                printf("%d.", decOid[i]);
+                printf("%u.", decOid[i]);
             }
             printf("\n");
         }
@@ -13073,13 +13250,15 @@ static int SetCurve(ecc_key* key, byte* output, size_t outSz)
 #endif
     int idx;
     word32 oidSz = 0;
-
     /* validate key */
     if (key == NULL || key->dp == NULL) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef HAVE_OID_ENCODING
+    /* ecc_oid_t cannot be changed due to it being in the FIPS boundary so we
+     * have a work around of upsizing its representation*/
+    /* Get the size of the encoded OID without having an encoded output */
     ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, NULL, &oidSz);
     if (ret != 0) {
         return ret;
@@ -14755,7 +14934,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     int tmpSize     = MAX_OID_SZ;
     word32 oid      = 0;
     word32 idx      = 0;
-    word16 tmpName[MAX_OID_SZ];
+    word32 tmpName[MAX_OID_SZ];
     char   oidName[MAX_OID_SZ];
     char*  finalName = NULL;
 
@@ -14781,7 +14960,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     #endif
         {
             /* Decode OBJECT_ID into dotted form array. */
-            ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
+            ret = DecodeObjectId_ex((const byte*)(entry->name),(word32)entry->len,
                     tmpName, (word32*)&tmpSize);
 
             if (ret == 0) {
@@ -14794,14 +14973,14 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 
                     if (i < tmpSize - 1) {
                         ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%d.", tmpName[i]);
+                            "%u.", tmpName[i]);
                     }
                     else {
                         ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
-                            "%d", tmpName[i]);
+                            "%u", tmpName[i]);
                     }
 
-                    if (ret >= 0) {
+                    if (ret >= 0 && ret < MAX_OID_SZ - j) {
                         j += ret;
                     }
                     else {
@@ -22190,9 +22369,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
 #ifdef WC_ASN_UNKNOWN_EXT_CB
             if (isUnknownExt && (cert->unknownExtCallback != NULL ||
                                  cert->unknownExtCallbackEx != NULL)) {
-                word16 decOid[MAX_OID_SZ];
+                word32 decOid[MAX_OID_SZ];
                 word32 decOidSz = MAX_OID_SZ;
-                ret = DecodeObjectId(
+                ret = DecodeObjectId_ex(
                           dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                           dataASN[CERTEXTASN_IDX_OID].data.oid.length,
                           decOid, &decOidSz);
@@ -38718,64 +38897,6 @@ int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb)
     return ret;
 }
 
-/* Encode dotted form of OID into byte array version.
- *
- * @param [in]      in     Byte array containing OID.
- * @param [in]      inSz   Size of OID in bytes.
- * @param [in]      out    Array to hold dotted form of OID.
- * @param [in, out] outSz  On in, number of elements in array.
- *                         On out, count of numbers in dotted form.
- * @return  0 on success
- * @return  BAD_FUNC_ARG when in or outSz is NULL.
- * @return  BUFFER_E when dotted form buffer too small.
- */
-static int EncodedDottedForm(const byte* in, word32 inSz, word32* out,
-    word32* outSz)
-{
-    int x = 0, y = 0;
-    word32 t = 0;
-
-    /* check args */
-    if (in == NULL || outSz == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (*outSz < 2) {
-        return BUFFER_E;
-    }
-
-    /* decode bytes */
-    while (inSz--) {
-        t = (t << 7) | (in[x] & 0x7F);
-        if (!(in[x] & 0x80)) {
-            if (y >= (int)*outSz) {
-                return BUFFER_E;
-            }
-            if (y == 0) {
-                /* Special case for when first arc is 2 */
-                if (t < 80) {
-                    out[0] = t / 40;
-                    out[1] = t % 40;
-                }
-                else {
-                    out[0] = 2;
-                    out[1] = t - 80;
-                }
-                y = 2;
-            }
-            else {
-                out[y++] = t;
-            }
-            t = 0; /* reset tmp */
-        }
-        x++;
-    }
-
-    /* return length */
-    *outSz = (word32)y;
-
-    return 0;
-}
 /* Print OID in dotted form or as hex bytes.
  *
  * @param [in]  file        File pointer to write to.
@@ -38789,7 +38910,7 @@ static void PrintObjectIdNum(XFILE file, unsigned char* oid, word32 len)
     word32 i;
 
     /* Decode OBJECT_ID into dotted form array. */
-    if (EncodedDottedForm(oid, len, dotted_nums, &num) == 0) {
+    if (DecodeObjectId_ex(oid, len, dotted_nums, &num) == 0) {
         /* Print out each number of dotted form. */
         for (i = 0; i < num; i++) {
             XFPRINTF(file, "%d", dotted_nums[i]);
