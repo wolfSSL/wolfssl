@@ -1962,9 +1962,28 @@
         typedef struct wolfSSL_Mutex {
             spinlock_t lock;
             unsigned long irq_flags;
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            unsigned int magic;
+        #endif
         } wolfSSL_Mutex;
 
-        #define WOLFSSL_MUTEX_INITIALIZER(lockname) { .lock =__SPIN_LOCK_UNLOCKED(lockname), .irq_flags = 0 }
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            #define WC_LINUXKM_SPINLOCK_MAGIC 1702166717U
+
+            #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
+               .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
+               .irq_flags = 0,                            \
+               .magic = WC_LINUXKM_SPINLOCK_MAGIC         \
+            }
+
+        #else
+
+            #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
+               .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
+               .irq_flags = 0                             \
+            }
+
+        #endif
 
         static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
         {
@@ -1975,12 +1994,21 @@
             spin_lock_init(&m->lock);
         #endif
             m->irq_flags = 0;
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            m->magic = WC_LINUXKM_SPINLOCK_MAGIC;
+        #endif
 
             return 0;
         }
 
         static __always_inline int wc_FreeMutex(wolfSSL_Mutex* m)
         {
+        #ifdef CONFIG_DEBUG_SPINLOCK
+            m->lock.magic = 0;
+        #endif
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            m->magic = 0;
+        #endif
             (void)m;
             return 0;
         }
@@ -2005,6 +2033,10 @@
 
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
+                return -1;
+        #endif
             spin_unlock_irqrestore(&m->lock, m->irq_flags);
             return 0;
         }
