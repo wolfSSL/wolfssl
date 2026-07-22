@@ -166,9 +166,11 @@ struct wc_Sha512 {
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
+    #define WC_SHA512_W_SIZE ((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE)
     word64* W;
-#endif
-
+#else /* !WOLFSSL_SMALL_STACK_CACHE */
+    #define WC_SHA512_W_SIZE (sizeof(word64) * 16)
+#endif /* !WOLFSSL_SMALL_STACK_CACHE */
 #if defined(WOLFSSL_ESP32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
     (!defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) || \

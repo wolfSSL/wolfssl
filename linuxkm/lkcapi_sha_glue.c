@@ -486,7 +486,7 @@ WC_MAYBE_UNUSED static int sha3_test_once(void) {
 }
 #endif
 
-#define WC_LINUXKM_SHA_IMPLEMENT(name, digest_size, block_size,            \
+#define WC_LINUXKM_SHA1_IMPLEMENT(name, digest_size, block_size,           \
                                   this_cra_name, this_cra_driver_name,     \
                                   init_f, update_f, final_f,               \
                                   free_f, test_routine)                    \
@@ -552,6 +552,169 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
     if (ret != 0)                                                          \
         return ret;                                                        \
     return km_ ## name ## _finup(desc, data, len, out);                    \
+}                                                                          \
+                                                                           \
+                                                                           \
+static struct shash_alg name ## _alg =                                     \
+{                                                                          \
+    .digestsize     =       (digest_size),                                 \
+    .init           =       km_ ## name ## _init,                          \
+    .update         =       km_ ## name ## _update,                        \
+    .final          =       km_ ## name ## _final,                         \
+    .finup          =       km_ ## name ## _finup,                         \
+    .digest         =       km_ ## name ## _digest,                        \
+    .descsize       =       sizeof(struct km_sha_state),                   \
+    .base           =       {                                              \
+        .cra_name        =      (this_cra_name),                           \
+        .cra_driver_name =      (this_cra_driver_name),                    \
+        .cra_priority    =      WOLFSSL_LINUXKM_LKCAPI_PRIORITY,           \
+        .cra_blocksize   =      (block_size),                              \
+        .cra_module      =      THIS_MODULE                                \
+    }                                                                      \
+};                                                                         \
+static int name ## _alg_loaded = 0;                                        \
+                                                                           \
+static int linuxkm_test_ ## name(void) {                                   \
+    wc_test_ret_t ret = test_routine();                                    \
+    if (ret >= 0)                                                          \
+        return check_shash_driver_masking(NULL /* tfm */, this_cra_name,   \
+                                          this_cra_driver_name);           \
+    else {                                                                 \
+        wc_test_render_error_message("linuxkm_test_" #name " failed: ",    \
+                                     ret);                                 \
+        return WC_TEST_RET_DEC_EC(ret);                                    \
+    }                                                                      \
+}                                                                          \
+                                                                           \
+struct wc_swallow_the_semicolon
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* The glue layer needs to take ownership of the .W working buffer to assure
+     * it can't leak on abandoned descs, or double-free on export-import cycled
+     * descs.  It's small enough to fit comfortably on the stack, so there's
+     * almost no overhead associated with this.
+     *
+     * Eager allocation of .W in SHA-2 init is to assure no heap operations in
+     * SHA-2 after init, mitigating an infinite recursion:  The wolfCrypt DRBG
+     * sits atop SHA-2, and when LINUXKM_DRBG_GET_RANDOM_BYTES &&
+     * WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS && CONFIG_SLAB_FREELIST_RANDOM,
+     * it sits _under_ the kernel heap.
+     */
+    #define WC_LINUXKM_SHA2_FREE_W(s) do { free((s)->W); (s)->W = NULL; } while (0)
+    #define WC_LINUXKM_SHA2_DECL_W(s, l) wc_static_assert((l) % sizeof (s)->W[0] == 0); \
+                                         typeof((s)->W[0]) w_buf[(l) / sizeof (s)->W[0]]
+    #define WC_LINUXKM_SHA2_PUSH_W(s) { (s)->W = w_buf
+    #define WC_LINUXKM_SHA2_POP_W(s) ForceZero(w_buf, sizeof w_buf); (s)->W = NULL; } WC_DO_NOTHING
+#else
+    #define WC_LINUXKM_SHA2_FREE_W(s) WC_DO_NOTHING
+    #define WC_LINUXKM_SHA2_DECL_W(s, l) struct wc_swallow_the_semicolon
+    #define WC_LINUXKM_SHA2_PUSH_W(s) { WC_DO_NOTHING
+    #define WC_LINUXKM_SHA2_POP_W(s) } WC_DO_NOTHING
+#endif
+
+#define WC_LINUXKM_SHA2_IMPLEMENT(name, digest_size, block_size, W_size,   \
+                                  this_cra_name, this_cra_driver_name,     \
+                                  init_f, update_f, final_f,               \
+                                  free_f, test_routine)                    \
+                                                                           \
+                                                                           \
+static int km_ ## name ## _init(struct shash_desc *desc) {                 \
+    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+                                                                           \
+    int ret = init_f(&ctx-> name ## _state);                               \
+    if (ret == 0) {                                                        \
+        WC_LINUXKM_SHA2_FREE_W(&ctx-> name ## _state);                     \
+        return 0;                                                          \
+    }                                                                      \
+    else                                                                   \
+        return -EINVAL;                                                    \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
+                                  unsigned int len)                        \
+{                                                                          \
+    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    int ret;                                                               \
+    WC_LINUXKM_SHA2_DECL_W(&ctx-> name ## _state, W_size);                 \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(&ctx-> name ## _state);                         \
+    ret = update_f(&ctx-> name ## _state, data, len);                      \
+    WC_LINUXKM_SHA2_POP_W(&ctx-> name ## _state);                          \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else {                                                                 \
+        free_f(&ctx-> name ## _state);                                     \
+        return -EINVAL;                                                    \
+    }                                                                      \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
+    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    int ret;                                                               \
+    WC_LINUXKM_SHA2_DECL_W(&ctx-> name ## _state, W_size);                 \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(&ctx-> name ## _state);                         \
+    ret = final_f(&ctx-> name ## _state, out);                             \
+    WC_LINUXKM_SHA2_POP_W(&ctx-> name ## _state);                          \
+                                                                           \
+    free_f(&ctx-> name ## _state);                                         \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
+                                 unsigned int len, u8 *out)                \
+{                                                                          \
+    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    int ret;                                                               \
+    WC_LINUXKM_SHA2_DECL_W(&ctx-> name ## _state, W_size);                 \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(&ctx-> name ## _state);                         \
+    ret = update_f(&ctx-> name ## _state, data, len);                      \
+    WC_LINUXKM_SHA2_POP_W(&ctx-> name ## _state);                          \
+                                                                           \
+    if (ret != 0) {                                                        \
+        free_f(&ctx-> name ## _state);                                     \
+        return -EINVAL;                                                    \
+    }                                                                      \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(&ctx-> name ## _state);                         \
+    ret = final_f(&ctx-> name ## _state, out);                             \
+    WC_LINUXKM_SHA2_POP_W(&ctx-> name ## _state);                          \
+                                                                           \
+    free_f(&ctx-> name ## _state);                                         \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
+                                  unsigned int len, u8 *out)               \
+{                                                                          \
+    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    int ret;                                                               \
+                                                                           \
+    ret = init_f(&ctx-> name ## _state);                                   \
+    if (ret != 0)                                                          \
+        return -EINVAL;                                                    \
+                                                                           \
+    ret = update_f(&ctx-> name ## _state, data, len);                      \
+                                                                           \
+    if (ret == 0)                                                          \
+        ret = final_f(&ctx-> name ## _state, out);                         \
+                                                                           \
+    free_f(&ctx-> name ## _state);                                         \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
 }                                                                          \
                                                                            \
                                                                            \
@@ -699,35 +862,46 @@ static int linuxkm_test_ ## name(void) {                                   \
 struct wc_swallow_the_semicolon
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-    WC_LINUXKM_SHA_IMPLEMENT(sha1, WC_SHA_DIGEST_SIZE, WC_SHA_BLOCK_SIZE,
+    WC_LINUXKM_SHA1_IMPLEMENT(sha1, WC_SHA_DIGEST_SIZE, WC_SHA_BLOCK_SIZE,
                              WOLFKM_SHA1_NAME, WOLFKM_SHA1_DRIVER,
                              wc_InitSha, wc_ShaUpdate, wc_ShaFinal,
                              wc_ShaFree, sha_test);
 #endif
 
+#ifndef WC_SHA256_W_SIZE
+    #define WC_SHA256_W_SIZE (sizeof(word32) * WC_SHA256_BLOCK_SIZE)
+#endif
+#ifndef WC_SHA512_W_SIZE
+    #define WC_SHA512_W_SIZE ((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE)
+#endif
+
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_224, WC_SHA224_DIGEST_SIZE, WC_SHA224_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_224, WC_SHA224_DIGEST_SIZE, WC_SHA224_BLOCK_SIZE,
+                             WC_SHA256_W_SIZE,
                              WOLFKM_SHA2_224_NAME, WOLFKM_SHA2_224_DRIVER,
                              wc_InitSha224, wc_Sha224Update, wc_Sha224Final,
                              wc_Sha224Free, sha224_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_256, WC_SHA256_DIGEST_SIZE, WC_SHA256_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_256, WC_SHA256_DIGEST_SIZE, WC_SHA256_BLOCK_SIZE,
+                             WC_SHA256_W_SIZE,
                              WOLFKM_SHA2_256_NAME, WOLFKM_SHA2_256_DRIVER,
                              wc_InitSha256, wc_Sha256Update, wc_Sha256Final,
                              wc_Sha256Free, sha256_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_384, WC_SHA384_DIGEST_SIZE, WC_SHA384_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_384, WC_SHA384_DIGEST_SIZE, WC_SHA384_BLOCK_SIZE,
+                             WC_SHA512_W_SIZE,
                              WOLFKM_SHA2_384_NAME, WOLFKM_SHA2_384_DRIVER,
                              wc_InitSha384, wc_Sha384Update, wc_Sha384Final,
                              wc_Sha384Free, sha384_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_512, WC_SHA512_DIGEST_SIZE, WC_SHA512_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_512, WC_SHA512_DIGEST_SIZE, WC_SHA512_BLOCK_SIZE,
+                             WC_SHA512_W_SIZE,
                              WOLFKM_SHA2_512_NAME, WOLFKM_SHA2_512_DRIVER,
                              wc_InitSha512, wc_Sha512Update, wc_Sha512Final,
                              wc_Sha512Free, sha512_test);
