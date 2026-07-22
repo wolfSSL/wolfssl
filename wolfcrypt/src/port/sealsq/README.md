@@ -1,21 +1,48 @@
 # WISeKey / SealSQ VaultIC Port
 
-This port offloads TLS ECC P-256 operations to a WISeKey/SealSQ VaultIC secure
-element (for example the VaultIC 408 on the DEVKIT_VIC408) using wolfSSL's
-public-key (PK) callbacks. The private key never leaves the chip.
+This port offloads ECC P-256 operations to a WISeKey/SealSQ VaultIC secure
+element (for example the VaultIC 408 on the DEVKIT_VIC408). The private key
+never leaves the chip.
+
+It exposes the device through two mechanisms, which can be used independently
+or together:
+
+* **TLS PK callbacks** - route the ECC operations of a TLS handshake
+  (`WOLFSSL_CTX` / `WOLFSSL`) to the device via wolfSSL's public-key (PK)
+  callback framework.
+* **wolfCrypt crypto callback (devId)** - route wolfCrypt ECC operations (not
+  just the TLS handshake) to the device via the `WOLF_CRYPTO_CB` / devId
+  framework, so bare `wc_ecc_*` calls and a whole `WOLFSSL_CTX` can be pointed
+  at the chip with a single devId.
+
+Both share the same underlying VaultIC-TLS SDK entry points; see "Usage" for
+which one to pick.
 
 ## What it does
 
 `wolfcrypt/src/port/sealsq/vaultic.c` provides:
 
+ECC operations on the device (used by both mechanisms):
+
 * `WOLFSSL_VAULTIC_EccSignCb` - ECDSA P-256 sign on the device
 * `WOLFSSL_VAULTIC_EccVerifyCb` - ECDSA P-256 verify on the device
 * `WOLFSSL_VAULTIC_EccKeyGenCb` - ephemeral P-256 key generation on the device
 * `WOLFSSL_VAULTIC_EccSharedSecretCb` - ECDH P-256 shared secret on the device
+
+TLS PK callback registration:
+
+* `WOLFSSL_VAULTIC_SetupPkCallbacks` / `WOLFSSL_VAULTIC_SetupPkCallbackCtx` -
+  register the PK callbacks on a `WOLFSSL_CTX` / `WOLFSSL`
+
+Crypto callback (devId) registration:
+
+* `WOLFSSL_VAULTIC_RegisterCryptoCb` - register the VaultIC crypto callback
+  under a devId (`WOLF_VAULTIC_DEVID`)
+
+Certificate helper:
+
 * `WOLFSSL_VAULTIC_LoadCertificates` - read the device and CA certificates
   stored on the chip into a `WOLFSSL_CTX`
-* `WOLFSSL_VAULTIC_SetupPkCallbacks` / `WOLFSSL_VAULTIC_SetupPkCallbackCtx` -
-  register the callbacks on a `WOLFSSL_CTX` / `WOLFSSL`
 
 The key-generation and shared-secret (ECDH) callbacks can be compiled out by
 defining `VLT_TLS_NO_ECDH`, matching the vendor library configuration.
@@ -37,8 +64,9 @@ Enable the port and point the compiler/linker at the vendor SDK:
 make
 ```
 
-`--enable-vaultic` defines `WOLFSSL_VAULTIC` and enables PK callbacks
-(`HAVE_PK_CALLBACKS`) automatically. The port compiles to nothing when
+`--enable-vaultic` defines `WOLFSSL_VAULTIC` and automatically enables both PK
+callbacks (`HAVE_PK_CALLBACKS`) and crypto callbacks (`WOLF_CRYPTO_CB`), so
+either mechanism is available out of the box. The port compiles to nothing when
 `WOLFSSL_VAULTIC` is not defined.
 
 ### Building the port outside libwolfssl
@@ -50,8 +78,11 @@ separate target (for example the SealSQ devkit builds it into its own
 `vaultic_wolfssl` library alongside an `add_subdirectory(wolfssl)` CMake
 build), two things are required so the file sees the wolfSSL configuration:
 
-* Define `WOLFSSL_USE_OPTIONS_H` when compiling `vaultic.c`, so
-  `settings.h` pulls in the generated `wolfssl/options.h`. Without it the
+* Make the file see the wolfSSL configuration. For an autotools build define
+  `WOLFSSL_USE_OPTIONS_H`, so `settings.h` pulls in the generated
+  `wolfssl/options.h`. For a build that does not use `./configure` (so there is
+  no generated `options.h`), define `WOLFSSL_USER_SETTINGS` instead and provide
+  a `user_settings.h` that lists all the build options. Without one of these the
   wolfSSL headers fall back to defaults (`ecc_key` is incomplete,
   `ECC_SECP256R1` is undeclared).
 * Enable PK callbacks through the wolfSSL build option
@@ -61,6 +92,14 @@ build), two things are required so the file sees the wolfSSL configuration:
   command-line define once `options.h` is included.
 
 ## Usage
+
+The port offers two ways to route ECC to the chip (see the overview at the
+top). Use the PK callbacks when you only need the TLS handshake offloaded and
+want per-`WOLFSSL` control; use the crypto callback (devId) when you want all
+wolfCrypt ECC - including bare `wc_ecc_*` calls - routed to the device, or
+prefer a single devId on the `WOLFSSL_CTX`.
+
+### TLS PK callbacks
 
 ```c
 WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLS_client_method());
@@ -76,9 +115,34 @@ WOLFSSL_VAULTIC_SetupPkCallbackCtx(ssl, NULL);
 /* ... proceed with the TLS handshake ... */
 ```
 
-The VaultIC-TLS SDK must be initialized (`vlt_tls_init()`) before the
-handshake and closed (`vlt_tls_close()`) afterwards; see the SealSQ devkit
-sample applications.
+### Crypto callback (devId)
+
+The crypto callback dispatches wolfCrypt ECC operations (not just the TLS
+handshake) to the VaultIC through the `WOLF_CRYPTO_CB` / devId framework.
+Register the device once, then select it with a devId:
+
+```c
+/* register the VaultIC crypto callback under a devId */
+WOLFSSL_VAULTIC_RegisterCryptoCb(WOLF_VAULTIC_DEVID);
+
+/* TLS: route this CTX's crypto to the device */
+wolfSSL_CTX_SetDevId(ctx, WOLF_VAULTIC_DEVID);
+
+/* or bare wolfCrypt: init a key against the device */
+wc_ecc_init_ex(&key, NULL, WOLF_VAULTIC_DEVID);
+```
+
+The VaultIC-TLS SDK must be initialized (`vlt_tls_init()`) before use and
+closed (`vlt_tls_close()`) afterwards; see the SealSQ devkit sample
+applications.
+
+### Curve support
+
+The port offloads P-256 (SECP256R1) only. The VaultIC 408 silicon supports
+P-384, but the vendor `vlt_tls` API exposes P-256 entry points only, so
+P-384 would require vendor `vlt_tls_*_P384` functions. For any other curve
+the crypto callback returns `CRYPTOCB_UNAVAILABLE` and the PK callbacks
+return `NOT_COMPILED_IN`, so wolfSSL falls back to software.
 
 ## Building and provisioning with the SealSQ devkit
 

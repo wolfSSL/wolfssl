@@ -12488,10 +12488,14 @@ if test "$ENABLED_VAULTIC" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VAULTIC"
     ENABLED_VAULTIC=yes
-    # VaultIC port is implemented via PK callbacks
+    # VaultIC port supports TLS PK callbacks and wolfCrypt crypto callbacks
     if test "$ENABLED_PKCALLBACKS" = "no"; then
         ENABLED_PKCALLBACKS=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
+    fi
+    if test "$ENABLED_CRYPTOCB" = "no"; then
+        ENABLED_CRYPTOCB=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
     fi
 fi
 

@@ -19,7 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* WISeKey/SealSQ VaultIC secure element port (PK callbacks) */
+/* WISeKey/SealSQ VaultIC secure element port (TLS PK callbacks and wolfCrypt
+ * crypto callback / devId) */
 
 #ifndef WOLFPORT_SEALSQ_VAULTIC_H
 #define WOLFPORT_SEALSQ_VAULTIC_H
@@ -30,11 +31,15 @@
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/ecc.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
+#ifdef HAVE_PK_CALLBACKS
 WOLFSSL_API int WOLFSSL_VAULTIC_EccKeyGenCb(WOLFSSL* ssl, ecc_key* key,
     word32 keySz, int ecc_curve, void* ctx);
 
@@ -54,12 +59,25 @@ WOLFSSL_API int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl,
     unsigned char* pubKeyDer, unsigned int* pubKeySz,
     unsigned char* out, unsigned int* outlen,
     int side, void* ctx);
+#endif /* HAVE_PK_CALLBACKS */
 
 WOLFSSL_API int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx);
 
-/* Helper APIs for setting up callbacks */
+#ifdef HAVE_PK_CALLBACKS
+/* Helper APIs for setting up PK callbacks */
 WOLFSSL_API int WOLFSSL_VAULTIC_SetupPkCallbacks(WOLFSSL_CTX* ctx);
-WOLFSSL_API int WOLFSSL_VAULTIC_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx);
+WOLFSSL_API int WOLFSSL_VAULTIC_SetupPkCallbackCtx(WOLFSSL* ssl,
+    void* user_ctx);
+#endif /* HAVE_PK_CALLBACKS */
+
+#ifdef WOLF_CRYPTO_CB
+/* devId for selecting the VaultIC via the crypto callback ("VLTC") */
+#define WOLF_VAULTIC_DEVID 0x564C5443
+
+WOLFSSL_API int WOLFSSL_VAULTIC_CryptoCb(int devId, wc_CryptoInfo* info,
+    void* ctx);
+WOLFSSL_API int WOLFSSL_VAULTIC_RegisterCryptoCb(int devId);
+#endif /* WOLF_CRYPTO_CB */
 
 #ifdef __cplusplus
     }  /* extern "C" */
