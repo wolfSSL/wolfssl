@@ -1231,6 +1231,14 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -1435,6 +1443,14 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -1638,6 +1654,14 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -1805,6 +1829,14 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
+
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
@@ -2135,6 +2167,14 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
 #ifndef WC_ALLOW_ECC_ZERO_HASH
     /* SE050 hardware does not reject all-zero digests; mirror the
      * software path's check so behavior is consistent. */
@@ -2315,6 +2355,14 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
+
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
 
     keySize = key->dp->size;
     ret = se050_map_curve(key->dp->id, keySize, &keySizeBits, &curveType);
@@ -2758,6 +2806,13 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         if (public_key->keyIdSet == 0) {
             byte derBuf[SE050_ECC_DER_MAX];
             word32 derSz;
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+            /* The peer's public key is uploaded for this derivation only and
+             * erased afterwards, so it must not occupy SE050 flash. */
+            sss_key_object_mode_t pubKeyMode = kKeyObject_Mode_Transient;
+#else
+            sss_key_object_mode_t pubKeyMode = kKeyObject_Mode_Persistent;
+#endif
 
             ret = wc_EccPublicKeyToDer(public_key, derBuf,
                 (word32)sizeof(derBuf), 1);
@@ -2772,7 +2827,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
                 keyId = se050_allocate_key(SE050_ECC_KEY);
                 status = sss_key_object_allocate_handle(&ref_public_key,
                     keyId, kSSS_KeyPart_Public, curveType, keySize,
-                    kKeyObject_Mode_Persistent);
+                    pubKeyMode);
             }
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
@@ -2829,8 +2884,18 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     }
 
     if (status == kStatus_SSS_Success) {
-        public_key->keyId = keyId;
-        public_key->keyIdSet = 1;
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+        if (keyCreated) {
+            /* The peer's public key was uploaded for this derivation only. */
+            sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            sss_key_object_free(&ref_public_key);
+        }
+        else
+#endif
+        {
+            public_key->keyId = keyId;
+            public_key->keyIdSet = 1;
+        }
         ret = 0;
     }
     else {
@@ -2983,6 +3048,14 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -3086,6 +3159,14 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
+
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
@@ -3394,8 +3475,18 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     }
 
     if (status == kStatus_SSS_Success) {
-        public_key->keyId = keyId;
-        public_key->keyIdSet = 1;
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+        if (keyCreated) {
+            /* The peer's public key was uploaded for this derivation only.*/
+            sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            sss_key_object_free(&ref_public_key);
+        }
+        else
+#endif
+        {
+            public_key->keyId = keyId;
+            public_key->keyIdSet = 1;
+        }
         ret = 0;
     }
     else {

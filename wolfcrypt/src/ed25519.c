@@ -471,7 +471,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
                             const byte* context, byte contextLen)
 {
     int    ret;
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     (void)context;
     (void)contextLen;
     (void)type;
@@ -520,6 +520,20 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
                                          (context == NULL && contextLen != 0)) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* Key resident in the SE050: sign in hardware. Software keys fall through
+     * to the wolfCrypt software implementation below. */
+    if (key->keyIdSet) {
+        /* The SE050 performs only PureEdDSA; it cannot apply the Ed25519ctx or
+         * Ed25519ph variants, so reject them rather than silently signing with
+         * the wrong scheme. */
+        if (type == Ed25519ctx || type == Ed25519ph || contextLen != 0) {
+            return BAD_FUNC_ARG;
+        }
+        return se050_ed25519_sign_msg(in, inLen, out, outLen, key);
+    }
+#endif
 
     if ((type == Ed25519ph) &&
         (inLen != WC_SHA512_DIGEST_SIZE))
@@ -768,7 +782,10 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
 #endif /* HAVE_ED25519_SIGN */
 
 #ifdef HAVE_ED25519_VERIFY
-#if !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+/* The software verify helpers are also needed under WOLFSSL_SE050_ONLY_KEY_ID
+ * so that software keys (keyIdSet == 0) can be verified in wolfCrypt. */
+#if (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_ONLY_KEY_ID)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
 
 #ifdef WOLFSSL_CHECK_VER_FAULTS
 static const byte sha512_empty[] = {
@@ -1000,9 +1017,11 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 
     return ret;
 }
-#endif /* !WOLFSSL_SE050 && !WOLF_CRYPTO_CB_ONLY_ED25519 */
+#endif /* (!WOLFSSL_SE050 || WOLFSSL_SE050_ONLY_KEY_ID) &&
+        * !WOLF_CRYPTO_CB_ONLY_ED25519 */
 
-#if defined(WOLFSSL_ED25519_STREAMING_VERIFY) && !defined(WOLFSSL_SE050)
+#if defined(WOLFSSL_ED25519_STREAMING_VERIFY) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_ONLY_KEY_ID))
 
 int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen) {
@@ -1028,7 +1047,8 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
                                          key, &key->sha);
 }
 
-#endif /* WOLFSSL_ED25519_STREAMING_VERIFY && !WOLFSSL_SE050 */
+#endif /* WOLFSSL_ED25519_STREAMING_VERIFY &&
+        * (!WOLFSSL_SE050 || WOLFSSL_SE050_ONLY_KEY_ID) */
 
 /*
    sig     is array of bytes containing the signature
@@ -1044,7 +1064,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
                               byte type, const byte* context, byte contextLen)
 {
     int ret;
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     (void)type;
     (void)context;
     (void)contextLen;
@@ -1079,6 +1099,20 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     wc_Sha512 *sha;
 #else
     WC_DECLARE_VAR(sha, wc_Sha512, 1, key ? key->heap : NULL);
+#endif
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* Key resident in the SE050: verify in hardware. Software keys fall through
+     * to the wolfCrypt software implementation below. */
+    if (key != NULL && key->keyIdSet) {
+        /* The SE050 performs only PureEdDSA; it cannot apply the Ed25519ctx or
+         * Ed25519ph variants, so reject them rather than silently verifying
+         * against the wrong scheme. */
+        if (type == Ed25519ctx || type == Ed25519ph || contextLen != 0) {
+            return BAD_FUNC_ARG;
+        }
+        return se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
+    }
 #endif
 
     /* sanity check on arguments */
