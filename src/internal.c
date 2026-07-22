@@ -12867,6 +12867,8 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
     }
 
+    ForceZero(md5_result, WC_MD5_DIGEST_SIZE);
+
     WC_FREE_VAR_EX(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
@@ -12911,6 +12913,8 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             wc_ShaFree(sha);
         }
     }
+
+    ForceZero(sha_result, WC_SHA_DIGEST_SIZE);
 
     WC_FREE_VAR_EX(sha, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
@@ -15355,7 +15359,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         if (args->certIdx == 0) {
             FreeX509(&ssl->peerCert);
             InitX509(&ssl->peerCert, 0, ssl->heap);
-            if (CopyDecodedToX509(&ssl->peerCert, args->dCert) == 0)
+            if (CopyDecodedToX509(&ssl->peerCert, args->dCert) != 0)
                 WOLFSSL_MSG("Unable to copy to ssl->peerCert");
             store->current_cert = &ssl->peerCert; /* use existing X509 */
         }
@@ -23791,6 +23795,14 @@ static int CheckResumptionConsistency(WOLFSSL* ssl)
 static int DoChangeCipherSpecTls13(WOLFSSL* ssl)
 {
     word32 i = ssl->buffers.inputBuffer.idx;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        /* CCS is not part of DTLS 1.3; discard the record without alerting so a
+         * spoofed CCS cannot tear down the handshake. */
+        ssl->buffers.inputBuffer.idx += ssl->curSize;
+        return 0;
+    }
+#endif
     if (ssl->options.handShakeState == HANDSHAKE_DONE) {
         SendAlert(ssl, alert_fatal, unexpected_message);
         WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
@@ -25242,6 +25254,8 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
         }
     }
 
+    ForceZero(md5_result, WC_MD5_DIGEST_SIZE);
+
     WC_FREE_VAR_EX(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
@@ -25287,6 +25301,8 @@ static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
             wc_ShaFree(sha);
         }
     }
+
+    ForceZero(sha_result, WC_SHA_DIGEST_SIZE);
 
     WC_FREE_VAR_EX(sha, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
@@ -42621,8 +42637,18 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         /* Update AAD with index. */
         aad[WOLFSSL_TICKET_NAME_SZ - 1] |= keyIdx;
 
+#ifndef SINGLE_THREADED
+        /* Hold the lock over the key/expiry read so a concurrent regen can't swap the key mid-decrypt. */
+        if (wc_LockMutex(&keyCtx->mutex) != 0) {
+            WOLFSSL_MSG("Couldn't lock key context mutex");
+            return WOLFSSL_TICKET_RET_REJECT;
+        }
+#endif
         /* Check expirary */
         if (keyCtx->expirary[keyIdx] <= LowResTimer()) {
+#ifndef SINGLE_THREADED
+            wc_UnLockMutex(&keyCtx->mutex);
+#endif
             return WOLFSSL_TICKET_RET_REJECT;
         }
 
@@ -42630,6 +42656,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         ret = TicketEncDec(keyCtx->key[keyIdx], WOLFSSL_TICKET_KEY_SZ, iv, aad,
                            aadSz, ticket, inLen, ticket, outLen, mac, ssl->heap,
                            0);
+#ifndef SINGLE_THREADED
+        wc_UnLockMutex(&keyCtx->mutex);
+#endif
         if (ret != 0) {
             return WOLFSSL_TICKET_RET_REJECT;
         }

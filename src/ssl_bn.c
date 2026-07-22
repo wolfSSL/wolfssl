@@ -326,23 +326,21 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
             wolfSSL_BN_free(one);
             one = NULL;
         }
-        else
+        else {
     #ifndef SINGLE_THREADED
-        /* Ensure global has not been set by another thread. */
-        if (bn_one == NULL)
-    #endif
-        {
+            void* expected = NULL;
+            /* Publish atomically so a losing thread frees only its own object,
+             * never a pointer already handed to another thread. */
+            if (!wolfSSL_Atomic_Ptr_CompareExchange((void* volatile*)&bn_one,
+                    &expected, one)) {
+                wolfSSL_BN_free(one);
+                one = (WOLFSSL_BIGNUM*)expected;
+            }
+    #else
             /* Set this big number as the global. */
             bn_one = one;
-        }
-    #ifndef SINGLE_THREADED
-        /* Check if another thread has set the global. */
-        if (bn_one != one) {
-            /* Dispose of this big number and return the global.  */
-            wolfSSL_BN_free(one);
-            one = bn_one;
-        }
     #endif
+        }
     }
 
     return one;

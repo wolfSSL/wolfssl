@@ -1239,6 +1239,11 @@ int wolfSSL_quic_hkdf_expand(uint8_t* dest, size_t destlen,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf_expand");
 
+    if (secretlen > INT_MAX || infolen > INT_MAX) {
+        ret = WOLFSSL_FAILURE;
+        goto cleanup;
+    }
+
     pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
@@ -1278,6 +1283,11 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
     int ret = WOLFSSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf");
+
+    if (secretlen > INT_MAX || saltlen > INT_MAX || infolen > INT_MAX) {
+        ret = WOLFSSL_FAILURE;
+        goto cleanup;
+    }
 
     pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
@@ -1348,6 +1358,10 @@ int wolfSSL_quic_aead_encrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
      * TODO: there is some fiddling in OpenSSL+quic in regard to CCM ciphers
      *       which we need to check.
      */
+    if (plainlen > INT_MAX || aadlen > INT_MAX) {
+        return WOLFSSL_FAILURE;
+    }
+
     if (wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 1) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherUpdate(
                 ctx, NULL, &len, aad, (int)aadlen) != WOLFSSL_SUCCESS
@@ -1373,7 +1387,7 @@ int wolfSSL_quic_aead_decrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
     const uint8_t* tag;
 
     /* See rationale for wolfSSL_quic_aead_encrypt() on why this is here */
-    if (enclen > INT_MAX || ctx->authTagSz > (int)enclen) {
+    if (enclen > INT_MAX || aadlen > INT_MAX || ctx->authTagSz > (int)enclen) {
         return WOLFSSL_FAILURE;
     }
 

@@ -12372,7 +12372,13 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
     {
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         WOLFSSL_ENTER("wolfSSL_set_verify_depth");
-        ssl->options.verifyDepth = (byte)depth;
+        /* Reject out-of-range depths; valid range is 0 to MAX_CHAIN_DEPTH. */
+        if ((ssl == NULL) || (depth < 0) || (depth > MAX_CHAIN_DEPTH)) {
+            WOLFSSL_MSG("Bad depth argument, too large or less than 0");
+        }
+        else {
+            ssl->options.verifyDepth = (byte)depth;
+        }
     #endif
     }
 
@@ -16076,6 +16082,7 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     (void)hash;
     (void)secret;
 #endif
+    ForceZero(secret, DRBG_SEED_LEN);
     return ret;
 }
 
@@ -16950,20 +16957,44 @@ int wolfSSL_FIPS_drbg_uninstantiate(WOLFSSL_DRBG_CTX *ctx)
 void wolfSSL_FIPS_drbg_free(WOLFSSL_DRBG_CTX *ctx)
 {
     if (ctx != NULL) {
+        int locked = 0;
+        int haveMutex = 1;
         /* As safety check if free'ing the default drbg, then mark global NULL.
          * Technically the user should not call free on the default drbg. */
-        if (ctx == gDrbgDefCtx) {
-            gDrbgDefCtx = NULL;
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* wolfSSL_Cleanup may free the mutex before this runs. */
+        haveMutex = (globalRNGMutex_valid == 1);
+    #endif
+        if (haveMutex && (wc_LockMutex(&globalRNGMutex) == 0))
+            locked = 1;
+        /* Touch the global under the lock, or unlocked only when no mutex. */
+        if (locked || !haveMutex) {
+            if (ctx == gDrbgDefCtx) {
+                gDrbgDefCtx = NULL;
+            }
         }
+        if (locked)
+            wc_UnLockMutex(&globalRNGMutex);
         wolfSSL_FIPS_drbg_uninstantiate(ctx);
         XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
 WOLFSSL_DRBG_CTX* wolfSSL_FIPS_get_default_drbg(void)
 {
-    if (gDrbgDefCtx == NULL) {
-        gDrbgDefCtx = wolfSSL_FIPS_drbg_new(0, 0);
+    int locked = 0;
+    int haveMutex = 1;
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    haveMutex = (globalRNGMutex_valid == 1);
+#endif
+    if (haveMutex && (wc_LockMutex(&globalRNGMutex) == 0))
+        locked = 1;
+    if (locked || !haveMutex) {
+        if (gDrbgDefCtx == NULL) {
+            gDrbgDefCtx = wolfSSL_FIPS_drbg_new(0, 0);
+        }
     }
+    if (locked)
+        wc_UnLockMutex(&globalRNGMutex);
     return gDrbgDefCtx;
 }
 void wolfSSL_FIPS_get_timevec(unsigned char* buf, unsigned long* pctr)
