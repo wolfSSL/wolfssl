@@ -521,6 +521,11 @@ if(WOLFSSL_IOTSAFE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_IOTSAFE")
 endif()
 
+add_option("WOLFSSL_VAULTIC" "Enable WISeKey/SealSQ VaultIC support (default: disabled)" "no" "yes;no")
+if(WOLFSSL_VAULTIC)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_VAULTIC")
+endif()
+
 add_option("WOLFSSL_WOLFSENTRY" "Enable wolfSentry support (default: disabled)" "no" "yes;no")
 if(WOLFSSL_WOLFSENTRY)
     foreach(_o WOLFSSL_MD5)
@@ -4583,6 +4588,7 @@ set(HEADER_EXCLUDE
   "wolfssl/wolfcrypt/port/cypress"
   "wolfssl/wolfcrypt/port/Espressif"
   "wolfssl/wolfcrypt/port/iotsafe"
+  "wolfssl/wolfcrypt/port/sealsq"
   "wolfssl/wolfcrypt/port/nxp"
   "wolfssl/wolfcrypt/port/pic"
   "wolfssl/wolfcrypt/port/Renesas"

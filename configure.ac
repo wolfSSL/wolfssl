@@ -11674,6 +11674,13 @@ AC_ARG_ENABLE([iotsafe-hwrng],
     [ ENABLED_IOTSAFE_HWRNG=no ]
     )
 
+# WISeKey/SealSQ VaultIC secure element
+AC_ARG_ENABLE([vaultic],
+    [AS_HELP_STRING([--enable-vaultic],[Enable WISeKey/SealSQ VaultIC secure element support (default: disabled)])],
+    [ ENABLED_VAULTIC=$enableval ],
+    [ ENABLED_VAULTIC=no ]
+    )
+
 # Make clean
 AC_ARG_ENABLE([makeclean],
     [AS_HELP_STRING([--enable-makeclean], [Enables forced "make clean" at the
@@ -12477,6 +12484,17 @@ then
     ENABLED_IOTSAFE_HWRNG=yes
 fi
 
+if test "$ENABLED_VAULTIC" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VAULTIC"
+    ENABLED_VAULTIC=yes
+    # VaultIC port is implemented via PK callbacks
+    if test "$ENABLED_PKCALLBACKS" = "no"; then
+        ENABLED_PKCALLBACKS=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
+    fi
+fi
+
 if test "x$ENABLED_WOLFENGINE" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_ECB"
@@ -13004,6 +13022,7 @@ AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
+AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
@@ -13601,6 +13620,7 @@ echo "   * PK callbacks:               $ENABLED_PKCALLBACKS"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
+echo "   * WISeKey/SealSQ VaultIC:     $ENABLED_VAULTIC"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * STMicro STSAFE:             $ENABLED_STSAFE"
