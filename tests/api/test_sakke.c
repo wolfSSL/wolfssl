@@ -342,14 +342,40 @@ int test_wc_Sakke_DecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_GenerateSakkeRskTable(&key, rsk, data, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Length query (NULL table) returns LENGTH_ONLY_E and sets len to the
+     * required table size. That size is SP-backend dependent: the small-stack
+     * path builds no precomputation table and reports 0, while the full
+     * precomputation path reports sizeof(sp_table_entry_1024) * 1167. Capture
+     * it rather than asserting a fixed value. */
+    len = 0;
     ExpectIntEQ(wc_GenerateSakkeRskTable(&key, rsk, NULL, &len),
         WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-    ExpectIntEQ(len, 0u);
-    len = 1;
-    ExpectIntEQ(wc_GenerateSakkeRskTable(&key, rsk, data, &len),
-        WC_NO_ERR_TRACE(BUFFER_E));
-    len = 0;
-    ExpectIntEQ(wc_GenerateSakkeRskTable(&key, rsk, data, &len), 0);
+    {
+        word32 tableLen = len;
+
+        /* A non-zero but too-small buffer length is rejected on both paths. */
+        len = 1;
+        ExpectIntEQ(wc_GenerateSakkeRskTable(&key, rsk, data, &len),
+            WC_NO_ERR_TRACE(BUFFER_E));
+
+        if (tableLen == 0) {
+            /* Small-stack path: len == 0 is accepted as a no-op success. */
+            len = 0;
+            ExpectIntEQ(wc_GenerateSakkeRskTable(&key, rsk, data, &len), 0);
+        }
+        else {
+            /* Full path: a correctly-sized heap buffer builds the table. */
+            byte* table = (byte*)XMALLOC(tableLen, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            ExpectNotNull(table);
+            if (table != NULL) {
+                len = tableLen;
+                ExpectIntEQ(wc_GenerateSakkeRskTable(&key, rsk, table, &len),
+                    0);
+                XFREE(table, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
+    }
 
     /* --- wc_ImportSakkePublicKey() (trusted vs. untrusted) --- */
     sz = sizeof(data);
@@ -428,29 +454,44 @@ int test_wc_Sakke_DecisionCoverage(void)
     /* Both false, back to the small identity for the rest of the tests. */
     ExpectIntEQ(wc_SetSakkePointI(&key, id, 1, data, sz), 0);
 
-    /* --- wc_GenerateSakkePointITable() --- */
+    /* --- wc_GenerateSakkePointITable() / wc_SetSakkePointITable() --- */
     len = 0;
     ExpectIntEQ(wc_GenerateSakkePointITable(NULL, data, &len),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_GenerateSakkePointITable(&key, data, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Length query (NULL table) returns LENGTH_ONLY_E and sets len to the
+     * required table size, which is SP-backend dependent: 0 on the small-stack
+     * path (no precomputation table) and sizeof(sp_table_entry_1024)*256 on the
+     * full path. Capture it rather than asserting a fixed value. */
+    len = 0;
     ExpectIntEQ(wc_GenerateSakkePointITable(&key, NULL, &len),
         WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-    ExpectIntEQ(len, 0u);
-    len = 1;
-    ExpectIntEQ(wc_GenerateSakkePointITable(&key, data, &len),
-        WC_NO_ERR_TRACE(BUFFER_E));
-    len = 0;
-    ExpectIntEQ(wc_GenerateSakkePointITable(&key, data, &len), 0);
+    {
+        word32 pointILen = len;
 
-    /* --- wc_SetSakkePointITable() --- */
-    ExpectIntEQ(wc_SetSakkePointITable(NULL, data, 1),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SetSakkePointITable(&key, NULL, 1),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SetSakkePointITable(&key, data, 1),
-        WC_NO_ERR_TRACE(BUFFER_E));
-    ExpectIntEQ(wc_SetSakkePointITable(&key, data, 0), 0);
+        /* A too-small buffer is rejected on both paths. */
+        len = 1;
+        ExpectIntEQ(wc_GenerateSakkePointITable(&key, data, &len),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_SetSakkePointITable(NULL, data, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SetSakkePointITable(&key, NULL, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SetSakkePointITable(&key, data, 1),
+            WC_NO_ERR_TRACE(BUFFER_E));
+
+        if (pointILen == 0) {
+            /* Small-stack path builds no table; len == 0 is a no-op success
+             * for both generate and set. The full path's build-and-store is
+             * exercised by the sakke_test KAT -- wc_SetSakkePointITable stores
+             * the table pointer in the key, so it is deliberately not
+             * built-and-freed here (that would leave the key dangling). */
+            len = 0;
+            ExpectIntEQ(wc_GenerateSakkePointITable(&key, data, &len), 0);
+            ExpectIntEQ(wc_SetSakkePointITable(&key, data, 0), 0);
+        }
+    }
 
     /* --- wc_ClearSakkePointITable() --- */
     ExpectIntEQ(wc_ClearSakkePointITable(NULL),
