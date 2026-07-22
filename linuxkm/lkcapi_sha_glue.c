@@ -1269,14 +1269,80 @@ struct wc_swallow_the_semicolon
                              wc_Sha3_512_Free, sha3_test_once);
 #endif
 
-struct km_sha_hmac_pstate {
+struct km_sha_hmac_node {
     struct Hmac wc_hmac;
+    /* linkage for the tfm-owned cleanup list */
+    struct list_head desc_ent;
 };
 struct km_sha_hmac_state {
-    struct Hmac *wc_hmac; /* HASH_MAX_DESCSIZE is 368, but sizeof(struct Hmac) is 832 */
+    /* HASH_MAX_DESCSIZE is 368, but sizeof(struct Hmac) is 832, so the working
+     * Hmac lives in a heap node hung off the desc and tracked on the tfm
+     * cleanup list for garbage collection at .exit_tfm. */
+    struct km_sha_hmac_node *node;
+};
+struct km_sha_hmac_pstate {
+    /* keyed, pristine Hmac, deep-copied into each desc's node at .init */
+    struct Hmac wc_hmac;
+    /* desc_list_lock guards BOTH lists below. */
+    wolfSSL_Mutex desc_list_lock;
+    /* cleanup list of live/abandoned desc working nodes (abandonment GC) */
+    struct list_head desc_list;
+    /* bounded ring of .export snapshots; import validates handles against it */
+    struct list_head export_list;
+    unsigned int export_list_len;
 };
 
+/* Serialized HMAC state for .export / .import.  sizeof(struct Hmac) is 832, and
+ * an HMAC-over-SHA-3 state is two full sponges, so real state cannot fit
+ * HASH_MAX_STATESIZE (345).  .export deep-copies the live Hmac into a snapshot
+ * node on the tfm's export_list and the blob carries only a validated handle;
+ * .import validates the handle against THIS tfm's export_list -- never
+ * dereferencing an unvalidated pointer -- and copies from the snapshot.
+ */
+#define WC_LINUXKM_HMAC_EXPORT_MAGIC 0x484d4143U /* 'HMAC' */
+
+/* Upper bound on live .export snapshots per tfm.  Bounds worst-case memory to
+ * this many nodes (~832B each): without it, algif_hash's export-on-accept lets
+ * userspace grow the parent's list without limit (close(accept(fd)) in a loop).
+ * The accept-clone path imports immediately after export, so a snapshot is
+ * consumed long before it can be evicted; this need only exceed the max
+ * concurrent in-flight export->import pairs on one tfm (accept drops the sock
+ * lock between the two).  Over-cap merely degrades a stale import to graceful
+ * -EINVAL, never corruption.  Override at build time if a workload needs more.
+ *
+ * Note the default expression is runtime-evaluated to scale with host size.
+ */
+#ifndef WC_LINUXKM_HMAC_EXPORT_LIST_MAX
+    #define WC_LINUXKM_HMAC_EXPORT_LIST_MAX (nr_cpu_ids * 2)
+#endif
+
+struct km_sha_hmac_export_state {
+    word32                   magic;
+    struct km_sha_hmac_node *snapshot;
+};
+
+wc_static_assert(sizeof(struct km_sha_hmac_state) <= HASH_MAX_DESCSIZE);
+
+/* HASH_MAX_STATESIZE added by 2b1a29ce33, kernel 6.16. */
+#ifdef HASH_MAX_STATESIZE
+wc_static_assert(sizeof(struct km_sha_hmac_export_state) <= HASH_MAX_STATESIZE);
+#endif
+
 #ifndef NO_HMAC
+
+#ifdef WOLFSSL_LINUXKM_USE_MUTEXES
+    #error LINUXKM_LKCAPI_REGISTER_HMAC requires spinlock-based mutexes.
+#endif
+
+/* The kernel list macros provoke "pointer of type `void *' used in arithmetic",
+ * and on older kernels, "nested extern declaration of
+ * `__compiletime_assert_foo'".
+ */
+PRAGMA_DIAG_PUSH
+PRAGMA("GCC diagnostic ignored \"-Wpointer-arith\"");
+PRAGMA("GCC diagnostic ignored \"-Wnested-externs\"");
+
+#include <linux/list.h>
 
 WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, int type, const byte* key, word32 length)
 {
@@ -1296,43 +1362,109 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, 
         return -EINVAL;
 }
 
-WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct km_sha_hmac_state *t_ctx) {
-    wc_HmacFree(t_ctx->wc_hmac);
-    free(t_ctx->wc_hmac);
-    t_ctx->wc_hmac = NULL;
+WC_MAYBE_UNUSED static int km_hmac_alloc_tstate(struct shash_desc *desc) {
+    struct km_sha_hmac_pstate *p_ctx =
+        (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    s_ctx->node = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
+    if (! s_ctx->node)
+        return -ENOMEM;
+
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
+        free(s_ctx->node);
+        s_ctx->node = NULL;
+        return -EINVAL;
+    }
+    list_add(&s_ctx->node->desc_ent, &p_ctx->desc_list);
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    return 0;
+}
+
+WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct shash_desc *desc) {
+    struct km_sha_hmac_pstate *p_ctx =
+        (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+
+    if (s_ctx->node == NULL)
+        return;
+
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0)
+        return;
+    list_del(&s_ctx->node->desc_ent);
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    /* wc_HmacFree is NOT a no-op: a wc_HmacCopy'd node can own inner/outer hash
+     * heap (e.g. SMALL_STACK_CACHE W buffers), so it must run before free(). */
+    wc_HmacFree(&s_ctx->node->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    ForceZero(s_ctx->node, sizeof *s_ctx->node);
+#endif
+    free(s_ctx->node);
+    s_ctx->node = NULL;
 }
 
 WC_MAYBE_UNUSED static int km_hmac_init_tfm(struct crypto_shash *tfm)
 {
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
     int ret = wc_HmacInit(&p_ctx->wc_hmac, NULL /* heap */, INVALID_DEVID);
-    if (ret == 0)
-        return 0;
-    else
+    if (ret != 0)
         return -EINVAL;
+    if (wc_InitMutex(&p_ctx->desc_list_lock) != 0) {
+        wc_HmacFree(&p_ctx->wc_hmac);
+        return -EINVAL;
+    }
+    INIT_LIST_HEAD(&p_ctx->desc_list);
+    INIT_LIST_HEAD(&p_ctx->export_list);
+    p_ctx->export_list_len = 0;
+    return 0;
 }
 
 WC_MAYBE_UNUSED static void km_hmac_exit_tfm(struct crypto_shash *tfm)
 {
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
+    struct km_sha_hmac_node *node_i;
+    struct km_sha_hmac_node *next_ent;
+
+    /* Don't need to lock the mutex to clean up, because the API contract
+     * forbids any use of descs at/after exit of the associated TFM -- i.e. the
+     * list holds only abandoned descs -- and we're deallocating the lock
+     * besides.  Moreover, we definitely don't want to lock, so that the
+     * iteration and heap operations aren't in a locked context that might make
+     * desc deallocation awkward or impossible (leak).
+     */
+    list_for_each_entry_safe(node_i, next_ent, &p_ctx->desc_list, desc_ent) {
+        list_del(&node_i->desc_ent);
+        wc_HmacFree(&node_i->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(node_i, sizeof(*node_i));
+#endif
+        free(node_i);
+    }
+    list_for_each_entry_safe(node_i, next_ent, &p_ctx->export_list, desc_ent) {
+        list_del(&node_i->desc_ent);
+        wc_HmacFree(&node_i->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(node_i, sizeof(*node_i));
+#endif
+        free(node_i);
+    }
     wc_HmacFree(&p_ctx->wc_hmac);
-    return;
+    (void)wc_FreeMutex(&p_ctx->desc_list_lock);
 }
 
 WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
     int ret;
-    struct km_sha_hmac_state *t_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
 
-    t_ctx->wc_hmac = malloc(sizeof *t_ctx->wc_hmac);
-    if (! t_ctx->wc_hmac)
-        return -ENOMEM;
+    ret = km_hmac_alloc_tstate(desc);
+    if (ret)
+        return ret;
 
-    ret = wc_HmacCopy(&p_ctx->wc_hmac, t_ctx->wc_hmac);
+    ret = wc_HmacCopy(&p_ctx->wc_hmac, &s_ctx->node->wc_hmac);
     if (ret != 0) {
-        ForceZero(t_ctx->wc_hmac, sizeof *t_ctx->wc_hmac);
-        free(t_ctx->wc_hmac);
-        t_ctx->wc_hmac = NULL;
+        km_hmac_free_tstate(desc);
         return -EINVAL;
     }
 
@@ -1344,12 +1476,12 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
 {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
-    int ret = wc_HmacUpdate(ctx->wc_hmac, data, len);
+    int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
 
     if (ret == 0)
         return 0;
     else {
-        km_hmac_free_tstate(ctx);
+        km_hmac_free_tstate(desc);
         return -EINVAL;
     }
 }
@@ -1357,9 +1489,9 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
 WC_MAYBE_UNUSED static int km_hmac_final(struct shash_desc *desc, u8 *out) {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
-    int ret = wc_HmacFinal(ctx->wc_hmac, out);
+    int ret = wc_HmacFinal(&ctx->node->wc_hmac, out);
 
-    km_hmac_free_tstate(ctx);
+    km_hmac_free_tstate(desc);
 
     if (ret == 0)
         return 0;
@@ -1372,10 +1504,10 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
-    int ret = wc_HmacUpdate(ctx->wc_hmac, data, len);
+    int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
 
     if (ret != 0) {
-        km_hmac_free_tstate(ctx);
+        km_hmac_free_tstate(desc);
         return -EINVAL;
     }
 
@@ -1385,11 +1517,385 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *data,
                       unsigned int len, u8 *out)
 {
-    int ret = km_hmac_init(desc);
-    if (ret != 0)
-        return ret;
-    return km_hmac_finup(desc, data, len, out);
+    /* One-shot: no abandonment or export window, so skip the cleanup list.
+     * sizeof(struct Hmac) is 832 -- too large for the stack (cf. the SHA-3
+     * digest's stack state), so use a bare heap Hmac that is always freed
+     * here rather than a listed node.
+     */
+    struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct Hmac *h;
+    int ret;
+
+    h = (struct Hmac *)malloc(sizeof *h);
+    if (! h)
+        return -ENOMEM;
+
+    ret = wc_HmacCopy(&p_ctx->wc_hmac, h);
+    if (ret != 0) {
+        free(h);
+        return -EINVAL;
+    }
+    ret = wc_HmacUpdate(h, data, len);
+    if (ret == 0)
+        ret = wc_HmacFinal(h, out);
+
+    wc_HmacFree(h);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    ForceZero(h, sizeof(*h));
+#endif
+    free(h);
+
+    return ret == 0 ? 0 : -EINVAL;
 }
+
+/* Note that km_hmac_export() is implementing a pseudo-export -- the "out"
+ * buffer only gets a pointer to the actual deep-copied HMAC state, not a bona
+ * fide serialization of it, because HASH_MAX_STATESIZE is simply too small to
+ * accommodate the full state.
+ */
+WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
+{
+    struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    struct km_sha_hmac_export_state *blob = (struct km_sha_hmac_export_state *)out;
+    struct km_sha_hmac_node *snapshot;
+    struct km_sha_hmac_node *evicted = NULL;
+    int ret;
+
+    if (s_ctx->node == NULL)
+        return -EINVAL;
+
+    /* Snapshot the live state into a fresh node.  Allocate and deep-copy
+     * OUTSIDE the lock -- wc_HmacCopy may allocate inner-hash heap.  Copying
+     * from this desc's own working node needs no lock (a desc is not used
+     * concurrently); the lock protects the lists, not the nodes. */
+    snapshot = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
+    if (! snapshot)
+        return -ENOMEM;
+    ret = wc_HmacCopy(&s_ctx->node->wc_hmac, &snapshot->wc_hmac);
+    if (ret != 0) {
+        ForceZero(snapshot, sizeof(*snapshot));
+        free(snapshot);
+        return -EINVAL;
+    }
+
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
+        wc_HmacFree(&snapshot->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(snapshot, sizeof(*snapshot));
+#endif
+        free(snapshot);
+        return -EINVAL;
+    }
+    /* Bound the ring: at capacity, unlink the oldest (list tail) under the lock;
+     * it is freed below, outside the lock.  Unlinking under the lock is what
+     * lets .import validate-and-copy under the same lock without racing a free.
+     */
+    if (p_ctx->export_list_len >= WC_LINUXKM_HMAC_EXPORT_LIST_MAX) {
+        evicted = list_last_entry(&p_ctx->export_list,
+                                  struct km_sha_hmac_node, desc_ent);
+        list_del(&evicted->desc_ent);
+        p_ctx->export_list_len--;
+    }
+    /* list_add() prepends, so the tail from list_last_entry() is the oldest. */
+    list_add(&snapshot->desc_ent, &p_ctx->export_list);
+    p_ctx->export_list_len++;
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    /* The evicted node is now unlinked and unreachable (any outstanding handle
+     * to it will fail import validation), so free it outside the lock.
+     */
+    if (evicted != NULL) {
+        wc_HmacFree(&evicted->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(evicted, sizeof(*evicted));
+#endif
+        free(evicted);
+    }
+
+    /* Zero first so no uninitialized padding leaks into the caller's buffer. */
+    XMEMSET(blob, 0, sizeof(*blob));
+    blob->magic = WC_LINUXKM_HMAC_EXPORT_MAGIC;
+    blob->snapshot = snapshot;
+
+    return 0;
+}
+
+WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *in)
+{
+    struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    const struct km_sha_hmac_export_state *blob = (const struct km_sha_hmac_export_state *)in;
+    struct km_sha_hmac_node *snapshot;
+    struct km_sha_hmac_node *node_i;
+    struct km_sha_hmac_node *newnode;
+    int found = 0;
+    int ret;
+
+    if (blob->magic != WC_LINUXKM_HMAC_EXPORT_MAGIC)
+        return -EINVAL;
+    snapshot = blob->snapshot;
+    if (snapshot == NULL)
+        return -EINVAL;
+
+    /* Fresh working node, allocated outside the lock; its inner Hmac heap is
+     * populated by the copy under the lock below.
+     */
+    newnode = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
+    if (! newnode)
+        return -ENOMEM;
+
+    /* Validate the handle AND copy from the snapshot under ONE lock hold, so a
+     * concurrent export's eviction cannot free the snapshot between the match
+     * and the copy.  A handle from another tfm, an evicted snapshot, or a
+     * forged/poisoned blob is not a live member -> graceful -EINVAL, with no
+     * dereference of attacker-influenced memory.
+     */
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
+        ForceZero(newnode, sizeof(*newnode));
+        free(newnode);
+        return -EINVAL;
+    }
+    list_for_each_entry(node_i, &p_ctx->export_list, desc_ent) {
+        if (node_i == snapshot) {
+            found = 1;
+            break;
+        }
+    }
+    if (! found) {
+        (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+        ForceZero(newnode, sizeof(*newnode)); /* raw node; nothing to wc_HmacFree */
+        free(newnode);
+        return -EINVAL;
+    }
+    ret = wc_HmacCopy(&snapshot->wc_hmac, &newnode->wc_hmac);
+    if (ret != 0) {
+        (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+        /* Copy-failure cleanup mirrors km_hmac_init (wc_HmacFree then free) --
+         * keep the two consistent if wc_HmacCopy's failure contract is revised.
+         */
+        wc_HmacFree(&newnode->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(newnode, sizeof(*newnode));
+#endif
+        free(newnode);
+        return -EINVAL;
+    }
+    /* Publish: link the working node onto desc_list and into the desc ctx,
+     * overwriting any poisoned prior pointer without reading it.  A real prior
+     * node orphans onto desc_list and is reaped at exit_tfm.
+     */
+    list_add(&newnode->desc_ent, &p_ctx->desc_list);
+    s_ctx->node = newnode;
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    return 0;
+}
+
+/* Kernel-API export/import test coverage: cross-desc round-trip through a
+ * poisoned desc; the two rejection cases the design relies on (corrupted
+ * handle, and a valid handle presented to a different tfm); and eviction of an
+ * aged-out handle once WC_LINUXKM_HMAC_EXPORT_LIST_MAX exports have intervened.
+ */
+WC_MAYBE_UNUSED static int km_hmac_test_export_import(
+    const char *cra_name, const char *cra_driver_name)
+{
+    int ret;
+    struct crypto_shash *tfm = NULL;
+    struct crypto_shash *tfm2 = NULL;
+    struct shash_desc *desc = NULL;
+    struct shash_desc *desc2 = NULL;
+    struct km_sha_hmac_export_state *blob = NULL;
+    struct km_sha_hmac_export_state old_blob;
+    size_t desc_size = 0;
+    unsigned int split, i, dsz;
+    byte key[32];
+    byte msg[300];
+    byte ref[WC_SHA3_512_DIGEST_SIZE];
+    byte tag[WC_SHA3_512_DIGEST_SIZE];
+
+    for (i = 0; i < (unsigned int)sizeof(key); i++)
+        key[i] = (byte)(i + 1);
+    for (i = 0; i < (unsigned int)sizeof(msg); i++)
+        msg[i] = (byte)(i * 7 + 1);
+
+    tfm = crypto_alloc_shash(cra_name, 0, 0);
+    if (IS_ERR(tfm)) {
+        ret = (int)PTR_ERR(tfm);
+        pr_err("error: crypto_alloc_shash(%s) failed: %d\n", cra_name, ret);
+        return ret;
+    }
+
+    ret = crypto_shash_setkey(tfm, key, sizeof(key));
+    if (ret) {
+        pr_err("error: %s setkey failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    if (crypto_shash_statesize(tfm) != sizeof(struct km_sha_hmac_export_state)) {
+        pr_err("error: %s statesize %u != expected %u\n", cra_driver_name,
+               crypto_shash_statesize(tfm),
+               (unsigned int)sizeof(struct km_sha_hmac_export_state));
+        ret = -EINVAL;
+        goto out;
+    }
+
+    dsz = crypto_shash_digestsize(tfm);
+    desc_size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
+    desc = (struct shash_desc *)malloc(desc_size);
+    desc2 = (struct shash_desc *)malloc(desc_size);
+    blob = (struct km_sha_hmac_export_state *)malloc(sizeof(*blob));
+    if ((desc == NULL) || (desc2 == NULL) || (blob == NULL)) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    XMEMSET(desc, 0, desc_size);
+    desc->tfm = tfm;
+
+    /* Reference digest over the whole message. */
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, sizeof(msg));
+    if (ret == 0)
+        ret = crypto_shash_final(desc, ref);
+    if (ret) {
+        pr_err("error: %s reference digest failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Export mid-stream, import into a poisoned desc, finish BOTH, require both
+     * to match the reference.
+     */
+    split = 150;
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, split);
+    if (ret == 0)
+        ret = crypto_shash_export(desc, blob);
+    if (ret) {
+        pr_err("error: %s export sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    ret = crypto_shash_import(desc2, blob);
+    if (ret == 0)
+        ret = crypto_shash_update(desc2, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc2, tag);
+    if (ret) {
+        pr_err("error: %s import sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, dsz) != 0) {
+        pr_err("error: %s import-continuation digest mismatch\n", cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* Exporting desc stays live and independent. */
+    ret = crypto_shash_update(desc, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc, tag);
+    if (ret) {
+        pr_err("error: %s post-export continuation failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, dsz) != 0) {
+        pr_err("error: %s post-export digest mismatch\n", cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* Corrupted handle (bad magic) must be rejected. */
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, split);
+    if (ret == 0)
+        ret = crypto_shash_export(desc, blob);
+    if (ret) {
+        pr_err("error: %s re-export failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    old_blob = *blob;
+    blob->magic ^= 0xffffffffU;
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    if (crypto_shash_import(desc2, blob) == 0) {
+        pr_err("error: %s import accepted a corrupted handle magic\n", cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* Valid handle, wrong tfm: snapshot is on tfm's list, not tfm2's. */
+    tfm2 = crypto_alloc_shash(cra_name, 0, 0);
+    if (IS_ERR(tfm2)) {
+        ret = (int)PTR_ERR(tfm2);
+        tfm2 = NULL;
+        pr_err("error: %s second crypto_alloc_shash failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    ret = crypto_shash_setkey(tfm2, key, sizeof(key));
+    if (ret) {
+        pr_err("error: %s tfm2 setkey failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm2;
+    if (crypto_shash_import(desc2, &old_blob) == 0) {
+        pr_err("error: %s cross-tfm import was accepted\n", cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* Eviction: after WC_LINUXKM_HMAC_EXPORT_LIST_MAX further exports, the aged
+     * handle (old_blob) is evicted and no longer importable, while the newest
+     * remains valid.
+     */
+    for (i = 0; i < (unsigned int)WC_LINUXKM_HMAC_EXPORT_LIST_MAX; i++) {
+        ret = crypto_shash_export(desc, blob);
+        if (ret) {
+            pr_err("error: %s eviction-fill export failed: %d\n", cra_driver_name, ret);
+            goto out;
+        }
+    }
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    if (crypto_shash_import(desc2, &old_blob) == 0) {
+        pr_err("error: %s evicted handle still importable\n", cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    ret = crypto_shash_import(desc2, blob);
+    if (ret == 0)
+        ret = crypto_shash_final(desc2, tag);
+    if (ret) {
+        pr_err("error: %s newest handle not importable: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Finish the still-open exporting desc to free its working node. */
+    (void)crypto_shash_final(desc, tag);
+
+    ret = 0;
+
+out:
+
+    free(blob);
+    free(desc2);
+    free(desc);
+    if (tfm2)
+        crypto_free_shash(tfm2);
+    if (tfm)
+        crypto_free_shash(tfm);
+
+    return ret;
+}
+
+PRAGMA_DIAG_POP
 
 WC_MAYBE_UNUSED static int hmac_sha3_test_once(void) {
     static int once = 0;
@@ -1419,6 +1925,9 @@ static struct shash_alg name ## _alg =                                    \
     .final          =       km_hmac_final,                                \
     .finup          =       km_hmac_finup,                                \
     .digest         =       km_hmac_digest,                               \
+    .export         =       km_hmac_export,                               \
+    .import         =       km_hmac_import,                               \
+    .statesize      =       sizeof(struct km_sha_hmac_export_state),      \
     .setkey         =       km_ ## name ## _setkey,                       \
     .init_tfm       =       km_hmac_init_tfm,                             \
     .exit_tfm       =       km_hmac_exit_tfm,                             \
@@ -1436,14 +1945,16 @@ static int name ## _alg_loaded = 0;                                       \
                                                                           \
 static int linuxkm_test_ ## name(void) {                                  \
     wc_test_ret_t ret = test_routine();                                   \
-    if (ret >= 0)                                                         \
-        return check_shash_driver_masking(NULL /* tfm */, this_cra_name,  \
-                                          this_cra_driver_name);          \
-    else {                                                                \
+    if (ret < 0) {                                                        \
         wc_test_render_error_message("linuxkm_test_" #name " failed: ",   \
                                      ret);                                \
         return WC_TEST_RET_DEC_EC(ret);                                   \
     }                                                                     \
+    ret = check_shash_driver_masking(NULL /* tfm */, this_cra_name,       \
+                                      this_cra_driver_name);              \
+    if (ret)                                                              \
+        return ret;                                                       \
+    return km_hmac_test_export_import(this_cra_name, this_cra_driver_name);\
 }                                                                         \
                                                                           \
 struct wc_swallow_the_semicolon
