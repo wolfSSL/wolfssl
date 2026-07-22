@@ -11115,6 +11115,10 @@ then
     then
         AC_MSG_ERROR([--enable-heapmath is incompatible with --enable-staticmemory.])
     fi
+    if test "$ENABLED_TRACKMEMORY" != "no"
+    then
+        AC_MSG_ERROR([--enable-trackmemory is incompatible with --enable-staticmemory.])
+    fi
     if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_SMALL"
