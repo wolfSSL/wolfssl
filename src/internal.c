@@ -8756,6 +8756,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 #ifdef HAVE_EXTENDED_MASTER
     ssl->options.haveEMS = ctx->haveEMS;
+    ssl->options.disableEMS = ctx->disableEMS;
+    ssl->options.requireEMS = ctx->requireEMS;
 #endif
     ssl->options.useClientOrder = ctx->useClientOrder;
     ssl->options.mutualAuth = ctx->mutualAuth;
@@ -30264,7 +30266,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "Initialize ctx mutex error";
 
     case EXT_MASTER_SECRET_NEEDED_E:
-        return "Extended Master Secret must be enabled to resume EMS session";
+        return "Extended Master Secret required but not negotiated with peer";
 
     case DTLS_POOL_SZ_E:
         return "Maximum DTLS pool size exceeded";
@@ -41801,7 +41803,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         i += hashSigAlgoSz;
                     }
 #ifdef HAVE_EXTENDED_MASTER
-                    else if (extId == HELLO_EXT_EXTMS)
+                    /* Honor a user request to disable EMS on the server by
+                     * ignoring the peer's extension. */
+                    else if (extId == HELLO_EXT_EXTMS && !ssl->options.disableEMS)
                         ssl->options.haveEMS = 1;
 #endif
                     else
