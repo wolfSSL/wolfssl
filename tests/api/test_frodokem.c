@@ -894,7 +894,23 @@ int test_wc_frodokem_decapsulate_kats(void)
 }
 
 /* Full RNG-based round trip for every compiled variant: the decapsulated
- * shared secret must equal the encapsulated one. */
+ * shared secret must equal the encapsulated one.
+ *
+ * This loop, together with test_wc_frodokem_encode_decode() below, is what
+ * exercises frodokem_gen_noise()'s (wc_frodokem_mat.c) two matrix-method
+ * decisions:
+ *   if (p->useShake256 && ((ret = wc_InitShake256(...)) == 0))
+ *   if ((!p->useShake256) && ((ret = wc_InitShake128(...)) == 0))
+ * p->useShake256 is a per-parameter-set constant (0 for FrodoKEM-640, 1 for
+ * FrodoKEM-976/-1344) set independently of the SHAKE-vs-AES matrix-A
+ * generation method, so frodokem_types[] - every compiled base parameter set
+ * crossed with every compiled matrix method - drives the first operand of
+ * both decisions to both true and false.
+ *
+ * MC/DC residual: each decision's second operand (the Init call succeeding)
+ * cannot be driven false through the public API - that requires the
+ * underlying SHAKE Init to fail, which needs fault injection, not reachable
+ * input. */
 int test_wc_frodokem_roundtrip(void)
 {
     EXPECT_DECLS;
@@ -1259,6 +1275,14 @@ int test_wc_frodokem_bad_args(void)
     word32 skLen = 0;
     int type = frodokem_types[0];
     byte small[8];
+#ifndef WC_NO_RNG
+    WC_RNG rng;
+
+    /* Only used as a non-NULL WC_RNG* below; the paths exercised with it
+     * return BAD_FUNC_ARG before the rng is ever dereferenced, so it does not
+     * need to be initialized with wc_InitRng(). */
+    XMEMSET(&rng, 0, sizeof(rng));
+#endif
 
     XMEMSET(small, 0, sizeof(small));
     key = (FrodoKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1334,6 +1358,13 @@ int test_wc_frodokem_bad_args(void)
     /* Encapsulate rejects a NULL rng in isolation (ct and ss valid). */
     ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, small, small, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* NULL ct / ss are rejected independently of each other (key and rng
+     * valid): wc_FrodoKemKey_Encapsulate()'s
+     * (key == NULL) || (ct == NULL) || (ss == NULL) || (rng == NULL) check. */
+    ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, NULL, small, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, small, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
     /* Encapsulate on a key with no public key set reports bad state. */
     ExpectIntEQ(wc_FrodoKemKey_EncapsulateWithRandom(key, small, small,
@@ -1369,7 +1400,23 @@ int test_wc_frodokem_bad_args(void)
     ExpectIntEQ(wc_FrodoKemKey_DecodePrivateKey(key, NULL, skLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* Encoding before any key material is set must report bad state. */
+    /* Encoding before any key material is set must report bad state. The
+     * wc_FrodoKemKey_EncodePrivateKey() call below drives
+     * ((flags & FRODOKEM_FLAG_BOTH_SET) != FRODOKEM_FLAG_BOTH_SET) true with
+     * flags == 0 (key only Init'd).
+     *
+     * MC/DC residual: the decision's second operand,
+     * ((flags & FRODOKEM_FLAG_PKH_SET) == 0), cannot be independently toggled
+     * through the public API while the first operand is held false. Every
+     * place that assigns key->flags sets it to exactly one of three values -
+     * 0 (Init, or a failed DecodePrivateKey), FRODOKEM_FLAG_PUB_SET alone
+     * (DecodePublicKey), or FRODOKEM_FLAG_PRIV_SET | PUB_SET | PKH_SET
+     * together (MakeKey, or a successful DecodePrivateKey) - and for all
+     * three, ((flags & BOTH_SET) != BOTH_SET) and ((flags & PKH_SET) == 0)
+     * always agree (both true for the first two, both false for the third).
+     * There is no reachable state with BOTH_SET satisfied but PKH_SET clear,
+     * so the second operand's independence pair cannot be constructed without
+     * poking key->flags directly. */
     ExpectIntEQ(wc_FrodoKemKey_EncodePublicKey(key, small, pkLen),
         WC_NO_ERR_TRACE(BAD_STATE_E));
     ExpectIntEQ(wc_FrodoKemKey_EncodePrivateKey(key, small, skLen),
@@ -1661,9 +1708,23 @@ int test_wc_frodokem_asn1(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_FrodoKemKey_PrivateKeyToDer(NULL, der, 16),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* wc_FrodoKemKey_PublicKeyDecode()'s
+     * (key == NULL) || (input == NULL) || (inOutIdx == NULL) check: each
+     * operand driven true independently (key is a valid, if unusable,
+     * object here - the NULL check short-circuits before it is
+     * dereferenced). */
     ExpectIntEQ(wc_FrodoKemKey_PublicKeyDecode(NULL, der, 16, &idx),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_PublicKeyDecode(key, NULL, 16, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_PublicKeyDecode(key, der, 16, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Same check, same reasoning, in wc_FrodoKemKey_PrivateKeyDecode(). */
     ExpectIntEQ(wc_FrodoKemKey_PrivateKeyDecode(NULL, der, 16, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_PrivateKeyDecode(key, NULL, 16, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_FrodoKemKey_PrivateKeyDecode(key, der, 16, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     if (rngInit) {

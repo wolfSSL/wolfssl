@@ -1,4 +1,4 @@
-/* test_ascon.h
+/* test_frodokem_fault_whitebox.c
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -19,20 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef TESTS_API_TEST_ASCON_H
-#define TESTS_API_TEST_ASCON_H
+/*
+ * MC/DC fault-injection white-box for wolfcrypt/src/wc_frodokem.c.
+ *
+ * #includes wc_frodokem.c directly so llvm-cov instruments this file's copy
+ * (reaching its file-statics), then #includes the shared driver body which
+ * installs the heap-fault injector and sweeps the fail-index across
+ * make/encap/decap for every compiled parameter set -- driving the FALSE
+ * (ret != 0) halves of wc_frodokem.c's allocation success chains. See
+ * test_frodokem_fault_common.h for the full rationale.
+ */
 
-#include <tests/api/api_decl.h>
+#include <wolfcrypt/src/wc_frodokem.c>
 
-int test_ascon_hash256(void);
-int test_ascon_aead128(void);
-int test_ascon_aead128_edge_cases(void);
-int test_ascon_decision_coverage(void);
-
-#define TEST_ASCON_DECLS                                        \
-    TEST_DECL_GROUP("ascon", test_ascon_hash256),               \
-    TEST_DECL_GROUP("ascon", test_ascon_aead128),               \
-    TEST_DECL_GROUP("ascon", test_ascon_aead128_edge_cases),    \
-    TEST_DECL_GROUP("ascon", test_ascon_decision_coverage)
-
-#endif /* TESTS_API_TEST_ASCON_H */
+#include "test_frodokem_fault_common.h"

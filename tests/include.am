@@ -101,3 +101,43 @@ EXTRA_DIST += tests/unit.h \
               tests/freertos-mem-track-repro/task.h \
               tests/freertos-mem-track-repro/run.sh
 DISTCLEANFILES+= tests/.libs/unit.test
+
+# MC/DC white-box coverage supplements (tests/unit-mcdc/).
+#
+# These are NOT part of the wolfSSL build: each file #includes a wolfCrypt .c
+# directly and defines its own main(), so it cannot be a unit.test source (that
+# would duplicate main() and the included .c's symbols).  They are compiled
+# standalone, one at a time, by the out-of-tree per-module MC/DC coverage
+# campaign, which reads them from this directory.  They are listed in EXTRA_DIST
+# only so the source-completeness check accounts for them and so they ship in
+# the dist tarball -- the same treatment tests/api/include.am gives its
+# non-compiled files.  Do not move them to tests_unit_test_SOURCES.
+EXTRA_DIST += \
+              tests/unit-mcdc/mcdc_fault_alloc.h \
+              tests/unit-mcdc/test_blake2b_whitebox.c \
+              tests/unit-mcdc/test_blake2s_whitebox.c \
+              tests/unit-mcdc/test_cryptocb_whitebox.c \
+              tests/unit-mcdc/test_dsa_fault_whitebox.c \
+              tests/unit-mcdc/test_eccsi_fault_whitebox.c \
+              tests/unit-mcdc/test_eccsi_whitebox.c \
+              tests/unit-mcdc/test_frodokem_fault_common.h \
+              tests/unit-mcdc/test_frodokem_fault_whitebox.c \
+              tests/unit-mcdc/test_frodokem_mat_fault_whitebox.c \
+              tests/unit-mcdc/test_hpke_fault_whitebox.c \
+              tests/unit-mcdc/test_hpke_whitebox.c \
+              tests/unit-mcdc/test_integer_fault_whitebox.c \
+              tests/unit-mcdc/test_logging_globalq_whitebox.c \
+              tests/unit-mcdc/test_logging_whitebox.c \
+              tests/unit-mcdc/test_memory_whitebox.c \
+              tests/unit-mcdc/test_mldsa_fault_whitebox.c \
+              tests/unit-mcdc/test_mlkem_fault_whitebox.c \
+              tests/unit-mcdc/test_rsa_fault_whitebox.c \
+              tests/unit-mcdc/test_sakke_fault_whitebox.c \
+              tests/unit-mcdc/test_sakke_whitebox.c \
+              tests/unit-mcdc/test_sp_arm32_whitebox.c \
+              tests/unit-mcdc/test_sp_arm64_whitebox.c \
+              tests/unit-mcdc/test_sp_armthumb_whitebox.c \
+              tests/unit-mcdc/test_sp_c32_whitebox.c \
+              tests/unit-mcdc/test_sp_c64_whitebox.c \
+              tests/unit-mcdc/test_sp_cortexm_whitebox.c \
+              tests/unit-mcdc/test_sp_x86_64_whitebox.c

@@ -18,6 +18,11 @@ tests_unit_test_SOURCES += tests/api/test_hash.c
 # MAC
 tests_unit_test_SOURCES += tests/api/test_hmac.c
 tests_unit_test_SOURCES += tests/api/test_cmac.c
+tests_unit_test_SOURCES += tests/api/test_siphash.c
+tests_unit_test_SOURCES += tests/api/test_srp.c
+tests_unit_test_SOURCES += tests/api/test_eccsi.c
+tests_unit_test_SOURCES += tests/api/test_sakke.c
+tests_unit_test_SOURCES += tests/api/test_hpke.c
 tests_unit_test_SOURCES += tests/api/test_kdf.c
 # SHE
 tests_unit_test_SOURCES += tests/api/test_she.c
@@ -143,6 +148,11 @@ EXTRA_DIST += tests/api/test_digest.h
 EXTRA_DIST += tests/api/test_hash.h
 EXTRA_DIST += tests/api/test_hmac.h
 EXTRA_DIST += tests/api/test_cmac.h
+EXTRA_DIST += tests/api/test_siphash.h
+EXTRA_DIST += tests/api/test_srp.h
+EXTRA_DIST += tests/api/test_eccsi.h
+EXTRA_DIST += tests/api/test_sakke.h
+EXTRA_DIST += tests/api/test_hpke.h
 EXTRA_DIST += tests/api/test_kdf.h
 EXTRA_DIST += tests/api/test_she.h
 EXTRA_DIST += tests/api/test_des3.h
