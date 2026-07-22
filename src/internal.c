@@ -8651,6 +8651,12 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         return MEMORY_E;
     }
 
+    /* Zero the allocation before initializing. XMALLOC does not clear memory,
+     * and the key-specific init below may fail before it has zeroed/initialized
+     * the structure's members.  Starting from all-zero makes any partial-init
+     * failure safe to free. */
+    XMEMSET(*pKey, 0, sz);
+
     /* Initialize key */
     switch (type) {
     #ifndef NO_RSA
