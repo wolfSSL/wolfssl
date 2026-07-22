@@ -1540,16 +1540,15 @@ int test_DecodeAltNames_length_underflow(void)
 
 /* A certificate must not carry two certificatePolicies extensions
  * (non-repeatable per RFC 5280 4.2). DecodeCertExtensions calls
- * DecodeExtensionType once per extension; with strict ASN.1 (the default) a
- * second certificatePolicies extension must be rejected (ASN_OBJECT_ID_E)
- * rather than silently overwriting the first - which happened in
- * WOLFSSL_CERT_EXT builds without WOLFSSL_SEP before the duplicate guard was
- * extended to cover them. */
+ * DecodeExtensionType once per extension; a second certificatePolicies
+ * extension must be rejected (ASN_OBJECT_ID_E) rather than silently
+ * overwriting the first - which happened in WOLFSSL_CERT_EXT builds without
+ * WOLFSSL_SEP before the duplicate guard was extended to cover them. */
 int test_DecodeCertExtensions_dup_certpol(void)
 {
     EXPECT_DECLS;
 #if (defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(WOLFSSL_NO_ASN_STRICT) && !defined(NO_CERTS) && !defined(NO_ASN)
+    !defined(NO_CERTS) && !defined(NO_ASN)
     /* Minimal certificatePolicies extnValue: SEQUENCE OF PolicyInformation
      * with one policyIdentifier OID 1.2.3.4 (encoded 2A 03 04). */
     static const byte policy[] = {

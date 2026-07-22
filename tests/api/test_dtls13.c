@@ -1740,6 +1740,19 @@ int test_dtls13_no_session_id_echo(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && \
+    defined(HAVE_ECC)
+/* RFC 8446 Section 4.1.3: an HRR is a ServerHello carrying this magic random.
+ * Used to assert a real ServerHello was captured, not an HRR. */
+static const byte hrrRandom[RAN_LEN] = {
+    0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
+    0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91,
+    0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
+    0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C
+};
+#endif
+
 /*-- 5_9_0_compat (test_dtls.c lines 3049,3170) ---*/
 int test_dtls13_5_9_0_compat(void)
 {
@@ -1754,14 +1767,6 @@ int test_dtls13_5_9_0_compat(void)
     char readBuf[1];
     /* Pin to SECP256R1 to avoid a PQ-induced key-share HRR */
     int groups[] = { WOLFSSL_ECC_SECP256R1 };
-    /* RFC 8446 Section 4.1.3: an HRR is a ServerHello carrying this magic
-     * random. Used to assert sub-test 1 is a real ServerHello, not an HRR. */
-    static const byte hrrRandom[RAN_LEN] = {
-        0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
-        0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91,
-        0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
-        0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C
-    };
 
     /* --- initial connection: get a real session to carry the session ID --- */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -1854,6 +1859,165 @@ int test_dtls13_5_9_0_compat(void)
 
     /* Complete the handshake - Finished MAC validates RestartHandshakeHashWithCookie */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && \
+    defined(HAVE_ECC)
+/* Drive a compat-build resumption up to the point where the server's
+ * ServerHello is sitting in the client's inbound buffer, echoing the session
+ * ID the client sent. Returns 0 on success. */
+static int compat_echo_setup(struct test_memio_ctx* test_ctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    WOLFSSL_SESSION** sess)
+{
+    EXPECT_DECLS;
+    char readBuf[1];
+    int groups[] = { WOLFSSL_ECC_SECP256R1 };
+    int echoIdx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+        OPAQUE16_LEN + RAN_LEN;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(*ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(*ssl_c, *ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_read(*ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(*sess = wolfSSL_get1_session(*ssl_c));
+
+    /* A DTLS 1.3 client carries a ticket-derived session ID (SetTicket), so
+     * the ClientHello legacy_session_id is non-empty. */
+    ExpectIntEQ((*sess)->sessionIDSz, ID_LEN);
+
+    wolfSSL_free(*ssl_c); *ssl_c = NULL;
+    wolfSSL_free(*ssl_s); *ssl_s = NULL;
+    wolfSSL_CTX_free(*ctx_c); *ctx_c = NULL;
+    wolfSSL_CTX_free(*ctx_s); *ctx_s = NULL;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(*ssl_c, *sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(*ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(*ssl_s), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* A real ServerHello (not an HRR) echoing the client's session ID. */
+    ExpectIntGE(test_ctx->c_len, echoIdx + 1 + ID_LEN);
+    ExpectIntEQ(test_ctx->c_buff[DTLS_RECORD_HEADER_SZ], server_hello);
+    ExpectIntNE(XMEMCMP(&test_ctx->c_buff[DTLS_RECORD_HEADER_SZ +
+        DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN], hrrRandom, RAN_LEN), 0);
+    ExpectIntEQ(test_ctx->c_buff[echoIdx], ID_LEN);
+
+    return EXPECT_RESULT() == TEST_SUCCESS ? 0 : -1;
+}
+#endif
+
+/* The 5.9.0 compat path accepts an echoed legacy_session_id, but RFC 8446
+ * Section 4.1.3 still requires the echo to be the value the client sent, so a
+ * server echoing something else must be rejected. */
+int test_dtls13_5_9_0_compat_bad_echo(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && \
+    defined(HAVE_ECC)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    int echoIdx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+        OPAQUE16_LEN + RAN_LEN;
+
+    ExpectIntEQ(compat_echo_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        &sess), 0);
+
+    /* Corrupt the echo so it no longer matches what the client sent. */
+    if (EXPECT_SUCCESS())
+        test_ctx.c_buff[echoIdx + 1] ^= 0xFF;
+
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A compat-enabled client must still interoperate with an RFC 9147 compliant
+ * server, which omits the echo entirely. Rewrite the ServerHello to carry an
+ * empty legacy_session_id_echo and confirm the client does not reject it. */
+int test_dtls13_5_9_0_compat_empty_echo(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && \
+    defined(HAVE_ECC)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    int echoIdx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+        OPAQUE16_LEN + RAN_LEN;
+    /* DTLS record header: ... | length(2) at the end. */
+    int recLenIdx = DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN;
+    /* DtlsHandShakeHeader: type(1) | length(3) | seq(2) | fragOff(3) |
+     * fragLen(3). */
+    int hsLenIdx = DTLS_RECORD_HEADER_SZ + OPAQUE8_LEN;
+    int fragLenIdx = hsLenIdx + OPAQUE24_LEN + OPAQUE16_LEN + OPAQUE24_LEN;
+    word32 hsLen, fragLen;
+    word16 recLen;
+
+    ExpectIntEQ(compat_echo_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        &sess), 0);
+
+    if (EXPECT_SUCCESS()) {
+        byte* b = test_ctx.c_buff;
+
+        /* Drop the ID_LEN echo bytes and shrink the three enclosing lengths:
+         * DTLS record length, handshake length, fragment length. */
+        XMEMMOVE(&b[echoIdx + 1], &b[echoIdx + 1 + ID_LEN],
+            (size_t)test_ctx.c_len - (size_t)(echoIdx + 1 + ID_LEN));
+        b[echoIdx] = 0;
+        /* c_msg_sizes tracks datagram boundaries separately, and read_cb hands
+         * out exactly msg_sizes[pos] bytes - keep it in sync with c_len. */
+        test_ctx.c_len -= ID_LEN;
+        test_ctx.c_msg_sizes[0] -= ID_LEN;
+
+        ato16(&b[recLenIdx], &recLen);
+        c16toa((word16)(recLen - ID_LEN), &b[recLenIdx]);
+
+        ato24(&b[hsLenIdx], &hsLen);
+        c32to24(hsLen - ID_LEN, &b[hsLenIdx]);
+
+        ato24(&b[fragLenIdx], &fragLen);
+        c32to24(fragLen - ID_LEN, &b[fragLenIdx]);
+    }
+
+    /* The client must accept the empty echo and carry on. The rewrite breaks
+     * the transcript, so it then waits for a flight that never validates
+     * rather than rejecting the echo with INVALID_PARAMETER. */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);

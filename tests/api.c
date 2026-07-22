@@ -24433,6 +24433,51 @@ static word32 build_registeredID_san(byte* out, word32 outSz)
     return (word32)sizeof(ridSan);
 }
 
+/* Build a SubjectAltName extension value (a SEQUENCE wrapping a single
+ * directoryName GeneralName) holding the Name "CN=<val7>". */
+static word32 build_dirName_san(byte* out, word32 outSz, const char* val7)
+{
+    static const byte prefix[] = {
+        0x30, 0x16,                                     /* SEQUENCE, 22 */
+        0xA4, 0x14,                                     /* [4] dirName, 20 */
+        0x30, 0x12,                                     /* Name SEQUENCE, 18 */
+        0x31, 0x10,                                     /* RDN SET, 16 */
+        0x30, 0x0E,                                     /* ATV SEQUENCE, 14 */
+        0x06, 0x03, 0x55, 0x04, 0x03,                   /* OID 2.5.4.3 (CN) */
+        0x0C, 0x07                                      /* UTF8String, 7 */
+    };
+    /* The UTF8String length above is baked in, so val7 must be exactly 7. */
+    if (outSz < sizeof(prefix) + 7 || XSTRLEN(val7) != 7)
+        return 0;
+    XMEMCPY(out, prefix, sizeof(prefix));
+    XMEMCPY(out + sizeof(prefix), val7, 7);
+    return (word32)(sizeof(prefix) + 7);
+}
+
+/* Build a NameConstraints extension value carrying a single excludedSubtree
+ * ([1]) for the directoryName "CN=<val7>". */
+static word32 build_dirName_nameConstraints(byte* out, word32 outSz,
+    const char* val7)
+{
+    static const byte nc[] = {
+        0x30, 0x1A,                                     /* SEQUENCE, 26 */
+        0xA1, 0x18,                                     /* [1] excluded, 24 */
+        0x30, 0x16,                                     /* GeneralSubtree, 22 */
+        0xA4, 0x14,                                     /* [4] dirName, 20 */
+        0x30, 0x12,                                     /* Name SEQUENCE, 18 */
+        0x31, 0x10,                                     /* RDN SET, 16 */
+        0x30, 0x0E,                                     /* ATV SEQUENCE, 14 */
+        0x06, 0x03, 0x55, 0x04, 0x03,                   /* OID 2.5.4.3 (CN) */
+        0x0C, 0x07                                      /* UTF8String, 7 */
+    };
+    /* The UTF8String length above is baked in, so val7 must be exactly 7. */
+    if (outSz < sizeof(nc) + 7 || XSTRLEN(val7) != 7)
+        return 0;
+    XMEMCPY(out, nc, sizeof(nc));
+    XMEMCPY(out + sizeof(nc), val7, 7);
+    return (word32)(sizeof(nc) + 7);
+}
+
 /* Build a NameConstraints extension value with a single excludedSubtree
  * carrying a registeredID GeneralName for OID 1.2.3.4. wolfSSL enforces
  * registeredID name constraints by byte-comparing OID bodies, so a leaf
@@ -24715,6 +24760,71 @@ static int test_NameConstraints_OtherName(void)
     ExpectIntEQ(verify_with_otherName_chain(
             ncRegisteredID, ncRegisteredIDSz, 1, NULL, 0),
         0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verifies wolfSSL applies an issuing CA's directoryName nameConstraints to a
+ * leaf's directoryName SAN entries, not just to the subject field (RFC 5280
+ * 4.2.1.10: "Restrictions of the form directoryName MUST be applied to the
+ * subject field ... and to any names of type directoryName in the
+ * subjectAltName extension"). The leaf subject never matches the constraint,
+ * so only the SAN can trigger it.
+ *
+ * Coverage:
+ *   1. Critical excluded subtree, leaf dirName SAN matches     -> reject
+ *   2. Critical excluded subtree, leaf dirName SAN differs     -> accept
+ *      (positive control: pins the rejection to the matching path)
+ *   3. Non-critical excluded subtree, leaf SAN matches         -> reject
+ *      (excluded is enforced regardless of criticality)
+ *
+ * A permitted-subtree case is not included: for directoryName the leaf's
+ * subject field is always checked against the permitted list as well, so the
+ * generated leaf's subject would drive the result rather than its SAN.
+ */
+static int test_NameConstraints_DirName(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS)
+    byte sanBlocked[64];
+    byte sanAllowed[64];
+    byte ncExcludedBlocked[64];
+    word32 sanBlockedSz, sanAllowedSz;
+    word32 ncExcludedBlockedSz;
+
+    sanBlockedSz = build_dirName_san(sanBlocked, sizeof(sanBlocked), "blocked");
+    sanAllowedSz = build_dirName_san(sanAllowed, sizeof(sanAllowed), "allowed");
+    ncExcludedBlockedSz = build_dirName_nameConstraints(
+        ncExcludedBlocked, sizeof(ncExcludedBlocked), "blocked");
+    ExpectIntGT((int)sanBlockedSz, 0);
+    ExpectIntGT((int)sanAllowedSz, 0);
+    ExpectIntGT((int)ncExcludedBlockedSz, 0);
+
+    /* (1) Critical excluded directoryName matches the leaf's dirName SAN.
+     *     Must be rejected. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncExcludedBlocked, ncExcludedBlockedSz, 1,
+            sanBlocked, sanBlockedSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (2) Positive control: same excluded subtree, leaf carries a DIFFERENT
+     *     dirName SAN, so no match and the chain MUST verify. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncExcludedBlocked, ncExcludedBlockedSz, 1,
+            sanAllowed, sanAllowedSz),
+        0);
+
+    /* (3) Non-critical excluded subtree, leaf SAN matches: exclusion is
+     *     enforced regardless of criticality. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncExcludedBlocked, ncExcludedBlockedSz, 0,
+            sanBlocked, sanBlockedSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 #endif
     return EXPECT_RESULT();
 }
@@ -37591,6 +37701,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_PathLenSelfIssuedAllowed),
     TEST_DECL(test_PathLenNoKeyUsage),
     TEST_DECL(test_NameConstraints_OtherName),
+    TEST_DECL(test_NameConstraints_DirName),
     TEST_DECL(test_NameConstraints_DnsUriWildcard),
     TEST_DECL(test_NameConstraints_SubtreeMinMax),
     TEST_DECL(test_ParseSerial0FixtureMatrix),

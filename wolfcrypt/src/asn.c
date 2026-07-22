@@ -52,7 +52,14 @@ ASN Options:
  * RSA_DECODE_EXTRA: Decodes extra information in RSA public key.
  * WOLFSSL_CERT_GEN: Cert generation. Saves extra certificate info in GetName.
  * WOLFSSL_NO_ASN_STRICT: Disable strict RFC compliance checks to
-    restore 3.13.0 behavior.
+    restore 3.13.0 behavior. It no longer disables these RFC 5280 checks:
+    duplicate detection on the certificate extensions that use
+    VERIFY_AND_SET_OID (4.2), rejection of a critical extension whose OID is
+    unrecognized (4.2, subject to any WC_ASN_UNKNOWN_EXT_CB callback), and
+    application of directoryName name constraints to subjectAltName entries as
+    well as the subject (4.2.1.10). It still relaxes the critical check for a
+    recognized-but-unsupported extension (e.g. certificatePolicies without
+    WOLFSSL_SEP or WOLFSSL_CERT_EXT) and the CRL duplicate-extension check.
  * WOLFSSL_ASN_ALLOW_0_SERIAL: Even if WOLFSSL_NO_ASN_STRICT is not defined,
     allow a length=1, but zero value serial number.
  * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
@@ -19303,9 +19310,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 }
                 break;
             case ASN_DIR_TYPE:
-            #ifndef WOLFSSL_NO_ASN_STRICT
                 name = cert->altDirNames;
-            #endif
 
                 /* RFC 5280 section 4.2.1.10
                     "Restrictions of the form directoryName MUST be
@@ -21720,16 +21725,13 @@ static int DecodeAltSigVal(const byte* input, int sz, DecodedCert* cert)
 /* Macro to check if bit is set, if not sets and return success.
     Otherwise returns failure */
 /* Macro required here because bit-field operation */
-#ifndef WOLFSSL_NO_ASN_STRICT
-    #define VERIFY_AND_SET_OID(bit) \
-        if ((bit) == 0) \
-            (bit) = 1; \
-        else \
-            return ASN_OBJECT_ID_E;
-#else
-    /* With no strict defined, the verify is skipped */
-#define VERIFY_AND_SET_OID(bit) bit = 1;
-#endif
+/* RFC 5280 4.2 forbids a repeated extension, so a duplicate is rejected even
+ * under WOLFSSL_NO_ASN_STRICT. */
+#define VERIFY_AND_SET_OID(bit) \
+    if ((bit) == 0) \
+        (bit) = 1; \
+    else \
+        return ASN_OBJECT_ID_E;
 
 /* Parse extension type specific data based on OID sum.
  *
@@ -21902,9 +21904,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         /* Certificate policies. */
         case CERT_POLICY_OID:
         #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
-            /* certificatePolicies is non-repeatable (RFC 5280 4.2). In strict
-             * mode (the default; VERIFY_AND_SET_OID is a no-op under
-             * WOLFSSL_NO_ASN_STRICT, like every other extension) reject a
+            /* certificatePolicies is non-repeatable (RFC 5280 4.2). Reject a
              * duplicate regardless of WOLFSSL_SEP - otherwise the second one
              * silently overwrites the first (DecodeCertPolicy resets
              * extCertPoliciesNb), a policy-authorization confusion. */
@@ -22050,18 +22050,15 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         default:
             if (isUnknownExt != NULL)
                 *isUnknownExt = 1;
-        /* TINY reaches default: for stripped extensions too, so reject a
-         * critical one even under NO_ASN_STRICT to stay fail-closed. */
-        #if !defined(WOLFSSL_NO_ASN_STRICT) || defined(WOLFSSL_X509_TINY)
             /* While it is a failure to not support critical extensions,
              * still parse the certificate ignoring the unsupported
              * extension to allow caller to accept it with the verify
-             * callback. */
+             * callback. RFC 5280 4.2 makes this a MUST that
+             * WOLFSSL_NO_ASN_STRICT does not relax. */
             if (critical) {
                 WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
                 ret = ASN_CRIT_EXT_E;
             }
-        #endif
             break;
     }
 

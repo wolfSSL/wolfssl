@@ -71,9 +71,11 @@ on:
 
 concurrency:
   # Same branch push cancels other jobs. Other PR branches untouched
-
   group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 # END OF COMMON SECTION
 

@@ -12,6 +12,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   WOLFBOOT_REPO: https://github.com/wolfSSL/wolfBoot.git
   WOLFBOOT_BRANCH: master
