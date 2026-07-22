@@ -61,6 +61,7 @@ else
                      'wolfssl/wolfcrypt/port/**/*.h' 'wolfssl/openssl/*.h' \
         | grep -vE '^wolfssl/(options|internal|certs_test|certs_test_sm|debug-trace-error-codes|debug-untrace-error-codes)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/(fips_test|selftest|tfm)\.h$' \
+        | grep -vE '^wolfssl/wolfcrypt/wc_mceliece_aff_consts\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/aria/aria-crypt(ocb)?\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/autosar/(CryIf|Crypto)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/caam/(caam_driver|caam_qnx|wolfcaam_hash)\.h$' \
