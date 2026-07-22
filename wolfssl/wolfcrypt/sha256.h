@@ -199,7 +199,7 @@ struct wc_Sha256 {
     int sha_method;
 #endif
 
-#endif
+#endif /* !FREESCALE_LTC_SHA etc. */
     void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
@@ -207,9 +207,14 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef SHA256_MANY_REGISTERS
+    #define WC_SHA256_W_SIZE WC_SHA256_BLOCK_SIZE
+#else /* !SHA256_MANY_REGISTERS */
+    #define WC_SHA256_W_SIZE (sizeof(word32) * WC_SHA256_BLOCK_SIZE)
+#endif /* !SHA256_MANY_REGISTERS */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word32* W;
-#endif /* !FREESCALE_LTC_SHA && !STM32_HASH_SHA2 */
+#endif /* WOLFSSL_SMALL_STACK_CACHE */
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     WC_CRYPTODEV ctx;
 #endif
