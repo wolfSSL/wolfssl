@@ -24732,6 +24732,12 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                  * DTLS handshake message */
                                 ssl->dtls_timeout = ssl->dtls_timeout_init;
                             }
+                            else {
+                                if (SendFatalAlertOnly(ssl, ret)
+                                        == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                                    ret = SOCKET_ERROR_E;
+                                }
+                            }
                         }
 #endif /* WOLFSSL_DTLS13 */
                     }
