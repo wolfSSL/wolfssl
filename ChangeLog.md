@@ -400,6 +400,7 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
 * Migrate internal ML-KEM consumers to canonical wc_MlKemKey API by @Frauschi (PR 10571)
 * Add PQ documentation for LMS, ML-DSA, ML-KEM, XMSS by @kaleb-himes (PR 10514)
 * Various leak / alloc and zeroization fixes for SLH-DSA by @Frauschi (PR 10698)
+* Added the Classic McEliece KEM (`--enable-mceliece`, requires `--enable-experimental`) with the mceliece6688128, mceliece6960119, and mceliece8192128 parameter sets and make-key/encapsulate/decapsulate. Includes native x86 (AVX2/AVX512/GFNI) and ARM AArch64/AArch32 NEON assembly acceleration for all three operations. by @SparkiDev (PR #11136)
 
 ## TLS/DTLS
 
