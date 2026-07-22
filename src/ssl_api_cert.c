@@ -2726,7 +2726,7 @@ int wolfSSL_get0_chain_certs(WOLFSSL *ssl, WOLF_STACK_OF(WOLFSSL_X509) **sk)
                  * decoded contents. InitX509 only zeroes the pointers, so free
                  * the existing allocations first to avoid orphaning them. */
                 FreeX509(x509);
-                InitX509(x509, 0, NULL);
+                InitX509(x509, 0, x509->heap);
             }
             ret = CopyDecodedToX509(x509, cert);
         }
