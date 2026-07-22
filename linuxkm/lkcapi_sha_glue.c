@@ -488,9 +488,15 @@ wc_static_assert(sizeof(struct km_sha_state) <= HASH_MAX_DESCSIZE);
     #error LINUXKM_LKCAPI_REGISTER_SHA3 requires spinlock-based mutexes.
 #endif
 
-/* The kernel list macros provoke "pointer of type `void *' used in arithmetic". */
+/* The kernel list macros provoke "pointer of type `void *' used in arithmetic",
+ * and on older kernels, "nested extern declaration of
+ * `__compiletime_assert_foo'".
+ */
 PRAGMA_DIAG_PUSH
 PRAGMA("GCC diagnostic ignored \"-Wpointer-arith\"");
+PRAGMA("GCC diagnostic ignored \"-Wnested-externs\"");
+
+#include <linux/list.h>
 
 struct km_Sha3TfmCtx {
     wolfSSL_Mutex desc_list_lock;
@@ -576,6 +582,190 @@ WC_MAYBE_UNUSED static int sha3_test_once(void) {
 }
 
 PRAGMA_DIAG_POP
+
+/* Serialized SHA-3 state for .export / .import.  This is the canonical
+ * {core, block, len} form the kernel budgets HASH_MAX_STATESIZE for -- worst
+ * case sha3-224, 200 + 144 + 1.  Deliberately NOT a struct copy of wc_Sha3:
+ * that carries the full 200-byte t[] plus heap/devId/fn-ptrs, which would both
+ * blow the statesize budget and ship non-portable, non-state fields across
+ * descs.  s[] and t[] are stored in native byte order -- export/import always
+ * round-trips within one host, so no canonical encoding is needed. */
+struct km_sha3_export_state {
+    byte   s[sizeof(((struct wc_Sha3 *)0)->s)]; /* KECCAK sponge, 200 bytes */
+    byte   t[WC_SHA3_224_BLOCK_SIZE];           /* pending block; 144 = max rate
+                                                 * of the registered SHA-3
+                                                 * variants (sha3-224) */
+    byte   i;                                   /* valid bytes in t[]; always
+                                                 * < rate <= 144, since
+                                                 * Sha3Final rejects i >= rate */
+};
+
+/* HASH_MAX_STATESIZE added by 2b1a29ce33, kernel 6.16. */
+#ifdef HASH_MAX_STATESIZE
+wc_static_assert(sizeof(struct km_sha3_export_state) <= HASH_MAX_STATESIZE);
+#endif
+
+/* Non-destructive: serialize the live sponge into the caller's statesize
+ * buffer, leaving the desc (and its cleanup-list node) intact for continued
+ * streaming.  Variant-agnostic -- s/t/i live at the same offset in every union
+ * member, so the generic .sha3_state accessor serves all four. */
+WC_MAYBE_UNUSED static int km_sha3_export(struct shash_desc *desc, void *out)
+{
+    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);
+    struct km_sha3_export_state *blob = (struct km_sha3_export_state *)out;
+    const struct wc_Sha3 *sha3;
+
+    if (ctx->sha3_state == NULL)
+        return -EINVAL;
+    sha3 = &ctx->sha3_state->sha3_state;
+
+    /* i < rate <= sizeof(blob->t) always; guard defensively so a corrupted
+     * live state can't overrun blob->t. */
+    if (sha3->i > sizeof(blob->t))
+        return -EINVAL;
+
+    XMEMCPY(blob->s, sha3->s, sizeof(blob->s));
+    XMEMSET(blob->t, 0, sizeof(blob->t));
+    XMEMCPY(blob->t, sha3->t, sha3->i);
+    blob->i = (byte)sha3->i;
+
+    return 0;
+}
+
+/* Kernel-API export/import test coverage.  Exercises the cross-desc path that
+ * distinguishes real state serialization from pointer aliasing: testmgr's
+ * reimport divisions are same-desc, so a default memcpy of the desc pointer
+ * would round-trip within one desc yet double-free across two.  Here we export
+ * mid-stream, import into a distinct poisoned desc, finish BOTH independently,
+ * and require both to match a one-shot reference -- plus statesize and
+ * malformed-blob rejection probes.
+ */
+WC_MAYBE_UNUSED static int km_sha3_test_export_import(
+    const char *cra_name, const char *cra_driver_name, unsigned int block_size)
+{
+    int ret;
+    struct crypto_shash *tfm = NULL;
+    struct shash_desc *desc = NULL;
+    struct shash_desc *desc2 = NULL;
+    struct km_sha3_export_state *blob = NULL;
+    size_t desc_size = 0;
+    unsigned int split, i;
+    byte msg[300];
+    byte ref[WC_SHA3_512_DIGEST_SIZE];
+    byte tag[WC_SHA3_512_DIGEST_SIZE];
+
+    for (i = 0; i < (unsigned int)sizeof(msg); i++)
+        msg[i] = (byte)(i * 7 + 1);
+
+    tfm = crypto_alloc_shash(cra_name, 0, 0);
+    if (IS_ERR(tfm)) {
+        ret = (int)PTR_ERR(tfm);
+        pr_err("error: crypto_alloc_shash(%s) failed: %d\n", cra_name, ret);
+        return ret;
+    }
+
+    if (crypto_shash_statesize(tfm) != sizeof(struct km_sha3_export_state)) {
+        pr_err("error: %s statesize %u != expected %u\n", cra_driver_name,
+               crypto_shash_statesize(tfm),
+               (unsigned int)sizeof(struct km_sha3_export_state));
+        ret = -EINVAL;
+        goto out;
+    }
+
+    desc_size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
+    desc = (struct shash_desc *)malloc(desc_size);
+    desc2 = (struct shash_desc *)malloc(desc_size);
+    blob = (struct km_sha3_export_state *)malloc(sizeof(*blob));
+    if ((desc == NULL) || (desc2 == NULL) || (blob == NULL)) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    XMEMSET(desc, 0, desc_size);
+    desc->tfm = tfm;
+
+    /* Reference digest over the whole message. */
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, sizeof(msg));
+    if (ret == 0)
+        ret = crypto_shash_final(desc, ref);
+    if (ret) {
+        pr_err("error: %s reference digest failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Split leaves block_size/2 unabsorbed bytes, so the export blob carries a
+     * non-empty partial block for every variant (rate 72..144).
+     */
+    split = block_size + block_size / 2;
+
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, split);
+    if (ret == 0)
+        ret = crypto_shash_export(desc, blob);
+    if (ret) {
+        pr_err("error: %s export sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Import into a poisoned second desc: import must not read prior ctx. */
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    ret = crypto_shash_import(desc2, blob);
+    if (ret == 0)
+        ret = crypto_shash_update(desc2, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc2, tag);
+    if (ret) {
+        pr_err("error: %s import sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, crypto_shash_digestsize(tfm)) != 0) {
+        pr_err("error: %s import-continuation digest mismatch\n",
+               cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* The exporting desc must remain live and independent of desc2. */
+    ret = crypto_shash_update(desc, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc, tag);
+    if (ret) {
+        pr_err("error: %s post-export continuation failed: %d\n",
+               cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, crypto_shash_digestsize(tfm)) != 0) {
+        pr_err("error: %s post-export digest mismatch\n", cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* Malformed state (partial length >= rate) must be rejected before any
+     * allocation or installation.
+     */
+    blob->i = (byte)block_size;
+    if (crypto_shash_import(desc2, blob) == 0) {
+        pr_err("error: %s import accepted out-of-range partial length\n",
+               cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = 0;
+
+out:
+
+    free(blob);
+    free(desc2);
+    free(desc);
+    if (tfm)
+        crypto_free_shash(tfm);
+
+    return ret;
+}
 
 #endif
 
@@ -928,6 +1118,41 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
     return ret == 0 ? 0 : -EINVAL;                                         \
 }                                                                          \
                                                                            \
+static int km_ ## name ## _import(struct shash_desc *desc,                 \
+                                  const void *in)                          \
+{                                                                          \
+    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    const struct km_sha3_export_state *blob =                              \
+        (const struct km_sha3_export_state *)in;                           \
+    struct wc_Sha3 *sha3;                                                  \
+    int ret;                                                               \
+                                                                           \
+    if (blob->i >= (block_size))                                           \
+        return -EINVAL;                                                    \
+                                                                           \
+    ret = km_sha3_alloc_tstate(desc);                                      \
+    if (ret)                                                               \
+        return ret;                                                        \
+                                                                           \
+    sha3 = &ctx->sha3_state-> name ## _state;                              \
+    ret = init_f(sha3, NULL, INVALID_DEVID);                               \
+    if (ret != 0) {                                                        \
+        km_sha3_free_tstate(desc);                                         \
+        return -EINVAL;                                                    \
+    }                                                                      \
+                                                                           \
+    XMEMCPY(sha3->s, blob->s, sizeof(sha3->s));                            \
+    XMEMCPY(sha3->t, blob->t, blob->i);                                    \
+    XMEMSET(sha3->t + blob->i, 0, sizeof(sha3->t) - blob->i);              \
+    sha3->i = blob->i;                                                     \
+                                                                           \
+    return 0;                                                              \
+}                                                                          \
+                                                                           \
+wc_static_assert((block_size) <=                                           \
+                 sizeof(((struct km_sha3_export_state *)0)->t));           \
+                                                                           \
+                                                                           \
 static struct shash_alg name ## _alg =                                     \
 {                                                                          \
     .init_tfm       =       km_sha3_init_tfm,                              \
@@ -938,6 +1163,9 @@ static struct shash_alg name ## _alg =                                     \
     .finup          =       km_ ## name ## _finup,                         \
     .digest         =       km_ ## name ## _digest,                        \
     .descsize       =       sizeof(struct km_sha_state),                   \
+    .export         =       km_sha3_export,                                \
+    .import         =       km_ ## name ## _import,                        \
+    .statesize      =       sizeof(struct km_sha3_export_state),           \
     .exit_tfm       =       km_sha3_exit_tfm,                              \
     .base           =       {                                              \
         .cra_name        =      (this_cra_name),                           \
@@ -952,14 +1180,17 @@ static int name ## _alg_loaded = 0;                                        \
                                                                            \
 static int linuxkm_test_ ## name(void) {                                   \
     wc_test_ret_t ret = test_routine();                                    \
-    if (ret >= 0)                                                          \
-        return check_shash_driver_masking(NULL /* tfm */, this_cra_name,   \
-                                          this_cra_driver_name);           \
-    else {                                                                 \
+    if (ret < 0) {                                                         \
         wc_test_render_error_message("linuxkm_test_" #name " failed: ",    \
                                      ret);                                 \
         return WC_TEST_RET_DEC_EC(ret);                                    \
     }                                                                      \
+    ret = check_shash_driver_masking(NULL /* tfm */, this_cra_name,        \
+                                      this_cra_driver_name);               \
+    if (ret)                                                               \
+        return ret;                                                        \
+    return km_sha3_test_export_import(this_cra_name, this_cra_driver_name, \
+                                      (block_size));                       \
 }                                                                          \
                                                                            \
 struct wc_swallow_the_semicolon
