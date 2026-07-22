@@ -3949,7 +3949,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
                 ret = Pkcs11GetEccParams(session, publicKey, key);
             }
         }
-        else if (!mp_iszero(key->pubkey.x)) {
+        else if (!mp_iszero(key->pubkey.x) || !mp_iszero(key->pubkey.y)) {
             ret = Pkcs11CreateEccPublicKey(&publicKey, session, key,
                                            CKA_VERIFY);
             sessionKey = 1;
@@ -3957,6 +3957,14 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
         else
             ret = Pkcs11FindEccKey(&publicKey, CKO_PUBLIC_KEY, session,
                                    info->pk.eccsign.key, CKA_VERIFY);
+
+        /* keygen destroys the token public key, so fall back to the point. */
+        if (ret != 0 && (key->labelLen > 0 || key->idLen > 0) &&
+                (!mp_iszero(key->pubkey.x) || !mp_iszero(key->pubkey.y))) {
+            ret = Pkcs11CreateEccPublicKey(&publicKey, session, key,
+                                           CKA_VERIFY);
+            sessionKey = 1;
+        }
     }
 
     if (ret == 0) {
