@@ -7445,6 +7445,7 @@ WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(wolfSSL_BY_DIR_entr
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int oid2nid(word32 oid, int grp);
 WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
+WOLFSSL_LOCAL void wolfssl_object_info_slice_init(void);
 #endif
 
 #ifdef WOLFSSL_DTLS
