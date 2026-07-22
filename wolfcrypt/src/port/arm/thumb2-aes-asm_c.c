@@ -6479,6 +6479,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
+#if !defined(GCM_SMALL) && !defined(GCM_TABLE)
 XALIGNED(8) static const word32 L_GCM_gmult_len_r[] = {
     0x00000000, 0x1c200000, 0x38400000, 0x24600000,
     0x70800000, 0x6ca00000, 0x48c00000, 0x54e00000,
@@ -7060,6 +7061,566 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
     );
 }
 
+#endif /* !defined(GCM_SMALL) && !defined(GCM_TABLE) */
+#ifdef GCM_TABLE
+XALIGNED(4) static const word8 L_GCM_gmult_len_r[] = {
+    0x00, 0x00, 0x01, 0xc2, 0x03, 0x84, 0x02, 0x46,
+    0x07, 0x08, 0x06, 0xca, 0x04, 0x8c, 0x05, 0x4e,
+    0x0e, 0x10, 0x0f, 0xd2, 0x0d, 0x94, 0x0c, 0x56,
+    0x09, 0x18, 0x08, 0xda, 0x0a, 0x9c, 0x0b, 0x5e,
+    0x1c, 0x20, 0x1d, 0xe2, 0x1f, 0xa4, 0x1e, 0x66,
+    0x1b, 0x28, 0x1a, 0xea, 0x18, 0xac, 0x19, 0x6e,
+    0x12, 0x30, 0x13, 0xf2, 0x11, 0xb4, 0x10, 0x76,
+    0x15, 0x38, 0x14, 0xfa, 0x16, 0xbc, 0x17, 0x7e,
+    0x38, 0x40, 0x39, 0x82, 0x3b, 0xc4, 0x3a, 0x06,
+    0x3f, 0x48, 0x3e, 0x8a, 0x3c, 0xcc, 0x3d, 0x0e,
+    0x36, 0x50, 0x37, 0x92, 0x35, 0xd4, 0x34, 0x16,
+    0x31, 0x58, 0x30, 0x9a, 0x32, 0xdc, 0x33, 0x1e,
+    0x24, 0x60, 0x25, 0xa2, 0x27, 0xe4, 0x26, 0x26,
+    0x23, 0x68, 0x22, 0xaa, 0x20, 0xec, 0x21, 0x2e,
+    0x2a, 0x70, 0x2b, 0xb2, 0x29, 0xf4, 0x28, 0x36,
+    0x2d, 0x78, 0x2c, 0xba, 0x2e, 0xfc, 0x2f, 0x3e,
+    0x70, 0x80, 0x71, 0x42, 0x73, 0x04, 0x72, 0xc6,
+    0x77, 0x88, 0x76, 0x4a, 0x74, 0x0c, 0x75, 0xce,
+    0x7e, 0x90, 0x7f, 0x52, 0x7d, 0x14, 0x7c, 0xd6,
+    0x79, 0x98, 0x78, 0x5a, 0x7a, 0x1c, 0x7b, 0xde,
+    0x6c, 0xa0, 0x6d, 0x62, 0x6f, 0x24, 0x6e, 0xe6,
+    0x6b, 0xa8, 0x6a, 0x6a, 0x68, 0x2c, 0x69, 0xee,
+    0x62, 0xb0, 0x63, 0x72, 0x61, 0x34, 0x60, 0xf6,
+    0x65, 0xb8, 0x64, 0x7a, 0x66, 0x3c, 0x67, 0xfe,
+    0x48, 0xc0, 0x49, 0x02, 0x4b, 0x44, 0x4a, 0x86,
+    0x4f, 0xc8, 0x4e, 0x0a, 0x4c, 0x4c, 0x4d, 0x8e,
+    0x46, 0xd0, 0x47, 0x12, 0x45, 0x54, 0x44, 0x96,
+    0x41, 0xd8, 0x40, 0x1a, 0x42, 0x5c, 0x43, 0x9e,
+    0x54, 0xe0, 0x55, 0x22, 0x57, 0x64, 0x56, 0xa6,
+    0x53, 0xe8, 0x52, 0x2a, 0x50, 0x6c, 0x51, 0xae,
+    0x5a, 0xf0, 0x5b, 0x32, 0x59, 0x74, 0x58, 0xb6,
+    0x5d, 0xf8, 0x5c, 0x3a, 0x5e, 0x7c, 0x5f, 0xbe,
+    0xe1, 0x00, 0xe0, 0xc2, 0xe2, 0x84, 0xe3, 0x46,
+    0xe6, 0x08, 0xe7, 0xca, 0xe5, 0x8c, 0xe4, 0x4e,
+    0xef, 0x10, 0xee, 0xd2, 0xec, 0x94, 0xed, 0x56,
+    0xe8, 0x18, 0xe9, 0xda, 0xeb, 0x9c, 0xea, 0x5e,
+    0xfd, 0x20, 0xfc, 0xe2, 0xfe, 0xa4, 0xff, 0x66,
+    0xfa, 0x28, 0xfb, 0xea, 0xf9, 0xac, 0xf8, 0x6e,
+    0xf3, 0x30, 0xf2, 0xf2, 0xf0, 0xb4, 0xf1, 0x76,
+    0xf4, 0x38, 0xf5, 0xfa, 0xf7, 0xbc, 0xf6, 0x7e,
+    0xd9, 0x40, 0xd8, 0x82, 0xda, 0xc4, 0xdb, 0x06,
+    0xde, 0x48, 0xdf, 0x8a, 0xdd, 0xcc, 0xdc, 0x0e,
+    0xd7, 0x50, 0xd6, 0x92, 0xd4, 0xd4, 0xd5, 0x16,
+    0xd0, 0x58, 0xd1, 0x9a, 0xd3, 0xdc, 0xd2, 0x1e,
+    0xc5, 0x60, 0xc4, 0xa2, 0xc6, 0xe4, 0xc7, 0x26,
+    0xc2, 0x68, 0xc3, 0xaa, 0xc1, 0xec, 0xc0, 0x2e,
+    0xcb, 0x70, 0xca, 0xb2, 0xc8, 0xf4, 0xc9, 0x36,
+    0xcc, 0x78, 0xcd, 0xba, 0xcf, 0xfc, 0xce, 0x3e,
+    0x91, 0x80, 0x90, 0x42, 0x92, 0x04, 0x93, 0xc6,
+    0x96, 0x88, 0x97, 0x4a, 0x95, 0x0c, 0x94, 0xce,
+    0x9f, 0x90, 0x9e, 0x52, 0x9c, 0x14, 0x9d, 0xd6,
+    0x98, 0x98, 0x99, 0x5a, 0x9b, 0x1c, 0x9a, 0xde,
+    0x8d, 0xa0, 0x8c, 0x62, 0x8e, 0x24, 0x8f, 0xe6,
+    0x8a, 0xa8, 0x8b, 0x6a, 0x89, 0x2c, 0x88, 0xee,
+    0x83, 0xb0, 0x82, 0x72, 0x80, 0x34, 0x81, 0xf6,
+    0x84, 0xb8, 0x85, 0x7a, 0x87, 0x3c, 0x86, 0xfe,
+    0xa9, 0xc0, 0xa8, 0x02, 0xaa, 0x44, 0xab, 0x86,
+    0xae, 0xc8, 0xaf, 0x0a, 0xad, 0x4c, 0xac, 0x8e,
+    0xa7, 0xd0, 0xa6, 0x12, 0xa4, 0x54, 0xa5, 0x96,
+    0xa0, 0xd8, 0xa1, 0x1a, 0xa3, 0x5c, 0xa2, 0x9e,
+    0xb5, 0xe0, 0xb4, 0x22, 0xb6, 0x64, 0xb7, 0xa6,
+    0xb2, 0xe8, 0xb3, 0x2a, 0xb1, 0x6c, 0xb0, 0xae,
+    0xbb, 0xf0, 0xba, 0x32, 0xb8, 0x74, 0xb9, 0xb6,
+    0xbc, 0xf8, 0xbd, 0x3a, 0xbf, 0x7c, 0xbe, 0xbe,
+};
+
+void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
+    const unsigned char* data_p, unsigned long len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x_p,
+    const unsigned char** m_p, const unsigned char* data_p, unsigned long len_p)
+#else
+WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
+    const unsigned char** m, const unsigned char* data, unsigned long len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register unsigned char* x __asm__ ("r0") = (unsigned char*)x_p;
+    register const unsigned char** m __asm__ ("r1") =
+        (const unsigned char**)m_p;
+    register const unsigned char* data __asm__ ("r2") =
+        (const unsigned char*)data_p;
+    register unsigned long len __asm__ ("r3") = (unsigned long)len_p;
+    register word8* L_GCM_gmult_len_r_c __asm__ ("r4") =
+        (word8*)&L_GCM_gmult_len_r;
+#else
+    register word8* L_GCM_gmult_len_r_c = (word8*)&L_GCM_gmult_len_r;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+        "PUSH	{%[L_GCM_gmult_len_r]}\n\t"
+        "MOV	lr, %[L_GCM_gmult_len_r]\n\t"
+        "\n"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_GCM_gmult_len_start_block:\n\t"
+#else
+    "L_GCM_gmult_len_start_block_%=:\n\t"
+#endif
+        "LDM	%[x], {r4, r5, r6, r7}\n\t"
+        "LDM	%[data], {r8, r9, r10, r11}\n\t"
+        "EOR	r4, r4, r8\n\t"
+        "EOR	r5, r5, r9\n\t"
+        "EOR	r6, r6, r10\n\t"
+        "EOR	r7, r7, r11\n\t"
+        "STM	%[x], {r4, r5, r6, r7}\n\t"
+        "MOV	r8, #0\n\t"
+        "MOV	r9, #0\n\t"
+        "MOV	r10, #0\n\t"
+        "MOV	r11, #0\n\t"
+        /* Byte 15 */
+        "ADD	r12, %[x], #15\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 14 */
+        "ADD	r12, %[x], #14\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 13 */
+        "ADD	r12, %[x], #13\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 12 */
+        "ADD	r12, %[x], #12\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 11 */
+        "ADD	r12, %[x], #11\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 10 */
+        "ADD	r12, %[x], #10\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 9 */
+        "ADD	r12, %[x], #9\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 8 */
+        "ADD	r12, %[x], #8\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 7 */
+        "ADD	r12, %[x], #7\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 6 */
+        "ADD	r12, %[x], #6\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 5 */
+        "ADD	r12, %[x], #5\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 4 */
+        "ADD	r12, %[x], #4\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 3 */
+        "ADD	r12, %[x], #3\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 2 */
+        "ADD	r12, %[x], #2\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 1 */
+        "ADD	r12, %[x], #1\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "AND	r4, r11, #0xff\n\t"
+        "LSR	r11, r11, #8\n\t"
+        "ORR	r11, r11, r10, LSL #24\n\t"
+        "LSR	r10, r10, #8\n\t"
+        "ORR	r10, r10, r9, LSL #24\n\t"
+        "LSR	r9, r9, #8\n\t"
+        "ORR	r9, r9, r8, LSL #24\n\t"
+        "LSR	r8, r8, #8\n\t"
+        "ADD	r4, lr, r4, LSL #1\n\t"
+        "LDRB	r5, [r4]\n\t"
+        "ADD	r4, r4, #1\n\t"
+        "LDRB	r6, [r4]\n\t"
+        "ORR	r8, r8, r5, LSL #24\n\t"
+        "EOR	r8, r8, r6, LSL #16\n\t"
+        /* Byte 0 */
+        "ADD	r12, %[x], #0\n\t"
+        "LDRB	r12, [r12]\n\t"
+        "ADD	r12, %[m], r12, LSL #4\n\t"
+        "LDM	r12, {r4, r5, r6, r7}\n\t"
+        "REV	r4, r4\n\t"
+        "REV	r5, r5\n\t"
+        "REV	r6, r6\n\t"
+        "REV	r7, r7\n\t"
+        "EOR	r8, r8, r4\n\t"
+        "EOR	r9, r9, r5\n\t"
+        "EOR	r10, r10, r6\n\t"
+        "EOR	r11, r11, r7\n\t"
+        "REV	r8, r8\n\t"
+        "REV	r9, r9\n\t"
+        "REV	r10, r10\n\t"
+        "REV	r11, r11\n\t"
+        "STM	%[x], {r8, r9, r10, r11}\n\t"
+        "SUBS	%[len], %[len], #16\n\t"
+        "ADD	%[data], %[data], #16\n\t"
+#if defined(__GNUC__)
+        "BNE	L_GCM_gmult_len_start_block_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_GCM_gmult_len_start_block\n\t"
+#else
+        "BNE.W	L_GCM_gmult_len_start_block_%=\n\t"
+#endif
+        "POP	{%[L_GCM_gmult_len_r]}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
+          [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
+        :
+#else
+        :
+        : [x] "r" (x), [m] "r" (m), [data] "r" (data), [len] "r" (len),
+          [L_GCM_gmult_len_r] "r" (L_GCM_gmult_len_r_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11"
+    );
+}
+
+#endif /* GCM_TABLE */
 static const word32* L_AES_Thumb2_te_gcm = L_AES_Thumb2_te_data;
 void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,

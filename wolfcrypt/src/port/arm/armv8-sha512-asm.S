@@ -30,6 +30,7 @@
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+#ifndef WOLFSSL_ARMASM_NO_NEON
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -1645,6 +1646,7 @@ L_sha512_len_crypto_begin:
 	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA512 */
+#endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */

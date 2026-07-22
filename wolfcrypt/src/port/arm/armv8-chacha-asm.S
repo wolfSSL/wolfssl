@@ -30,6 +30,7 @@
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifdef HAVE_CHACHA
+#ifndef WOLFSSL_ARMASM_NO_NEON
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -62,7 +63,6 @@ L_chacha20_arm64_ctr:
 #endif /* __APPLE__ */
 L_chacha20_arm64_rol8:
 	.long	0x02010003,0x06050407,0x0a09080b,0x0e0d0c0f
-#ifndef WOLFSSL_ARMASM_NO_NEON
 #ifndef __APPLE__
 .text
 .globl	wc_chacha_crypt_bytes

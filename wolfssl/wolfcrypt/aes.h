@@ -67,10 +67,6 @@ typedef struct Gcm {
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
-#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
-#endif
 WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
                                             word32 aSz, const byte* c,
                                             word32 cSz, byte* s, word32 sSz);
@@ -985,12 +981,12 @@ WOLFSSL_LOCAL void AES_CBC_decrypt_NEON(const unsigned char* in,
 WOLFSSL_LOCAL void AES_CTR_encrypt_NEON(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* ctr);
-#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
-/* in pre-C2x C, constness conflicts for dimensioned arrays can't be resolved.
+/* Defined whenever HAVE_AESGCM - the NEON GHASH is used for every GCM table
+ * layout, not just GCM_TABLE / GCM_TABLE_4BIT.
+ * in pre-C2x C, constness conflicts for dimensioned arrays can't be resolved.
  */
 WOLFSSL_LOCAL void GCM_gmult_len_NEON(byte* x, const byte* h,
     const unsigned char* data, unsigned long len);
-#endif
 WOLFSSL_LOCAL void AES_GCM_encrypt_NEON(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* ctr);

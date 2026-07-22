@@ -25,6 +25,7 @@
 ;   ruby ./chacha/chacha.rb arm64 \
 ;       ../wolfssl/wolfcrypt/src/port/arm/armv8-chacha-asm.asm
 	IF :DEF:HAVE_CHACHA
+	IF :LNOT::DEF:WOLFSSL_ARMASM_NO_NEON
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	8
 L_chacha20_arm64_ctr
@@ -33,7 +34,6 @@ L_chacha20_arm64_ctr
 	ALIGN	8
 L_chacha20_arm64_rol8
 	DCD	0x02010003, 0x06050407, 0x0a09080b, 0x0e0d0c0f
-	IF :LNOT::DEF:WOLFSSL_ARMASM_NO_NEON
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	wc_chacha_crypt_bytes

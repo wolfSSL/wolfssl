@@ -33,6 +33,7 @@
 #ifdef HAVE_CHACHA
 #include <wolfssl/wolfcrypt/chacha.h>
 
+#ifndef WOLFSSL_ARMASM_NO_NEON
 XALIGNED(8) static const word32 L_chacha20_arm64_ctr[] = {
     0x00000000, 0x00000001, 0x00000002, 0x00000003,
 };
@@ -41,7 +42,6 @@ XALIGNED(8) static const word32 L_chacha20_arm64_rol8[] = {
     0x02010003, 0x06050407, 0x0a09080b, 0x0e0d0c0f,
 };
 
-#ifndef WOLFSSL_ARMASM_NO_NEON
 void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len)
 {
     const word32* rol8 = L_chacha20_arm64_rol8;
