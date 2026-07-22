@@ -22690,6 +22690,13 @@ static int test_wolfSSL_OCSP_parse_url(void)
     CK_OPU_FAIL("http/""/localhost");
     CK_OPU_FAIL("http:/localhost");
     CK_OPU_FAIL("https://localhost/path:1234");
+    /* CR/LF anywhere in the URL, paired or bare. */
+    CK_OPU_FAIL("http://localhost/\r\nX-Injected: yes");
+    CK_OPU_FAIL("http://localhost\r\n:1234/");
+    CK_OPU_FAIL("http://localhost/\nX-Injected: yes");
+    CK_OPU_FAIL("http://localhost/\rX-Injected: yes");
+    CK_OPU_FAIL("http://localhost\n:1234/");
+    CK_OPU_FAIL("http://localhost:12\r\n34/");
 
 #undef CK_OPU_OK
 #undef CK_OPU_FAIL
@@ -23033,6 +23040,28 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
     ExpectNotNull(cid = OCSP_cert_to_id(EVP_sha1(), cert, issuer));
     ExpectNotNull(OCSP_request_add0_id(req, cid));
     ExpectIntEQ(OCSP_request_add1_nonce(req, NULL, -1), 1);
+
+    ExpectNull(OCSP_sendreq_new(bio1, "/\r\nX-Injected: yes", NULL, -1));
+    ExpectNull(OCSP_sendreq_new(bio1, "/\nX-Injected: yes", NULL, -1));
+
+    /* Reject CR/LF and obs-fold, on a context that is thrown away so that the
+     * request assembled below stays clean. */
+    ExpectNotNull(ctx = OCSP_sendreq_new(bio1, "/", NULL, -1));
+    ExpectIntEQ(OCSP_REQ_CTX_http(ctx, "POST", "/\r\nX-Injected: yes"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_http(ctx, "POST\r\nX-Injected: yes", "/"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, "X-Injected\r\nHost", "h"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, "Host", "h\r\nX-Injected: yes"),
+            0);
+    ExpectIntEQ(OCSP_REQ_CTX_http(ctx, "POST", "/\nX-Injected: yes"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_http(ctx, "POST", "/\rX-Injected: yes"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, "Host", "h\nX-Injected: yes"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, "Host", "h\rX-Injected: yes"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, " Host", "h"), 0);
+    ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, "\tHost", "h"), 0);
+    /* A NULL value is allowed and emits just the name. */
+    ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, "X-No-Value", NULL), 1);
+    OCSP_REQ_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = OCSP_sendreq_new(bio1, "/", NULL, -1));
     ExpectIntEQ(OCSP_REQ_CTX_add1_header(ctx, "Host", "127.0.0.1"), 1);
