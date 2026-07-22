@@ -369,6 +369,7 @@ static int test_tls_require_ems_ex(int serverSide, int peerDisables)
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
+    int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
@@ -389,12 +390,13 @@ static int test_tls_require_ems_ex(int serverSide, int peerDisables)
                     WOLFSSL_SUCCESS);
 
         /* EMS cannot be negotiated so the requiring side must abort. */
-        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+        ExpectIntNE(ret, 0);
         if (serverSide)
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, 0),
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
                     WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
         else
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, 0),
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
                     WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
     }
     else {
@@ -905,11 +907,11 @@ int test_wolfSSL_DisableExtendedMasterSecret(void)
     EXPECT_DECLS;
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS)
-    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    WOLFSSL     *ssl = wolfSSL_new(ctx);
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
 
-    ExpectNotNull(ctx);
-    ExpectNotNull(ssl);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* error cases */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(NULL));
@@ -931,11 +933,12 @@ int test_wolfSSL_DisableNormalMasterSecret(void)
     EXPECT_DECLS;
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS)
-    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    WOLFSSL     *ssl = wolfSSL_new(ctx);
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
 
-    ExpectNotNull(ctx);
-    ExpectNotNull(ssl);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* error cases */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_DisableNormalMasterSecret(NULL));
