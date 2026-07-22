@@ -1276,9 +1276,12 @@ int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
 
 
 #ifdef HAVE_EXTENDED_MASTER
-#ifndef NO_WOLFSSL_CLIENT
 
 /* Disable the Extended Master Secret extension on the context.
+ *
+ * For a client this stops the extension being advertised. For a server this
+ * causes the peer's Extended Master Secret request to be ignored so that a
+ * standard master secret is negotiated.
  *
  * @param [in] ctx  SSL/TLS context object.
  * @return  WOLFSSL_SUCCESS on success.
@@ -1290,12 +1293,19 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
         return BAD_FUNC_ARG;
 
     ctx->haveEMS = 0;
+    ctx->disableEMS = 1;
+    /* Disabling EMS is mutually exclusive with requiring it. */
+    ctx->requireEMS = 0;
 
     return WOLFSSL_SUCCESS;
 }
 
 
 /* Disable the Extended Master Secret extension on the object.
+ *
+ * For a client this stops the extension being advertised. For a server this
+ * causes the peer's Extended Master Secret request to be ignored so that a
+ * standard master secret is negotiated.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
@@ -1307,11 +1317,116 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
 
     ssl->options.haveEMS = 0;
+    ssl->options.disableEMS = 1;
+    /* Disabling EMS is mutually exclusive with requiring it. */
+    ssl->options.requireEMS = 0;
 
     return WOLFSSL_SUCCESS;
 }
 
-#endif
+
+/* Disable the standard (non-extended) master secret on the context.
+ *
+ * The Extended Master Secret extension (RFC 7627) becomes mandatory: if it is
+ * not negotiated with the peer the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E rather than falling back to a standard master
+ * secret. This only applies to TLS 1.2 and earlier; TLS 1.3 always uses a
+ * secure key schedule and is unaffected.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_DisableNormalMasterSecret(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->requireEMS = 1;
+    /* Requiring EMS is mutually exclusive with disabling it. */
+    ctx->disableEMS = 0;
+    /* A client must advertise the extension for it to be negotiated. Undo any
+     * previous disable so the extension is offered. A server keeps its EMS
+     * state driven by the incoming ClientHello. */
+    if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+        ctx->haveEMS = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* Disable the standard (non-extended) master secret on the object.
+ *
+ * The Extended Master Secret extension (RFC 7627) becomes mandatory: if it is
+ * not negotiated with the peer the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E rather than falling back to a standard master
+ * secret. This only applies to TLS 1.2 and earlier; TLS 1.3 always uses a
+ * secure key schedule and is unaffected.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_DisableNormalMasterSecret(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.requireEMS = 1;
+    /* Requiring EMS is mutually exclusive with disabling it. */
+    ssl->options.disableEMS = 0;
+    /* A client must advertise the extension for it to be negotiated. Undo any
+     * previous disable so the extension is offered. A server keeps its EMS
+     * state driven by the incoming ClientHello. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        ssl->options.haveEMS = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* Re-enable the standard (non-extended) master secret on the context.
+ *
+ * Undoes wolfSSL_CTX_DisableNormalMasterSecret so that a standard master
+ * secret is once again acceptable when the Extended Master Secret extension
+ * (RFC 7627) is not negotiated. Extended Master Secret support itself is left
+ * unchanged.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_EnableNormalMasterSecret(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->requireEMS = 0;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* Re-enable the standard (non-extended) master secret on the object.
+ *
+ * Undoes wolfSSL_DisableNormalMasterSecret so that a standard master secret is
+ * once again acceptable when the Extended Master Secret extension (RFC 7627)
+ * is not negotiated. Extended Master Secret support itself is left unchanged.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_EnableNormalMasterSecret(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.requireEMS = 0;
+
+    return WOLFSSL_SUCCESS;
+}
+
 #endif
 
 #endif /* !NO_TLS */

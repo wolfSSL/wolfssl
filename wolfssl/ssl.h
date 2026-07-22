@@ -5076,6 +5076,10 @@ WOLFSSL_API int wolfSSL_CTX_set_num_tickets(WOLFSSL_CTX* ctx, size_t mxTickets);
 /* TLS Extended Master Secret Extension */
 WOLFSSL_API int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_DisableNormalMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_DisableNormalMasterSecret(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_EnableNormalMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_EnableNormalMasterSecret(WOLFSSL_CTX* ctx);
 
 
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
