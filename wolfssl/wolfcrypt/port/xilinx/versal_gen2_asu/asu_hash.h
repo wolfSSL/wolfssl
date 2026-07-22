@@ -39,7 +39,7 @@ extern "C" {
 /* Single entry point for the SHA2/SHA3 engine. The crypto callback dispatcher
  * routes every hash related operation here and this handler decides which it is:
  * update and final (WC_ALGO_TYPE_HASH), context copy (WC_ALGO_TYPE_COPY), or
- * context free (WC_ALGO_TYPE_FREE). Supports SHA2 256/384/512 and SHA3
+ * context release (WC_ALGO_TYPE_FREE). Supports SHA2 256/384/512 and SHA3
  * 256/384/512. Returns 0 on success, CRYPTOCB_UNAVAILABLE for an unsupported
  * operation or hash type (software fallback), or a negative error. */
 WOLFSSL_LOCAL int wc_AsuHash(wc_CryptoInfo* info);

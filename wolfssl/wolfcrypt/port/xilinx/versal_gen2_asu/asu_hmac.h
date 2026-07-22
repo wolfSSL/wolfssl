@@ -39,11 +39,11 @@ extern "C" {
 /* Single entry point for the HMAC engine. The crypto callback dispatcher routes
  * every HMAC related operation here and this handler decides which it is: update
  * and final (WC_ALGO_TYPE_HMAC), context copy (WC_ALGO_TYPE_COPY) or context
- * free (WC_ALGO_TYPE_FREE). The message is accumulated per context and the HMAC
- * is computed in one ASU operation at final using the raw key wolfSSL keeps on
- * the context. Supports HMAC over SHA2 256/384/512 and SHA3 256/384/512. Returns
- * 0 on success, CRYPTOCB_UNAVAILABLE for an unsupported MAC type or key (software
- * fallback), or a negative error. */
+ * release (WC_ALGO_TYPE_FREE). The message is accumulated per context and the
+ * HMAC is computed in one ASU operation at final using the raw key wolfSSL
+ * keeps on the context. Supports HMAC over SHA2 256/384/512 and SHA3
+ * 256/384/512. Returns 0 on success, CRYPTOCB_UNAVAILABLE for an unsupported
+ * MAC type or key (software fallback), or a negative error. */
 WOLFSSL_LOCAL int wc_AsuHmac(wc_CryptoInfo* info);
 
 #ifdef __cplusplus
