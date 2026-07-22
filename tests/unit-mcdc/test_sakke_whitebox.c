@@ -155,17 +155,24 @@ int main(void)
         mp_int scalarN;
         ecc_point* addResult = wc_ecc_new_point();
 
-        if (addResult == NULL) wb_fail = 1;
         mp_init(&scalarN);
         mp_set(&scalarN, 7);
 
-        if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey, addResult, 0)
-                != 0) wb_fail = 1;               /* map == 0 (false) */
-        if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey, addResult, 1)
-                != 0) wb_fail = 1;               /* map == 1 (true) */
+        if (addResult == NULL) {
+            /* Allocation failed -- skip the calls; sakke_mulmod_base_add()
+             * does not validate its result pointer and would dereference a
+             * NULL addResult. */
+            wb_fail = 1;
+        }
+        else {
+            if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey,
+                    addResult, 0) != 0) wb_fail = 1;   /* map == 0 (false) */
+            if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey,
+                    addResult, 1) != 0) wb_fail = 1;   /* map == 1 (true) */
+            wc_ecc_del_point(addResult);
+        }
 
         mp_free(&scalarN);
-        if (addResult != NULL) wc_ecc_del_point(addResult);
         WB_NOTE("sakke_mulmod_base_add() map==0/map==1 (line 411) "
             "exercised");
     }

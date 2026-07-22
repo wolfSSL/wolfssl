@@ -134,8 +134,12 @@
  * only once, last, after every other use of it.
  */
 
+#ifndef WOLFSSL_STATIC_MEMORY
 #define WOLFSSL_STATIC_MEMORY
+#endif
+#ifndef WOLFSSL_MEM_FAIL_COUNT
 #define WOLFSSL_MEM_FAIL_COUNT
+#endif
 
 #include <wolfcrypt/src/memory.c>
 

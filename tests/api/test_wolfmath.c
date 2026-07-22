@@ -155,8 +155,13 @@ int test_mp_rand(void)
     ExpectIntEQ(mp_rand(&a, 0, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* digits greater than the mp_int's capacity (a->size / FP_SIZE) is
      * rejected: drives the "digits > size" operand of that guard true (the
-     * valid call below drives it false). Backend-agnostic: expect any error. */
+     * valid call below drives it false). This rejection only exists on the
+     * fixed-size backends; USE_INTEGER_HEAP_MATH grows the mp_int instead
+     * (mp_set_bit) and would legally succeed (and force a large allocation),
+     * so the vector is limited to the fixed-size backends. */
+#ifndef USE_INTEGER_HEAP_MATH
     ExpectIntNE(mp_rand(&a, 100000, &rng), 0);
+#endif
     ExpectIntEQ(mp_rand(&a, digits, &rng), 0);
 
     mp_clear(&a);
