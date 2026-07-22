@@ -459,6 +459,13 @@ int wc_AsconAEAD128_DecryptUpdate(wc_AsconAEAD128* a, byte* out,
     else if (a->op != ASCON_AEAD128_DECRYPT)
         return BAD_STATE_E;
 
+    /* Nothing to process. The argument check above deliberately permits
+     * in == NULL when inSz == 0, so return here before the XMEMCPY() calls
+     * below would pass a NULL source pointer (undefined behavior, flagged by
+     * -fsanitize=undefined). Mirrors wc_AsconHash256_Update()/SetAD(). */
+    if (inSz == 0)
+        return 0;
+
     /* Process leftover block */
     if (a->lastBlkSz != 0) {
         word32 toProcess = min(ASCON_AEAD128_RATE - a->lastBlkSz, inSz);
