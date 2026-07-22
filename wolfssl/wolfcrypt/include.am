@@ -226,6 +226,10 @@ if BUILD_IOTSAFE
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/iotsafe/iotsafe.h
 endif
 
+if BUILD_VAULTIC
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/sealsq/vaultic.h
+endif
+
 if BUILD_PSA
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/psa/psa.h
 endif
