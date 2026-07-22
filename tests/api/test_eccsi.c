@@ -468,12 +468,21 @@ int test_wc_Eccsi_DecisionCoverage(void)
     ExpectIntEQ(wc_ValidateEccsiPair(&keyPriv, WC_HASH_TYPE_SHA256, id, idSz,
         &ssk, pvt, &valid), 0);
     ExpectIntEQ(valid, 1);
-    /* PVT not on the curve -> wc_ecc_is_point() fails -> IS_POINT_E. */
+    /* PVT not on the curve -> wc_ecc_is_point() fails. The error code is
+     * backend-dependent: the mp-based check (classic / WOLFSSL_SP_MATH_ALL /
+     * fast-math) returns IS_POINT_E, while the minimal WOLFSSL_SP_MATH backend
+     * routes through sp_ecc_is_point_*(), which reports MP_VAL for a point not
+     * on the curve. */
     ExpectIntEQ(mp_set(badPvt->x, 1), MP_OKAY);
     ExpectIntEQ(mp_set(badPvt->y, 1), MP_OKAY);
     ExpectIntEQ(mp_set(badPvt->z, 1), MP_OKAY);
+#if defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
+    ExpectIntEQ(wc_ValidateEccsiPair(&keyPub, WC_HASH_TYPE_SHA256, id, idSz,
+        &ssk, badPvt, &valid), WC_NO_ERR_TRACE(MP_VAL));
+#else
     ExpectIntEQ(wc_ValidateEccsiPair(&keyPub, WC_HASH_TYPE_SHA256, id, idSz,
         &ssk, badPvt, &valid), WC_NO_ERR_TRACE(IS_POINT_E));
+#endif
 
     /* --- wc_ValidateEccsiPvt() (CLIENT) ---
      * eccsi.c ~line 1579: (key==NULL) | (pvt==NULL) || (valid==NULL)
