@@ -5855,7 +5855,7 @@ int wc_OBJ_sn2nid(const char *sn)
     static int wolfssl_obj2txt_numeric(char *buf, int bufLen,
                                        const WOLFSSL_ASN1_OBJECT *a)
     {
-        int bufSz;
+        int    bufSz;
         int    length;
         word32 idx = 0;
         byte   tag;
@@ -5874,11 +5874,12 @@ int wc_OBJ_sn2nid(const char *sn)
             return ASN_PARSE_E;
         }
 
+        /* save an extra byte for null term. */
         if (bufLen < MAX_OID_STRING_SZ) {
             bufSz = bufLen - 1;
         }
         else {
-            bufSz = MAX_OID_STRING_SZ;
+            bufSz = MAX_OID_STRING_SZ - 1;
         }
 
         if ((bufSz = DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,

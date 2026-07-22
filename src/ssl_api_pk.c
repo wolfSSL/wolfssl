@@ -2858,7 +2858,7 @@ int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff)
                 WOLFSSL_MSG("wc_SrpSetPassword failed.");
                 return WOLFSSL_FAILURE;
             }
-            XFREE(ctx->srp_password, NULL, DYNAMIC_TYPE_SRP);
+            XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
             ctx->srp_password = NULL;
         } else {
             /* save password for wolfSSL_set_srp_username */

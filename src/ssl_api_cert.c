@@ -2836,6 +2836,11 @@ static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
         return NULL;
 
     sk = wolfSSL_sk_X509_new_null();
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error Creating sk");
+        return NULL;
+    }
+
     for (i = 0; i < ssl->session->chain.count; i++) {
         x509 = wolfSSL_X509_new_ex(ssl->heap);
         if (x509 == NULL) {

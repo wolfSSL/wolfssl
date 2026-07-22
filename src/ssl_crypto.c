@@ -4015,6 +4015,8 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     hash = WC_SHA;
     #elif !defined(NO_MD5)
     hash = WC_MD5;
+    #else
+    #error "No PRF hash function available"
     #endif
 
     /* get secret value from source of entropy */
@@ -4029,6 +4031,7 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
         PRIVATE_KEY_LOCK();
         ret = (ret == 0) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
     }
+    ForceZero(secret, sizeof(secret));
 #else
     /* fall back to just doing wolfSSL_RAND_bytes if PRF not avialbale */
     ret = wolfSSL_RAND_bytes(buf, num);
@@ -4202,6 +4205,7 @@ int wolfSSL_RAND_poll(void)
     }
 
     wc_UnLockMutex(&globalRNGMutex);
+    ForceZero(entropy, sizeof(entropy));
 
     return ret;
 }
