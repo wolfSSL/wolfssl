@@ -21,8 +21,8 @@
 
 /* WISeKey/SealSQ VaultIC secure element port (PK callbacks) */
 
-#ifndef _WOLFPORT_VAULTIC_H_
-#define _WOLFPORT_VAULTIC_H_
+#ifndef WOLFPORT_SEALSQ_VAULTIC_H
+#define WOLFPORT_SEALSQ_VAULTIC_H
 
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -57,7 +57,7 @@ WOLFSSL_API int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl,
 
 WOLFSSL_API int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx);
 
-/* Helper API's for setting up callbacks */
+/* Helper APIs for setting up callbacks */
 WOLFSSL_API int WOLFSSL_VAULTIC_SetupPkCallbacks(WOLFSSL_CTX* ctx);
 WOLFSSL_API int WOLFSSL_VAULTIC_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx);
 
@@ -67,4 +67,4 @@ WOLFSSL_API int WOLFSSL_VAULTIC_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx)
 
 #endif /* WOLFSSL_VAULTIC */
 
-#endif /* _WOLFPORT_VAULTIC_H_ */
+#endif /* WOLFPORT_SEALSQ_VAULTIC_H */
