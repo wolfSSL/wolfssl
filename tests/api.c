@@ -2528,17 +2528,20 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
     wolfSSL_free(ssl);
     ssl = NULL;
 
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
-    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL:eNULL"), WOLFSSL_SUCCESS);
-    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE, TLS_SHA256_SHA256),
+    {
 #ifdef WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
-                1 /* legacy: "eNULL" re-enables the integrity-only suite */
+        const int eNullExpectsSuite = 1;
 #else
-                0 /* default: SSL_NOT_DEFAULT, "eNULL" does not add it */
+        const int eNullExpectsSuite = 0;
 #endif
-                );
-    wolfSSL_free(ssl);
-    ssl = NULL;
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL:eNULL"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE, TLS_SHA256_SHA256),
+                    eNullExpectsSuite);
+        wolfSSL_free(ssl);
+        ssl = NULL;
+    }
 
     /* Explicit suite name remains the supported opt-in and works in both
      * modes. */
