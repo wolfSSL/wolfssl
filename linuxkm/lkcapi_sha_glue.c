@@ -433,6 +433,29 @@
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
 
+#ifdef WOLFSSL_SHA3
+/* struct wc_Sha3 won't fit in HASH_MAX_DESCSIZE. */
+struct km_sha3_state {
+    union {
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
+        struct wc_Sha3 sha3_224_state;
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
+        struct wc_Sha3 sha3_256_state;
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
+        struct wc_Sha3 sha3_384_state;
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
+        struct wc_Sha3 sha3_512_state;
+#endif
+        struct wc_Sha3 sha3_state;
+    };
+    /* pointers for the cleanup list */
+    struct list_head desc_ent;
+};
+#endif /* WOLFSSL_SHA3 */
+
 struct km_sha_state {
     union {
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1
@@ -451,28 +474,95 @@ struct km_sha_state {
         struct wc_Sha512 sha2_512_state;
 #endif
 
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
-        struct wc_Sha3 *sha3_224_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
-        struct wc_Sha3 *sha3_256_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
-        struct wc_Sha3 *sha3_384_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
-        struct wc_Sha3 *sha3_512_state;
-#endif
 #ifdef WOLFSSL_SHA3
-        void *sha3_ptr;
-#endif
+        struct km_sha3_state *sha3_state;
+#endif /* WOLFSSL_SHA3 */
     };
 };
 
+wc_static_assert(sizeof(struct km_sha_state) <= HASH_MAX_DESCSIZE);
+
 #ifdef WOLFSSL_SHA3
-WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct km_sha_state *t_ctx) {
-    free(t_ctx->sha3_ptr);
-    t_ctx->sha3_ptr = NULL;
+
+#ifdef WOLFSSL_LINUXKM_USE_MUTEXES
+    #error LINUXKM_LKCAPI_REGISTER_SHA3 requires spinlock-based mutexes.
+#endif
+
+/* The kernel list macros provoke "pointer of type `void *' used in arithmetic". */
+PRAGMA_DIAG_PUSH
+PRAGMA("GCC diagnostic ignored \"-Wpointer-arith\"");
+
+struct km_Sha3TfmCtx {
+    wolfSSL_Mutex desc_list_lock;
+    struct list_head desc_list;
+};
+
+WC_MAYBE_UNUSED static int km_sha3_init_tfm(struct crypto_shash *tfm)
+{
+    struct km_Sha3TfmCtx *t_ctx = (struct km_Sha3TfmCtx *)crypto_shash_ctx(tfm);
+    if (wc_InitMutex(&t_ctx->desc_list_lock) != 0)
+        return -EINVAL;
+    INIT_LIST_HEAD(&t_ctx->desc_list);
+    return 0;
+}
+
+WC_MAYBE_UNUSED static void km_sha3_exit_tfm(struct crypto_shash *tfm)
+{
+    struct km_Sha3TfmCtx *t_ctx = (struct km_Sha3TfmCtx *)crypto_shash_ctx(tfm);
+    struct km_sha3_state *s_ctx_i;
+    struct km_sha3_state *next_ent;
+
+    /* Don't need to lock the mutex to clean up, because the API contract
+     * forbids any use of descs at/after exit of the associated TFM -- i.e. the
+     * list holds only abandoned descs -- and we're deallocating the lock
+     * besides.  Moreover, we definitely don't want to lock, so that the
+     * iteration and heap operations aren't in a locked context that might make
+     * desc deallocation awkward or impossible (leak).
+     */
+    list_for_each_entry_safe(s_ctx_i, next_ent, &t_ctx->desc_list, desc_ent) {
+        list_del(&s_ctx_i->desc_ent);
+        ForceZero(s_ctx_i, sizeof(*s_ctx_i));
+        free(s_ctx_i);
+    }
+    (void)wc_FreeMutex(&t_ctx->desc_list_lock);
+}
+
+WC_MAYBE_UNUSED static int km_sha3_alloc_tstate(struct shash_desc *desc) {
+    struct km_Sha3TfmCtx *t_ctx =
+        (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_state *s_ctx = (struct km_sha_state *)shash_desc_ctx(desc);
+    s_ctx->sha3_state = (struct km_sha3_state *)malloc(sizeof(struct km_sha3_state));
+    if (! s_ctx->sha3_state)
+        return -ENOMEM;
+
+    if (wc_LockMutex(&t_ctx->desc_list_lock) != 0) {
+        free(s_ctx->sha3_state);
+        s_ctx->sha3_state = NULL;
+        return -EINVAL;
+    }
+    list_add(&s_ctx->sha3_state->desc_ent, &t_ctx->desc_list);
+    (void)wc_UnLockMutex(&t_ctx->desc_list_lock);
+
+    return 0;
+}
+
+WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct shash_desc *desc) {
+    struct km_Sha3TfmCtx *t_ctx =
+        (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_state *s_ctx = (struct km_sha_state *)shash_desc_ctx(desc);
+
+    if (s_ctx->sha3_state == NULL)
+        return;
+
+    if (wc_LockMutex(&t_ctx->desc_list_lock) != 0)
+        return;
+    list_del(&s_ctx->sha3_state->desc_ent);
+    (void)wc_UnLockMutex(&t_ctx->desc_list_lock);
+
+    wc_Sha3_256_Free(&s_ctx->sha3_state->sha3_state);
+    ForceZero(s_ctx->sha3_state, sizeof *s_ctx->sha3_state);
+    free(s_ctx->sha3_state);
+    s_ctx->sha3_state = NULL;
 }
 
 WC_MAYBE_UNUSED static int sha3_test_once(void) {
@@ -484,6 +574,9 @@ WC_MAYBE_UNUSED static int sha3_test_once(void) {
     }
     return ret;
 }
+
+PRAGMA_DIAG_POP
+
 #endif
 
 #define WC_LINUXKM_SHA1_IMPLEMENT(name, digest_size, block_size,           \
@@ -761,15 +854,14 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
     struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
     int ret;                                                               \
                                                                            \
-    ctx-> name ## _state = malloc(sizeof *ctx-> name ## _state);           \
-    if (! ctx-> name ## _state)                                            \
-        return -ENOMEM;                                                    \
-    ret = init_f(ctx-> name ## _state, NULL, INVALID_DEVID);               \
+    ret = km_sha3_alloc_tstate(desc);                                      \
+    if (ret)                                                               \
+        return ret;                                                        \
+    ret = init_f(&ctx->sha3_state-> name ## _state, NULL, INVALID_DEVID);  \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
-        free(ctx-> name ## _state);                                        \
-        ctx-> name ## _state = NULL;                                       \
+        km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
 }                                                                          \
@@ -779,13 +871,12 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
 {                                                                          \
     struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
                                                                            \
-    int ret = update_f(ctx-> name ## _state, data, len);                   \
+    int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
-        free_f(ctx-> name ## _state);                                      \
-        km_sha3_free_tstate(ctx);                                          \
+        km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
 }                                                                          \
@@ -793,10 +884,9 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
                                                                            \
-    int ret = final_f(ctx-> name ## _state, out);                          \
+    int ret = final_f(&ctx->sha3_state-> name ## _state, out);             \
                                                                            \
-    free_f(ctx-> name ## _state);                                          \
-    km_sha3_free_tstate(ctx);                                              \
+    km_sha3_free_tstate(desc);                                             \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
@@ -808,11 +898,10 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
 {                                                                          \
     struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
                                                                            \
-    int ret = update_f(ctx-> name ## _state, data, len);                   \
+    int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
     if (ret != 0) {                                                        \
-        free_f(ctx-> name ## _state);                                      \
-        km_sha3_free_tstate(ctx);                                          \
+        km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
@@ -822,14 +911,26 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
 static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len, u8 *out)               \
 {                                                                          \
-    int ret = km_ ## name ## _init(desc);                                  \
+    struct km_sha3_state sha3_state;                                       \
+    int ret;                                                               \
+                                                                           \
+    (void)desc;                                                            \
+    ret = init_f(&sha3_state. name ## _state, NULL, INVALID_DEVID);        \
     if (ret != 0)                                                          \
-        return ret;                                                        \
-    return km_ ## name ## _finup(desc, data, len, out);                    \
+        return -EINVAL;                                                    \
+    ret = update_f(&sha3_state. name ## _state, data, len);                \
+    if (ret == 0)                                                          \
+        ret = final_f(&sha3_state. name ## _state, out);                   \
+                                                                           \
+    free_f(&sha3_state. name ## _state);                                   \
+    ForceZero(&sha3_state, sizeof sha3_state);                             \
+                                                                           \
+    return ret == 0 ? 0 : -EINVAL;                                         \
 }                                                                          \
                                                                            \
 static struct shash_alg name ## _alg =                                     \
 {                                                                          \
+    .init_tfm       =       km_sha3_init_tfm,                              \
     .digestsize     =       (digest_size),                                 \
     .init           =       km_ ## name ## _init,                          \
     .update         =       km_ ## name ## _update,                        \
@@ -837,11 +938,13 @@ static struct shash_alg name ## _alg =                                     \
     .finup          =       km_ ## name ## _finup,                         \
     .digest         =       km_ ## name ## _digest,                        \
     .descsize       =       sizeof(struct km_sha_state),                   \
+    .exit_tfm       =       km_sha3_exit_tfm,                              \
     .base           =       {                                              \
         .cra_name        =      (this_cra_name),                           \
         .cra_driver_name =      (this_cra_driver_name),                    \
         .cra_priority    =      WOLFSSL_LINUXKM_LKCAPI_PRIORITY,           \
         .cra_blocksize   =      (block_size),                              \
+        .cra_ctxsize     =      sizeof(struct km_Sha3TfmCtx),              \
         .cra_module      =      THIS_MODULE                                \
     }                                                                      \
 };                                                                         \
