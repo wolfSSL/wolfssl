@@ -4708,7 +4708,14 @@ WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, unsigned char type,
 enum {
     WOLFSSL_ALPN_NO_MATCH = 0,
     WOLFSSL_ALPN_MATCH    = 1,
+    /* On mismatch, continue the handshake without an agreed protocol, like
+     * OpenSSL. This intentionally does NOT send the RFC 7301 section 3.2 fatal
+     * no_application_protocol alert, so it is not compliant with that SHALL
+     * requirement. Select this only when OpenSSL-compatible behavior is
+     * needed. */
     WOLFSSL_ALPN_CONTINUE_ON_MISMATCH = 2,
+    /* On mismatch, send the fatal no_application_protocol alert and fail the
+     * handshake, as required by RFC 7301 section 3.2. */
     WOLFSSL_ALPN_FAILED_ON_MISMATCH = 4
 };
 

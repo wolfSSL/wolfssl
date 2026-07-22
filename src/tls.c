@@ -1957,8 +1957,10 @@ static int ALPN_find_match(WOLFSSL *ssl, TLSX **pextension,
     if (sel == NULL) {
         WOLFSSL_MSG("No ALPN protocol match");
 
-        /* do nothing if no protocol match between client and server and option
-         is set to continue (like OpenSSL) */
+        /* The caller explicitly opted out of failing on mismatch by passing
+         * WOLFSSL_ALPN_CONTINUE_ON_MISMATCH, so continue without an agreed
+         * protocol like OpenSSL. This deliberately skips the RFC 7301 section
+         * 3.2 fatal no_application_protocol alert. */
         if (list->options & WOLFSSL_ALPN_CONTINUE_ON_MISMATCH) {
             WOLFSSL_MSG("Continue on mismatch");
         }
