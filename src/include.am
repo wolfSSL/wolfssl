@@ -1895,6 +1895,28 @@ endif BUILD_ARM_THUMB
 endif BUILD_ARMASM
 endif
 
+if BUILD_WC_MCELIECE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mceliece.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mceliece_mat.c
+endif
+
+if BUILD_WC_MCELIECE
+if !BUILD_X86_ASM
+if BUILD_INTELASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mceliece_asm.S
+endif
+endif
+if BUILD_ARMASM_NEON
+if BUILD_ARMASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-mceliece-asm_c.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-mceliece-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-mceliece-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-mceliece-asm.S
+endif !BUILD_ARMASM_INLINE
+endif BUILD_ARMASM_NEON
+endif
+
 if BUILD_ERROR_STRINGS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/error.c
 endif
