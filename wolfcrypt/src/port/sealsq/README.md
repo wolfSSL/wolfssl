@@ -50,8 +50,11 @@ separate target (for example the SealSQ devkit builds it into its own
 `vaultic_wolfssl` library alongside an `add_subdirectory(wolfssl)` CMake
 build), two things are required so the file sees the wolfSSL configuration:
 
-* Define `WOLFSSL_USE_OPTIONS_H` when compiling `vaultic.c`, so
-  `settings.h` pulls in the generated `wolfssl/options.h`. Without it the
+* Make the file see the wolfSSL configuration. For an autotools build define
+  `WOLFSSL_USE_OPTIONS_H`, so `settings.h` pulls in the generated
+  `wolfssl/options.h`. For a build that does not use `./configure` (so there is
+  no generated `options.h`), define `WOLFSSL_USER_SETTINGS` instead and provide
+  a `user_settings.h` that lists all the build options. Without one of these the
   wolfSSL headers fall back to defaults (`ecc_key` is incomplete,
   `ECC_SECP256R1` is undeclared).
 * Enable PK callbacks through the wolfSSL build option
@@ -61,6 +64,11 @@ build), two things are required so the file sees the wolfSSL configuration:
   command-line define once `options.h` is included.
 
 ## Usage
+
+The port offers two ways to route ECC to the chip. They can be used
+independently or together.
+
+### TLS PK callbacks
 
 ```c
 WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLS_client_method());
@@ -76,9 +84,34 @@ WOLFSSL_VAULTIC_SetupPkCallbackCtx(ssl, NULL);
 /* ... proceed with the TLS handshake ... */
 ```
 
-The VaultIC-TLS SDK must be initialized (`vlt_tls_init()`) before the
-handshake and closed (`vlt_tls_close()`) afterwards; see the SealSQ devkit
-sample applications.
+### Crypto callback (devId)
+
+The crypto callback dispatches wolfCrypt ECC operations (not just the TLS
+handshake) to the VaultIC through the `WOLF_CRYPTO_CB` / devId framework.
+Register the device once, then select it with a devId:
+
+```c
+/* register the VaultIC crypto callback under a devId */
+WOLFSSL_VAULTIC_RegisterCryptoCb(WOLF_VAULTIC_DEVID);
+
+/* TLS: route this CTX's crypto to the device */
+wolfSSL_CTX_SetDevId(ctx, WOLF_VAULTIC_DEVID);
+
+/* or bare wolfCrypt: init a key against the device */
+wc_ecc_init_ex(&key, NULL, WOLF_VAULTIC_DEVID);
+```
+
+The VaultIC-TLS SDK must be initialized (`vlt_tls_init()`) before use and
+closed (`vlt_tls_close()`) afterwards; see the SealSQ devkit sample
+applications.
+
+### Curve support
+
+The port offloads P-256 (SECP256R1) only. The VaultIC 408 silicon supports
+P-384, but the vendor `vlt_tls` API exposes P-256 entry points only, so
+P-384 would require vendor `vlt_tls_*_P384` functions. For any other curve
+the crypto callback returns `CRYPTOCB_UNAVAILABLE` and the PK callbacks
+return `NOT_COMPILED_IN`, so wolfSSL falls back to software.
 
 ## Building and provisioning with the SealSQ devkit
 

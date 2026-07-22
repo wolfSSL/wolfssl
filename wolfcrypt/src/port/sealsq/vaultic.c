@@ -33,8 +33,8 @@
 
 #ifdef WOLFSSL_VAULTIC
 
-#ifndef HAVE_PK_CALLBACKS
-#error WOLFSSL_VAULTIC requires HAVE_PK_CALLBACKS
+#if !defined(HAVE_PK_CALLBACKS) && !defined(WOLF_CRYPTO_CB)
+#error WOLFSSL_VAULTIC requires HAVE_PK_CALLBACKS or WOLF_CRYPTO_CB
 #endif
 
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -42,10 +42,63 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/port/sealsq/vaultic.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #include "vaultic_tls.h"   /* vendor VaultIC-TLS SDK (external) */
 
 #define P256_BYTE_SZ 32
+
+/* Verify a P-256 ECDSA signature on the VaultIC. Shared by the PK verify
+ * callback and the crypto callback. Sets *result=1 and returns 0 on a valid
+ * signature; returns WC_HW_E if the device rejects it; returns other wolfCrypt
+ * errors on encode/decode failure. */
+static int vaultic_p256_verify(ecc_key* key, const byte* hash, word32 hashSz,
+    const byte* sig, word32 sigSz, int* result)
+{
+    int err;
+    byte signature[2*P256_BYTE_SZ] = {0};
+    byte *r, *s;
+    word32 r_len = P256_BYTE_SZ, s_len = P256_BYTE_SZ;
+    byte pubKeyX[P256_BYTE_SZ] = {0};
+    byte pubKeyY[P256_BYTE_SZ] = {0};
+    word32 pubKeyX_len = sizeof(pubKeyX);
+    word32 pubKeyY_len = sizeof(pubKeyY);
+
+    *result = 0;
+
+    /* Extract raw X and Y coordinates of the public key */
+    if ((err = wc_ecc_export_public_raw(key, pubKeyX, &pubKeyX_len,
+            pubKeyY, &pubKeyY_len)) != 0) {
+        WOLFSSL_MSG("wc_ecc_export_public_raw");
+        return err;
+    }
+    vlt_tls_left_pad_P256(pubKeyX, pubKeyX_len);
+    vlt_tls_left_pad_P256(pubKeyY, pubKeyY_len);
+
+    /* Extract R and S from the signature */
+    r = &signature[0];
+    s = &signature[sizeof(signature)/2];
+    if ((err = wc_ecc_sig_to_rs(sig, sigSz, r, &r_len, s, &s_len)) != 0) {
+        WOLFSSL_MSG("wc_ecc_sig_to_rs");
+        return err;
+    }
+    vlt_tls_left_pad_P256(r, r_len);
+    vlt_tls_left_pad_P256(s, s_len);
+
+    /* Verify signature with the VaultIC */
+    if (vlt_tls_verify_signature_P256(hash, hashSz, signature, pubKeyX,
+            pubKeyY) != 0) {
+        WOLFSSL_MSG("vlt_tls_verify_signature_P256");
+        return WC_HW_E;
+    }
+
+    *result = 1;
+    return 0;
+}
+
+#ifdef HAVE_PK_CALLBACKS
 
 #ifndef VLT_TLS_NO_ECDH
 /**
@@ -100,13 +153,6 @@ int WOLFSSL_VAULTIC_EccVerifyCb(WOLFSSL* ssl,
                                 int* result, void* ctx)
 {
     int err;
-    byte signature[2*P256_BYTE_SZ] = {0};
-    byte *r, *s;
-    word32 r_len = P256_BYTE_SZ, s_len = P256_BYTE_SZ;
-    byte pubKeyX[P256_BYTE_SZ] = {0};
-    byte pubKeyY[P256_BYTE_SZ] = {0};
-    word32 pubKeyX_len = sizeof(pubKeyX);
-    word32 pubKeyY_len = sizeof(pubKeyY);
     ecc_key key;
     word32 inOutIdx = 0;
 
@@ -132,18 +178,6 @@ int WOLFSSL_VAULTIC_EccVerifyCb(WOLFSSL* ssl,
         return err;
     }
 
-    /* Extract Raw X and Y coordinates of the public key */
-    if ((err = wc_ecc_export_public_raw(&key, pubKeyX, &pubKeyX_len,
-            pubKeyY, &pubKeyY_len)) != 0) {
-        WOLFSSL_MSG("wc_ecc_export_public_raw");
-        wc_ecc_free(&key);
-        return err;
-    }
-
-    /* Left pad public key */
-    vlt_tls_left_pad_P256(pubKeyX, pubKeyX_len);
-    vlt_tls_left_pad_P256(pubKeyY, pubKeyY_len);
-
     /* Check requested curve */
     if (key.dp->id != ECC_SECP256R1) {
         WOLFSSL_MSG("id != ECC_SECP256R1");
@@ -151,31 +185,10 @@ int WOLFSSL_VAULTIC_EccVerifyCb(WOLFSSL* ssl,
         return NOT_COMPILED_IN;
     }
 
-    /* Extract R and S from signature */
-    XMEMSET(signature, 0, sizeof(signature));
-    r = &signature[0];
-    s = &signature[sizeof(signature)/2];
-    err = wc_ecc_sig_to_rs(sig, sigSz, r, &r_len, s, &s_len);
+    err = vaultic_p256_verify(&key, hash, hashSz, sig, sigSz, result);
     wc_ecc_free(&key);
-    if (err != 0) {
-        WOLFSSL_MSG("wc_ecc_sig_to_rs");
-        return err;
-    }
 
-    /* Left pad r & s */
-    vlt_tls_left_pad_P256(r, r_len);
-    vlt_tls_left_pad_P256(s, s_len);
-
-    /* Verify signature with VaultIC */
-    if (vlt_tls_verify_signature_P256(hash, hashSz, signature, pubKeyX,
-            pubKeyY) != 0) {
-        WOLFSSL_MSG("vlt_tls_verify_signature_P256");
-        return WC_HW_E;
-    }
-    else {
-        *result = 1;
-        return 0;
-    }
+    return err;
 }
 
 
@@ -330,7 +343,9 @@ int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherPubKey,
 
     return 0;
 }
-#endif
+#endif /* VLT_TLS_NO_ECDH */
+
+#endif /* HAVE_PK_CALLBACKS */
 
 /**
  * \brief Read VaultIC Certificates and add them to wolfssl context
@@ -425,7 +440,7 @@ free_cert_buffers:
     return ret;
 }
 
-
+#ifdef HAVE_PK_CALLBACKS
 int WOLFSSL_VAULTIC_SetupPkCallbacks(WOLFSSL_CTX* ctx)
 {
     wolfSSL_CTX_SetEccSignCb(ctx, WOLFSSL_VAULTIC_EccSignCb);
@@ -447,5 +462,138 @@ int WOLFSSL_VAULTIC_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx)
     wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
     return 0;
 }
+#endif /* HAVE_PK_CALLBACKS */
+
+#ifdef WOLF_CRYPTO_CB
+
+/**
+ * \brief wolfCrypt crypto callback. Dispatches ECC P-256 operations to the
+ *        VaultIC. Register with WOLFSSL_VAULTIC_RegisterCryptoCb() and select
+ *        it with a devId (wolfSSL_CTX_SetDevId / wc_ecc_init_ex). Unsupported
+ *        curves and operations return CRYPTOCB_UNAVAILABLE so wolfCrypt falls
+ *        back to software. Note: the VaultIC 408 silicon supports P-384, but
+ *        the vendor vlt_tls API exposes P-256 only, so P-384 is not offloaded.
+ */
+int WOLFSSL_VAULTIC_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    int rc = CRYPTOCB_UNAVAILABLE;
+
+    (void)devId;
+    (void)ctx;
+
+    if (info == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type != WC_ALGO_TYPE_PK) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    switch (info->pk.type) {
+        case WC_PK_TYPE_ECDSA_SIGN:
+        {
+            byte sig_R[P256_BYTE_SZ] = {0};
+            byte sig_S[P256_BYTE_SZ] = {0};
+
+            WOLFSSL_MSG("WOLFSSL_VAULTIC_CryptoCb: ECDSA sign");
+            if (info->pk.eccsign.key == NULL ||
+                    info->pk.eccsign.key->dp == NULL ||
+                    info->pk.eccsign.key->dp->id != ECC_SECP256R1) {
+                /* P-384 is a vendor vlt_tls gap; let software handle it */
+                break;
+            }
+            if (vlt_tls_compute_signature_P256(info->pk.eccsign.in,
+                    info->pk.eccsign.inlen, sig_R, sig_S) != 0) {
+                WOLFSSL_MSG("vlt_tls_compute_signature_P256");
+                rc = WC_HW_E;
+                break;
+            }
+            rc = wc_ecc_rs_raw_to_sig(sig_R, P256_BYTE_SZ, sig_S, P256_BYTE_SZ,
+                    info->pk.eccsign.out, info->pk.eccsign.outlen);
+            break;
+        }
+
+        case WC_PK_TYPE_ECDSA_VERIFY:
+            WOLFSSL_MSG("WOLFSSL_VAULTIC_CryptoCb: ECDSA verify");
+            if (info->pk.eccverify.key == NULL ||
+                    info->pk.eccverify.key->dp == NULL ||
+                    info->pk.eccverify.key->dp->id != ECC_SECP256R1) {
+                break;
+            }
+            rc = vaultic_p256_verify(info->pk.eccverify.key,
+                    info->pk.eccverify.hash, info->pk.eccverify.hashlen,
+                    info->pk.eccverify.sig, info->pk.eccverify.siglen,
+                    info->pk.eccverify.res);
+            break;
+
+#ifndef VLT_TLS_NO_ECDH
+        case WC_PK_TYPE_ECDH:
+        {
+            byte peerX[P256_BYTE_SZ] = {0};
+            byte peerY[P256_BYTE_SZ] = {0};
+            word32 peerX_len = sizeof(peerX);
+            word32 peerY_len = sizeof(peerY);
+
+            WOLFSSL_MSG("WOLFSSL_VAULTIC_CryptoCb: ECDH");
+            if (info->pk.ecdh.private_key == NULL ||
+                    info->pk.ecdh.private_key->dp == NULL ||
+                    info->pk.ecdh.private_key->dp->id != ECC_SECP256R1) {
+                break;
+            }
+            if ((rc = wc_ecc_export_public_raw(info->pk.ecdh.public_key,
+                    peerX, &peerX_len, peerY, &peerY_len)) != 0) {
+                WOLFSSL_MSG("wc_ecc_export_public_raw");
+                break;
+            }
+            vlt_tls_left_pad_P256(peerX, peerX_len);
+            vlt_tls_left_pad_P256(peerY, peerY_len);
+            if (vlt_tls_compute_shared_secret_P256(peerX, peerY,
+                    info->pk.ecdh.out) != 0) {
+                WOLFSSL_MSG("vlt_tls_compute_shared_secret_P256");
+                rc = WC_HW_E;
+                break;
+            }
+            *info->pk.ecdh.outlen = P256_BYTE_SZ;
+            rc = 0;
+            break;
+        }
+
+        case WC_PK_TYPE_EC_KEYGEN:
+        {
+            byte pubKeyX[P256_BYTE_SZ] = {0};
+            byte pubKeyY[P256_BYTE_SZ] = {0};
+
+            WOLFSSL_MSG("WOLFSSL_VAULTIC_CryptoCb: EC keygen");
+            if (info->pk.eckg.curveId != ECC_SECP256R1) {
+                break;
+            }
+            if (vlt_tls_keygen_P256(pubKeyX, pubKeyY) != 0) {
+                WOLFSSL_MSG("vlt_tls_keygen_P256");
+                rc = WC_HW_E;
+                break;
+            }
+            rc = wc_ecc_import_unsigned(info->pk.eckg.key, pubKeyX, pubKeyY,
+                    NULL, ECC_SECP256R1);
+            break;
+        }
+#endif /* VLT_TLS_NO_ECDH */
+
+        default:
+            /* rc stays CRYPTOCB_UNAVAILABLE -> software fallback */
+            break;
+    }
+
+    return rc;
+}
+
+/**
+ * \brief Register the VaultIC crypto callback for the given devId.
+ */
+int WOLFSSL_VAULTIC_RegisterCryptoCb(int devId)
+{
+    return wc_CryptoCb_RegisterDevice(devId, WOLFSSL_VAULTIC_CryptoCb, NULL);
+}
+
+#endif /* WOLF_CRYPTO_CB */
 
 #endif /* WOLFSSL_VAULTIC */
