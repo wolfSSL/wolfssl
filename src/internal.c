@@ -3731,6 +3731,15 @@ static word16 InitSuites_Tls13(Suites* suites, word16 idx, int tls1_3,
 #endif
 
 #ifdef HAVE_NULL_CIPHER
+    /* RFC 9150 integrity-only (zero-confidentiality) TLS 1.3 suites.
+     * These provide authentication and integrity but no confidentiality, so
+     * they are NOT advertised in the default cipher preference list. A caller
+     * that genuinely needs them (e.g. constrained/IoT deployments) must opt in
+     * explicitly with a cipher list, for example:
+     *     wolfSSL_set_cipher_list(ssl, "TLS13-SHA256-SHA256");
+     * Define WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT to restore the legacy
+     * behaviour of including them in the default list. */
+    #ifdef WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
     #ifdef BUILD_TLS_SHA256_SHA256
         if (tls1_3 && haveNull) {
             suites->suites[idx++] = ECC_BYTE;
@@ -3744,6 +3753,7 @@ static word16 InitSuites_Tls13(Suites* suites, word16 idx, int tls1_3,
             suites->suites[idx++] = TLS_SHA384_SHA384;
         }
     #endif
+    #endif /* WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT */
 #endif
 
     return idx;
