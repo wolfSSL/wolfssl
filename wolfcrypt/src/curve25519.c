@@ -563,7 +563,10 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         return BAD_FUNC_ARG;
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Curve25519Gen(rng, keysize, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -571,6 +574,10 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+    /* software path stripped; callback is the only provider */
+    return NO_VALID_DEVID;
+#else
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_X25519) && \
     defined(WOLFSSL_ASYNC_CRYPT_SW)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_X25519) {
@@ -616,6 +623,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 #endif /* !WOLFSSL_SE050 */
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 }
 
 #ifdef HAVE_CURVE25519_SHARED_SECRET
@@ -722,7 +730,10 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 #endif
 
 #ifdef WOLF_CRYPTO_CB
-    if (private_key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (private_key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Curve25519(private_key, public_key, out, outlen,
             endian);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -731,6 +742,10 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+    /* software path stripped; callback is the only provider */
+    return NO_VALID_DEVID;
+#else
 #ifdef WC_X25519_NONBLOCK
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_X25519) && \
@@ -816,6 +831,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     }
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 }
 
 #endif /* HAVE_CURVE25519_SHARED_SECRET */

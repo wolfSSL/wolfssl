@@ -63,14 +63,15 @@
     #define CURVED25519_ASM
 #endif
 
-/* curve25519 shares the ed25519 field math, and borrows the group math
- * on some builds.
- * For WOLF_CRYPTO_CB_ONLY_ED25519 to strip the fe/ge modules, ensure that
- * curve25519 is disabled. */
+/* curve25519 always uses its own field math, but on some builds it borrows
+ * ed25519's group math via WOLFSSL_CURVE25519_USE_ED25519 below. Under
+ * WOLF_CRYPTO_CB_ONLY_ED25519 ed25519's group math is removed. */
 #if (defined(CURVED25519_ASM_64BIT) || defined(HAVE_ED25519)) && \
         !defined(WOLFSSL_CURVE25519_BLINDING) && \
         !defined(WOLFSSL_CURVE25519_NOT_USE_ED25519) && \
-        (!defined(WOLF_CRYPTO_CB_ONLY_ED25519) || defined(HAVE_CURVE25519))
+        (!defined(WOLF_CRYPTO_CB_ONLY_ED25519) || \
+         (defined(HAVE_CURVE25519) && \
+          !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)))
     #undef  WOLFSSL_CURVE25519_USE_ED25519
     #define WOLFSSL_CURVE25519_USE_ED25519
 #endif

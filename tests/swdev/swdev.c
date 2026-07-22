@@ -43,6 +43,9 @@
 #ifdef HAVE_ED25519
 #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
+#ifdef HAVE_CURVE25519
+#include <wolfssl/wolfcrypt/curve25519.h>
+#endif
 
 static int swdev_initialized = 0;
 
@@ -317,6 +320,23 @@ static int swdev_ed25519_check_key(wc_CryptoInfo* info)
     return ret;
 }
 #endif /* HAVE_ED25519 */
+
+#ifdef HAVE_CURVE25519
+static int swdev_curve25519_keygen(wc_CryptoInfo* info)
+{
+    return wc_curve25519_make_key(info->pk.curve25519kg.rng,
+        info->pk.curve25519kg.size, info->pk.curve25519kg.key);
+}
+
+#ifdef HAVE_CURVE25519_SHARED_SECRET
+static int swdev_curve25519(wc_CryptoInfo* info)
+{
+    return wc_curve25519_shared_secret_ex(info->pk.curve25519.private_key,
+        info->pk.curve25519.public_key, info->pk.curve25519.out,
+        info->pk.curve25519.outlen, info->pk.curve25519.endian);
+}
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
+#endif /* HAVE_CURVE25519 */
 
 #ifndef NO_SHA256
 /* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
@@ -913,7 +933,8 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         return ret;
 
     switch (info->algo_type) {
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+    defined(HAVE_CURVE25519)
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
     #ifndef NO_RSA
@@ -964,6 +985,14 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_ED25519_CHECK_KEY:
             return swdev_ed25519_check_key(info);
     #endif /* HAVE_ED25519 */
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519_KEYGEN:
+            return swdev_curve25519_keygen(info);
+        #ifdef HAVE_CURVE25519_SHARED_SECRET
+        case WC_PK_TYPE_CURVE25519:
+            return swdev_curve25519(info);
+        #endif
+    #endif /* HAVE_CURVE25519 */
         default:
             return CRYPTOCB_UNAVAILABLE;
         }

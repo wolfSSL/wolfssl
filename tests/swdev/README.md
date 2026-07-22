@@ -16,6 +16,7 @@ The switches it supports are:
 | `WOLF_CRYPTO_CB_ONLY_SHA512`   | software SHA-512 | SHA-512 via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_AES`      | software AES   | AES via CryptoCb   |
 | `WOLF_CRYPTO_CB_ONLY_ED25519`  | software Ed25519 | Ed25519 via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_CURVE25519` | software X25519 | X25519 via CryptoCb |
 
 When a test program calls e.g. `wc_AesCbcEncrypt()` against a libwolfssl
 built with `-DWOLF_CRYPTO_CB_ONLY_AES`, the software AES path is gone;
@@ -57,7 +58,7 @@ internal copy of the AES code, and returns the result.
    |   wc_SwDev_Callback(devId, info, ctx)                     |
    |     - swdev_ensure_init() lazy wolfCrypt_Init             |
    |     - switch (info->algo_type):                           |
-   |         PK     -> RSA / ECC / Ed25519 software impl       |
+   |         PK     -> RSA/ECC/Ed25519/X25519 software impl    |
    |         HASH   -> SHA-256 software impl                   |
    |         CIPHER -> AES (CBC/CTR/ECB/GCM/CCM) software impl |
    |                                                           |
@@ -72,7 +73,8 @@ internal copy of the AES code, and returns the result.
 The whole mechanism rests on compiling the wolfcrypt sources twice:
 
 1. **libwolfssl** is built normally with the user's `_ONLY_*` flags
-   set, so its software RSA/ECC/SHA-256/SHA-512/AES/Ed25519 paths are gone.
+   set, so its software RSA/ECC/SHA-256/SHA-512/AES/Ed25519/X25519 paths
+   are gone.
 2. **swdev** recompiles the same source set under
    `tests/swdev/user_settings.h`, which `#undef`s every `_ONLY_*`
    macro. swdev therefore contains the full software implementations.
