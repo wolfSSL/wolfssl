@@ -153,19 +153,19 @@ int main(void)
 #ifndef WOLFSSL_HAVE_SP_ECC
     {
         mp_int scalarN;
-        ecc_point* addRes = wc_ecc_new_point();
+        ecc_point* addResult = wc_ecc_new_point();
 
-        if (addRes == NULL) wb_fail = 1;
+        if (addResult == NULL) wb_fail = 1;
         mp_init(&scalarN);
         mp_set(&scalarN, 7);
 
-        if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey, addRes, 0)
+        if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey, addResult, 0)
                 != 0) wb_fail = 1;               /* map == 0 (false) */
-        if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey, addRes, 1)
+        if (sakke_mulmod_base_add(&key, &scalarN, &key.ecc.pubkey, addResult, 1)
                 != 0) wb_fail = 1;               /* map == 1 (true) */
 
         mp_free(&scalarN);
-        if (addRes != NULL) wc_ecc_del_point(addRes);
+        if (addResult != NULL) wc_ecc_del_point(addResult);
         WB_NOTE("sakke_mulmod_base_add() map==0/map==1 (line 411) "
             "exercised");
     }

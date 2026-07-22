@@ -120,14 +120,15 @@
  * wc_HpkeSetupBaseSender(), and wc_HpkeDecap() each carry their own
  * "hpke == NULL" guard (hpke.c ~lines 494, 563, 632, 654, 698, 794/888,
  * 1032). Every public entry point above already rejects a NULL hpke before
- * calling into these statics, so those inner guards are structurally
- * unreachable from tests/api and would need a white-box (direct static-
- * function call) test to cover.
+ * calling into these internal helpers, so those inner guards are
+ * structurally unreachable from tests/api and would need a white-box (direct
+ * internal-function call) test to cover.
  */
 int test_wc_Hpke_DecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519) && !defined(NO_SHA256) && defined(WOLFSSL_AES_128)
+#if defined(HAVE_HPKE) && defined(HAVE_CURVE25519) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_AES_128)
     Hpke hpke[1];
     HpkeBaseContext sealCtx[1];
     HpkeBaseContext openCtx[1];
@@ -540,7 +541,8 @@ int test_wc_Hpke_DecisionCoverage(void)
 int test_wc_Hpke_FeatureCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519) && !defined(NO_SHA256) && defined(WOLFSSL_AES_128)
+#if defined(HAVE_HPKE) && defined(HAVE_CURVE25519) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_AES_128)
     Hpke hpke[1];
     HpkeBaseContext context[1];
     WC_RNG rng[1];
