@@ -8271,13 +8271,32 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
 #endif
 
-        if (ctx->suites == NULL) {
-            /* suites */
-            ret = AllocateCtxSuites(ctx);
-            if (ret != 0)
-                return ret;
-            InitSSL_CTX_Suites(ctx);
+        /* Lazily allocating and deriving ctx->suites mutates shared CTX state.
+         * A CTX is commonly configured once and then shared by many threads
+         * that each call wolfSSL_new(), so guard the check and initialization
+         * with the CTX mutex. Without it, two threads can both observe
+         * ctx->suites == NULL and both allocate, leaking the Suites that loses
+         * the race. */
+        ret = wolfSSL_RefWithMutexLock(&ctx->ref);
+        if (ret != 0) {
+            WOLFSSL_MSG("Failed to lock CTX mutex for suites init");
+            return ret;
         }
+        if (ctx->suites == NULL) {
+            ret = AllocateCtxSuites(ctx);
+            if (ret == 0)
+                InitSSL_CTX_Suites(ctx);
+        }
+        if (wolfSSL_RefWithMutexUnlock(&ctx->ref) != 0) {
+            WOLFSSL_MSG("Failed to unlock CTX mutex after suites init");
+            /* A stuck lock would deadlock the up_ref in SetSSL_CTX() below, so
+             * surface it as an error. Keep any earlier suites-init error, as
+             * that is the more meaningful failure. */
+            if (ret == 0)
+                ret = BAD_MUTEX_E;
+        }
+        if (ret != 0)
+            return ret;
 #ifdef OPENSSL_ALL
         ssl->suitesStack = NULL;
 #endif
