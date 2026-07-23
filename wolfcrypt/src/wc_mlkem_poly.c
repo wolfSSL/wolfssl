@@ -1868,6 +1868,14 @@ static void mlkem_keygen_c(sword16* s, sword16* t, sword16* e, const sword16* a,
 void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* Alg 13: Steps 16-18 */
+        mlkem_keygen_avx512(s, t, e, a, k);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Alg 13: Steps 16-18 */
         mlkem_keygen_avx2(s, t, e, a, k);
@@ -2073,6 +2081,13 @@ void mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
     const sword16* m, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_encapsulate_avx512(pub, u, v, a, y, e1, e2, m, k);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_encapsulate_avx2(pub, u, v, a, y, e1, e2, m, k);
         RESTORE_VECTOR_REGISTERS();
@@ -2269,6 +2284,13 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
     const sword16* v, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_decapsulate_avx512(s, w, u, v, k);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decapsulate_avx2(s, w, u, v, k);
         RESTORE_VECTOR_REGISTERS();
@@ -2286,6 +2308,95 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
 /******************************************************************************/
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+
+/* Rejection sampling used by the matrix generators. Dispatches to the AVX512
+ * implementation (single vpcompressw left-pack) when available, otherwise the
+ * AVX2 one. Both produce identical output for the multiple-of-3 input lengths
+ * the matrix generator uses.
+ *
+ * The AVX512 left-pack uses vpcompressw, an AVX512-VBMI2 instruction, so both
+ * the AVX512 and VBMI variants require VBMI2 - on AVX512F/BW parts without
+ * VBMI2 (e.g. Skylake-X, Cascade Lake) fall back to the AVX2 sampler. */
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+static WC_INLINE unsigned int mlkem_rej_uniform_n_ins(sword16* p,
+    unsigned int len, const byte* r, unsigned int rLen)
+{
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) &&
+            IS_INTEL_AVX512_VBMI2(cpuid_flags)) {
+        return mlkem_rej_uniform_n_avx512_vbmi(p, len, r, rLen);
+    }
+#endif
+    if (IS_INTEL_AVX512_VBMI2(cpuid_flags)) {
+        return mlkem_rej_uniform_n_avx512(p, len, r, rLen);
+    }
+    return mlkem_rej_uniform_n_avx2(p, len, r, rLen);
+}
+static WC_INLINE unsigned int mlkem_rej_uniform_ins(sword16* p,
+    unsigned int len, const byte* r, unsigned int rLen)
+{
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) &&
+            IS_INTEL_AVX512_VBMI2(cpuid_flags)) {
+        return mlkem_rej_uniform_avx512_vbmi(p, len, r, rLen);
+    }
+#endif
+    if (IS_INTEL_AVX512_VBMI2(cpuid_flags)) {
+        return mlkem_rej_uniform_avx512(p, len, r, rLen);
+    }
+    return mlkem_rej_uniform_avx2(p, len, r, rLen);
+}
+#else
+#define mlkem_rej_uniform_n_ins  mlkem_rej_uniform_n_avx2
+#define mlkem_rej_uniform_ins    mlkem_rej_uniform_avx2
+#endif
+
+/* Keccak-x4 output redistribution: dispatch to AVX512 when available. */
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#define MLKEM_REDIST_INS(N)                                                    \
+static WC_INLINE void mlkem_redistribute_##N##_rand_ins(const word64* s,       \
+    byte* r0, byte* r1, byte* r2, byte* r3)                                    \
+{                                                                              \
+    if (IS_INTEL_AVX512(cpuid_flags)) {                                        \
+        mlkem_redistribute_##N##_rand_avx512(s, r0, r1, r2, r3);               \
+        return;                                                                \
+    }                                                                          \
+    mlkem_redistribute_##N##_rand_avx2(s, r0, r1, r2, r3);                     \
+}
+MLKEM_REDIST_INS(8)
+MLKEM_REDIST_INS(16)
+MLKEM_REDIST_INS(17)
+MLKEM_REDIST_INS(21)
+#else
+#define mlkem_redistribute_8_rand_ins   mlkem_redistribute_8_rand_avx2
+#define mlkem_redistribute_16_rand_ins  mlkem_redistribute_16_rand_avx2
+#define mlkem_redistribute_17_rand_ins  mlkem_redistribute_17_rand_avx2
+#define mlkem_redistribute_21_rand_ins  mlkem_redistribute_21_rand_avx2
+#endif
+
+/* CBD noise sampling: dispatch to AVX512 when available. */
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+static WC_INLINE void mlkem_cbd_eta2_ins(sword16* p, const byte* r)
+{
+    if (IS_INTEL_AVX512(cpuid_flags)) {
+        mlkem_cbd_eta2_avx512(p, r);
+        return;
+    }
+    mlkem_cbd_eta2_avx2(p, r);
+}
+static WC_INLINE void mlkem_cbd_eta3_ins(sword16* p, const byte* r)
+{
+    if (IS_INTEL_AVX512(cpuid_flags)) {
+        mlkem_cbd_eta3_avx512(p, r);
+        return;
+    }
+    mlkem_cbd_eta3_avx2(p, r);
+}
+#else
+#define mlkem_cbd_eta2_ins  mlkem_cbd_eta2_avx2
+#define mlkem_cbd_eta3_ins  mlkem_cbd_eta3_avx2
+#endif
+
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
@@ -2346,48 +2457,48 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
     }
 
     sha3_128_blocksx4_seed_avx2(state, seed);
-    mlkem_redistribute_21_rand_avx2(state, rand + 0 * GEN_MATRIX_SIZE,
+    mlkem_redistribute_21_rand_ins(state, rand + 0 * GEN_MATRIX_SIZE,
         rand + 1 * GEN_MATRIX_SIZE, rand + 2 * GEN_MATRIX_SIZE,
         rand + 3 * GEN_MATRIX_SIZE);
     for (i = SHA3_128_BYTES; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
         sha3_blocksx4_avx2(state);
-        mlkem_redistribute_21_rand_avx2(state, rand + i + 0 * GEN_MATRIX_SIZE,
+        mlkem_redistribute_21_rand_ins(state, rand + i + 0 * GEN_MATRIX_SIZE,
             rand + i + 1 * GEN_MATRIX_SIZE, rand + i + 2 * GEN_MATRIX_SIZE,
             rand + i + 3 * GEN_MATRIX_SIZE);
     }
 
     /* Sample random bytes to create a polynomial. */
     p = rand;
-    ctr0 = mlkem_rej_uniform_n_avx2(a + 0 * MLKEM_N, MLKEM_N, p,
+    ctr0 = mlkem_rej_uniform_n_ins(a + 0 * MLKEM_N, MLKEM_N, p,
         GEN_MATRIX_SIZE);
     p += GEN_MATRIX_SIZE;
-    ctr1 = mlkem_rej_uniform_n_avx2(a + 1 * MLKEM_N, MLKEM_N, p,
+    ctr1 = mlkem_rej_uniform_n_ins(a + 1 * MLKEM_N, MLKEM_N, p,
         GEN_MATRIX_SIZE);
     p += GEN_MATRIX_SIZE;
-    ctr2 = mlkem_rej_uniform_n_avx2(a + 2 * MLKEM_N, MLKEM_N, p,
+    ctr2 = mlkem_rej_uniform_n_ins(a + 2 * MLKEM_N, MLKEM_N, p,
         GEN_MATRIX_SIZE);
     p += GEN_MATRIX_SIZE;
-    ctr3 = mlkem_rej_uniform_n_avx2(a + 3 * MLKEM_N, MLKEM_N, p,
+    ctr3 = mlkem_rej_uniform_n_ins(a + 3 * MLKEM_N, MLKEM_N, p,
         GEN_MATRIX_SIZE);
     /* Create more blocks if too many rejected. */
     while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N) ||
            (ctr3 < MLKEM_N)) {
         sha3_blocksx4_avx2(state);
-        mlkem_redistribute_21_rand_avx2(state, rand + 0 * GEN_MATRIX_SIZE,
+        mlkem_redistribute_21_rand_ins(state, rand + 0 * GEN_MATRIX_SIZE,
             rand + 1 * GEN_MATRIX_SIZE, rand + 2 * GEN_MATRIX_SIZE,
             rand + 3 * GEN_MATRIX_SIZE);
 
         p = rand;
-        ctr0 += mlkem_rej_uniform_avx2(a + 0 * MLKEM_N + ctr0, MLKEM_N - ctr0,
+        ctr0 += mlkem_rej_uniform_ins(a + 0 * MLKEM_N + ctr0, MLKEM_N - ctr0,
             p, XOF_BLOCK_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr1 += mlkem_rej_uniform_avx2(a + 1 * MLKEM_N + ctr1, MLKEM_N - ctr1,
+        ctr1 += mlkem_rej_uniform_ins(a + 1 * MLKEM_N + ctr1, MLKEM_N - ctr1,
             p, XOF_BLOCK_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr2 += mlkem_rej_uniform_avx2(a + 2 * MLKEM_N + ctr2, MLKEM_N - ctr2,
+        ctr2 += mlkem_rej_uniform_ins(a + 2 * MLKEM_N + ctr2, MLKEM_N - ctr2,
             p, XOF_BLOCK_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr3 += mlkem_rej_uniform_avx2(a + 3 * MLKEM_N + ctr3, MLKEM_N - ctr3,
+        ctr3 += mlkem_rej_uniform_ins(a + 3 * MLKEM_N + ctr3, MLKEM_N - ctr3,
             p, XOF_BLOCK_SIZE);
     }
 
@@ -2396,6 +2507,92 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+/* Deterministically generate a 2x2 matrix (or transpose) of uniform integers
+ * mod q using the eight-way AVX-512 SHA3 core. Only four of the eight lanes
+ * are used - the register-resident eight-way permutation is still faster than
+ * the memory-based four-way one, so wasting four lanes is a net win.
+ *
+ * @param  [out]  a           Matrix of uniform integers.
+ * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   transposed  Whether A or A^T is generated.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ *          WOLFSSL_SMALL_STACK is defined.
+ */
+static int mlkem_gen_matrix_k2_avx512(sword16* a, byte* seed, int transposed)
+{
+    int i;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *rand = NULL;
+    word64 *state = NULL;
+#else
+    byte rand[8 * GEN_MATRIX_SIZE + 4];
+    word64 state[25 * 8];
+#endif
+    unsigned int ctr[4];
+
+#ifdef WOLFSSL_SMALL_STACK
+    rand = (byte*)XMALLOC(8 * GEN_MATRIX_SIZE + 4, NULL,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    state = (word64*)XMALLOC(sizeof(word64) * 25 * 8, NULL,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    if ((rand == NULL) || (state == NULL)) {
+        XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
+    rand[8 * GEN_MATRIX_SIZE + 0] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 3] = 0xff;
+
+    /* Four used lanes hold the 2x2 matrix; lanes 4..7 are unused. */
+    for (i = 0; i < 4; i++) {
+        int row = i / 2;
+        int col = i % 2;
+        if (!transposed) {
+            state[4*8 + i] = (word32)(0x1f0000 + (row << 8) + col);
+        }
+        else {
+            state[4*8 + i] = (word32)(0x1f0000 + (col << 8) + row);
+        }
+    }
+    for (i = 4; i < 8; i++) {
+        state[4*8 + i] = 0x1f0000;
+    }
+
+    sha3_128_blocksx8_seed_avx512(state, seed);
+    mlkem_redistribute_21_rand_x8_avx512(state, rand, GEN_MATRIX_SIZE);
+    for (i = SHA3_128_BYTES; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
+        sha3_blocksx8_avx512(state);
+        mlkem_redistribute_21_rand_x8_avx512(state, rand + i, GEN_MATRIX_SIZE);
+    }
+
+    for (i = 0; i < 4; i++) {
+        ctr[i] = mlkem_rej_uniform_n_ins(a + i * MLKEM_N, MLKEM_N,
+            rand + i * GEN_MATRIX_SIZE, GEN_MATRIX_SIZE);
+    }
+    while ((ctr[0] < MLKEM_N) || (ctr[1] < MLKEM_N) || (ctr[2] < MLKEM_N) ||
+           (ctr[3] < MLKEM_N)) {
+        sha3_blocksx8_avx512(state);
+        mlkem_redistribute_21_rand_x8_avx512(state, rand, GEN_MATRIX_SIZE);
+        for (i = 0; i < 4; i++) {
+            ctr[i] += mlkem_rej_uniform_ins(a + i * MLKEM_N + ctr[i],
+                MLKEM_N - ctr[i], rand + i * GEN_MATRIX_SIZE, XOF_BLOCK_SIZE);
+        }
+    }
+
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #endif
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
@@ -2459,48 +2656,48 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         }
 
         sha3_128_blocksx4_seed_avx2(state, seed);
-        mlkem_redistribute_21_rand_avx2(state,
+        mlkem_redistribute_21_rand_ins(state,
             rand + 0 * GEN_MATRIX_SIZE, rand + 1 * GEN_MATRIX_SIZE,
             rand + 2 * GEN_MATRIX_SIZE, rand + 3 * GEN_MATRIX_SIZE);
         for (i = SHA3_128_BYTES; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
             sha3_blocksx4_avx2(state);
-            mlkem_redistribute_21_rand_avx2(state,
+            mlkem_redistribute_21_rand_ins(state,
                 rand + i + 0 * GEN_MATRIX_SIZE, rand + i + 1 * GEN_MATRIX_SIZE,
                 rand + i + 2 * GEN_MATRIX_SIZE, rand + i + 3 * GEN_MATRIX_SIZE);
         }
 
         /* Sample random bytes to create a polynomial. */
         p = rand;
-        ctr0 = mlkem_rej_uniform_n_avx2(a + 0 * MLKEM_N, MLKEM_N, p,
+        ctr0 = mlkem_rej_uniform_n_ins(a + 0 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr1 = mlkem_rej_uniform_n_avx2(a + 1 * MLKEM_N, MLKEM_N, p,
+        ctr1 = mlkem_rej_uniform_n_ins(a + 1 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr2 = mlkem_rej_uniform_n_avx2(a + 2 * MLKEM_N, MLKEM_N, p,
+        ctr2 = mlkem_rej_uniform_n_ins(a + 2 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr3 = mlkem_rej_uniform_n_avx2(a + 3 * MLKEM_N, MLKEM_N, p,
+        ctr3 = mlkem_rej_uniform_n_ins(a + 3 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         /* Create more blocks if too many rejected. */
         while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N) ||
                (ctr3 < MLKEM_N)) {
             sha3_blocksx4_avx2(state);
-            mlkem_redistribute_21_rand_avx2(state, rand + 0 * GEN_MATRIX_SIZE,
+            mlkem_redistribute_21_rand_ins(state, rand + 0 * GEN_MATRIX_SIZE,
                 rand + 1 * GEN_MATRIX_SIZE, rand + 2 * GEN_MATRIX_SIZE,
                 rand + 3 * GEN_MATRIX_SIZE);
 
             p = rand;
-            ctr0 += mlkem_rej_uniform_avx2(a + 0 * MLKEM_N + ctr0,
+            ctr0 += mlkem_rej_uniform_ins(a + 0 * MLKEM_N + ctr0,
                 MLKEM_N - ctr0, p, XOF_BLOCK_SIZE);
             p += GEN_MATRIX_SIZE;
-            ctr1 += mlkem_rej_uniform_avx2(a + 1 * MLKEM_N + ctr1,
+            ctr1 += mlkem_rej_uniform_ins(a + 1 * MLKEM_N + ctr1,
                 MLKEM_N - ctr1, p, XOF_BLOCK_SIZE);
             p += GEN_MATRIX_SIZE;
-            ctr2 += mlkem_rej_uniform_avx2(a + 2 * MLKEM_N + ctr2,
+            ctr2 += mlkem_rej_uniform_ins(a + 2 * MLKEM_N + ctr2,
                 MLKEM_N - ctr2, p, XOF_BLOCK_SIZE);
             p += GEN_MATRIX_SIZE;
-            ctr3 += mlkem_rej_uniform_avx2(a + 3 * MLKEM_N + ctr3,
+            ctr3 += mlkem_rej_uniform_ins(a + 3 * MLKEM_N + ctr3,
                 MLKEM_N - ctr3, p, XOF_BLOCK_SIZE);
         }
 
@@ -2529,7 +2726,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         }
         XMEMCPY(rand + i, state, SHA3_128_BYTES);
     }
-    ctr0 = mlkem_rej_uniform_n_avx2(a, MLKEM_N, rand, GEN_MATRIX_SIZE);
+    ctr0 = mlkem_rej_uniform_n_ins(a, MLKEM_N, rand, GEN_MATRIX_SIZE);
     while (ctr0 < MLKEM_N) {
 #ifndef WC_SHA3_NO_ASM
         if (IS_INTEL_BMI2(cpuid_flags)) {
@@ -2546,7 +2743,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
             BlockSha3(state);
         }
         XMEMCPY(rand, state, SHA3_128_BYTES);
-        ctr0 += mlkem_rej_uniform_avx2(a + ctr0, MLKEM_N - ctr0, rand,
+        ctr0 += mlkem_rej_uniform_ins(a + ctr0, MLKEM_N - ctr0, rand,
             XOF_BLOCK_SIZE);
     }
 
@@ -2555,6 +2752,134 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+/* Deterministically generate a 3x3 matrix (or transpose) of uniform integers
+ * mod q using eight-way AVX-512 SHA3. The first eight polynomials are produced
+ * in one eight-way batch; the ninth uses a single SHA3 state.
+ *
+ * @param  [out]  a           Matrix of uniform integers.
+ * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   transposed  Whether A or A^T is generated.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ *          WOLFSSL_SMALL_STACK is defined.
+ */
+static int mlkem_gen_matrix_k3_avx512(sword16* a, byte* seed, int transposed)
+{
+    int i;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *rand = NULL;
+    word64 *state = NULL;
+#else
+    byte rand[8 * GEN_MATRIX_SIZE + 4];
+    word64 state[25 * 8];
+#endif
+    unsigned int ctr[8];
+
+#ifdef WOLFSSL_SMALL_STACK
+    rand = (byte*)XMALLOC(8 * GEN_MATRIX_SIZE + 4, NULL,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    state = (word64*)XMALLOC(sizeof(word64) * 25 * 8, NULL,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    if ((rand == NULL) || (state == NULL)) {
+        XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
+    rand[8 * GEN_MATRIX_SIZE + 0] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 3] = 0xff;
+
+    /* First eight polynomials (rows 0..2, up to column 1) - eight-way. */
+    for (i = 0; i < 8; i++) {
+        int row = i / 3;
+        int col = i % 3;
+        if (!transposed) {
+            state[4*8 + i] = (word32)(0x1f0000 + (row << 8) + col);
+        }
+        else {
+            state[4*8 + i] = (word32)(0x1f0000 + (col << 8) + row);
+        }
+    }
+
+    sha3_128_blocksx8_seed_avx512(state, seed);
+    mlkem_redistribute_21_rand_x8_avx512(state, rand, GEN_MATRIX_SIZE);
+    for (i = SHA3_128_BYTES; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
+        sha3_blocksx8_avx512(state);
+        mlkem_redistribute_21_rand_x8_avx512(state, rand + i, GEN_MATRIX_SIZE);
+    }
+
+    for (i = 0; i < 8; i++) {
+        ctr[i] = mlkem_rej_uniform_n_ins(a + i * MLKEM_N, MLKEM_N,
+            rand + i * GEN_MATRIX_SIZE, GEN_MATRIX_SIZE);
+    }
+    while ((ctr[0] < MLKEM_N) || (ctr[1] < MLKEM_N) || (ctr[2] < MLKEM_N) ||
+           (ctr[3] < MLKEM_N) || (ctr[4] < MLKEM_N) || (ctr[5] < MLKEM_N) ||
+           (ctr[6] < MLKEM_N) || (ctr[7] < MLKEM_N)) {
+        sha3_blocksx8_avx512(state);
+        mlkem_redistribute_21_rand_x8_avx512(state, rand, GEN_MATRIX_SIZE);
+        for (i = 0; i < 8; i++) {
+            ctr[i] += mlkem_rej_uniform_ins(a + i * MLKEM_N + ctr[i],
+                MLKEM_N - ctr[i], rand + i * GEN_MATRIX_SIZE, XOF_BLOCK_SIZE);
+        }
+    }
+    a += 8 * MLKEM_N;
+
+    /* Ninth polynomial (row 2, column 2) - single SHA3 state. Transposed
+     * value same as not. */
+    readUnalignedWords64(state, seed, 4);
+    state[4] = 0x1f0000 + (2 << 8) + 2;
+    XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
+    state[20] = W64LIT(0x8000000000000000);
+    for (i = 0; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
+#ifndef WC_SHA3_NO_ASM
+        if (IS_INTEL_BMI2(cpuid_flags)) {
+            sha3_block_bmi2(state);
+        }
+        else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+        {
+            sha3_block_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif /* !WC_SHA3_NO_ASM */
+        {
+            BlockSha3(state);
+        }
+        XMEMCPY(rand + i, state, SHA3_128_BYTES);
+    }
+    ctr[0] = mlkem_rej_uniform_n_ins(a, MLKEM_N, rand, GEN_MATRIX_SIZE);
+    while (ctr[0] < MLKEM_N) {
+#ifndef WC_SHA3_NO_ASM
+        if (IS_INTEL_BMI2(cpuid_flags)) {
+            sha3_block_bmi2(state);
+        }
+        else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+        {
+            sha3_block_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif /* !WC_SHA3_NO_ASM */
+        {
+            BlockSha3(state);
+        }
+        XMEMCPY(rand, state, SHA3_128_BYTES);
+        ctr[0] += mlkem_rej_uniform_ins(a + ctr[0], MLKEM_N - ctr[0], rand,
+            XOF_BLOCK_SIZE);
+    }
+
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
@@ -2614,48 +2939,48 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
         }
 
         sha3_128_blocksx4_seed_avx2(state, seed);
-        mlkem_redistribute_21_rand_avx2(state,
+        mlkem_redistribute_21_rand_ins(state,
             rand + 0 * GEN_MATRIX_SIZE, rand + 1 * GEN_MATRIX_SIZE,
             rand + 2 * GEN_MATRIX_SIZE, rand + 3 * GEN_MATRIX_SIZE);
         for (i = SHA3_128_BYTES; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
             sha3_blocksx4_avx2(state);
-            mlkem_redistribute_21_rand_avx2(state,
+            mlkem_redistribute_21_rand_ins(state,
                 rand + i + 0 * GEN_MATRIX_SIZE, rand + i + 1 * GEN_MATRIX_SIZE,
                 rand + i + 2 * GEN_MATRIX_SIZE, rand + i + 3 * GEN_MATRIX_SIZE);
         }
 
         /* Sample random bytes to create a polynomial. */
         p = rand;
-        ctr0 = mlkem_rej_uniform_n_avx2(a + 0 * MLKEM_N, MLKEM_N, p,
+        ctr0 = mlkem_rej_uniform_n_ins(a + 0 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr1 = mlkem_rej_uniform_n_avx2(a + 1 * MLKEM_N, MLKEM_N, p,
+        ctr1 = mlkem_rej_uniform_n_ins(a + 1 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr2 = mlkem_rej_uniform_n_avx2(a + 2 * MLKEM_N, MLKEM_N, p,
+        ctr2 = mlkem_rej_uniform_n_ins(a + 2 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr3 = mlkem_rej_uniform_n_avx2(a + 3 * MLKEM_N, MLKEM_N, p,
+        ctr3 = mlkem_rej_uniform_n_ins(a + 3 * MLKEM_N, MLKEM_N, p,
             GEN_MATRIX_SIZE);
         /* Create more blocks if too many rejected. */
         while ((ctr0 < MLKEM_N) || (ctr1 < MLKEM_N) || (ctr2 < MLKEM_N) ||
                (ctr3 < MLKEM_N)) {
             sha3_blocksx4_avx2(state);
-            mlkem_redistribute_21_rand_avx2(state, rand + 0 * GEN_MATRIX_SIZE,
+            mlkem_redistribute_21_rand_ins(state, rand + 0 * GEN_MATRIX_SIZE,
                 rand + 1 * GEN_MATRIX_SIZE, rand + 2 * GEN_MATRIX_SIZE,
                 rand + 3 * GEN_MATRIX_SIZE);
 
             p = rand;
-            ctr0 += mlkem_rej_uniform_avx2(a + 0 * MLKEM_N + ctr0,
+            ctr0 += mlkem_rej_uniform_ins(a + 0 * MLKEM_N + ctr0,
                 MLKEM_N - ctr0, p, XOF_BLOCK_SIZE);
             p += GEN_MATRIX_SIZE;
-            ctr1 += mlkem_rej_uniform_avx2(a + 1 * MLKEM_N + ctr1,
+            ctr1 += mlkem_rej_uniform_ins(a + 1 * MLKEM_N + ctr1,
                 MLKEM_N - ctr1, p, XOF_BLOCK_SIZE);
             p += GEN_MATRIX_SIZE;
-            ctr2 += mlkem_rej_uniform_avx2(a + 2 * MLKEM_N + ctr2,
+            ctr2 += mlkem_rej_uniform_ins(a + 2 * MLKEM_N + ctr2,
                 MLKEM_N - ctr2, p, XOF_BLOCK_SIZE);
             p += GEN_MATRIX_SIZE;
-            ctr3 += mlkem_rej_uniform_avx2(a + 3 * MLKEM_N + ctr3,
+            ctr3 += mlkem_rej_uniform_ins(a + 3 * MLKEM_N + ctr3,
                 MLKEM_N - ctr3, p, XOF_BLOCK_SIZE);
         }
 
@@ -2667,6 +2992,97 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
 
     return 0;
 }
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+/* Deterministically generate a 4x4 matrix (or transpose) of uniform integers
+ * mod q using eight-way AVX-512 SHA3. The 16 polynomials are produced in two
+ * batches of eight.
+ *
+ * @param  [out]  a           Matrix of uniform integers.
+ * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   transposed  Whether A or A^T is generated.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ *          WOLFSSL_SMALL_STACK is defined.
+ */
+static int mlkem_gen_matrix_k4_avx512(sword16* a, byte* seed, int transposed)
+{
+    int i;
+    int b;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *rand = NULL;
+    word64 *state = NULL;
+#else
+    byte rand[8 * GEN_MATRIX_SIZE + 4];
+    word64 state[25 * 8];
+#endif
+    unsigned int ctr[8];
+
+#ifdef WOLFSSL_SMALL_STACK
+    rand = (byte*)XMALLOC(8 * GEN_MATRIX_SIZE + 4, NULL,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    state = (word64*)XMALLOC(sizeof(word64) * 25 * 8, NULL,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+    if ((rand == NULL) || (state == NULL)) {
+        XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
+    rand[8 * GEN_MATRIX_SIZE + 0] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[8 * GEN_MATRIX_SIZE + 3] = 0xff;
+
+    for (b = 0; b < 2; b++) {
+        for (i = 0; i < 8; i++) {
+            int row = (b * 8 + i) / 4;
+            int col = (b * 8 + i) % 4;
+            if (!transposed) {
+                state[4*8 + i] = (word32)(0x1f0000 + (row << 8) + col);
+            }
+            else {
+                state[4*8 + i] = (word32)(0x1f0000 + (col << 8) + row);
+            }
+        }
+
+        sha3_128_blocksx8_seed_avx512(state, seed);
+        mlkem_redistribute_21_rand_x8_avx512(state, rand, GEN_MATRIX_SIZE);
+        for (i = SHA3_128_BYTES; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
+            sha3_blocksx8_avx512(state);
+            mlkem_redistribute_21_rand_x8_avx512(state, rand + i,
+                GEN_MATRIX_SIZE);
+        }
+
+        /* Sample random bytes to create the polynomials. */
+        for (i = 0; i < 8; i++) {
+            ctr[i] = mlkem_rej_uniform_n_ins(a + i * MLKEM_N, MLKEM_N,
+                rand + i * GEN_MATRIX_SIZE, GEN_MATRIX_SIZE);
+        }
+        /* Create more blocks if too many rejected. */
+        while ((ctr[0] < MLKEM_N) || (ctr[1] < MLKEM_N) || (ctr[2] < MLKEM_N) ||
+               (ctr[3] < MLKEM_N) || (ctr[4] < MLKEM_N) || (ctr[5] < MLKEM_N) ||
+               (ctr[6] < MLKEM_N) || (ctr[7] < MLKEM_N)) {
+            sha3_blocksx8_avx512(state);
+            mlkem_redistribute_21_rand_x8_avx512(state, rand, GEN_MATRIX_SIZE);
+            for (i = 0; i < 8; i++) {
+                ctr[i] += mlkem_rej_uniform_ins(a + i * MLKEM_N + ctr[i],
+                    MLKEM_N - ctr[i], rand + i * GEN_MATRIX_SIZE,
+                    XOF_BLOCK_SIZE);
+            }
+        }
+
+        a += 8 * MLKEM_N;
+    }
+
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #endif /* WOLFSSL_KYBER1024 || WOLFSSL_WC_ML_KEM_1024 */
 #elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
@@ -3556,6 +3972,13 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
         ret = mlkem_gen_matrix_k2_aarch64(a, seed, transposed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+    #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = mlkem_gen_matrix_k2_avx512(a, seed, transposed);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_gen_matrix_k2_avx2(a, seed, transposed);
             RESTORE_VECTOR_REGISTERS();
@@ -3575,6 +3998,13 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
         ret = mlkem_gen_matrix_k3_aarch64(a, seed, transposed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+    #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = mlkem_gen_matrix_k3_avx512(a, seed, transposed);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_gen_matrix_k3_avx2(a, seed, transposed);
             RESTORE_VECTOR_REGISTERS();
@@ -3594,6 +4024,13 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
         ret = mlkem_gen_matrix_k4_aarch64(a, seed, transposed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+    #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = mlkem_gen_matrix_k4_avx512(a, seed, transposed);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_gen_matrix_k4_avx2(a, seed, transposed);
             RESTORE_VECTOR_REGISTERS();
@@ -4132,13 +4569,37 @@ static void mlkem_get_noise_x4_eta2_avx2(byte* rand, byte* seed, byte o)
     }
 
     sha3_256_blocksx4_seed_avx2(state, seed);
-    mlkem_redistribute_16_rand_avx2(state, rand + 0 * ETA2_RAND_SIZE,
+    mlkem_redistribute_16_rand_ins(state, rand + 0 * ETA2_RAND_SIZE,
         rand + 1 * ETA2_RAND_SIZE, rand + 2 * ETA2_RAND_SIZE,
         rand + 3 * ETA2_RAND_SIZE);
 
     /* state is secret-seeded; caller zeroizes rand. */
     ForceZero(state, sizeof(state));
 }
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+/* Get eight lanes of ETA2 random bytes using eight-way AVX-512 SHA3. Lane j
+ * uses seed count j and its output is written to rand + j * ETA2_RAND_SIZE.
+ *
+ * @param  [out]  rand  Random number byte array (8 * ETA2_RAND_SIZE bytes).
+ * @param  [in]   seed  Seed to generate random from.
+ */
+static void mlkem_get_noise_x8_eta2_avx512(byte* rand, byte* seed)
+{
+    int i;
+    word64 state[25 * 8];
+
+    for (i = 0; i < 8; i++) {
+        state[4*8 + i] = (word32)(0x1f00 + i);
+    }
+
+    sha3_256_blocksx8_seed_avx512(state, seed);
+    mlkem_redistribute_16_rand_x8_avx512(state, rand, ETA2_RAND_SIZE);
+
+    /* state is secret-seeded; caller zeroizes rand. */
+    ForceZero(state, sizeof(state));
+}
+#endif
 #endif
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
@@ -4189,7 +4650,7 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
     {
         BlockSha3(state);
     }
-    mlkem_cbd_eta2_avx2(p, (byte*)state);
+    mlkem_cbd_eta2_ins(p, (byte*)state);
 
     /* state holds secret noise. */
     ForceZero(state, sizeof(state));
@@ -4225,12 +4686,12 @@ static void mlkem_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
     state[4*4 + 3] = 0x1f00 + 3;
 
     sha3_256_blocksx4_seed_avx2(state, seed);
-    mlkem_redistribute_17_rand_avx2(state, rand + 0 * PRF_RAND_SZ,
+    mlkem_redistribute_17_rand_ins(state, rand + 0 * PRF_RAND_SZ,
         rand + 1 * PRF_RAND_SZ, rand + 2 * PRF_RAND_SZ,
         rand + 3 * PRF_RAND_SZ);
     i = SHA3_256_BYTES;
     sha3_blocksx4_avx2(state);
-    mlkem_redistribute_8_rand_avx2(state, rand + i + 0 * PRF_RAND_SZ,
+    mlkem_redistribute_8_rand_ins(state, rand + i + 0 * PRF_RAND_SZ,
         rand + i + 1 * PRF_RAND_SZ, rand + i + 2 * PRF_RAND_SZ,
         rand + i + 3 * PRF_RAND_SZ);
 
@@ -4260,15 +4721,15 @@ static int mlkem_get_noise_k2_avx2(MLKEM_PRF_T* prf, sword16* vec1,
         return MEMORY_E);
 
     mlkem_get_noise_x4_eta3_avx2(rand, seed);
-    mlkem_cbd_eta3_avx2(vec1          , rand + 0 * PRF_RAND_SZ);
-    mlkem_cbd_eta3_avx2(vec1 + MLKEM_N, rand + 1 * PRF_RAND_SZ);
+    mlkem_cbd_eta3_ins(vec1          , rand + 0 * PRF_RAND_SZ);
+    mlkem_cbd_eta3_ins(vec1 + MLKEM_N, rand + 1 * PRF_RAND_SZ);
     if (poly == NULL) {
-        mlkem_cbd_eta3_avx2(vec2          , rand + 2 * PRF_RAND_SZ);
-        mlkem_cbd_eta3_avx2(vec2 + MLKEM_N, rand + 3 * PRF_RAND_SZ);
+        mlkem_cbd_eta3_ins(vec2          , rand + 2 * PRF_RAND_SZ);
+        mlkem_cbd_eta3_ins(vec2 + MLKEM_N, rand + 3 * PRF_RAND_SZ);
     }
     else {
-        mlkem_cbd_eta2_avx2(vec2          , rand + 2 * PRF_RAND_SZ);
-        mlkem_cbd_eta2_avx2(vec2 + MLKEM_N, rand + 3 * PRF_RAND_SZ);
+        mlkem_cbd_eta2_ins(vec2          , rand + 2 * PRF_RAND_SZ);
+        mlkem_cbd_eta2_ins(vec2 + MLKEM_N, rand + 3 * PRF_RAND_SZ);
 
         seed[WC_ML_KEM_SYM_SZ] = 4;
         ret = mlkem_get_noise_eta2_avx2(prf, poly, seed);
@@ -4280,6 +4741,73 @@ static int mlkem_get_noise_k2_avx2(MLKEM_PRF_T* prf, sword16* vec1,
 
     return ret;
 }
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+/* Get eight lanes of ETA3-length random bytes using eight-way AVX-512 SHA3.
+ * Lane j uses seed count j; its output (two blocks) is written to
+ * rand + j * PRF_RAND_SZ. ETA2 samplers may read the same lanes (they consume
+ * fewer bytes of the identical SHAKE stream).
+ *
+ * @param  [out]  rand  Random number byte array (8 * PRF_RAND_SZ bytes).
+ * @param  [in]   seed  Seed to generate random from.
+ */
+static void mlkem_get_noise_x8_eta3_avx512(byte* rand, byte* seed)
+{
+    word64 state[25 * 8];
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        state[4*8 + i] = (word32)(0x1f00 + i);
+    }
+
+    sha3_256_blocksx8_seed_avx512(state, seed);
+    mlkem_redistribute_17_rand_x8_avx512(state, rand, PRF_RAND_SZ);
+    sha3_blocksx8_avx512(state);
+    mlkem_redistribute_8_rand_x8_avx512(state, rand + SHA3_256_BYTES,
+        PRF_RAND_SZ);
+
+    /* state is secret-seeded; caller zeroizes rand. */
+    ForceZero(state, sizeof(state));
+}
+
+/* Get the noise/error by calculating random bytes and sampling to a binomial
+ * distribution, using eight-way AVX-512 SHA3. The ETA3 vector lanes and (for
+ * encapsulation) the extra ETA2 polynomial share one eight-way batch - the
+ * ETA2 samples read fewer bytes of the same SHAKE-256 stream, so the extra
+ * polynomial no longer needs a separate single-lane hash.
+ *
+ * @param  [in, out]  prf   Pseudo-random function object.
+ * @param  [out]      vec1  First Vector of polynomials.
+ * @param  [out]      vec2  Second Vector of polynomials.
+ * @param  [out]      poly  Polynomial.
+ * @param  [in, out]  seed  Seed to use when calculating random.
+ * @return  0 on success.
+ */
+static int mlkem_get_noise_k2_avx512(MLKEM_PRF_T* prf, sword16* vec1,
+    sword16* vec2, sword16* poly, byte* seed)
+{
+    byte rand[8 * PRF_RAND_SZ];
+
+    (void)prf;
+
+    mlkem_get_noise_x8_eta3_avx512(rand, seed);
+    mlkem_cbd_eta3_ins(vec1          , rand + 0 * PRF_RAND_SZ);
+    mlkem_cbd_eta3_ins(vec1 + MLKEM_N, rand + 1 * PRF_RAND_SZ);
+    if (poly == NULL) {
+        mlkem_cbd_eta3_ins(vec2          , rand + 2 * PRF_RAND_SZ);
+        mlkem_cbd_eta3_ins(vec2 + MLKEM_N, rand + 3 * PRF_RAND_SZ);
+    }
+    else {
+        mlkem_cbd_eta2_ins(vec2          , rand + 2 * PRF_RAND_SZ);
+        mlkem_cbd_eta2_ins(vec2 + MLKEM_N, rand + 3 * PRF_RAND_SZ);
+        mlkem_cbd_eta2_ins(poly          , rand + 4 * PRF_RAND_SZ);
+    }
+
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
+    return 0;
+}
+#endif
 #endif
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
@@ -4298,21 +4826,54 @@ static int mlkem_get_noise_k3_avx2(sword16* vec1, sword16* vec2, sword16* poly,
     byte rand[4 * ETA2_RAND_SIZE];
 
     mlkem_get_noise_x4_eta2_avx2(rand, seed, 0);
-    mlkem_cbd_eta2_avx2(vec1              , rand + 0 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec1 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec1 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec2              , rand + 3 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1              , rand + 0 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2              , rand + 3 * ETA2_RAND_SIZE);
     mlkem_get_noise_x4_eta2_avx2(rand, seed, 4);
-    mlkem_cbd_eta2_avx2(vec2 + 1 * MLKEM_N, rand + 0 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec2 + 2 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 1 * MLKEM_N, rand + 0 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 2 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
     if (poly != NULL) {
-        mlkem_cbd_eta2_avx2(poly, rand + 2 * ETA2_RAND_SIZE);
+        mlkem_cbd_eta2_ins(poly, rand + 2 * ETA2_RAND_SIZE);
     }
 
     /* rand holds secret noise. */
     ForceZero(rand, sizeof(rand));
     return 0;
 }
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+/* Get the noise/error by calculating random bytes and sampling to a binomial
+ * distribution, using eight-way AVX-512 SHA3. All seven ETA2 lanes are
+ * produced in one batch.
+ *
+ * @param  [out]  vec1  First Vector of polynomials.
+ * @param  [out]  vec2  Second Vector of polynomials.
+ * @param  [out]  poly  Polynomial.
+ * @param  [in]   seed  Seed to use when calculating random.
+ * @return  0 on success.
+ */
+static int mlkem_get_noise_k3_avx512(sword16* vec1, sword16* vec2,
+    sword16* poly, byte* seed)
+{
+    byte rand[8 * ETA2_RAND_SIZE];
+
+    mlkem_get_noise_x8_eta2_avx512(rand, seed);
+    mlkem_cbd_eta2_ins(vec1              , rand + 0 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2              , rand + 3 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 1 * MLKEM_N, rand + 4 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 2 * MLKEM_N, rand + 5 * ETA2_RAND_SIZE);
+    if (poly != NULL) {
+        mlkem_cbd_eta2_ins(poly, rand + 6 * ETA2_RAND_SIZE);
+    }
+
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
+    return 0;
+}
+#endif
 #endif
 
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
@@ -4335,15 +4896,15 @@ static int mlkem_get_noise_k4_avx2(MLKEM_PRF_T* prf, sword16* vec1,
     (void)prf;
 
     mlkem_get_noise_x4_eta2_avx2(rand, seed, 0);
-    mlkem_cbd_eta2_avx2(vec1              , rand + 0 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec1 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec1 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec1 + 3 * MLKEM_N, rand + 3 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1              , rand + 0 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 3 * MLKEM_N, rand + 3 * ETA2_RAND_SIZE);
     mlkem_get_noise_x4_eta2_avx2(rand, seed, 4);
-    mlkem_cbd_eta2_avx2(vec2              , rand + 0 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec2 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec2 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
-    mlkem_cbd_eta2_avx2(vec2 + 3 * MLKEM_N, rand + 3 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2              , rand + 0 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 3 * MLKEM_N, rand + 3 * ETA2_RAND_SIZE);
     if (poly != NULL) {
         seed[WC_ML_KEM_SYM_SZ] = 8;
         ret = mlkem_get_noise_eta2_avx2(prf, poly, seed);
@@ -4353,6 +4914,46 @@ static int mlkem_get_noise_k4_avx2(MLKEM_PRF_T* prf, sword16* vec1,
     ForceZero(rand, sizeof(rand));
     return ret;
 }
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+/* Get the noise/error by calculating random bytes and sampling to a binomial
+ * distribution, using eight-way AVX-512 SHA3. The eight ETA2 vector lanes are
+ * produced in one batch; the extra polynomial uses a single SHA3 state.
+ *
+ * @param  [in, out]  prf   Pseudo-random function object.
+ * @param  [out]      vec1  First Vector of polynomials.
+ * @param  [out]      vec2  Second Vector of polynomials.
+ * @param  [out]      poly  Polynomial.
+ * @param  [in, out]  seed  Seed to use when calculating random.
+ * @return  0 on success.
+ */
+static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
+    sword16* vec2, sword16* poly, byte* seed)
+{
+    int ret = 0;
+    byte rand[8 * ETA2_RAND_SIZE];
+
+    (void)prf;
+
+    mlkem_get_noise_x8_eta2_avx512(rand, seed);
+    mlkem_cbd_eta2_ins(vec1              , rand + 0 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 1 * MLKEM_N, rand + 1 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 2 * MLKEM_N, rand + 2 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec1 + 3 * MLKEM_N, rand + 3 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2              , rand + 4 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 1 * MLKEM_N, rand + 5 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 2 * MLKEM_N, rand + 6 * ETA2_RAND_SIZE);
+    mlkem_cbd_eta2_ins(vec2 + 3 * MLKEM_N, rand + 7 * ETA2_RAND_SIZE);
+    if (poly != NULL) {
+        seed[WC_ML_KEM_SYM_SZ] = 8;
+        ret = mlkem_get_noise_eta2_avx2(prf, poly, seed);
+    }
+
+    /* rand holds secret noise. */
+    ForceZero(rand, sizeof(rand));
+    return ret;
+}
+#endif
 #endif
 #endif /* USE_INTEL_SPEEDUP */
 
@@ -4669,6 +5270,13 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
         ret = mlkem_get_noise_k2_aarch64(vec1, vec2, poly, seed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+    #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = mlkem_get_noise_k2_avx512(prf, vec1, vec2, poly, seed);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_get_noise_k2_avx2(prf, vec1, vec2, poly, seed);
             RESTORE_VECTOR_REGISTERS();
@@ -4693,6 +5301,13 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
         ret = mlkem_get_noise_k3_aarch64(vec1, vec2, poly, seed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+    #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = mlkem_get_noise_k3_avx512(vec1, vec2, poly, seed);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_get_noise_k3_avx2(vec1, vec2, poly, seed);
             RESTORE_VECTOR_REGISTERS();
@@ -4713,6 +5328,13 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
         ret = mlkem_get_noise_k4_aarch64(vec1, vec2, poly, seed);
 #else
     #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+    #ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+        if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = mlkem_get_noise_k4_avx512(prf, vec1, vec2, poly, seed);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = mlkem_get_noise_k4_avx2(prf, vec1, vec2, poly, seed);
             RESTORE_VECTOR_REGISTERS();
@@ -4815,6 +5437,13 @@ int mlkem_cmp(const byte* a, const byte* b, int sz)
     int fail;
 
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        fail = mlkem_cmp_avx512(a, b, sz);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         fail = mlkem_cmp_avx2(a, b, sz);
         RESTORE_VECTOR_REGISTERS();
@@ -5102,6 +5731,20 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
 void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_compress_10_avx512_vbmi(r, v, (int)k);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_compress_10_avx512(r, v, (int)k);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_10_avx2(r, v, (int)k);
         RESTORE_VECTOR_REGISTERS();
@@ -5200,6 +5843,13 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
 void mlkem_vec_compress_11(byte* r, sword16* v)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_compress_11_avx512(r, v, 4);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_11_avx2(r, v, 4);
         RESTORE_VECTOR_REGISTERS();
@@ -5306,6 +5956,20 @@ static void mlkem_vec_decompress_10_c(sword16* v, const byte* b, unsigned int k)
 void mlkem_vec_decompress_10(sword16* v, const byte* b, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_decompress_10_avx512_vbmi(v, b, (int)k);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_decompress_10_avx512(v, b, (int)k);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_10_avx2(v, b, (int)k);
         RESTORE_VECTOR_REGISTERS();
@@ -5394,6 +6058,20 @@ static void mlkem_vec_decompress_11_c(sword16* v, const byte* b)
 void mlkem_vec_decompress_11(sword16* v, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_decompress_11_avx512_vbmi(v, b, 4);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_decompress_11_avx512(v, b, 4);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_11_avx2(v, b, 4);
         RESTORE_VECTOR_REGISTERS();
@@ -5563,6 +6241,20 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
 void mlkem_compress_4(byte* b, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_compress_4_avx512_vbmi(b, p);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_compress_4_avx512(b, p);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_4_avx2(b, p);
         RESTORE_VECTOR_REGISTERS();
@@ -5641,6 +6333,20 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
 void mlkem_compress_5(byte* b, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_compress_5_avx512_vbmi(b, p);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_compress_5_avx512(b, p);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_compress_5_avx2(b, p);
         RESTORE_VECTOR_REGISTERS();
@@ -5711,6 +6417,13 @@ static void mlkem_decompress_4_c(sword16* p, const byte* b)
 void mlkem_decompress_4(sword16* p, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_decompress_4_avx512(p, b);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_4_avx2(p, b);
         RESTORE_VECTOR_REGISTERS();
@@ -5790,6 +6503,13 @@ static void mlkem_decompress_5_c(sword16* p, const byte* b)
 void mlkem_decompress_5(sword16* p, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_decompress_5_avx512(p, b);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_decompress_5_avx2(p, b);
         RESTORE_VECTOR_REGISTERS();
@@ -5867,6 +6587,13 @@ static void mlkem_from_msg_c(sword16* p, const byte* msg)
 void mlkem_from_msg(sword16* p, const byte* msg)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        mlkem_from_msg_avx512(p, msg);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_from_msg_avx2(p, msg);
         RESTORE_VECTOR_REGISTERS();
@@ -5968,6 +6695,14 @@ static void mlkem_to_msg_c(byte* msg, sword16* p)
 void mlkem_to_msg(byte* msg, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* Convert the polynomial into an array of bytes (message). */
+        mlkem_to_msg_avx512(msg, p);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
      if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Convert the polynomial into an array of bytes (message). */
         mlkem_to_msg_avx2(msg, p);
@@ -6055,6 +6790,34 @@ static void mlkem_from_bytes_c(sword16* p, const byte* b, int k)
 void mlkem_from_bytes(sword16* p, const byte* b, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        int i;
+
+        for (i = 0; i < k; i++) {
+            mlkem_from_bytes_avx512_vbmi(p, b);
+            p += MLKEM_N;
+            b += WC_ML_KEM_POLY_SIZE;
+        }
+
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        int i;
+
+        for (i = 0; i < k; i++) {
+            mlkem_from_bytes_avx512(p, b);
+            p += MLKEM_N;
+            b += WC_ML_KEM_POLY_SIZE;
+        }
+
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
      if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
 
@@ -6120,6 +6883,34 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
 void mlkem_to_bytes(byte* b, sword16* p, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        int i;
+
+        for (i = 0; i < k; i++) {
+            mlkem_to_bytes_avx512_vbmi(b, p);
+            p += MLKEM_N;
+            b += WC_ML_KEM_POLY_SIZE;
+        }
+
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        int i;
+
+        for (i = 0; i < k; i++) {
+            mlkem_to_bytes_avx512(b, p);
+            p += MLKEM_N;
+            b += WC_ML_KEM_POLY_SIZE;
+        }
+
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
      if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
 
