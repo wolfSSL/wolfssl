@@ -9926,8 +9926,11 @@ void DtlsTxMsgListClean(WOLFSSL* ssl)
     WOLFSSL_ENTER("DtlsTxMsgListClean");
     while (head) {
         next = head->next;
-        if (VerifyForTxDtlsMsgDelete(ssl, head))
+        if (VerifyForTxDtlsMsgDelete(ssl, head)) {
+            if (ssl->dtls_tx_msg == head)
+                ssl->dtls_tx_msg = NULL;
             DtlsMsgDelete(head, ssl->heap);
+        }
         else
             /* Stored packets should be in order so break on first failed
              * verify */
