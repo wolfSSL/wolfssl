@@ -8472,13 +8472,6 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ssl->ctx == ctx)
         return ssl->ctx;
 
-    if (ctx->suites == NULL) {
-        /* suites */
-        if (AllocateCtxSuites(ctx) != 0)
-            return NULL;
-        InitSSL_CTX_Suites(ctx);
-    }
-
     wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0) {
@@ -8489,6 +8482,14 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #else
     (void)ret;
 #endif
+
+    if (ctx->suites == NULL) {
+        /* suites */
+        if (AllocateCtxSuites(ctx) != 0)
+            return NULL;
+        InitSSL_CTX_Suites(ctx);
+    }
+
     if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);
     ssl->ctx = ctx;
