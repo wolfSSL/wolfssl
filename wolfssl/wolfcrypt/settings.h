@@ -4427,7 +4427,6 @@
           defined(CONFIG_CRYPTO_ECDSA)))
         #define WC_MIN_DIGEST_SIZE_FOR_VERIFY 20
     #endif
-
 #endif /* WOLFSSL_LINUXKM */
 
 /* FreeBSD Kernel Module */
@@ -4567,6 +4566,15 @@
 
     #ifndef WOLFSSL_SMALL_STACK_STATIC
         #define WOLFSSL_SMALL_STACK_STATIC
+    #endif
+
+    /* The size of the W buffer used by SHA-2 is negligible, but with
+     * _SMALL_STACK it gets XMALLOC()d.  This knob lets it be selectively moved
+     * back to the stack, avoiding overhead and awkwardness in
+     * linuxkm/lkcapi_sha_glue.c.
+     */
+    #if !defined(WC_SHA2_NO_SMALL_STACK) && !defined(WC_SHA2_SMALL_STACK)
+        #define WC_SHA2_NO_SMALL_STACK
     #endif
 #endif /* WOLFSSL_KERNEL_MODE || WOLFSSL_KERNEL_MODE_DEFAULTS */
 
@@ -5828,6 +5836,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 
 #ifdef __CHERI_PURE_CAPABILITY__
     #define WC_NO_PTR_INT_CAST
+#endif
+
+#if (defined(_WC_BUILDING_SHA256_C) || defined(_WC_BUILDING_SHA512_C)) && \
+    defined(WC_SHA2_NO_SMALL_STACK)
+    #undef WOLFSSL_SMALL_STACK
+    #undef WOLFSSL_SMALL_STACK_CACHE
 #endif
 
 #ifdef __cplusplus

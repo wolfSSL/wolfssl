@@ -1714,7 +1714,7 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
      * _Transform_Sha512() with additional buffer space used by
      * wc_Sha512Transform().
      */
-    sha512->W = (word64 *)XMALLOC(WC_SHA512_W_SIZE,
+    sha512->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                   sha512->heap, DYNAMIC_TYPE_DIGEST);
     if (sha512->W == NULL)
         return MEMORY_E;
@@ -1890,11 +1890,11 @@ static int _Transform_Sha512(wc_Sha512* sha512)
         return BAD_FUNC_ARG;
 #elif defined(WOLFSSL_SMALL_STACK)
     word64* W;
-    W = (word64*)XMALLOC(WC_SHA512_W_SIZE, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    W = (word64*) XMALLOC(sizeof(word64) * 16, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (W == NULL)
         return MEMORY_E;
 #else
-    word64 W[WC_SHA512_W_SIZE / sizeof(word64)];
+    word64 W[16];
 #endif
 
     /* Copy digest to working vars */
@@ -2759,7 +2759,7 @@ static int InitSha384(wc_Sha384* sha384)
          * _Transform_Sha512() with additional buffer space used by
          * wc_Sha512Transform().
          */
-        sha384->W = (word64 *)XMALLOC(WC_SHA512_W_SIZE,
+        sha384->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                       sha384->heap, DYNAMIC_TYPE_DIGEST);
         if (sha384->W == NULL)
             return MEMORY_E;
@@ -3117,7 +3117,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
      * _Transform_Sha512() with additional buffer space used by
      * wc_Sha512Transform().
      */
-    dst->W = (word64 *)XMALLOC(WC_SHA512_W_SIZE,
+    dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
         XMEMSET(dst, 0, sizeof(wc_Sha512));
@@ -3559,7 +3559,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
      * _Transform_Sha512() with additional buffer space used by
      * wc_Sha512Transform().
      */
-    dst->W = (word64 *)XMALLOC(WC_SHA512_W_SIZE,
+    dst->W = (word64 *)XMALLOC((sizeof(word64) * 16) + WC_SHA384_BLOCK_SIZE,
                                dst->heap, DYNAMIC_TYPE_DIGEST);
     if (dst->W == NULL) {
         XMEMSET(dst, 0, sizeof(wc_Sha384));
