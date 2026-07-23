@@ -1000,10 +1000,13 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
     void wc_Stm32_DhukUnRegister(int devId);
 #endif
 
-/* CubeMX/HAL AES crypto-callback device. Register at a devId, then init an Aes
- * with it (wc_AesInit) to run AES on the HAL through the crypto callback -- this
- * makes WOLF_CRYPTO_CB_ONLY_AES work on the HAL build. With WOLFSSL_STM32_CCB
- * enabled, wc_Stm32_DhukRegister already covers AES too (same devId). */
+/* CubeMX/HAL crypto-callback device. Register at a devId, then init an Aes
+ * with it (wc_AesInit) to run AES on the HAL through the crypto callback --
+ * this makes WOLF_CRYPTO_CB_ONLY_AES work on the HAL build. When
+ * WOLFSSL_STM32_PKA && HAVE_ECC are also enabled it additionally routes ECDSA
+ * sign/verify to the HW PKA, so it satisfies WOLF_CRYPTO_CB_ONLY_ECC too (no
+ * CCB required). With WOLFSSL_STM32_CCB enabled, wc_Stm32_DhukRegister already
+ * covers AES + ECDSA (same devId). */
 #if defined(WOLFSSL_STM32_CUBEMX) && defined(WOLF_CRYPTO_CB)
     int  wc_Stm32_CubeAesRegister(int devId);
     void wc_Stm32_CubeAesUnRegister(int devId);

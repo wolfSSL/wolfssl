@@ -5090,6 +5090,9 @@ static int Stm32Cube_AesEcb(struct Aes* aes, byte* out, const byte* in,
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
+        /* wc_Stm32_Aes_Init enabled the CRYP clock (STM32_HW_CLOCK_AUTO);
+         * release it before bailing out. */
+        wc_Stm32_Aes_Cleanup();
         return ret;
     }
 
@@ -5129,7 +5132,9 @@ static int Stm32Cube_AesEcb(struct Aes* aes, byte* out, const byte* in,
     }
 #endif
     if (ret != HAL_OK) {
-        ret = WC_TIMEOUT_E;
+        /* Keep HAL_TIMEOUT distinct from HAL_ERROR/HAL_BUSY so callers and
+         * debugging can tell a real timeout from a HW fault. */
+        ret = (ret == HAL_TIMEOUT) ? WC_TIMEOUT_E : WC_HW_E;
     }
 
     HAL_CRYP_DeInit(&hcryp);
