@@ -1368,6 +1368,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define sk_SSL_CIPHER_dup               wolfSSL_shallow_sk_dup
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
+#define sk_SSL_CIPHER_delete            wolfSSL_sk_SSL_CIPHER_delete
+#define SSL_CIPHER_find                 wolfSSL_SSL_CIPHER_find
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
 #define SSL_get0_peername wolfSSL_get0_peername
@@ -1384,6 +1386,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS        83
 
 #define SSL_CTX_clear_chain_certs(ctx) SSL_CTX_set0_chain(ctx,NULL)
+#define SSL_clear_chain_certs           wolfSSL_clear_chain_certs
 #define d2i_RSAPrivateKey_bio           wolfSSL_d2i_RSAPrivateKey_bio
 #define SSL_CTX_use_RSAPrivateKey       wolfSSL_CTX_use_RSAPrivateKey
 #define d2i_PrivateKey_bio              wolfSSL_d2i_PrivateKey_bio

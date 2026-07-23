@@ -1205,6 +1205,44 @@ void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
     WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_free");
     wolfSSL_sk_free(sk);
 }
+
+/* Remove the cipher at the given index from the stack.
+ *
+ * @param [in,out] sk   Stack of ciphers.
+ * @param [in]     idx  Index of cipher to remove.
+ * @return  Heap copy of removed cipher on success.
+ * @return  NULL on failure.
+ */
+WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, int idx)
+{
+    WOLFSSL_CIPHER* ret = NULL;
+    WOLFSSL_CIPHER* cipher;
+
+    WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_delete");
+
+    if (sk == NULL || idx < 0 || idx >= wolfSSL_sk_SSL_CIPHER_num(sk))
+        return NULL;
+
+    /* Capture the inline cipher value before the pop_node call frees the
+     * underlying memory. */
+    cipher = wolfSSL_sk_SSL_CIPHER_value(sk, idx);
+    if (cipher == NULL)
+        return NULL;
+
+    ret = (WOLFSSL_CIPHER*)XMALLOC(sizeof(WOLFSSL_CIPHER), NULL,
+                                   DYNAMIC_TYPE_OPENSSL);
+    if (ret == NULL)
+        return NULL;
+
+    *ret = *cipher;
+
+    /* pop_node returns NULL for STACK_TYPE_CIPHER (data is static/inline),
+     * but it still performs the unlink and node free that we need. */
+    (void)wolfSSL_sk_pop_node(sk, idx);
+
+    return ret;
+}
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 /*******************************************************************************
