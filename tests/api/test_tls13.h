@@ -26,6 +26,7 @@
 
 int test_tls13_apis(void);
 int test_tls13_cipher_suites(void);
+int test_tls13_cipher_list_no_tls13_ctx(void);
 int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_rpk_handshake_no_negotiation(void);
@@ -108,6 +109,7 @@ int test_tls13_pqc_hybrid_async_server(void);
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_suites),         \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_list_no_tls13_ctx), \
     TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),        \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake_no_negotiation), \
