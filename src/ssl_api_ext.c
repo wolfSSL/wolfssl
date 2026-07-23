@@ -804,6 +804,13 @@ static int _Rehandshake(WOLFSSL* ssl)
         return SECURE_RENEGOTIATION_E;
     }
 
+    if (ssl->secure_renegotiation->advertiseOnly) {
+        /* Extension was advertised only for the RFC 5746 check; the
+         * application did not call wolfSSL_UseSecureRenegotiation(). */
+        WOLFSSL_MSG("Secure Renegotiation not forced on by user");
+        return SECURE_RENEGOTIATION_E;
+    }
+
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls && ssl->keys.dtls_epoch == 0xFFFF) {
         WOLFSSL_MSG("Secure Renegotiation not allowed. Epoch would wrap");
@@ -962,7 +969,8 @@ long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
 #endif /* HAVE_SECURE_RENEGOTIATION_INFO */
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
 /* Get whether the secure renegotiation check is enabled for the object.
  *
  * @param [in] ssl  SSL/TLS object.
@@ -994,6 +1002,45 @@ WOLFSSL_API int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled)
         return BAD_FUNC_ARG;
 
     ssl->scr_check_enabled = !!enabled;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Get whether the secure renegotiation check is enabled for the context.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @return  Non-zero when the check is enabled, 0 otherwise.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+WOLFSSL_API int wolfSSL_CTX_get_scr_check_enabled(const WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_scr_check_enabled");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return ctx->scr_check_enabled;
+}
+
+/* Set whether the secure renegotiation check is enabled for the context.
+ *
+ * WOLFSSL objects created from the context inherit this setting. Disabling the
+ * check allows connecting to servers that do not support secure renegotiation
+ * (RFC 5746), which is not recommended.
+ *
+ * @param [in] ctx      SSL/TLS context object.
+ * @param [in] enabled  Non-zero to enable the check, 0 to disable it.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+WOLFSSL_API int wolfSSL_CTX_set_scr_check_enabled(WOLFSSL_CTX* ctx,
+                                                  byte enabled)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_scr_check_enabled");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->scr_check_enabled = !!enabled;
     return WOLFSSL_SUCCESS;
 }
 #endif

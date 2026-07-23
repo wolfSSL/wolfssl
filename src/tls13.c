@@ -4647,6 +4647,17 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     }
 
+#if defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+    /* Re-establish renegotiation_info advertising for a reused object
+     * (wolfSSL_clear frees it) so a TLS 1.2 downgrade still enforces what the
+     * ClientHello advertised. Only when absent, to keep any existing state. */
+    if (ssl->secure_renegotiation == NULL) {
+        ret = SetupClientSecureRenegotiation(ssl);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+    }
+#endif
+
     ssl->options.buildingMsg = 1;
     major = SSLv3_MAJOR;
     tls12minor = TLSv1_2_MINOR;

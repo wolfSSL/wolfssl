@@ -8886,6 +8886,26 @@ AC_ARG_ENABLE([secure-renegotiation-info],
     [ ENABLED_SECURE_RENEGOTIATION_INFO=yes ]
     )
 
+# Legacy Server Connect
+# By default a TLS 1.2 client requires the server to acknowledge the
+# renegotiation_info extension on the initial handshake (RFC 5746 / RFC 9325).
+# Enable this option to also connect to legacy servers that do not support
+# secure renegotiation (not recommended).
+AC_ARG_ENABLE([legacy-server-connect],
+    [AS_HELP_STRING([--enable-legacy-server-connect],[Allow connecting to servers that do not support secure renegotiation (default: disabled)])],
+    [ ENABLED_LEGACY_SERVER_CONNECT=$enableval ],
+    [ ENABLED_LEGACY_SERVER_CONNECT=no ]
+    )
+
+if test "x$ENABLED_LEGACY_SERVER_CONNECT" = "xyes"
+then
+    if test "x$ENABLED_HARDEN_TLS" != "xno"
+    then
+        AC_MSG_ERROR([--enable-legacy-server-connect conflicts with --enable-harden-tls (RFC 9325 3.5). Define WOLFSSL_HARDEN_TLS_NO_SCR_CHECK directly if this is intended.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_LEGACY_SERVER_CONNECT"
+fi
+
 
 # Exporting Keying Material
 AC_ARG_ENABLE([keying-material],
@@ -13613,6 +13633,7 @@ echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
 echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
+echo "   * Legacy Server Connect:      $ENABLED_LEGACY_SERVER_CONNECT"
 echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * S/MIME:                     $ENABLED_SMIME"

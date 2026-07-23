@@ -5667,6 +5667,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
       #if defined(HAVE_SECURE_RENEGOTIATION) \
        || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         ssl->secure_renegotiation = NULL;
+        /* The renegotiation_info advertising is re-established when the next
+         * ClientHello is built (SendClientHello), so a reused client object
+         * keeps the "advertise implies enforce" invariant (RFC 5746). */
       #endif
     #endif
 
