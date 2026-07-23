@@ -1283,10 +1283,13 @@ struct wc_swallow_the_semicolon
                              wc_Sha3_512_Free, sha3_test_once);
 #endif
 
+#ifndef NO_HMAC
+
 struct km_sha_hmac_node {
     struct Hmac wc_hmac;
     /* linkage for the tfm-owned cleanup list */
     struct list_head desc_ent;
+    word64 desc_id;
 };
 struct km_sha_hmac_state {
     /* HASH_MAX_DESCSIZE is 368, but sizeof(struct Hmac) is 832, so the working
@@ -1304,16 +1307,18 @@ struct km_sha_hmac_pstate {
     /* bounded ring of .export snapshots; import validates handles against it */
     struct list_head export_list;
     unsigned int export_list_len;
+    word64 cur_desc_id;
+    word64 tfm_cookie;
 };
 
 /* Serialized HMAC state for .export / .import.  sizeof(struct Hmac) is 832, and
  * an HMAC-over-SHA-3 state is two full sponges, so real state cannot fit
  * HASH_MAX_STATESIZE (345).  .export deep-copies the live Hmac into a snapshot
- * node on the tfm's export_list and the blob carries only a validated handle;
- * .import validates the handle against THIS tfm's export_list -- never
- * dereferencing an unvalidated pointer -- and copies from the snapshot.
+ * node on the tfm's export_list and the blob carries only a desc_id; .import
+ * looks it up by desc_id, validated using the tfm_cookie, and copies from the
+ * snapshot.  Snapshots are deallocated at exit_tfm.
  */
-#define WC_LINUXKM_HMAC_EXPORT_MAGIC 0x484d4143U /* 'HMAC' */
+#define WC_LINUXKM_HMAC_EXPORT_MAGIC W64LIT(0x57435F484d414331) /* "WC_HMAC1" */
 
 /* Upper bound on live .export snapshots per tfm.  Bounds worst-case memory to
  * this many nodes (~832B each): without it, algif_hash's export-on-accept lets
@@ -1331,8 +1336,9 @@ struct km_sha_hmac_pstate {
 #endif
 
 struct km_sha_hmac_export_state {
-    word32                   magic;
-    struct km_sha_hmac_node *snapshot;
+    word64 magic;      /* identifies the export as an HMAC handle. */
+    word64 tfm_cookie; /* associates the export unambiguously with this TFM. */
+    word64 desc_id;    /* local to this TFM, allocated serially from zero. */
 };
 
 wc_static_assert(sizeof(struct km_sha_hmac_state) <= HASH_MAX_DESCSIZE);
@@ -1341,8 +1347,6 @@ wc_static_assert(sizeof(struct km_sha_hmac_state) <= HASH_MAX_DESCSIZE);
 #ifdef HASH_MAX_STATESIZE
 wc_static_assert(sizeof(struct km_sha_hmac_export_state) <= HASH_MAX_STATESIZE);
 #endif
-
-#ifndef NO_HMAC
 
 #ifdef WOLFSSL_LINUXKM_USE_MUTEXES
     #error LINUXKM_LKCAPI_REGISTER_HMAC requires spinlock-based mutexes.
@@ -1385,12 +1389,17 @@ WC_MAYBE_UNUSED static int km_hmac_alloc_tstate(struct shash_desc *desc) {
     s_ctx->node = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
     if (! s_ctx->node)
         return -ENOMEM;
+    /* Must zero to assure the Hmac object is safe to pass to wc_HmacFree() even
+     * if init fails.
+     */
+    XMEMSET(s_ctx->node, 0, sizeof *s_ctx->node);
 
     if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
         free(s_ctx->node);
         s_ctx->node = NULL;
         return -EINVAL;
     }
+    s_ctx->node->desc_id = p_ctx->cur_desc_id++;
     list_add(&s_ctx->node->desc_ent, &p_ctx->desc_list);
     (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
 
@@ -1411,7 +1420,8 @@ WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct shash_desc *desc) {
     (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
 
     /* wc_HmacFree is NOT a no-op: a wc_HmacCopy'd node can own inner/outer hash
-     * heap (e.g. SMALL_STACK_CACHE W buffers), so it must run before free(). */
+     * heap (e.g. SMALL_STACK_CACHE W buffers), so it must run before free().
+     */
     wc_HmacFree(&s_ctx->node->wc_hmac);
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
     ForceZero(s_ctx->node, sizeof *s_ctx->node);
@@ -1433,6 +1443,8 @@ WC_MAYBE_UNUSED static int km_hmac_init_tfm(struct crypto_shash *tfm)
     INIT_LIST_HEAD(&p_ctx->desc_list);
     INIT_LIST_HEAD(&p_ctx->export_list);
     p_ctx->export_list_len = 0;
+    p_ctx->cur_desc_id = 0;
+    p_ctx->tfm_cookie = get_random_u64();
     return 0;
 }
 
@@ -1605,7 +1617,7 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
     }
     /* Bound the ring: at capacity, unlink the oldest (list tail) under the lock;
      * it is freed below, outside the lock.  Unlinking under the lock is what
-     * lets .import validate-and-copy under the same lock without racing a free.
+     * lets .import lookup-and-copy under the same lock without racing a free.
      */
     if (p_ctx->export_list_len >= WC_LINUXKM_HMAC_EXPORT_LIST_MAX) {
         evicted = list_last_entry(&p_ctx->export_list,
@@ -1613,13 +1625,14 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
         list_del(&evicted->desc_ent);
         p_ctx->export_list_len--;
     }
+    snapshot->desc_id = p_ctx->cur_desc_id++;
     /* list_add() prepends, so the tail from list_last_entry() is the oldest. */
     list_add(&snapshot->desc_ent, &p_ctx->export_list);
     p_ctx->export_list_len++;
     (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
 
     /* The evicted node is now unlinked and unreachable (any outstanding handle
-     * to it will fail import validation), so free it outside the lock.
+     * to it will fail import lookup), so free it outside the lock.
      */
     if (evicted != NULL) {
         wc_HmacFree(&evicted->wc_hmac);
@@ -1632,7 +1645,8 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
     /* Zero first so no uninitialized padding leaks into the caller's buffer. */
     XMEMSET(blob, 0, sizeof(*blob));
     blob->magic = WC_LINUXKM_HMAC_EXPORT_MAGIC;
-    blob->snapshot = snapshot;
+    blob->tfm_cookie = p_ctx->tfm_cookie;
+    blob->desc_id = snapshot->desc_id;
 
     return 0;
 }
@@ -1642,7 +1656,6 @@ WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *i
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
     struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
     const struct km_sha_hmac_export_state *blob = (const struct km_sha_hmac_export_state *)in;
-    struct km_sha_hmac_node *snapshot;
     struct km_sha_hmac_node *node_i;
     struct km_sha_hmac_node *newnode;
     int found = 0;
@@ -1650,8 +1663,8 @@ WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *i
 
     if (blob->magic != WC_LINUXKM_HMAC_EXPORT_MAGIC)
         return -EINVAL;
-    snapshot = blob->snapshot;
-    if (snapshot == NULL)
+
+    if (blob->tfm_cookie != p_ctx->tfm_cookie)
         return -EINVAL;
 
     /* Fresh working node, allocated outside the lock; its inner Hmac heap is
@@ -1668,32 +1681,30 @@ WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *i
      * dereference of attacker-influenced memory.
      */
     if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
-        ForceZero(newnode, sizeof(*newnode));
         free(newnode);
         return -EINVAL;
     }
     list_for_each_entry(node_i, &p_ctx->export_list, desc_ent) {
-        if (node_i == snapshot) {
+        if (node_i->desc_id == blob->desc_id) {
             found = 1;
             break;
         }
     }
     if (! found) {
         (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
-        ForceZero(newnode, sizeof(*newnode)); /* raw node; nothing to wc_HmacFree */
         free(newnode);
         return -EINVAL;
     }
-    ret = wc_HmacCopy(&snapshot->wc_hmac, &newnode->wc_hmac);
+    ret = wc_HmacCopy(&node_i->wc_hmac, &newnode->wc_hmac);
     if (ret != 0) {
         (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
-        /* Copy-failure cleanup mirrors km_hmac_init (wc_HmacFree then free) --
-         * keep the two consistent if wc_HmacCopy's failure contract is revised.
+        /* No need for wc_HmacFree() here -- failed wc_HmacCopy() guarantees no
+         * allocations are held under the Hmac -- in fact, it leaves the object
+         * in an indeterminate state that's unsafe to pass to wc_HmacFree(),
+         * since we aren't zeroing it after the malloc() (zeroing would be
+         * frivolous for allocations to be handed immediately to wc_HmacCopy()).
          */
-        wc_HmacFree(&newnode->wc_hmac);
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
         ForceZero(newnode, sizeof(*newnode));
-#endif
         free(newnode);
         return -EINVAL;
     }
@@ -1701,6 +1712,7 @@ WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *i
      * overwriting any poisoned prior pointer without reading it.  A real prior
      * node orphans onto desc_list and is reaped at exit_tfm.
      */
+    newnode->desc_id = p_ctx->cur_desc_id++;
     list_add(&newnode->desc_ent, &p_ctx->desc_list);
     s_ctx->node = newnode;
     (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
