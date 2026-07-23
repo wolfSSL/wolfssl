@@ -10319,11 +10319,10 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (!key->prvKeySet)) {
-        ret = BAD_FUNC_ARG;
-    }
 
 #ifdef WOLF_CRYPTO_CB
+    /* A device/id-backed key has no local private material (prvKeySet == 0), so
+     * dispatch to the callback before the prvKeySet check. */
     if (ret == 0) {
     #ifndef WOLF_CRYPTO_CB_FIND
         if (key->devId != INVALID_DEVID)
@@ -10338,6 +10337,10 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
         }
     }
 #endif
+
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 
     if (ret == 0) {
         /* Sign message. */
