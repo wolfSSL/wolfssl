@@ -251,6 +251,17 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             aes->left = 0;
             XMEMSET(tmp, 0x0, WC_AES_BLOCK_SIZE);
         }
+        else {
+            /* buffered bytes do not fill a block: encrypt the partial block
+             * without advancing the counter, emit the new bytes, and keep
+             * the remaining buffered bytes for the next call */
+            ret = AesProcess(aes, (byte*)out_block, (byte const *)tmp, WC_AES_BLOCK_SIZE,
+                        AES_CFG_DIR_ENCRYPT, AES_CFG_MODE_CTR_NOCTR);
+            if (ret != 0)
+                return ret;
+            XMEMCPY(out, out_block+aes->left, odd);
+            aes->left += odd;
+        }
         in += odd;
         out+= odd;
         sz -= odd;
