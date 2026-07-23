@@ -2670,10 +2670,39 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
         else
         #endif
         {
-            if (rng != NULL)
-                ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
+#ifndef WC_NO_RNG
+            WC_RNG* checkRng = rng;
+            WC_RNG* tmpRng = NULL;
+
+            /* A fixed-base Miller-Rabin test can be fooled by a crafted
+             * composite, so use random witnesses when an RNG is available.
+             * Create a temporary RNG when the caller did not supply one. */
+            if (checkRng == NULL) {
+                tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), key->heap,
+                    DYNAMIC_TYPE_RNG);
+                if ((tmpRng != NULL) &&
+                        (wc_InitRng_ex(tmpRng, key->heap, INVALID_DEVID) == 0)) {
+                    checkRng = tmpRng;
+                }
+            }
+
+            /* Fall back to the deterministic test when no RNG could be
+             * obtained rather than failing the parameter load. */
+            if (checkRng != NULL)
+                ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, checkRng);
             else
                 ret = mp_prime_is_prime(keyP, 8, &isPrime);
+
+            if (tmpRng != NULL) {
+                /* wc_FreeRng is safe on a partially-constructed RNG and
+                 * releases any resources a failed wc_InitRng_ex left behind. */
+                wc_FreeRng(tmpRng);
+                XFREE(tmpRng, key->heap, DYNAMIC_TYPE_RNG);
+            }
+#else
+            (void)rng;
+            ret = mp_prime_is_prime(keyP, 8, &isPrime);
+#endif
         }
 
         if (ret == 0 && isPrime == 0)

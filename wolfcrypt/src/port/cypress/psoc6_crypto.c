@@ -2107,6 +2107,11 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
     if (keySz > MAX_ECC_KEYSIZE)
         return -BAD_FUNC_ARG;
 
+    /* Reject r or s values that would overflow their keySz slot in
+     * signature_buf when serialized. */
+    if (rSz > keySz || sSz > keySz)
+        return -BAD_FUNC_ARG;
+
     /* Prepare ECC key */
     ecc_key.type     = PK_PUBLIC;
     ecc_key.curveID  = psoc6_get_curve_id(keySz);

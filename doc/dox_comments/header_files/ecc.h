@@ -316,6 +316,8 @@ void wc_ecc_key_free(ecc_key* key);
     shared key
     \return MP_MEM may be returned if there is an error while computing the
     shared key
+    \return ECC_INF_E returned when the computed shared secret is the point at
+    infinity
 
     \param private_key pointer to the ecc_key structure containing the local
     private key

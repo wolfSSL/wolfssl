@@ -703,3 +703,28 @@ int test_wc_Chacha_XChachaSetKey(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Chacha_XChachaSetKey */
+
+/*
+ * A zero-initialized context that only receives a nonce, with the key setup
+ * omitted, must not silently encrypt with an all-zero key. wc_Chacha_Process
+ * has to reject the missing key instead of returning success.
+ */
+int test_wc_Chacha_MissingKey(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CHACHA
+    ChaCha      ctx;
+    const byte  iv[CHACHA_IV_BYTES] = { 0 };
+    const byte  input[32] = { 0 };
+    byte        cipher[32];
+
+    XMEMSET(&ctx, 0, sizeof(ctx));
+    XMEMSET(cipher, 0, sizeof(cipher));
+
+    /* Nonce set, but wc_Chacha_SetKey() deliberately skipped. */
+    ExpectIntEQ(wc_Chacha_SetIV(&ctx, iv, 0), 0);
+    ExpectIntEQ(wc_Chacha_Process(&ctx, cipher, input, sizeof(input)),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Chacha_MissingKey */

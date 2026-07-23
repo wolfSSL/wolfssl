@@ -3957,12 +3957,14 @@ static void mlkem_cbd_eta3(sword16* p, const byte* r)
 #else
     /* Calculate eight integer coefficients at a time. */
     for (i = 0; i < MLKEM_N; i += 16) {
-        const word32* r32 = (const word32*)r;
+        word32 r0 = readUnalignedWord32(r);
+        word32 r1 = readUnalignedWord32(r + 4);
+        word32 r2 = readUnalignedWord32(r + 8);
         /* Take the next 12 bytes, little endian, as 24 bit values. */
-        word32 t0 =   r32[0]                          & 0xffffff;
-        word32 t1 = ((r32[0] >> 24) | (r32[1] <<  8)) & 0xffffff;
-        word32 t2 = ((r32[1] >> 16) | (r32[2] << 16)) & 0xffffff;
-        word32 t3 =   r32[2] >>  8                              ;
+        word32 t0 =   r0                      & 0xffffff;
+        word32 t1 = ((r0 >> 24) | (r1 <<  8)) & 0xffffff;
+        word32 t2 = ((r1 >> 16) | (r2 << 16)) & 0xffffff;
+        word32 t3 =   r2 >>  8                          ;
         word32 d0;
         word32 d1;
         word32 d2;
@@ -5071,18 +5073,22 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             sword16 t14 = TO_COMP_WORD_10(v, i, j, 14);
             sword16 t15 = TO_COMP_WORD_10(v, i, j, 15);
 
-            word32* r32 = (word32*)r;
             /* Pack sixteen 10-bit values into byte array. */
-            r32[0] =  (word32)t0         | ((word32)t1  << 10) |
-                     ((word32)t2  << 20) | ((word32)t3  << 30);
-            r32[1] = ((word32)t3  >>  2) | ((word32)t4  <<  8) |
-                     ((word32)t5  << 18) | ((word32)t6  << 28);
-            r32[2] = ((word32)t6  >>  4) | ((word32)t7  <<  6) |
-                     ((word32)t8  << 16) | ((word32)t9  << 26);
-            r32[3] = ((word32)t9  >>  6) | ((word32)t10 <<  4) |
-                     ((word32)t11 << 14) | ((word32)t12 << 24);
-            r32[4] = ((word32)t12 >>  8) | ((word32)t13 <<  2) |
-                     ((word32)t14 << 12) | ((word32)t15 << 22);
+            writeUnalignedWord32(r +  0,
+                 (word32)t0         | ((word32)t1  << 10) |
+                ((word32)t2  << 20) | ((word32)t3  << 30));
+            writeUnalignedWord32(r +  4,
+                ((word32)t3  >>  2) | ((word32)t4  <<  8) |
+                ((word32)t5  << 18) | ((word32)t6  << 28));
+            writeUnalignedWord32(r +  8,
+                ((word32)t6  >>  4) | ((word32)t7  <<  6) |
+                ((word32)t8  << 16) | ((word32)t9  << 26));
+            writeUnalignedWord32(r + 12,
+                ((word32)t9  >>  6) | ((word32)t10 <<  4) |
+                ((word32)t11 << 14) | ((word32)t12 << 24));
+            writeUnalignedWord32(r + 16,
+                ((word32)t12 >>  8) | ((word32)t13 <<  2) |
+                ((word32)t14 << 12) | ((word32)t15 << 22));
 
             /* Move over set bytes. */
             r += 20;

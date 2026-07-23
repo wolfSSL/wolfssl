@@ -317,6 +317,37 @@ int test_wc_DhSetKey(void)
 }
 
 /*
+ * wc_DhSetKey_ex validates untrusted parameters, so it must reject a composite
+ * modulus even when that composite is a strong pseudoprime to the fixed
+ * small-prime Miller-Rabin bases. n = 341550071728321 = 10670053 * 32010157 is
+ * a strong pseudoprime to bases 2, 3, 5, 7, 11, 13, 17 and 19, which the
+ * deterministic fixed-base test wrongly accepts as prime. Random-witness
+ * testing rejects it. As with the library's own primality check, rejection is
+ * probabilistic: eight random Miller-Rabin rounds leave a negligible
+ * (well under 1e-4) chance of accepting the composite, so a one-off failure
+ * here is statistical, not a regression.
+ */
+int test_wc_DhSetKey_ex_pseudoprime(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DH) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WC_NO_RNG)
+    DhKey key;
+    /* n = 341550071728321, big-endian. */
+    byte p[] = { 0x01, 0x36, 0xA3, 0x52, 0xB2, 0xC8, 0xC1 };
+    byte g[] = { 0x02 };
+
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitDhKey(&key), 0);
+    ExpectIntEQ(wc_DhSetKey_ex(&key, p, sizeof(p), g, sizeof(g), NULL, 0),
+        WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
+    wc_FreeDhKey(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
  * Testing wc_DhSetNamedKey(), wc_DhGetNamedKeyParamSize(),
  * wc_DhCopyNamedKey() and wc_DhCmpNamedKey().
  */

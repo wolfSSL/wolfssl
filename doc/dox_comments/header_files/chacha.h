@@ -41,6 +41,8 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
     \return 0 Returned upon successfully encrypting or decrypting the input
     \return BAD_FUNC_ARG returned if there is an error processing the ctx
     input argument
+    \return MISSING_KEY returned if wc_Chacha_SetKey was not called to set a
+    key before processing
 
     \param ctx pointer to the ChaCha structure on which to set the iv
     \param output pointer to a buffer in which to store the output ciphertext
