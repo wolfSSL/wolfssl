@@ -37,6 +37,7 @@ int test_dtls12_record_length_mismatch(void);
 int test_dtls12_short_read(void);
 int test_dtls13_longer_length(void);
 int test_dtls13_short_read(void);
+int test_dtls13_oversized_msg_length(void);
 int test_records_span_network_boundaries(void);
 int test_dtls_record_cross_boundaries(void);
 int test_dtls_rtx_across_epoch_change(void);
@@ -124,6 +125,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls12_short_read),                       \
         TEST_DECL_GROUP("dtls", test_dtls13_longer_length),                    \
         TEST_DECL_GROUP("dtls", test_dtls13_short_read),                       \
+        TEST_DECL_GROUP("dtls", test_dtls13_oversized_msg_length),             \
         TEST_DECL_GROUP("dtls", test_records_span_network_boundaries),         \
         TEST_DECL_GROUP("dtls", test_dtls_record_cross_boundaries),            \
         TEST_DECL_GROUP("dtls", test_dtls_rtx_across_epoch_change),            \

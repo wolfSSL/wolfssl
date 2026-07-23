@@ -1411,6 +1411,107 @@ int test_dtls13_short_read(void)
 }
 #endif /* WOLFSSL_DTLS13 && !defined(WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS) */
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+/* A plaintext (epoch 0) handshake message whose handshake message_length claims
+ * more than MAX_HANDSHAKE_SZ must not be buffered for reassembly. We use the
+ * server's plaintext ServerHello: the client accepts a fragmented ServerHello
+ * (Dtls13AcceptFragmented()), so an incomplete one is normally stored for
+ * reassembly. Without the message_length cap in _Dtls13HandshakeRecv() the
+ * spoofed message would be added to the rx list; with it the unauthenticated
+ * message is silently dropped. */
+int test_dtls13_oversized_msg_length(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char sh[TEST_MEMIO_BUF_SZ];
+    int shSz = (int)sizeof(sh);
+    int recLen = 0;
+    byte hsMsg[DTLS_HANDSHAKE_HEADER_SZ + 1];
+    word32 idx = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* CH1 -> server, then server emits its first flight (plaintext ServerHello
+     * is the first record). */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(test_ctx.c_msg_count, 0);
+    ExpectIntEQ(test_memio_copy_message(&test_ctx, 1, sh, &shSz, 0), 0);
+    ExpectIntGE(shSz, DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ);
+    /* First record is a plaintext handshake ServerHello. */
+    ExpectIntEQ((byte)sh[0], handshake);
+    ExpectIntEQ((byte)sh[DTLS_RECORD_HEADER_SZ], server_hello);
+    if (EXPECT_SUCCESS())
+        recLen = (((byte)sh[DTLS_RECORD_HEADER_SZ - 2]) << 8) |
+                  (byte)sh[DTLS_RECORD_HEADER_SZ - 1];
+    /* the ServerHello record must be fully contained in the copied message */
+    ExpectIntLE(DTLS_RECORD_HEADER_SZ + recLen, shSz);
+
+    /* Spoof only the handshake message_length of the ServerHello record,
+     * leaving the record length and fragment_length intact so it clears record
+     * parsing and looks like the first fragment of an oversized message. */
+    c32to24((word32)MAX_HANDSHAKE_SZ + 1,
+            (byte*)sh + DTLS_RECORD_HEADER_SZ + 1);
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, sh,
+            DTLS_RECORD_HEADER_SZ + recLen), 0);
+
+    /* The client must reject the oversized ServerHello without buffering it. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNull(ssl_c->dtls_rx_msg_list);
+    ExpectIntEQ(ssl_c->dtls_rx_msg_list_sz, 0);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* Stretching the test suite a bit, ideally we should not test using
+     * internal state, but we have no way to forge encrypted packet yet */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->keys.curEpoch64 = w64From32(0x0, DTLS13_EPOCH_TRAFFIC0);
+        ssl_c->keys.decryptedCur = 1;
+        ssl_c->curRL.pvMajor = ssl_c->version.major;
+        ssl_c->curRL.pvMinor = DTLSv1_2_MINOR;
+    }
+    XMEMSET(hsMsg, 0, sizeof(hsMsg));
+    hsMsg[0] = key_update;
+    /* oversized message_length, single-byte first fragment of it */
+    c32to24((word32)MAX_HANDSHAKE_SZ + 1, hsMsg + 1);
+    hsMsg[DTLS_HANDSHAKE_HEADER_SZ - 1] = 1;
+    ExpectIntEQ(Dtls13HandshakeRecv(ssl_c, hsMsg, &idx, (word32)sizeof(hsMsg)),
+        HANDSHAKE_SIZE_ERROR);
+    ExpectNull(ssl_c->dtls_rx_msg_list);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_dtls13_oversized_msg_length(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_DTLS13 */
+
 #if !defined(WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS)
 int test_dtls12_short_read(void)
 {
@@ -1655,6 +1756,10 @@ int test_dtls13_short_read(void)
     return TEST_SKIPPED;
 }
 int test_dtls13_longer_length(void)
+{
+    return TEST_SKIPPED;
+}
+int test_dtls13_oversized_msg_length(void)
 {
     return TEST_SKIPPED;
 }

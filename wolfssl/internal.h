@@ -7461,6 +7461,7 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define Dtls13GetEpoch wolfSSL_Dtls13GetEpoch
         #define Dtls13CheckEpoch wolfSSL_Dtls13CheckEpoch
+        #define Dtls13HandshakeRecv wolfSSL_Dtls13HandshakeRecv
         #define Dtls13WriteAckMessage wolfSSL_Dtls13WriteAckMessage
         #define Dtls13RtxAddAck wolfSSL_Dtls13RtxAddAck
         #define Dtls13DoScheduledWork wolfSSL_Dtls13DoScheduledWork
@@ -7505,7 +7506,7 @@ WOLFSSL_LOCAL int Dtls13HandshakeSend(WOLFSSL* ssl, byte* output,
     int hash_output);
 WOLFSSL_LOCAL int Dtls13RecordRecvd(WOLFSSL* ssl);
 WOLFSSL_TEST_VIS int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type);
-WOLFSSL_LOCAL int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input,
+WOLFSSL_TEST_VIS int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input,
     word32* inOutIdx, word32 totalSz);
 WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
     enum HandShakeType msg_type, word32 length);
