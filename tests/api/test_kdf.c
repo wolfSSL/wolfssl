@@ -849,14 +849,16 @@ int test_wc_KdfFeatureCoverage(void)
 #ifdef WOLFSSL_WOLFSSH
     {
         byte k[8] = {0x01};
+#ifndef NO_SHA
         byte kPadded[8] = {0}; /* top bit set: exercises kPad path */
+#endif
         byte h[8] = {0x02};
         byte sessionId[8] = {0x03};
         byte key[160] = {0};
 
+#ifndef NO_SHA
         kPadded[0] = 0x80;
 
-#ifndef NO_SHA
         /* digestSz(SHA1)=20: keySz=10 -> blocks==0, remainder>0. */
         ExpectIntEQ(wc_SSH_KDF(WC_SHA, 'A', key, 10, k, sizeof(k), h,
             sizeof(h), sessionId, sizeof(sessionId)), 0);
