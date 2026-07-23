@@ -25,6 +25,8 @@
 int test_tls_ems_downgrade(void);
 int test_tls_ems_resumption_downgrade(void);
 int test_tls_ems_resumption_server_downgrade(void);
+int test_tls_ems_server_disable(void);
+int test_tls_require_ems(void);
 int test_tls12_chacha20_poly1305_bad_tag(void);
 int test_tls13_null_cipher_bad_hmac(void);
 int test_scr_verify_data_mismatch(void);
@@ -33,6 +35,7 @@ int test_helloRequest_no_renegotiation_option(void);
 int test_tls13_hrr_cipher_suite_mismatch(void);
 int test_tls13_ticket_age_out_of_window(void);
 int test_wolfSSL_DisableExtendedMasterSecret(void);
+int test_wolfSSL_DisableNormalMasterSecret(void);
 int test_certificate_authorities_certificate_request(void);
 int test_certificate_authorities_client_hello(void);
 int test_TLSX_TCA_Find(void);

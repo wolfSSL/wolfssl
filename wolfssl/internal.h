@@ -4061,6 +4061,13 @@ struct WOLFSSL_CTX {
     byte        groupMessages:1;  /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
     byte        haveEMS:1;        /* have extended master secret extension */
+#ifdef HAVE_EXTENDED_MASTER
+    byte        disableEMS:1;     /* user disabled extended master secret,
+                                   * ignore peer's EMS request (server) and
+                                   * don't advertise it (client) */
+    byte        requireEMS:1;     /* user requires extended master secret,
+                                   * abort if EMS is not negotiated */
+#endif
     byte        useClientOrder:1; /* Use client's cipher preference order */
 #if defined(HAVE_SESSION_TICKET)
     byte        noTicketTls12:1;  /* TLS 1.2 server won't send ticket */
@@ -5231,6 +5238,12 @@ struct Options {
     word16            weOwnRng:1;         /* will be true unless CTX owns */
     word16            dontFreeDigest:1;   /* when true, we used SetDigest */
     word16            haveEMS:1;          /* using extended master secret */
+#ifdef HAVE_EXTENDED_MASTER
+    word16            disableEMS:1;       /* user disabled extended master
+                                           * secret */
+    word16            requireEMS:1;       /* user requires extended master
+                                           * secret */
+#endif
 #ifdef HAVE_POLY1305
     word16            oldPoly:1;        /* set when to use old rfc way of poly*/
 #endif
