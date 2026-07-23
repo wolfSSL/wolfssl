@@ -908,8 +908,8 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
      */
     tfm = crypto_alloc_kpp(driver, 0, 0);
     if (IS_ERR(tfm)) {
-        #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
-            !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+        #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
+            defined(WC_LINUX_CONFIG_SELFTESTS)
         if ((PTR_ERR(tfm) == -ENOENT) && fips_enabled) {
             pr_info("info: skipping unsupported kpp algorithm %s: %d\n",
                     driver, (int)PTR_ERR(tfm));
