@@ -12319,7 +12319,7 @@ int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
     | ML_KEM_768  |
     | ML_KEM_1024 |
 
-    ML-KEM ハイブリッドグループは、上記に加えて HAVE_ECC、および WOLFSSL_WC_MLKEM または HAVE_LIBOQS、さらに WOLFSSL_PQC_HYBRIDS（"extra" セットには WOLFSSL_EXTRA_PQC_HYBRIDS）が必要です:
+    ML-KEM ハイブリッドグループは、上記に加えて HAVE_ECC、および WOLFSSL_WC_MLKEM、さらに WOLFSSL_PQC_HYBRIDS（"extra" セットには WOLFSSL_EXTRA_PQC_HYBRIDS）が必要です:
 
     | 名前                | 必要なハイブリッドフラグ   |
     | ------------------- | -------------------------- |
@@ -12332,7 +12332,7 @@ int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
     | X25519MLKEM512      | WOLFSSL_EXTRA_PQC_HYBRIDS  |
     | X448MLKEM768        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
 
-    レガシー Kyber グループ（WOLFSSL_MLKEM_KYBER が必要。ハイブリッドはさらに HAVE_ECC と、WOLFSSL_WC_MLKEM または HAVE_LIBOQS が必要）:
+    レガシー Kyber グループ（WOLFSSL_MLKEM_KYBER が必要。ハイブリッドはさらに HAVE_ECC と、WOLFSSL_WC_MLKEM が必要）:
 
     | 名前                  |
     | --------------------- |
@@ -12506,7 +12506,7 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
     | WOLFSSL_ML_KEM_768 |
     | WOLFSSL_ML_KEM_1024|
 
-    ML-KEM ハイブリッドグループは、上記に加えて HAVE_ECC、および WOLFSSL_WC_MLKEM または HAVE_LIBOQS、さらに WOLFSSL_PQC_HYBRIDS（"extra" セットには WOLFSSL_EXTRA_PQC_HYBRIDS）が必要です:
+    ML-KEM ハイブリッドグループは、上記に加えて HAVE_ECC、および WOLFSSL_WC_MLKEM、さらに WOLFSSL_PQC_HYBRIDS（"extra" セットには WOLFSSL_EXTRA_PQC_HYBRIDS）が必要です:
 
     | 識別子                           | 必要なハイブリッドフラグ   |
     | -------------------------------- | -------------------------- |
@@ -12519,7 +12519,7 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
     | WOLFSSL_X25519MLKEM512           | WOLFSSL_EXTRA_PQC_HYBRIDS  |
     | WOLFSSL_X448MLKEM768             | WOLFSSL_EXTRA_PQC_HYBRIDS  |
 
-    レガシー Kyber グループ（HAVE_PQC と WOLFSSL_MLKEM_KYBER が必要。ハイブリッドはさらに HAVE_ECC と、WOLFSSL_WC_MLKEM または HAVE_LIBOQS が必要）:
+    レガシー Kyber グループ（HAVE_PQC と WOLFSSL_MLKEM_KYBER が必要。ハイブリッドはさらに HAVE_ECC と、WOLFSSL_WC_MLKEM が必要）:
 
     | 識別子                      |
     | --------------------------- |

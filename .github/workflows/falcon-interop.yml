@@ -1,0 +1,186 @@
+name: Falcon native<->liboqs interop Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Daily run on master reseeds the shared cache (see save steps below).
+  schedule:
+    - cron: '40 4 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+env:
+  # liboqs version pinned for the differential/interop baseline.
+  LIBOQS_REF: 0.10.1
+
+jobs:
+  build_liboqs:
+    name: Build liboqs
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checking if we have liboqs in cache
+        uses: actions/cache/restore@v5
+        id: cache
+        with:
+          path: oqs-install
+          key: liboqs-${{ env.LIBOQS_REF }}-ubuntu-24.04
+          lookup-only: true
+
+      - name: Checkout liboqs
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: open-quantum-safe/liboqs
+          ref: ${{ env.LIBOQS_REF }}
+          path: liboqs
+          fetch-depth: 1
+
+      - name: Compile and install liboqs
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: liboqs
+        run: |
+          mkdir build
+          cd build
+          cmake -GNinja \
+            -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/oqs-install \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DOQS_USE_OPENSSL=OFF \
+            -DOQS_BUILD_ONLY_LIB=ON \
+            ..
+          ninja
+          ninja install
+
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save liboqs cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: oqs-install
+          key: liboqs-${{ env.LIBOQS_REF }}-ubuntu-24.04
+
+      # On a cache miss, hand the freshly built liboqs to the test job via an
+      # artifact so it is not compiled a second time in the same run.
+      - name: tar liboqs
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tar -zcf liboqs.tgz oqs-install
+
+      - name: Upload liboqs build
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: liboqs
+          path: liboqs.tgz
+          retention-days: 1
+
+  falcon_interop:
+    name: Interop (native Falcon vs liboqs Falcon)
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    needs: build_liboqs
+    timeout-minutes: 15
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      # Check out wolfSSL first: actions/checkout runs "git clean -ffdx", which
+      # would delete an untracked oqs-install/ placed in the workspace by the
+      # cache/artifact steps below. Restoring liboqs after the checkout keeps it.
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Restore liboqs from cache
+        uses: actions/cache/restore@v5
+        id: cache
+        with:
+          path: oqs-install
+          key: liboqs-${{ env.LIBOQS_REF }}-ubuntu-24.04
+
+      # On a cache miss the build_liboqs job uploaded an artifact instead.
+      - name: Download liboqs artifact
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: liboqs
+
+      - name: Untar liboqs artifact
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tar -zxf liboqs.tgz
+
+      - name: Build wolfSSL with native Falcon
+        run: |
+          ./autogen.sh
+          ./configure --enable-falcon --enable-experimental --enable-static
+          make -j$(nproc)
+
+      - name: Build and run the interop harness (native Falcon vs liboqs)
+        run: |
+          gcc -O2 -I. -I$GITHUB_WORKSPACE/oqs-install/include \
+            scripts/falcon-interop.c \
+            src/.libs/libwolfssl.a \
+            $GITHUB_WORKSPACE/oqs-install/lib/liboqs.a \
+            -lm -lcrypto -lpthread -o falcon-interop
+          ./falcon-interop
+
+  # Exercise every selectable Falcon backend, not just the default portable-
+  # integer fpr path. Backend selection is compile-time (no runtime CPUID
+  # fallback), so each leg runs on a host with the required ISA: AVX2/FMA is
+  # present on all GitHub x86 runners, NEON on the free ARM64 runners.
+  falcon_backends:
+    name: Backend ${{ matrix.name }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'default',           runner: ubuntu-latest,    opts: '--enable-falcon' }
+          - { name: 'asm',               runner: ubuntu-latest,    opts: '--enable-falcon=asm' }
+          - { name: 'double',            runner: ubuntu-latest,    opts: '--enable-falcon=double' }
+          - { name: 'avx2',              runner: ubuntu-latest,    opts: '--enable-falcon=avx2',           avx2: true }
+          - { name: 'small-mem',         runner: ubuntu-latest,    opts: '--enable-falcon=small-mem' }
+          - { name: 'avx2+small-mem',    runner: ubuntu-latest,    opts: '--enable-falcon=avx2,small-mem', avx2: true }
+          - { name: 'neon (ARM64)',      runner: ubuntu-24.04-arm, opts: '--enable-falcon=neon' }
+          # verify-only strips keygen/sign, so it is a build/link check only
+          # (testwolfcrypt's falcon_test needs signing).
+          - { name: 'verify-only',       runner: ubuntu-latest,    opts: '--enable-falcon CPPFLAGS=-DWOLFSSL_FALCON_VERIFY_ONLY', build_only: true }
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool
+
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      # Robustness guard: an AVX2-compiled binary SIGILLs on a non-AVX2 host.
+      # GitHub x86 runners always have AVX2+FMA, but fail loudly if that changes.
+      - name: Require AVX2 on the runner
+        if: ${{ matrix.avx2 }}
+        run: grep -q avx2 /proc/cpuinfo || { echo "::error::runner lacks AVX2"; exit 1; }
+
+      - name: Build wolfSSL (Falcon ${{ matrix.name }})
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.opts }} --enable-experimental --enable-static
+          make -j$(nproc)
+
+      - name: Run wolfCrypt Falcon self-test
+        if: ${{ ! matrix.build_only }}
+        run: ./wolfcrypt/test/testwolfcrypt

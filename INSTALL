@@ -255,11 +255,13 @@
     - ML-KEM (FIPS 203, CRYSTALS-KYBER) (key encapsulation mechanism)
     - ML-DSA (FIPS 204, CRYSTALS-Dilithium) (signature scheme)
     - SLH-DSA (FIPS 205, SPHINCS+) (signature scheme)
+    - Falcon (signature scheme) - experimental, not yet standardized
 
-    Falcon (signature scheme) is still provided through liboqs integration.
-    To enable it, pass both --with-liboqs and --enable-falcon to configure
-    (CMake: -DWOLFSSL_OQS=yes -DWOLFSSL_FALCON=yes). Passing --with-liboqs
-    without --enable-falcon (or vice versa) is now an error.
+    Falcon is provided by the native wolfSSL implementation; liboqs is no
+    longer required or supported. Falcon has not been standardized by NIST yet,
+    and its wolfCrypt API name is experimental and subject to change, so enable
+    it with --enable-falcon --enable-experimental (CMake: -DWOLFSSL_FALCON=yes
+    -DWOLFSSL_EXPERIMENTAL=yes).
 
     The following NIST Competition Round 3 finalist algorithms were supported,
     but have been removed after 5.3.3

@@ -2290,10 +2290,14 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_448.c
 endif
 endif
 
-if BUILD_LIBOQS
+if BUILD_FALCON
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/falcon.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/liboqs/liboqs.c
 endif
+
+if BUILD_FALCON_ASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_falcon_fpr_x86_64_asm.S
+endif
+
 
 if BUILD_LIBZ
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/compress.c

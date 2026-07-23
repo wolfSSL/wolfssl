@@ -162,9 +162,6 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/aria/aria-crypt.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/aria/aria-cryptocb.h
 endif
 
-if BUILD_LIBOQS
-nobase_include_HEADERS+= wolfssl/wolfcrypt/port/liboqs/liboqs.h
-endif
 
 if BUILD_ASYNCCRYPT
 nobase_include_HEADERS+= wolfssl/wolfcrypt/async.h
