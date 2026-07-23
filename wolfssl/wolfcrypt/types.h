@@ -2247,7 +2247,8 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #include <assert.h>
     #endif
     #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
-            (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)) || \
+            (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L) && \
+             !defined(__GNUC__)) ||                                        \
             (defined(_MSVC_LANG) && (__cpp_static_assert >= 201411L))
         /* native variadic static_assert() */
         #define wc_static_assert static_assert
@@ -2274,6 +2275,21 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #ifndef wc_static_assert2
             #define wc_static_assert2(expr, msg) _Static_assert(expr, msg)
         #endif
+        #ifndef wc_static_assert_if_const
+            /* wc_static_assert_if_const() allows opportunistic compile-time
+             * assertions on expr -- if expr is constant at compile time, the
+             * assert is performed, otherwise it's silently ignored.  Useful for
+             * checking potentially user-supplied macro definitions that may be
+             * numeric literals or may involve variable references.
+             */
+            #define WC_IS_CONSTEXPR(e)                                  \
+                __builtin_types_compatible_p(__typeof__(8 ?             \
+                                             ((void *)((long)(e) * 0l)) \
+                                             : (int *)8), int *)
+            #define wc_static_assert_if_const(expr, msg)                \
+                wc_static_assert2(__builtin_choose_expr(                \
+                                  WC_IS_CONSTEXPR(expr), expr, 1), msg)
+        #endif
     #else
         #ifdef __COUNTER__
             #define wc_static_assert(expr)                          \
@@ -2291,6 +2307,11 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #endif
 #elif !defined(wc_static_assert2)
         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
+#endif
+
+#ifndef wc_static_assert_if_const
+    #define wc_static_assert_if_const(expr, msg) \
+        struct wc_static_assert_dummy_struct
 #endif
 
 #ifndef WC_RELAX_LONG_LOOP
