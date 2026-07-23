@@ -5483,7 +5483,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (args->pv.major != ssl->version.major ||
         args->pv.minor != tls12minor) {
-        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
         WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
         return VERSION_ERROR;
     }
@@ -5567,39 +5566,42 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     if ((args->idx - args->begin) + OPAQUE16_LEN > helloSz) {
+        /* Fewer than OPAQUE16_LEN bytes remain after the compression method, so
+         * there is no complete extensions length field. */
+        if ((args->idx - args->begin) < helloSz) {
+            /* A partial extensions length field is genuinely malformed: report
+             * it as a decode error regardless of message type. */
+            WOLFSSL_MSG("Truncated extensions length in ServerHello");
+            return BUFFER_ERROR;
+        }
+
+        /* No extensions field at all. */
+        if (args->extMsgType == hello_retry_request) {
+            /* The sentinel Random (RFC 8446 4.1.3) identifies this as a TLS 1.3
+             * HelloRetryRequest, which MUST carry supported_versions
+             * (4.2.1/9.2). Its complete absence is a missing mandatory
+             * extension, so - consistently with the extensions-present case
+             * handled later - report it as missing_extension (via
+             * INCOMPLETE_DATA), regardless of whether a downgrade would
+             * otherwise be allowed. Reject here before DoServerHello would
+             * reinterpret the sentinel as a plain TLS 1.2 ServerHello.Random. */
+            WOLFSSL_MSG("HelloRetryRequest with no supported_versions");
+            WOLFSSL_ERROR_VERBOSE(INCOMPLETE_DATA);
+            return INCOMPLETE_DATA;
+        }
+
         if (!ssl->options.downgrade) {
-            /* Fewer than OPAQUE16_LEN bytes remain after the compression
-             * method, so there is no complete extensions length field. */
-            if ((args->idx - args->begin) < helloSz) {
-                /* A partial extensions length field is genuinely malformed:
-                 * report it as a decode error. */
-                WOLFSSL_MSG("Truncated extensions length in ServerHello");
-                return BUFFER_ERROR;
-            }
-            /* No extensions field at all, so the server is not offering TLS 1.3
-             * (no supported_versions extension - see RFC 8446 4.2.1) but TLS 1.2
-             * or below. This is a well-formed message, so a TLS 1.3-only client
-             * (downgrade disabled) must reject it as a version mismatch, not as
-             * a malformed message. Returning VERSION_ERROR makes the caller send
-             * a protocol_version alert (RFC 8446 6.2) rather than decode_error. */
+            /* A plain ServerHello with no extensions is not offering TLS 1.3
+             * (no supported_versions extension - see RFC 8446 4.2.1) but TLS
+             * 1.2 or below. This is a well-formed message, so a TLS 1.3-only
+             * client (downgrade disabled) must reject it as a version mismatch,
+             * not as a malformed message. Returning VERSION_ERROR makes the
+             * caller send a protocol_version alert (RFC 8446 6.2) rather than
+             * decode_error. */
             WOLFSSL_MSG("Server offered TLS 1.2 (no supported_versions ext) "
                         "but downgrade not allowed");
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
-        }
-
-        if (args->extMsgType == hello_retry_request) {
-            /* The sentinel Random (RFC 8446 4.1.3) identifies this as a TLS 1.3
-             * HelloRetryRequest, which MUST carry supported_versions
-             * (4.1.4/4.2.1). Reaching this downgrade branch means it does not,
-             * so the HRR is malformed. Reject it before DoServerHello would
-             * reinterpret the sentinel as a plain TLS 1.2 ServerHello.Random.
-             * The sentinel has already identified this as an HRR, so report it
-             * uniformly as an invalid HRR; INVALID_PARAMETER maps to the
-             * illegal_parameter alert. */
-            WOLFSSL_MSG("HelloRetryRequest with no supported_versions");
-            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
-            return INVALID_PARAMETER;
         }
 #ifndef WOLFSSL_NO_TLS12
         /* Force client hello version 1.2 to work for static RSA. */
@@ -5620,14 +5622,14 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         ssl->options.haveEMS = 0;
         if (args->pv.minor < ssl->options.minDowngrade) {
-            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
         }
 #ifndef WOLFSSL_NO_TLS12
         ssl->options.tls1_3 = 0;
         return DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
-        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
+        WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
         return VERSION_ERROR;
 #endif
     }
@@ -5649,27 +5651,26 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
         }
         if (!foundVersion) {
+            /* RFC 8446 4.1.4: "The server's extensions MUST contain
+             * 'supported_versions'." (also 9.2: "supported_versions" is
+             * REQUIRED for all ... HelloRetryRequest messages). The HRR random
+             * unambiguously identifies a TLS 1.3 server, so its absence is not
+             * a downgrade attempt but a missing mandatory extension, which per
+             * the "missing_extension" alert definition must be reported as
+             * such. Return INCOMPLETE_DATA (which maps to a missing_extension
+             * alert) and let the caller emit the alert via
+             * TranslateErrorToAlert(). */
+            if (*extMsgType == hello_retry_request) {
+                WOLFSSL_MSG("HelloRetryRequest missing supported_versions "
+                            "extension");
+                WOLFSSL_ERROR_VERBOSE(INCOMPLETE_DATA);
+                return INCOMPLETE_DATA;
+            }
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Server trying to downgrade to version less than "
                             "TLS v1.3");
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
-            }
-
-            if (args->extMsgType == hello_retry_request) {
-                /* The HelloRetryRequest sentinel Random is reserved for TLS 1.3
-                 * (RFC 8446 4.1.3), but supported_versions (which an HRR MUST
-                 * carry, 4.1.4/4.2.1) is absent, so the message is malformed.
-                 * Reject before the downgrade reparses the remaining extensions
-                 * as a TLS 1.2 server_hello, where a recognized-but-not-
-                 * permitted extension (e.g. server_name) would wrongly yield an
-                 * unsupported_extension alert. illegal_parameter (via
-                 * EXT_NOT_ALLOWED) is chosen over missing_extension per the
-                 * RFC 8446 4.2 rule for such extensions. */
-                WOLFSSL_MSG("HelloRetryRequest without supported_versions");
-                WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
-                return EXT_NOT_ALLOWED;
             }
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
     defined(WOLFSSL_WPAS_SMALL)
@@ -5686,14 +5687,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             if (!ssl->options.dtls &&
                 args->pv.minor < ssl->options.minDowngrade) {
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
 
             if (ssl->options.dtls &&
                 args->pv.minor > ssl->options.minDowngrade) {
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
