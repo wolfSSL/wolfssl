@@ -1869,7 +1869,16 @@ int test_wc_Kmac128_api(void)
     EXPECT_DECLS;
 #ifdef WOLFSSL_KMAC128
     wc_Kmac kmac;
+#ifdef HAVE_FIPS
+    static const byte key[KMAC_FIPS_MIN_KEY] =
+                               { 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01
+                               };
+#else
     static const byte key[4] = { 0x00, 0x01, 0x02, 0x03 };
+#endif
     static const byte msg[4] = { 0x00, 0x01, 0x02, 0x03 };
     byte out[200];
     byte out2[200];
@@ -1881,9 +1890,16 @@ int test_wc_Kmac128_api(void)
         INVALID_DEVID), BAD_FUNC_ARG);
     ExpectIntEQ(wc_InitKmac128(&kmac, key, (word32)sizeof(key), NULL, 4,
         HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+
+#ifdef HAVE_FIPS
+    ExpectIntEQ(wc_InitKmac128(&kmac, NULL, 0, NULL, 0, HEAP_HINT,
+        INVALID_DEVID), KMAC_MIN_KEYLEN_E);
+#else
     /* NULL key with zero length is allowed. */
     ExpectIntEQ(wc_InitKmac128(&kmac, NULL, 0, NULL, 0, HEAP_HINT,
         INVALID_DEVID), 0);
+#endif
+
     wc_Kmac128_Free(&kmac);
 
     /* wc_Kmac128_Update argument checks. */
@@ -2149,7 +2165,16 @@ int test_wc_Kmac256_api(void)
     EXPECT_DECLS;
 #ifdef WOLFSSL_KMAC256
     wc_Kmac kmac;
+#ifdef HAVE_FIPS
+    static const byte key[KMAC_FIPS_MIN_KEY] =
+                               { 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01
+                               };
+#else
     static const byte key[4] = { 0x00, 0x01, 0x02, 0x03 };
+#endif
     static const byte msg[4] = { 0x00, 0x01, 0x02, 0x03 };
     byte out[200];
     byte out2[200];
@@ -2161,8 +2186,10 @@ int test_wc_Kmac256_api(void)
         INVALID_DEVID), BAD_FUNC_ARG);
     ExpectIntEQ(wc_InitKmac256(&kmac, key, (word32)sizeof(key), NULL, 4,
         HEAP_HINT, INVALID_DEVID), BAD_FUNC_ARG);
+#ifndef HAVE_FIPS
     ExpectIntEQ(wc_InitKmac256(&kmac, NULL, 0, NULL, 0, HEAP_HINT,
         INVALID_DEVID), 0);
+#endif
     wc_Kmac256_Free(&kmac);
 
     /* wc_Kmac256_Update argument checks. */
@@ -2478,7 +2505,16 @@ int test_wc_Kmac_Copy(void)
 #ifdef WOLFSSL_KMAC128
     wc_Kmac kmac;
     wc_Kmac copy;
+#ifdef HAVE_FIPS
+    static const byte key[KMAC_FIPS_MIN_KEY] =
+                               { 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01, 0x02, 0x03,
+                                 0x00, 0x01
+                               };
+#else
     static const byte key[4] = { 0x00, 0x01, 0x02, 0x03 };
+#endif
     static const byte msg[8] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
     };

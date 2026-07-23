@@ -30072,8 +30072,10 @@ static int test_wolfSSL_crypto_policy_ciphers(void)
         found = crypto_policy_cipher_found(ssl, "AES_128", 0);
         ExpectIntEQ(found, !is_future);
 
+#ifndef NO_DH
         found = crypto_policy_cipher_found(ssl, "TLS_DHE_RSA_WITH_AES", 1);
         ExpectIntEQ(found, !is_future);
+#endif
 
         found = crypto_policy_cipher_found(ssl, "_SHA", -1);
         ExpectIntEQ(found, !is_future);
@@ -30081,8 +30083,10 @@ static int test_wolfSSL_crypto_policy_ciphers(void)
         found = crypto_policy_cipher_found(ssl, "AES128", 0);
         ExpectIntEQ(found, !is_future);
 
+#ifndef NO_DH
         found = crypto_policy_cipher_found(ssl, "DHE-RSA-AES", 1);
         ExpectIntEQ(found, !is_future);
+#endif
 
         found = crypto_policy_cipher_found(ssl, "-SHA", -1);
         ExpectIntEQ(found, !is_future);
