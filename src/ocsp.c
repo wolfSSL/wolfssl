@@ -1770,6 +1770,20 @@ error:
     return NULL;
 }
 
+/* Returns 0 if the string has no CR or LF, -1 if it does. */
+static int OCSP_REQ_CTX_no_crlf(const char* value)
+{
+    if (value != NULL) {
+        const char* c;
+        for (c = value; *c != '\0'; c++) {
+            if (*c == '\r' || *c == '\n')
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
 int wolfSSL_OCSP_REQ_CTX_add1_header(WOLFSSL_OCSP_REQ_CTX *ctx,
                              const char *name, const char *value)
 {
@@ -1777,6 +1791,16 @@ int wolfSSL_OCSP_REQ_CTX_add1_header(WOLFSSL_OCSP_REQ_CTX *ctx,
 
     if (ctx == NULL || name == NULL) {
         WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+    if (OCSP_REQ_CTX_no_crlf(name) != 0 || OCSP_REQ_CTX_no_crlf(value) != 0) {
+        WOLFSSL_MSG("CR/LF in header name or value");
+        return WOLFSSL_FAILURE;
+    }
+    /* A name starting with whitespace is an obs-fold continuation line
+     * (RFC 7230 Section 3.2.4) appending to the previous header's value. */
+    if (*name == ' ' || *name == '\t') {
+        WOLFSSL_MSG("Leading whitespace in header name");
         return WOLFSSL_FAILURE;
     }
     if (wolfSSL_BIO_puts(ctx->reqResp, name) <= 0) {
@@ -1817,6 +1841,11 @@ int wolfSSL_OCSP_REQ_CTX_http(WOLFSSL_OCSP_REQ_CTX *ctx, const char *op,
 
     if (path == NULL)
         path = "/";
+
+    if (OCSP_REQ_CTX_no_crlf(op) != 0 || OCSP_REQ_CTX_no_crlf(path) != 0) {
+        WOLFSSL_MSG("CR/LF in HTTP op or path");
+        return WOLFSSL_FAILURE;
+    }
 
     if (wolfSSL_BIO_printf(ctx->reqResp, http_hdr, op, path) <= 0) {
         WOLFSSL_MSG("WOLFSSL_OCSP_REQ_CTX: wolfSSL_BIO_printf error");

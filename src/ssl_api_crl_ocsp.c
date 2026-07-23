@@ -650,6 +650,7 @@ int wolfSSL_OCSP_parse_url(const char* url, char** host, char** port,
         char** path, int* ssl)
 {
     const char* u;
+    const char* c;
     const char* upath; /* path in u */
     const char* uport; /* port in u */
     const char* hostEnd;
@@ -666,6 +667,15 @@ int wolfSSL_OCSP_parse_url(const char* url, char** host, char** port,
     *port = NULL;
     *path = NULL;
     *ssl = 0;
+
+    /* CR/LF in the parsed out host or path would split a request built from
+     * them into extra header lines. */
+    for (c = url; *c != '\0'; c++) {
+        if (*c == '\r' || *c == '\n') {
+            WOLFSSL_MSG("CR/LF in URL");
+            goto err;
+        }
+    }
 
     if (*(u++) != 'h') goto err;
     if (*(u++) != 't') goto err;
