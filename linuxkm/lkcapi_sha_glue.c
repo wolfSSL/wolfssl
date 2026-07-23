@@ -1349,7 +1349,9 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, 
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
     int ret;
 
-#if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(6, 0, 0) || defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)))
+#if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(6, 0, 0) || \
+                           !defined(WC_LINUX_CONFIG_SELFTESTS) || \
+                           (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)))
     ret = wc_HmacSetKey(&p_ctx->wc_hmac, type, key, length);
 #else
     /* kernel 5.10.x crypto manager expects FIPS-undersized keys to succeed. */
