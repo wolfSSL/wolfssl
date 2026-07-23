@@ -120,8 +120,7 @@
         /* Feature leaves are only queried on known Intel and AMD CPUs. */
         if (cpuid_is_intel() || cpuid_is_amd()) {
             unsigned int reg[5];
-
-            XMEMSET(reg, '\0', sizeof(reg));
+            reg[num] = 0;
             cpuid(reg, leaf, sub);
             return ((reg[num] >> bit) & 0x1);
         }
