@@ -7763,6 +7763,179 @@ int test_mldsa_make_key_from_seed(void)
     return EXPECT_RESULT();
 }
 
+int test_mldsa_make_public_key(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    wc_MlDsaKey* key;
+
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+
+    /* NULL key. */
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+
+    /* Private key not set yet. */
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Import a known private-only key (no public key attached) and derive
+     * the public key from it. */
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_44_key,
+        sizeof_bench_mldsa_44_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, bench_mldsa_44_pubkey,
+        sizeof_bench_mldsa_44_pubkey), 0);
+
+    /* No-op when the public key is already set. */
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+
+    wc_MlDsaKey_Free(key);
+#endif /* !WOLFSSL_NO_ML_DSA_44 */
+
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_65_key,
+        sizeof_bench_mldsa_65_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, bench_mldsa_65_pubkey,
+        sizeof_bench_mldsa_65_pubkey), 0);
+
+    wc_MlDsaKey_Free(key);
+#endif /* !WOLFSSL_NO_ML_DSA_65 */
+
+#ifndef WOLFSSL_NO_ML_DSA_87
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_87_key,
+        sizeof_bench_mldsa_87_key), 0);
+    ExpectIntEQ(key->pubKeySet, 0);
+
+    ExpectIntEQ(wc_MlDsaKey_MakePublicKey(key), 0);
+    ExpectIntEQ(key->pubKeySet, 1);
+    ExpectIntEQ(XMEMCMP(key->p, bench_mldsa_87_pubkey,
+        sizeof_bench_mldsa_87_pubkey), 0);
+
+    wc_MlDsaKey_Free(key);
+#endif /* !WOLFSSL_NO_ML_DSA_87 */
+
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_mldsa_private_key_decode_derives_public_key(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+    wc_MlDsaKey* privKey;
+    wc_MlDsaKey* pubKey;
+    word32 idx;
+
+    privKey = (wc_MlDsaKey*)XMALLOC(sizeof(*privKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(privKey);
+    pubKey = (wc_MlDsaKey*)XMALLOC(sizeof(*pubKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(pubKey);
+    if (privKey != NULL) {
+        XMEMSET(privKey, 0, sizeof(*privKey));
+    }
+    if (pubKey != NULL) {
+        XMEMSET(pubKey, 0, sizeof(*pubKey));
+    }
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_MlDsaKey_Init(privKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(privKey, WC_ML_DSA_44), 0);
+
+    /* mldsa44_priv_only holds a private-key-only DER (no embedded public
+     * point). wc_MlDsaKey_PrivateKeyDecode should derive and cache the
+     * public key as a best-effort side effect of decoding it. */
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(privKey, mldsa44_priv_only,
+        sizeof_mldsa44_priv_only, &idx), 0);
+    ExpectIntEQ(privKey->pubKeySet, 1);
+
+    /* Confirm the derived public key matches the known public key for the
+     * same key pair. */
+    ExpectIntEQ(wc_MlDsaKey_Init(pubKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(pubKey, WC_ML_DSA_44), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(pubKey, mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, &idx), 0);
+    ExpectIntEQ(XMEMCMP(privKey->p, pubKey->p, WC_MLDSA_44_PUB_KEY_SIZE), 0);
+
+    wc_MlDsaKey_Free(privKey);
+    wc_MlDsaKey_Free(pubKey);
+#endif /* !WOLFSSL_NO_ML_DSA_44 */
+
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_Init(privKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(privKey, WC_ML_DSA_65), 0);
+
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(privKey, mldsa65_priv_only,
+        sizeof_mldsa65_priv_only, &idx), 0);
+    ExpectIntEQ(privKey->pubKeySet, 1);
+
+    ExpectIntEQ(wc_MlDsaKey_Init(pubKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(pubKey, WC_ML_DSA_65), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(pubKey, mldsa65_pub_spki,
+        sizeof_mldsa65_pub_spki, &idx), 0);
+    ExpectIntEQ(XMEMCMP(privKey->p, pubKey->p, WC_MLDSA_65_PUB_KEY_SIZE), 0);
+
+    wc_MlDsaKey_Free(privKey);
+    wc_MlDsaKey_Free(pubKey);
+#endif /* !WOLFSSL_NO_ML_DSA_65 */
+
+#ifndef WOLFSSL_NO_ML_DSA_87
+    ExpectIntEQ(wc_MlDsaKey_Init(privKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(privKey, WC_ML_DSA_87), 0);
+
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(privKey, mldsa87_priv_only,
+        sizeof_mldsa87_priv_only, &idx), 0);
+    ExpectIntEQ(privKey->pubKeySet, 1);
+
+    ExpectIntEQ(wc_MlDsaKey_Init(pubKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(pubKey, WC_ML_DSA_87), 0);
+    idx = 0;
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(pubKey, mldsa87_pub_spki,
+        sizeof_mldsa87_pub_spki, &idx), 0);
+    ExpectIntEQ(XMEMCMP(privKey->p, pubKey->p, WC_MLDSA_87_PUB_KEY_SIZE), 0);
+
+    wc_MlDsaKey_Free(privKey);
+    wc_MlDsaKey_Free(pubKey);
+#endif /* !WOLFSSL_NO_ML_DSA_87 */
+
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_mldsa_sig_kats(void)
 {
     EXPECT_DECLS;

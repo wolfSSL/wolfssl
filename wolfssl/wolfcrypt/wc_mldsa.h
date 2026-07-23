@@ -698,6 +698,10 @@ WOLFSSL_API
 int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
+#if !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+WOLFSSL_API
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+#endif
 
 /* Legacy sign API without context parameter (pre-FIPS 204).
  * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
