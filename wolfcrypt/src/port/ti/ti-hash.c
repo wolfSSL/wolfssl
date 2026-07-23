@@ -127,10 +127,19 @@ static int hashCopy(wolfssl_TI_Hash *src, wolfssl_TI_Hash *dst)
 {
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
-    /* only copy hash, zero the rest of the struct to avoid double-free */
-    dst->msg = NULL;
-    dst->used = 0;
-    dst->len = 0;
+    /* copy the accumulated message into a fresh buffer so each descriptor
+     * owns its own allocation and can be freed independently */
+    dst->used = src->used;
+    dst->len  = src->len;
+    if ((src->msg != NULL) && (src->len > 0)) {
+        dst->msg = (byte*)XMALLOC(src->len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dst->msg == NULL)
+            return MEMORY_E;
+        XMEMCPY(dst->msg, src->msg, src->len);
+    }
+    else {
+        dst->msg = NULL;
+    }
     XMEMCPY(dst->hash, src->hash, sizeof(dst->hash));
     return 0;
 }
