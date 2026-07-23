@@ -103,3 +103,69 @@ jobs:
             .github/scripts/zephyr-4.x/artifacts/${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612-rw612' }}-wolfssl_test/zephyr.map
           if-no-files-found: warn
           retention-days: 1
+
+  # Native k_mutex/k_thread/k_condvar threading ztest (no POSIX). native_sim
+  # only - it reads the native_sim simulator RTC - so it lives on this 4.x
+  # matrix rather than the legacy zephyr.yml (v2.7.4/v3.4.0/v3.5.0), where
+  # native_sim is unavailable or its POSIX headers clash with ztest.
+  condvar:
+    name: ${{ matrix.zephyr-ref }} | native_sim | wolfssl_condvar${{ matrix.crypto-only == 'y' && ' | crypto-only' || '' }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        zephyr-ref: [ v4.1.0, v4.3.0, v4.4.0 ]
+        # Both build profiles the testcase.yaml exercises: default (TLS + crypto)
+        # and the WOLFCRYPT_ONLY build-profile knob.
+        crypto-only: [ 'n', 'y' ]
+    steps:
+      - name: Checkout test driver
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/scripts/zephyr-4.x
+          fetch-depth: 1
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
+      - name: Resolve wolfSSL repo and branch
+        id: src
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "repo=https://github.com/${{ github.repository }}" >> "$GITHUB_OUTPUT"
+            echo "branch=refs/pull/${{ github.event.pull_request.number }}/merge" >> "$GITHUB_OUTPUT"
+          else
+            echo "repo=https://github.com/${{ github.repository }}" >> "$GITHUB_OUTPUT"
+            echo "branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and run condvar ztest
+        working-directory: .github/scripts/zephyr-4.x
+        run: |
+          CRYPTO_ONLY_ARG=""
+          if [[ "${{ matrix.crypto-only }}" == "y" ]]; then
+            CRYPTO_ONLY_ARG="--cmake-args -DCONFIG_WOLFSSL_CRYPTO_ONLY=y"
+          fi
+          bash ./zephyr-test.sh \
+            -r "${{ steps.src.outputs.repo }}" \
+            -b "${{ steps.src.outputs.branch }}" \
+            -z "${{ matrix.zephyr-ref }}" \
+            -t native_sim \
+            -d tests \
+            -s wolfssl_condvar \
+            $CRYPTO_ONLY_ARG
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: zephyr-4.x-condvar-${{ matrix.zephyr-ref }}-${{ matrix.crypto-only }}-${{ strategy.job-index }}
+          path: .github/scripts/zephyr-4.x/logs/
+          retention-days: 5
+          if-no-files-found: ignore
