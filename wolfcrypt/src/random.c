@@ -88,11 +88,11 @@ This library contains implementation for the random number generator.
  * FREESCALE_RNGA:           Freescale RNGA                       default: off
  * FREESCALE_K70_RNGA:       Freescale K70 RNGA                   default: off
  * FREESCALE_RNGB:           Freescale RNGB                       default: off
- * FREESCALE_KSDK_2_0_RNGA:  Freescale KSDK 2.0 RNGA             default: off
- * FREESCALE_KSDK_2_0_TRNG:  Freescale KSDK 2.0 TRNG             default: off
- * MAX3266X_RNG:             MAX3266X hardware RNG                 default: off
+ * FREESCALE_KSDK_2_0_RNGA:  Freescale KSDK 2.0 RNGA              default: off
+ * FREESCALE_KSDK_2_0_TRNG:  Freescale KSDK 2.0 TRNG              default: off
+ * MAX3266X_RNG:             MAX3266X hardware RNG                default: off
  * QAT_ENABLE_RNG:           Intel QAT hardware RNG               default: off
- * WOLFSSL_ATECC_RNG:        ATECC508/608 hardware RNG             default: off
+ * WOLFSSL_ATECC_RNG:        ATECC508/608 hardware RNG            default: off
  * WOLFSSL_SILABS_TRNG:      Silicon Labs TRNG                    default: off
  * WOLFSSL_SCE_NO_TRNG:      Disable Renesas SCE TRNG             default: off
  * WOLFSSL_SCE_TRNG_HANDLE:  Renesas SCE TRNG handle              default: off
@@ -100,6 +100,12 @@ This library contains implementation for the random number generator.
  * WOLFSSL_PSA_NO_RNG:       Disable PSA RNG                      default: off
  * HAVE_IOTSAFE_HWRNG:       IoT-Safe hardware RNG                default: off
  * WOLFSSL_XILINX_CRYPT_VERSAL: Xilinx Versal crypto RNG          default: off
+ * WOLFSSL_VA416X0_TRNG:     Vorago VA416x0 hardware TRNG         default: off
+ *                           (seeds Hash-DRBG; needs the VA416xx
+ *                           SDK header va416xx.h on the include
+ *                           path). See the wc_GenerateSeed()
+ *                           implementation below for SDK API and
+ *                           tuning details.
  */
 
 #define _WC_BUILDING_RANDOM_C
@@ -5386,6 +5392,154 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         if (RNG_GetRandomData(RNG, output, sz) != kStatus_Success)
             return RNG_FAILURE_E;
 
+        return 0;
+    }
+
+#elif defined(WOLFSSL_VA416X0_TRNG)
+    /* Vorago VA416x0 hardware TRNG (an Arm CryptoCell-style entropy block).
+     * Used to seed the SP800-90A Hash-DRBG (keep HAVE_HASHDRBG enabled); the
+     * TRNG yields only ~1.25 kb/s of entropy, so the DRBG expands it.
+     *
+     * Build: define WOLFSSL_VA416X0_TRNG, and have the VA416xx SDK header
+     * "va416xx.h" on the include path (provides VOR_SYSCONFIG / VOR_TRNG and
+     * the register field macros). There is no SDK HAL driver for the TRNG, so
+     * it is accessed at the register level below. The tuning macros
+     * WOLFSSL_VA416X0_TRNG_SAMPLE_CNT, WOLFSSL_VA416X0_TRNG_MAX_RETRY and
+     * WOLFSSL_VA416X0_TRNG_TIMEOUT have overridable defaults defined below.
+     *
+     * Note: the TRNG PERIPHERAL_RESET bit is active low and must be released
+     * or every TRNG register write is silently ignored. */
+    #include "va416xx.h"
+
+    /* Ring-oscillator sample count (must be non-zero). May need tuning on
+     * hardware: too low results in repeated autocorrelation/CRNGT errors. */
+    #ifndef WOLFSSL_VA416X0_TRNG_SAMPLE_CNT
+        #define WOLFSSL_VA416X0_TRNG_SAMPLE_CNT 1000
+    #endif
+    #ifndef WOLFSSL_VA416X0_TRNG_MAX_RETRY
+        #define WOLFSSL_VA416X0_TRNG_MAX_RETRY 10
+    #endif
+    /* Max poll iterations waiting for one 192-bit entropy block before
+     * giving up (guards against a non-responsive TRNG). */
+    #ifndef WOLFSSL_VA416X0_TRNG_TIMEOUT
+        #define WOLFSSL_VA416X0_TRNG_TIMEOUT 1000000
+    #endif
+    #if WOLFSSL_VA416X0_TRNG_SAMPLE_CNT == 0
+        #error "WOLFSSL_VA416X0_TRNG_SAMPLE_CNT must be non-zero"
+    #endif
+    #if WOLFSSL_VA416X0_TRNG_TIMEOUT == 0
+        #error "WOLFSSL_VA416X0_TRNG_TIMEOUT must be non-zero"
+    #endif
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
+        word32 reg;
+        word32 chunk;
+        word32 timeout;
+        word32 entropy[6]; /* 192-bit entropy holding register */
+        int retry;
+        int ret;
+
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        /* serialize access to the shared TRNG hardware */
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
+
+        /* enable the TRNG peripheral clock and release it from reset (the
+         * reset bit is active low: 0 = held in reset, 1 = released) */
+        VOR_SYSCONFIG->PERIPHERAL_CLK_ENABLE |=
+            SYSCONFIG_PERIPHERAL_CLK_ENABLE_TRNG_Msk;
+        VOR_SYSCONFIG->PERIPHERAL_RESET |=
+            SYSCONFIG_PERIPHERAL_RESET_TRNG_Msk;
+
+        /* mask all interrupts (poll instead) and clear any stale status */
+        VOR_TRNG->IMR = TRNG_IMR_EHR_VALID_INT_MASK_Msk |
+                        TRNG_IMR_AUTOCORR_ERR_INT_MASK_Msk |
+                        TRNG_IMR_CRNGT_ERR_INT_MASK_Msk |
+                        TRNG_IMR_VN_ERR_INT_MASK_Msk;
+        VOR_TRNG->ICR = TRNG_ICR_EHR_VALID_Msk | TRNG_ICR_AUTOCORR_ERR_Msk |
+                        TRNG_ICR_CRNGT_ERR_Msk | TRNG_ICR_VN_ERR_Msk;
+
+        /* CONFIG = 0 sets RND_SRC_SEL = 0, which selects the ring-oscillator
+         * entropy source (per the VA416x0 reference manual) and clears the
+         * rest of the register; set the sample rate and keep the health tests
+         * enabled (no DEBUG_CONTROL bypass) */
+        VOR_TRNG->CONFIG = 0;
+        VOR_TRNG->SAMPLE_CNT1 = WOLFSSL_VA416X0_TRNG_SAMPLE_CNT;
+        VOR_TRNG->DEBUG_CONTROL = 0;
+
+        for (i = 0; i < sz; ) {
+            retry = 0;
+            timeout = WOLFSSL_VA416X0_TRNG_TIMEOUT;
+
+            /* start entropy collection */
+            VOR_TRNG->RND_SOURCE_ENABLE =
+                TRNG_RND_SOURCE_ENABLE_RND_SRC_EN_Msk;
+
+            for (;;) {
+                reg = VOR_TRNG->ISR;
+                if ((reg & (TRNG_ISR_AUTOCORR_ERR_Msk |
+                            TRNG_ISR_CRNGT_ERR_Msk |
+                            TRNG_ISR_VN_ERR_Msk)) != 0) {
+                    /* health-test failure: stop, then clear the error flags
+                     * and any latched EHR_VALID so a stale/invalid block is
+                     * not consumed on the next iteration, then re-collect */
+                    VOR_TRNG->RND_SOURCE_ENABLE = 0;
+                    VOR_TRNG->ICR = TRNG_ICR_EHR_VALID_Msk |
+                                    TRNG_ICR_AUTOCORR_ERR_Msk |
+                                    TRNG_ICR_CRNGT_ERR_Msk |
+                                    TRNG_ICR_VN_ERR_Msk;
+                    if (++retry > WOLFSSL_VA416X0_TRNG_MAX_RETRY) {
+                        ForceZero(entropy, sizeof(entropy));
+                        wolfSSL_CryptHwMutexUnLock();
+                        return RNG_FAILURE_E;
+                    }
+                    timeout = WOLFSSL_VA416X0_TRNG_TIMEOUT;
+                    VOR_TRNG->RND_SOURCE_ENABLE =
+                        TRNG_RND_SOURCE_ENABLE_RND_SRC_EN_Msk;
+                    continue;
+                }
+                if ((VOR_TRNG->VALID & TRNG_VALID_EHR_VALID_Msk) != 0) {
+                    break;
+                }
+                if (--timeout == 0) {
+                    VOR_TRNG->RND_SOURCE_ENABLE = 0;
+                    ForceZero(entropy, sizeof(entropy));
+                    wolfSSL_CryptHwMutexUnLock();
+                    return RNG_FAILURE_E;
+                }
+            }
+
+            /* read 192 bits of entropy (6 x 32-bit words) */
+            entropy[0] = VOR_TRNG->EHR_DATA0;
+            entropy[1] = VOR_TRNG->EHR_DATA1;
+            entropy[2] = VOR_TRNG->EHR_DATA2;
+            entropy[3] = VOR_TRNG->EHR_DATA3;
+            entropy[4] = VOR_TRNG->EHR_DATA4;
+            entropy[5] = VOR_TRNG->EHR_DATA5;
+
+            /* reading EHR_DATA clears EHR_VALID; stop the source and ack */
+            VOR_TRNG->RND_SOURCE_ENABLE = 0;
+            VOR_TRNG->ICR = TRNG_ICR_EHR_VALID_Msk;
+
+            chunk = sz - i;
+            if (chunk > sizeof(entropy)) {
+                chunk = sizeof(entropy);
+            }
+            XMEMCPY(&output[i], (byte*)entropy, chunk);
+            i += chunk;
+        }
+
+        ForceZero(entropy, sizeof(entropy)); /* scrub seed material from stack */
+        wolfSSL_CryptHwMutexUnLock();
         return 0;
     }
 
