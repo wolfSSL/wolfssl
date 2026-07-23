@@ -5818,10 +5818,10 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 
     TraceRelativeSequence(*expected, real);
 
-    if (real < *expected) {
-        int overlap = *expected - real;
+    if ((sword32)(real - *expected) < 0) {
+        int overlap = (int)(*expected - real);
 
-        if (real + *sslBytes > *expected) {
+        if ((sword32)((real + (word32)*sslBytes) - *expected) > 0) {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (session->sslServer->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
                 session->pendSeq != tcpInfo->sequence)
@@ -5863,7 +5863,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 }
             }
             else if (*sslBytes > 0) {
-                if (real + *sslBytes - 1 > *seqLast) {
+                if ((sword32)((real + (word32)*sslBytes - 1) - *seqLast) > 0) {
                     /* fix segment overlap */
                 #ifdef DEBUG_SNIFFER
                     WOLFSSL* ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
@@ -5893,7 +5893,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                     session->sslServer->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
                     session->pendSeq != tcpInfo->sequence &&
                 #endif
-                    real + *sslBytes -1 <= *seqLast) {
+                    (sword32)((real + (word32)*sslBytes - 1) - *seqLast) <= 0) {
                     Trace(DUPLICATE_STR);
                     ret = 1;
                 }
@@ -5909,7 +5909,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             }
         }
     }
-    else if (real > *expected) {
+    else if ((sword32)(real - *expected) > 0) {
         Trace(OUT_OF_ORDER_STR);
         if (*sslBytes > 0) {
             int addResult = AddToReassembly(session->flags.side, real,
