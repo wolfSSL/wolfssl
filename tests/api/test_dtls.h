@@ -86,6 +86,21 @@ int test_dtls_dropped_ccs(void);
 int test_dtls_seq_num_downgrade(void);
 int test_dtls_old_seq_number(void);
 int test_dtls12_missing_finished(void);
+int test_dtls12_cookie_secret_secondary(void);
+int test_dtls12_cookie_secret_secondary_dropped(void);
+int test_dtls12_cookie_secret_secondary_cleared(void);
+int test_dtls12_cookie_secret_primary_wins(void);
+int test_dtls12_cookie_secret_same_as_primary(void);
+int test_dtls12_cookie_secret_secondary_replaced(void);
+int test_dtls12_cookie_secret_issue_uses_primary(void);
+int test_dtls13_hrr_cookie_secret_secondary(void);
+int test_dtls13_hrr_cookie_secret_secondary_dropped(void);
+int test_dtls13_hrr_cookie_secret_secondary_cleared(void);
+int test_dtls13_hrr_cookie_secret_primary_wins(void);
+int test_dtls13_hrr_cookie_secret_same_as_primary(void);
+int test_dtls13_hrr_cookie_secret_secondary_replaced(void);
+int test_dtls13_hrr_cookie_secret_issue_uses_primary(void);
+int test_dtls13_hrr_cookie_secret_secondary_args(void);
 int test_wolfSSL_dtls_export(void);
 int test_wolfSSL_dtls_export_peers(void);
 int test_wolfSSL_dtls_import_state_extra_window_words(void);
@@ -194,5 +209,20 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_wolfSSL_mcast_read),                      \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_got_timeout),                \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_SetCookieSecret),            \
-        TEST_DECL_GROUP("dtls", test_wolfSSL_set_secret)
+        TEST_DECL_GROUP("dtls", test_wolfSSL_set_secret),                      \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary),          \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary_dropped),  \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary_cleared),  \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_primary_wins),       \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_same_as_primary),    \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_secondary_replaced), \
+        TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_issue_uses_primary), \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary),      \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_dropped), \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_cleared), \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_primary_wins),   \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_same_as_primary), \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_replaced), \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_issue_uses_primary), \
+        TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary_args)
 #endif /* TESTS_API_DTLS_H */

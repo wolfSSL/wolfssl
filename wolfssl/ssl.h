@@ -1497,6 +1497,8 @@ WOLFSSL_API int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
 #ifdef WOLFSSL_TLS13
 WOLFSSL_API int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
+WOLFSSL_API int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
+    const unsigned char* secret, unsigned int secretSz);
 WOLFSSL_API int  wolfSSL_disable_hrr_cookie(WOLFSSL * ssl);
 WOLFSSL_API int  wolfSSL_CTX_no_ticket_TLSv13(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_no_ticket_TLSv13(WOLFSSL* ssl);
@@ -3976,6 +3978,8 @@ WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCt
 
 
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl, const byte* secret, word32 secretSz);
+WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
+    const byte* secret, word32 secretSz);
 
 
 /* CA cache callbacks */

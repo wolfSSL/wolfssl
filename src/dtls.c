@@ -209,13 +209,12 @@ static word32 ReadVector16(const byte* input, WolfSSL_ConstVector* v)
 }
 
 static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
-                              byte* cookie)
+                              const byte* secret, word32 secretSz, byte* cookie)
 {
     int ret;
     WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
 
-    if (ssl->buffers.dtlsCookieSecret.buffer == NULL ||
-            ssl->buffers.dtlsCookieSecret.length == 0) {
+    if (secret == NULL || secretSz == 0) {
         WOLFSSL_MSG("Missing DTLS 1.2 cookie secret");
         return COOKIE_ERROR;
     }
@@ -225,9 +224,7 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
 
     ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
-        ret = wc_HmacSetKey(cookieHmac, DTLS_COOKIE_TYPE,
-            ssl->buffers.dtlsCookieSecret.buffer,
-            ssl->buffers.dtlsCookieSecret.length);
+        ret = wc_HmacSetKey(cookieHmac, DTLS_COOKIE_TYPE, secret, secretSz);
         if (ret == 0) {
             /* peerLock not necessary. Still in handshake phase. */
             ret = wc_HmacUpdate(cookieHmac,
@@ -288,13 +285,30 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
         if (ch->cookie.size != DTLS_COOKIE_SZ)
             return 0;
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch, ch->dtls12cookie);
+            ret = CreateDtls12Cookie(ssl, ch,
+                    ssl->buffers.dtlsCookieSecret.buffer,
+                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
             if (ret != 0)
                 return ret;
             ch->dtls12cookieSet = 1;
         }
         *cookieGood = ConstantCompare(ch->cookie.elements, ch->dtls12cookie,
                                       DTLS_COOKIE_SZ) == 0;
+        /* If the primary secret didn't match, try the secondary (verify-only)
+         * secret.  This lets a stateless server keep accepting cookies issued
+         * under the secret it held before an application-driven rotation. */
+        if (!*cookieGood &&
+                ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL &&
+                ssl->buffers.dtlsCookieSecretSecondary.length > 0) {
+            byte altCookie[DTLS_COOKIE_SZ];
+            ret = CreateDtls12Cookie(ssl, ch,
+                    ssl->buffers.dtlsCookieSecretSecondary.buffer,
+                    ssl->buffers.dtlsCookieSecretSecondary.length, altCookie);
+            if (ret != 0)
+                return ret;
+            *cookieGood = ConstantCompare(ch->cookie.elements, altCookie,
+                                          DTLS_COOKIE_SZ) == 0;
+        }
     }
     return ret;
 }
@@ -907,7 +921,9 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
     {
 #if !defined(WOLFSSL_NO_TLS12)
         if (!ch->dtls12cookieSet) {
-            ret = CreateDtls12Cookie(ssl, ch, ch->dtls12cookie);
+            ret = CreateDtls12Cookie(ssl, ch,
+                    ssl->buffers.dtlsCookieSecret.buffer,
+                    ssl->buffers.dtlsCookieSecret.length, ch->dtls12cookie);
             if (ret != 0)
                 return ret;
             ch->dtls12cookieSet = 1;

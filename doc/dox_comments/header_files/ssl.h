@@ -8939,6 +8939,46 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                                                word32 secretSz);
 
 /*!
+    \brief This function sets a secondary DTLS 1.2 cookie secret used only when
+    verifying a received HelloVerifyRequest cookie, and only if the primary
+    secret (set with wolfSSL_DTLS_SetCookieSecret()) fails to verify it.  This
+    lets an application rotate the cookie secret on a stateless server without
+    rejecting clients whose cookie was issued under the previous secret: install
+    the new secret as the primary and the previous secret here for an overlap
+    window.  The secondary secret is never used to issue cookies.  It is the
+    DTLS 1.2 counterpart of wolfSSL_set_hrr_cookie_secret_secondary().
+
+    \return 0 returned if the function executed without an error.
+    \return BAD_FUNC_ARG returned if ssl is NULL.
+    \return MEMORY_ERROR returned if there was a problem allocating
+    memory for the secondary cookie secret.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param secret a constant byte pointer representing the secret buffer.
+    Passing NULL (or a secretSz of 0) clears any previously set secondary
+    secret.
+    \param secretSz the size of the buffer.
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    const byte* oldSecret;
+    word32 oldSecretSz; // size of oldSecret
+    ...
+    if(wolfSSL_DTLS_SetCookieSecretSecondary(ssl, oldSecret, oldSecretSz) != 0){
+    	// Code block for failure to set secondary DTLS cookie secret
+    } else {
+    	// Success! Secondary cookie secret is set.
+    }
+    \endcode
+
+    \sa wolfSSL_DTLS_SetCookieSecret
+*/
+int   wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
+                                               const byte* secret,
+                                               word32 secretSz);
+
+/*!
     \brief This function retrieves the random number.
 
     \return rng upon success.
@@ -14007,6 +14047,53 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \sa wolfSSL_disable_hrr_cookie
 */
 int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
+    const unsigned char* secret, unsigned int secretSz);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets a secondary HelloRetryRequest cookie secret on a
+    DTLS 1.3 server.  It is used only when verifying a received cookie, and only
+    if the primary secret (set with wolfSSL_send_hrr_cookie()) fails to verify
+    it.  This lets an application rotate the cookie secret on a stateless DTLS
+    1.3 server without rejecting clients whose cookie was issued under the
+    previous secret: install the new secret as the primary and the previous
+    secret here for an overlap window.  The secondary secret is never used to
+    issue cookies.  This API is DTLS only; TLS 1.3 over a reliable transport
+    does not verify cookies statelessly across the HelloRetryRequest exchange.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [in] secret a pointer to a buffer holding the secondary secret.
+    Passing NULL (or a secretSz of 0) clears any previously set secondary
+    secret.
+    \param [in] secretSz Size of the secret in bytes.
+
+    \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or not using DTLS.
+    \return SIDE_ERROR if called with a client.
+    \return WOLFSSL_SUCCESS if successful.
+    \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    char newSecret[32];
+    char oldSecret[32];
+    ...
+    // rotate: new secret becomes primary, previous secret stays valid
+    wolfSSL_send_hrr_cookie(ssl, newSecret, sizeof(newSecret));
+    ret = wolfSSL_set_hrr_cookie_secret_secondary(ssl, oldSecret,
+        sizeof(oldSecret));
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set the secondary cookie secret
+    }
+    \endcode
+
+    \sa wolfSSL_send_hrr_cookie
+    \sa wolfSSL_disable_hrr_cookie
+*/
+int  wolfSSL_set_hrr_cookie_secret_secondary(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
 
 /*!
