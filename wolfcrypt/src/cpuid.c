@@ -150,6 +150,12 @@
             if (cpuid_flag(7, 0, EBX, 29)) { new_cpuid_flags |= CPUID_SHA   ; }
             if (cpuid_flag(7, 0, ECX,  9)) { new_cpuid_flags |= CPUID_VAES  ; }
             if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
+            if (cpuid_flag(7, 0, ECX,  1)) {
+                new_cpuid_flags |= CPUID_AVX512_VBMI;
+            }
+            if (cpuid_flag(7, 0, ECX,  6)) {
+                new_cpuid_flags |= CPUID_AVX512_VBMI2;
+            }
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
             (void)wolfSSL_Atomic_Uint_CompareExchange

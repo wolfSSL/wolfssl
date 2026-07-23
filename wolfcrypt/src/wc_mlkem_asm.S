@@ -15883,6 +15883,20395 @@ _mlkem_redistribute_8_rand_avx2:
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* WOLFSSL_HAVE_MLKEM */
+#ifdef WOLFSSL_HAVE_MLKEM
+#ifndef NO_AVX512_SUPPORT
+#ifndef HAVE_INTEL_AVX512
+#define HAVE_INTEL_AVX512
+#endif /* HAVE_INTEL_AVX512 */
+#endif /* NO_AVX512_SUPPORT */
+#ifdef HAVE_INTEL_AVX512
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_avx512_zetas:
+.short	0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b
+.short	0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b,0x0a0b
+.short	0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b
+.short	0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b,0x7b0b
+.short	0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a
+.short	0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a,0x0b9a
+.short	0x399a,0x399a,0x399a,0x399a,0x399a,0x399a,0x399a,0x399a
+.short	0x399a,0x399a,0x399a,0x399a,0x399a,0x399a,0x399a,0x399a
+.short	0x05d5,0x05d5,0x05d5,0x05d5,0x05d5,0x05d5,0x05d5,0x05d5
+.short	0x05d5,0x05d5,0x05d5,0x05d5,0x05d5,0x05d5,0x05d5,0x05d5
+.short	0x34d5,0x34d5,0x34d5,0x34d5,0x34d5,0x34d5,0x34d5,0x34d5
+.short	0x34d5,0x34d5,0x34d5,0x34d5,0x34d5,0x34d5,0x34d5,0x34d5
+.short	0x058e,0x058e,0x058e,0x058e,0x058e,0x058e,0x058e,0x058e
+.short	0x058e,0x058e,0x058e,0x058e,0x058e,0x058e,0x058e,0x058e
+.short	0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e
+.short	0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e,0xcf8e
+.short	0x0c56,0x0c56,0x0c56,0x0c56,0x0c56,0x0c56,0x0c56,0x0c56
+.short	0x0c56,0x0c56,0x0c56,0x0c56,0x0c56,0x0c56,0x0c56,0x0c56
+.short	0xae56,0xae56,0xae56,0xae56,0xae56,0xae56,0xae56,0xae56
+.short	0xae56,0xae56,0xae56,0xae56,0xae56,0xae56,0xae56,0xae56
+.short	0x026e,0x026e,0x026e,0x026e,0x026e,0x026e,0x026e,0x026e
+.short	0x026e,0x026e,0x026e,0x026e,0x026e,0x026e,0x026e,0x026e
+.short	0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e
+.short	0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e,0x6c6e
+.short	0x0629,0x0629,0x0629,0x0629,0x0629,0x0629,0x0629,0x0629
+.short	0x0629,0x0629,0x0629,0x0629,0x0629,0x0629,0x0629,0x0629
+.short	0xf129,0xf129,0xf129,0xf129,0xf129,0xf129,0xf129,0xf129
+.short	0xf129,0xf129,0xf129,0xf129,0xf129,0xf129,0xf129,0xf129
+.short	0x00b6,0x00b6,0x00b6,0x00b6,0x00b6,0x00b6,0x00b6,0x00b6
+.short	0x00b6,0x00b6,0x00b6,0x00b6,0x00b6,0x00b6,0x00b6,0x00b6
+.short	0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6
+.short	0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6,0xc2b6
+.short	0x023d,0x023d,0x023d,0x023d,0x023d,0x023d,0x023d,0x023d
+.short	0x07d4,0x07d4,0x07d4,0x07d4,0x07d4,0x07d4,0x07d4,0x07d4
+.short	0xe93d,0xe93d,0xe93d,0xe93d,0xe93d,0xe93d,0xe93d,0xe93d
+.short	0x43d4,0x43d4,0x43d4,0x43d4,0x43d4,0x43d4,0x43d4,0x43d4
+.short	0x0108,0x0108,0x0108,0x0108,0x0108,0x0108,0x0108,0x0108
+.short	0x017f,0x017f,0x017f,0x017f,0x017f,0x017f,0x017f,0x017f
+.short	0x9908,0x9908,0x9908,0x9908,0x9908,0x9908,0x9908,0x9908
+.short	0x8e7f,0x8e7f,0x8e7f,0x8e7f,0x8e7f,0x8e7f,0x8e7f,0x8e7f
+.short	0x04c7,0x04c7,0x04c7,0x04c7,0x028c,0x028c,0x028c,0x028c
+.short	0x0ad9,0x0ad9,0x0ad9,0x0ad9,0x03f7,0x03f7,0x03f7,0x03f7
+.short	0xe9c7,0xe9c7,0xe9c7,0xe9c7,0xe68c,0xe68c,0xe68c,0xe68c
+.short	0x05d9,0x05d9,0x05d9,0x05d9,0x78f7,0x78f7,0x78f7,0x78f7
+.short	0x07f4,0x07f4,0x07f4,0x07f4,0x05d3,0x05d3,0x05d3,0x05d3
+.short	0x0be7,0x0be7,0x0be7,0x0be7,0x06f9,0x06f9,0x06f9,0x06f9
+.short	0xa3f4,0xa3f4,0xa3f4,0xa3f4,0x4ed3,0x4ed3,0x4ed3,0x4ed3
+.short	0x50e7,0x50e7,0x50e7,0x50e7,0x61f9,0x61f9,0x61f9,0x61f9
+.short	0x09c4,0x09c4,0x09c4,0x09c4,0x09c4,0x09c4,0x09c4,0x09c4
+.short	0x05b2,0x05b2,0x05b2,0x05b2,0x05b2,0x05b2,0x05b2,0x05b2
+.short	0x15c4,0x15c4,0x15c4,0x15c4,0x15c4,0x15c4,0x15c4,0x15c4
+.short	0xfbb2,0xfbb2,0xfbb2,0xfbb2,0xfbb2,0xfbb2,0xfbb2,0xfbb2
+.short	0x06bf,0x06bf,0x06bf,0x06bf,0x06bf,0x06bf,0x06bf,0x06bf
+.short	0x0c7f,0x0c7f,0x0c7f,0x0c7f,0x0c7f,0x0c7f,0x0c7f,0x0c7f
+.short	0x53bf,0x53bf,0x53bf,0x53bf,0x53bf,0x53bf,0x53bf,0x53bf
+.short	0x997f,0x997f,0x997f,0x997f,0x997f,0x997f,0x997f,0x997f
+.short	0x0204,0x0204,0x0204,0x0204,0x0cf9,0x0cf9,0x0cf9,0x0cf9
+.short	0x0bc1,0x0bc1,0x0bc1,0x0bc1,0x0a67,0x0a67,0x0a67,0x0a67
+.short	0xce04,0xce04,0xce04,0xce04,0x67f9,0x67f9,0x67f9,0x67f9
+.short	0x3ec1,0x3ec1,0x3ec1,0x3ec1,0xcf67,0xcf67,0xcf67,0xcf67
+.short	0x06af,0x06af,0x06af,0x06af,0x0877,0x0877,0x0877,0x0877
+.short	0x007e,0x007e,0x007e,0x007e,0x05bd,0x05bd,0x05bd,0x05bd
+.short	0x23af,0x23af,0x23af,0x23af,0xfd77,0xfd77,0xfd77,0xfd77
+.short	0x9a7e,0x9a7e,0x9a7e,0x9a7e,0x6cbd,0x6cbd,0x6cbd,0x6cbd
+.short	0x08b2,0x08b2,0x01ae,0x01ae,0x022b,0x022b,0x034b,0x034b
+.short	0x081e,0x081e,0x0367,0x0367,0x060e,0x060e,0x0069,0x0069
+.short	0xfeb2,0xfeb2,0x2bae,0x2bae,0xd32b,0xd32b,0x344b,0x344b
+.short	0x821e,0x821e,0xc867,0xc867,0x500e,0x500e,0xab69,0xab69
+.short	0x01a6,0x01a6,0x024b,0x024b,0x00b1,0x00b1,0x0c16,0x0c16
+.short	0x0bde,0x0bde,0x0b35,0x0b35,0x0626,0x0626,0x0675,0x0675
+.short	0x93a6,0x93a6,0x334b,0x334b,0x03b1,0x03b1,0xee16,0xee16
+.short	0xc5de,0xc5de,0x5a35,0x5a35,0x1826,0x1826,0x1575,0x1575
+.short	0x0c0b,0x0c0b,0x030a,0x030a,0x0487,0x0487,0x0c6e,0x0c6e
+.short	0x09f8,0x09f8,0x05cb,0x05cb,0x0aa7,0x0aa7,0x045f,0x045f
+.short	0x7d0b,0x7d0b,0x810a,0x810a,0x2987,0x2987,0x766e,0x766e
+.short	0x71f8,0x71f8,0xb6cb,0xb6cb,0x8fa7,0x8fa7,0x315f,0x315f
+.short	0x06cb,0x06cb,0x0284,0x0284,0x0999,0x0999,0x015d,0x015d
+.short	0x01a2,0x01a2,0x0149,0x0149,0x0c65,0x0c65,0x0cb6,0x0cb6
+.short	0xb7cb,0xb7cb,0x4e84,0x4e84,0x4499,0x4499,0x485d,0x485d
+.short	0xc7a2,0xc7a2,0x4c49,0x4c49,0xeb65,0xeb65,0xceb6,0xceb6
+.short	0x0714,0x0714,0x0714,0x0714,0x0714,0x0714,0x0714,0x0714
+.short	0x0714,0x0714,0x0714,0x0714,0x0714,0x0714,0x0714,0x0714
+.short	0x0314,0x0314,0x0314,0x0314,0x0314,0x0314,0x0314,0x0314
+.short	0x0314,0x0314,0x0314,0x0314,0x0314,0x0314,0x0314,0x0314
+.short	0x011f,0x011f,0x011f,0x011f,0x011f,0x011f,0x011f,0x011f
+.short	0x011f,0x011f,0x011f,0x011f,0x011f,0x011f,0x011f,0x011f
+.short	0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f
+.short	0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f,0x6e1f
+.short	0x00ca,0x00ca,0x00ca,0x00ca,0x00ca,0x00ca,0x00ca,0x00ca
+.short	0x00ca,0x00ca,0x00ca,0x00ca,0x00ca,0x00ca,0x00ca,0x00ca
+.short	0xbeca,0xbeca,0xbeca,0xbeca,0xbeca,0xbeca,0xbeca,0xbeca
+.short	0xbeca,0xbeca,0xbeca,0xbeca,0xbeca,0xbeca,0xbeca,0xbeca
+.short	0x03c2,0x03c2,0x03c2,0x03c2,0x03c2,0x03c2,0x03c2,0x03c2
+.short	0x03c2,0x03c2,0x03c2,0x03c2,0x03c2,0x03c2,0x03c2,0x03c2
+.short	0x29c2,0x29c2,0x29c2,0x29c2,0x29c2,0x29c2,0x29c2,0x29c2
+.short	0x29c2,0x29c2,0x29c2,0x29c2,0x29c2,0x29c2,0x29c2,0x29c2
+.short	0x084f,0x084f,0x084f,0x084f,0x084f,0x084f,0x084f,0x084f
+.short	0x084f,0x084f,0x084f,0x084f,0x084f,0x084f,0x084f,0x084f
+.short	0x054f,0x054f,0x054f,0x054f,0x054f,0x054f,0x054f,0x054f
+.short	0x054f,0x054f,0x054f,0x054f,0x054f,0x054f,0x054f,0x054f
+.short	0x073f,0x073f,0x073f,0x073f,0x073f,0x073f,0x073f,0x073f
+.short	0x073f,0x073f,0x073f,0x073f,0x073f,0x073f,0x073f,0x073f
+.short	0xd43f,0xd43f,0xd43f,0xd43f,0xd43f,0xd43f,0xd43f,0xd43f
+.short	0xd43f,0xd43f,0xd43f,0xd43f,0xd43f,0xd43f,0xd43f,0xd43f
+.short	0x05bc,0x05bc,0x05bc,0x05bc,0x05bc,0x05bc,0x05bc,0x05bc
+.short	0x05bc,0x05bc,0x05bc,0x05bc,0x05bc,0x05bc,0x05bc,0x05bc
+.short	0x79bc,0x79bc,0x79bc,0x79bc,0x79bc,0x79bc,0x79bc,0x79bc
+.short	0x79bc,0x79bc,0x79bc,0x79bc,0x79bc,0x79bc,0x79bc,0x79bc
+.short	0x0a58,0x0a58,0x0a58,0x0a58,0x0a58,0x0a58,0x0a58,0x0a58
+.short	0x03f9,0x03f9,0x03f9,0x03f9,0x03f9,0x03f9,0x03f9,0x03f9
+.short	0x9258,0x9258,0x9258,0x9258,0x9258,0x9258,0x9258,0x9258
+.short	0x5ef9,0x5ef9,0x5ef9,0x5ef9,0x5ef9,0x5ef9,0x5ef9,0x5ef9
+.short	0x02dc,0x02dc,0x02dc,0x02dc,0x02dc,0x02dc,0x02dc,0x02dc
+.short	0x0260,0x0260,0x0260,0x0260,0x0260,0x0260,0x0260,0x0260
+.short	0xd6dc,0xd6dc,0xd6dc,0xd6dc,0xd6dc,0xd6dc,0xd6dc,0xd6dc
+.short	0x2260,0x2260,0x2260,0x2260,0x2260,0x2260,0x2260,0x2260
+.short	0x09ac,0x09ac,0x09ac,0x09ac,0x0ca7,0x0ca7,0x0ca7,0x0ca7
+.short	0x0bf2,0x0bf2,0x0bf2,0x0bf2,0x033e,0x033e,0x033e,0x033e
+.short	0x4dac,0x4dac,0x4dac,0x4dac,0x91a7,0x91a7,0x91a7,0x91a7
+.short	0xc1f2,0xc1f2,0xc1f2,0xc1f2,0xdd3e,0xdd3e,0xdd3e,0xdd3e
+.short	0x006b,0x006b,0x006b,0x006b,0x0774,0x0774,0x0774,0x0774
+.short	0x0c0a,0x0c0a,0x0c0a,0x0c0a,0x094a,0x094a,0x094a,0x094a
+.short	0x916b,0x916b,0x916b,0x916b,0x2374,0x2374,0x2374,0x2374
+.short	0x8a0a,0x8a0a,0x8a0a,0x8a0a,0x474a,0x474a,0x474a,0x474a
+.short	0x06fb,0x06fb,0x06fb,0x06fb,0x06fb,0x06fb,0x06fb,0x06fb
+.short	0x019b,0x019b,0x019b,0x019b,0x019b,0x019b,0x019b,0x019b
+.short	0x47fb,0x47fb,0x47fb,0x47fb,0x47fb,0x47fb,0x47fb,0x47fb
+.short	0x229b,0x229b,0x229b,0x229b,0x229b,0x229b,0x229b,0x229b
+.short	0x0c34,0x0c34,0x0c34,0x0c34,0x0c34,0x0c34,0x0c34,0x0c34
+.short	0x06de,0x06de,0x06de,0x06de,0x06de,0x06de,0x06de,0x06de
+.short	0x6834,0x6834,0x6834,0x6834,0x6834,0x6834,0x6834,0x6834
+.short	0xc0de,0xc0de,0xc0de,0xc0de,0xc0de,0xc0de,0xc0de,0xc0de
+.short	0x0b73,0x0b73,0x0b73,0x0b73,0x03c1,0x03c1,0x03c1,0x03c1
+.short	0x071d,0x071d,0x071d,0x071d,0x0a2c,0x0a2c,0x0a2c,0x0a2c
+.short	0x3473,0x3473,0x3473,0x3473,0x36c1,0x36c1,0x36c1,0x36c1
+.short	0x8e1d,0x8e1d,0x8e1d,0x8e1d,0xce2c,0xce2c,0xce2c,0xce2c
+.short	0x01c0,0x01c0,0x01c0,0x01c0,0x08d8,0x08d8,0x08d8,0x08d8
+.short	0x02a5,0x02a5,0x02a5,0x02a5,0x0806,0x0806,0x0806,0x0806
+.short	0x41c0,0x41c0,0x41c0,0x41c0,0x10d8,0x10d8,0x10d8,0x10d8
+.short	0xa1a5,0xa1a5,0xa1a5,0xa1a5,0xba06,0xba06,0xba06,0xba06
+.short	0x0331,0x0331,0x0449,0x0449,0x025b,0x025b,0x0262,0x0262
+.short	0x052a,0x052a,0x07fc,0x07fc,0x0748,0x0748,0x0180,0x0180
+.short	0x8631,0x8631,0x4f49,0x4f49,0x635b,0x635b,0x0862,0x0862
+.short	0xe32a,0xe32a,0x3bfc,0x3bfc,0x5f48,0x5f48,0x8180,0x8180
+.short	0x0842,0x0842,0x0c79,0x0c79,0x04c2,0x04c2,0x07ca,0x07ca
+.short	0x0997,0x0997,0x00dc,0x00dc,0x085e,0x085e,0x0686,0x0686
+.short	0xae42,0xae42,0xe779,0xe779,0x2ac2,0x2ac2,0xc5ca,0xc5ca
+.short	0x5e97,0x5e97,0xd4dc,0xd4dc,0x425e,0x425e,0x3886,0x3886
+.short	0x0860,0x0860,0x0707,0x0707,0x0803,0x0803,0x031a,0x031a
+.short	0x071b,0x071b,0x09ab,0x09ab,0x099b,0x099b,0x01de,0x01de
+.short	0x2860,0x2860,0xac07,0xac07,0xe103,0xe103,0xb11a,0xb11a
+.short	0xa81b,0xa81b,0x5aab,0x5aab,0x2a9b,0x2a9b,0xbbde,0xbbde
+.short	0x0c95,0x0c95,0x0bcd,0x0bcd,0x03e4,0x03e4,0x03df,0x03df
+.short	0x03be,0x03be,0x074d,0x074d,0x05f2,0x05f2,0x065c,0x065c
+.short	0x7b95,0x7b95,0xa2cd,0xa2cd,0x6fe4,0x6fe4,0xb0df,0xb0df
+.short	0x5dbe,0x5dbe,0x1e4d,0x1e4d,0xbbf2,0xbbf2,0x5a5c,0x5a5c
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_avx512_perm20:
+.quad	0x0000000000000000,0x0000000000000001
+.quad	0x0000000000000008,0x0000000000000009
+.quad	0x0000000000000004,0x0000000000000005
+.quad	0x000000000000000c,0x000000000000000d
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_avx512_perm31:
+.quad	0x0000000000000002,0x0000000000000003
+.quad	0x000000000000000a,0x000000000000000b
+.quad	0x0000000000000006,0x0000000000000007
+.quad	0x000000000000000e,0x000000000000000f
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_avx512_zetas_basemul:
+.short	0x08b2,0x081e,0xf74e,0xf7e2,0x01ae,0x0367,0xfe52,0xfc99
+.short	0x022b,0x060e,0xfdd5,0xf9f2,0x034b,0x0069,0xfcb5,0xff97
+.short	0xfeb2,0x821e,0x014e,0x7de2,0x2bae,0xc867,0xd452,0x3799
+.short	0xd32b,0x500e,0x2cd5,0xaff2,0x344b,0xab69,0xcbb5,0x5497
+.short	0x01a6,0x0bde,0xfe5a,0xf422,0x024b,0x0b35,0xfdb5,0xf4cb
+.short	0x00b1,0x0626,0xff4f,0xf9da,0x0c16,0x0675,0xf3ea,0xf98b
+.short	0x93a6,0xc5de,0x6c5a,0x3a22,0x334b,0x5a35,0xccb5,0xa5cb
+.short	0x03b1,0x1826,0xfc4f,0xe7da,0xee16,0x1575,0x11ea,0xea8b
+.short	0x0c0b,0x09f8,0xf3f5,0xf608,0x030a,0x05cb,0xfcf6,0xfa35
+.short	0x0487,0x0aa7,0xfb79,0xf559,0x0c6e,0x045f,0xf392,0xfba1
+.short	0x7d0b,0x71f8,0x82f5,0x8e08,0x810a,0xb6cb,0x7ef6,0x4935
+.short	0x2987,0x8fa7,0xd679,0x7059,0x766e,0x315f,0x8992,0xcea1
+.short	0x06cb,0x01a2,0xf935,0xfe5e,0x0284,0x0149,0xfd7c,0xfeb7
+.short	0x0999,0x0c65,0xf667,0xf39b,0x015d,0x0cb6,0xfea3,0xf34a
+.short	0xb7cb,0xc7a2,0x4835,0x385e,0x4e84,0x4c49,0xb17c,0xb3b7
+.short	0x4499,0xeb65,0xbb67,0x149b,0x485d,0xceb6,0xb7a3,0x314a
+.short	0x0331,0x052a,0xfccf,0xfad6,0x0449,0x07fc,0xfbb7,0xf804
+.short	0x025b,0x0748,0xfda5,0xf8b8,0x0262,0x0180,0xfd9e,0xfe80
+.short	0x8631,0xe32a,0x79cf,0x1cd6,0x4f49,0x3bfc,0xb0b7,0xc404
+.short	0x635b,0x5f48,0x9ca5,0xa0b8,0x0862,0x8180,0xf79e,0x7e80
+.short	0x0842,0x0997,0xf7be,0xf669,0x0c79,0x00dc,0xf387,0xff24
+.short	0x04c2,0x085e,0xfb3e,0xf7a2,0x07ca,0x0686,0xf836,0xf97a
+.short	0xae42,0x5e97,0x51be,0xa169,0xe779,0xd4dc,0x1887,0x2b24
+.short	0x2ac2,0x425e,0xd53e,0xbda2,0xc5ca,0x3886,0x3a36,0xc77a
+.short	0x0860,0x071b,0xf7a0,0xf8e5,0x0707,0x09ab,0xf8f9,0xf655
+.short	0x0803,0x099b,0xf7fd,0xf665,0x031a,0x01de,0xfce6,0xfe22
+.short	0x2860,0xa81b,0xd7a0,0x57e5,0xac07,0x5aab,0x53f9,0xa555
+.short	0xe103,0x2a9b,0x1efd,0xd565,0xb11a,0xbbde,0x4ee6,0x4422
+.short	0x0c95,0x03be,0xf36b,0xfc42,0x0bcd,0x074d,0xf433,0xf8b3
+.short	0x03e4,0x05f2,0xfc1c,0xfa0e,0x03df,0x065c,0xfc21,0xf9a4
+.short	0x7b95,0x5dbe,0x846b,0xa242,0xa2cd,0x1e4d,0x5d33,0xe1b3
+.short	0x6fe4,0xbbf2,0x901c,0x440e,0xb0df,0x5a5c,0x4f21,0xa5a4
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_avx512_zetas_inv:
+.short	0x06a5,0x06a5,0x05b4,0x05b4,0x070f,0x070f,0x0943,0x0943
+.short	0x0922,0x0922,0x0134,0x0134,0x091d,0x091d,0x006c,0x006c
+.short	0xa5a5,0xa5a5,0xe1b4,0xe1b4,0x440f,0x440f,0xa243,0xa243
+.short	0x4f22,0x4f22,0x5d34,0x5d34,0x901d,0x901d,0x846c,0x846c
+.short	0x0b23,0x0b23,0x0356,0x0356,0x0366,0x0366,0x05e6,0x05e6
+.short	0x09e7,0x09e7,0x05fa,0x05fa,0x04fe,0x04fe,0x04a1,0x04a1
+.short	0x4423,0x4423,0xa556,0xa556,0xd566,0xd566,0x57e6,0x57e6
+.short	0x4ee7,0x4ee7,0x53fa,0x53fa,0x1efe,0x1efe,0xd7a1,0xd7a1
+.short	0x04fb,0x04fb,0x04fb,0x04fb,0x0a5c,0x0a5c,0x0a5c,0x0a5c
+.short	0x0429,0x0429,0x0429,0x0429,0x0b41,0x0b41,0x0b41,0x0b41
+.short	0x45fb,0x45fb,0x45fb,0x45fb,0x5e5c,0x5e5c,0x5e5c,0x5e5c
+.short	0xef29,0xef29,0xef29,0xef29,0xbe41,0xbe41,0xbe41,0xbe41
+.short	0x02d5,0x02d5,0x02d5,0x02d5,0x05e4,0x05e4,0x05e4,0x05e4
+.short	0x0940,0x0940,0x0940,0x0940,0x018e,0x018e,0x018e,0x018e
+.short	0x31d5,0x31d5,0x31d5,0x31d5,0x71e4,0x71e4,0x71e4,0x71e4
+.short	0xc940,0xc940,0xc940,0xc940,0xcb8e,0xcb8e,0xcb8e,0xcb8e
+.short	0x0623,0x0623,0x0623,0x0623,0x0623,0x0623,0x0623,0x0623
+.short	0x00cd,0x00cd,0x00cd,0x00cd,0x00cd,0x00cd,0x00cd,0x00cd
+.short	0x3f23,0x3f23,0x3f23,0x3f23,0x3f23,0x3f23,0x3f23,0x3f23
+.short	0x97cd,0x97cd,0x97cd,0x97cd,0x97cd,0x97cd,0x97cd,0x97cd
+.short	0x0b66,0x0b66,0x0b66,0x0b66,0x0b66,0x0b66,0x0b66,0x0b66
+.short	0x0606,0x0606,0x0606,0x0606,0x0606,0x0606,0x0606,0x0606
+.short	0xdd66,0xdd66,0xdd66,0xdd66,0xdd66,0xdd66,0xdd66,0xdd66
+.short	0xb806,0xb806,0xb806,0xb806,0xb806,0xb806,0xb806,0xb806
+.short	0x0745,0x0745,0x0745,0x0745,0x0745,0x0745,0x0745,0x0745
+.short	0x0745,0x0745,0x0745,0x0745,0x0745,0x0745,0x0745,0x0745
+.short	0x8645,0x8645,0x8645,0x8645,0x8645,0x8645,0x8645,0x8645
+.short	0x8645,0x8645,0x8645,0x8645,0x8645,0x8645,0x8645,0x8645
+.short	0x05c2,0x05c2,0x05c2,0x05c2,0x05c2,0x05c2,0x05c2,0x05c2
+.short	0x05c2,0x05c2,0x05c2,0x05c2,0x05c2,0x05c2,0x05c2,0x05c2
+.short	0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2
+.short	0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2,0x2bc2
+.short	0x0c37,0x0c37,0x0c37,0x0c37,0x0c37,0x0c37,0x0c37,0x0c37
+.short	0x0c37,0x0c37,0x0c37,0x0c37,0x0c37,0x0c37,0x0c37,0x0c37
+.short	0x4137,0x4137,0x4137,0x4137,0x4137,0x4137,0x4137,0x4137
+.short	0x4137,0x4137,0x4137,0x4137,0x4137,0x4137,0x4137,0x4137
+.short	0x067b,0x067b,0x0c25,0x0c25,0x04a3,0x04a3,0x036a,0x036a
+.short	0x0537,0x0537,0x0088,0x0088,0x083f,0x083f,0x04bf,0x04bf
+.short	0xc77b,0xc77b,0x2b25,0x2b25,0xbda3,0xbda3,0xa16a,0xa16a
+.short	0x3a37,0x3a37,0x1888,0x1888,0xd53f,0xd53f,0x51bf,0x51bf
+.short	0x0b81,0x0b81,0x0505,0x0505,0x05b9,0x05b9,0x07d7,0x07d7
+.short	0x0a9f,0x0a9f,0x08b8,0x08b8,0x0aa6,0x0aa6,0x09d0,0x09d0
+.short	0x7e81,0x7e81,0xc405,0xc405,0xa0b9,0xa0b9,0x1cd7,0x1cd7
+.short	0xf79f,0xf79f,0xb0b8,0xb0b8,0x9ca6,0x9ca6,0x79d0,0x79d0
+.short	0x03b7,0x03b7,0x03b7,0x03b7,0x00f7,0x00f7,0x00f7,0x00f7
+.short	0x058d,0x058d,0x058d,0x058d,0x0c96,0x0c96,0x0c96,0x0c96
+.short	0xb8b7,0xb8b7,0xb8b7,0xb8b7,0x75f7,0x75f7,0x75f7,0x75f7
+.short	0xdc8d,0xdc8d,0xdc8d,0xdc8d,0x6e96,0x6e96,0x6e96,0x6e96
+.short	0x09c3,0x09c3,0x09c3,0x09c3,0x010f,0x010f,0x010f,0x010f
+.short	0x005a,0x005a,0x005a,0x005a,0x0355,0x0355,0x0355,0x0355
+.short	0x22c3,0x22c3,0x22c3,0x22c3,0x3e0f,0x3e0f,0x3e0f,0x3e0f
+.short	0x6e5a,0x6e5a,0x6e5a,0x6e5a,0xb255,0xb255,0xb255,0xb255
+.short	0x0aa1,0x0aa1,0x0aa1,0x0aa1,0x0aa1,0x0aa1,0x0aa1,0x0aa1
+.short	0x0a25,0x0a25,0x0a25,0x0a25,0x0a25,0x0a25,0x0a25,0x0a25
+.short	0xdda1,0xdda1,0xdda1,0xdda1,0xdda1,0xdda1,0xdda1,0xdda1
+.short	0x2925,0x2925,0x2925,0x2925,0x2925,0x2925,0x2925,0x2925
+.short	0x0908,0x0908,0x0908,0x0908,0x0908,0x0908,0x0908,0x0908
+.short	0x02a9,0x02a9,0x02a9,0x02a9,0x02a9,0x02a9,0x02a9,0x02a9
+.short	0xa108,0xa108,0xa108,0xa108,0xa108,0xa108,0xa108,0xa108
+.short	0x6da9,0x6da9,0x6da9,0x6da9,0x6da9,0x6da9,0x6da9,0x6da9
+.short	0x04b2,0x04b2,0x04b2,0x04b2,0x04b2,0x04b2,0x04b2,0x04b2
+.short	0x04b2,0x04b2,0x04b2,0x04b2,0x04b2,0x04b2,0x04b2,0x04b2
+.short	0xfab2,0xfab2,0xfab2,0xfab2,0xfab2,0xfab2,0xfab2,0xfab2
+.short	0xfab2,0xfab2,0xfab2,0xfab2,0xfab2,0xfab2,0xfab2,0xfab2
+.short	0x093f,0x093f,0x093f,0x093f,0x093f,0x093f,0x093f,0x093f
+.short	0x093f,0x093f,0x093f,0x093f,0x093f,0x093f,0x093f,0x093f
+.short	0xd63f,0xd63f,0xd63f,0xd63f,0xd63f,0xd63f,0xd63f,0xd63f
+.short	0xd63f,0xd63f,0xd63f,0xd63f,0xd63f,0xd63f,0xd63f,0xd63f
+.short	0x0be2,0x0be2,0x0be2,0x0be2,0x0be2,0x0be2,0x0be2,0x0be2
+.short	0x0be2,0x0be2,0x0be2,0x0be2,0x0be2,0x0be2,0x0be2,0x0be2
+.short	0x91e2,0x91e2,0x91e2,0x91e2,0x91e2,0x91e2,0x91e2,0x91e2
+.short	0x91e2,0x91e2,0x91e2,0x91e2,0x91e2,0x91e2,0x91e2,0x91e2
+.short	0x05ed,0x05ed,0x05ed,0x05ed,0x05ed,0x05ed,0x05ed,0x05ed
+.short	0x05ed,0x05ed,0x05ed,0x05ed,0x05ed,0x05ed,0x05ed,0x05ed
+.short	0xfced,0xfced,0xfced,0xfced,0xfced,0xfced,0xfced,0xfced
+.short	0xfced,0xfced,0xfced,0xfced,0xfced,0xfced,0xfced,0xfced
+.short	0x004b,0x004b,0x0bb8,0x0bb8,0x009c,0x009c,0x0b5f,0x0b5f
+.short	0x0ba4,0x0ba4,0x0a7d,0x0a7d,0x0368,0x0368,0x0636,0x0636
+.short	0x314b,0x314b,0xb3b8,0xb3b8,0x149c,0x149c,0x385f,0x385f
+.short	0xb7a4,0xb7a4,0xb17d,0xb17d,0xbb68,0xbb68,0x4836,0x4836
+.short	0x08a2,0x08a2,0x0736,0x0736,0x025a,0x025a,0x0309,0x0309
+.short	0x0093,0x0093,0x09f7,0x09f7,0x087a,0x087a,0x00f6,0x00f6
+.short	0xcea2,0xcea2,0x4936,0x4936,0x705a,0x705a,0x8e09,0x8e09
+.short	0x8993,0x8993,0x7ef7,0x7ef7,0xd67a,0xd67a,0x82f6,0x82f6
+.short	0x0744,0x0744,0x0744,0x0744,0x0c83,0x0c83,0x0c83,0x0c83
+.short	0x048a,0x048a,0x048a,0x048a,0x0652,0x0652,0x0652,0x0652
+.short	0x9344,0x9344,0x9344,0x9344,0x6583,0x6583,0x6583,0x6583
+.short	0x028a,0x028a,0x028a,0x028a,0xdc52,0xdc52,0xdc52,0xdc52
+.short	0x029a,0x029a,0x029a,0x029a,0x0140,0x0140,0x0140,0x0140
+.short	0x0008,0x0008,0x0008,0x0008,0x0afd,0x0afd,0x0afd,0x0afd
+.short	0x309a,0x309a,0x309a,0x309a,0xc140,0xc140,0xc140,0xc140
+.short	0x9808,0x9808,0x9808,0x9808,0x31fd,0x31fd,0x31fd,0x31fd
+.short	0x0082,0x0082,0x0082,0x0082,0x0082,0x0082,0x0082,0x0082
+.short	0x0642,0x0642,0x0642,0x0642,0x0642,0x0642,0x0642,0x0642
+.short	0x6682,0x6682,0x6682,0x6682,0x6682,0x6682,0x6682,0x6682
+.short	0xac42,0xac42,0xac42,0xac42,0xac42,0xac42,0xac42,0xac42
+.short	0x074f,0x074f,0x074f,0x074f,0x074f,0x074f,0x074f,0x074f
+.short	0x033d,0x033d,0x033d,0x033d,0x033d,0x033d,0x033d,0x033d
+.short	0x044f,0x044f,0x044f,0x044f,0x044f,0x044f,0x044f,0x044f
+.short	0xea3d,0xea3d,0xea3d,0xea3d,0xea3d,0xea3d,0xea3d,0xea3d
+.short	0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b
+.short	0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b,0x0c4b
+.short	0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b
+.short	0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b,0x3d4b
+.short	0x06d8,0x06d8,0x06d8,0x06d8,0x06d8,0x06d8,0x06d8,0x06d8
+.short	0x06d8,0x06d8,0x06d8,0x06d8,0x06d8,0x06d8,0x06d8,0x06d8
+.short	0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8
+.short	0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8,0x0ed8
+.short	0x0773,0x0773,0x0773,0x0773,0x0773,0x0773,0x0773,0x0773
+.short	0x0773,0x0773,0x0773,0x0773,0x0773,0x0773,0x0773,0x0773
+.short	0x3073,0x3073,0x3073,0x3073,0x3073,0x3073,0x3073,0x3073
+.short	0x3073,0x3073,0x3073,0x3073,0x3073,0x3073,0x3073,0x3073
+.short	0x068c,0x068c,0x01cc,0x01cc,0x06db,0x06db,0x0123,0x0123
+.short	0x00eb,0x00eb,0x0ab6,0x0ab6,0x0c50,0x0c50,0x0b5b,0x0b5b
+.short	0xea8c,0xea8c,0xa5cc,0xa5cc,0xe7db,0xe7db,0x3a23,0x3a23
+.short	0x11eb,0x11eb,0xccb6,0xccb6,0xfc50,0xfc50,0x6c5b,0x6c5b
+.short	0x0c98,0x0c98,0x099a,0x099a,0x06f3,0x06f3,0x04e3,0x04e3
+.short	0x09b6,0x09b6,0x0b53,0x0b53,0x0ad6,0x0ad6,0x044f,0x044f
+.short	0x5498,0x5498,0x379a,0x379a,0xaff3,0xaff3,0x7de3,0x7de3
+.short	0xcbb6,0xcbb6,0xd453,0xd453,0x2cd6,0x2cd6,0x014f,0x014f
+.short	0x0608,0x0608,0x0608,0x0608,0x011a,0x011a,0x011a,0x011a
+.short	0x072e,0x072e,0x072e,0x072e,0x050d,0x050d,0x050d,0x050d
+.short	0x9e08,0x9e08,0x9e08,0x9e08,0xaf1a,0xaf1a,0xaf1a,0xaf1a
+.short	0xb12e,0xb12e,0xb12e,0xb12e,0x5c0d,0x5c0d,0x5c0d,0x5c0d
+.short	0x090a,0x090a,0x090a,0x090a,0x0228,0x0228,0x0228,0x0228
+.short	0x0a75,0x0a75,0x0a75,0x0a75,0x083a,0x083a,0x083a,0x083a
+.short	0x870a,0x870a,0x870a,0x870a,0xfa28,0xfa28,0xfa28,0xfa28
+.short	0x1975,0x1975,0x1975,0x1975,0x163a,0x163a,0x163a,0x163a
+.short	0x0b82,0x0b82,0x0b82,0x0b82,0x0b82,0x0b82,0x0b82,0x0b82
+.short	0x0bf9,0x0bf9,0x0bf9,0x0bf9,0x0bf9,0x0bf9,0x0bf9,0x0bf9
+.short	0x7182,0x7182,0x7182,0x7182,0x7182,0x7182,0x7182,0x7182
+.short	0x66f9,0x66f9,0x66f9,0x66f9,0x66f9,0x66f9,0x66f9,0x66f9
+.short	0x052d,0x052d,0x052d,0x052d,0x052d,0x052d,0x052d,0x052d
+.short	0x0ac4,0x0ac4,0x0ac4,0x0ac4,0x0ac4,0x0ac4,0x0ac4,0x0ac4
+.short	0xbc2d,0xbc2d,0xbc2d,0xbc2d,0xbc2d,0xbc2d,0xbc2d,0xbc2d
+.short	0x16c4,0x16c4,0x16c4,0x16c4,0x16c4,0x16c4,0x16c4,0x16c4
+.short	0x0a93,0x0a93,0x0a93,0x0a93,0x0a93,0x0a93,0x0a93,0x0a93
+.short	0x0a93,0x0a93,0x0a93,0x0a93,0x0a93,0x0a93,0x0a93,0x0a93
+.short	0x9393,0x9393,0x9393,0x9393,0x9393,0x9393,0x9393,0x9393
+.short	0x9393,0x9393,0x9393,0x9393,0x9393,0x9393,0x9393,0x9393
+.short	0x00ab,0x00ab,0x00ab,0x00ab,0x00ab,0x00ab,0x00ab,0x00ab
+.short	0x00ab,0x00ab,0x00ab,0x00ab,0x00ab,0x00ab,0x00ab,0x00ab
+.short	0x51ab,0x51ab,0x51ab,0x51ab,0x51ab,0x51ab,0x51ab,0x51ab
+.short	0x51ab,0x51ab,0x51ab,0x51ab,0x51ab,0x51ab,0x51ab,0x51ab
+.short	0x072c,0x072c,0x072c,0x072c,0x072c,0x072c,0x072c,0x072c
+.short	0x072c,0x072c,0x072c,0x072c,0x072c,0x072c,0x072c,0x072c
+.short	0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c
+.short	0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c,0xcb2c
+.short	0x0167,0x0167,0x0167,0x0167,0x0167,0x0167,0x0167,0x0167
+.short	0x0167,0x0167,0x0167,0x0167,0x0167,0x0167,0x0167,0x0167
+.short	0xc667,0xc667,0xc667,0xc667,0xc667,0xc667,0xc667,0xc667
+.short	0xc667,0xc667,0xc667,0xc667,0xc667,0xc667,0xc667,0xc667
+.short	0x02f6,0x02f6,0x02f6,0x02f6,0x02f6,0x02f6,0x02f6,0x02f6
+.short	0x02f6,0x02f6,0x02f6,0x02f6,0x02f6,0x02f6,0x02f6,0x02f6
+.short	0x84f6,0x84f6,0x84f6,0x84f6,0x84f6,0x84f6,0x84f6,0x84f6
+.short	0x84f6,0x84f6,0x84f6,0x84f6,0x84f6,0x84f6,0x84f6,0x84f6
+.short	0x05a1,0x05a1,0x05a1,0x05a1,0x05a1,0x05a1,0x05a1,0x05a1
+.short	0x05a1,0x05a1,0x05a1,0x05a1,0x05a1,0x05a1,0x05a1,0x05a1
+.short	0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1
+.short	0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1,0xd8a1
+#ifndef __APPLE__
+.text
+.globl	mlkem_keygen_avx512
+.type	mlkem_keygen_avx512,@function
+.align	16
+mlkem_keygen_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_keygen_avx512
+.p2align	4
+_mlkem_keygen_avx512:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        subq	$0x400, %rsp
+        movq	$0xd01, %r14
+        vmovd	%r14d, %xmm14
+        vpbroadcastw	%xmm14, %zmm14
+        movq	$0x4ebf, %r14
+        vmovd	%r14d, %xmm15
+        vpbroadcastw	%xmm15, %zmm15
+        movl	$0xaaaa, %r14d
+        kmovw	%r14d, %k1
+        movl	$0x5555, %r14d
+        kmovw	%r14d, %k2
+        movl	$0xaaaaaaaa, %r14d
+        kmovd	%r14d, %k3
+        movl	$0x55555555, %r14d
+        kmovd	%r14d, %k4
+        vmovdqu64	L_mlkem_avx512_perm20(%rip), %zmm17
+        vmovdqu64	L_mlkem_avx512_perm31(%rip), %zmm18
+        movq	%rdi, %r12
+        movslq	%r8d, %r9
+        movq	%rdi, %r10
+L_keygen_avx512_priv:
+        cmpq	$2, %r9
+        jl	L_keygen_avx512_priv_odd
+        movq	%r10, %r11
+        addq	$0x200, %r11
+        leaq	L_mlkem_avx512_zetas(%rip), %r13
+        vmovdqu64	(%r10), %ymm0
+        vinserti64x4	$0x01, (%r11), %zmm0, %zmm0
+        vmovdqu64	32(%r10), %ymm1
+        vinserti64x4	$0x01, 32(%r11), %zmm1, %zmm1
+        vmovdqu64	64(%r10), %ymm2
+        vinserti64x4	$0x01, 64(%r11), %zmm2, %zmm2
+        vmovdqu64	96(%r10), %ymm3
+        vinserti64x4	$0x01, 96(%r11), %zmm3, %zmm3
+        vmovdqu64	128(%r10), %ymm4
+        vinserti64x4	$0x01, 128(%r11), %zmm4, %zmm4
+        vmovdqu64	160(%r10), %ymm5
+        vinserti64x4	$0x01, 160(%r11), %zmm5, %zmm5
+        vmovdqu64	192(%r10), %ymm6
+        vinserti64x4	$0x01, 192(%r11), %zmm6, %zmm6
+        vmovdqu64	224(%r10), %ymm7
+        vinserti64x4	$0x01, 224(%r11), %zmm7, %zmm7
+        vmovdqu64	256(%r10), %ymm19
+        vinserti64x4	$0x01, 256(%r11), %zmm19, %zmm19
+        vmovdqu64	288(%r10), %ymm20
+        vinserti64x4	$0x01, 288(%r11), %zmm20, %zmm20
+        vmovdqu64	320(%r10), %ymm21
+        vinserti64x4	$0x01, 320(%r11), %zmm21, %zmm21
+        vmovdqu64	352(%r10), %ymm22
+        vinserti64x4	$0x01, 352(%r11), %zmm22, %zmm22
+        vmovdqu64	384(%r10), %ymm23
+        vinserti64x4	$0x01, 384(%r11), %zmm23, %zmm23
+        vmovdqu64	416(%r10), %ymm24
+        vinserti64x4	$0x01, 416(%r11), %zmm24, %zmm24
+        vmovdqu64	448(%r10), %ymm25
+        vinserti64x4	$0x01, 448(%r11), %zmm25, %zmm25
+        vmovdqu64	480(%r10), %ymm26
+        vinserti64x4	$0x01, 480(%r11), %zmm26, %zmm26
+        vbroadcasti64x4	(%r13), %zmm10
+        vbroadcasti64x4	32(%r13), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%r13), %zmm10
+        vbroadcasti64x4	96(%r13), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1280(%r13), %zmm10
+        vbroadcasti64x4	1312(%r13), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	128(%r13), %zmm10
+        vbroadcasti64x4	160(%r13), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	1344(%r13), %zmm10
+        vbroadcasti64x4	1376(%r13), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	192(%r13), %zmm10
+        vbroadcasti64x4	224(%r13), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	1408(%r13), %zmm10
+        vbroadcasti64x4	1440(%r13), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	256(%r13), %zmm10
+        vbroadcasti64x4	288(%r13), %zmm12
+        vbroadcasti64x4	320(%r13), %zmm11
+        vbroadcasti64x4	352(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1472(%r13), %zmm10
+        vbroadcasti64x4	1504(%r13), %zmm12
+        vbroadcasti64x4	1536(%r13), %zmm11
+        vbroadcasti64x4	1568(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	384(%r13), %zmm10
+        vbroadcasti64x4	416(%r13), %zmm12
+        vbroadcasti64x4	448(%r13), %zmm11
+        vbroadcasti64x4	480(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1600(%r13), %zmm10
+        vbroadcasti64x4	1632(%r13), %zmm12
+        vbroadcasti64x4	1664(%r13), %zmm11
+        vbroadcasti64x4	1696(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%r13), %zmm10
+        vbroadcasti64x4	672(%r13), %zmm12
+        vbroadcasti64x4	704(%r13), %zmm11
+        vbroadcasti64x4	736(%r13), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%r13), %zmm10
+        vbroadcasti64x4	1888(%r13), %zmm12
+        vbroadcasti64x4	1920(%r13), %zmm11
+        vbroadcasti64x4	1952(%r13), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%r13), %zmm10
+        vbroadcasti64x4	928(%r13), %zmm12
+        vbroadcasti64x4	960(%r13), %zmm11
+        vbroadcasti64x4	992(%r13), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%r13), %zmm10
+        vbroadcasti64x4	2144(%r13), %zmm12
+        vbroadcasti64x4	2176(%r13), %zmm11
+        vbroadcasti64x4	2208(%r13), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	1024(%r13), %zmm10
+        vbroadcasti64x4	1056(%r13), %zmm12
+        vbroadcasti64x4	1088(%r13), %zmm11
+        vbroadcasti64x4	1120(%r13), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	2240(%r13), %zmm10
+        vbroadcasti64x4	2272(%r13), %zmm12
+        vbroadcasti64x4	2304(%r13), %zmm11
+        vbroadcasti64x4	2336(%r13), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1152(%r13), %zmm10
+        vbroadcasti64x4	1184(%r13), %zmm12
+        vbroadcasti64x4	1216(%r13), %zmm11
+        vbroadcasti64x4	1248(%r13), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	2368(%r13), %zmm10
+        vbroadcasti64x4	2400(%r13), %zmm12
+        vbroadcasti64x4	2432(%r13), %zmm11
+        vbroadcasti64x4	2464(%r13), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vpmulhw	%zmm15, %zmm0, %zmm8
+        vpmulhw	%zmm15, %zmm1, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm8
+        vpsubw	%zmm9, %zmm1, %zmm9
+        vmovdqu64	%ymm8, (%r10)
+        vextracti64x4	$0x01, %zmm8, (%r11)
+        vmovdqu64	%ymm9, 32(%r10)
+        vextracti64x4	$0x01, %zmm9, 32(%r11)
+        vpmulhw	%zmm15, %zmm2, %zmm8
+        vpmulhw	%zmm15, %zmm3, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vmovdqu64	%ymm8, 64(%r10)
+        vextracti64x4	$0x01, %zmm8, 64(%r11)
+        vmovdqu64	%ymm9, 96(%r10)
+        vextracti64x4	$0x01, %zmm9, 96(%r11)
+        vpmulhw	%zmm15, %zmm19, %zmm8
+        vpmulhw	%zmm15, %zmm20, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vmovdqu64	%ymm8, 256(%r10)
+        vextracti64x4	$0x01, %zmm8, 256(%r11)
+        vmovdqu64	%ymm9, 288(%r10)
+        vextracti64x4	$0x01, %zmm9, 288(%r11)
+        vpmulhw	%zmm15, %zmm21, %zmm8
+        vpmulhw	%zmm15, %zmm22, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vmovdqu64	%ymm8, 320(%r10)
+        vextracti64x4	$0x01, %zmm8, 320(%r11)
+        vmovdqu64	%ymm9, 352(%r10)
+        vextracti64x4	$0x01, %zmm9, 352(%r11)
+        vpmulhw	%zmm15, %zmm4, %zmm8
+        vpmulhw	%zmm15, %zmm5, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vmovdqu64	%ymm8, 128(%r10)
+        vextracti64x4	$0x01, %zmm8, 128(%r11)
+        vmovdqu64	%ymm9, 160(%r10)
+        vextracti64x4	$0x01, %zmm9, 160(%r11)
+        vpmulhw	%zmm15, %zmm6, %zmm8
+        vpmulhw	%zmm15, %zmm7, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vmovdqu64	%ymm8, 192(%r10)
+        vextracti64x4	$0x01, %zmm8, 192(%r11)
+        vmovdqu64	%ymm9, 224(%r10)
+        vextracti64x4	$0x01, %zmm9, 224(%r11)
+        vpmulhw	%zmm15, %zmm23, %zmm8
+        vpmulhw	%zmm15, %zmm24, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vmovdqu64	%ymm8, 384(%r10)
+        vextracti64x4	$0x01, %zmm8, 384(%r11)
+        vmovdqu64	%ymm9, 416(%r10)
+        vextracti64x4	$0x01, %zmm9, 416(%r11)
+        vpmulhw	%zmm15, %zmm25, %zmm8
+        vpmulhw	%zmm15, %zmm26, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vmovdqu64	%ymm8, 448(%r10)
+        vextracti64x4	$0x01, %zmm8, 448(%r11)
+        vmovdqu64	%ymm9, 480(%r10)
+        vextracti64x4	$0x01, %zmm9, 480(%r11)
+        addq	$0x400, %r10
+        subq	$2, %r9
+        jmp	L_keygen_avx512_priv
+L_keygen_avx512_priv_odd:
+        cmpq	$0x01, %r9
+        jne	L_keygen_avx512_priv_done
+        leaq	L_mlkem_avx512_zetas(%rip), %r13
+        vmovdqu64	(%r10), %ymm0
+        vinserti64x4	$0x01, (%r10), %zmm0, %zmm0
+        vmovdqu64	32(%r10), %ymm1
+        vinserti64x4	$0x01, 32(%r10), %zmm1, %zmm1
+        vmovdqu64	64(%r10), %ymm2
+        vinserti64x4	$0x01, 64(%r10), %zmm2, %zmm2
+        vmovdqu64	96(%r10), %ymm3
+        vinserti64x4	$0x01, 96(%r10), %zmm3, %zmm3
+        vmovdqu64	128(%r10), %ymm4
+        vinserti64x4	$0x01, 128(%r10), %zmm4, %zmm4
+        vmovdqu64	160(%r10), %ymm5
+        vinserti64x4	$0x01, 160(%r10), %zmm5, %zmm5
+        vmovdqu64	192(%r10), %ymm6
+        vinserti64x4	$0x01, 192(%r10), %zmm6, %zmm6
+        vmovdqu64	224(%r10), %ymm7
+        vinserti64x4	$0x01, 224(%r10), %zmm7, %zmm7
+        vmovdqu64	256(%r10), %ymm19
+        vinserti64x4	$0x01, 256(%r10), %zmm19, %zmm19
+        vmovdqu64	288(%r10), %ymm20
+        vinserti64x4	$0x01, 288(%r10), %zmm20, %zmm20
+        vmovdqu64	320(%r10), %ymm21
+        vinserti64x4	$0x01, 320(%r10), %zmm21, %zmm21
+        vmovdqu64	352(%r10), %ymm22
+        vinserti64x4	$0x01, 352(%r10), %zmm22, %zmm22
+        vmovdqu64	384(%r10), %ymm23
+        vinserti64x4	$0x01, 384(%r10), %zmm23, %zmm23
+        vmovdqu64	416(%r10), %ymm24
+        vinserti64x4	$0x01, 416(%r10), %zmm24, %zmm24
+        vmovdqu64	448(%r10), %ymm25
+        vinserti64x4	$0x01, 448(%r10), %zmm25, %zmm25
+        vmovdqu64	480(%r10), %ymm26
+        vinserti64x4	$0x01, 480(%r10), %zmm26, %zmm26
+        vbroadcasti64x4	(%r13), %zmm10
+        vbroadcasti64x4	32(%r13), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%r13), %zmm10
+        vbroadcasti64x4	96(%r13), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1280(%r13), %zmm10
+        vbroadcasti64x4	1312(%r13), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	128(%r13), %zmm10
+        vbroadcasti64x4	160(%r13), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	1344(%r13), %zmm10
+        vbroadcasti64x4	1376(%r13), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	192(%r13), %zmm10
+        vbroadcasti64x4	224(%r13), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	1408(%r13), %zmm10
+        vbroadcasti64x4	1440(%r13), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	256(%r13), %zmm10
+        vbroadcasti64x4	288(%r13), %zmm12
+        vbroadcasti64x4	320(%r13), %zmm11
+        vbroadcasti64x4	352(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1472(%r13), %zmm10
+        vbroadcasti64x4	1504(%r13), %zmm12
+        vbroadcasti64x4	1536(%r13), %zmm11
+        vbroadcasti64x4	1568(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	384(%r13), %zmm10
+        vbroadcasti64x4	416(%r13), %zmm12
+        vbroadcasti64x4	448(%r13), %zmm11
+        vbroadcasti64x4	480(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1600(%r13), %zmm10
+        vbroadcasti64x4	1632(%r13), %zmm12
+        vbroadcasti64x4	1664(%r13), %zmm11
+        vbroadcasti64x4	1696(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%r13), %zmm10
+        vbroadcasti64x4	672(%r13), %zmm12
+        vbroadcasti64x4	704(%r13), %zmm11
+        vbroadcasti64x4	736(%r13), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%r13), %zmm10
+        vbroadcasti64x4	1888(%r13), %zmm12
+        vbroadcasti64x4	1920(%r13), %zmm11
+        vbroadcasti64x4	1952(%r13), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%r13), %zmm10
+        vbroadcasti64x4	928(%r13), %zmm12
+        vbroadcasti64x4	960(%r13), %zmm11
+        vbroadcasti64x4	992(%r13), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%r13), %zmm10
+        vbroadcasti64x4	2144(%r13), %zmm12
+        vbroadcasti64x4	2176(%r13), %zmm11
+        vbroadcasti64x4	2208(%r13), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	1024(%r13), %zmm10
+        vbroadcasti64x4	1056(%r13), %zmm12
+        vbroadcasti64x4	1088(%r13), %zmm11
+        vbroadcasti64x4	1120(%r13), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	2240(%r13), %zmm10
+        vbroadcasti64x4	2272(%r13), %zmm12
+        vbroadcasti64x4	2304(%r13), %zmm11
+        vbroadcasti64x4	2336(%r13), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1152(%r13), %zmm10
+        vbroadcasti64x4	1184(%r13), %zmm12
+        vbroadcasti64x4	1216(%r13), %zmm11
+        vbroadcasti64x4	1248(%r13), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	2368(%r13), %zmm10
+        vbroadcasti64x4	2400(%r13), %zmm12
+        vbroadcasti64x4	2432(%r13), %zmm11
+        vbroadcasti64x4	2464(%r13), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vpmulhw	%zmm15, %zmm0, %zmm8
+        vpmulhw	%zmm15, %zmm1, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm8
+        vpsubw	%zmm9, %zmm1, %zmm9
+        vmovdqu64	%ymm8, (%r10)
+        vextracti64x4	$0x01, %zmm8, (%r10)
+        vmovdqu64	%ymm9, 32(%r10)
+        vextracti64x4	$0x01, %zmm9, 32(%r10)
+        vpmulhw	%zmm15, %zmm2, %zmm8
+        vpmulhw	%zmm15, %zmm3, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vmovdqu64	%ymm8, 64(%r10)
+        vextracti64x4	$0x01, %zmm8, 64(%r10)
+        vmovdqu64	%ymm9, 96(%r10)
+        vextracti64x4	$0x01, %zmm9, 96(%r10)
+        vpmulhw	%zmm15, %zmm19, %zmm8
+        vpmulhw	%zmm15, %zmm20, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vmovdqu64	%ymm8, 256(%r10)
+        vextracti64x4	$0x01, %zmm8, 256(%r10)
+        vmovdqu64	%ymm9, 288(%r10)
+        vextracti64x4	$0x01, %zmm9, 288(%r10)
+        vpmulhw	%zmm15, %zmm21, %zmm8
+        vpmulhw	%zmm15, %zmm22, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vmovdqu64	%ymm8, 320(%r10)
+        vextracti64x4	$0x01, %zmm8, 320(%r10)
+        vmovdqu64	%ymm9, 352(%r10)
+        vextracti64x4	$0x01, %zmm9, 352(%r10)
+        vpmulhw	%zmm15, %zmm4, %zmm8
+        vpmulhw	%zmm15, %zmm5, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vmovdqu64	%ymm8, 128(%r10)
+        vextracti64x4	$0x01, %zmm8, 128(%r10)
+        vmovdqu64	%ymm9, 160(%r10)
+        vextracti64x4	$0x01, %zmm9, 160(%r10)
+        vpmulhw	%zmm15, %zmm6, %zmm8
+        vpmulhw	%zmm15, %zmm7, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vmovdqu64	%ymm8, 192(%r10)
+        vextracti64x4	$0x01, %zmm8, 192(%r10)
+        vmovdqu64	%ymm9, 224(%r10)
+        vextracti64x4	$0x01, %zmm9, 224(%r10)
+        vpmulhw	%zmm15, %zmm23, %zmm8
+        vpmulhw	%zmm15, %zmm24, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vmovdqu64	%ymm8, 384(%r10)
+        vextracti64x4	$0x01, %zmm8, 384(%r10)
+        vmovdqu64	%ymm9, 416(%r10)
+        vextracti64x4	$0x01, %zmm9, 416(%r10)
+        vpmulhw	%zmm15, %zmm25, %zmm8
+        vpmulhw	%zmm15, %zmm26, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vmovdqu64	%ymm8, 448(%r10)
+        vextracti64x4	$0x01, %zmm8, 448(%r10)
+        vmovdqu64	%ymm9, 480(%r10)
+        vextracti64x4	$0x01, %zmm9, 480(%r10)
+L_keygen_avx512_priv_done:
+        movq	$0xf301, %r14
+        vmovd	%r14d, %xmm13
+        vpbroadcastw	%xmm13, %zmm13
+        movslq	%r8d, %rax
+        movq	%rsi, %r10
+L_keygen_avx512_acc:
+        movslq	%r8d, %r9
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %r13
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdi), %ymm4
+        vinserti64x4	$0x01, 64(%rdi), %zmm4, %zmm4
+        vmovdqu	32(%rdi), %ymm5
+        vinserti64x4	$0x01, 96(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%r13), %ymm10
+        vinserti64x4	$0x01, 64(%r13), %zmm10, %zmm10
+        vmovdqu	32(%r13), %ymm11
+        vinserti64x4	$0x01, 96(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%r10)
+        vextracti64x4	$0x01, %zmm0, 64(%r10)
+        vmovdqu	%ymm1, 32(%r10)
+        vextracti64x4	$0x01, %zmm1, 96(%r10)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdi), %ymm4
+        vinserti64x4	$0x01, 192(%rdi), %zmm4, %zmm4
+        vmovdqu	160(%rdi), %ymm5
+        vinserti64x4	$0x01, 224(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%r13), %ymm10
+        vinserti64x4	$0x01, 192(%r13), %zmm10, %zmm10
+        vmovdqu	160(%r13), %ymm11
+        vinserti64x4	$0x01, 224(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%r10)
+        vextracti64x4	$0x01, %zmm0, 192(%r10)
+        vmovdqu	%ymm1, 160(%r10)
+        vextracti64x4	$0x01, %zmm1, 224(%r10)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdi), %ymm4
+        vinserti64x4	$0x01, 320(%rdi), %zmm4, %zmm4
+        vmovdqu	288(%rdi), %ymm5
+        vinserti64x4	$0x01, 352(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%r13), %ymm10
+        vinserti64x4	$0x01, 320(%r13), %zmm10, %zmm10
+        vmovdqu	288(%r13), %ymm11
+        vinserti64x4	$0x01, 352(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%r10)
+        vextracti64x4	$0x01, %zmm0, 320(%r10)
+        vmovdqu	%ymm1, 288(%r10)
+        vextracti64x4	$0x01, %zmm1, 352(%r10)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdi), %ymm4
+        vinserti64x4	$0x01, 448(%rdi), %zmm4, %zmm4
+        vmovdqu	416(%rdi), %ymm5
+        vinserti64x4	$0x01, 480(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%r13), %ymm10
+        vinserti64x4	$0x01, 448(%r13), %zmm10, %zmm10
+        vmovdqu	416(%r13), %ymm11
+        vinserti64x4	$0x01, 480(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%r10)
+        vextracti64x4	$0x01, %zmm0, 448(%r10)
+        vmovdqu	%ymm1, 416(%r10)
+        vextracti64x4	$0x01, %zmm1, 480(%r10)
+        addq	$0x200, %rcx
+        addq	$0x200, %rdi
+        subq	$2, %r9
+        jz	L_pointwise_acc_mont_end_keygen_avx512
+L_pointwise_acc_mont_start_keygen_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %r13
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdi), %ymm4
+        vinserti64x4	$0x01, 64(%rdi), %zmm4, %zmm4
+        vmovdqu	32(%rdi), %ymm5
+        vinserti64x4	$0x01, 96(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%r13), %ymm10
+        vinserti64x4	$0x01, 64(%r13), %zmm10, %zmm10
+        vmovdqu	32(%r13), %ymm11
+        vinserti64x4	$0x01, 96(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%r10), %ymm6
+        vinserti64x4	$0x01, 64(%r10), %zmm6, %zmm6
+        vmovdqu	32(%r10), %ymm7
+        vinserti64x4	$0x01, 96(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%r10)
+        vextracti64x4	$0x01, %zmm0, 64(%r10)
+        vmovdqu	%ymm1, 32(%r10)
+        vextracti64x4	$0x01, %zmm1, 96(%r10)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdi), %ymm4
+        vinserti64x4	$0x01, 192(%rdi), %zmm4, %zmm4
+        vmovdqu	160(%rdi), %ymm5
+        vinserti64x4	$0x01, 224(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%r13), %ymm10
+        vinserti64x4	$0x01, 192(%r13), %zmm10, %zmm10
+        vmovdqu	160(%r13), %ymm11
+        vinserti64x4	$0x01, 224(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%r10), %ymm6
+        vinserti64x4	$0x01, 192(%r10), %zmm6, %zmm6
+        vmovdqu	160(%r10), %ymm7
+        vinserti64x4	$0x01, 224(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%r10)
+        vextracti64x4	$0x01, %zmm0, 192(%r10)
+        vmovdqu	%ymm1, 160(%r10)
+        vextracti64x4	$0x01, %zmm1, 224(%r10)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdi), %ymm4
+        vinserti64x4	$0x01, 320(%rdi), %zmm4, %zmm4
+        vmovdqu	288(%rdi), %ymm5
+        vinserti64x4	$0x01, 352(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%r13), %ymm10
+        vinserti64x4	$0x01, 320(%r13), %zmm10, %zmm10
+        vmovdqu	288(%r13), %ymm11
+        vinserti64x4	$0x01, 352(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%r10), %ymm6
+        vinserti64x4	$0x01, 320(%r10), %zmm6, %zmm6
+        vmovdqu	288(%r10), %ymm7
+        vinserti64x4	$0x01, 352(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%r10)
+        vextracti64x4	$0x01, %zmm0, 320(%r10)
+        vmovdqu	%ymm1, 288(%r10)
+        vextracti64x4	$0x01, %zmm1, 352(%r10)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdi), %ymm4
+        vinserti64x4	$0x01, 448(%rdi), %zmm4, %zmm4
+        vmovdqu	416(%rdi), %ymm5
+        vinserti64x4	$0x01, 480(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%r13), %ymm10
+        vinserti64x4	$0x01, 448(%r13), %zmm10, %zmm10
+        vmovdqu	416(%r13), %ymm11
+        vinserti64x4	$0x01, 480(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%r10), %ymm6
+        vinserti64x4	$0x01, 448(%r10), %zmm6, %zmm6
+        vmovdqu	416(%r10), %ymm7
+        vinserti64x4	$0x01, 480(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%r10)
+        vextracti64x4	$0x01, %zmm0, 448(%r10)
+        vmovdqu	%ymm1, 416(%r10)
+        vextracti64x4	$0x01, %zmm1, 480(%r10)
+        addq	$0x200, %rcx
+        addq	$0x200, %rdi
+        subq	$0x01, %r9
+        jg	L_pointwise_acc_mont_start_keygen_avx512
+L_pointwise_acc_mont_end_keygen_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %r13
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdi), %ymm4
+        vinserti64x4	$0x01, 64(%rdi), %zmm4, %zmm4
+        vmovdqu	32(%rdi), %ymm5
+        vinserti64x4	$0x01, 96(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%r13), %ymm10
+        vinserti64x4	$0x01, 64(%r13), %zmm10, %zmm10
+        vmovdqu	32(%r13), %ymm11
+        vinserti64x4	$0x01, 96(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%r10), %ymm6
+        vinserti64x4	$0x01, 64(%r10), %zmm6, %zmm6
+        vmovdqu	32(%r10), %ymm7
+        vinserti64x4	$0x01, 96(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%r10)
+        vextracti64x4	$0x01, %zmm0, 64(%r10)
+        vmovdqu	%ymm1, 32(%r10)
+        vextracti64x4	$0x01, %zmm1, 96(%r10)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdi), %ymm4
+        vinserti64x4	$0x01, 192(%rdi), %zmm4, %zmm4
+        vmovdqu	160(%rdi), %ymm5
+        vinserti64x4	$0x01, 224(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%r13), %ymm10
+        vinserti64x4	$0x01, 192(%r13), %zmm10, %zmm10
+        vmovdqu	160(%r13), %ymm11
+        vinserti64x4	$0x01, 224(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%r10), %ymm6
+        vinserti64x4	$0x01, 192(%r10), %zmm6, %zmm6
+        vmovdqu	160(%r10), %ymm7
+        vinserti64x4	$0x01, 224(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%r10)
+        vextracti64x4	$0x01, %zmm0, 192(%r10)
+        vmovdqu	%ymm1, 160(%r10)
+        vextracti64x4	$0x01, %zmm1, 224(%r10)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdi), %ymm4
+        vinserti64x4	$0x01, 320(%rdi), %zmm4, %zmm4
+        vmovdqu	288(%rdi), %ymm5
+        vinserti64x4	$0x01, 352(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%r13), %ymm10
+        vinserti64x4	$0x01, 320(%r13), %zmm10, %zmm10
+        vmovdqu	288(%r13), %ymm11
+        vinserti64x4	$0x01, 352(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%r10), %ymm6
+        vinserti64x4	$0x01, 320(%r10), %zmm6, %zmm6
+        vmovdqu	288(%r10), %ymm7
+        vinserti64x4	$0x01, 352(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%r10)
+        vextracti64x4	$0x01, %zmm0, 320(%r10)
+        vmovdqu	%ymm1, 288(%r10)
+        vextracti64x4	$0x01, %zmm1, 352(%r10)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdi), %ymm4
+        vinserti64x4	$0x01, 448(%rdi), %zmm4, %zmm4
+        vmovdqu	416(%rdi), %ymm5
+        vinserti64x4	$0x01, 480(%rdi), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%r13), %ymm10
+        vinserti64x4	$0x01, 448(%r13), %zmm10, %zmm10
+        vmovdqu	416(%r13), %ymm11
+        vinserti64x4	$0x01, 480(%r13), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm13, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%r10), %ymm6
+        vinserti64x4	$0x01, 448(%r10), %zmm6, %zmm6
+        vmovdqu	416(%r10), %ymm7
+        vinserti64x4	$0x01, 480(%r10), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%r10)
+        vextracti64x4	$0x01, %zmm0, 448(%r10)
+        vmovdqu	%ymm1, 416(%r10)
+        vextracti64x4	$0x01, %zmm1, 480(%r10)
+        addq	$0x200, %rcx
+        movq	%r12, %rdi
+        addq	$0x200, %r10
+        subq	$0x01, %rax
+        jg	L_keygen_avx512_acc
+        movq	$0x549, %r14
+        vmovd	%r14d, %xmm12
+        vpbroadcastw	%xmm12, %zmm12
+        movq	$0x5049, %r14
+        vmovd	%r14d, %xmm13
+        vpbroadcastw	%xmm13, %zmm13
+        movslq	%r8d, %rax
+        movq	%rsi, %r10
+L_keygen_avx512_tomont:
+        vmovdqu64	(%r10), %zmm0
+        vmovdqu64	64(%r10), %zmm1
+        vmovdqu64	128(%r10), %zmm2
+        vmovdqu64	192(%r10), %zmm3
+        vpmullw	%zmm13, %zmm0, %zmm4
+        vpmulhw	%zmm12, %zmm0, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm0
+        vpmullw	%zmm13, %zmm1, %zmm4
+        vpmulhw	%zmm12, %zmm1, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm1
+        vpmullw	%zmm13, %zmm2, %zmm4
+        vpmulhw	%zmm12, %zmm2, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm2
+        vpmullw	%zmm13, %zmm3, %zmm4
+        vpmulhw	%zmm12, %zmm3, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm3
+        vmovdqu64	%zmm0, (%r10)
+        vmovdqu64	%zmm1, 64(%r10)
+        vmovdqu64	%zmm2, 128(%r10)
+        vmovdqu64	%zmm3, 192(%r10)
+        vmovdqu64	256(%r10), %zmm0
+        vmovdqu64	320(%r10), %zmm1
+        vmovdqu64	384(%r10), %zmm2
+        vmovdqu64	448(%r10), %zmm3
+        vpmullw	%zmm13, %zmm0, %zmm4
+        vpmulhw	%zmm12, %zmm0, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm0
+        vpmullw	%zmm13, %zmm1, %zmm4
+        vpmulhw	%zmm12, %zmm1, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm1
+        vpmullw	%zmm13, %zmm2, %zmm4
+        vpmulhw	%zmm12, %zmm2, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm2
+        vpmullw	%zmm13, %zmm3, %zmm4
+        vpmulhw	%zmm12, %zmm3, %zmm5
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm3
+        vmovdqu64	%zmm0, 256(%r10)
+        vmovdqu64	%zmm1, 320(%r10)
+        vmovdqu64	%zmm2, 384(%r10)
+        vmovdqu64	%zmm3, 448(%r10)
+        addq	$0x200, %r10
+        subq	$0x01, %rax
+        jg	L_keygen_avx512_tomont
+        movslq	%r8d, %rax
+L_keygen_avx512_err:
+        cmpq	$2, %rax
+        jl	L_keygen_avx512_err_odd
+        movq	%rdx, %r10
+        addq	$0x200, %r10
+        movq	%rsi, %r11
+        addq	$0x200, %r11
+        leaq	L_mlkem_avx512_zetas(%rip), %r13
+        vmovdqu64	(%rdx), %ymm0
+        vinserti64x4	$0x01, (%r10), %zmm0, %zmm0
+        vmovdqu64	32(%rdx), %ymm1
+        vinserti64x4	$0x01, 32(%r10), %zmm1, %zmm1
+        vmovdqu64	64(%rdx), %ymm2
+        vinserti64x4	$0x01, 64(%r10), %zmm2, %zmm2
+        vmovdqu64	96(%rdx), %ymm3
+        vinserti64x4	$0x01, 96(%r10), %zmm3, %zmm3
+        vmovdqu64	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 128(%r10), %zmm4, %zmm4
+        vmovdqu64	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 160(%r10), %zmm5, %zmm5
+        vmovdqu64	192(%rdx), %ymm6
+        vinserti64x4	$0x01, 192(%r10), %zmm6, %zmm6
+        vmovdqu64	224(%rdx), %ymm7
+        vinserti64x4	$0x01, 224(%r10), %zmm7, %zmm7
+        vmovdqu64	256(%rdx), %ymm19
+        vinserti64x4	$0x01, 256(%r10), %zmm19, %zmm19
+        vmovdqu64	288(%rdx), %ymm20
+        vinserti64x4	$0x01, 288(%r10), %zmm20, %zmm20
+        vmovdqu64	320(%rdx), %ymm21
+        vinserti64x4	$0x01, 320(%r10), %zmm21, %zmm21
+        vmovdqu64	352(%rdx), %ymm22
+        vinserti64x4	$0x01, 352(%r10), %zmm22, %zmm22
+        vmovdqu64	384(%rdx), %ymm23
+        vinserti64x4	$0x01, 384(%r10), %zmm23, %zmm23
+        vmovdqu64	416(%rdx), %ymm24
+        vinserti64x4	$0x01, 416(%r10), %zmm24, %zmm24
+        vmovdqu64	448(%rdx), %ymm25
+        vinserti64x4	$0x01, 448(%r10), %zmm25, %zmm25
+        vmovdqu64	480(%rdx), %ymm26
+        vinserti64x4	$0x01, 480(%r10), %zmm26, %zmm26
+        vbroadcasti64x4	(%r13), %zmm10
+        vbroadcasti64x4	32(%r13), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%r13), %zmm10
+        vbroadcasti64x4	96(%r13), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	128(%r13), %zmm10
+        vbroadcasti64x4	160(%r13), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	192(%r13), %zmm10
+        vbroadcasti64x4	224(%r13), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	256(%r13), %zmm10
+        vbroadcasti64x4	288(%r13), %zmm12
+        vbroadcasti64x4	320(%r13), %zmm11
+        vbroadcasti64x4	352(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	384(%r13), %zmm10
+        vbroadcasti64x4	416(%r13), %zmm12
+        vbroadcasti64x4	448(%r13), %zmm11
+        vbroadcasti64x4	480(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%r13), %zmm10
+        vbroadcasti64x4	672(%r13), %zmm12
+        vbroadcasti64x4	704(%r13), %zmm11
+        vbroadcasti64x4	736(%r13), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%r13), %zmm10
+        vbroadcasti64x4	928(%r13), %zmm12
+        vbroadcasti64x4	960(%r13), %zmm11
+        vbroadcasti64x4	992(%r13), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1024(%r13), %zmm10
+        vbroadcasti64x4	1056(%r13), %zmm12
+        vbroadcasti64x4	1088(%r13), %zmm11
+        vbroadcasti64x4	1120(%r13), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1152(%r13), %zmm10
+        vbroadcasti64x4	1184(%r13), %zmm12
+        vbroadcasti64x4	1216(%r13), %zmm11
+        vbroadcasti64x4	1248(%r13), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vmovdqu64	(%rsi), %ymm8
+        vinserti64x4	$0x01, (%r11), %zmm8, %zmm8
+        vmovdqu64	32(%rsi), %ymm9
+        vinserti64x4	$0x01, 32(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmulhw	%zmm15, %zmm0, %zmm8
+        vpmulhw	%zmm15, %zmm1, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm8
+        vpsubw	%zmm9, %zmm1, %zmm9
+        vmovdqu64	%ymm8, (%rsi)
+        vextracti64x4	$0x01, %zmm8, (%r11)
+        vmovdqu64	%ymm9, 32(%rsi)
+        vextracti64x4	$0x01, %zmm9, 32(%r11)
+        vmovdqu64	64(%rsi), %ymm8
+        vinserti64x4	$0x01, 64(%r11), %zmm8, %zmm8
+        vmovdqu64	96(%rsi), %ymm9
+        vinserti64x4	$0x01, 96(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmulhw	%zmm15, %zmm2, %zmm8
+        vpmulhw	%zmm15, %zmm3, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vmovdqu64	%ymm8, 64(%rsi)
+        vextracti64x4	$0x01, %zmm8, 64(%r11)
+        vmovdqu64	%ymm9, 96(%rsi)
+        vextracti64x4	$0x01, %zmm9, 96(%r11)
+        vmovdqu64	128(%rsi), %ymm8
+        vinserti64x4	$0x01, 128(%r11), %zmm8, %zmm8
+        vmovdqu64	160(%rsi), %ymm9
+        vinserti64x4	$0x01, 160(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm8
+        vpmulhw	%zmm15, %zmm5, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vmovdqu64	%ymm8, 128(%rsi)
+        vextracti64x4	$0x01, %zmm8, 128(%r11)
+        vmovdqu64	%ymm9, 160(%rsi)
+        vextracti64x4	$0x01, %zmm9, 160(%r11)
+        vmovdqu64	192(%rsi), %ymm8
+        vinserti64x4	$0x01, 192(%r11), %zmm8, %zmm8
+        vmovdqu64	224(%rsi), %ymm9
+        vinserti64x4	$0x01, 224(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm8
+        vpmulhw	%zmm15, %zmm7, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vmovdqu64	%ymm8, 192(%rsi)
+        vextracti64x4	$0x01, %zmm8, 192(%r11)
+        vmovdqu64	%ymm9, 224(%rsi)
+        vextracti64x4	$0x01, %zmm9, 224(%r11)
+        vbroadcasti64x4	1280(%r13), %zmm10
+        vbroadcasti64x4	1312(%r13), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	1344(%r13), %zmm10
+        vbroadcasti64x4	1376(%r13), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	1408(%r13), %zmm10
+        vbroadcasti64x4	1440(%r13), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	1472(%r13), %zmm10
+        vbroadcasti64x4	1504(%r13), %zmm12
+        vbroadcasti64x4	1536(%r13), %zmm11
+        vbroadcasti64x4	1568(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1600(%r13), %zmm10
+        vbroadcasti64x4	1632(%r13), %zmm12
+        vbroadcasti64x4	1664(%r13), %zmm11
+        vbroadcasti64x4	1696(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%r13), %zmm10
+        vbroadcasti64x4	1888(%r13), %zmm12
+        vbroadcasti64x4	1920(%r13), %zmm11
+        vbroadcasti64x4	1952(%r13), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%r13), %zmm10
+        vbroadcasti64x4	2144(%r13), %zmm12
+        vbroadcasti64x4	2176(%r13), %zmm11
+        vbroadcasti64x4	2208(%r13), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	2240(%r13), %zmm10
+        vbroadcasti64x4	2272(%r13), %zmm12
+        vbroadcasti64x4	2304(%r13), %zmm11
+        vbroadcasti64x4	2336(%r13), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	2368(%r13), %zmm10
+        vbroadcasti64x4	2400(%r13), %zmm12
+        vbroadcasti64x4	2432(%r13), %zmm11
+        vbroadcasti64x4	2464(%r13), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vmovdqu64	256(%rsi), %ymm8
+        vinserti64x4	$0x01, 256(%r11), %zmm8, %zmm8
+        vmovdqu64	288(%rsi), %ymm9
+        vinserti64x4	$0x01, 288(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmulhw	%zmm15, %zmm19, %zmm8
+        vpmulhw	%zmm15, %zmm20, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vmovdqu64	%ymm8, 256(%rsi)
+        vextracti64x4	$0x01, %zmm8, 256(%r11)
+        vmovdqu64	%ymm9, 288(%rsi)
+        vextracti64x4	$0x01, %zmm9, 288(%r11)
+        vmovdqu64	320(%rsi), %ymm8
+        vinserti64x4	$0x01, 320(%r11), %zmm8, %zmm8
+        vmovdqu64	352(%rsi), %ymm9
+        vinserti64x4	$0x01, 352(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vpmulhw	%zmm15, %zmm21, %zmm8
+        vpmulhw	%zmm15, %zmm22, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vmovdqu64	%ymm8, 320(%rsi)
+        vextracti64x4	$0x01, %zmm8, 320(%r11)
+        vmovdqu64	%ymm9, 352(%rsi)
+        vextracti64x4	$0x01, %zmm9, 352(%r11)
+        vmovdqu64	384(%rsi), %ymm8
+        vinserti64x4	$0x01, 384(%r11), %zmm8, %zmm8
+        vmovdqu64	416(%rsi), %ymm9
+        vinserti64x4	$0x01, 416(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vpmulhw	%zmm15, %zmm23, %zmm8
+        vpmulhw	%zmm15, %zmm24, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vmovdqu64	%ymm8, 384(%rsi)
+        vextracti64x4	$0x01, %zmm8, 384(%r11)
+        vmovdqu64	%ymm9, 416(%rsi)
+        vextracti64x4	$0x01, %zmm9, 416(%r11)
+        vmovdqu64	448(%rsi), %ymm8
+        vinserti64x4	$0x01, 448(%r11), %zmm8, %zmm8
+        vmovdqu64	480(%rsi), %ymm9
+        vinserti64x4	$0x01, 480(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm25, %zmm25
+        vpaddw	%zmm9, %zmm26, %zmm26
+        vpmulhw	%zmm15, %zmm25, %zmm8
+        vpmulhw	%zmm15, %zmm26, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vmovdqu64	%ymm8, 448(%rsi)
+        vextracti64x4	$0x01, %zmm8, 448(%r11)
+        vmovdqu64	%ymm9, 480(%rsi)
+        vextracti64x4	$0x01, %zmm9, 480(%r11)
+        addq	$0x400, %rdx
+        addq	$0x400, %rsi
+        subq	$2, %rax
+        jmp	L_keygen_avx512_err
+L_keygen_avx512_err_odd:
+        cmpq	$0x01, %rax
+        jne	L_keygen_avx512_err_done
+        leaq	(%rsp), %r10
+        movq	%r10, %r11
+        addq	$0x200, %r11
+        leaq	L_mlkem_avx512_zetas(%rip), %r13
+        vmovdqu64	(%rdx), %ymm0
+        vinserti64x4	$0x01, (%r10), %zmm0, %zmm0
+        vmovdqu64	32(%rdx), %ymm1
+        vinserti64x4	$0x01, 32(%r10), %zmm1, %zmm1
+        vmovdqu64	64(%rdx), %ymm2
+        vinserti64x4	$0x01, 64(%r10), %zmm2, %zmm2
+        vmovdqu64	96(%rdx), %ymm3
+        vinserti64x4	$0x01, 96(%r10), %zmm3, %zmm3
+        vmovdqu64	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 128(%r10), %zmm4, %zmm4
+        vmovdqu64	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 160(%r10), %zmm5, %zmm5
+        vmovdqu64	192(%rdx), %ymm6
+        vinserti64x4	$0x01, 192(%r10), %zmm6, %zmm6
+        vmovdqu64	224(%rdx), %ymm7
+        vinserti64x4	$0x01, 224(%r10), %zmm7, %zmm7
+        vmovdqu64	256(%rdx), %ymm19
+        vinserti64x4	$0x01, 256(%r10), %zmm19, %zmm19
+        vmovdqu64	288(%rdx), %ymm20
+        vinserti64x4	$0x01, 288(%r10), %zmm20, %zmm20
+        vmovdqu64	320(%rdx), %ymm21
+        vinserti64x4	$0x01, 320(%r10), %zmm21, %zmm21
+        vmovdqu64	352(%rdx), %ymm22
+        vinserti64x4	$0x01, 352(%r10), %zmm22, %zmm22
+        vmovdqu64	384(%rdx), %ymm23
+        vinserti64x4	$0x01, 384(%r10), %zmm23, %zmm23
+        vmovdqu64	416(%rdx), %ymm24
+        vinserti64x4	$0x01, 416(%r10), %zmm24, %zmm24
+        vmovdqu64	448(%rdx), %ymm25
+        vinserti64x4	$0x01, 448(%r10), %zmm25, %zmm25
+        vmovdqu64	480(%rdx), %ymm26
+        vinserti64x4	$0x01, 480(%r10), %zmm26, %zmm26
+        vbroadcasti64x4	(%r13), %zmm10
+        vbroadcasti64x4	32(%r13), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%r13), %zmm10
+        vbroadcasti64x4	96(%r13), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	128(%r13), %zmm10
+        vbroadcasti64x4	160(%r13), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	192(%r13), %zmm10
+        vbroadcasti64x4	224(%r13), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	256(%r13), %zmm10
+        vbroadcasti64x4	288(%r13), %zmm12
+        vbroadcasti64x4	320(%r13), %zmm11
+        vbroadcasti64x4	352(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	384(%r13), %zmm10
+        vbroadcasti64x4	416(%r13), %zmm12
+        vbroadcasti64x4	448(%r13), %zmm11
+        vbroadcasti64x4	480(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%r13), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%r13), %zmm10
+        vbroadcasti64x4	672(%r13), %zmm12
+        vbroadcasti64x4	704(%r13), %zmm11
+        vbroadcasti64x4	736(%r13), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%r13), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%r13), %zmm10
+        vbroadcasti64x4	928(%r13), %zmm12
+        vbroadcasti64x4	960(%r13), %zmm11
+        vbroadcasti64x4	992(%r13), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1024(%r13), %zmm10
+        vbroadcasti64x4	1056(%r13), %zmm12
+        vbroadcasti64x4	1088(%r13), %zmm11
+        vbroadcasti64x4	1120(%r13), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1152(%r13), %zmm10
+        vbroadcasti64x4	1184(%r13), %zmm12
+        vbroadcasti64x4	1216(%r13), %zmm11
+        vbroadcasti64x4	1248(%r13), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vmovdqu64	(%rsi), %ymm8
+        vinserti64x4	$0x01, (%r11), %zmm8, %zmm8
+        vmovdqu64	32(%rsi), %ymm9
+        vinserti64x4	$0x01, 32(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmulhw	%zmm15, %zmm0, %zmm8
+        vpmulhw	%zmm15, %zmm1, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm8
+        vpsubw	%zmm9, %zmm1, %zmm9
+        vmovdqu64	%ymm8, (%rsi)
+        vextracti64x4	$0x01, %zmm8, (%r11)
+        vmovdqu64	%ymm9, 32(%rsi)
+        vextracti64x4	$0x01, %zmm9, 32(%r11)
+        vmovdqu64	64(%rsi), %ymm8
+        vinserti64x4	$0x01, 64(%r11), %zmm8, %zmm8
+        vmovdqu64	96(%rsi), %ymm9
+        vinserti64x4	$0x01, 96(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmulhw	%zmm15, %zmm2, %zmm8
+        vpmulhw	%zmm15, %zmm3, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vmovdqu64	%ymm8, 64(%rsi)
+        vextracti64x4	$0x01, %zmm8, 64(%r11)
+        vmovdqu64	%ymm9, 96(%rsi)
+        vextracti64x4	$0x01, %zmm9, 96(%r11)
+        vmovdqu64	128(%rsi), %ymm8
+        vinserti64x4	$0x01, 128(%r11), %zmm8, %zmm8
+        vmovdqu64	160(%rsi), %ymm9
+        vinserti64x4	$0x01, 160(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm8
+        vpmulhw	%zmm15, %zmm5, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vmovdqu64	%ymm8, 128(%rsi)
+        vextracti64x4	$0x01, %zmm8, 128(%r11)
+        vmovdqu64	%ymm9, 160(%rsi)
+        vextracti64x4	$0x01, %zmm9, 160(%r11)
+        vmovdqu64	192(%rsi), %ymm8
+        vinserti64x4	$0x01, 192(%r11), %zmm8, %zmm8
+        vmovdqu64	224(%rsi), %ymm9
+        vinserti64x4	$0x01, 224(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm8
+        vpmulhw	%zmm15, %zmm7, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vmovdqu64	%ymm8, 192(%rsi)
+        vextracti64x4	$0x01, %zmm8, 192(%r11)
+        vmovdqu64	%ymm9, 224(%rsi)
+        vextracti64x4	$0x01, %zmm9, 224(%r11)
+        vbroadcasti64x4	1280(%r13), %zmm10
+        vbroadcasti64x4	1312(%r13), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	1344(%r13), %zmm10
+        vbroadcasti64x4	1376(%r13), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	1408(%r13), %zmm10
+        vbroadcasti64x4	1440(%r13), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	1472(%r13), %zmm10
+        vbroadcasti64x4	1504(%r13), %zmm12
+        vbroadcasti64x4	1536(%r13), %zmm11
+        vbroadcasti64x4	1568(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1600(%r13), %zmm10
+        vbroadcasti64x4	1632(%r13), %zmm12
+        vbroadcasti64x4	1664(%r13), %zmm11
+        vbroadcasti64x4	1696(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%r13), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%r13), %zmm10
+        vbroadcasti64x4	1888(%r13), %zmm12
+        vbroadcasti64x4	1920(%r13), %zmm11
+        vbroadcasti64x4	1952(%r13), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%r13), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%r13), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%r13), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%r13), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%r13), %zmm10
+        vbroadcasti64x4	2144(%r13), %zmm12
+        vbroadcasti64x4	2176(%r13), %zmm11
+        vbroadcasti64x4	2208(%r13), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	2240(%r13), %zmm10
+        vbroadcasti64x4	2272(%r13), %zmm12
+        vbroadcasti64x4	2304(%r13), %zmm11
+        vbroadcasti64x4	2336(%r13), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	2368(%r13), %zmm10
+        vbroadcasti64x4	2400(%r13), %zmm12
+        vbroadcasti64x4	2432(%r13), %zmm11
+        vbroadcasti64x4	2464(%r13), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vmovdqu64	256(%rsi), %ymm8
+        vinserti64x4	$0x01, 256(%r11), %zmm8, %zmm8
+        vmovdqu64	288(%rsi), %ymm9
+        vinserti64x4	$0x01, 288(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmulhw	%zmm15, %zmm19, %zmm8
+        vpmulhw	%zmm15, %zmm20, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vmovdqu64	%ymm8, 256(%rsi)
+        vextracti64x4	$0x01, %zmm8, 256(%r11)
+        vmovdqu64	%ymm9, 288(%rsi)
+        vextracti64x4	$0x01, %zmm9, 288(%r11)
+        vmovdqu64	320(%rsi), %ymm8
+        vinserti64x4	$0x01, 320(%r11), %zmm8, %zmm8
+        vmovdqu64	352(%rsi), %ymm9
+        vinserti64x4	$0x01, 352(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vpmulhw	%zmm15, %zmm21, %zmm8
+        vpmulhw	%zmm15, %zmm22, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vmovdqu64	%ymm8, 320(%rsi)
+        vextracti64x4	$0x01, %zmm8, 320(%r11)
+        vmovdqu64	%ymm9, 352(%rsi)
+        vextracti64x4	$0x01, %zmm9, 352(%r11)
+        vmovdqu64	384(%rsi), %ymm8
+        vinserti64x4	$0x01, 384(%r11), %zmm8, %zmm8
+        vmovdqu64	416(%rsi), %ymm9
+        vinserti64x4	$0x01, 416(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vpmulhw	%zmm15, %zmm23, %zmm8
+        vpmulhw	%zmm15, %zmm24, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vmovdqu64	%ymm8, 384(%rsi)
+        vextracti64x4	$0x01, %zmm8, 384(%r11)
+        vmovdqu64	%ymm9, 416(%rsi)
+        vextracti64x4	$0x01, %zmm9, 416(%r11)
+        vmovdqu64	448(%rsi), %ymm8
+        vinserti64x4	$0x01, 448(%r11), %zmm8, %zmm8
+        vmovdqu64	480(%rsi), %ymm9
+        vinserti64x4	$0x01, 480(%r11), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm25, %zmm25
+        vpaddw	%zmm9, %zmm26, %zmm26
+        vpmulhw	%zmm15, %zmm25, %zmm8
+        vpmulhw	%zmm15, %zmm26, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vmovdqu64	%ymm8, 448(%rsi)
+        vextracti64x4	$0x01, %zmm8, 448(%r11)
+        vmovdqu64	%ymm9, 480(%rsi)
+        vextracti64x4	$0x01, %zmm9, 480(%r11)
+L_keygen_avx512_err_done:
+        vzeroupper
+        addq	$0x400, %rsp
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_keygen_avx512,.-mlkem_keygen_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_encapsulate_avx512
+.type	mlkem_encapsulate_avx512,@function
+.align	16
+mlkem_encapsulate_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_encapsulate_avx512
+.p2align	4
+_mlkem_encapsulate_avx512:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	56(%rsp), %rax
+        movq	64(%rsp), %r10
+        movq	72(%rsp), %r11
+        subq	$56, %rsp
+        movq	$0xd01, %r13
+        vmovd	%r13d, %xmm14
+        vpbroadcastw	%xmm14, %zmm14
+        movq	$0x4ebf, %r13
+        vmovd	%r13d, %xmm15
+        vpbroadcastw	%xmm15, %zmm15
+        movl	$0xaaaa, %r13d
+        kmovw	%r13d, %k1
+        movl	$0x5555, %r13d
+        kmovw	%r13d, %k2
+        movl	$0xaaaaaaaa, %r13d
+        kmovd	%r13d, %k3
+        movl	$0x55555555, %r13d
+        kmovd	%r13d, %k4
+        vmovdqu64	L_mlkem_avx512_perm20(%rip), %zmm17
+        vmovdqu64	L_mlkem_avx512_perm31(%rip), %zmm18
+        movq	%r8, %rbx
+        movslq	%r11d, %r13
+        movq	%r8, %r14
+L_encap_avx512_sp:
+        cmpq	$2, %r13
+        jl	L_encap_avx512_sp_odd
+        movq	%r14, %r15
+        addq	$0x200, %r15
+        leaq	L_mlkem_avx512_zetas(%rip), %rbp
+        vmovdqu64	(%r14), %ymm0
+        vinserti64x4	$0x01, (%r15), %zmm0, %zmm0
+        vmovdqu64	32(%r14), %ymm1
+        vinserti64x4	$0x01, 32(%r15), %zmm1, %zmm1
+        vmovdqu64	64(%r14), %ymm2
+        vinserti64x4	$0x01, 64(%r15), %zmm2, %zmm2
+        vmovdqu64	96(%r14), %ymm3
+        vinserti64x4	$0x01, 96(%r15), %zmm3, %zmm3
+        vmovdqu64	128(%r14), %ymm4
+        vinserti64x4	$0x01, 128(%r15), %zmm4, %zmm4
+        vmovdqu64	160(%r14), %ymm5
+        vinserti64x4	$0x01, 160(%r15), %zmm5, %zmm5
+        vmovdqu64	192(%r14), %ymm6
+        vinserti64x4	$0x01, 192(%r15), %zmm6, %zmm6
+        vmovdqu64	224(%r14), %ymm7
+        vinserti64x4	$0x01, 224(%r15), %zmm7, %zmm7
+        vmovdqu64	256(%r14), %ymm19
+        vinserti64x4	$0x01, 256(%r15), %zmm19, %zmm19
+        vmovdqu64	288(%r14), %ymm20
+        vinserti64x4	$0x01, 288(%r15), %zmm20, %zmm20
+        vmovdqu64	320(%r14), %ymm21
+        vinserti64x4	$0x01, 320(%r15), %zmm21, %zmm21
+        vmovdqu64	352(%r14), %ymm22
+        vinserti64x4	$0x01, 352(%r15), %zmm22, %zmm22
+        vmovdqu64	384(%r14), %ymm23
+        vinserti64x4	$0x01, 384(%r15), %zmm23, %zmm23
+        vmovdqu64	416(%r14), %ymm24
+        vinserti64x4	$0x01, 416(%r15), %zmm24, %zmm24
+        vmovdqu64	448(%r14), %ymm25
+        vinserti64x4	$0x01, 448(%r15), %zmm25, %zmm25
+        vmovdqu64	480(%r14), %ymm26
+        vinserti64x4	$0x01, 480(%r15), %zmm26, %zmm26
+        vbroadcasti64x4	(%rbp), %zmm10
+        vbroadcasti64x4	32(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%rbp), %zmm10
+        vbroadcasti64x4	96(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1280(%rbp), %zmm10
+        vbroadcasti64x4	1312(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	128(%rbp), %zmm10
+        vbroadcasti64x4	160(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	1344(%rbp), %zmm10
+        vbroadcasti64x4	1376(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	192(%rbp), %zmm10
+        vbroadcasti64x4	224(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	1408(%rbp), %zmm10
+        vbroadcasti64x4	1440(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	256(%rbp), %zmm10
+        vbroadcasti64x4	288(%rbp), %zmm12
+        vbroadcasti64x4	320(%rbp), %zmm11
+        vbroadcasti64x4	352(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1472(%rbp), %zmm10
+        vbroadcasti64x4	1504(%rbp), %zmm12
+        vbroadcasti64x4	1536(%rbp), %zmm11
+        vbroadcasti64x4	1568(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	384(%rbp), %zmm10
+        vbroadcasti64x4	416(%rbp), %zmm12
+        vbroadcasti64x4	448(%rbp), %zmm11
+        vbroadcasti64x4	480(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1600(%rbp), %zmm10
+        vbroadcasti64x4	1632(%rbp), %zmm12
+        vbroadcasti64x4	1664(%rbp), %zmm11
+        vbroadcasti64x4	1696(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%rbp), %zmm10
+        vbroadcasti64x4	672(%rbp), %zmm12
+        vbroadcasti64x4	704(%rbp), %zmm11
+        vbroadcasti64x4	736(%rbp), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%rbp), %zmm10
+        vbroadcasti64x4	1888(%rbp), %zmm12
+        vbroadcasti64x4	1920(%rbp), %zmm11
+        vbroadcasti64x4	1952(%rbp), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%rbp), %zmm10
+        vbroadcasti64x4	928(%rbp), %zmm12
+        vbroadcasti64x4	960(%rbp), %zmm11
+        vbroadcasti64x4	992(%rbp), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%rbp), %zmm10
+        vbroadcasti64x4	2144(%rbp), %zmm12
+        vbroadcasti64x4	2176(%rbp), %zmm11
+        vbroadcasti64x4	2208(%rbp), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	1024(%rbp), %zmm10
+        vbroadcasti64x4	1056(%rbp), %zmm12
+        vbroadcasti64x4	1088(%rbp), %zmm11
+        vbroadcasti64x4	1120(%rbp), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	2240(%rbp), %zmm10
+        vbroadcasti64x4	2272(%rbp), %zmm12
+        vbroadcasti64x4	2304(%rbp), %zmm11
+        vbroadcasti64x4	2336(%rbp), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1152(%rbp), %zmm10
+        vbroadcasti64x4	1184(%rbp), %zmm12
+        vbroadcasti64x4	1216(%rbp), %zmm11
+        vbroadcasti64x4	1248(%rbp), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	2368(%rbp), %zmm10
+        vbroadcasti64x4	2400(%rbp), %zmm12
+        vbroadcasti64x4	2432(%rbp), %zmm11
+        vbroadcasti64x4	2464(%rbp), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vmovdqu64	%ymm0, (%r14)
+        vextracti64x4	$0x01, %zmm0, (%r15)
+        vmovdqu64	%ymm1, 32(%r14)
+        vextracti64x4	$0x01, %zmm1, 32(%r15)
+        vmovdqu64	%ymm2, 64(%r14)
+        vextracti64x4	$0x01, %zmm2, 64(%r15)
+        vmovdqu64	%ymm3, 96(%r14)
+        vextracti64x4	$0x01, %zmm3, 96(%r15)
+        vmovdqu64	%ymm19, 256(%r14)
+        vextracti64x4	$0x01, %zmm19, 256(%r15)
+        vmovdqu64	%ymm20, 288(%r14)
+        vextracti64x4	$0x01, %zmm20, 288(%r15)
+        vmovdqu64	%ymm21, 320(%r14)
+        vextracti64x4	$0x01, %zmm21, 320(%r15)
+        vmovdqu64	%ymm22, 352(%r14)
+        vextracti64x4	$0x01, %zmm22, 352(%r15)
+        vmovdqu64	%ymm4, 128(%r14)
+        vextracti64x4	$0x01, %zmm4, 128(%r15)
+        vmovdqu64	%ymm5, 160(%r14)
+        vextracti64x4	$0x01, %zmm5, 160(%r15)
+        vmovdqu64	%ymm6, 192(%r14)
+        vextracti64x4	$0x01, %zmm6, 192(%r15)
+        vmovdqu64	%ymm7, 224(%r14)
+        vextracti64x4	$0x01, %zmm7, 224(%r15)
+        vmovdqu64	%ymm23, 384(%r14)
+        vextracti64x4	$0x01, %zmm23, 384(%r15)
+        vmovdqu64	%ymm24, 416(%r14)
+        vextracti64x4	$0x01, %zmm24, 416(%r15)
+        vmovdqu64	%ymm25, 448(%r14)
+        vextracti64x4	$0x01, %zmm25, 448(%r15)
+        vmovdqu64	%ymm26, 480(%r14)
+        vextracti64x4	$0x01, %zmm26, 480(%r15)
+        addq	$0x400, %r14
+        subq	$2, %r13
+        jmp	L_encap_avx512_sp
+L_encap_avx512_sp_odd:
+        cmpq	$0x01, %r13
+        jne	L_encap_avx512_sp_done
+        leaq	L_mlkem_avx512_zetas(%rip), %rbp
+        vmovdqu64	(%r14), %ymm0
+        vinserti64x4	$0x01, (%r14), %zmm0, %zmm0
+        vmovdqu64	32(%r14), %ymm1
+        vinserti64x4	$0x01, 32(%r14), %zmm1, %zmm1
+        vmovdqu64	64(%r14), %ymm2
+        vinserti64x4	$0x01, 64(%r14), %zmm2, %zmm2
+        vmovdqu64	96(%r14), %ymm3
+        vinserti64x4	$0x01, 96(%r14), %zmm3, %zmm3
+        vmovdqu64	128(%r14), %ymm4
+        vinserti64x4	$0x01, 128(%r14), %zmm4, %zmm4
+        vmovdqu64	160(%r14), %ymm5
+        vinserti64x4	$0x01, 160(%r14), %zmm5, %zmm5
+        vmovdqu64	192(%r14), %ymm6
+        vinserti64x4	$0x01, 192(%r14), %zmm6, %zmm6
+        vmovdqu64	224(%r14), %ymm7
+        vinserti64x4	$0x01, 224(%r14), %zmm7, %zmm7
+        vmovdqu64	256(%r14), %ymm19
+        vinserti64x4	$0x01, 256(%r14), %zmm19, %zmm19
+        vmovdqu64	288(%r14), %ymm20
+        vinserti64x4	$0x01, 288(%r14), %zmm20, %zmm20
+        vmovdqu64	320(%r14), %ymm21
+        vinserti64x4	$0x01, 320(%r14), %zmm21, %zmm21
+        vmovdqu64	352(%r14), %ymm22
+        vinserti64x4	$0x01, 352(%r14), %zmm22, %zmm22
+        vmovdqu64	384(%r14), %ymm23
+        vinserti64x4	$0x01, 384(%r14), %zmm23, %zmm23
+        vmovdqu64	416(%r14), %ymm24
+        vinserti64x4	$0x01, 416(%r14), %zmm24, %zmm24
+        vmovdqu64	448(%r14), %ymm25
+        vinserti64x4	$0x01, 448(%r14), %zmm25, %zmm25
+        vmovdqu64	480(%r14), %ymm26
+        vinserti64x4	$0x01, 480(%r14), %zmm26, %zmm26
+        vbroadcasti64x4	(%rbp), %zmm10
+        vbroadcasti64x4	32(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%rbp), %zmm10
+        vbroadcasti64x4	96(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1280(%rbp), %zmm10
+        vbroadcasti64x4	1312(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	128(%rbp), %zmm10
+        vbroadcasti64x4	160(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	1344(%rbp), %zmm10
+        vbroadcasti64x4	1376(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	192(%rbp), %zmm10
+        vbroadcasti64x4	224(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	1408(%rbp), %zmm10
+        vbroadcasti64x4	1440(%rbp), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	256(%rbp), %zmm10
+        vbroadcasti64x4	288(%rbp), %zmm12
+        vbroadcasti64x4	320(%rbp), %zmm11
+        vbroadcasti64x4	352(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1472(%rbp), %zmm10
+        vbroadcasti64x4	1504(%rbp), %zmm12
+        vbroadcasti64x4	1536(%rbp), %zmm11
+        vbroadcasti64x4	1568(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	384(%rbp), %zmm10
+        vbroadcasti64x4	416(%rbp), %zmm12
+        vbroadcasti64x4	448(%rbp), %zmm11
+        vbroadcasti64x4	480(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1600(%rbp), %zmm10
+        vbroadcasti64x4	1632(%rbp), %zmm12
+        vbroadcasti64x4	1664(%rbp), %zmm11
+        vbroadcasti64x4	1696(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%rbp), %zmm10
+        vbroadcasti64x4	672(%rbp), %zmm12
+        vbroadcasti64x4	704(%rbp), %zmm11
+        vbroadcasti64x4	736(%rbp), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%rbp), %zmm10
+        vbroadcasti64x4	1888(%rbp), %zmm12
+        vbroadcasti64x4	1920(%rbp), %zmm11
+        vbroadcasti64x4	1952(%rbp), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%rbp), %zmm10
+        vbroadcasti64x4	928(%rbp), %zmm12
+        vbroadcasti64x4	960(%rbp), %zmm11
+        vbroadcasti64x4	992(%rbp), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%rbp), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%rbp), %zmm10
+        vbroadcasti64x4	2144(%rbp), %zmm12
+        vbroadcasti64x4	2176(%rbp), %zmm11
+        vbroadcasti64x4	2208(%rbp), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	1024(%rbp), %zmm10
+        vbroadcasti64x4	1056(%rbp), %zmm12
+        vbroadcasti64x4	1088(%rbp), %zmm11
+        vbroadcasti64x4	1120(%rbp), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	2240(%rbp), %zmm10
+        vbroadcasti64x4	2272(%rbp), %zmm12
+        vbroadcasti64x4	2304(%rbp), %zmm11
+        vbroadcasti64x4	2336(%rbp), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1152(%rbp), %zmm10
+        vbroadcasti64x4	1184(%rbp), %zmm12
+        vbroadcasti64x4	1216(%rbp), %zmm11
+        vbroadcasti64x4	1248(%rbp), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	2368(%rbp), %zmm10
+        vbroadcasti64x4	2400(%rbp), %zmm12
+        vbroadcasti64x4	2432(%rbp), %zmm11
+        vbroadcasti64x4	2464(%rbp), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vmovdqu64	%ymm0, (%r14)
+        vextracti64x4	$0x01, %zmm0, (%r14)
+        vmovdqu64	%ymm1, 32(%r14)
+        vextracti64x4	$0x01, %zmm1, 32(%r14)
+        vmovdqu64	%ymm2, 64(%r14)
+        vextracti64x4	$0x01, %zmm2, 64(%r14)
+        vmovdqu64	%ymm3, 96(%r14)
+        vextracti64x4	$0x01, %zmm3, 96(%r14)
+        vmovdqu64	%ymm19, 256(%r14)
+        vextracti64x4	$0x01, %zmm19, 256(%r14)
+        vmovdqu64	%ymm20, 288(%r14)
+        vextracti64x4	$0x01, %zmm20, 288(%r14)
+        vmovdqu64	%ymm21, 320(%r14)
+        vextracti64x4	$0x01, %zmm21, 320(%r14)
+        vmovdqu64	%ymm22, 352(%r14)
+        vextracti64x4	$0x01, %zmm22, 352(%r14)
+        vmovdqu64	%ymm4, 128(%r14)
+        vextracti64x4	$0x01, %zmm4, 128(%r14)
+        vmovdqu64	%ymm5, 160(%r14)
+        vextracti64x4	$0x01, %zmm5, 160(%r14)
+        vmovdqu64	%ymm6, 192(%r14)
+        vextracti64x4	$0x01, %zmm6, 192(%r14)
+        vmovdqu64	%ymm7, 224(%r14)
+        vextracti64x4	$0x01, %zmm7, 224(%r14)
+        vmovdqu64	%ymm23, 384(%r14)
+        vextracti64x4	$0x01, %zmm23, 384(%r14)
+        vmovdqu64	%ymm24, 416(%r14)
+        vextracti64x4	$0x01, %zmm24, 416(%r14)
+        vmovdqu64	%ymm25, 448(%r14)
+        vextracti64x4	$0x01, %zmm25, 448(%r14)
+        vmovdqu64	%ymm26, 480(%r14)
+        vextracti64x4	$0x01, %zmm26, 480(%r14)
+L_encap_avx512_sp_done:
+        movslq	%r11d, %r12
+L_encap_avx512_calc:
+        cmpq	$2, %r12
+        jl	L_encap_avx512_calc_odd
+        movq	$0xf301, %r13
+        vmovd	%r13d, %xmm12
+        vpbroadcastw	%xmm12, %zmm12
+        movslq	%r11d, %r13
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rcx
+        addq	$0x200, %r8
+        subq	$2, %r13
+        jz	L_pointwise_acc_mont_end_encap_bp0_avx512
+L_pointwise_acc_mont_start_encap_bp0_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rsi), %ymm6
+        vinserti64x4	$0x01, 64(%rsi), %zmm6, %zmm6
+        vmovdqu	32(%rsi), %ymm7
+        vinserti64x4	$0x01, 96(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu	160(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rsi), %ymm6
+        vinserti64x4	$0x01, 320(%rsi), %zmm6, %zmm6
+        vmovdqu	288(%rsi), %ymm7
+        vinserti64x4	$0x01, 352(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rsi), %ymm6
+        vinserti64x4	$0x01, 448(%rsi), %zmm6, %zmm6
+        vmovdqu	416(%rsi), %ymm7
+        vinserti64x4	$0x01, 480(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rcx
+        addq	$0x200, %r8
+        subq	$0x01, %r13
+        jg	L_pointwise_acc_mont_start_encap_bp0_avx512
+L_pointwise_acc_mont_end_encap_bp0_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rsi), %ymm6
+        vinserti64x4	$0x01, 64(%rsi), %zmm6, %zmm6
+        vmovdqu	32(%rsi), %ymm7
+        vinserti64x4	$0x01, 96(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu	160(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rsi), %ymm6
+        vinserti64x4	$0x01, 320(%rsi), %zmm6, %zmm6
+        vmovdqu	288(%rsi), %ymm7
+        vinserti64x4	$0x01, 352(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rsi), %ymm6
+        vinserti64x4	$0x01, 448(%rsi), %zmm6, %zmm6
+        vmovdqu	416(%rsi), %ymm7
+        vinserti64x4	$0x01, 480(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rcx
+        movq	%rbx, %r8
+        movq	%rsi, %r15
+        addq	$0x200, %r15
+        movslq	%r11d, %r13
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%r15)
+        vextracti64x4	$0x01, %zmm0, 64(%r15)
+        vmovdqu	%ymm1, 32(%r15)
+        vextracti64x4	$0x01, %zmm1, 96(%r15)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%r15)
+        vextracti64x4	$0x01, %zmm0, 192(%r15)
+        vmovdqu	%ymm1, 160(%r15)
+        vextracti64x4	$0x01, %zmm1, 224(%r15)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%r15)
+        vextracti64x4	$0x01, %zmm0, 320(%r15)
+        vmovdqu	%ymm1, 288(%r15)
+        vextracti64x4	$0x01, %zmm1, 352(%r15)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%r15)
+        vextracti64x4	$0x01, %zmm0, 448(%r15)
+        vmovdqu	%ymm1, 416(%r15)
+        vextracti64x4	$0x01, %zmm1, 480(%r15)
+        addq	$0x200, %rcx
+        addq	$0x200, %r8
+        subq	$2, %r13
+        jz	L_pointwise_acc_mont_end_encap_bp1_avx512
+L_pointwise_acc_mont_start_encap_bp1_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%r15), %ymm6
+        vinserti64x4	$0x01, 64(%r15), %zmm6, %zmm6
+        vmovdqu	32(%r15), %ymm7
+        vinserti64x4	$0x01, 96(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%r15)
+        vextracti64x4	$0x01, %zmm0, 64(%r15)
+        vmovdqu	%ymm1, 32(%r15)
+        vextracti64x4	$0x01, %zmm1, 96(%r15)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%r15), %ymm6
+        vinserti64x4	$0x01, 192(%r15), %zmm6, %zmm6
+        vmovdqu	160(%r15), %ymm7
+        vinserti64x4	$0x01, 224(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%r15)
+        vextracti64x4	$0x01, %zmm0, 192(%r15)
+        vmovdqu	%ymm1, 160(%r15)
+        vextracti64x4	$0x01, %zmm1, 224(%r15)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%r15), %ymm6
+        vinserti64x4	$0x01, 320(%r15), %zmm6, %zmm6
+        vmovdqu	288(%r15), %ymm7
+        vinserti64x4	$0x01, 352(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%r15)
+        vextracti64x4	$0x01, %zmm0, 320(%r15)
+        vmovdqu	%ymm1, 288(%r15)
+        vextracti64x4	$0x01, %zmm1, 352(%r15)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%r15), %ymm6
+        vinserti64x4	$0x01, 448(%r15), %zmm6, %zmm6
+        vmovdqu	416(%r15), %ymm7
+        vinserti64x4	$0x01, 480(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%r15)
+        vextracti64x4	$0x01, %zmm0, 448(%r15)
+        vmovdqu	%ymm1, 416(%r15)
+        vextracti64x4	$0x01, %zmm1, 480(%r15)
+        addq	$0x200, %rcx
+        addq	$0x200, %r8
+        subq	$0x01, %r13
+        jg	L_pointwise_acc_mont_start_encap_bp1_avx512
+L_pointwise_acc_mont_end_encap_bp1_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%r15), %ymm6
+        vinserti64x4	$0x01, 64(%r15), %zmm6, %zmm6
+        vmovdqu	32(%r15), %ymm7
+        vinserti64x4	$0x01, 96(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%r15)
+        vextracti64x4	$0x01, %zmm0, 64(%r15)
+        vmovdqu	%ymm1, 32(%r15)
+        vextracti64x4	$0x01, %zmm1, 96(%r15)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%r15), %ymm6
+        vinserti64x4	$0x01, 192(%r15), %zmm6, %zmm6
+        vmovdqu	160(%r15), %ymm7
+        vinserti64x4	$0x01, 224(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%r15)
+        vextracti64x4	$0x01, %zmm0, 192(%r15)
+        vmovdqu	%ymm1, 160(%r15)
+        vextracti64x4	$0x01, %zmm1, 224(%r15)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%r15), %ymm6
+        vinserti64x4	$0x01, 320(%r15), %zmm6, %zmm6
+        vmovdqu	288(%r15), %ymm7
+        vinserti64x4	$0x01, 352(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%r15)
+        vextracti64x4	$0x01, %zmm0, 320(%r15)
+        vmovdqu	%ymm1, 288(%r15)
+        vextracti64x4	$0x01, %zmm1, 352(%r15)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%r15), %ymm6
+        vinserti64x4	$0x01, 448(%r15), %zmm6, %zmm6
+        vmovdqu	416(%r15), %ymm7
+        vinserti64x4	$0x01, 480(%r15), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%r15)
+        vextracti64x4	$0x01, %zmm0, 448(%r15)
+        vmovdqu	%ymm1, 416(%r15)
+        vextracti64x4	$0x01, %zmm1, 480(%r15)
+        addq	$0x200, %rcx
+        movq	%rbx, %r8
+        leaq	L_mlkem_avx512_zetas_inv(%rip), %rbp
+        vmovdqu64	(%rsi), %ymm0
+        vinserti64x4	$0x01, (%r15), %zmm0, %zmm0
+        vmovdqu64	32(%rsi), %ymm1
+        vinserti64x4	$0x01, 32(%r15), %zmm1, %zmm1
+        vmovdqu64	64(%rsi), %ymm2
+        vinserti64x4	$0x01, 64(%r15), %zmm2, %zmm2
+        vmovdqu64	96(%rsi), %ymm3
+        vinserti64x4	$0x01, 96(%r15), %zmm3, %zmm3
+        vmovdqu64	128(%rsi), %ymm4
+        vinserti64x4	$0x01, 128(%r15), %zmm4, %zmm4
+        vmovdqu64	160(%rsi), %ymm5
+        vinserti64x4	$0x01, 160(%r15), %zmm5, %zmm5
+        vmovdqu64	192(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%r15), %zmm6, %zmm6
+        vmovdqu64	224(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%r15), %zmm7, %zmm7
+        vmovdqu64	256(%rsi), %ymm19
+        vinserti64x4	$0x01, 256(%r15), %zmm19, %zmm19
+        vmovdqu64	288(%rsi), %ymm20
+        vinserti64x4	$0x01, 288(%r15), %zmm20, %zmm20
+        vmovdqu64	320(%rsi), %ymm21
+        vinserti64x4	$0x01, 320(%r15), %zmm21, %zmm21
+        vmovdqu64	352(%rsi), %ymm22
+        vinserti64x4	$0x01, 352(%r15), %zmm22, %zmm22
+        vmovdqu64	384(%rsi), %ymm23
+        vinserti64x4	$0x01, 384(%r15), %zmm23, %zmm23
+        vmovdqu64	416(%rsi), %ymm24
+        vinserti64x4	$0x01, 416(%r15), %zmm24, %zmm24
+        vmovdqu64	448(%rsi), %ymm25
+        vinserti64x4	$0x01, 448(%r15), %zmm25, %zmm25
+        vmovdqu64	480(%rsi), %ymm26
+        vinserti64x4	$0x01, 480(%r15), %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm1, %zmm0, %zmm9
+        vbroadcasti64x4	32(%rbp), %zmm12
+        vpsllq	$32, %zmm9, %zmm0
+        vpsrlq	$32, %zmm8, %zmm1
+        vpblendmd	%zmm0, %zmm8, %zmm0{%k1}
+        vpblendmd	%zmm1, %zmm9, %zmm1{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm3, %zmm2, %zmm8
+        vbroadcasti64x4	64(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	96(%rbp), %zmm13
+        vpsllq	$32, %zmm9, %zmm2
+        vpsrlq	$32, %zmm8, %zmm3
+        vpblendmd	%zmm2, %zmm8, %zmm2{%k1}
+        vpblendmd	%zmm3, %zmm9, %zmm3{%k2}
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm20, %zmm19, %zmm27
+        vbroadcasti64x4	1216(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm20, %zmm19, %zmm28
+        vbroadcasti64x4	1248(%rbp), %zmm12
+        vpsllq	$32, %zmm28, %zmm19
+        vpsrlq	$32, %zmm27, %zmm20
+        vpblendmd	%zmm19, %zmm27, %zmm19{%k1}
+        vpblendmd	%zmm20, %zmm28, %zmm20{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm22, %zmm21, %zmm27
+        vbroadcasti64x4	1280(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm22, %zmm21, %zmm28
+        vbroadcasti64x4	1312(%rbp), %zmm13
+        vpsllq	$32, %zmm28, %zmm21
+        vpsrlq	$32, %zmm27, %zmm22
+        vpblendmd	%zmm21, %zmm27, %zmm21{%k1}
+        vpblendmd	%zmm22, %zmm28, %zmm22{%k2}
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	128(%rbp), %zmm10
+        vbroadcasti64x4	160(%rbp), %zmm12
+        vbroadcasti64x4	192(%rbp), %zmm11
+        vbroadcasti64x4	224(%rbp), %zmm13
+        vpunpckldq	%zmm1, %zmm8, %zmm0
+        vpunpckhdq	%zmm1, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm9, %zmm2
+        vpunpckhdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1344(%rbp), %zmm10
+        vbroadcasti64x4	1376(%rbp), %zmm12
+        vbroadcasti64x4	1408(%rbp), %zmm11
+        vbroadcasti64x4	1440(%rbp), %zmm13
+        vpunpckldq	%zmm20, %zmm27, %zmm19
+        vpunpckhdq	%zmm20, %zmm27, %zmm20
+        vpunpckldq	%zmm22, %zmm28, %zmm21
+        vpunpckhdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	256(%rbp), %zmm10
+        vbroadcasti64x4	288(%rbp), %zmm12
+        vbroadcasti64x4	320(%rbp), %zmm11
+        vbroadcasti64x4	352(%rbp), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1472(%rbp), %zmm10
+        vbroadcasti64x4	1504(%rbp), %zmm12
+        vbroadcasti64x4	1536(%rbp), %zmm11
+        vbroadcasti64x4	1568(%rbp), %zmm13
+        vpunpcklqdq	%zmm20, %zmm27, %zmm19
+        vpunpckhqdq	%zmm20, %zmm27, %zmm20
+        vpunpcklqdq	%zmm22, %zmm28, %zmm21
+        vpunpckhqdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm1, %zmm8, %zmm0
+        vbroadcasti64x4	384(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	416(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm3, %zmm9, %zmm2
+        vbroadcasti64x4	448(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	480(%rbp), %zmm13
+        vpsubw	%zmm1, %zmm0, %zmm8
+        vpsubw	%zmm3, %zmm2, %zmm9
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpaddw	%zmm3, %zmm2, %zmm2
+        vpmullw	%zmm12, %zmm8, %zmm1
+        vpmullw	%zmm13, %zmm9, %zmm3
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm1, %zmm8, %zmm1
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm20, %zmm27, %zmm19
+        vbroadcasti64x4	1600(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1632(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm22, %zmm28, %zmm21
+        vbroadcasti64x4	1664(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1696(%rbp), %zmm13
+        vpsubw	%zmm20, %zmm19, %zmm27
+        vpsubw	%zmm22, %zmm21, %zmm28
+        vpaddw	%zmm20, %zmm19, %zmm19
+        vpaddw	%zmm22, %zmm21, %zmm21
+        vpmullw	%zmm12, %zmm27, %zmm20
+        vpmullw	%zmm13, %zmm28, %zmm22
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm22, %zmm22
+        vpsubw	%zmm20, %zmm27, %zmm20
+        vpsubw	%zmm22, %zmm28, %zmm22
+        vbroadcasti64x4	512(%rbp), %zmm10
+        vbroadcasti64x4	544(%rbp), %zmm12
+        vpaddw	%zmm2, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm1, %zmm9
+        vpsubw	%zmm2, %zmm0, %zmm2
+        vpsubw	%zmm3, %zmm1, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm8, %zmm0
+        vpsubw	%zmm1, %zmm9, %zmm1
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1728(%rbp), %zmm10
+        vbroadcasti64x4	1760(%rbp), %zmm12
+        vpaddw	%zmm21, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm20, %zmm28
+        vpsubw	%zmm21, %zmm19, %zmm21
+        vpsubw	%zmm22, %zmm20, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm20
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm20, %zmm20
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm27, %zmm19
+        vpsubw	%zmm20, %zmm28, %zmm20
+        vpmullw	%zmm12, %zmm21, %zmm27
+        vpmullw	%zmm12, %zmm22, %zmm28
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm21, %zmm21
+        vpsubw	%zmm28, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	576(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm5, %zmm4, %zmm9
+        vbroadcasti64x4	608(%rbp), %zmm12
+        vpsllq	$32, %zmm9, %zmm4
+        vpsrlq	$32, %zmm8, %zmm5
+        vpblendmd	%zmm4, %zmm8, %zmm4{%k1}
+        vpblendmd	%zmm5, %zmm9, %zmm5{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm7, %zmm6, %zmm8
+        vbroadcasti64x4	640(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	672(%rbp), %zmm13
+        vpsllq	$32, %zmm9, %zmm6
+        vpsrlq	$32, %zmm8, %zmm7
+        vpblendmd	%zmm6, %zmm8, %zmm6{%k1}
+        vpblendmd	%zmm7, %zmm9, %zmm7{%k2}
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm24, %zmm23, %zmm27
+        vbroadcasti64x4	1792(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm24, %zmm23, %zmm28
+        vbroadcasti64x4	1824(%rbp), %zmm12
+        vpsllq	$32, %zmm28, %zmm23
+        vpsrlq	$32, %zmm27, %zmm24
+        vpblendmd	%zmm23, %zmm27, %zmm23{%k1}
+        vpblendmd	%zmm24, %zmm28, %zmm24{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm26, %zmm25, %zmm27
+        vbroadcasti64x4	1856(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm26, %zmm25, %zmm28
+        vbroadcasti64x4	1888(%rbp), %zmm13
+        vpsllq	$32, %zmm28, %zmm25
+        vpsrlq	$32, %zmm27, %zmm26
+        vpblendmd	%zmm25, %zmm27, %zmm25{%k1}
+        vpblendmd	%zmm26, %zmm28, %zmm26{%k2}
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	704(%rbp), %zmm10
+        vbroadcasti64x4	736(%rbp), %zmm12
+        vbroadcasti64x4	768(%rbp), %zmm11
+        vbroadcasti64x4	800(%rbp), %zmm13
+        vpunpckldq	%zmm5, %zmm8, %zmm4
+        vpunpckhdq	%zmm5, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm9, %zmm6
+        vpunpckhdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	1920(%rbp), %zmm10
+        vbroadcasti64x4	1952(%rbp), %zmm12
+        vbroadcasti64x4	1984(%rbp), %zmm11
+        vbroadcasti64x4	2016(%rbp), %zmm13
+        vpunpckldq	%zmm24, %zmm27, %zmm23
+        vpunpckhdq	%zmm24, %zmm27, %zmm24
+        vpunpckldq	%zmm26, %zmm28, %zmm25
+        vpunpckhdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	832(%rbp), %zmm10
+        vbroadcasti64x4	864(%rbp), %zmm12
+        vbroadcasti64x4	896(%rbp), %zmm11
+        vbroadcasti64x4	928(%rbp), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	2048(%rbp), %zmm10
+        vbroadcasti64x4	2080(%rbp), %zmm12
+        vbroadcasti64x4	2112(%rbp), %zmm11
+        vbroadcasti64x4	2144(%rbp), %zmm13
+        vpunpcklqdq	%zmm24, %zmm27, %zmm23
+        vpunpckhqdq	%zmm24, %zmm27, %zmm24
+        vpunpcklqdq	%zmm26, %zmm28, %zmm25
+        vpunpckhqdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm5, %zmm8, %zmm4
+        vbroadcasti64x4	960(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	992(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm7, %zmm9, %zmm6
+        vbroadcasti64x4	1024(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	1056(%rbp), %zmm13
+        vpsubw	%zmm5, %zmm4, %zmm8
+        vpsubw	%zmm7, %zmm6, %zmm9
+        vpaddw	%zmm5, %zmm4, %zmm4
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpmullw	%zmm12, %zmm8, %zmm5
+        vpmullw	%zmm13, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm5, %zmm8, %zmm5
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm24, %zmm27, %zmm23
+        vbroadcasti64x4	2176(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2208(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm26, %zmm28, %zmm25
+        vbroadcasti64x4	2240(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2272(%rbp), %zmm13
+        vpsubw	%zmm24, %zmm23, %zmm27
+        vpsubw	%zmm26, %zmm25, %zmm28
+        vpaddw	%zmm24, %zmm23, %zmm23
+        vpaddw	%zmm26, %zmm25, %zmm25
+        vpmullw	%zmm12, %zmm27, %zmm24
+        vpmullw	%zmm13, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm24, %zmm27, %zmm24
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	1088(%rbp), %zmm10
+        vbroadcasti64x4	1120(%rbp), %zmm12
+        vpaddw	%zmm6, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm5, %zmm9
+        vpsubw	%zmm6, %zmm4, %zmm6
+        vpsubw	%zmm7, %zmm5, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm5
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm5, %zmm5
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	2304(%rbp), %zmm10
+        vbroadcasti64x4	2336(%rbp), %zmm12
+        vpaddw	%zmm25, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm24, %zmm28
+        vpsubw	%zmm25, %zmm23, %zmm25
+        vpsubw	%zmm26, %zmm24, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm24
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm24, %zmm24
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpmullw	%zmm12, %zmm25, %zmm27
+        vpmullw	%zmm12, %zmm26, %zmm28
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm25, %zmm25
+        vpsubw	%zmm28, %zmm26, %zmm26
+        vbroadcasti64x4	1152(%rbp), %zmm10
+        vbroadcasti64x4	1184(%rbp), %zmm12
+        vpsubw	%zmm4, %zmm0, %zmm8
+        vpsubw	%zmm5, %zmm1, %zmm9
+        vpaddw	%zmm4, %zmm0, %zmm0
+        vpaddw	%zmm5, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm4
+        vpmullw	%zmm12, %zmm9, %zmm5
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpsubw	%zmm6, %zmm2, %zmm8
+        vpsubw	%zmm7, %zmm3, %zmm9
+        vpaddw	%zmm6, %zmm2, %zmm2
+        vpaddw	%zmm7, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm8, %zmm6
+        vpmullw	%zmm12, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vbroadcasti64x4	2368(%rbp), %zmm10
+        vbroadcasti64x4	2400(%rbp), %zmm12
+        vpsubw	%zmm23, %zmm19, %zmm27
+        vpsubw	%zmm24, %zmm20, %zmm28
+        vpaddw	%zmm23, %zmm19, %zmm19
+        vpaddw	%zmm24, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm27, %zmm23
+        vpmullw	%zmm12, %zmm28, %zmm24
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpsubw	%zmm25, %zmm21, %zmm27
+        vpsubw	%zmm26, %zmm22, %zmm28
+        vpaddw	%zmm25, %zmm21, %zmm21
+        vpaddw	%zmm26, %zmm22, %zmm22
+        vpmullw	%zmm12, %zmm27, %zmm25
+        vpmullw	%zmm12, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm25, %zmm27, %zmm25
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	2432(%rbp), %zmm10
+        vbroadcasti64x4	2464(%rbp), %zmm12
+        vbroadcasti64x4	2496(%rbp), %zmm11
+        vbroadcasti64x4	2528(%rbp), %zmm13
+        vpsubw	%zmm19, %zmm0, %zmm8
+        vpsubw	%zmm20, %zmm1, %zmm9
+        vpaddw	%zmm19, %zmm0, %zmm0
+        vpaddw	%zmm20, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm19
+        vpmullw	%zmm12, %zmm9, %zmm20
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm8, %zmm19
+        vpsubw	%zmm20, %zmm9, %zmm20
+        vpaddw	%zmm21, %zmm2, %zmm8
+        vpaddw	%zmm22, %zmm3, %zmm9
+        vpsubw	%zmm21, %zmm2, %zmm21
+        vpsubw	%zmm22, %zmm3, %zmm22
+        vpmulhw	%zmm15, %zmm8, %zmm2
+        vpmulhw	%zmm15, %zmm9, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm8, %zmm2
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpsubw	%zmm23, %zmm4, %zmm8
+        vpsubw	%zmm24, %zmm5, %zmm9
+        vpaddw	%zmm23, %zmm4, %zmm4
+        vpaddw	%zmm24, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm8, %zmm23
+        vpmullw	%zmm12, %zmm9, %zmm24
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm8, %zmm23
+        vpsubw	%zmm24, %zmm9, %zmm24
+        vpaddw	%zmm25, %zmm6, %zmm8
+        vpaddw	%zmm26, %zmm7, %zmm9
+        vpsubw	%zmm25, %zmm6, %zmm25
+        vpsubw	%zmm26, %zmm7, %zmm26
+        vpmulhw	%zmm15, %zmm8, %zmm6
+        vpmulhw	%zmm15, %zmm9, %zmm7
+        vpsraw	$10, %zmm6, %zmm6
+        vpsraw	$10, %zmm7, %zmm7
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm11, %zmm0, %zmm0
+        vpmulhw	%zmm11, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm0
+        vpsubw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm13, %zmm2, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm11, %zmm2, %zmm2
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm13, %zmm4, %zmm8
+        vpmullw	%zmm13, %zmm5, %zmm9
+        vpmulhw	%zmm11, %zmm4, %zmm4
+        vpmulhw	%zmm11, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm4
+        vpsubw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm13, %zmm6, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm11, %zmm6, %zmm6
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vpmullw	%zmm13, %zmm19, %zmm8
+        vpmullw	%zmm13, %zmm20, %zmm9
+        vpmulhw	%zmm11, %zmm19, %zmm19
+        vpmulhw	%zmm11, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm19
+        vpsubw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm13, %zmm21, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm11, %zmm21, %zmm21
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpmullw	%zmm13, %zmm23, %zmm8
+        vpmullw	%zmm13, %zmm24, %zmm9
+        vpmulhw	%zmm11, %zmm23, %zmm23
+        vpmulhw	%zmm11, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm23
+        vpsubw	%zmm9, %zmm24, %zmm24
+        vpmullw	%zmm13, %zmm25, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm11, %zmm25, %zmm25
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vmovdqu64	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, (%r15)
+        vmovdqu64	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 32(%r15)
+        vmovdqu64	%ymm2, 64(%rsi)
+        vextracti64x4	$0x01, %zmm2, 64(%r15)
+        vmovdqu64	%ymm3, 96(%rsi)
+        vextracti64x4	$0x01, %zmm3, 96(%r15)
+        vmovdqu64	%ymm4, 128(%rsi)
+        vextracti64x4	$0x01, %zmm4, 128(%r15)
+        vmovdqu64	%ymm5, 160(%rsi)
+        vextracti64x4	$0x01, %zmm5, 160(%r15)
+        vmovdqu64	%ymm6, 192(%rsi)
+        vextracti64x4	$0x01, %zmm6, 192(%r15)
+        vmovdqu64	%ymm7, 224(%rsi)
+        vextracti64x4	$0x01, %zmm7, 224(%r15)
+        vmovdqu64	%ymm19, 256(%rsi)
+        vextracti64x4	$0x01, %zmm19, 256(%r15)
+        vmovdqu64	%ymm20, 288(%rsi)
+        vextracti64x4	$0x01, %zmm20, 288(%r15)
+        vmovdqu64	%ymm21, 320(%rsi)
+        vextracti64x4	$0x01, %zmm21, 320(%r15)
+        vmovdqu64	%ymm22, 352(%rsi)
+        vextracti64x4	$0x01, %zmm22, 352(%r15)
+        vmovdqu64	%ymm23, 384(%rsi)
+        vextracti64x4	$0x01, %zmm23, 384(%r15)
+        vmovdqu64	%ymm24, 416(%rsi)
+        vextracti64x4	$0x01, %zmm24, 416(%r15)
+        vmovdqu64	%ymm25, 448(%rsi)
+        vextracti64x4	$0x01, %zmm25, 448(%r15)
+        vmovdqu64	%ymm26, 480(%rsi)
+        vextracti64x4	$0x01, %zmm26, 480(%r15)
+        vmovdqu64	(%rsi), %zmm0
+        vmovdqu64	64(%rsi), %zmm1
+        vmovdqu64	128(%rsi), %zmm2
+        vmovdqu64	192(%rsi), %zmm3
+        vmovdqu64	(%r9), %zmm4
+        vmovdqu64	64(%r9), %zmm5
+        vmovdqu64	128(%r9), %zmm6
+        vmovdqu64	192(%r9), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%rsi)
+        vmovdqu64	%zmm1, 64(%rsi)
+        vmovdqu64	%zmm2, 128(%rsi)
+        vmovdqu64	%zmm3, 192(%rsi)
+        vmovdqu64	256(%rsi), %zmm0
+        vmovdqu64	320(%rsi), %zmm1
+        vmovdqu64	384(%rsi), %zmm2
+        vmovdqu64	448(%rsi), %zmm3
+        vmovdqu64	256(%r9), %zmm4
+        vmovdqu64	320(%r9), %zmm5
+        vmovdqu64	384(%r9), %zmm6
+        vmovdqu64	448(%r9), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%rsi)
+        vmovdqu64	%zmm1, 320(%rsi)
+        vmovdqu64	%zmm2, 384(%rsi)
+        vmovdqu64	%zmm3, 448(%rsi)
+        movq	%r9, %r14
+        addq	$0x200, %r14
+        vmovdqu64	(%r15), %zmm0
+        vmovdqu64	64(%r15), %zmm1
+        vmovdqu64	128(%r15), %zmm2
+        vmovdqu64	192(%r15), %zmm3
+        vmovdqu64	(%r14), %zmm4
+        vmovdqu64	64(%r14), %zmm5
+        vmovdqu64	128(%r14), %zmm6
+        vmovdqu64	192(%r14), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%r15)
+        vmovdqu64	%zmm1, 64(%r15)
+        vmovdqu64	%zmm2, 128(%r15)
+        vmovdqu64	%zmm3, 192(%r15)
+        vmovdqu64	256(%r15), %zmm0
+        vmovdqu64	320(%r15), %zmm1
+        vmovdqu64	384(%r15), %zmm2
+        vmovdqu64	448(%r15), %zmm3
+        vmovdqu64	256(%r14), %zmm4
+        vmovdqu64	320(%r14), %zmm5
+        vmovdqu64	384(%r14), %zmm6
+        vmovdqu64	448(%r14), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%r15)
+        vmovdqu64	%zmm1, 320(%r15)
+        vmovdqu64	%zmm2, 384(%r15)
+        vmovdqu64	%zmm3, 448(%r15)
+        addq	$0x400, %r9
+        addq	$0x400, %rsi
+        subq	$2, %r12
+        jmp	L_encap_avx512_calc
+L_encap_avx512_calc_odd:
+        movq	$0xf301, %r13
+        vmovd	%r13d, %xmm12
+        vpbroadcastw	%xmm12, %zmm12
+        movslq	%r11d, %r13
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rdi), %ymm2
+        vinserti64x4	$0x01, 64(%rdi), %zmm2, %zmm2
+        vmovdqu	32(%rdi), %ymm3
+        vinserti64x4	$0x01, 96(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rdx)
+        vextracti64x4	$0x01, %zmm0, 64(%rdx)
+        vmovdqu	%ymm1, 32(%rdx)
+        vextracti64x4	$0x01, %zmm1, 96(%rdx)
+        vmovdqu	128(%rdi), %ymm2
+        vinserti64x4	$0x01, 192(%rdi), %zmm2, %zmm2
+        vmovdqu	160(%rdi), %ymm3
+        vinserti64x4	$0x01, 224(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rdx)
+        vextracti64x4	$0x01, %zmm0, 192(%rdx)
+        vmovdqu	%ymm1, 160(%rdx)
+        vextracti64x4	$0x01, %zmm1, 224(%rdx)
+        vmovdqu	256(%rdi), %ymm2
+        vinserti64x4	$0x01, 320(%rdi), %zmm2, %zmm2
+        vmovdqu	288(%rdi), %ymm3
+        vinserti64x4	$0x01, 352(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rdx)
+        vextracti64x4	$0x01, %zmm0, 320(%rdx)
+        vmovdqu	%ymm1, 288(%rdx)
+        vextracti64x4	$0x01, %zmm1, 352(%rdx)
+        vmovdqu	384(%rdi), %ymm2
+        vinserti64x4	$0x01, 448(%rdi), %zmm2, %zmm2
+        vmovdqu	416(%rdi), %ymm3
+        vinserti64x4	$0x01, 480(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rdx)
+        vextracti64x4	$0x01, %zmm0, 448(%rdx)
+        vmovdqu	%ymm1, 416(%rdx)
+        vextracti64x4	$0x01, %zmm1, 480(%rdx)
+        addq	$0x200, %rdi
+        addq	$0x200, %r8
+        subq	$2, %r13
+        jz	L_pointwise_acc_mont_end_encap_v_avx512
+L_pointwise_acc_mont_start_encap_v_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rdi), %ymm2
+        vinserti64x4	$0x01, 64(%rdi), %zmm2, %zmm2
+        vmovdqu	32(%rdi), %ymm3
+        vinserti64x4	$0x01, 96(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rdx), %ymm6
+        vinserti64x4	$0x01, 64(%rdx), %zmm6, %zmm6
+        vmovdqu	32(%rdx), %ymm7
+        vinserti64x4	$0x01, 96(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rdx)
+        vextracti64x4	$0x01, %zmm0, 64(%rdx)
+        vmovdqu	%ymm1, 32(%rdx)
+        vextracti64x4	$0x01, %zmm1, 96(%rdx)
+        vmovdqu	128(%rdi), %ymm2
+        vinserti64x4	$0x01, 192(%rdi), %zmm2, %zmm2
+        vmovdqu	160(%rdi), %ymm3
+        vinserti64x4	$0x01, 224(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rdx), %ymm6
+        vinserti64x4	$0x01, 192(%rdx), %zmm6, %zmm6
+        vmovdqu	160(%rdx), %ymm7
+        vinserti64x4	$0x01, 224(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rdx)
+        vextracti64x4	$0x01, %zmm0, 192(%rdx)
+        vmovdqu	%ymm1, 160(%rdx)
+        vextracti64x4	$0x01, %zmm1, 224(%rdx)
+        vmovdqu	256(%rdi), %ymm2
+        vinserti64x4	$0x01, 320(%rdi), %zmm2, %zmm2
+        vmovdqu	288(%rdi), %ymm3
+        vinserti64x4	$0x01, 352(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rdx), %ymm6
+        vinserti64x4	$0x01, 320(%rdx), %zmm6, %zmm6
+        vmovdqu	288(%rdx), %ymm7
+        vinserti64x4	$0x01, 352(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rdx)
+        vextracti64x4	$0x01, %zmm0, 320(%rdx)
+        vmovdqu	%ymm1, 288(%rdx)
+        vextracti64x4	$0x01, %zmm1, 352(%rdx)
+        vmovdqu	384(%rdi), %ymm2
+        vinserti64x4	$0x01, 448(%rdi), %zmm2, %zmm2
+        vmovdqu	416(%rdi), %ymm3
+        vinserti64x4	$0x01, 480(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rdx), %ymm6
+        vinserti64x4	$0x01, 448(%rdx), %zmm6, %zmm6
+        vmovdqu	416(%rdx), %ymm7
+        vinserti64x4	$0x01, 480(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rdx)
+        vextracti64x4	$0x01, %zmm0, 448(%rdx)
+        vmovdqu	%ymm1, 416(%rdx)
+        vextracti64x4	$0x01, %zmm1, 480(%rdx)
+        addq	$0x200, %rdi
+        addq	$0x200, %r8
+        subq	$0x01, %r13
+        jg	L_pointwise_acc_mont_start_encap_v_avx512
+L_pointwise_acc_mont_end_encap_v_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rdi), %ymm2
+        vinserti64x4	$0x01, 64(%rdi), %zmm2, %zmm2
+        vmovdqu	32(%rdi), %ymm3
+        vinserti64x4	$0x01, 96(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rdx), %ymm6
+        vinserti64x4	$0x01, 64(%rdx), %zmm6, %zmm6
+        vmovdqu	32(%rdx), %ymm7
+        vinserti64x4	$0x01, 96(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%rdx)
+        vextracti64x4	$0x01, %zmm0, 64(%rdx)
+        vmovdqu	%ymm1, 32(%rdx)
+        vextracti64x4	$0x01, %zmm1, 96(%rdx)
+        vmovdqu	128(%rdi), %ymm2
+        vinserti64x4	$0x01, 192(%rdi), %zmm2, %zmm2
+        vmovdqu	160(%rdi), %ymm3
+        vinserti64x4	$0x01, 224(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rdx), %ymm6
+        vinserti64x4	$0x01, 192(%rdx), %zmm6, %zmm6
+        vmovdqu	160(%rdx), %ymm7
+        vinserti64x4	$0x01, 224(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%rdx)
+        vextracti64x4	$0x01, %zmm0, 192(%rdx)
+        vmovdqu	%ymm1, 160(%rdx)
+        vextracti64x4	$0x01, %zmm1, 224(%rdx)
+        vmovdqu	256(%rdi), %ymm2
+        vinserti64x4	$0x01, 320(%rdi), %zmm2, %zmm2
+        vmovdqu	288(%rdi), %ymm3
+        vinserti64x4	$0x01, 352(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rdx), %ymm6
+        vinserti64x4	$0x01, 320(%rdx), %zmm6, %zmm6
+        vmovdqu	288(%rdx), %ymm7
+        vinserti64x4	$0x01, 352(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%rdx)
+        vextracti64x4	$0x01, %zmm0, 320(%rdx)
+        vmovdqu	%ymm1, 288(%rdx)
+        vextracti64x4	$0x01, %zmm1, 352(%rdx)
+        vmovdqu	384(%rdi), %ymm2
+        vinserti64x4	$0x01, 448(%rdi), %zmm2, %zmm2
+        vmovdqu	416(%rdi), %ymm3
+        vinserti64x4	$0x01, 480(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rdx), %ymm6
+        vinserti64x4	$0x01, 448(%rdx), %zmm6, %zmm6
+        vmovdqu	416(%rdx), %ymm7
+        vinserti64x4	$0x01, 480(%rdx), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%rdx)
+        vextracti64x4	$0x01, %zmm0, 448(%rdx)
+        vmovdqu	%ymm1, 416(%rdx)
+        vextracti64x4	$0x01, %zmm1, 480(%rdx)
+        addq	$0x200, %rdi
+        movq	%rbx, %r8
+        cmpq	$0x01, %r12
+        jne	L_encap_avx512_vp_single
+        movslq	%r11d, %r13
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rcx
+        addq	$0x200, %r8
+        subq	$2, %r13
+        jz	L_pointwise_acc_mont_end_encap_bp_odd_avx512
+L_pointwise_acc_mont_start_encap_bp_odd_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rsi), %ymm6
+        vinserti64x4	$0x01, 64(%rsi), %zmm6, %zmm6
+        vmovdqu	32(%rsi), %ymm7
+        vinserti64x4	$0x01, 96(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu	160(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rsi), %ymm6
+        vinserti64x4	$0x01, 320(%rsi), %zmm6, %zmm6
+        vmovdqu	288(%rsi), %ymm7
+        vinserti64x4	$0x01, 352(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rsi), %ymm6
+        vinserti64x4	$0x01, 448(%rsi), %zmm6, %zmm6
+        vmovdqu	416(%rsi), %ymm7
+        vinserti64x4	$0x01, 480(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rcx
+        addq	$0x200, %r8
+        subq	$0x01, %r13
+        jg	L_pointwise_acc_mont_start_encap_bp_odd_avx512
+L_pointwise_acc_mont_end_encap_bp_odd_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rbp
+        vmovdqu	(%rcx), %ymm2
+        vinserti64x4	$0x01, 64(%rcx), %zmm2, %zmm2
+        vmovdqu	32(%rcx), %ymm3
+        vinserti64x4	$0x01, 96(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%r8), %ymm4
+        vinserti64x4	$0x01, 64(%r8), %zmm4, %zmm4
+        vmovdqu	32(%r8), %ymm5
+        vinserti64x4	$0x01, 96(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rbp), %ymm10
+        vinserti64x4	$0x01, 64(%rbp), %zmm10, %zmm10
+        vmovdqu	32(%rbp), %ymm11
+        vinserti64x4	$0x01, 96(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rsi), %ymm6
+        vinserti64x4	$0x01, 64(%rsi), %zmm6, %zmm6
+        vmovdqu	32(%rsi), %ymm7
+        vinserti64x4	$0x01, 96(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rcx), %ymm2
+        vinserti64x4	$0x01, 192(%rcx), %zmm2, %zmm2
+        vmovdqu	160(%rcx), %ymm3
+        vinserti64x4	$0x01, 224(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%r8), %ymm4
+        vinserti64x4	$0x01, 192(%r8), %zmm4, %zmm4
+        vmovdqu	160(%r8), %ymm5
+        vinserti64x4	$0x01, 224(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rbp), %ymm10
+        vinserti64x4	$0x01, 192(%rbp), %zmm10, %zmm10
+        vmovdqu	160(%rbp), %ymm11
+        vinserti64x4	$0x01, 224(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu	160(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rcx), %ymm2
+        vinserti64x4	$0x01, 320(%rcx), %zmm2, %zmm2
+        vmovdqu	288(%rcx), %ymm3
+        vinserti64x4	$0x01, 352(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%r8), %ymm4
+        vinserti64x4	$0x01, 320(%r8), %zmm4, %zmm4
+        vmovdqu	288(%r8), %ymm5
+        vinserti64x4	$0x01, 352(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rbp), %ymm10
+        vinserti64x4	$0x01, 320(%rbp), %zmm10, %zmm10
+        vmovdqu	288(%rbp), %ymm11
+        vinserti64x4	$0x01, 352(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rsi), %ymm6
+        vinserti64x4	$0x01, 320(%rsi), %zmm6, %zmm6
+        vmovdqu	288(%rsi), %ymm7
+        vinserti64x4	$0x01, 352(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rcx), %ymm2
+        vinserti64x4	$0x01, 448(%rcx), %zmm2, %zmm2
+        vmovdqu	416(%rcx), %ymm3
+        vinserti64x4	$0x01, 480(%rcx), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%r8), %ymm4
+        vinserti64x4	$0x01, 448(%r8), %zmm4, %zmm4
+        vmovdqu	416(%r8), %ymm5
+        vinserti64x4	$0x01, 480(%r8), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rbp), %ymm10
+        vinserti64x4	$0x01, 448(%rbp), %zmm10, %zmm10
+        vmovdqu	416(%rbp), %ymm11
+        vinserti64x4	$0x01, 480(%rbp), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rsi), %ymm6
+        vinserti64x4	$0x01, 448(%rsi), %zmm6, %zmm6
+        vmovdqu	416(%rsi), %ymm7
+        vinserti64x4	$0x01, 480(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rcx
+        movq	%rbx, %r8
+        leaq	L_mlkem_avx512_zetas_inv(%rip), %rbp
+        vmovdqu64	(%rdx), %ymm0
+        vinserti64x4	$0x01, (%rsi), %zmm0, %zmm0
+        vmovdqu64	32(%rdx), %ymm1
+        vinserti64x4	$0x01, 32(%rsi), %zmm1, %zmm1
+        vmovdqu64	64(%rdx), %ymm2
+        vinserti64x4	$0x01, 64(%rsi), %zmm2, %zmm2
+        vmovdqu64	96(%rdx), %ymm3
+        vinserti64x4	$0x01, 96(%rsi), %zmm3, %zmm3
+        vmovdqu64	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 128(%rsi), %zmm4, %zmm4
+        vmovdqu64	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 160(%rsi), %zmm5, %zmm5
+        vmovdqu64	192(%rdx), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu64	224(%rdx), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vmovdqu64	256(%rdx), %ymm19
+        vinserti64x4	$0x01, 256(%rsi), %zmm19, %zmm19
+        vmovdqu64	288(%rdx), %ymm20
+        vinserti64x4	$0x01, 288(%rsi), %zmm20, %zmm20
+        vmovdqu64	320(%rdx), %ymm21
+        vinserti64x4	$0x01, 320(%rsi), %zmm21, %zmm21
+        vmovdqu64	352(%rdx), %ymm22
+        vinserti64x4	$0x01, 352(%rsi), %zmm22, %zmm22
+        vmovdqu64	384(%rdx), %ymm23
+        vinserti64x4	$0x01, 384(%rsi), %zmm23, %zmm23
+        vmovdqu64	416(%rdx), %ymm24
+        vinserti64x4	$0x01, 416(%rsi), %zmm24, %zmm24
+        vmovdqu64	448(%rdx), %ymm25
+        vinserti64x4	$0x01, 448(%rsi), %zmm25, %zmm25
+        vmovdqu64	480(%rdx), %ymm26
+        vinserti64x4	$0x01, 480(%rsi), %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm1, %zmm0, %zmm9
+        vbroadcasti64x4	32(%rbp), %zmm12
+        vpsllq	$32, %zmm9, %zmm0
+        vpsrlq	$32, %zmm8, %zmm1
+        vpblendmd	%zmm0, %zmm8, %zmm0{%k1}
+        vpblendmd	%zmm1, %zmm9, %zmm1{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm3, %zmm2, %zmm8
+        vbroadcasti64x4	64(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	96(%rbp), %zmm13
+        vpsllq	$32, %zmm9, %zmm2
+        vpsrlq	$32, %zmm8, %zmm3
+        vpblendmd	%zmm2, %zmm8, %zmm2{%k1}
+        vpblendmd	%zmm3, %zmm9, %zmm3{%k2}
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm20, %zmm19, %zmm27
+        vbroadcasti64x4	1216(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm20, %zmm19, %zmm28
+        vbroadcasti64x4	1248(%rbp), %zmm12
+        vpsllq	$32, %zmm28, %zmm19
+        vpsrlq	$32, %zmm27, %zmm20
+        vpblendmd	%zmm19, %zmm27, %zmm19{%k1}
+        vpblendmd	%zmm20, %zmm28, %zmm20{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm22, %zmm21, %zmm27
+        vbroadcasti64x4	1280(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm22, %zmm21, %zmm28
+        vbroadcasti64x4	1312(%rbp), %zmm13
+        vpsllq	$32, %zmm28, %zmm21
+        vpsrlq	$32, %zmm27, %zmm22
+        vpblendmd	%zmm21, %zmm27, %zmm21{%k1}
+        vpblendmd	%zmm22, %zmm28, %zmm22{%k2}
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	128(%rbp), %zmm10
+        vbroadcasti64x4	160(%rbp), %zmm12
+        vbroadcasti64x4	192(%rbp), %zmm11
+        vbroadcasti64x4	224(%rbp), %zmm13
+        vpunpckldq	%zmm1, %zmm8, %zmm0
+        vpunpckhdq	%zmm1, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm9, %zmm2
+        vpunpckhdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1344(%rbp), %zmm10
+        vbroadcasti64x4	1376(%rbp), %zmm12
+        vbroadcasti64x4	1408(%rbp), %zmm11
+        vbroadcasti64x4	1440(%rbp), %zmm13
+        vpunpckldq	%zmm20, %zmm27, %zmm19
+        vpunpckhdq	%zmm20, %zmm27, %zmm20
+        vpunpckldq	%zmm22, %zmm28, %zmm21
+        vpunpckhdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	256(%rbp), %zmm10
+        vbroadcasti64x4	288(%rbp), %zmm12
+        vbroadcasti64x4	320(%rbp), %zmm11
+        vbroadcasti64x4	352(%rbp), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1472(%rbp), %zmm10
+        vbroadcasti64x4	1504(%rbp), %zmm12
+        vbroadcasti64x4	1536(%rbp), %zmm11
+        vbroadcasti64x4	1568(%rbp), %zmm13
+        vpunpcklqdq	%zmm20, %zmm27, %zmm19
+        vpunpckhqdq	%zmm20, %zmm27, %zmm20
+        vpunpcklqdq	%zmm22, %zmm28, %zmm21
+        vpunpckhqdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm1, %zmm8, %zmm0
+        vbroadcasti64x4	384(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	416(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm3, %zmm9, %zmm2
+        vbroadcasti64x4	448(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	480(%rbp), %zmm13
+        vpsubw	%zmm1, %zmm0, %zmm8
+        vpsubw	%zmm3, %zmm2, %zmm9
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpaddw	%zmm3, %zmm2, %zmm2
+        vpmullw	%zmm12, %zmm8, %zmm1
+        vpmullw	%zmm13, %zmm9, %zmm3
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm1, %zmm8, %zmm1
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm20, %zmm27, %zmm19
+        vbroadcasti64x4	1600(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1632(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm22, %zmm28, %zmm21
+        vbroadcasti64x4	1664(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1696(%rbp), %zmm13
+        vpsubw	%zmm20, %zmm19, %zmm27
+        vpsubw	%zmm22, %zmm21, %zmm28
+        vpaddw	%zmm20, %zmm19, %zmm19
+        vpaddw	%zmm22, %zmm21, %zmm21
+        vpmullw	%zmm12, %zmm27, %zmm20
+        vpmullw	%zmm13, %zmm28, %zmm22
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm22, %zmm22
+        vpsubw	%zmm20, %zmm27, %zmm20
+        vpsubw	%zmm22, %zmm28, %zmm22
+        vbroadcasti64x4	512(%rbp), %zmm10
+        vbroadcasti64x4	544(%rbp), %zmm12
+        vpaddw	%zmm2, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm1, %zmm9
+        vpsubw	%zmm2, %zmm0, %zmm2
+        vpsubw	%zmm3, %zmm1, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm8, %zmm0
+        vpsubw	%zmm1, %zmm9, %zmm1
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1728(%rbp), %zmm10
+        vbroadcasti64x4	1760(%rbp), %zmm12
+        vpaddw	%zmm21, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm20, %zmm28
+        vpsubw	%zmm21, %zmm19, %zmm21
+        vpsubw	%zmm22, %zmm20, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm20
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm20, %zmm20
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm27, %zmm19
+        vpsubw	%zmm20, %zmm28, %zmm20
+        vpmullw	%zmm12, %zmm21, %zmm27
+        vpmullw	%zmm12, %zmm22, %zmm28
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm21, %zmm21
+        vpsubw	%zmm28, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	576(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm5, %zmm4, %zmm9
+        vbroadcasti64x4	608(%rbp), %zmm12
+        vpsllq	$32, %zmm9, %zmm4
+        vpsrlq	$32, %zmm8, %zmm5
+        vpblendmd	%zmm4, %zmm8, %zmm4{%k1}
+        vpblendmd	%zmm5, %zmm9, %zmm5{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm7, %zmm6, %zmm8
+        vbroadcasti64x4	640(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	672(%rbp), %zmm13
+        vpsllq	$32, %zmm9, %zmm6
+        vpsrlq	$32, %zmm8, %zmm7
+        vpblendmd	%zmm6, %zmm8, %zmm6{%k1}
+        vpblendmd	%zmm7, %zmm9, %zmm7{%k2}
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm24, %zmm23, %zmm27
+        vbroadcasti64x4	1792(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm24, %zmm23, %zmm28
+        vbroadcasti64x4	1824(%rbp), %zmm12
+        vpsllq	$32, %zmm28, %zmm23
+        vpsrlq	$32, %zmm27, %zmm24
+        vpblendmd	%zmm23, %zmm27, %zmm23{%k1}
+        vpblendmd	%zmm24, %zmm28, %zmm24{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm26, %zmm25, %zmm27
+        vbroadcasti64x4	1856(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm26, %zmm25, %zmm28
+        vbroadcasti64x4	1888(%rbp), %zmm13
+        vpsllq	$32, %zmm28, %zmm25
+        vpsrlq	$32, %zmm27, %zmm26
+        vpblendmd	%zmm25, %zmm27, %zmm25{%k1}
+        vpblendmd	%zmm26, %zmm28, %zmm26{%k2}
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	704(%rbp), %zmm10
+        vbroadcasti64x4	736(%rbp), %zmm12
+        vbroadcasti64x4	768(%rbp), %zmm11
+        vbroadcasti64x4	800(%rbp), %zmm13
+        vpunpckldq	%zmm5, %zmm8, %zmm4
+        vpunpckhdq	%zmm5, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm9, %zmm6
+        vpunpckhdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	1920(%rbp), %zmm10
+        vbroadcasti64x4	1952(%rbp), %zmm12
+        vbroadcasti64x4	1984(%rbp), %zmm11
+        vbroadcasti64x4	2016(%rbp), %zmm13
+        vpunpckldq	%zmm24, %zmm27, %zmm23
+        vpunpckhdq	%zmm24, %zmm27, %zmm24
+        vpunpckldq	%zmm26, %zmm28, %zmm25
+        vpunpckhdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	832(%rbp), %zmm10
+        vbroadcasti64x4	864(%rbp), %zmm12
+        vbroadcasti64x4	896(%rbp), %zmm11
+        vbroadcasti64x4	928(%rbp), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	2048(%rbp), %zmm10
+        vbroadcasti64x4	2080(%rbp), %zmm12
+        vbroadcasti64x4	2112(%rbp), %zmm11
+        vbroadcasti64x4	2144(%rbp), %zmm13
+        vpunpcklqdq	%zmm24, %zmm27, %zmm23
+        vpunpckhqdq	%zmm24, %zmm27, %zmm24
+        vpunpcklqdq	%zmm26, %zmm28, %zmm25
+        vpunpckhqdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm5, %zmm8, %zmm4
+        vbroadcasti64x4	960(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	992(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm7, %zmm9, %zmm6
+        vbroadcasti64x4	1024(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	1056(%rbp), %zmm13
+        vpsubw	%zmm5, %zmm4, %zmm8
+        vpsubw	%zmm7, %zmm6, %zmm9
+        vpaddw	%zmm5, %zmm4, %zmm4
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpmullw	%zmm12, %zmm8, %zmm5
+        vpmullw	%zmm13, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm5, %zmm8, %zmm5
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm24, %zmm27, %zmm23
+        vbroadcasti64x4	2176(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2208(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm26, %zmm28, %zmm25
+        vbroadcasti64x4	2240(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2272(%rbp), %zmm13
+        vpsubw	%zmm24, %zmm23, %zmm27
+        vpsubw	%zmm26, %zmm25, %zmm28
+        vpaddw	%zmm24, %zmm23, %zmm23
+        vpaddw	%zmm26, %zmm25, %zmm25
+        vpmullw	%zmm12, %zmm27, %zmm24
+        vpmullw	%zmm13, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm24, %zmm27, %zmm24
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	1088(%rbp), %zmm10
+        vbroadcasti64x4	1120(%rbp), %zmm12
+        vpaddw	%zmm6, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm5, %zmm9
+        vpsubw	%zmm6, %zmm4, %zmm6
+        vpsubw	%zmm7, %zmm5, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm5
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm5, %zmm5
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	2304(%rbp), %zmm10
+        vbroadcasti64x4	2336(%rbp), %zmm12
+        vpaddw	%zmm25, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm24, %zmm28
+        vpsubw	%zmm25, %zmm23, %zmm25
+        vpsubw	%zmm26, %zmm24, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm24
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm24, %zmm24
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpmullw	%zmm12, %zmm25, %zmm27
+        vpmullw	%zmm12, %zmm26, %zmm28
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm25, %zmm25
+        vpsubw	%zmm28, %zmm26, %zmm26
+        vbroadcasti64x4	1152(%rbp), %zmm10
+        vbroadcasti64x4	1184(%rbp), %zmm12
+        vpsubw	%zmm4, %zmm0, %zmm8
+        vpsubw	%zmm5, %zmm1, %zmm9
+        vpaddw	%zmm4, %zmm0, %zmm0
+        vpaddw	%zmm5, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm4
+        vpmullw	%zmm12, %zmm9, %zmm5
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpsubw	%zmm6, %zmm2, %zmm8
+        vpsubw	%zmm7, %zmm3, %zmm9
+        vpaddw	%zmm6, %zmm2, %zmm2
+        vpaddw	%zmm7, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm8, %zmm6
+        vpmullw	%zmm12, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vbroadcasti64x4	2368(%rbp), %zmm10
+        vbroadcasti64x4	2400(%rbp), %zmm12
+        vpsubw	%zmm23, %zmm19, %zmm27
+        vpsubw	%zmm24, %zmm20, %zmm28
+        vpaddw	%zmm23, %zmm19, %zmm19
+        vpaddw	%zmm24, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm27, %zmm23
+        vpmullw	%zmm12, %zmm28, %zmm24
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpsubw	%zmm25, %zmm21, %zmm27
+        vpsubw	%zmm26, %zmm22, %zmm28
+        vpaddw	%zmm25, %zmm21, %zmm21
+        vpaddw	%zmm26, %zmm22, %zmm22
+        vpmullw	%zmm12, %zmm27, %zmm25
+        vpmullw	%zmm12, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm25, %zmm27, %zmm25
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	2432(%rbp), %zmm10
+        vbroadcasti64x4	2464(%rbp), %zmm12
+        vbroadcasti64x4	2496(%rbp), %zmm11
+        vbroadcasti64x4	2528(%rbp), %zmm13
+        vpsubw	%zmm19, %zmm0, %zmm8
+        vpsubw	%zmm20, %zmm1, %zmm9
+        vpaddw	%zmm19, %zmm0, %zmm0
+        vpaddw	%zmm20, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm19
+        vpmullw	%zmm12, %zmm9, %zmm20
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm8, %zmm19
+        vpsubw	%zmm20, %zmm9, %zmm20
+        vpaddw	%zmm21, %zmm2, %zmm8
+        vpaddw	%zmm22, %zmm3, %zmm9
+        vpsubw	%zmm21, %zmm2, %zmm21
+        vpsubw	%zmm22, %zmm3, %zmm22
+        vpmulhw	%zmm15, %zmm8, %zmm2
+        vpmulhw	%zmm15, %zmm9, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm8, %zmm2
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpsubw	%zmm23, %zmm4, %zmm8
+        vpsubw	%zmm24, %zmm5, %zmm9
+        vpaddw	%zmm23, %zmm4, %zmm4
+        vpaddw	%zmm24, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm8, %zmm23
+        vpmullw	%zmm12, %zmm9, %zmm24
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm8, %zmm23
+        vpsubw	%zmm24, %zmm9, %zmm24
+        vpaddw	%zmm25, %zmm6, %zmm8
+        vpaddw	%zmm26, %zmm7, %zmm9
+        vpsubw	%zmm25, %zmm6, %zmm25
+        vpsubw	%zmm26, %zmm7, %zmm26
+        vpmulhw	%zmm15, %zmm8, %zmm6
+        vpmulhw	%zmm15, %zmm9, %zmm7
+        vpsraw	$10, %zmm6, %zmm6
+        vpsraw	$10, %zmm7, %zmm7
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm11, %zmm0, %zmm0
+        vpmulhw	%zmm11, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm0
+        vpsubw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm13, %zmm2, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm11, %zmm2, %zmm2
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm13, %zmm4, %zmm8
+        vpmullw	%zmm13, %zmm5, %zmm9
+        vpmulhw	%zmm11, %zmm4, %zmm4
+        vpmulhw	%zmm11, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm4
+        vpsubw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm13, %zmm6, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm11, %zmm6, %zmm6
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vpmullw	%zmm13, %zmm19, %zmm8
+        vpmullw	%zmm13, %zmm20, %zmm9
+        vpmulhw	%zmm11, %zmm19, %zmm19
+        vpmulhw	%zmm11, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm19
+        vpsubw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm13, %zmm21, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm11, %zmm21, %zmm21
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpmullw	%zmm13, %zmm23, %zmm8
+        vpmullw	%zmm13, %zmm24, %zmm9
+        vpmulhw	%zmm11, %zmm23, %zmm23
+        vpmulhw	%zmm11, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm23
+        vpsubw	%zmm9, %zmm24, %zmm24
+        vpmullw	%zmm13, %zmm25, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm11, %zmm25, %zmm25
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vmovdqu64	%ymm0, (%rdx)
+        vextracti64x4	$0x01, %zmm0, (%rsi)
+        vmovdqu64	%ymm1, 32(%rdx)
+        vextracti64x4	$0x01, %zmm1, 32(%rsi)
+        vmovdqu64	%ymm2, 64(%rdx)
+        vextracti64x4	$0x01, %zmm2, 64(%rsi)
+        vmovdqu64	%ymm3, 96(%rdx)
+        vextracti64x4	$0x01, %zmm3, 96(%rsi)
+        vmovdqu64	%ymm4, 128(%rdx)
+        vextracti64x4	$0x01, %zmm4, 128(%rsi)
+        vmovdqu64	%ymm5, 160(%rdx)
+        vextracti64x4	$0x01, %zmm5, 160(%rsi)
+        vmovdqu64	%ymm6, 192(%rdx)
+        vextracti64x4	$0x01, %zmm6, 192(%rsi)
+        vmovdqu64	%ymm7, 224(%rdx)
+        vextracti64x4	$0x01, %zmm7, 224(%rsi)
+        vmovdqu64	%ymm19, 256(%rdx)
+        vextracti64x4	$0x01, %zmm19, 256(%rsi)
+        vmovdqu64	%ymm20, 288(%rdx)
+        vextracti64x4	$0x01, %zmm20, 288(%rsi)
+        vmovdqu64	%ymm21, 320(%rdx)
+        vextracti64x4	$0x01, %zmm21, 320(%rsi)
+        vmovdqu64	%ymm22, 352(%rdx)
+        vextracti64x4	$0x01, %zmm22, 352(%rsi)
+        vmovdqu64	%ymm23, 384(%rdx)
+        vextracti64x4	$0x01, %zmm23, 384(%rsi)
+        vmovdqu64	%ymm24, 416(%rdx)
+        vextracti64x4	$0x01, %zmm24, 416(%rsi)
+        vmovdqu64	%ymm25, 448(%rdx)
+        vextracti64x4	$0x01, %zmm25, 448(%rsi)
+        vmovdqu64	%ymm26, 480(%rdx)
+        vextracti64x4	$0x01, %zmm26, 480(%rsi)
+        vmovdqu64	(%r10), %zmm0
+        vmovdqu64	64(%r10), %zmm1
+        vmovdqu64	128(%r10), %zmm2
+        vmovdqu64	192(%r10), %zmm3
+        vmovdqu64	(%rax), %zmm4
+        vmovdqu64	64(%rax), %zmm5
+        vmovdqu64	128(%rax), %zmm6
+        vmovdqu64	192(%rax), %zmm7
+        vpaddw	%zmm0, %zmm4, %zmm4
+        vpaddw	%zmm1, %zmm5, %zmm5
+        vpaddw	%zmm2, %zmm6, %zmm6
+        vpaddw	%zmm3, %zmm7, %zmm7
+        vmovdqu64	(%rdx), %zmm0
+        vmovdqu64	64(%rdx), %zmm1
+        vmovdqu64	128(%rdx), %zmm2
+        vmovdqu64	192(%rdx), %zmm3
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%rdx)
+        vmovdqu64	%zmm1, 64(%rdx)
+        vmovdqu64	%zmm2, 128(%rdx)
+        vmovdqu64	%zmm3, 192(%rdx)
+        vmovdqu64	256(%r10), %zmm0
+        vmovdqu64	320(%r10), %zmm1
+        vmovdqu64	384(%r10), %zmm2
+        vmovdqu64	448(%r10), %zmm3
+        vmovdqu64	256(%rax), %zmm4
+        vmovdqu64	320(%rax), %zmm5
+        vmovdqu64	384(%rax), %zmm6
+        vmovdqu64	448(%rax), %zmm7
+        vpaddw	%zmm0, %zmm4, %zmm4
+        vpaddw	%zmm1, %zmm5, %zmm5
+        vpaddw	%zmm2, %zmm6, %zmm6
+        vpaddw	%zmm3, %zmm7, %zmm7
+        vmovdqu64	256(%rdx), %zmm0
+        vmovdqu64	320(%rdx), %zmm1
+        vmovdqu64	384(%rdx), %zmm2
+        vmovdqu64	448(%rdx), %zmm3
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%rdx)
+        vmovdqu64	%zmm1, 320(%rdx)
+        vmovdqu64	%zmm2, 384(%rdx)
+        vmovdqu64	%zmm3, 448(%rdx)
+        vmovdqu64	(%rsi), %zmm0
+        vmovdqu64	64(%rsi), %zmm1
+        vmovdqu64	128(%rsi), %zmm2
+        vmovdqu64	192(%rsi), %zmm3
+        vmovdqu64	(%r9), %zmm4
+        vmovdqu64	64(%r9), %zmm5
+        vmovdqu64	128(%r9), %zmm6
+        vmovdqu64	192(%r9), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%rsi)
+        vmovdqu64	%zmm1, 64(%rsi)
+        vmovdqu64	%zmm2, 128(%rsi)
+        vmovdqu64	%zmm3, 192(%rsi)
+        vmovdqu64	256(%rsi), %zmm0
+        vmovdqu64	320(%rsi), %zmm1
+        vmovdqu64	384(%rsi), %zmm2
+        vmovdqu64	448(%rsi), %zmm3
+        vmovdqu64	256(%r9), %zmm4
+        vmovdqu64	320(%r9), %zmm5
+        vmovdqu64	384(%r9), %zmm6
+        vmovdqu64	448(%r9), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%rsi)
+        vmovdqu64	%zmm1, 320(%rsi)
+        vmovdqu64	%zmm2, 384(%rsi)
+        vmovdqu64	%zmm3, 448(%rsi)
+        jmp	L_encap_avx512_calc_done
+L_encap_avx512_vp_single:
+        leaq	L_mlkem_avx512_zetas_inv(%rip), %rbp
+        vmovdqu64	(%rdx), %ymm0
+        vinserti64x4	$0x01, (%rdx), %zmm0, %zmm0
+        vmovdqu64	32(%rdx), %ymm1
+        vinserti64x4	$0x01, 32(%rdx), %zmm1, %zmm1
+        vmovdqu64	64(%rdx), %ymm2
+        vinserti64x4	$0x01, 64(%rdx), %zmm2, %zmm2
+        vmovdqu64	96(%rdx), %ymm3
+        vinserti64x4	$0x01, 96(%rdx), %zmm3, %zmm3
+        vmovdqu64	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 128(%rdx), %zmm4, %zmm4
+        vmovdqu64	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 160(%rdx), %zmm5, %zmm5
+        vmovdqu64	192(%rdx), %ymm6
+        vinserti64x4	$0x01, 192(%rdx), %zmm6, %zmm6
+        vmovdqu64	224(%rdx), %ymm7
+        vinserti64x4	$0x01, 224(%rdx), %zmm7, %zmm7
+        vmovdqu64	256(%rdx), %ymm19
+        vinserti64x4	$0x01, 256(%rdx), %zmm19, %zmm19
+        vmovdqu64	288(%rdx), %ymm20
+        vinserti64x4	$0x01, 288(%rdx), %zmm20, %zmm20
+        vmovdqu64	320(%rdx), %ymm21
+        vinserti64x4	$0x01, 320(%rdx), %zmm21, %zmm21
+        vmovdqu64	352(%rdx), %ymm22
+        vinserti64x4	$0x01, 352(%rdx), %zmm22, %zmm22
+        vmovdqu64	384(%rdx), %ymm23
+        vinserti64x4	$0x01, 384(%rdx), %zmm23, %zmm23
+        vmovdqu64	416(%rdx), %ymm24
+        vinserti64x4	$0x01, 416(%rdx), %zmm24, %zmm24
+        vmovdqu64	448(%rdx), %ymm25
+        vinserti64x4	$0x01, 448(%rdx), %zmm25, %zmm25
+        vmovdqu64	480(%rdx), %ymm26
+        vinserti64x4	$0x01, 480(%rdx), %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm1, %zmm0, %zmm9
+        vbroadcasti64x4	32(%rbp), %zmm12
+        vpsllq	$32, %zmm9, %zmm0
+        vpsrlq	$32, %zmm8, %zmm1
+        vpblendmd	%zmm0, %zmm8, %zmm0{%k1}
+        vpblendmd	%zmm1, %zmm9, %zmm1{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm3, %zmm2, %zmm8
+        vbroadcasti64x4	64(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	96(%rbp), %zmm13
+        vpsllq	$32, %zmm9, %zmm2
+        vpsrlq	$32, %zmm8, %zmm3
+        vpblendmd	%zmm2, %zmm8, %zmm2{%k1}
+        vpblendmd	%zmm3, %zmm9, %zmm3{%k2}
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm20, %zmm19, %zmm27
+        vbroadcasti64x4	1216(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm20, %zmm19, %zmm28
+        vbroadcasti64x4	1248(%rbp), %zmm12
+        vpsllq	$32, %zmm28, %zmm19
+        vpsrlq	$32, %zmm27, %zmm20
+        vpblendmd	%zmm19, %zmm27, %zmm19{%k1}
+        vpblendmd	%zmm20, %zmm28, %zmm20{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm22, %zmm21, %zmm27
+        vbroadcasti64x4	1280(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm22, %zmm21, %zmm28
+        vbroadcasti64x4	1312(%rbp), %zmm13
+        vpsllq	$32, %zmm28, %zmm21
+        vpsrlq	$32, %zmm27, %zmm22
+        vpblendmd	%zmm21, %zmm27, %zmm21{%k1}
+        vpblendmd	%zmm22, %zmm28, %zmm22{%k2}
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	128(%rbp), %zmm10
+        vbroadcasti64x4	160(%rbp), %zmm12
+        vbroadcasti64x4	192(%rbp), %zmm11
+        vbroadcasti64x4	224(%rbp), %zmm13
+        vpunpckldq	%zmm1, %zmm8, %zmm0
+        vpunpckhdq	%zmm1, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm9, %zmm2
+        vpunpckhdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1344(%rbp), %zmm10
+        vbroadcasti64x4	1376(%rbp), %zmm12
+        vbroadcasti64x4	1408(%rbp), %zmm11
+        vbroadcasti64x4	1440(%rbp), %zmm13
+        vpunpckldq	%zmm20, %zmm27, %zmm19
+        vpunpckhdq	%zmm20, %zmm27, %zmm20
+        vpunpckldq	%zmm22, %zmm28, %zmm21
+        vpunpckhdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	256(%rbp), %zmm10
+        vbroadcasti64x4	288(%rbp), %zmm12
+        vbroadcasti64x4	320(%rbp), %zmm11
+        vbroadcasti64x4	352(%rbp), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1472(%rbp), %zmm10
+        vbroadcasti64x4	1504(%rbp), %zmm12
+        vbroadcasti64x4	1536(%rbp), %zmm11
+        vbroadcasti64x4	1568(%rbp), %zmm13
+        vpunpcklqdq	%zmm20, %zmm27, %zmm19
+        vpunpckhqdq	%zmm20, %zmm27, %zmm20
+        vpunpcklqdq	%zmm22, %zmm28, %zmm21
+        vpunpckhqdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm1, %zmm8, %zmm0
+        vbroadcasti64x4	384(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	416(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm3, %zmm9, %zmm2
+        vbroadcasti64x4	448(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	480(%rbp), %zmm13
+        vpsubw	%zmm1, %zmm0, %zmm8
+        vpsubw	%zmm3, %zmm2, %zmm9
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpaddw	%zmm3, %zmm2, %zmm2
+        vpmullw	%zmm12, %zmm8, %zmm1
+        vpmullw	%zmm13, %zmm9, %zmm3
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm1, %zmm8, %zmm1
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm20, %zmm27, %zmm19
+        vbroadcasti64x4	1600(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1632(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm22, %zmm28, %zmm21
+        vbroadcasti64x4	1664(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1696(%rbp), %zmm13
+        vpsubw	%zmm20, %zmm19, %zmm27
+        vpsubw	%zmm22, %zmm21, %zmm28
+        vpaddw	%zmm20, %zmm19, %zmm19
+        vpaddw	%zmm22, %zmm21, %zmm21
+        vpmullw	%zmm12, %zmm27, %zmm20
+        vpmullw	%zmm13, %zmm28, %zmm22
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm22, %zmm22
+        vpsubw	%zmm20, %zmm27, %zmm20
+        vpsubw	%zmm22, %zmm28, %zmm22
+        vbroadcasti64x4	512(%rbp), %zmm10
+        vbroadcasti64x4	544(%rbp), %zmm12
+        vpaddw	%zmm2, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm1, %zmm9
+        vpsubw	%zmm2, %zmm0, %zmm2
+        vpsubw	%zmm3, %zmm1, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm8, %zmm0
+        vpsubw	%zmm1, %zmm9, %zmm1
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1728(%rbp), %zmm10
+        vbroadcasti64x4	1760(%rbp), %zmm12
+        vpaddw	%zmm21, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm20, %zmm28
+        vpsubw	%zmm21, %zmm19, %zmm21
+        vpsubw	%zmm22, %zmm20, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm20
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm20, %zmm20
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm27, %zmm19
+        vpsubw	%zmm20, %zmm28, %zmm20
+        vpmullw	%zmm12, %zmm21, %zmm27
+        vpmullw	%zmm12, %zmm22, %zmm28
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm21, %zmm21
+        vpsubw	%zmm28, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	576(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm5, %zmm4, %zmm9
+        vbroadcasti64x4	608(%rbp), %zmm12
+        vpsllq	$32, %zmm9, %zmm4
+        vpsrlq	$32, %zmm8, %zmm5
+        vpblendmd	%zmm4, %zmm8, %zmm4{%k1}
+        vpblendmd	%zmm5, %zmm9, %zmm5{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm7, %zmm6, %zmm8
+        vbroadcasti64x4	640(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	672(%rbp), %zmm13
+        vpsllq	$32, %zmm9, %zmm6
+        vpsrlq	$32, %zmm8, %zmm7
+        vpblendmd	%zmm6, %zmm8, %zmm6{%k1}
+        vpblendmd	%zmm7, %zmm9, %zmm7{%k2}
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm24, %zmm23, %zmm27
+        vbroadcasti64x4	1792(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm24, %zmm23, %zmm28
+        vbroadcasti64x4	1824(%rbp), %zmm12
+        vpsllq	$32, %zmm28, %zmm23
+        vpsrlq	$32, %zmm27, %zmm24
+        vpblendmd	%zmm23, %zmm27, %zmm23{%k1}
+        vpblendmd	%zmm24, %zmm28, %zmm24{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm26, %zmm25, %zmm27
+        vbroadcasti64x4	1856(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm26, %zmm25, %zmm28
+        vbroadcasti64x4	1888(%rbp), %zmm13
+        vpsllq	$32, %zmm28, %zmm25
+        vpsrlq	$32, %zmm27, %zmm26
+        vpblendmd	%zmm25, %zmm27, %zmm25{%k1}
+        vpblendmd	%zmm26, %zmm28, %zmm26{%k2}
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	704(%rbp), %zmm10
+        vbroadcasti64x4	736(%rbp), %zmm12
+        vbroadcasti64x4	768(%rbp), %zmm11
+        vbroadcasti64x4	800(%rbp), %zmm13
+        vpunpckldq	%zmm5, %zmm8, %zmm4
+        vpunpckhdq	%zmm5, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm9, %zmm6
+        vpunpckhdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	1920(%rbp), %zmm10
+        vbroadcasti64x4	1952(%rbp), %zmm12
+        vbroadcasti64x4	1984(%rbp), %zmm11
+        vbroadcasti64x4	2016(%rbp), %zmm13
+        vpunpckldq	%zmm24, %zmm27, %zmm23
+        vpunpckhdq	%zmm24, %zmm27, %zmm24
+        vpunpckldq	%zmm26, %zmm28, %zmm25
+        vpunpckhdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	832(%rbp), %zmm10
+        vbroadcasti64x4	864(%rbp), %zmm12
+        vbroadcasti64x4	896(%rbp), %zmm11
+        vbroadcasti64x4	928(%rbp), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	2048(%rbp), %zmm10
+        vbroadcasti64x4	2080(%rbp), %zmm12
+        vbroadcasti64x4	2112(%rbp), %zmm11
+        vbroadcasti64x4	2144(%rbp), %zmm13
+        vpunpcklqdq	%zmm24, %zmm27, %zmm23
+        vpunpckhqdq	%zmm24, %zmm27, %zmm24
+        vpunpcklqdq	%zmm26, %zmm28, %zmm25
+        vpunpckhqdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm5, %zmm8, %zmm4
+        vbroadcasti64x4	960(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	992(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm7, %zmm9, %zmm6
+        vbroadcasti64x4	1024(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	1056(%rbp), %zmm13
+        vpsubw	%zmm5, %zmm4, %zmm8
+        vpsubw	%zmm7, %zmm6, %zmm9
+        vpaddw	%zmm5, %zmm4, %zmm4
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpmullw	%zmm12, %zmm8, %zmm5
+        vpmullw	%zmm13, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm5, %zmm8, %zmm5
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm24, %zmm27, %zmm23
+        vbroadcasti64x4	2176(%rbp), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2208(%rbp), %zmm12
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm26, %zmm28, %zmm25
+        vbroadcasti64x4	2240(%rbp), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2272(%rbp), %zmm13
+        vpsubw	%zmm24, %zmm23, %zmm27
+        vpsubw	%zmm26, %zmm25, %zmm28
+        vpaddw	%zmm24, %zmm23, %zmm23
+        vpaddw	%zmm26, %zmm25, %zmm25
+        vpmullw	%zmm12, %zmm27, %zmm24
+        vpmullw	%zmm13, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm24, %zmm27, %zmm24
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	1088(%rbp), %zmm10
+        vbroadcasti64x4	1120(%rbp), %zmm12
+        vpaddw	%zmm6, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm5, %zmm9
+        vpsubw	%zmm6, %zmm4, %zmm6
+        vpsubw	%zmm7, %zmm5, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm5
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm5, %zmm5
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	2304(%rbp), %zmm10
+        vbroadcasti64x4	2336(%rbp), %zmm12
+        vpaddw	%zmm25, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm24, %zmm28
+        vpsubw	%zmm25, %zmm23, %zmm25
+        vpsubw	%zmm26, %zmm24, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm24
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm24, %zmm24
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpmullw	%zmm12, %zmm25, %zmm27
+        vpmullw	%zmm12, %zmm26, %zmm28
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm25, %zmm25
+        vpsubw	%zmm28, %zmm26, %zmm26
+        vbroadcasti64x4	1152(%rbp), %zmm10
+        vbroadcasti64x4	1184(%rbp), %zmm12
+        vpsubw	%zmm4, %zmm0, %zmm8
+        vpsubw	%zmm5, %zmm1, %zmm9
+        vpaddw	%zmm4, %zmm0, %zmm0
+        vpaddw	%zmm5, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm4
+        vpmullw	%zmm12, %zmm9, %zmm5
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpsubw	%zmm6, %zmm2, %zmm8
+        vpsubw	%zmm7, %zmm3, %zmm9
+        vpaddw	%zmm6, %zmm2, %zmm2
+        vpaddw	%zmm7, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm8, %zmm6
+        vpmullw	%zmm12, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vbroadcasti64x4	2368(%rbp), %zmm10
+        vbroadcasti64x4	2400(%rbp), %zmm12
+        vpsubw	%zmm23, %zmm19, %zmm27
+        vpsubw	%zmm24, %zmm20, %zmm28
+        vpaddw	%zmm23, %zmm19, %zmm19
+        vpaddw	%zmm24, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm27, %zmm23
+        vpmullw	%zmm12, %zmm28, %zmm24
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpsubw	%zmm25, %zmm21, %zmm27
+        vpsubw	%zmm26, %zmm22, %zmm28
+        vpaddw	%zmm25, %zmm21, %zmm21
+        vpaddw	%zmm26, %zmm22, %zmm22
+        vpmullw	%zmm12, %zmm27, %zmm25
+        vpmullw	%zmm12, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm25, %zmm27, %zmm25
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	2432(%rbp), %zmm10
+        vbroadcasti64x4	2464(%rbp), %zmm12
+        vbroadcasti64x4	2496(%rbp), %zmm11
+        vbroadcasti64x4	2528(%rbp), %zmm13
+        vpsubw	%zmm19, %zmm0, %zmm8
+        vpsubw	%zmm20, %zmm1, %zmm9
+        vpaddw	%zmm19, %zmm0, %zmm0
+        vpaddw	%zmm20, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm19
+        vpmullw	%zmm12, %zmm9, %zmm20
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm8, %zmm19
+        vpsubw	%zmm20, %zmm9, %zmm20
+        vpaddw	%zmm21, %zmm2, %zmm8
+        vpaddw	%zmm22, %zmm3, %zmm9
+        vpsubw	%zmm21, %zmm2, %zmm21
+        vpsubw	%zmm22, %zmm3, %zmm22
+        vpmulhw	%zmm15, %zmm8, %zmm2
+        vpmulhw	%zmm15, %zmm9, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm8, %zmm2
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpsubw	%zmm23, %zmm4, %zmm8
+        vpsubw	%zmm24, %zmm5, %zmm9
+        vpaddw	%zmm23, %zmm4, %zmm4
+        vpaddw	%zmm24, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm8, %zmm23
+        vpmullw	%zmm12, %zmm9, %zmm24
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm8, %zmm23
+        vpsubw	%zmm24, %zmm9, %zmm24
+        vpaddw	%zmm25, %zmm6, %zmm8
+        vpaddw	%zmm26, %zmm7, %zmm9
+        vpsubw	%zmm25, %zmm6, %zmm25
+        vpsubw	%zmm26, %zmm7, %zmm26
+        vpmulhw	%zmm15, %zmm8, %zmm6
+        vpmulhw	%zmm15, %zmm9, %zmm7
+        vpsraw	$10, %zmm6, %zmm6
+        vpsraw	$10, %zmm7, %zmm7
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm11, %zmm0, %zmm0
+        vpmulhw	%zmm11, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm0
+        vpsubw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm13, %zmm2, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm11, %zmm2, %zmm2
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm13, %zmm4, %zmm8
+        vpmullw	%zmm13, %zmm5, %zmm9
+        vpmulhw	%zmm11, %zmm4, %zmm4
+        vpmulhw	%zmm11, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm4
+        vpsubw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm13, %zmm6, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm11, %zmm6, %zmm6
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vpmullw	%zmm13, %zmm19, %zmm8
+        vpmullw	%zmm13, %zmm20, %zmm9
+        vpmulhw	%zmm11, %zmm19, %zmm19
+        vpmulhw	%zmm11, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm19
+        vpsubw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm13, %zmm21, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm11, %zmm21, %zmm21
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpmullw	%zmm13, %zmm23, %zmm8
+        vpmullw	%zmm13, %zmm24, %zmm9
+        vpmulhw	%zmm11, %zmm23, %zmm23
+        vpmulhw	%zmm11, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm23
+        vpsubw	%zmm9, %zmm24, %zmm24
+        vpmullw	%zmm13, %zmm25, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm11, %zmm25, %zmm25
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vmovdqu64	%ymm0, (%rdx)
+        vextracti64x4	$0x01, %zmm0, (%rdx)
+        vmovdqu64	%ymm1, 32(%rdx)
+        vextracti64x4	$0x01, %zmm1, 32(%rdx)
+        vmovdqu64	%ymm2, 64(%rdx)
+        vextracti64x4	$0x01, %zmm2, 64(%rdx)
+        vmovdqu64	%ymm3, 96(%rdx)
+        vextracti64x4	$0x01, %zmm3, 96(%rdx)
+        vmovdqu64	%ymm4, 128(%rdx)
+        vextracti64x4	$0x01, %zmm4, 128(%rdx)
+        vmovdqu64	%ymm5, 160(%rdx)
+        vextracti64x4	$0x01, %zmm5, 160(%rdx)
+        vmovdqu64	%ymm6, 192(%rdx)
+        vextracti64x4	$0x01, %zmm6, 192(%rdx)
+        vmovdqu64	%ymm7, 224(%rdx)
+        vextracti64x4	$0x01, %zmm7, 224(%rdx)
+        vmovdqu64	%ymm19, 256(%rdx)
+        vextracti64x4	$0x01, %zmm19, 256(%rdx)
+        vmovdqu64	%ymm20, 288(%rdx)
+        vextracti64x4	$0x01, %zmm20, 288(%rdx)
+        vmovdqu64	%ymm21, 320(%rdx)
+        vextracti64x4	$0x01, %zmm21, 320(%rdx)
+        vmovdqu64	%ymm22, 352(%rdx)
+        vextracti64x4	$0x01, %zmm22, 352(%rdx)
+        vmovdqu64	%ymm23, 384(%rdx)
+        vextracti64x4	$0x01, %zmm23, 384(%rdx)
+        vmovdqu64	%ymm24, 416(%rdx)
+        vextracti64x4	$0x01, %zmm24, 416(%rdx)
+        vmovdqu64	%ymm25, 448(%rdx)
+        vextracti64x4	$0x01, %zmm25, 448(%rdx)
+        vmovdqu64	%ymm26, 480(%rdx)
+        vextracti64x4	$0x01, %zmm26, 480(%rdx)
+        vmovdqu64	(%r10), %zmm0
+        vmovdqu64	64(%r10), %zmm1
+        vmovdqu64	128(%r10), %zmm2
+        vmovdqu64	192(%r10), %zmm3
+        vmovdqu64	(%rax), %zmm4
+        vmovdqu64	64(%rax), %zmm5
+        vmovdqu64	128(%rax), %zmm6
+        vmovdqu64	192(%rax), %zmm7
+        vpaddw	%zmm0, %zmm4, %zmm4
+        vpaddw	%zmm1, %zmm5, %zmm5
+        vpaddw	%zmm2, %zmm6, %zmm6
+        vpaddw	%zmm3, %zmm7, %zmm7
+        vmovdqu64	(%rdx), %zmm0
+        vmovdqu64	64(%rdx), %zmm1
+        vmovdqu64	128(%rdx), %zmm2
+        vmovdqu64	192(%rdx), %zmm3
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%rdx)
+        vmovdqu64	%zmm1, 64(%rdx)
+        vmovdqu64	%zmm2, 128(%rdx)
+        vmovdqu64	%zmm3, 192(%rdx)
+        vmovdqu64	256(%r10), %zmm0
+        vmovdqu64	320(%r10), %zmm1
+        vmovdqu64	384(%r10), %zmm2
+        vmovdqu64	448(%r10), %zmm3
+        vmovdqu64	256(%rax), %zmm4
+        vmovdqu64	320(%rax), %zmm5
+        vmovdqu64	384(%rax), %zmm6
+        vmovdqu64	448(%rax), %zmm7
+        vpaddw	%zmm0, %zmm4, %zmm4
+        vpaddw	%zmm1, %zmm5, %zmm5
+        vpaddw	%zmm2, %zmm6, %zmm6
+        vpaddw	%zmm3, %zmm7, %zmm7
+        vmovdqu64	256(%rdx), %zmm0
+        vmovdqu64	320(%rdx), %zmm1
+        vmovdqu64	384(%rdx), %zmm2
+        vmovdqu64	448(%rdx), %zmm3
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%rdx)
+        vmovdqu64	%zmm1, 320(%rdx)
+        vmovdqu64	%zmm2, 384(%rdx)
+        vmovdqu64	%zmm3, 448(%rdx)
+L_encap_avx512_calc_done:
+        vzeroupper
+        addq	$56, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_encapsulate_avx512,.-mlkem_encapsulate_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_decapsulate_avx512
+.type	mlkem_decapsulate_avx512,@function
+.align	16
+mlkem_decapsulate_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_decapsulate_avx512
+.p2align	4
+_mlkem_decapsulate_avx512:
+#endif /* __APPLE__ */
+        pushq	%r12
+        movq	$0xd01, %r12
+        vmovd	%r12d, %xmm14
+        vpbroadcastw	%xmm14, %zmm14
+        movq	$0x4ebf, %r12
+        vmovd	%r12d, %xmm15
+        vpbroadcastw	%xmm15, %zmm15
+        movl	$0xaaaa, %r12d
+        kmovw	%r12d, %k1
+        movl	$0x5555, %r12d
+        kmovw	%r12d, %k2
+        movl	$0xaaaaaaaa, %r12d
+        kmovd	%r12d, %k3
+        movl	$0x55555555, %r12d
+        kmovd	%r12d, %k4
+        vmovdqu64	L_mlkem_avx512_perm20(%rip), %zmm17
+        vmovdqu64	L_mlkem_avx512_perm31(%rip), %zmm18
+        movslq	%r8d, %rax
+        movq	%rdx, %r9
+L_decap_avx512_bp:
+        cmpq	$2, %rax
+        jl	L_decap_avx512_bp_odd
+        movq	%r9, %r10
+        addq	$0x200, %r10
+        leaq	L_mlkem_avx512_zetas(%rip), %r11
+        vmovdqu64	(%r9), %ymm0
+        vinserti64x4	$0x01, (%r10), %zmm0, %zmm0
+        vmovdqu64	32(%r9), %ymm1
+        vinserti64x4	$0x01, 32(%r10), %zmm1, %zmm1
+        vmovdqu64	64(%r9), %ymm2
+        vinserti64x4	$0x01, 64(%r10), %zmm2, %zmm2
+        vmovdqu64	96(%r9), %ymm3
+        vinserti64x4	$0x01, 96(%r10), %zmm3, %zmm3
+        vmovdqu64	128(%r9), %ymm4
+        vinserti64x4	$0x01, 128(%r10), %zmm4, %zmm4
+        vmovdqu64	160(%r9), %ymm5
+        vinserti64x4	$0x01, 160(%r10), %zmm5, %zmm5
+        vmovdqu64	192(%r9), %ymm6
+        vinserti64x4	$0x01, 192(%r10), %zmm6, %zmm6
+        vmovdqu64	224(%r9), %ymm7
+        vinserti64x4	$0x01, 224(%r10), %zmm7, %zmm7
+        vmovdqu64	256(%r9), %ymm19
+        vinserti64x4	$0x01, 256(%r10), %zmm19, %zmm19
+        vmovdqu64	288(%r9), %ymm20
+        vinserti64x4	$0x01, 288(%r10), %zmm20, %zmm20
+        vmovdqu64	320(%r9), %ymm21
+        vinserti64x4	$0x01, 320(%r10), %zmm21, %zmm21
+        vmovdqu64	352(%r9), %ymm22
+        vinserti64x4	$0x01, 352(%r10), %zmm22, %zmm22
+        vmovdqu64	384(%r9), %ymm23
+        vinserti64x4	$0x01, 384(%r10), %zmm23, %zmm23
+        vmovdqu64	416(%r9), %ymm24
+        vinserti64x4	$0x01, 416(%r10), %zmm24, %zmm24
+        vmovdqu64	448(%r9), %ymm25
+        vinserti64x4	$0x01, 448(%r10), %zmm25, %zmm25
+        vmovdqu64	480(%r9), %ymm26
+        vinserti64x4	$0x01, 480(%r10), %zmm26, %zmm26
+        vbroadcasti64x4	(%r11), %zmm10
+        vbroadcasti64x4	32(%r11), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%r11), %zmm10
+        vbroadcasti64x4	96(%r11), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1280(%r11), %zmm10
+        vbroadcasti64x4	1312(%r11), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	128(%r11), %zmm10
+        vbroadcasti64x4	160(%r11), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	1344(%r11), %zmm10
+        vbroadcasti64x4	1376(%r11), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	192(%r11), %zmm10
+        vbroadcasti64x4	224(%r11), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	1408(%r11), %zmm10
+        vbroadcasti64x4	1440(%r11), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	256(%r11), %zmm10
+        vbroadcasti64x4	288(%r11), %zmm12
+        vbroadcasti64x4	320(%r11), %zmm11
+        vbroadcasti64x4	352(%r11), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1472(%r11), %zmm10
+        vbroadcasti64x4	1504(%r11), %zmm12
+        vbroadcasti64x4	1536(%r11), %zmm11
+        vbroadcasti64x4	1568(%r11), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	384(%r11), %zmm10
+        vbroadcasti64x4	416(%r11), %zmm12
+        vbroadcasti64x4	448(%r11), %zmm11
+        vbroadcasti64x4	480(%r11), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1600(%r11), %zmm10
+        vbroadcasti64x4	1632(%r11), %zmm12
+        vbroadcasti64x4	1664(%r11), %zmm11
+        vbroadcasti64x4	1696(%r11), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%r11), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%r11), %zmm10
+        vbroadcasti64x4	672(%r11), %zmm12
+        vbroadcasti64x4	704(%r11), %zmm11
+        vbroadcasti64x4	736(%r11), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%r11), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%r11), %zmm10
+        vbroadcasti64x4	1888(%r11), %zmm12
+        vbroadcasti64x4	1920(%r11), %zmm11
+        vbroadcasti64x4	1952(%r11), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%r11), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%r11), %zmm10
+        vbroadcasti64x4	928(%r11), %zmm12
+        vbroadcasti64x4	960(%r11), %zmm11
+        vbroadcasti64x4	992(%r11), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%r11), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%r11), %zmm10
+        vbroadcasti64x4	2144(%r11), %zmm12
+        vbroadcasti64x4	2176(%r11), %zmm11
+        vbroadcasti64x4	2208(%r11), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	1024(%r11), %zmm10
+        vbroadcasti64x4	1056(%r11), %zmm12
+        vbroadcasti64x4	1088(%r11), %zmm11
+        vbroadcasti64x4	1120(%r11), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	2240(%r11), %zmm10
+        vbroadcasti64x4	2272(%r11), %zmm12
+        vbroadcasti64x4	2304(%r11), %zmm11
+        vbroadcasti64x4	2336(%r11), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1152(%r11), %zmm10
+        vbroadcasti64x4	1184(%r11), %zmm12
+        vbroadcasti64x4	1216(%r11), %zmm11
+        vbroadcasti64x4	1248(%r11), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	2368(%r11), %zmm10
+        vbroadcasti64x4	2400(%r11), %zmm12
+        vbroadcasti64x4	2432(%r11), %zmm11
+        vbroadcasti64x4	2464(%r11), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vpmulhw	%zmm15, %zmm0, %zmm8
+        vpmulhw	%zmm15, %zmm1, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm8
+        vpsubw	%zmm9, %zmm1, %zmm9
+        vmovdqu64	%ymm8, (%r9)
+        vextracti64x4	$0x01, %zmm8, (%r10)
+        vmovdqu64	%ymm9, 32(%r9)
+        vextracti64x4	$0x01, %zmm9, 32(%r10)
+        vpmulhw	%zmm15, %zmm2, %zmm8
+        vpmulhw	%zmm15, %zmm3, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vmovdqu64	%ymm8, 64(%r9)
+        vextracti64x4	$0x01, %zmm8, 64(%r10)
+        vmovdqu64	%ymm9, 96(%r9)
+        vextracti64x4	$0x01, %zmm9, 96(%r10)
+        vpmulhw	%zmm15, %zmm19, %zmm8
+        vpmulhw	%zmm15, %zmm20, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vmovdqu64	%ymm8, 256(%r9)
+        vextracti64x4	$0x01, %zmm8, 256(%r10)
+        vmovdqu64	%ymm9, 288(%r9)
+        vextracti64x4	$0x01, %zmm9, 288(%r10)
+        vpmulhw	%zmm15, %zmm21, %zmm8
+        vpmulhw	%zmm15, %zmm22, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vmovdqu64	%ymm8, 320(%r9)
+        vextracti64x4	$0x01, %zmm8, 320(%r10)
+        vmovdqu64	%ymm9, 352(%r9)
+        vextracti64x4	$0x01, %zmm9, 352(%r10)
+        vpmulhw	%zmm15, %zmm4, %zmm8
+        vpmulhw	%zmm15, %zmm5, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vmovdqu64	%ymm8, 128(%r9)
+        vextracti64x4	$0x01, %zmm8, 128(%r10)
+        vmovdqu64	%ymm9, 160(%r9)
+        vextracti64x4	$0x01, %zmm9, 160(%r10)
+        vpmulhw	%zmm15, %zmm6, %zmm8
+        vpmulhw	%zmm15, %zmm7, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vmovdqu64	%ymm8, 192(%r9)
+        vextracti64x4	$0x01, %zmm8, 192(%r10)
+        vmovdqu64	%ymm9, 224(%r9)
+        vextracti64x4	$0x01, %zmm9, 224(%r10)
+        vpmulhw	%zmm15, %zmm23, %zmm8
+        vpmulhw	%zmm15, %zmm24, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vmovdqu64	%ymm8, 384(%r9)
+        vextracti64x4	$0x01, %zmm8, 384(%r10)
+        vmovdqu64	%ymm9, 416(%r9)
+        vextracti64x4	$0x01, %zmm9, 416(%r10)
+        vpmulhw	%zmm15, %zmm25, %zmm8
+        vpmulhw	%zmm15, %zmm26, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vmovdqu64	%ymm8, 448(%r9)
+        vextracti64x4	$0x01, %zmm8, 448(%r10)
+        vmovdqu64	%ymm9, 480(%r9)
+        vextracti64x4	$0x01, %zmm9, 480(%r10)
+        addq	$0x400, %r9
+        subq	$2, %rax
+        jmp	L_decap_avx512_bp
+L_decap_avx512_bp_odd:
+        cmpq	$0x01, %rax
+        jne	L_decap_avx512_bp_done
+        leaq	L_mlkem_avx512_zetas(%rip), %r11
+        vmovdqu64	(%r9), %ymm0
+        vinserti64x4	$0x01, (%r9), %zmm0, %zmm0
+        vmovdqu64	32(%r9), %ymm1
+        vinserti64x4	$0x01, 32(%r9), %zmm1, %zmm1
+        vmovdqu64	64(%r9), %ymm2
+        vinserti64x4	$0x01, 64(%r9), %zmm2, %zmm2
+        vmovdqu64	96(%r9), %ymm3
+        vinserti64x4	$0x01, 96(%r9), %zmm3, %zmm3
+        vmovdqu64	128(%r9), %ymm4
+        vinserti64x4	$0x01, 128(%r9), %zmm4, %zmm4
+        vmovdqu64	160(%r9), %ymm5
+        vinserti64x4	$0x01, 160(%r9), %zmm5, %zmm5
+        vmovdqu64	192(%r9), %ymm6
+        vinserti64x4	$0x01, 192(%r9), %zmm6, %zmm6
+        vmovdqu64	224(%r9), %ymm7
+        vinserti64x4	$0x01, 224(%r9), %zmm7, %zmm7
+        vmovdqu64	256(%r9), %ymm19
+        vinserti64x4	$0x01, 256(%r9), %zmm19, %zmm19
+        vmovdqu64	288(%r9), %ymm20
+        vinserti64x4	$0x01, 288(%r9), %zmm20, %zmm20
+        vmovdqu64	320(%r9), %ymm21
+        vinserti64x4	$0x01, 320(%r9), %zmm21, %zmm21
+        vmovdqu64	352(%r9), %ymm22
+        vinserti64x4	$0x01, 352(%r9), %zmm22, %zmm22
+        vmovdqu64	384(%r9), %ymm23
+        vinserti64x4	$0x01, 384(%r9), %zmm23, %zmm23
+        vmovdqu64	416(%r9), %ymm24
+        vinserti64x4	$0x01, 416(%r9), %zmm24, %zmm24
+        vmovdqu64	448(%r9), %ymm25
+        vinserti64x4	$0x01, 448(%r9), %zmm25, %zmm25
+        vmovdqu64	480(%r9), %ymm26
+        vinserti64x4	$0x01, 480(%r9), %zmm26, %zmm26
+        vbroadcasti64x4	(%r11), %zmm10
+        vbroadcasti64x4	32(%r11), %zmm12
+        vpmullw	%zmm12, %zmm19, %zmm8
+        vpmullw	%zmm12, %zmm20, %zmm9
+        vpmulhw	%zmm10, %zmm19, %zmm19
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm19
+        vpsubw	%zmm9, %zmm1, %zmm20
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm21
+        vpsubw	%zmm9, %zmm3, %zmm22
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm23
+        vpsubw	%zmm9, %zmm5, %zmm24
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm25
+        vpsubw	%zmm9, %zmm7, %zmm26
+        vpaddw	%zmm8, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	64(%r11), %zmm10
+        vbroadcasti64x4	96(%r11), %zmm12
+        vpmullw	%zmm12, %zmm4, %zmm8
+        vpmullw	%zmm12, %zmm5, %zmm9
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm4
+        vpsubw	%zmm9, %zmm1, %zmm5
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm6
+        vpsubw	%zmm9, %zmm3, %zmm7
+        vpaddw	%zmm8, %zmm2, %zmm2
+        vpaddw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1280(%r11), %zmm10
+        vbroadcasti64x4	1312(%r11), %zmm12
+        vpmullw	%zmm12, %zmm23, %zmm8
+        vpmullw	%zmm12, %zmm24, %zmm9
+        vpmulhw	%zmm10, %zmm23, %zmm23
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm23
+        vpsubw	%zmm9, %zmm20, %zmm24
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm25
+        vpsubw	%zmm9, %zmm22, %zmm26
+        vpaddw	%zmm8, %zmm21, %zmm21
+        vpaddw	%zmm9, %zmm22, %zmm22
+        vbroadcasti64x4	128(%r11), %zmm10
+        vbroadcasti64x4	160(%r11), %zmm12
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm2
+        vpsubw	%zmm9, %zmm1, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vbroadcasti64x4	1344(%r11), %zmm10
+        vbroadcasti64x4	1376(%r11), %zmm12
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm21
+        vpsubw	%zmm9, %zmm20, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm20, %zmm20
+        vbroadcasti64x4	192(%r11), %zmm10
+        vbroadcasti64x4	224(%r11), %zmm12
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm6
+        vpsubw	%zmm9, %zmm5, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vbroadcasti64x4	1408(%r11), %zmm10
+        vbroadcasti64x4	1440(%r11), %zmm12
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm25
+        vpsubw	%zmm9, %zmm24, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm24, %zmm24
+        vbroadcasti64x4	256(%r11), %zmm10
+        vbroadcasti64x4	288(%r11), %zmm12
+        vbroadcasti64x4	320(%r11), %zmm11
+        vbroadcasti64x4	352(%r11), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	1472(%r11), %zmm10
+        vbroadcasti64x4	1504(%r11), %zmm12
+        vbroadcasti64x4	1536(%r11), %zmm11
+        vbroadcasti64x4	1568(%r11), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	384(%r11), %zmm10
+        vbroadcasti64x4	416(%r11), %zmm12
+        vbroadcasti64x4	448(%r11), %zmm11
+        vbroadcasti64x4	480(%r11), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	1600(%r11), %zmm10
+        vbroadcasti64x4	1632(%r11), %zmm12
+        vbroadcasti64x4	1664(%r11), %zmm11
+        vbroadcasti64x4	1696(%r11), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	512(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm0, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	544(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	576(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm2, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	608(%r11), %zmm13
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm0
+        vpsubw	%zmm2, %zmm3, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm1
+        vpsubw	%zmm2, %zmm9, %zmm3
+        vpaddw	%zmm0, %zmm8, %zmm8
+        vpaddw	%zmm2, %zmm9, %zmm9
+        vbroadcasti64x4	640(%r11), %zmm10
+        vbroadcasti64x4	672(%r11), %zmm12
+        vbroadcasti64x4	704(%r11), %zmm11
+        vbroadcasti64x4	736(%r11), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm20, %zmm19, %zmm8
+        vbroadcasti64x4	1728(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm19, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1760(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm22, %zmm21, %zmm9
+        vbroadcasti64x4	1792(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm21, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1824(%r11), %zmm13
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm19
+        vpsubw	%zmm21, %zmm22, %zmm21
+        vpsubw	%zmm19, %zmm8, %zmm20
+        vpsubw	%zmm21, %zmm9, %zmm22
+        vpaddw	%zmm19, %zmm8, %zmm8
+        vpaddw	%zmm21, %zmm9, %zmm9
+        vbroadcasti64x4	1856(%r11), %zmm10
+        vbroadcasti64x4	1888(%r11), %zmm12
+        vbroadcasti64x4	1920(%r11), %zmm11
+        vbroadcasti64x4	1952(%r11), %zmm13
+        vpunpcklqdq	%zmm20, %zmm8, %zmm19
+        vpunpckhqdq	%zmm20, %zmm8, %zmm20
+        vpunpcklqdq	%zmm22, %zmm9, %zmm21
+        vpunpckhqdq	%zmm22, %zmm9, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	768(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm4, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	800(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	832(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm6, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	864(%r11), %zmm13
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm4
+        vpsubw	%zmm6, %zmm7, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm5
+        vpsubw	%zmm6, %zmm9, %zmm7
+        vpaddw	%zmm4, %zmm8, %zmm8
+        vpaddw	%zmm6, %zmm9, %zmm9
+        vbroadcasti64x4	896(%r11), %zmm10
+        vbroadcasti64x4	928(%r11), %zmm12
+        vbroadcasti64x4	960(%r11), %zmm11
+        vbroadcasti64x4	992(%r11), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm24, %zmm23, %zmm8
+        vbroadcasti64x4	1984(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm23, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2016(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm9
+        vpermi2q	%zmm26, %zmm25, %zmm9
+        vbroadcasti64x4	2048(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm25, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2080(%r11), %zmm13
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm23
+        vpsubw	%zmm25, %zmm26, %zmm25
+        vpsubw	%zmm23, %zmm8, %zmm24
+        vpsubw	%zmm25, %zmm9, %zmm26
+        vpaddw	%zmm23, %zmm8, %zmm8
+        vpaddw	%zmm25, %zmm9, %zmm9
+        vbroadcasti64x4	2112(%r11), %zmm10
+        vbroadcasti64x4	2144(%r11), %zmm12
+        vbroadcasti64x4	2176(%r11), %zmm11
+        vbroadcasti64x4	2208(%r11), %zmm13
+        vpunpcklqdq	%zmm24, %zmm8, %zmm23
+        vpunpckhqdq	%zmm24, %zmm8, %zmm24
+        vpunpcklqdq	%zmm26, %zmm9, %zmm25
+        vpunpckhqdq	%zmm26, %zmm9, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vbroadcasti64x4	1024(%r11), %zmm10
+        vbroadcasti64x4	1056(%r11), %zmm12
+        vbroadcasti64x4	1088(%r11), %zmm11
+        vbroadcasti64x4	1120(%r11), %zmm13
+        vpsllq	$32, %zmm1, %zmm8
+        vpsrlq	$32, %zmm0, %zmm9
+        vpblendmd	%zmm8, %zmm0, %zmm0{%k1}
+        vpblendmd	%zmm9, %zmm1, %zmm1{%k2}
+        vpsllq	$32, %zmm3, %zmm8
+        vpsrlq	$32, %zmm2, %zmm9
+        vpblendmd	%zmm8, %zmm2, %zmm2{%k1}
+        vpblendmd	%zmm9, %zmm3, %zmm3{%k2}
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm1, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm1
+        vpsubw	%zmm9, %zmm2, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm2, %zmm2
+        vbroadcasti64x4	2240(%r11), %zmm10
+        vbroadcasti64x4	2272(%r11), %zmm12
+        vbroadcasti64x4	2304(%r11), %zmm11
+        vbroadcasti64x4	2336(%r11), %zmm13
+        vpsllq	$32, %zmm20, %zmm8
+        vpsrlq	$32, %zmm19, %zmm9
+        vpblendmd	%zmm8, %zmm19, %zmm19{%k1}
+        vpblendmd	%zmm9, %zmm20, %zmm20{%k2}
+        vpsllq	$32, %zmm22, %zmm8
+        vpsrlq	$32, %zmm21, %zmm9
+        vpblendmd	%zmm8, %zmm21, %zmm21{%k1}
+        vpblendmd	%zmm9, %zmm22, %zmm22{%k2}
+        vpmullw	%zmm12, %zmm20, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm20, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm20
+        vpsubw	%zmm9, %zmm21, %zmm22
+        vpaddw	%zmm8, %zmm19, %zmm19
+        vpaddw	%zmm9, %zmm21, %zmm21
+        vbroadcasti64x4	1152(%r11), %zmm10
+        vbroadcasti64x4	1184(%r11), %zmm12
+        vbroadcasti64x4	1216(%r11), %zmm11
+        vbroadcasti64x4	1248(%r11), %zmm13
+        vpsllq	$32, %zmm5, %zmm8
+        vpsrlq	$32, %zmm4, %zmm9
+        vpblendmd	%zmm8, %zmm4, %zmm4{%k1}
+        vpblendmd	%zmm9, %zmm5, %zmm5{%k2}
+        vpsllq	$32, %zmm7, %zmm8
+        vpsrlq	$32, %zmm6, %zmm9
+        vpblendmd	%zmm8, %zmm6, %zmm6{%k1}
+        vpblendmd	%zmm9, %zmm7, %zmm7{%k2}
+        vpmullw	%zmm12, %zmm5, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm5, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm5
+        vpsubw	%zmm9, %zmm6, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm6, %zmm6
+        vbroadcasti64x4	2368(%r11), %zmm10
+        vbroadcasti64x4	2400(%r11), %zmm12
+        vbroadcasti64x4	2432(%r11), %zmm11
+        vbroadcasti64x4	2464(%r11), %zmm13
+        vpsllq	$32, %zmm24, %zmm8
+        vpsrlq	$32, %zmm23, %zmm9
+        vpblendmd	%zmm8, %zmm23, %zmm23{%k1}
+        vpblendmd	%zmm9, %zmm24, %zmm24{%k2}
+        vpsllq	$32, %zmm26, %zmm8
+        vpsrlq	$32, %zmm25, %zmm9
+        vpblendmd	%zmm8, %zmm25, %zmm25{%k1}
+        vpblendmd	%zmm9, %zmm26, %zmm26{%k2}
+        vpmullw	%zmm12, %zmm24, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm24, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm24
+        vpsubw	%zmm9, %zmm25, %zmm26
+        vpaddw	%zmm8, %zmm23, %zmm23
+        vpaddw	%zmm9, %zmm25, %zmm25
+        vpunpckldq	%zmm1, %zmm0, %zmm8
+        vpunpckhdq	%zmm1, %zmm0, %zmm9
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm9, %zmm8, %zmm0
+        vmovdqa64	%zmm18, %zmm1
+        vpermi2q	%zmm9, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm2, %zmm8
+        vpunpckhdq	%zmm3, %zmm2, %zmm9
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm9, %zmm8, %zmm2
+        vmovdqa64	%zmm18, %zmm3
+        vpermi2q	%zmm9, %zmm8, %zmm3
+        vpunpckldq	%zmm20, %zmm19, %zmm8
+        vpunpckhdq	%zmm20, %zmm19, %zmm9
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm9, %zmm8, %zmm19
+        vmovdqa64	%zmm18, %zmm20
+        vpermi2q	%zmm9, %zmm8, %zmm20
+        vpunpckldq	%zmm22, %zmm21, %zmm8
+        vpunpckhdq	%zmm22, %zmm21, %zmm9
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm9, %zmm8, %zmm21
+        vmovdqa64	%zmm18, %zmm22
+        vpermi2q	%zmm9, %zmm8, %zmm22
+        vpunpckldq	%zmm5, %zmm4, %zmm8
+        vpunpckhdq	%zmm5, %zmm4, %zmm9
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm9, %zmm8, %zmm4
+        vmovdqa64	%zmm18, %zmm5
+        vpermi2q	%zmm9, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm6, %zmm8
+        vpunpckhdq	%zmm7, %zmm6, %zmm9
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm9, %zmm8, %zmm6
+        vmovdqa64	%zmm18, %zmm7
+        vpermi2q	%zmm9, %zmm8, %zmm7
+        vpunpckldq	%zmm24, %zmm23, %zmm8
+        vpunpckhdq	%zmm24, %zmm23, %zmm9
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm9, %zmm8, %zmm23
+        vmovdqa64	%zmm18, %zmm24
+        vpermi2q	%zmm9, %zmm8, %zmm24
+        vpunpckldq	%zmm26, %zmm25, %zmm8
+        vpunpckhdq	%zmm26, %zmm25, %zmm9
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm9, %zmm8, %zmm25
+        vmovdqa64	%zmm18, %zmm26
+        vpermi2q	%zmm9, %zmm8, %zmm26
+        vpmulhw	%zmm15, %zmm0, %zmm8
+        vpmulhw	%zmm15, %zmm1, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm8
+        vpsubw	%zmm9, %zmm1, %zmm9
+        vmovdqu64	%ymm8, (%r9)
+        vextracti64x4	$0x01, %zmm8, (%r9)
+        vmovdqu64	%ymm9, 32(%r9)
+        vextracti64x4	$0x01, %zmm9, 32(%r9)
+        vpmulhw	%zmm15, %zmm2, %zmm8
+        vpmulhw	%zmm15, %zmm3, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm8
+        vpsubw	%zmm9, %zmm3, %zmm9
+        vmovdqu64	%ymm8, 64(%r9)
+        vextracti64x4	$0x01, %zmm8, 64(%r9)
+        vmovdqu64	%ymm9, 96(%r9)
+        vextracti64x4	$0x01, %zmm9, 96(%r9)
+        vpmulhw	%zmm15, %zmm19, %zmm8
+        vpmulhw	%zmm15, %zmm20, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm8
+        vpsubw	%zmm9, %zmm20, %zmm9
+        vmovdqu64	%ymm8, 256(%r9)
+        vextracti64x4	$0x01, %zmm8, 256(%r9)
+        vmovdqu64	%ymm9, 288(%r9)
+        vextracti64x4	$0x01, %zmm9, 288(%r9)
+        vpmulhw	%zmm15, %zmm21, %zmm8
+        vpmulhw	%zmm15, %zmm22, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm8
+        vpsubw	%zmm9, %zmm22, %zmm9
+        vmovdqu64	%ymm8, 320(%r9)
+        vextracti64x4	$0x01, %zmm8, 320(%r9)
+        vmovdqu64	%ymm9, 352(%r9)
+        vextracti64x4	$0x01, %zmm9, 352(%r9)
+        vpmulhw	%zmm15, %zmm4, %zmm8
+        vpmulhw	%zmm15, %zmm5, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm8
+        vpsubw	%zmm9, %zmm5, %zmm9
+        vmovdqu64	%ymm8, 128(%r9)
+        vextracti64x4	$0x01, %zmm8, 128(%r9)
+        vmovdqu64	%ymm9, 160(%r9)
+        vextracti64x4	$0x01, %zmm9, 160(%r9)
+        vpmulhw	%zmm15, %zmm6, %zmm8
+        vpmulhw	%zmm15, %zmm7, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm8
+        vpsubw	%zmm9, %zmm7, %zmm9
+        vmovdqu64	%ymm8, 192(%r9)
+        vextracti64x4	$0x01, %zmm8, 192(%r9)
+        vmovdqu64	%ymm9, 224(%r9)
+        vextracti64x4	$0x01, %zmm9, 224(%r9)
+        vpmulhw	%zmm15, %zmm23, %zmm8
+        vpmulhw	%zmm15, %zmm24, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm8
+        vpsubw	%zmm9, %zmm24, %zmm9
+        vmovdqu64	%ymm8, 384(%r9)
+        vextracti64x4	$0x01, %zmm8, 384(%r9)
+        vmovdqu64	%ymm9, 416(%r9)
+        vextracti64x4	$0x01, %zmm9, 416(%r9)
+        vpmulhw	%zmm15, %zmm25, %zmm8
+        vpmulhw	%zmm15, %zmm26, %zmm9
+        vpsraw	$10, %zmm8, %zmm8
+        vpsraw	$10, %zmm9, %zmm9
+        vpmullw	%zmm14, %zmm8, %zmm8
+        vpmullw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm8
+        vpsubw	%zmm9, %zmm26, %zmm9
+        vmovdqu64	%ymm8, 448(%r9)
+        vextracti64x4	$0x01, %zmm8, 448(%r9)
+        vmovdqu64	%ymm9, 480(%r9)
+        vextracti64x4	$0x01, %zmm9, 480(%r9)
+L_decap_avx512_bp_done:
+        movq	$0xf301, %r12
+        vmovd	%r12d, %xmm12
+        vpbroadcastw	%xmm12, %zmm12
+        movslq	%r8d, %rax
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %r11
+        vmovdqu	(%rdi), %ymm2
+        vinserti64x4	$0x01, 64(%rdi), %zmm2, %zmm2
+        vmovdqu	32(%rdi), %ymm3
+        vinserti64x4	$0x01, 96(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdx), %ymm4
+        vinserti64x4	$0x01, 64(%rdx), %zmm4, %zmm4
+        vmovdqu	32(%rdx), %ymm5
+        vinserti64x4	$0x01, 96(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%r11), %ymm10
+        vinserti64x4	$0x01, 64(%r11), %zmm10, %zmm10
+        vmovdqu	32(%r11), %ymm11
+        vinserti64x4	$0x01, 96(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rdi), %ymm2
+        vinserti64x4	$0x01, 192(%rdi), %zmm2, %zmm2
+        vmovdqu	160(%rdi), %ymm3
+        vinserti64x4	$0x01, 224(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 192(%rdx), %zmm4, %zmm4
+        vmovdqu	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 224(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%r11), %ymm10
+        vinserti64x4	$0x01, 192(%r11), %zmm10, %zmm10
+        vmovdqu	160(%r11), %ymm11
+        vinserti64x4	$0x01, 224(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rdi), %ymm2
+        vinserti64x4	$0x01, 320(%rdi), %zmm2, %zmm2
+        vmovdqu	288(%rdi), %ymm3
+        vinserti64x4	$0x01, 352(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdx), %ymm4
+        vinserti64x4	$0x01, 320(%rdx), %zmm4, %zmm4
+        vmovdqu	288(%rdx), %ymm5
+        vinserti64x4	$0x01, 352(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%r11), %ymm10
+        vinserti64x4	$0x01, 320(%r11), %zmm10, %zmm10
+        vmovdqu	288(%r11), %ymm11
+        vinserti64x4	$0x01, 352(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rdi), %ymm2
+        vinserti64x4	$0x01, 448(%rdi), %zmm2, %zmm2
+        vmovdqu	416(%rdi), %ymm3
+        vinserti64x4	$0x01, 480(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdx), %ymm4
+        vinserti64x4	$0x01, 448(%rdx), %zmm4, %zmm4
+        vmovdqu	416(%rdx), %ymm5
+        vinserti64x4	$0x01, 480(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%r11), %ymm10
+        vinserti64x4	$0x01, 448(%r11), %zmm10, %zmm10
+        vmovdqu	416(%r11), %ymm11
+        vinserti64x4	$0x01, 480(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rdi
+        addq	$0x200, %rdx
+        subq	$2, %rax
+        jz	L_pointwise_acc_mont_end_decap_avx512
+L_pointwise_acc_mont_start_decap_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %r11
+        vmovdqu	(%rdi), %ymm2
+        vinserti64x4	$0x01, 64(%rdi), %zmm2, %zmm2
+        vmovdqu	32(%rdi), %ymm3
+        vinserti64x4	$0x01, 96(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdx), %ymm4
+        vinserti64x4	$0x01, 64(%rdx), %zmm4, %zmm4
+        vmovdqu	32(%rdx), %ymm5
+        vinserti64x4	$0x01, 96(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%r11), %ymm10
+        vinserti64x4	$0x01, 64(%r11), %zmm10, %zmm10
+        vmovdqu	32(%r11), %ymm11
+        vinserti64x4	$0x01, 96(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rsi), %ymm6
+        vinserti64x4	$0x01, 64(%rsi), %zmm6, %zmm6
+        vmovdqu	32(%rsi), %ymm7
+        vinserti64x4	$0x01, 96(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rdi), %ymm2
+        vinserti64x4	$0x01, 192(%rdi), %zmm2, %zmm2
+        vmovdqu	160(%rdi), %ymm3
+        vinserti64x4	$0x01, 224(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 192(%rdx), %zmm4, %zmm4
+        vmovdqu	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 224(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%r11), %ymm10
+        vinserti64x4	$0x01, 192(%r11), %zmm10, %zmm10
+        vmovdqu	160(%r11), %ymm11
+        vinserti64x4	$0x01, 224(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu	160(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rdi), %ymm2
+        vinserti64x4	$0x01, 320(%rdi), %zmm2, %zmm2
+        vmovdqu	288(%rdi), %ymm3
+        vinserti64x4	$0x01, 352(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdx), %ymm4
+        vinserti64x4	$0x01, 320(%rdx), %zmm4, %zmm4
+        vmovdqu	288(%rdx), %ymm5
+        vinserti64x4	$0x01, 352(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%r11), %ymm10
+        vinserti64x4	$0x01, 320(%r11), %zmm10, %zmm10
+        vmovdqu	288(%r11), %ymm11
+        vinserti64x4	$0x01, 352(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rsi), %ymm6
+        vinserti64x4	$0x01, 320(%rsi), %zmm6, %zmm6
+        vmovdqu	288(%rsi), %ymm7
+        vinserti64x4	$0x01, 352(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rdi), %ymm2
+        vinserti64x4	$0x01, 448(%rdi), %zmm2, %zmm2
+        vmovdqu	416(%rdi), %ymm3
+        vinserti64x4	$0x01, 480(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdx), %ymm4
+        vinserti64x4	$0x01, 448(%rdx), %zmm4, %zmm4
+        vmovdqu	416(%rdx), %ymm5
+        vinserti64x4	$0x01, 480(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%r11), %ymm10
+        vinserti64x4	$0x01, 448(%r11), %zmm10, %zmm10
+        vmovdqu	416(%r11), %ymm11
+        vinserti64x4	$0x01, 480(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rsi), %ymm6
+        vinserti64x4	$0x01, 448(%rsi), %zmm6, %zmm6
+        vmovdqu	416(%rsi), %ymm7
+        vinserti64x4	$0x01, 480(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rdi
+        addq	$0x200, %rdx
+        subq	$0x01, %rax
+        jg	L_pointwise_acc_mont_start_decap_avx512
+L_pointwise_acc_mont_end_decap_avx512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %r11
+        vmovdqu	(%rdi), %ymm2
+        vinserti64x4	$0x01, 64(%rdi), %zmm2, %zmm2
+        vmovdqu	32(%rdi), %ymm3
+        vinserti64x4	$0x01, 96(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdx), %ymm4
+        vinserti64x4	$0x01, 64(%rdx), %zmm4, %zmm4
+        vmovdqu	32(%rdx), %ymm5
+        vinserti64x4	$0x01, 96(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	(%r11), %ymm10
+        vinserti64x4	$0x01, 64(%r11), %zmm10, %zmm10
+        vmovdqu	32(%r11), %ymm11
+        vinserti64x4	$0x01, 96(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rsi), %ymm6
+        vinserti64x4	$0x01, 64(%rsi), %zmm6, %zmm6
+        vmovdqu	32(%rsi), %ymm7
+        vinserti64x4	$0x01, 96(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, 64(%rsi)
+        vmovdqu	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 96(%rsi)
+        vmovdqu	128(%rdi), %ymm2
+        vinserti64x4	$0x01, 192(%rdi), %zmm2, %zmm2
+        vmovdqu	160(%rdi), %ymm3
+        vinserti64x4	$0x01, 224(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 192(%rdx), %zmm4, %zmm4
+        vmovdqu	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 224(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%r11), %ymm10
+        vinserti64x4	$0x01, 192(%r11), %zmm10, %zmm10
+        vmovdqu	160(%r11), %ymm11
+        vinserti64x4	$0x01, 224(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu	160(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%rsi)
+        vextracti64x4	$0x01, %zmm0, 192(%rsi)
+        vmovdqu	%ymm1, 160(%rsi)
+        vextracti64x4	$0x01, %zmm1, 224(%rsi)
+        vmovdqu	256(%rdi), %ymm2
+        vinserti64x4	$0x01, 320(%rdi), %zmm2, %zmm2
+        vmovdqu	288(%rdi), %ymm3
+        vinserti64x4	$0x01, 352(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdx), %ymm4
+        vinserti64x4	$0x01, 320(%rdx), %zmm4, %zmm4
+        vmovdqu	288(%rdx), %ymm5
+        vinserti64x4	$0x01, 352(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%r11), %ymm10
+        vinserti64x4	$0x01, 320(%r11), %zmm10, %zmm10
+        vmovdqu	288(%r11), %ymm11
+        vinserti64x4	$0x01, 352(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rsi), %ymm6
+        vinserti64x4	$0x01, 320(%rsi), %zmm6, %zmm6
+        vmovdqu	288(%rsi), %ymm7
+        vinserti64x4	$0x01, 352(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%rsi)
+        vextracti64x4	$0x01, %zmm0, 320(%rsi)
+        vmovdqu	%ymm1, 288(%rsi)
+        vextracti64x4	$0x01, %zmm1, 352(%rsi)
+        vmovdqu	384(%rdi), %ymm2
+        vinserti64x4	$0x01, 448(%rdi), %zmm2, %zmm2
+        vmovdqu	416(%rdi), %ymm3
+        vinserti64x4	$0x01, 480(%rdi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm6
+        vpsrld	$16, %zmm2, %zmm7
+        vpblendmw	%zmm6, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm7, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdx), %ymm4
+        vinserti64x4	$0x01, 448(%rdx), %zmm4, %zmm4
+        vmovdqu	416(%rdx), %ymm5
+        vinserti64x4	$0x01, 480(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm6
+        vpsrld	$16, %zmm4, %zmm7
+        vpblendmw	%zmm6, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm7, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%r11), %ymm10
+        vinserti64x4	$0x01, 448(%r11), %zmm10, %zmm10
+        vmovdqu	416(%r11), %ymm11
+        vinserti64x4	$0x01, 480(%r11), %zmm11, %zmm11
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm6
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm7
+        vpmullw	%zmm12, %zmm0, %zmm8
+        vpmullw	%zmm12, %zmm1, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm0
+        vpsubw	%zmm9, %zmm7, %zmm1
+        vpmullw	%zmm11, %zmm0, %zmm6
+        vpmulhw	%zmm10, %zmm0, %zmm7
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm6, %zmm7, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm6
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm7
+        vpmullw	%zmm12, %zmm1, %zmm8
+        vpmullw	%zmm12, %zmm2, %zmm9
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm1
+        vpsubw	%zmm9, %zmm7, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rsi), %ymm6
+        vinserti64x4	$0x01, 448(%rsi), %zmm6, %zmm6
+        vmovdqu	416(%rsi), %ymm7
+        vinserti64x4	$0x01, 480(%rsi), %zmm7, %zmm7
+        vpaddw	%zmm6, %zmm0, %zmm0
+        vpaddw	%zmm7, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm6
+        vpsrld	$16, %zmm0, %zmm7
+        vpblendmw	%zmm6, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm7, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%rsi)
+        vextracti64x4	$0x01, %zmm0, 448(%rsi)
+        vmovdqu	%ymm1, 416(%rsi)
+        vextracti64x4	$0x01, %zmm1, 480(%rsi)
+        addq	$0x200, %rdi
+        leaq	L_mlkem_avx512_zetas_inv(%rip), %r11
+        vmovdqu64	(%rsi), %ymm0
+        vinserti64x4	$0x01, (%rsi), %zmm0, %zmm0
+        vmovdqu64	32(%rsi), %ymm1
+        vinserti64x4	$0x01, 32(%rsi), %zmm1, %zmm1
+        vmovdqu64	64(%rsi), %ymm2
+        vinserti64x4	$0x01, 64(%rsi), %zmm2, %zmm2
+        vmovdqu64	96(%rsi), %ymm3
+        vinserti64x4	$0x01, 96(%rsi), %zmm3, %zmm3
+        vmovdqu64	128(%rsi), %ymm4
+        vinserti64x4	$0x01, 128(%rsi), %zmm4, %zmm4
+        vmovdqu64	160(%rsi), %ymm5
+        vinserti64x4	$0x01, 160(%rsi), %zmm5, %zmm5
+        vmovdqu64	192(%rsi), %ymm6
+        vinserti64x4	$0x01, 192(%rsi), %zmm6, %zmm6
+        vmovdqu64	224(%rsi), %ymm7
+        vinserti64x4	$0x01, 224(%rsi), %zmm7, %zmm7
+        vmovdqu64	256(%rsi), %ymm19
+        vinserti64x4	$0x01, 256(%rsi), %zmm19, %zmm19
+        vmovdqu64	288(%rsi), %ymm20
+        vinserti64x4	$0x01, 288(%rsi), %zmm20, %zmm20
+        vmovdqu64	320(%rsi), %ymm21
+        vinserti64x4	$0x01, 320(%rsi), %zmm21, %zmm21
+        vmovdqu64	352(%rsi), %ymm22
+        vinserti64x4	$0x01, 352(%rsi), %zmm22, %zmm22
+        vmovdqu64	384(%rsi), %ymm23
+        vinserti64x4	$0x01, 384(%rsi), %zmm23, %zmm23
+        vmovdqu64	416(%rsi), %ymm24
+        vinserti64x4	$0x01, 416(%rsi), %zmm24, %zmm24
+        vmovdqu64	448(%rsi), %ymm25
+        vinserti64x4	$0x01, 448(%rsi), %zmm25, %zmm25
+        vmovdqu64	480(%rsi), %ymm26
+        vinserti64x4	$0x01, 480(%rsi), %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm1, %zmm0, %zmm8
+        vbroadcasti64x4	(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm1, %zmm0, %zmm9
+        vbroadcasti64x4	32(%r11), %zmm12
+        vpsllq	$32, %zmm9, %zmm0
+        vpsrlq	$32, %zmm8, %zmm1
+        vpblendmd	%zmm0, %zmm8, %zmm0{%k1}
+        vpblendmd	%zmm1, %zmm9, %zmm1{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm3, %zmm2, %zmm8
+        vbroadcasti64x4	64(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm3, %zmm2, %zmm9
+        vbroadcasti64x4	96(%r11), %zmm13
+        vpsllq	$32, %zmm9, %zmm2
+        vpsrlq	$32, %zmm8, %zmm3
+        vpblendmd	%zmm2, %zmm8, %zmm2{%k1}
+        vpblendmd	%zmm3, %zmm9, %zmm3{%k2}
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm20, %zmm19, %zmm27
+        vbroadcasti64x4	1216(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm20, %zmm19, %zmm28
+        vbroadcasti64x4	1248(%r11), %zmm12
+        vpsllq	$32, %zmm28, %zmm19
+        vpsrlq	$32, %zmm27, %zmm20
+        vpblendmd	%zmm19, %zmm27, %zmm19{%k1}
+        vpblendmd	%zmm20, %zmm28, %zmm20{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm22, %zmm21, %zmm27
+        vbroadcasti64x4	1280(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm22, %zmm21, %zmm28
+        vbroadcasti64x4	1312(%r11), %zmm13
+        vpsllq	$32, %zmm28, %zmm21
+        vpsrlq	$32, %zmm27, %zmm22
+        vpblendmd	%zmm21, %zmm27, %zmm21{%k1}
+        vpblendmd	%zmm22, %zmm28, %zmm22{%k2}
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	128(%r11), %zmm10
+        vbroadcasti64x4	160(%r11), %zmm12
+        vbroadcasti64x4	192(%r11), %zmm11
+        vbroadcasti64x4	224(%r11), %zmm13
+        vpunpckldq	%zmm1, %zmm8, %zmm0
+        vpunpckhdq	%zmm1, %zmm8, %zmm1
+        vpunpckldq	%zmm3, %zmm9, %zmm2
+        vpunpckhdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1344(%r11), %zmm10
+        vbroadcasti64x4	1376(%r11), %zmm12
+        vbroadcasti64x4	1408(%r11), %zmm11
+        vbroadcasti64x4	1440(%r11), %zmm13
+        vpunpckldq	%zmm20, %zmm27, %zmm19
+        vpunpckhdq	%zmm20, %zmm27, %zmm20
+        vpunpckldq	%zmm22, %zmm28, %zmm21
+        vpunpckhdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vbroadcasti64x4	256(%r11), %zmm10
+        vbroadcasti64x4	288(%r11), %zmm12
+        vbroadcasti64x4	320(%r11), %zmm11
+        vbroadcasti64x4	352(%r11), %zmm13
+        vpunpcklqdq	%zmm1, %zmm8, %zmm0
+        vpunpckhqdq	%zmm1, %zmm8, %zmm1
+        vpunpcklqdq	%zmm3, %zmm9, %zmm2
+        vpunpckhqdq	%zmm3, %zmm9, %zmm3
+        vpaddw	%zmm1, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm2, %zmm9
+        vpsubw	%zmm1, %zmm0, %zmm1
+        vpsubw	%zmm3, %zmm2, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm2
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm2, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm1, %zmm0
+        vpmullw	%zmm13, %zmm3, %zmm2
+        vpmulhw	%zmm10, %zmm1, %zmm1
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm0, %zmm0
+        vpmulhw	%zmm14, %zmm2, %zmm2
+        vpsubw	%zmm0, %zmm1, %zmm1
+        vpsubw	%zmm2, %zmm3, %zmm3
+        vbroadcasti64x4	1472(%r11), %zmm10
+        vbroadcasti64x4	1504(%r11), %zmm12
+        vbroadcasti64x4	1536(%r11), %zmm11
+        vbroadcasti64x4	1568(%r11), %zmm13
+        vpunpcklqdq	%zmm20, %zmm27, %zmm19
+        vpunpckhqdq	%zmm20, %zmm27, %zmm20
+        vpunpcklqdq	%zmm22, %zmm28, %zmm21
+        vpunpckhqdq	%zmm22, %zmm28, %zmm22
+        vpaddw	%zmm20, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm21, %zmm28
+        vpsubw	%zmm20, %zmm19, %zmm20
+        vpsubw	%zmm22, %zmm21, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm21
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm21, %zmm21
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm27, %zmm27
+        vpsubw	%zmm21, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm20, %zmm19
+        vpmullw	%zmm13, %zmm22, %zmm21
+        vpmulhw	%zmm10, %zmm20, %zmm20
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm21, %zmm21
+        vpsubw	%zmm19, %zmm20, %zmm20
+        vpsubw	%zmm21, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm0
+        vpermi2q	%zmm1, %zmm8, %zmm0
+        vbroadcasti64x4	384(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm1, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm1
+        vbroadcasti64x4	416(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm2
+        vpermi2q	%zmm3, %zmm9, %zmm2
+        vbroadcasti64x4	448(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm3, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm3
+        vbroadcasti64x4	480(%r11), %zmm13
+        vpsubw	%zmm1, %zmm0, %zmm8
+        vpsubw	%zmm3, %zmm2, %zmm9
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpaddw	%zmm3, %zmm2, %zmm2
+        vpmullw	%zmm12, %zmm8, %zmm1
+        vpmullw	%zmm13, %zmm9, %zmm3
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm1, %zmm8, %zmm1
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vmovdqa64	%zmm17, %zmm19
+        vpermi2q	%zmm20, %zmm27, %zmm19
+        vbroadcasti64x4	1600(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm20, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm20
+        vbroadcasti64x4	1632(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm21
+        vpermi2q	%zmm22, %zmm28, %zmm21
+        vbroadcasti64x4	1664(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm22, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm22
+        vbroadcasti64x4	1696(%r11), %zmm13
+        vpsubw	%zmm20, %zmm19, %zmm27
+        vpsubw	%zmm22, %zmm21, %zmm28
+        vpaddw	%zmm20, %zmm19, %zmm19
+        vpaddw	%zmm22, %zmm21, %zmm21
+        vpmullw	%zmm12, %zmm27, %zmm20
+        vpmullw	%zmm13, %zmm28, %zmm22
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm22, %zmm22
+        vpsubw	%zmm20, %zmm27, %zmm20
+        vpsubw	%zmm22, %zmm28, %zmm22
+        vbroadcasti64x4	512(%r11), %zmm10
+        vbroadcasti64x4	544(%r11), %zmm12
+        vpaddw	%zmm2, %zmm0, %zmm8
+        vpaddw	%zmm3, %zmm1, %zmm9
+        vpsubw	%zmm2, %zmm0, %zmm2
+        vpsubw	%zmm3, %zmm1, %zmm3
+        vpmulhw	%zmm15, %zmm8, %zmm0
+        vpmulhw	%zmm15, %zmm9, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm8, %zmm0
+        vpsubw	%zmm1, %zmm9, %zmm1
+        vpmullw	%zmm12, %zmm2, %zmm8
+        vpmullw	%zmm12, %zmm3, %zmm9
+        vpmulhw	%zmm10, %zmm2, %zmm2
+        vpmulhw	%zmm10, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vbroadcasti64x4	1728(%r11), %zmm10
+        vbroadcasti64x4	1760(%r11), %zmm12
+        vpaddw	%zmm21, %zmm19, %zmm27
+        vpaddw	%zmm22, %zmm20, %zmm28
+        vpsubw	%zmm21, %zmm19, %zmm21
+        vpsubw	%zmm22, %zmm20, %zmm22
+        vpmulhw	%zmm15, %zmm27, %zmm19
+        vpmulhw	%zmm15, %zmm28, %zmm20
+        vpsraw	$10, %zmm19, %zmm19
+        vpsraw	$10, %zmm20, %zmm20
+        vpmullw	%zmm14, %zmm19, %zmm19
+        vpmullw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm27, %zmm19
+        vpsubw	%zmm20, %zmm28, %zmm20
+        vpmullw	%zmm12, %zmm21, %zmm27
+        vpmullw	%zmm12, %zmm22, %zmm28
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm21, %zmm21
+        vpsubw	%zmm28, %zmm22, %zmm22
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm5, %zmm4, %zmm8
+        vbroadcasti64x4	576(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm5, %zmm4, %zmm9
+        vbroadcasti64x4	608(%r11), %zmm12
+        vpsllq	$32, %zmm9, %zmm4
+        vpsrlq	$32, %zmm8, %zmm5
+        vpblendmd	%zmm4, %zmm8, %zmm4{%k1}
+        vpblendmd	%zmm5, %zmm9, %zmm5{%k2}
+        vmovdqa64	%zmm17, %zmm8
+        vpermi2q	%zmm7, %zmm6, %zmm8
+        vbroadcasti64x4	640(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm9
+        vpermi2q	%zmm7, %zmm6, %zmm9
+        vbroadcasti64x4	672(%r11), %zmm13
+        vpsllq	$32, %zmm9, %zmm6
+        vpsrlq	$32, %zmm8, %zmm7
+        vpblendmd	%zmm6, %zmm8, %zmm6{%k1}
+        vpblendmd	%zmm7, %zmm9, %zmm7{%k2}
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm24, %zmm23, %zmm27
+        vbroadcasti64x4	1792(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm24, %zmm23, %zmm28
+        vbroadcasti64x4	1824(%r11), %zmm12
+        vpsllq	$32, %zmm28, %zmm23
+        vpsrlq	$32, %zmm27, %zmm24
+        vpblendmd	%zmm23, %zmm27, %zmm23{%k1}
+        vpblendmd	%zmm24, %zmm28, %zmm24{%k2}
+        vmovdqa64	%zmm17, %zmm27
+        vpermi2q	%zmm26, %zmm25, %zmm27
+        vbroadcasti64x4	1856(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm28
+        vpermi2q	%zmm26, %zmm25, %zmm28
+        vbroadcasti64x4	1888(%r11), %zmm13
+        vpsllq	$32, %zmm28, %zmm25
+        vpsrlq	$32, %zmm27, %zmm26
+        vpblendmd	%zmm25, %zmm27, %zmm25{%k1}
+        vpblendmd	%zmm26, %zmm28, %zmm26{%k2}
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	704(%r11), %zmm10
+        vbroadcasti64x4	736(%r11), %zmm12
+        vbroadcasti64x4	768(%r11), %zmm11
+        vbroadcasti64x4	800(%r11), %zmm13
+        vpunpckldq	%zmm5, %zmm8, %zmm4
+        vpunpckhdq	%zmm5, %zmm8, %zmm5
+        vpunpckldq	%zmm7, %zmm9, %zmm6
+        vpunpckhdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	1920(%r11), %zmm10
+        vbroadcasti64x4	1952(%r11), %zmm12
+        vbroadcasti64x4	1984(%r11), %zmm11
+        vbroadcasti64x4	2016(%r11), %zmm13
+        vpunpckldq	%zmm24, %zmm27, %zmm23
+        vpunpckhdq	%zmm24, %zmm27, %zmm24
+        vpunpckldq	%zmm26, %zmm28, %zmm25
+        vpunpckhdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vbroadcasti64x4	832(%r11), %zmm10
+        vbroadcasti64x4	864(%r11), %zmm12
+        vbroadcasti64x4	896(%r11), %zmm11
+        vbroadcasti64x4	928(%r11), %zmm13
+        vpunpcklqdq	%zmm5, %zmm8, %zmm4
+        vpunpckhqdq	%zmm5, %zmm8, %zmm5
+        vpunpcklqdq	%zmm7, %zmm9, %zmm6
+        vpunpckhqdq	%zmm7, %zmm9, %zmm7
+        vpaddw	%zmm5, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm6, %zmm9
+        vpsubw	%zmm5, %zmm4, %zmm5
+        vpsubw	%zmm7, %zmm6, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm6
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm8, %zmm8
+        vpsubw	%zmm6, %zmm9, %zmm9
+        vpmullw	%zmm12, %zmm5, %zmm4
+        vpmullw	%zmm13, %zmm7, %zmm6
+        vpmulhw	%zmm10, %zmm5, %zmm5
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm5, %zmm5
+        vpsubw	%zmm6, %zmm7, %zmm7
+        vbroadcasti64x4	2048(%r11), %zmm10
+        vbroadcasti64x4	2080(%r11), %zmm12
+        vbroadcasti64x4	2112(%r11), %zmm11
+        vbroadcasti64x4	2144(%r11), %zmm13
+        vpunpcklqdq	%zmm24, %zmm27, %zmm23
+        vpunpckhqdq	%zmm24, %zmm27, %zmm24
+        vpunpcklqdq	%zmm26, %zmm28, %zmm25
+        vpunpckhqdq	%zmm26, %zmm28, %zmm26
+        vpaddw	%zmm24, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm25, %zmm28
+        vpsubw	%zmm24, %zmm23, %zmm24
+        vpsubw	%zmm26, %zmm25, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm25
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm25, %zmm25
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm27, %zmm27
+        vpsubw	%zmm25, %zmm28, %zmm28
+        vpmullw	%zmm12, %zmm24, %zmm23
+        vpmullw	%zmm13, %zmm26, %zmm25
+        vpmulhw	%zmm10, %zmm24, %zmm24
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpsubw	%zmm23, %zmm24, %zmm24
+        vpsubw	%zmm25, %zmm26, %zmm26
+        vmovdqa64	%zmm17, %zmm4
+        vpermi2q	%zmm5, %zmm8, %zmm4
+        vbroadcasti64x4	960(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm5, %zmm8, %zmm16
+        vmovdqa64	%zmm16, %zmm5
+        vbroadcasti64x4	992(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm6
+        vpermi2q	%zmm7, %zmm9, %zmm6
+        vbroadcasti64x4	1024(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm7, %zmm9, %zmm16
+        vmovdqa64	%zmm16, %zmm7
+        vbroadcasti64x4	1056(%r11), %zmm13
+        vpsubw	%zmm5, %zmm4, %zmm8
+        vpsubw	%zmm7, %zmm6, %zmm9
+        vpaddw	%zmm5, %zmm4, %zmm4
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpmullw	%zmm12, %zmm8, %zmm5
+        vpmullw	%zmm13, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm11, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm5, %zmm8, %zmm5
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vmovdqa64	%zmm17, %zmm23
+        vpermi2q	%zmm24, %zmm27, %zmm23
+        vbroadcasti64x4	2176(%r11), %zmm10
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm24, %zmm27, %zmm16
+        vmovdqa64	%zmm16, %zmm24
+        vbroadcasti64x4	2208(%r11), %zmm12
+        vmovdqa64	%zmm17, %zmm25
+        vpermi2q	%zmm26, %zmm28, %zmm25
+        vbroadcasti64x4	2240(%r11), %zmm11
+        vmovdqa64	%zmm18, %zmm16
+        vpermi2q	%zmm26, %zmm28, %zmm16
+        vmovdqa64	%zmm16, %zmm26
+        vbroadcasti64x4	2272(%r11), %zmm13
+        vpsubw	%zmm24, %zmm23, %zmm27
+        vpsubw	%zmm26, %zmm25, %zmm28
+        vpaddw	%zmm24, %zmm23, %zmm23
+        vpaddw	%zmm26, %zmm25, %zmm25
+        vpmullw	%zmm12, %zmm27, %zmm24
+        vpmullw	%zmm13, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm11, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm24, %zmm27, %zmm24
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	1088(%r11), %zmm10
+        vbroadcasti64x4	1120(%r11), %zmm12
+        vpaddw	%zmm6, %zmm4, %zmm8
+        vpaddw	%zmm7, %zmm5, %zmm9
+        vpsubw	%zmm6, %zmm4, %zmm6
+        vpsubw	%zmm7, %zmm5, %zmm7
+        vpmulhw	%zmm15, %zmm8, %zmm4
+        vpmulhw	%zmm15, %zmm9, %zmm5
+        vpsraw	$10, %zmm4, %zmm4
+        vpsraw	$10, %zmm5, %zmm5
+        vpmullw	%zmm14, %zmm4, %zmm4
+        vpmullw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpmullw	%zmm12, %zmm6, %zmm8
+        vpmullw	%zmm12, %zmm7, %zmm9
+        vpmulhw	%zmm10, %zmm6, %zmm6
+        vpmulhw	%zmm10, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vbroadcasti64x4	2304(%r11), %zmm10
+        vbroadcasti64x4	2336(%r11), %zmm12
+        vpaddw	%zmm25, %zmm23, %zmm27
+        vpaddw	%zmm26, %zmm24, %zmm28
+        vpsubw	%zmm25, %zmm23, %zmm25
+        vpsubw	%zmm26, %zmm24, %zmm26
+        vpmulhw	%zmm15, %zmm27, %zmm23
+        vpmulhw	%zmm15, %zmm28, %zmm24
+        vpsraw	$10, %zmm23, %zmm23
+        vpsraw	$10, %zmm24, %zmm24
+        vpmullw	%zmm14, %zmm23, %zmm23
+        vpmullw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpmullw	%zmm12, %zmm25, %zmm27
+        vpmullw	%zmm12, %zmm26, %zmm28
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm27, %zmm27
+        vpmulhw	%zmm14, %zmm28, %zmm28
+        vpsubw	%zmm27, %zmm25, %zmm25
+        vpsubw	%zmm28, %zmm26, %zmm26
+        vbroadcasti64x4	1152(%r11), %zmm10
+        vbroadcasti64x4	1184(%r11), %zmm12
+        vpsubw	%zmm4, %zmm0, %zmm8
+        vpsubw	%zmm5, %zmm1, %zmm9
+        vpaddw	%zmm4, %zmm0, %zmm0
+        vpaddw	%zmm5, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm4
+        vpmullw	%zmm12, %zmm9, %zmm5
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm4, %zmm4
+        vpmulhw	%zmm14, %zmm5, %zmm5
+        vpsubw	%zmm4, %zmm8, %zmm4
+        vpsubw	%zmm5, %zmm9, %zmm5
+        vpsubw	%zmm6, %zmm2, %zmm8
+        vpsubw	%zmm7, %zmm3, %zmm9
+        vpaddw	%zmm6, %zmm2, %zmm2
+        vpaddw	%zmm7, %zmm3, %zmm3
+        vpmullw	%zmm12, %zmm8, %zmm6
+        vpmullw	%zmm12, %zmm9, %zmm7
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm6, %zmm6
+        vpmulhw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vbroadcasti64x4	2368(%r11), %zmm10
+        vbroadcasti64x4	2400(%r11), %zmm12
+        vpsubw	%zmm23, %zmm19, %zmm27
+        vpsubw	%zmm24, %zmm20, %zmm28
+        vpaddw	%zmm23, %zmm19, %zmm19
+        vpaddw	%zmm24, %zmm20, %zmm20
+        vpmullw	%zmm12, %zmm27, %zmm23
+        vpmullw	%zmm12, %zmm28, %zmm24
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm27, %zmm23
+        vpsubw	%zmm24, %zmm28, %zmm24
+        vpsubw	%zmm25, %zmm21, %zmm27
+        vpsubw	%zmm26, %zmm22, %zmm28
+        vpaddw	%zmm25, %zmm21, %zmm21
+        vpaddw	%zmm26, %zmm22, %zmm22
+        vpmullw	%zmm12, %zmm27, %zmm25
+        vpmullw	%zmm12, %zmm28, %zmm26
+        vpmulhw	%zmm10, %zmm27, %zmm27
+        vpmulhw	%zmm10, %zmm28, %zmm28
+        vpmulhw	%zmm14, %zmm25, %zmm25
+        vpmulhw	%zmm14, %zmm26, %zmm26
+        vpsubw	%zmm25, %zmm27, %zmm25
+        vpsubw	%zmm26, %zmm28, %zmm26
+        vbroadcasti64x4	2432(%r11), %zmm10
+        vbroadcasti64x4	2464(%r11), %zmm12
+        vbroadcasti64x4	2496(%r11), %zmm11
+        vbroadcasti64x4	2528(%r11), %zmm13
+        vpsubw	%zmm19, %zmm0, %zmm8
+        vpsubw	%zmm20, %zmm1, %zmm9
+        vpaddw	%zmm19, %zmm0, %zmm0
+        vpaddw	%zmm20, %zmm1, %zmm1
+        vpmullw	%zmm12, %zmm8, %zmm19
+        vpmullw	%zmm12, %zmm9, %zmm20
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm19, %zmm19
+        vpmulhw	%zmm14, %zmm20, %zmm20
+        vpsubw	%zmm19, %zmm8, %zmm19
+        vpsubw	%zmm20, %zmm9, %zmm20
+        vpaddw	%zmm21, %zmm2, %zmm8
+        vpaddw	%zmm22, %zmm3, %zmm9
+        vpsubw	%zmm21, %zmm2, %zmm21
+        vpsubw	%zmm22, %zmm3, %zmm22
+        vpmulhw	%zmm15, %zmm8, %zmm2
+        vpmulhw	%zmm15, %zmm9, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm8, %zmm2
+        vpsubw	%zmm3, %zmm9, %zmm3
+        vpmullw	%zmm12, %zmm21, %zmm8
+        vpmullw	%zmm12, %zmm22, %zmm9
+        vpmulhw	%zmm10, %zmm21, %zmm21
+        vpmulhw	%zmm10, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpsubw	%zmm23, %zmm4, %zmm8
+        vpsubw	%zmm24, %zmm5, %zmm9
+        vpaddw	%zmm23, %zmm4, %zmm4
+        vpaddw	%zmm24, %zmm5, %zmm5
+        vpmullw	%zmm12, %zmm8, %zmm23
+        vpmullw	%zmm12, %zmm9, %zmm24
+        vpmulhw	%zmm10, %zmm8, %zmm8
+        vpmulhw	%zmm10, %zmm9, %zmm9
+        vpmulhw	%zmm14, %zmm23, %zmm23
+        vpmulhw	%zmm14, %zmm24, %zmm24
+        vpsubw	%zmm23, %zmm8, %zmm23
+        vpsubw	%zmm24, %zmm9, %zmm24
+        vpaddw	%zmm25, %zmm6, %zmm8
+        vpaddw	%zmm26, %zmm7, %zmm9
+        vpsubw	%zmm25, %zmm6, %zmm25
+        vpsubw	%zmm26, %zmm7, %zmm26
+        vpmulhw	%zmm15, %zmm8, %zmm6
+        vpmulhw	%zmm15, %zmm9, %zmm7
+        vpsraw	$10, %zmm6, %zmm6
+        vpsraw	$10, %zmm7, %zmm7
+        vpmullw	%zmm14, %zmm6, %zmm6
+        vpmullw	%zmm14, %zmm7, %zmm7
+        vpsubw	%zmm6, %zmm8, %zmm6
+        vpsubw	%zmm7, %zmm9, %zmm7
+        vpmullw	%zmm12, %zmm25, %zmm8
+        vpmullw	%zmm12, %zmm26, %zmm9
+        vpmulhw	%zmm10, %zmm25, %zmm25
+        vpmulhw	%zmm10, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vpmullw	%zmm13, %zmm0, %zmm8
+        vpmullw	%zmm13, %zmm1, %zmm9
+        vpmulhw	%zmm11, %zmm0, %zmm0
+        vpmulhw	%zmm11, %zmm1, %zmm1
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm0, %zmm0
+        vpsubw	%zmm9, %zmm1, %zmm1
+        vpmullw	%zmm13, %zmm2, %zmm8
+        vpmullw	%zmm13, %zmm3, %zmm9
+        vpmulhw	%zmm11, %zmm2, %zmm2
+        vpmulhw	%zmm11, %zmm3, %zmm3
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm2, %zmm2
+        vpsubw	%zmm9, %zmm3, %zmm3
+        vpmullw	%zmm13, %zmm4, %zmm8
+        vpmullw	%zmm13, %zmm5, %zmm9
+        vpmulhw	%zmm11, %zmm4, %zmm4
+        vpmulhw	%zmm11, %zmm5, %zmm5
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm4, %zmm4
+        vpsubw	%zmm9, %zmm5, %zmm5
+        vpmullw	%zmm13, %zmm6, %zmm8
+        vpmullw	%zmm13, %zmm7, %zmm9
+        vpmulhw	%zmm11, %zmm6, %zmm6
+        vpmulhw	%zmm11, %zmm7, %zmm7
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm6, %zmm6
+        vpsubw	%zmm9, %zmm7, %zmm7
+        vpmullw	%zmm13, %zmm19, %zmm8
+        vpmullw	%zmm13, %zmm20, %zmm9
+        vpmulhw	%zmm11, %zmm19, %zmm19
+        vpmulhw	%zmm11, %zmm20, %zmm20
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm19, %zmm19
+        vpsubw	%zmm9, %zmm20, %zmm20
+        vpmullw	%zmm13, %zmm21, %zmm8
+        vpmullw	%zmm13, %zmm22, %zmm9
+        vpmulhw	%zmm11, %zmm21, %zmm21
+        vpmulhw	%zmm11, %zmm22, %zmm22
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm21, %zmm21
+        vpsubw	%zmm9, %zmm22, %zmm22
+        vpmullw	%zmm13, %zmm23, %zmm8
+        vpmullw	%zmm13, %zmm24, %zmm9
+        vpmulhw	%zmm11, %zmm23, %zmm23
+        vpmulhw	%zmm11, %zmm24, %zmm24
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm23, %zmm23
+        vpsubw	%zmm9, %zmm24, %zmm24
+        vpmullw	%zmm13, %zmm25, %zmm8
+        vpmullw	%zmm13, %zmm26, %zmm9
+        vpmulhw	%zmm11, %zmm25, %zmm25
+        vpmulhw	%zmm11, %zmm26, %zmm26
+        vpmulhw	%zmm14, %zmm8, %zmm8
+        vpmulhw	%zmm14, %zmm9, %zmm9
+        vpsubw	%zmm8, %zmm25, %zmm25
+        vpsubw	%zmm9, %zmm26, %zmm26
+        vmovdqu64	%ymm0, (%rsi)
+        vextracti64x4	$0x01, %zmm0, (%rsi)
+        vmovdqu64	%ymm1, 32(%rsi)
+        vextracti64x4	$0x01, %zmm1, 32(%rsi)
+        vmovdqu64	%ymm2, 64(%rsi)
+        vextracti64x4	$0x01, %zmm2, 64(%rsi)
+        vmovdqu64	%ymm3, 96(%rsi)
+        vextracti64x4	$0x01, %zmm3, 96(%rsi)
+        vmovdqu64	%ymm4, 128(%rsi)
+        vextracti64x4	$0x01, %zmm4, 128(%rsi)
+        vmovdqu64	%ymm5, 160(%rsi)
+        vextracti64x4	$0x01, %zmm5, 160(%rsi)
+        vmovdqu64	%ymm6, 192(%rsi)
+        vextracti64x4	$0x01, %zmm6, 192(%rsi)
+        vmovdqu64	%ymm7, 224(%rsi)
+        vextracti64x4	$0x01, %zmm7, 224(%rsi)
+        vmovdqu64	%ymm19, 256(%rsi)
+        vextracti64x4	$0x01, %zmm19, 256(%rsi)
+        vmovdqu64	%ymm20, 288(%rsi)
+        vextracti64x4	$0x01, %zmm20, 288(%rsi)
+        vmovdqu64	%ymm21, 320(%rsi)
+        vextracti64x4	$0x01, %zmm21, 320(%rsi)
+        vmovdqu64	%ymm22, 352(%rsi)
+        vextracti64x4	$0x01, %zmm22, 352(%rsi)
+        vmovdqu64	%ymm23, 384(%rsi)
+        vextracti64x4	$0x01, %zmm23, 384(%rsi)
+        vmovdqu64	%ymm24, 416(%rsi)
+        vextracti64x4	$0x01, %zmm24, 416(%rsi)
+        vmovdqu64	%ymm25, 448(%rsi)
+        vextracti64x4	$0x01, %zmm25, 448(%rsi)
+        vmovdqu64	%ymm26, 480(%rsi)
+        vextracti64x4	$0x01, %zmm26, 480(%rsi)
+        vmovdqu64	(%rsi), %zmm0
+        vmovdqu64	64(%rsi), %zmm1
+        vmovdqu64	128(%rsi), %zmm2
+        vmovdqu64	192(%rsi), %zmm3
+        vmovdqu64	(%rcx), %zmm4
+        vmovdqu64	64(%rcx), %zmm5
+        vmovdqu64	128(%rcx), %zmm6
+        vmovdqu64	192(%rcx), %zmm7
+        vpsubw	%zmm0, %zmm4, %zmm4
+        vpsubw	%zmm1, %zmm5, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpsubw	%zmm2, %zmm6, %zmm6
+        vpsubw	%zmm3, %zmm7, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%rsi)
+        vmovdqu64	%zmm1, 64(%rsi)
+        vmovdqu64	%zmm2, 128(%rsi)
+        vmovdqu64	%zmm3, 192(%rsi)
+        vmovdqu64	256(%rsi), %zmm0
+        vmovdqu64	320(%rsi), %zmm1
+        vmovdqu64	384(%rsi), %zmm2
+        vmovdqu64	448(%rsi), %zmm3
+        vmovdqu64	256(%rcx), %zmm4
+        vmovdqu64	320(%rcx), %zmm5
+        vmovdqu64	384(%rcx), %zmm6
+        vmovdqu64	448(%rcx), %zmm7
+        vpsubw	%zmm0, %zmm4, %zmm4
+        vpsubw	%zmm1, %zmm5, %zmm5
+        vpmulhw	%zmm15, %zmm4, %zmm0
+        vpmulhw	%zmm15, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm14, %zmm0, %zmm0
+        vpmullw	%zmm14, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpsubw	%zmm2, %zmm6, %zmm6
+        vpsubw	%zmm3, %zmm7, %zmm7
+        vpmulhw	%zmm15, %zmm6, %zmm2
+        vpmulhw	%zmm15, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm14, %zmm2, %zmm2
+        vpmullw	%zmm14, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%rsi)
+        vmovdqu64	%zmm1, 320(%rsi)
+        vmovdqu64	%zmm2, 384(%rsi)
+        vmovdqu64	%zmm3, 448(%rsi)
+        vzeroupper
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_decapsulate_avx512,.-mlkem_decapsulate_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_basemul_x2_avx512
+.type	mlkem_basemul_x2_avx512,@function
+.align	16
+mlkem_basemul_x2_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_basemul_x2_avx512
+.p2align	4
+_mlkem_basemul_x2_avx512:
+#endif /* __APPLE__ */
+        movq	$0xd01, %r8
+        vmovd	%r8d, %xmm12
+        vpbroadcastw	%xmm12, %zmm12
+        movq	$0xf301, %r8
+        vmovd	%r8d, %xmm13
+        vpbroadcastw	%xmm13, %zmm13
+        movl	$0xaaaaaaaa, %ecx
+        kmovd	%ecx, %k3
+        movl	$0x55555555, %ecx
+        kmovd	%ecx, %k4
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rax
+        vmovdqu	(%rsi), %ymm2
+        vinserti64x4	$0x01, 64(%rsi), %zmm2, %zmm2
+        vmovdqu	32(%rsi), %ymm3
+        vinserti64x4	$0x01, 96(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdx), %ymm4
+        vinserti64x4	$0x01, 64(%rdx), %zmm4, %zmm4
+        vmovdqu	32(%rdx), %ymm5
+        vinserti64x4	$0x01, 96(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rax), %ymm6
+        vinserti64x4	$0x01, 64(%rax), %zmm6, %zmm6
+        vmovdqu	32(%rax), %ymm7
+        vinserti64x4	$0x01, 96(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%rdi)
+        vextracti64x4	$0x01, %zmm0, 64(%rdi)
+        vmovdqu	%ymm1, 32(%rdi)
+        vextracti64x4	$0x01, %zmm1, 96(%rdi)
+        vmovdqu	128(%rsi), %ymm2
+        vinserti64x4	$0x01, 192(%rsi), %zmm2, %zmm2
+        vmovdqu	160(%rsi), %ymm3
+        vinserti64x4	$0x01, 224(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 192(%rdx), %zmm4, %zmm4
+        vmovdqu	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 224(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rax), %ymm6
+        vinserti64x4	$0x01, 192(%rax), %zmm6, %zmm6
+        vmovdqu	160(%rax), %ymm7
+        vinserti64x4	$0x01, 224(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%rdi)
+        vextracti64x4	$0x01, %zmm0, 192(%rdi)
+        vmovdqu	%ymm1, 160(%rdi)
+        vextracti64x4	$0x01, %zmm1, 224(%rdi)
+        vmovdqu	256(%rsi), %ymm2
+        vinserti64x4	$0x01, 320(%rsi), %zmm2, %zmm2
+        vmovdqu	288(%rsi), %ymm3
+        vinserti64x4	$0x01, 352(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdx), %ymm4
+        vinserti64x4	$0x01, 320(%rdx), %zmm4, %zmm4
+        vmovdqu	288(%rdx), %ymm5
+        vinserti64x4	$0x01, 352(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rax), %ymm6
+        vinserti64x4	$0x01, 320(%rax), %zmm6, %zmm6
+        vmovdqu	288(%rax), %ymm7
+        vinserti64x4	$0x01, 352(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%rdi)
+        vextracti64x4	$0x01, %zmm0, 320(%rdi)
+        vmovdqu	%ymm1, 288(%rdi)
+        vextracti64x4	$0x01, %zmm1, 352(%rdi)
+        vmovdqu	384(%rsi), %ymm2
+        vinserti64x4	$0x01, 448(%rsi), %zmm2, %zmm2
+        vmovdqu	416(%rsi), %ymm3
+        vinserti64x4	$0x01, 480(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdx), %ymm4
+        vinserti64x4	$0x01, 448(%rdx), %zmm4, %zmm4
+        vmovdqu	416(%rdx), %ymm5
+        vinserti64x4	$0x01, 480(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rax), %ymm6
+        vinserti64x4	$0x01, 448(%rax), %zmm6, %zmm6
+        vmovdqu	416(%rax), %ymm7
+        vinserti64x4	$0x01, 480(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%rdi)
+        vextracti64x4	$0x01, %zmm0, 448(%rdi)
+        vmovdqu	%ymm1, 416(%rdi)
+        vextracti64x4	$0x01, %zmm1, 480(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_basemul_x2_avx512,.-mlkem_basemul_x2_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_tomont_x2_avx512
+.type	mlkem_tomont_x2_avx512,@function
+.align	16
+mlkem_tomont_x2_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_tomont_x2_avx512
+.p2align	4
+_mlkem_tomont_x2_avx512:
+#endif /* __APPLE__ */
+        movq	$0x549, %rdx
+        vmovd	%edx, %xmm8
+        vpbroadcastw	%xmm8, %zmm8
+        movq	$0x5049, %rdx
+        vmovd	%edx, %xmm9
+        vpbroadcastw	%xmm9, %zmm9
+        movq	$0xd01, %rdx
+        vmovd	%edx, %xmm10
+        vpbroadcastw	%xmm10, %zmm10
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vpmullw	%zmm9, %zmm0, %zmm4
+        vpmulhw	%zmm8, %zmm0, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm0
+        vpmullw	%zmm9, %zmm1, %zmm4
+        vpmulhw	%zmm8, %zmm1, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm1
+        vpmullw	%zmm9, %zmm2, %zmm4
+        vpmulhw	%zmm8, %zmm2, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm2
+        vpmullw	%zmm9, %zmm3, %zmm4
+        vpmulhw	%zmm8, %zmm3, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm3
+        vmovdqu64	%zmm0, (%rdi)
+        vmovdqu64	%zmm1, 64(%rdi)
+        vmovdqu64	%zmm2, 128(%rdi)
+        vmovdqu64	%zmm3, 192(%rdi)
+        vmovdqu64	256(%rdi), %zmm0
+        vmovdqu64	320(%rdi), %zmm1
+        vmovdqu64	384(%rdi), %zmm2
+        vmovdqu64	448(%rdi), %zmm3
+        vpmullw	%zmm9, %zmm0, %zmm4
+        vpmulhw	%zmm8, %zmm0, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm0
+        vpmullw	%zmm9, %zmm1, %zmm4
+        vpmulhw	%zmm8, %zmm1, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm1
+        vpmullw	%zmm9, %zmm2, %zmm4
+        vpmulhw	%zmm8, %zmm2, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm2
+        vpmullw	%zmm9, %zmm3, %zmm4
+        vpmulhw	%zmm8, %zmm3, %zmm5
+        vpmulhw	%zmm10, %zmm4, %zmm4
+        vpsubw	%zmm4, %zmm5, %zmm3
+        vmovdqu64	%zmm0, 256(%rdi)
+        vmovdqu64	%zmm1, 320(%rdi)
+        vmovdqu64	%zmm2, 384(%rdi)
+        vmovdqu64	%zmm3, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_tomont_x2_avx512,.-mlkem_tomont_x2_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_adderr_x2_avx512
+.type	mlkem_adderr_x2_avx512,@function
+.align	16
+mlkem_adderr_x2_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_adderr_x2_avx512
+.p2align	4
+_mlkem_adderr_x2_avx512:
+#endif /* __APPLE__ */
+        movq	$0x4ebf, %rdx
+        vmovd	%edx, %xmm8
+        vpbroadcastw	%xmm8, %zmm8
+        movq	$0xd01, %rdx
+        vmovd	%edx, %xmm9
+        vpbroadcastw	%xmm9, %zmm9
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	(%rsi), %zmm4
+        vmovdqu64	64(%rsi), %zmm5
+        vmovdqu64	128(%rsi), %zmm6
+        vmovdqu64	192(%rsi), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm8, %zmm4, %zmm0
+        vpmulhw	%zmm8, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm9, %zmm0, %zmm0
+        vpmullw	%zmm9, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm8, %zmm6, %zmm2
+        vpmulhw	%zmm8, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm9, %zmm2, %zmm2
+        vpmullw	%zmm9, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%rdi)
+        vmovdqu64	%zmm1, 64(%rdi)
+        vmovdqu64	%zmm2, 128(%rdi)
+        vmovdqu64	%zmm3, 192(%rdi)
+        vmovdqu64	256(%rdi), %zmm0
+        vmovdqu64	320(%rdi), %zmm1
+        vmovdqu64	384(%rdi), %zmm2
+        vmovdqu64	448(%rdi), %zmm3
+        vmovdqu64	256(%rsi), %zmm4
+        vmovdqu64	320(%rsi), %zmm5
+        vmovdqu64	384(%rsi), %zmm6
+        vmovdqu64	448(%rsi), %zmm7
+        vpaddw	%zmm4, %zmm0, %zmm4
+        vpaddw	%zmm5, %zmm1, %zmm5
+        vpmulhw	%zmm8, %zmm4, %zmm0
+        vpmulhw	%zmm8, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm9, %zmm0, %zmm0
+        vpmullw	%zmm9, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpaddw	%zmm6, %zmm2, %zmm6
+        vpaddw	%zmm7, %zmm3, %zmm7
+        vpmulhw	%zmm8, %zmm6, %zmm2
+        vpmulhw	%zmm8, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm9, %zmm2, %zmm2
+        vpmullw	%zmm9, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%rdi)
+        vmovdqu64	%zmm1, 320(%rdi)
+        vmovdqu64	%zmm2, 384(%rdi)
+        vmovdqu64	%zmm3, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_adderr_x2_avx512,.-mlkem_adderr_x2_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_suberr_x2_avx512
+.type	mlkem_suberr_x2_avx512,@function
+.align	16
+mlkem_suberr_x2_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_suberr_x2_avx512
+.p2align	4
+_mlkem_suberr_x2_avx512:
+#endif /* __APPLE__ */
+        movq	$0x4ebf, %rdx
+        vmovd	%edx, %xmm8
+        vpbroadcastw	%xmm8, %zmm8
+        movq	$0xd01, %rdx
+        vmovd	%edx, %xmm9
+        vpbroadcastw	%xmm9, %zmm9
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	(%rsi), %zmm4
+        vmovdqu64	64(%rsi), %zmm5
+        vmovdqu64	128(%rsi), %zmm6
+        vmovdqu64	192(%rsi), %zmm7
+        vpsubw	%zmm0, %zmm4, %zmm4
+        vpsubw	%zmm1, %zmm5, %zmm5
+        vpmulhw	%zmm8, %zmm4, %zmm0
+        vpmulhw	%zmm8, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm9, %zmm0, %zmm0
+        vpmullw	%zmm9, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpsubw	%zmm2, %zmm6, %zmm6
+        vpsubw	%zmm3, %zmm7, %zmm7
+        vpmulhw	%zmm8, %zmm6, %zmm2
+        vpmulhw	%zmm8, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm9, %zmm2, %zmm2
+        vpmullw	%zmm9, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, (%rdi)
+        vmovdqu64	%zmm1, 64(%rdi)
+        vmovdqu64	%zmm2, 128(%rdi)
+        vmovdqu64	%zmm3, 192(%rdi)
+        vmovdqu64	256(%rdi), %zmm0
+        vmovdqu64	320(%rdi), %zmm1
+        vmovdqu64	384(%rdi), %zmm2
+        vmovdqu64	448(%rdi), %zmm3
+        vmovdqu64	256(%rsi), %zmm4
+        vmovdqu64	320(%rsi), %zmm5
+        vmovdqu64	384(%rsi), %zmm6
+        vmovdqu64	448(%rsi), %zmm7
+        vpsubw	%zmm0, %zmm4, %zmm4
+        vpsubw	%zmm1, %zmm5, %zmm5
+        vpmulhw	%zmm8, %zmm4, %zmm0
+        vpmulhw	%zmm8, %zmm5, %zmm1
+        vpsraw	$10, %zmm0, %zmm0
+        vpsraw	$10, %zmm1, %zmm1
+        vpmullw	%zmm9, %zmm0, %zmm0
+        vpmullw	%zmm9, %zmm1, %zmm1
+        vpsubw	%zmm0, %zmm4, %zmm0
+        vpsubw	%zmm1, %zmm5, %zmm1
+        vpsubw	%zmm2, %zmm6, %zmm6
+        vpsubw	%zmm3, %zmm7, %zmm7
+        vpmulhw	%zmm8, %zmm6, %zmm2
+        vpmulhw	%zmm8, %zmm7, %zmm3
+        vpsraw	$10, %zmm2, %zmm2
+        vpsraw	$10, %zmm3, %zmm3
+        vpmullw	%zmm9, %zmm2, %zmm2
+        vpmullw	%zmm9, %zmm3, %zmm3
+        vpsubw	%zmm2, %zmm6, %zmm2
+        vpsubw	%zmm3, %zmm7, %zmm3
+        vmovdqu64	%zmm0, 256(%rdi)
+        vmovdqu64	%zmm1, 320(%rdi)
+        vmovdqu64	%zmm2, 384(%rdi)
+        vmovdqu64	%zmm3, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_suberr_x2_avx512,.-mlkem_suberr_x2_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_ptacc_x2_avx512
+.type	mlkem_ptacc_x2_avx512,@function
+.align	16
+mlkem_ptacc_x2_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_ptacc_x2_avx512
+.p2align	4
+_mlkem_ptacc_x2_avx512:
+#endif /* __APPLE__ */
+        movq	$0xd01, %r9
+        vmovd	%r9d, %xmm12
+        vpbroadcastw	%xmm12, %zmm12
+        movq	$0xf301, %r9
+        vmovd	%r9d, %xmm13
+        vpbroadcastw	%xmm13, %zmm13
+        movl	$0xaaaaaaaa, %r8d
+        kmovd	%r8d, %k3
+        movl	$0x55555555, %r8d
+        kmovd	%r8d, %k4
+        movslq	%ecx, %r10
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rax
+        vmovdqu	(%rsi), %ymm2
+        vinserti64x4	$0x01, 64(%rsi), %zmm2, %zmm2
+        vmovdqu	32(%rsi), %ymm3
+        vinserti64x4	$0x01, 96(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdx), %ymm4
+        vinserti64x4	$0x01, 64(%rdx), %zmm4, %zmm4
+        vmovdqu	32(%rdx), %ymm5
+        vinserti64x4	$0x01, 96(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rax), %ymm6
+        vinserti64x4	$0x01, 64(%rax), %zmm6, %zmm6
+        vmovdqu	32(%rax), %ymm7
+        vinserti64x4	$0x01, 96(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rdi)
+        vextracti64x4	$0x01, %zmm0, 64(%rdi)
+        vmovdqu	%ymm1, 32(%rdi)
+        vextracti64x4	$0x01, %zmm1, 96(%rdi)
+        vmovdqu	128(%rsi), %ymm2
+        vinserti64x4	$0x01, 192(%rsi), %zmm2, %zmm2
+        vmovdqu	160(%rsi), %ymm3
+        vinserti64x4	$0x01, 224(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 192(%rdx), %zmm4, %zmm4
+        vmovdqu	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 224(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rax), %ymm6
+        vinserti64x4	$0x01, 192(%rax), %zmm6, %zmm6
+        vmovdqu	160(%rax), %ymm7
+        vinserti64x4	$0x01, 224(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rdi)
+        vextracti64x4	$0x01, %zmm0, 192(%rdi)
+        vmovdqu	%ymm1, 160(%rdi)
+        vextracti64x4	$0x01, %zmm1, 224(%rdi)
+        vmovdqu	256(%rsi), %ymm2
+        vinserti64x4	$0x01, 320(%rsi), %zmm2, %zmm2
+        vmovdqu	288(%rsi), %ymm3
+        vinserti64x4	$0x01, 352(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdx), %ymm4
+        vinserti64x4	$0x01, 320(%rdx), %zmm4, %zmm4
+        vmovdqu	288(%rdx), %ymm5
+        vinserti64x4	$0x01, 352(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rax), %ymm6
+        vinserti64x4	$0x01, 320(%rax), %zmm6, %zmm6
+        vmovdqu	288(%rax), %ymm7
+        vinserti64x4	$0x01, 352(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rdi)
+        vextracti64x4	$0x01, %zmm0, 320(%rdi)
+        vmovdqu	%ymm1, 288(%rdi)
+        vextracti64x4	$0x01, %zmm1, 352(%rdi)
+        vmovdqu	384(%rsi), %ymm2
+        vinserti64x4	$0x01, 448(%rsi), %zmm2, %zmm2
+        vmovdqu	416(%rsi), %ymm3
+        vinserti64x4	$0x01, 480(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdx), %ymm4
+        vinserti64x4	$0x01, 448(%rdx), %zmm4, %zmm4
+        vmovdqu	416(%rdx), %ymm5
+        vinserti64x4	$0x01, 480(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rax), %ymm6
+        vinserti64x4	$0x01, 448(%rax), %zmm6, %zmm6
+        vmovdqu	416(%rax), %ymm7
+        vinserti64x4	$0x01, 480(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rdi)
+        vextracti64x4	$0x01, %zmm0, 448(%rdi)
+        vmovdqu	%ymm1, 416(%rdi)
+        vextracti64x4	$0x01, %zmm1, 480(%rdi)
+        addq	$0x200, %rsi
+        addq	$0x200, %rdx
+        subq	$2, %r10
+        jz	L_pointwise_acc_mont_end_test512
+L_pointwise_acc_mont_start_test512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rax
+        vmovdqu	(%rsi), %ymm2
+        vinserti64x4	$0x01, 64(%rsi), %zmm2, %zmm2
+        vmovdqu	32(%rsi), %ymm3
+        vinserti64x4	$0x01, 96(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdx), %ymm4
+        vinserti64x4	$0x01, 64(%rdx), %zmm4, %zmm4
+        vmovdqu	32(%rdx), %ymm5
+        vinserti64x4	$0x01, 96(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rax), %ymm6
+        vinserti64x4	$0x01, 64(%rax), %zmm6, %zmm6
+        vmovdqu	32(%rax), %ymm7
+        vinserti64x4	$0x01, 96(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rdi), %ymm8
+        vinserti64x4	$0x01, 64(%rdi), %zmm8, %zmm8
+        vmovdqu	32(%rdi), %ymm9
+        vinserti64x4	$0x01, 96(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vmovdqu	%ymm0, (%rdi)
+        vextracti64x4	$0x01, %zmm0, 64(%rdi)
+        vmovdqu	%ymm1, 32(%rdi)
+        vextracti64x4	$0x01, %zmm1, 96(%rdi)
+        vmovdqu	128(%rsi), %ymm2
+        vinserti64x4	$0x01, 192(%rsi), %zmm2, %zmm2
+        vmovdqu	160(%rsi), %ymm3
+        vinserti64x4	$0x01, 224(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 192(%rdx), %zmm4, %zmm4
+        vmovdqu	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 224(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rax), %ymm6
+        vinserti64x4	$0x01, 192(%rax), %zmm6, %zmm6
+        vmovdqu	160(%rax), %ymm7
+        vinserti64x4	$0x01, 224(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rdi), %ymm8
+        vinserti64x4	$0x01, 192(%rdi), %zmm8, %zmm8
+        vmovdqu	160(%rdi), %ymm9
+        vinserti64x4	$0x01, 224(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vmovdqu	%ymm0, 128(%rdi)
+        vextracti64x4	$0x01, %zmm0, 192(%rdi)
+        vmovdqu	%ymm1, 160(%rdi)
+        vextracti64x4	$0x01, %zmm1, 224(%rdi)
+        vmovdqu	256(%rsi), %ymm2
+        vinserti64x4	$0x01, 320(%rsi), %zmm2, %zmm2
+        vmovdqu	288(%rsi), %ymm3
+        vinserti64x4	$0x01, 352(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdx), %ymm4
+        vinserti64x4	$0x01, 320(%rdx), %zmm4, %zmm4
+        vmovdqu	288(%rdx), %ymm5
+        vinserti64x4	$0x01, 352(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rax), %ymm6
+        vinserti64x4	$0x01, 320(%rax), %zmm6, %zmm6
+        vmovdqu	288(%rax), %ymm7
+        vinserti64x4	$0x01, 352(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rdi), %ymm8
+        vinserti64x4	$0x01, 320(%rdi), %zmm8, %zmm8
+        vmovdqu	288(%rdi), %ymm9
+        vinserti64x4	$0x01, 352(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vmovdqu	%ymm0, 256(%rdi)
+        vextracti64x4	$0x01, %zmm0, 320(%rdi)
+        vmovdqu	%ymm1, 288(%rdi)
+        vextracti64x4	$0x01, %zmm1, 352(%rdi)
+        vmovdqu	384(%rsi), %ymm2
+        vinserti64x4	$0x01, 448(%rsi), %zmm2, %zmm2
+        vmovdqu	416(%rsi), %ymm3
+        vinserti64x4	$0x01, 480(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdx), %ymm4
+        vinserti64x4	$0x01, 448(%rdx), %zmm4, %zmm4
+        vmovdqu	416(%rdx), %ymm5
+        vinserti64x4	$0x01, 480(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rax), %ymm6
+        vinserti64x4	$0x01, 448(%rax), %zmm6, %zmm6
+        vmovdqu	416(%rax), %ymm7
+        vinserti64x4	$0x01, 480(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rdi), %ymm8
+        vinserti64x4	$0x01, 448(%rdi), %zmm8, %zmm8
+        vmovdqu	416(%rdi), %ymm9
+        vinserti64x4	$0x01, 480(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vmovdqu	%ymm0, 384(%rdi)
+        vextracti64x4	$0x01, %zmm0, 448(%rdi)
+        vmovdqu	%ymm1, 416(%rdi)
+        vextracti64x4	$0x01, %zmm1, 480(%rdi)
+        addq	$0x200, %rsi
+        addq	$0x200, %rdx
+        subq	$0x01, %r10
+        jg	L_pointwise_acc_mont_start_test512
+L_pointwise_acc_mont_end_test512:
+        leaq	L_mlkem_avx512_zetas_basemul(%rip), %rax
+        vmovdqu	(%rsi), %ymm2
+        vinserti64x4	$0x01, 64(%rsi), %zmm2, %zmm2
+        vmovdqu	32(%rsi), %ymm3
+        vinserti64x4	$0x01, 96(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	(%rdx), %ymm4
+        vinserti64x4	$0x01, 64(%rdx), %zmm4, %zmm4
+        vmovdqu	32(%rdx), %ymm5
+        vinserti64x4	$0x01, 96(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	(%rax), %ymm6
+        vinserti64x4	$0x01, 64(%rax), %zmm6, %zmm6
+        vmovdqu	32(%rax), %ymm7
+        vinserti64x4	$0x01, 96(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	(%rdi), %ymm8
+        vinserti64x4	$0x01, 64(%rdi), %zmm8, %zmm8
+        vmovdqu	32(%rdi), %ymm9
+        vinserti64x4	$0x01, 96(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, (%rdi)
+        vextracti64x4	$0x01, %zmm0, 64(%rdi)
+        vmovdqu	%ymm1, 32(%rdi)
+        vextracti64x4	$0x01, %zmm1, 96(%rdi)
+        vmovdqu	128(%rsi), %ymm2
+        vinserti64x4	$0x01, 192(%rsi), %zmm2, %zmm2
+        vmovdqu	160(%rsi), %ymm3
+        vinserti64x4	$0x01, 224(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	128(%rdx), %ymm4
+        vinserti64x4	$0x01, 192(%rdx), %zmm4, %zmm4
+        vmovdqu	160(%rdx), %ymm5
+        vinserti64x4	$0x01, 224(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	128(%rax), %ymm6
+        vinserti64x4	$0x01, 192(%rax), %zmm6, %zmm6
+        vmovdqu	160(%rax), %ymm7
+        vinserti64x4	$0x01, 224(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	128(%rdi), %ymm8
+        vinserti64x4	$0x01, 192(%rdi), %zmm8, %zmm8
+        vmovdqu	160(%rdi), %ymm9
+        vinserti64x4	$0x01, 224(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 128(%rdi)
+        vextracti64x4	$0x01, %zmm0, 192(%rdi)
+        vmovdqu	%ymm1, 160(%rdi)
+        vextracti64x4	$0x01, %zmm1, 224(%rdi)
+        vmovdqu	256(%rsi), %ymm2
+        vinserti64x4	$0x01, 320(%rsi), %zmm2, %zmm2
+        vmovdqu	288(%rsi), %ymm3
+        vinserti64x4	$0x01, 352(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	256(%rdx), %ymm4
+        vinserti64x4	$0x01, 320(%rdx), %zmm4, %zmm4
+        vmovdqu	288(%rdx), %ymm5
+        vinserti64x4	$0x01, 352(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	256(%rax), %ymm6
+        vinserti64x4	$0x01, 320(%rax), %zmm6, %zmm6
+        vmovdqu	288(%rax), %ymm7
+        vinserti64x4	$0x01, 352(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	256(%rdi), %ymm8
+        vinserti64x4	$0x01, 320(%rdi), %zmm8, %zmm8
+        vmovdqu	288(%rdi), %ymm9
+        vinserti64x4	$0x01, 352(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 256(%rdi)
+        vextracti64x4	$0x01, %zmm0, 320(%rdi)
+        vmovdqu	%ymm1, 288(%rdi)
+        vextracti64x4	$0x01, %zmm1, 352(%rdi)
+        vmovdqu	384(%rsi), %ymm2
+        vinserti64x4	$0x01, 448(%rsi), %zmm2, %zmm2
+        vmovdqu	416(%rsi), %ymm3
+        vinserti64x4	$0x01, 480(%rsi), %zmm3, %zmm3
+        vpslld	$16, %zmm3, %zmm8
+        vpsrld	$16, %zmm2, %zmm9
+        vpblendmw	%zmm8, %zmm2, %zmm2{%k3}
+        vpblendmw	%zmm9, %zmm3, %zmm3{%k4}
+        vmovdqu	384(%rdx), %ymm4
+        vinserti64x4	$0x01, 448(%rdx), %zmm4, %zmm4
+        vmovdqu	416(%rdx), %ymm5
+        vinserti64x4	$0x01, 480(%rdx), %zmm5, %zmm5
+        vpslld	$16, %zmm5, %zmm8
+        vpsrld	$16, %zmm4, %zmm9
+        vpblendmw	%zmm8, %zmm4, %zmm4{%k3}
+        vpblendmw	%zmm9, %zmm5, %zmm5{%k4}
+        vmovdqu	384(%rax), %ymm6
+        vinserti64x4	$0x01, 448(%rax), %zmm6, %zmm6
+        vmovdqu	416(%rax), %ymm7
+        vinserti64x4	$0x01, 480(%rax), %zmm7, %zmm7
+        vpmullw	%zmm5, %zmm3, %zmm0
+        vpmulhw	%zmm5, %zmm3, %zmm8
+        vpmullw	%zmm4, %zmm2, %zmm1
+        vpmulhw	%zmm4, %zmm2, %zmm9
+        vpmullw	%zmm13, %zmm0, %zmm10
+        vpmullw	%zmm13, %zmm1, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm0
+        vpsubw	%zmm11, %zmm9, %zmm1
+        vpmullw	%zmm7, %zmm0, %zmm8
+        vpmulhw	%zmm6, %zmm0, %zmm9
+        vpmulhw	%zmm12, %zmm8, %zmm8
+        vpsubw	%zmm8, %zmm9, %zmm0
+        vpaddw	%zmm1, %zmm0, %zmm0
+        vpmullw	%zmm5, %zmm2, %zmm1
+        vpmulhw	%zmm5, %zmm2, %zmm8
+        vpmullw	%zmm4, %zmm3, %zmm2
+        vpmulhw	%zmm4, %zmm3, %zmm9
+        vpmullw	%zmm13, %zmm1, %zmm10
+        vpmullw	%zmm13, %zmm2, %zmm11
+        vpmulhw	%zmm12, %zmm10, %zmm10
+        vpmulhw	%zmm12, %zmm11, %zmm11
+        vpsubw	%zmm10, %zmm8, %zmm1
+        vpsubw	%zmm11, %zmm9, %zmm2
+        vpaddw	%zmm2, %zmm1, %zmm1
+        vmovdqu	384(%rdi), %ymm8
+        vinserti64x4	$0x01, 448(%rdi), %zmm8, %zmm8
+        vmovdqu	416(%rdi), %ymm9
+        vinserti64x4	$0x01, 480(%rdi), %zmm9, %zmm9
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpslld	$16, %zmm1, %zmm8
+        vpsrld	$16, %zmm0, %zmm9
+        vpblendmw	%zmm8, %zmm0, %zmm0{%k3}
+        vpblendmw	%zmm9, %zmm1, %zmm1{%k4}
+        vmovdqu	%ymm0, 384(%rdi)
+        vextracti64x4	$0x01, %zmm0, 448(%rdi)
+        vmovdqu	%ymm1, 416(%rdi)
+        vextracti64x4	$0x01, %zmm1, 480(%rdi)
+        addq	$0x200, %rsi
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_ptacc_x2_avx512,.-mlkem_ptacc_x2_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta2_avx512_m55:
+.quad	0x5555555555555555,0x5555555555555555
+.quad	0x5555555555555555,0x5555555555555555
+.quad	0x5555555555555555,0x5555555555555555
+.quad	0x5555555555555555,0x5555555555555555
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta2_avx512_m33:
+.quad	0x3333333333333333,0x3333333333333333
+.quad	0x3333333333333333,0x3333333333333333
+.quad	0x3333333333333333,0x3333333333333333
+.quad	0x3333333333333333,0x3333333333333333
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta2_avx512_m03:
+.quad	0x0303030303030303,0x0303030303030303
+.quad	0x0303030303030303,0x0303030303030303
+.quad	0x0303030303030303,0x0303030303030303
+.quad	0x0303030303030303,0x0303030303030303
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta2_avx512_m0f:
+.quad	0x0f0f0f0f0f0f0f0f,0x0f0f0f0f0f0f0f0f
+.quad	0x0f0f0f0f0f0f0f0f,0x0f0f0f0f0f0f0f0f
+.quad	0x0f0f0f0f0f0f0f0f,0x0f0f0f0f0f0f0f0f
+.quad	0x0f0f0f0f0f0f0f0f,0x0f0f0f0f0f0f0f0f
+#ifndef __APPLE__
+.text
+.globl	mlkem_cbd_eta2_avx512
+.type	mlkem_cbd_eta2_avx512,@function
+.align	16
+mlkem_cbd_eta2_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_cbd_eta2_avx512
+.p2align	4
+_mlkem_cbd_eta2_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_cbd_eta2_avx512_m55(%rip), %zmm0
+        vmovdqu64	L_mlkem_cbd_eta2_avx512_m33(%rip), %zmm1
+        vmovdqu64	L_mlkem_cbd_eta2_avx512_m03(%rip), %zmm2
+        vmovdqu64	L_mlkem_cbd_eta2_avx512_m0f(%rip), %zmm3
+        vmovdqu64	(%rsi), %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddb	%zmm5, %zmm4, %zmm4
+        vpsrlw	$2, %zmm4, %zmm5
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm5, %zmm5
+        vpaddb	%zmm1, %zmm4, %zmm4
+        vpsubb	%zmm5, %zmm4, %zmm4
+        vpsrlw	$4, %zmm4, %zmm5
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm5, %zmm5
+        vpsubb	%zmm2, %zmm4, %zmm4
+        vpsubb	%zmm2, %zmm5, %zmm5
+        vpunpcklbw	%ymm5, %ymm4, %ymm6
+        vpunpckhbw	%ymm5, %ymm4, %ymm7
+        vpmovsxbw	%xmm6, %ymm10
+        vmovdqu	%ymm10, (%rdi)
+        vpmovsxbw	%xmm7, %ymm10
+        vmovdqu	%ymm10, 32(%rdi)
+        vextracti128	$0x01, %ymm6, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 64(%rdi)
+        vextracti128	$0x01, %ymm7, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 96(%rdi)
+        vextracti64x4	$0x01, %zmm4, %ymm8
+        vextracti64x4	$0x01, %zmm5, %ymm9
+        vpunpcklbw	%ymm9, %ymm8, %ymm6
+        vpunpckhbw	%ymm9, %ymm8, %ymm7
+        vpmovsxbw	%xmm6, %ymm10
+        vmovdqu	%ymm10, 128(%rdi)
+        vpmovsxbw	%xmm7, %ymm10
+        vmovdqu	%ymm10, 160(%rdi)
+        vextracti128	$0x01, %ymm6, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 192(%rdi)
+        vextracti128	$0x01, %ymm7, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 224(%rdi)
+        vmovdqu64	64(%rsi), %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddb	%zmm5, %zmm4, %zmm4
+        vpsrlw	$2, %zmm4, %zmm5
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm5, %zmm5
+        vpaddb	%zmm1, %zmm4, %zmm4
+        vpsubb	%zmm5, %zmm4, %zmm4
+        vpsrlw	$4, %zmm4, %zmm5
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm5, %zmm5
+        vpsubb	%zmm2, %zmm4, %zmm4
+        vpsubb	%zmm2, %zmm5, %zmm5
+        vpunpcklbw	%ymm5, %ymm4, %ymm6
+        vpunpckhbw	%ymm5, %ymm4, %ymm7
+        vpmovsxbw	%xmm6, %ymm10
+        vmovdqu	%ymm10, 256(%rdi)
+        vpmovsxbw	%xmm7, %ymm10
+        vmovdqu	%ymm10, 288(%rdi)
+        vextracti128	$0x01, %ymm6, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 320(%rdi)
+        vextracti128	$0x01, %ymm7, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 352(%rdi)
+        vextracti64x4	$0x01, %zmm4, %ymm8
+        vextracti64x4	$0x01, %zmm5, %ymm9
+        vpunpcklbw	%ymm9, %ymm8, %ymm6
+        vpunpckhbw	%ymm9, %ymm8, %ymm7
+        vpmovsxbw	%xmm6, %ymm10
+        vmovdqu	%ymm10, 384(%rdi)
+        vpmovsxbw	%xmm7, %ymm10
+        vmovdqu	%ymm10, 416(%rdi)
+        vextracti128	$0x01, %ymm6, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 448(%rdi)
+        vextracti128	$0x01, %ymm7, %xmm11
+        vpmovsxbw	%xmm11, %ymm10
+        vmovdqu	%ymm10, 480(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_cbd_eta2_avx512,.-mlkem_cbd_eta2_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta3_avx512_m249:
+.quad	0x0024924900249249,0x0024924900249249
+.quad	0x0024924900249249,0x0024924900249249
+.quad	0x0024924900249249,0x0024924900249249
+.quad	0x0024924900249249,0x0024924900249249
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta3_avx512_m6db:
+.quad	0x006db6db006db6db,0x006db6db006db6db
+.quad	0x006db6db006db6db,0x006db6db006db6db
+.quad	0x006db6db006db6db,0x006db6db006db6db
+.quad	0x006db6db006db6db,0x006db6db006db6db
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta3_avx512_m07:
+.quad	0x0000000700000007,0x0000000700000007
+.quad	0x0000000700000007,0x0000000700000007
+.quad	0x0000000700000007,0x0000000700000007
+.quad	0x0000000700000007,0x0000000700000007
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta3_avx512_m70:
+.quad	0x0007000000070000,0x0007000000070000
+.quad	0x0007000000070000,0x0007000000070000
+.quad	0x0007000000070000,0x0007000000070000
+.quad	0x0007000000070000,0x0007000000070000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta3_avx512_m3:
+.quad	0x0003000300030003,0x0003000300030003
+.quad	0x0003000300030003,0x0003000300030003
+.quad	0x0003000300030003,0x0003000300030003
+.quad	0x0003000300030003,0x0003000300030003
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_cbd_eta3_avx512_shuff:
+.quad	0xff050403ff020100,0xff0b0a09ff080706
+.quad	0xff090807ff060504,0xff0f0e0dff0c0b0a
+.quad	0xff050403ff020100,0xff0b0a09ff080706
+.quad	0xff090807ff060504,0xff0f0e0dff0c0b0a
+#ifndef __APPLE__
+.text
+.globl	mlkem_cbd_eta3_avx512
+.type	mlkem_cbd_eta3_avx512,@function
+.align	16
+mlkem_cbd_eta3_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_cbd_eta3_avx512
+.p2align	4
+_mlkem_cbd_eta3_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_cbd_eta3_avx512_m249(%rip), %zmm0
+        vmovdqu64	L_mlkem_cbd_eta3_avx512_m6db(%rip), %zmm1
+        vmovdqu64	L_mlkem_cbd_eta3_avx512_m07(%rip), %zmm2
+        vmovdqu64	L_mlkem_cbd_eta3_avx512_m70(%rip), %zmm3
+        vmovdqu64	L_mlkem_cbd_eta3_avx512_m3(%rip), %zmm4
+        vmovdqu64	L_mlkem_cbd_eta3_avx512_shuff(%rip), %zmm5
+        vpermq	$0x94, (%rsi), %ymm6
+        vpermq	$0x94, 24(%rsi), %ymm10
+        vinserti64x4	$0x01, %ymm10, %zmm6, %zmm6
+        vpshufb	%zmm5, %zmm6, %zmm6
+        vpsrld	$0x01, %zmm6, %zmm7
+        vpsrld	$2, %zmm6, %zmm8
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpandq	%zmm0, %zmm7, %zmm7
+        vpandq	%zmm0, %zmm8, %zmm8
+        vpaddd	%zmm7, %zmm6, %zmm6
+        vpaddd	%zmm8, %zmm6, %zmm6
+        vpsrld	$3, %zmm6, %zmm7
+        vpaddd	%zmm1, %zmm6, %zmm6
+        vpsubd	%zmm7, %zmm6, %zmm6
+        vpslld	$10, %zmm6, %zmm7
+        vpsrld	$12, %zmm6, %zmm8
+        vpsrld	$2, %zmm6, %zmm9
+        vpandq	%zmm2, %zmm6, %zmm6
+        vpandq	%zmm3, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm8, %zmm8
+        vpandq	%zmm3, %zmm9, %zmm9
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm8, %zmm7
+        vpsubw	%zmm4, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm7, %zmm7
+        vpunpckldq	%ymm7, %ymm6, %ymm8
+        vpunpckhdq	%ymm7, %ymm6, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, (%rdi)
+        vmovdqu	%ymm13, 32(%rdi)
+        vextracti64x4	$0x01, %zmm6, %ymm10
+        vextracti64x4	$0x01, %zmm7, %ymm11
+        vpunpckldq	%ymm11, %ymm10, %ymm8
+        vpunpckhdq	%ymm11, %ymm10, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, 64(%rdi)
+        vmovdqu	%ymm13, 96(%rdi)
+        vpermq	$0x94, 48(%rsi), %ymm6
+        vpermq	$0x94, 72(%rsi), %ymm10
+        vinserti64x4	$0x01, %ymm10, %zmm6, %zmm6
+        vpshufb	%zmm5, %zmm6, %zmm6
+        vpsrld	$0x01, %zmm6, %zmm7
+        vpsrld	$2, %zmm6, %zmm8
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpandq	%zmm0, %zmm7, %zmm7
+        vpandq	%zmm0, %zmm8, %zmm8
+        vpaddd	%zmm7, %zmm6, %zmm6
+        vpaddd	%zmm8, %zmm6, %zmm6
+        vpsrld	$3, %zmm6, %zmm7
+        vpaddd	%zmm1, %zmm6, %zmm6
+        vpsubd	%zmm7, %zmm6, %zmm6
+        vpslld	$10, %zmm6, %zmm7
+        vpsrld	$12, %zmm6, %zmm8
+        vpsrld	$2, %zmm6, %zmm9
+        vpandq	%zmm2, %zmm6, %zmm6
+        vpandq	%zmm3, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm8, %zmm8
+        vpandq	%zmm3, %zmm9, %zmm9
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm8, %zmm7
+        vpsubw	%zmm4, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm7, %zmm7
+        vpunpckldq	%ymm7, %ymm6, %ymm8
+        vpunpckhdq	%ymm7, %ymm6, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, 128(%rdi)
+        vmovdqu	%ymm13, 160(%rdi)
+        vextracti64x4	$0x01, %zmm6, %ymm10
+        vextracti64x4	$0x01, %zmm7, %ymm11
+        vpunpckldq	%ymm11, %ymm10, %ymm8
+        vpunpckhdq	%ymm11, %ymm10, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, 192(%rdi)
+        vmovdqu	%ymm13, 224(%rdi)
+        vpermq	$0x94, 96(%rsi), %ymm6
+        vpermq	$0x94, 120(%rsi), %ymm10
+        vinserti64x4	$0x01, %ymm10, %zmm6, %zmm6
+        vpshufb	%zmm5, %zmm6, %zmm6
+        vpsrld	$0x01, %zmm6, %zmm7
+        vpsrld	$2, %zmm6, %zmm8
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpandq	%zmm0, %zmm7, %zmm7
+        vpandq	%zmm0, %zmm8, %zmm8
+        vpaddd	%zmm7, %zmm6, %zmm6
+        vpaddd	%zmm8, %zmm6, %zmm6
+        vpsrld	$3, %zmm6, %zmm7
+        vpaddd	%zmm1, %zmm6, %zmm6
+        vpsubd	%zmm7, %zmm6, %zmm6
+        vpslld	$10, %zmm6, %zmm7
+        vpsrld	$12, %zmm6, %zmm8
+        vpsrld	$2, %zmm6, %zmm9
+        vpandq	%zmm2, %zmm6, %zmm6
+        vpandq	%zmm3, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm8, %zmm8
+        vpandq	%zmm3, %zmm9, %zmm9
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm8, %zmm7
+        vpsubw	%zmm4, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm7, %zmm7
+        vpunpckldq	%ymm7, %ymm6, %ymm8
+        vpunpckhdq	%ymm7, %ymm6, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, 256(%rdi)
+        vmovdqu	%ymm13, 288(%rdi)
+        vextracti64x4	$0x01, %zmm6, %ymm10
+        vextracti64x4	$0x01, %zmm7, %ymm11
+        vpunpckldq	%ymm11, %ymm10, %ymm8
+        vpunpckhdq	%ymm11, %ymm10, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, 320(%rdi)
+        vmovdqu	%ymm13, 352(%rdi)
+        vpermq	$0x94, 144(%rsi), %ymm6
+        vpermq	$0x94, 168(%rsi), %ymm10
+        vinserti64x4	$0x01, %ymm10, %zmm6, %zmm6
+        vpshufb	%zmm5, %zmm6, %zmm6
+        vpsrld	$0x01, %zmm6, %zmm7
+        vpsrld	$2, %zmm6, %zmm8
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpandq	%zmm0, %zmm7, %zmm7
+        vpandq	%zmm0, %zmm8, %zmm8
+        vpaddd	%zmm7, %zmm6, %zmm6
+        vpaddd	%zmm8, %zmm6, %zmm6
+        vpsrld	$3, %zmm6, %zmm7
+        vpaddd	%zmm1, %zmm6, %zmm6
+        vpsubd	%zmm7, %zmm6, %zmm6
+        vpslld	$10, %zmm6, %zmm7
+        vpsrld	$12, %zmm6, %zmm8
+        vpsrld	$2, %zmm6, %zmm9
+        vpandq	%zmm2, %zmm6, %zmm6
+        vpandq	%zmm3, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm8, %zmm8
+        vpandq	%zmm3, %zmm9, %zmm9
+        vpaddw	%zmm7, %zmm6, %zmm6
+        vpaddw	%zmm9, %zmm8, %zmm7
+        vpsubw	%zmm4, %zmm6, %zmm6
+        vpsubw	%zmm4, %zmm7, %zmm7
+        vpunpckldq	%ymm7, %ymm6, %ymm8
+        vpunpckhdq	%ymm7, %ymm6, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, 384(%rdi)
+        vmovdqu	%ymm13, 416(%rdi)
+        vextracti64x4	$0x01, %zmm6, %ymm10
+        vextracti64x4	$0x01, %zmm7, %ymm11
+        vpunpckldq	%ymm11, %ymm10, %ymm8
+        vpunpckhdq	%ymm11, %ymm10, %ymm9
+        vperm2i128	$32, %ymm9, %ymm8, %ymm12
+        vperm2i128	$49, %ymm9, %ymm8, %ymm13
+        vmovdqu	%ymm12, 448(%rdi)
+        vmovdqu	%ymm13, 480(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_cbd_eta3_avx512,.-mlkem_cbd_eta3_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_avx512_perm:
+.long	0x00000000,0x00000001,0x00000002,0x00000000
+.long	0x00000003,0x00000004,0x00000005,0x00000000
+.long	0x00000006,0x00000007,0x00000008,0x00000000
+.long	0x00000009,0x0000000a,0x0000000b,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_avx512_shuf:
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_avx512_mask:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.text
+.globl	mlkem_rej_uniform_avx512
+.type	mlkem_rej_uniform_avx512,@function
+.align	16
+mlkem_rej_uniform_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_rej_uniform_avx512
+.p2align	4
+_mlkem_rej_uniform_avx512:
+#endif /* __APPLE__ */
+        pushq	%rbx
+        movl	%esi, %eax
+        movq	$0xd01, %r10
+        vmovd	%r10d, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        vmovdqu64	L_mlkem_rej_uniform_avx512_perm(%rip), %zmm1
+        vmovdqu64	L_mlkem_rej_uniform_avx512_shuf(%rip), %zmm2
+        vmovdqu64	L_mlkem_rej_uniform_avx512_mask(%rip), %zmm3
+L_mlkem_rej_uniform_avx512_fast:
+        cmpl	$32, %esi
+        jl	L_mlkem_rej_uniform_avx512_fast_end
+        cmpl	$0x40, %ecx
+        jl	L_mlkem_rej_uniform_avx512_fast_end
+        vpermd	(%rdx), %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vpcmpw	$0x01, %zmm0, %zmm4, %k1
+        vpcompressw	%zmm4, (%rdi){%k1}
+        kmovd	%k1, %ebx
+        popcntl	%ebx, %ebx
+        leaq	(%rdi,%rbx,2), %rdi
+        subl	%ebx, %esi
+        addq	$48, %rdx
+        subl	$48, %ecx
+        jmp	L_mlkem_rej_uniform_avx512_fast
+L_mlkem_rej_uniform_avx512_fast_end:
+L_mlkem_rej_uniform_avx512_tail:
+        cmpl	$0x00, %esi
+        je	L_mlkem_rej_uniform_avx512_tail_end
+        cmpl	$3, %ecx
+        jl	L_mlkem_rej_uniform_avx512_tail_end
+        movzwl	(%rdx), %r8d
+        andl	$0xfff, %r8d
+        movzwl	1(%rdx), %r9d
+        shrl	$4, %r9d
+        cmpl	$0xd01, %r8d
+        jge	L_mlkem_rej_uniform_avx512_skip0
+        movw	%r8w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_avx512_tail_end
+L_mlkem_rej_uniform_avx512_skip0:
+        cmpl	$0xd01, %r9d
+        jge	L_mlkem_rej_uniform_avx512_skip1
+        movw	%r9w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_avx512_tail_end
+L_mlkem_rej_uniform_avx512_skip1:
+        addq	$3, %rdx
+        subl	$3, %ecx
+        jmp	L_mlkem_rej_uniform_avx512_tail
+L_mlkem_rej_uniform_avx512_tail_end:
+        subl	%esi, %eax
+        vzeroupper
+        popq	%rbx
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_rej_uniform_avx512,.-mlkem_rej_uniform_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_n_avx512_perm:
+.long	0x00000000,0x00000001,0x00000002,0x00000000
+.long	0x00000003,0x00000004,0x00000005,0x00000000
+.long	0x00000006,0x00000007,0x00000008,0x00000000
+.long	0x00000009,0x0000000a,0x0000000b,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_n_avx512_shuf:
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_n_avx512_mask:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.text
+.globl	mlkem_rej_uniform_n_avx512
+.type	mlkem_rej_uniform_n_avx512,@function
+.align	16
+mlkem_rej_uniform_n_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_rej_uniform_n_avx512
+.p2align	4
+_mlkem_rej_uniform_n_avx512:
+#endif /* __APPLE__ */
+        pushq	%rbx
+        movl	%esi, %eax
+        movq	$0xd01, %r10
+        vmovd	%r10d, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        vmovdqu64	L_mlkem_rej_uniform_n_avx512_perm(%rip), %zmm1
+        vmovdqu64	L_mlkem_rej_uniform_n_avx512_shuf(%rip), %zmm2
+        vmovdqu64	L_mlkem_rej_uniform_n_avx512_mask(%rip), %zmm3
+L_mlkem_rej_uniform_n_avx512_fast:
+        cmpl	$32, %esi
+        jl	L_mlkem_rej_uniform_n_avx512_fast_end
+        cmpl	$0x40, %ecx
+        jl	L_mlkem_rej_uniform_n_avx512_fast_end
+        vpermd	(%rdx), %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vpcmpw	$0x01, %zmm0, %zmm4, %k1
+        vpcompressw	%zmm4, (%rdi){%k1}
+        kmovd	%k1, %ebx
+        popcntl	%ebx, %ebx
+        leaq	(%rdi,%rbx,2), %rdi
+        subl	%ebx, %esi
+        addq	$48, %rdx
+        subl	$48, %ecx
+        jmp	L_mlkem_rej_uniform_n_avx512_fast
+L_mlkem_rej_uniform_n_avx512_fast_end:
+L_mlkem_rej_uniform_n_avx512_tail:
+        cmpl	$0x00, %esi
+        je	L_mlkem_rej_uniform_n_avx512_tail_end
+        cmpl	$3, %ecx
+        jl	L_mlkem_rej_uniform_n_avx512_tail_end
+        movzwl	(%rdx), %r8d
+        andl	$0xfff, %r8d
+        movzwl	1(%rdx), %r9d
+        shrl	$4, %r9d
+        cmpl	$0xd01, %r8d
+        jge	L_mlkem_rej_uniform_n_avx512_skip0
+        movw	%r8w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_n_avx512_tail_end
+L_mlkem_rej_uniform_n_avx512_skip0:
+        cmpl	$0xd01, %r9d
+        jge	L_mlkem_rej_uniform_n_avx512_skip1
+        movw	%r9w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_n_avx512_tail_end
+L_mlkem_rej_uniform_n_avx512_skip1:
+        addq	$3, %rdx
+        subl	$3, %ecx
+        jmp	L_mlkem_rej_uniform_n_avx512_tail
+L_mlkem_rej_uniform_n_avx512_tail_end:
+        subl	%esi, %eax
+        vzeroupper
+        popq	%rbx
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_rej_uniform_n_avx512,.-mlkem_rej_uniform_n_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_8_rand_avx512_idx0:
+.quad	0x0000000000000000,0x0000000000000004
+.quad	0x0000000000000008,0x000000000000000c
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_8_rand_avx512_idx1:
+.quad	0x0000000000000001,0x0000000000000005
+.quad	0x0000000000000009,0x000000000000000d
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_8_rand_avx512_idx2:
+.quad	0x0000000000000002,0x0000000000000006
+.quad	0x000000000000000a,0x000000000000000e
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_8_rand_avx512_idx3:
+.quad	0x0000000000000003,0x0000000000000007
+.quad	0x000000000000000b,0x000000000000000f
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_8_rand_avx512
+.type	mlkem_redistribute_8_rand_avx512,@function
+.align	16
+mlkem_redistribute_8_rand_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_8_rand_avx512
+.p2align	4
+_mlkem_redistribute_8_rand_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rsi)
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rdx)
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rcx)
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%r8)
+        vmovdqu64	128(%rdi), %zmm0
+        vmovdqu64	192(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rsi)
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rdx)
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rcx)
+        vmovdqu64	L_mlkem_redistribute_8_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%r8)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_8_rand_avx512,.-mlkem_redistribute_8_rand_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_16_rand_avx512_idx0:
+.quad	0x0000000000000000,0x0000000000000004
+.quad	0x0000000000000008,0x000000000000000c
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_16_rand_avx512_idx1:
+.quad	0x0000000000000001,0x0000000000000005
+.quad	0x0000000000000009,0x000000000000000d
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_16_rand_avx512_idx2:
+.quad	0x0000000000000002,0x0000000000000006
+.quad	0x000000000000000a,0x000000000000000e
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_16_rand_avx512_idx3:
+.quad	0x0000000000000003,0x0000000000000007
+.quad	0x000000000000000b,0x000000000000000f
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_16_rand_avx512
+.type	mlkem_redistribute_16_rand_avx512,@function
+.align	16
+mlkem_redistribute_16_rand_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_16_rand_avx512
+.p2align	4
+_mlkem_redistribute_16_rand_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rsi)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rdx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rcx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%r8)
+        vmovdqu64	128(%rdi), %zmm0
+        vmovdqu64	192(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rsi)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rdx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rcx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%r8)
+        vmovdqu64	256(%rdi), %zmm0
+        vmovdqu64	320(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rsi)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rdx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rcx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%r8)
+        vmovdqu64	384(%rdi), %zmm0
+        vmovdqu64	448(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rsi)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rdx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rcx)
+        vmovdqu64	L_mlkem_redistribute_16_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%r8)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_16_rand_avx512,.-mlkem_redistribute_16_rand_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_17_rand_avx512_idx0:
+.quad	0x0000000000000000,0x0000000000000004
+.quad	0x0000000000000008,0x000000000000000c
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_17_rand_avx512_idx1:
+.quad	0x0000000000000001,0x0000000000000005
+.quad	0x0000000000000009,0x000000000000000d
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_17_rand_avx512_idx2:
+.quad	0x0000000000000002,0x0000000000000006
+.quad	0x000000000000000a,0x000000000000000e
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_17_rand_avx512_idx3:
+.quad	0x0000000000000003,0x0000000000000007
+.quad	0x000000000000000b,0x000000000000000f
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_17_rand_avx512
+.type	mlkem_redistribute_17_rand_avx512,@function
+.align	16
+mlkem_redistribute_17_rand_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_17_rand_avx512
+.p2align	4
+_mlkem_redistribute_17_rand_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rsi)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rdx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rcx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%r8)
+        vmovdqu64	128(%rdi), %zmm0
+        vmovdqu64	192(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rsi)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rdx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rcx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%r8)
+        vmovdqu64	256(%rdi), %zmm0
+        vmovdqu64	320(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rsi)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rdx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rcx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%r8)
+        vmovdqu64	384(%rdi), %zmm0
+        vmovdqu64	448(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rsi)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rdx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rcx)
+        vmovdqu64	L_mlkem_redistribute_17_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%r8)
+        movq	512(%rdi), %rax
+        movq	520(%rdi), %r9
+        movq	528(%rdi), %r10
+        movq	536(%rdi), %r11
+        movq	%rax, 128(%rsi)
+        movq	%r9, 128(%rdx)
+        movq	%r10, 128(%rcx)
+        movq	%r11, 128(%r8)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_17_rand_avx512,.-mlkem_redistribute_17_rand_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_21_rand_avx512_idx0:
+.quad	0x0000000000000000,0x0000000000000004
+.quad	0x0000000000000008,0x000000000000000c
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_21_rand_avx512_idx1:
+.quad	0x0000000000000001,0x0000000000000005
+.quad	0x0000000000000009,0x000000000000000d
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_21_rand_avx512_idx2:
+.quad	0x0000000000000002,0x0000000000000006
+.quad	0x000000000000000a,0x000000000000000e
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_redistribute_21_rand_avx512_idx3:
+.quad	0x0000000000000003,0x0000000000000007
+.quad	0x000000000000000b,0x000000000000000f
+.quad	0x0000000000000000,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_21_rand_avx512
+.type	mlkem_redistribute_21_rand_avx512,@function
+.align	16
+mlkem_redistribute_21_rand_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_21_rand_avx512
+.p2align	4
+_mlkem_redistribute_21_rand_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rsi)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rdx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%rcx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, (%r8)
+        vmovdqu64	128(%rdi), %zmm0
+        vmovdqu64	192(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rsi)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rdx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%rcx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 32(%r8)
+        vmovdqu64	256(%rdi), %zmm0
+        vmovdqu64	320(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rsi)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rdx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%rcx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 64(%r8)
+        vmovdqu64	384(%rdi), %zmm0
+        vmovdqu64	448(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rsi)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rdx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%rcx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 96(%r8)
+        vmovdqu64	512(%rdi), %zmm0
+        vmovdqu64	576(%rdi), %zmm1
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx0(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 128(%rsi)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx1(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 128(%rdx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx2(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 128(%rcx)
+        vmovdqu64	L_mlkem_redistribute_21_rand_avx512_idx3(%rip), %zmm2
+        vpermi2q	%zmm1, %zmm0, %zmm2
+        vmovdqu	%ymm2, 128(%r8)
+        movq	640(%rdi), %rax
+        movq	648(%rdi), %r9
+        movq	656(%rdi), %r10
+        movq	664(%rdi), %r11
+        movq	%rax, 160(%rsi)
+        movq	%r9, 160(%rdx)
+        movq	%r10, 160(%rcx)
+        movq	%r11, 160(%r8)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_21_rand_avx512,.-mlkem_redistribute_21_rand_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_8_rand_x8_avx512
+.type	mlkem_redistribute_8_rand_x8_avx512,@function
+.align	16
+mlkem_redistribute_8_rand_x8_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_8_rand_x8_avx512
+.p2align	4
+_mlkem_redistribute_8_rand_x8_avx512:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        movl	%edx, %r13d
+        movq	%rsi, %rax
+        addq	%r13, %rax
+        movq	%rax, %rcx
+        addq	%r13, %rcx
+        movq	%rcx, %r8
+        addq	%r13, %r8
+        movq	%r8, %r9
+        addq	%r13, %r9
+        movq	%r9, %r10
+        addq	%r13, %r10
+        movq	%r10, %r11
+        addq	%r13, %r11
+        movq	%r11, %r12
+        addq	%r13, %r12
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	256(%rdi), %zmm4
+        vmovdqu64	320(%rdi), %zmm5
+        vmovdqu64	384(%rdi), %zmm6
+        vmovdqu64	448(%rdi), %zmm7
+        vpunpcklqdq	%zmm1, %zmm0, %zmm8
+        vpunpckhqdq	%zmm1, %zmm0, %zmm9
+        vpunpcklqdq	%zmm3, %zmm2, %zmm10
+        vpunpckhqdq	%zmm3, %zmm2, %zmm11
+        vpunpcklqdq	%zmm5, %zmm4, %zmm12
+        vpunpckhqdq	%zmm5, %zmm4, %zmm13
+        vpunpcklqdq	%zmm7, %zmm6, %zmm14
+        vpunpckhqdq	%zmm7, %zmm6, %zmm15
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm16
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm17
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm18
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm19
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm20
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm21
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm22
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm23
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm0
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm4
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm1
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm5
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm2
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm6
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm3
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm7
+        vmovdqu64	%zmm0, (%rsi)
+        vmovdqu64	%zmm1, (%rax)
+        vmovdqu64	%zmm2, (%rcx)
+        vmovdqu64	%zmm3, (%r8)
+        vmovdqu64	%zmm4, (%r9)
+        vmovdqu64	%zmm5, (%r10)
+        vmovdqu64	%zmm6, (%r11)
+        vmovdqu64	%zmm7, (%r12)
+        vzeroupper
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_8_rand_x8_avx512,.-mlkem_redistribute_8_rand_x8_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_16_rand_x8_avx512
+.type	mlkem_redistribute_16_rand_x8_avx512,@function
+.align	16
+mlkem_redistribute_16_rand_x8_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_16_rand_x8_avx512
+.p2align	4
+_mlkem_redistribute_16_rand_x8_avx512:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        movl	%edx, %r13d
+        movq	%rsi, %rax
+        addq	%r13, %rax
+        movq	%rax, %rcx
+        addq	%r13, %rcx
+        movq	%rcx, %r8
+        addq	%r13, %r8
+        movq	%r8, %r9
+        addq	%r13, %r9
+        movq	%r9, %r10
+        addq	%r13, %r10
+        movq	%r10, %r11
+        addq	%r13, %r11
+        movq	%r11, %r12
+        addq	%r13, %r12
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	256(%rdi), %zmm4
+        vmovdqu64	320(%rdi), %zmm5
+        vmovdqu64	384(%rdi), %zmm6
+        vmovdqu64	448(%rdi), %zmm7
+        vpunpcklqdq	%zmm1, %zmm0, %zmm8
+        vpunpckhqdq	%zmm1, %zmm0, %zmm9
+        vpunpcklqdq	%zmm3, %zmm2, %zmm10
+        vpunpckhqdq	%zmm3, %zmm2, %zmm11
+        vpunpcklqdq	%zmm5, %zmm4, %zmm12
+        vpunpckhqdq	%zmm5, %zmm4, %zmm13
+        vpunpcklqdq	%zmm7, %zmm6, %zmm14
+        vpunpckhqdq	%zmm7, %zmm6, %zmm15
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm16
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm17
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm18
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm19
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm20
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm21
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm22
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm23
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm0
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm4
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm1
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm5
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm2
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm6
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm3
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm7
+        vmovdqu64	%zmm0, (%rsi)
+        vmovdqu64	%zmm1, (%rax)
+        vmovdqu64	%zmm2, (%rcx)
+        vmovdqu64	%zmm3, (%r8)
+        vmovdqu64	%zmm4, (%r9)
+        vmovdqu64	%zmm5, (%r10)
+        vmovdqu64	%zmm6, (%r11)
+        vmovdqu64	%zmm7, (%r12)
+        vmovdqu64	512(%rdi), %zmm0
+        vmovdqu64	576(%rdi), %zmm1
+        vmovdqu64	640(%rdi), %zmm2
+        vmovdqu64	704(%rdi), %zmm3
+        vmovdqu64	768(%rdi), %zmm4
+        vmovdqu64	832(%rdi), %zmm5
+        vmovdqu64	896(%rdi), %zmm6
+        vmovdqu64	960(%rdi), %zmm7
+        vpunpcklqdq	%zmm1, %zmm0, %zmm8
+        vpunpckhqdq	%zmm1, %zmm0, %zmm9
+        vpunpcklqdq	%zmm3, %zmm2, %zmm10
+        vpunpckhqdq	%zmm3, %zmm2, %zmm11
+        vpunpcklqdq	%zmm5, %zmm4, %zmm12
+        vpunpckhqdq	%zmm5, %zmm4, %zmm13
+        vpunpcklqdq	%zmm7, %zmm6, %zmm14
+        vpunpckhqdq	%zmm7, %zmm6, %zmm15
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm16
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm17
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm18
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm19
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm20
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm21
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm22
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm23
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm0
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm4
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm1
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm5
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm2
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm6
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm3
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm7
+        vmovdqu64	%zmm0, 64(%rsi)
+        vmovdqu64	%zmm1, 64(%rax)
+        vmovdqu64	%zmm2, 64(%rcx)
+        vmovdqu64	%zmm3, 64(%r8)
+        vmovdqu64	%zmm4, 64(%r9)
+        vmovdqu64	%zmm5, 64(%r10)
+        vmovdqu64	%zmm6, 64(%r11)
+        vmovdqu64	%zmm7, 64(%r12)
+        vzeroupper
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_16_rand_x8_avx512,.-mlkem_redistribute_16_rand_x8_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_17_rand_x8_avx512
+.type	mlkem_redistribute_17_rand_x8_avx512,@function
+.align	16
+mlkem_redistribute_17_rand_x8_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_17_rand_x8_avx512
+.p2align	4
+_mlkem_redistribute_17_rand_x8_avx512:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        movl	%edx, %r13d
+        movq	%rsi, %rax
+        addq	%r13, %rax
+        movq	%rax, %rcx
+        addq	%r13, %rcx
+        movq	%rcx, %r8
+        addq	%r13, %r8
+        movq	%r8, %r9
+        addq	%r13, %r9
+        movq	%r9, %r10
+        addq	%r13, %r10
+        movq	%r10, %r11
+        addq	%r13, %r11
+        movq	%r11, %r12
+        addq	%r13, %r12
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	256(%rdi), %zmm4
+        vmovdqu64	320(%rdi), %zmm5
+        vmovdqu64	384(%rdi), %zmm6
+        vmovdqu64	448(%rdi), %zmm7
+        vpunpcklqdq	%zmm1, %zmm0, %zmm8
+        vpunpckhqdq	%zmm1, %zmm0, %zmm9
+        vpunpcklqdq	%zmm3, %zmm2, %zmm10
+        vpunpckhqdq	%zmm3, %zmm2, %zmm11
+        vpunpcklqdq	%zmm5, %zmm4, %zmm12
+        vpunpckhqdq	%zmm5, %zmm4, %zmm13
+        vpunpcklqdq	%zmm7, %zmm6, %zmm14
+        vpunpckhqdq	%zmm7, %zmm6, %zmm15
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm16
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm17
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm18
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm19
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm20
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm21
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm22
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm23
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm0
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm4
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm1
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm5
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm2
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm6
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm3
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm7
+        vmovdqu64	%zmm0, (%rsi)
+        vmovdqu64	%zmm1, (%rax)
+        vmovdqu64	%zmm2, (%rcx)
+        vmovdqu64	%zmm3, (%r8)
+        vmovdqu64	%zmm4, (%r9)
+        vmovdqu64	%zmm5, (%r10)
+        vmovdqu64	%zmm6, (%r11)
+        vmovdqu64	%zmm7, (%r12)
+        vmovdqu64	512(%rdi), %zmm0
+        vmovdqu64	576(%rdi), %zmm1
+        vmovdqu64	640(%rdi), %zmm2
+        vmovdqu64	704(%rdi), %zmm3
+        vmovdqu64	768(%rdi), %zmm4
+        vmovdqu64	832(%rdi), %zmm5
+        vmovdqu64	896(%rdi), %zmm6
+        vmovdqu64	960(%rdi), %zmm7
+        vpunpcklqdq	%zmm1, %zmm0, %zmm8
+        vpunpckhqdq	%zmm1, %zmm0, %zmm9
+        vpunpcklqdq	%zmm3, %zmm2, %zmm10
+        vpunpckhqdq	%zmm3, %zmm2, %zmm11
+        vpunpcklqdq	%zmm5, %zmm4, %zmm12
+        vpunpckhqdq	%zmm5, %zmm4, %zmm13
+        vpunpcklqdq	%zmm7, %zmm6, %zmm14
+        vpunpckhqdq	%zmm7, %zmm6, %zmm15
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm16
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm17
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm18
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm19
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm20
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm21
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm22
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm23
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm0
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm4
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm1
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm5
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm2
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm6
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm3
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm7
+        vmovdqu64	%zmm0, 64(%rsi)
+        vmovdqu64	%zmm1, 64(%rax)
+        vmovdqu64	%zmm2, 64(%rcx)
+        vmovdqu64	%zmm3, 64(%r8)
+        vmovdqu64	%zmm4, 64(%r9)
+        vmovdqu64	%zmm5, 64(%r10)
+        vmovdqu64	%zmm6, 64(%r11)
+        vmovdqu64	%zmm7, 64(%r12)
+        movq	1024(%rdi), %r14
+        movq	%r14, 128(%rsi)
+        movq	1032(%rdi), %r14
+        movq	%r14, 128(%rax)
+        movq	1040(%rdi), %r14
+        movq	%r14, 128(%rcx)
+        movq	1048(%rdi), %r14
+        movq	%r14, 128(%r8)
+        movq	1056(%rdi), %r14
+        movq	%r14, 128(%r9)
+        movq	1064(%rdi), %r14
+        movq	%r14, 128(%r10)
+        movq	1072(%rdi), %r14
+        movq	%r14, 128(%r11)
+        movq	1080(%rdi), %r14
+        movq	%r14, 128(%r12)
+        vzeroupper
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_17_rand_x8_avx512,.-mlkem_redistribute_17_rand_x8_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_redistribute_21_rand_x8_avx512
+.type	mlkem_redistribute_21_rand_x8_avx512,@function
+.align	16
+mlkem_redistribute_21_rand_x8_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_redistribute_21_rand_x8_avx512
+.p2align	4
+_mlkem_redistribute_21_rand_x8_avx512:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        movl	%edx, %r13d
+        movq	%rsi, %rax
+        addq	%r13, %rax
+        movq	%rax, %rcx
+        addq	%r13, %rcx
+        movq	%rcx, %r8
+        addq	%r13, %r8
+        movq	%r8, %r9
+        addq	%r13, %r9
+        movq	%r9, %r10
+        addq	%r13, %r10
+        movq	%r10, %r11
+        addq	%r13, %r11
+        movq	%r11, %r12
+        addq	%r13, %r12
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	256(%rdi), %zmm4
+        vmovdqu64	320(%rdi), %zmm5
+        vmovdqu64	384(%rdi), %zmm6
+        vmovdqu64	448(%rdi), %zmm7
+        vpunpcklqdq	%zmm1, %zmm0, %zmm8
+        vpunpckhqdq	%zmm1, %zmm0, %zmm9
+        vpunpcklqdq	%zmm3, %zmm2, %zmm10
+        vpunpckhqdq	%zmm3, %zmm2, %zmm11
+        vpunpcklqdq	%zmm5, %zmm4, %zmm12
+        vpunpckhqdq	%zmm5, %zmm4, %zmm13
+        vpunpcklqdq	%zmm7, %zmm6, %zmm14
+        vpunpckhqdq	%zmm7, %zmm6, %zmm15
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm16
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm17
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm18
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm19
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm20
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm21
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm22
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm23
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm0
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm4
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm1
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm5
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm2
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm6
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm3
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm7
+        vmovdqu64	%zmm0, (%rsi)
+        vmovdqu64	%zmm1, (%rax)
+        vmovdqu64	%zmm2, (%rcx)
+        vmovdqu64	%zmm3, (%r8)
+        vmovdqu64	%zmm4, (%r9)
+        vmovdqu64	%zmm5, (%r10)
+        vmovdqu64	%zmm6, (%r11)
+        vmovdqu64	%zmm7, (%r12)
+        vmovdqu64	512(%rdi), %zmm0
+        vmovdqu64	576(%rdi), %zmm1
+        vmovdqu64	640(%rdi), %zmm2
+        vmovdqu64	704(%rdi), %zmm3
+        vmovdqu64	768(%rdi), %zmm4
+        vmovdqu64	832(%rdi), %zmm5
+        vmovdqu64	896(%rdi), %zmm6
+        vmovdqu64	960(%rdi), %zmm7
+        vpunpcklqdq	%zmm1, %zmm0, %zmm8
+        vpunpckhqdq	%zmm1, %zmm0, %zmm9
+        vpunpcklqdq	%zmm3, %zmm2, %zmm10
+        vpunpckhqdq	%zmm3, %zmm2, %zmm11
+        vpunpcklqdq	%zmm5, %zmm4, %zmm12
+        vpunpckhqdq	%zmm5, %zmm4, %zmm13
+        vpunpcklqdq	%zmm7, %zmm6, %zmm14
+        vpunpckhqdq	%zmm7, %zmm6, %zmm15
+        vshufi64x2	$0x88, %zmm10, %zmm8, %zmm16
+        vshufi64x2	$0x88, %zmm11, %zmm9, %zmm17
+        vshufi64x2	$0xdd, %zmm10, %zmm8, %zmm18
+        vshufi64x2	$0xdd, %zmm11, %zmm9, %zmm19
+        vshufi64x2	$0x88, %zmm14, %zmm12, %zmm20
+        vshufi64x2	$0x88, %zmm15, %zmm13, %zmm21
+        vshufi64x2	$0xdd, %zmm14, %zmm12, %zmm22
+        vshufi64x2	$0xdd, %zmm15, %zmm13, %zmm23
+        vshufi64x2	$0x88, %zmm20, %zmm16, %zmm0
+        vshufi64x2	$0xdd, %zmm20, %zmm16, %zmm4
+        vshufi64x2	$0x88, %zmm21, %zmm17, %zmm1
+        vshufi64x2	$0xdd, %zmm21, %zmm17, %zmm5
+        vshufi64x2	$0x88, %zmm22, %zmm18, %zmm2
+        vshufi64x2	$0xdd, %zmm22, %zmm18, %zmm6
+        vshufi64x2	$0x88, %zmm23, %zmm19, %zmm3
+        vshufi64x2	$0xdd, %zmm23, %zmm19, %zmm7
+        vmovdqu64	%zmm0, 64(%rsi)
+        vmovdqu64	%zmm1, 64(%rax)
+        vmovdqu64	%zmm2, 64(%rcx)
+        vmovdqu64	%zmm3, 64(%r8)
+        vmovdqu64	%zmm4, 64(%r9)
+        vmovdqu64	%zmm5, 64(%r10)
+        vmovdqu64	%zmm6, 64(%r11)
+        vmovdqu64	%zmm7, 64(%r12)
+        movq	1024(%rdi), %r14
+        movq	%r14, 128(%rsi)
+        movq	1032(%rdi), %r14
+        movq	%r14, 128(%rax)
+        movq	1040(%rdi), %r14
+        movq	%r14, 128(%rcx)
+        movq	1048(%rdi), %r14
+        movq	%r14, 128(%r8)
+        movq	1056(%rdi), %r14
+        movq	%r14, 128(%r9)
+        movq	1064(%rdi), %r14
+        movq	%r14, 128(%r10)
+        movq	1072(%rdi), %r14
+        movq	%r14, 128(%r11)
+        movq	1080(%rdi), %r14
+        movq	%r14, 128(%r12)
+        movq	1088(%rdi), %r14
+        movq	%r14, 136(%rsi)
+        movq	1096(%rdi), %r14
+        movq	%r14, 136(%rax)
+        movq	1104(%rdi), %r14
+        movq	%r14, 136(%rcx)
+        movq	1112(%rdi), %r14
+        movq	%r14, 136(%r8)
+        movq	1120(%rdi), %r14
+        movq	%r14, 136(%r9)
+        movq	1128(%rdi), %r14
+        movq	%r14, 136(%r10)
+        movq	1136(%rdi), %r14
+        movq	%r14, 136(%r11)
+        movq	1144(%rdi), %r14
+        movq	%r14, 136(%r12)
+        movq	1152(%rdi), %r14
+        movq	%r14, 144(%rsi)
+        movq	1160(%rdi), %r14
+        movq	%r14, 144(%rax)
+        movq	1168(%rdi), %r14
+        movq	%r14, 144(%rcx)
+        movq	1176(%rdi), %r14
+        movq	%r14, 144(%r8)
+        movq	1184(%rdi), %r14
+        movq	%r14, 144(%r9)
+        movq	1192(%rdi), %r14
+        movq	%r14, 144(%r10)
+        movq	1200(%rdi), %r14
+        movq	%r14, 144(%r11)
+        movq	1208(%rdi), %r14
+        movq	%r14, 144(%r12)
+        movq	1216(%rdi), %r14
+        movq	%r14, 152(%rsi)
+        movq	1224(%rdi), %r14
+        movq	%r14, 152(%rax)
+        movq	1232(%rdi), %r14
+        movq	%r14, 152(%rcx)
+        movq	1240(%rdi), %r14
+        movq	%r14, 152(%r8)
+        movq	1248(%rdi), %r14
+        movq	%r14, 152(%r9)
+        movq	1256(%rdi), %r14
+        movq	%r14, 152(%r10)
+        movq	1264(%rdi), %r14
+        movq	%r14, 152(%r11)
+        movq	1272(%rdi), %r14
+        movq	%r14, 152(%r12)
+        movq	1280(%rdi), %r14
+        movq	%r14, 160(%rsi)
+        movq	1288(%rdi), %r14
+        movq	%r14, 160(%rax)
+        movq	1296(%rdi), %r14
+        movq	%r14, 160(%rcx)
+        movq	1304(%rdi), %r14
+        movq	%r14, 160(%r8)
+        movq	1312(%rdi), %r14
+        movq	%r14, 160(%r9)
+        movq	1320(%rdi), %r14
+        movq	%r14, 160(%r10)
+        movq	1328(%rdi), %r14
+        movq	%r14, 160(%r11)
+        movq	1336(%rdi), %r14
+        movq	%r14, 160(%r12)
+        vzeroupper
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_redistribute_21_rand_x8_avx512,.-mlkem_redistribute_21_rand_x8_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_csubq_avx512
+.type	mlkem_csubq_avx512,@function
+.align	16
+mlkem_csubq_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_csubq_avx512
+.p2align	4
+_mlkem_csubq_avx512:
+#endif /* __APPLE__ */
+        movq	$0xd01, %rdx
+        vmovd	%edx, %xmm12
+        vpbroadcastw	%xmm12, %zmm12
+        vmovdqu64	(%rdi), %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vmovdqu64	128(%rdi), %zmm2
+        vmovdqu64	192(%rdi), %zmm3
+        vmovdqu64	256(%rdi), %zmm4
+        vmovdqu64	320(%rdi), %zmm5
+        vmovdqu64	384(%rdi), %zmm6
+        vmovdqu64	448(%rdi), %zmm7
+        vpsubw	%zmm12, %zmm0, %zmm8
+        vpsubw	%zmm12, %zmm1, %zmm9
+        vpsubw	%zmm12, %zmm2, %zmm10
+        vpsubw	%zmm12, %zmm3, %zmm11
+        vpsraw	$15, %zmm8, %zmm0
+        vpsraw	$15, %zmm9, %zmm1
+        vpsraw	$15, %zmm10, %zmm2
+        vpsraw	$15, %zmm11, %zmm3
+        vpandq	%zmm12, %zmm0, %zmm0
+        vpandq	%zmm12, %zmm1, %zmm1
+        vpandq	%zmm12, %zmm2, %zmm2
+        vpandq	%zmm12, %zmm3, %zmm3
+        vpaddw	%zmm8, %zmm0, %zmm0
+        vpaddw	%zmm9, %zmm1, %zmm1
+        vpaddw	%zmm10, %zmm2, %zmm2
+        vpaddw	%zmm11, %zmm3, %zmm3
+        vpsubw	%zmm12, %zmm4, %zmm8
+        vpsubw	%zmm12, %zmm5, %zmm9
+        vpsubw	%zmm12, %zmm6, %zmm10
+        vpsubw	%zmm12, %zmm7, %zmm11
+        vpsraw	$15, %zmm8, %zmm4
+        vpsraw	$15, %zmm9, %zmm5
+        vpsraw	$15, %zmm10, %zmm6
+        vpsraw	$15, %zmm11, %zmm7
+        vpandq	%zmm12, %zmm4, %zmm4
+        vpandq	%zmm12, %zmm5, %zmm5
+        vpandq	%zmm12, %zmm6, %zmm6
+        vpandq	%zmm12, %zmm7, %zmm7
+        vpaddw	%zmm8, %zmm4, %zmm4
+        vpaddw	%zmm9, %zmm5, %zmm5
+        vpaddw	%zmm10, %zmm6, %zmm6
+        vpaddw	%zmm11, %zmm7, %zmm7
+        vmovdqu64	%zmm0, (%rdi)
+        vmovdqu64	%zmm1, 64(%rdi)
+        vmovdqu64	%zmm2, 128(%rdi)
+        vmovdqu64	%zmm3, 192(%rdi)
+        vmovdqu64	%zmm4, 256(%rdi)
+        vmovdqu64	%zmm5, 320(%rdi)
+        vmovdqu64	%zmm6, 384(%rdi)
+        vmovdqu64	%zmm7, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_csubq_avx512,.-mlkem_csubq_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_cmp_avx512
+.type	mlkem_cmp_avx512,@function
+.align	16
+mlkem_cmp_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_cmp_avx512
+.p2align	4
+_mlkem_cmp_avx512:
+#endif /* __APPLE__ */
+        vpxorq	%zmm0, %zmm0, %zmm0
+        vpxor	%ymm2, %ymm2, %ymm2
+        movl	$0x00, %ecx
+        movl	$-1, %r8d
+        vmovdqu64	(%rdi), %zmm1
+        vpternlogd	$0xf6, (%rsi), %zmm1, %zmm0
+        vmovdqu64	64(%rdi), %zmm1
+        vpternlogd	$0xf6, 64(%rsi), %zmm1, %zmm0
+        vmovdqu64	128(%rdi), %zmm1
+        vpternlogd	$0xf6, 128(%rsi), %zmm1, %zmm0
+        vmovdqu64	192(%rdi), %zmm1
+        vpternlogd	$0xf6, 192(%rsi), %zmm1, %zmm0
+        vmovdqu64	256(%rdi), %zmm1
+        vpternlogd	$0xf6, 256(%rsi), %zmm1, %zmm0
+        vmovdqu64	320(%rdi), %zmm1
+        vpternlogd	$0xf6, 320(%rsi), %zmm1, %zmm0
+        vmovdqu64	384(%rdi), %zmm1
+        vpternlogd	$0xf6, 384(%rsi), %zmm1, %zmm0
+        vmovdqu64	448(%rdi), %zmm1
+        vpternlogd	$0xf6, 448(%rsi), %zmm1, %zmm0
+        vmovdqu64	512(%rdi), %zmm1
+        vpternlogd	$0xf6, 512(%rsi), %zmm1, %zmm0
+        vmovdqu64	576(%rdi), %zmm1
+        vpternlogd	$0xf6, 576(%rsi), %zmm1, %zmm0
+        vmovdqu64	640(%rdi), %zmm1
+        vpternlogd	$0xf6, 640(%rsi), %zmm1, %zmm0
+        vmovdqu64	704(%rdi), %zmm1
+        vpternlogd	$0xf6, 704(%rsi), %zmm1, %zmm0
+        subl	$0x300, %edx
+        jz	L_mlkem_cmp_avx512_done
+        vmovdqu64	768(%rdi), %zmm1
+        vpternlogd	$0xf6, 768(%rsi), %zmm1, %zmm0
+        vmovdqu64	832(%rdi), %zmm1
+        vpternlogd	$0xf6, 832(%rsi), %zmm1, %zmm0
+        vmovdqu64	896(%rdi), %zmm1
+        vpternlogd	$0xf6, 896(%rsi), %zmm1, %zmm0
+        vmovdqu64	960(%rdi), %zmm1
+        vpternlogd	$0xf6, 960(%rsi), %zmm1, %zmm0
+        vmovdqu64	1024(%rdi), %zmm1
+        vpternlogd	$0xf6, 1024(%rsi), %zmm1, %zmm0
+        subl	$0x140, %edx
+        jz	L_mlkem_cmp_avx512_done
+        vmovdqu64	1088(%rdi), %zmm1
+        vpternlogd	$0xf6, 1088(%rsi), %zmm1, %zmm0
+        vmovdqu64	1152(%rdi), %zmm1
+        vpternlogd	$0xf6, 1152(%rsi), %zmm1, %zmm0
+        vmovdqu64	1216(%rdi), %zmm1
+        vpternlogd	$0xf6, 1216(%rsi), %zmm1, %zmm0
+        vmovdqu64	1280(%rdi), %zmm1
+        vpternlogd	$0xf6, 1280(%rsi), %zmm1, %zmm0
+        vmovdqu64	1344(%rdi), %zmm1
+        vpternlogd	$0xf6, 1344(%rsi), %zmm1, %zmm0
+        vmovdqu64	1408(%rdi), %zmm1
+        vpternlogd	$0xf6, 1408(%rsi), %zmm1, %zmm0
+        vmovdqu64	1472(%rdi), %zmm1
+        vpternlogd	$0xf6, 1472(%rsi), %zmm1, %zmm0
+        vmovdqu	1536(%rdi), %ymm2
+        vpxor	1536(%rsi), %ymm2, %ymm2
+L_mlkem_cmp_avx512_done:
+        vextracti64x4	$0x01, %zmm0, %ymm3
+        vpor	%ymm3, %ymm0, %ymm0
+        vpor	%ymm2, %ymm0, %ymm0
+        vptest	%ymm0, %ymm0
+        cmovzl	%ecx, %eax
+        cmovnzl	%r8d, %eax
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_cmp_avx512,.-mlkem_cmp_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_perm_lo:
+.long	0x00000000,0x00000001,0x00000002,0x00000000
+.long	0x00000003,0x00000004,0x00000005,0x00000000
+.long	0x00000006,0x00000007,0x00000008,0x00000000
+.long	0x00000009,0x0000000a,0x0000000b,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_perm_hi:
+.long	0x00000004,0x00000005,0x00000006,0x00000000
+.long	0x00000007,0x00000008,0x00000009,0x00000000
+.long	0x0000000a,0x0000000b,0x0000000c,0x00000000
+.long	0x0000000d,0x0000000e,0x0000000f,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_shuf:
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+.byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
+.byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_mask:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.text
+.globl	mlkem_from_bytes_avx512
+.type	mlkem_from_bytes_avx512,@function
+.align	16
+mlkem_from_bytes_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_from_bytes_avx512
+.p2align	4
+_mlkem_from_bytes_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_from_bytes_avx512_perm_lo(%rip), %zmm0
+        vmovdqu64	L_mlkem_from_bytes_avx512_perm_hi(%rip), %zmm1
+        vmovdqu64	L_mlkem_from_bytes_avx512_shuf(%rip), %zmm2
+        vmovdqu64	L_mlkem_from_bytes_avx512_mask(%rip), %zmm3
+        vpermd	(%rsi), %zmm0, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, (%rdi)
+        vpermd	48(%rsi), %zmm0, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, 64(%rdi)
+        vpermd	96(%rsi), %zmm0, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, 128(%rdi)
+        vpermd	144(%rsi), %zmm0, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, 192(%rdi)
+        vpermd	192(%rsi), %zmm0, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vpermd	240(%rsi), %zmm0, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, 320(%rdi)
+        vpermd	288(%rsi), %zmm0, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, 384(%rdi)
+        vpermd	320(%rsi), %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpandnq	%zmm4, %zmm3, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm3, %zmm4
+        vmovdqu64	%zmm4, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_from_bytes_avx512,.-mlkem_from_bytes_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_to_bytes_avx512_mask:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_to_bytes_avx512_shuf:
+.byte	0x00,0x01,0x02,0x04,0x05,0x06,0x08,0x09
+.byte	0x0a,0x0c,0x0d,0x0e,0xff,0xff,0xff,0xff
+.byte	0x00,0x01,0x02,0x04,0x05,0x06,0x08,0x09
+.byte	0x0a,0x0c,0x0d,0x0e,0xff,0xff,0xff,0xff
+.byte	0x00,0x01,0x02,0x04,0x05,0x06,0x08,0x09
+.byte	0x0a,0x0c,0x0d,0x0e,0xff,0xff,0xff,0xff
+.byte	0x00,0x01,0x02,0x04,0x05,0x06,0x08,0x09
+.byte	0x0a,0x0c,0x0d,0x0e,0xff,0xff,0xff,0xff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_to_bytes_avx512_perm:
+.long	0x00000000,0x00000001,0x00000002,0x00000004
+.long	0x00000005,0x00000006,0x00000008,0x00000009
+.long	0x0000000a,0x0000000c,0x0000000d,0x0000000e
+.long	0x00000000,0x00000000,0x00000000,0x00000000
+#ifndef __APPLE__
+.text
+.globl	mlkem_to_bytes_avx512
+.type	mlkem_to_bytes_avx512,@function
+.align	16
+mlkem_to_bytes_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_to_bytes_avx512
+.p2align	4
+_mlkem_to_bytes_avx512:
+#endif /* __APPLE__ */
+        movq	$0xd01, %rdx
+        vmovd	%edx, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        vmovdqu64	L_mlkem_to_bytes_avx512_mask(%rip), %zmm1
+        vmovdqu64	L_mlkem_to_bytes_avx512_shuf(%rip), %zmm2
+        vmovdqu64	L_mlkem_to_bytes_avx512_perm(%rip), %zmm3
+        vmovdqu64	(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu64	%zmm7, (%rdi)
+        vmovdqu64	64(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu64	%zmm7, 48(%rdi)
+        vmovdqu64	128(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu64	%zmm7, 96(%rdi)
+        vmovdqu64	192(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu64	%zmm7, 144(%rdi)
+        vmovdqu64	256(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu64	%zmm7, 192(%rdi)
+        vmovdqu64	320(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu64	%zmm7, 240(%rdi)
+        vmovdqu64	384(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu64	%zmm7, 288(%rdi)
+        vmovdqu64	448(%rsi), %zmm4
+        vpsubw	%zmm0, %zmm4, %zmm5
+        vpsraw	$15, %zmm5, %zmm6
+        vpandq	%zmm0, %zmm6, %zmm6
+        vpaddw	%zmm5, %zmm6, %zmm4
+        vpsrld	$16, %zmm4, %zmm5
+        vpslld	$12, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm1, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpermd	%zmm4, %zmm3, %zmm7
+        vmovdqu	%ymm7, 336(%rdi)
+        vextracti32x4	$2, %zmm7, %xmm5
+        vmovdqu	%xmm5, 368(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_to_bytes_avx512,.-mlkem_to_bytes_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_msg_avx512_shuf:
+.byte	0x00,0x80,0x00,0x80,0x00,0x80,0x00,0x80
+.byte	0x00,0x80,0x00,0x80,0x00,0x80,0x00,0x80
+.byte	0x01,0x80,0x01,0x80,0x01,0x80,0x01,0x80
+.byte	0x01,0x80,0x01,0x80,0x01,0x80,0x01,0x80
+.byte	0x02,0x80,0x02,0x80,0x02,0x80,0x02,0x80
+.byte	0x02,0x80,0x02,0x80,0x02,0x80,0x02,0x80
+.byte	0x03,0x80,0x03,0x80,0x03,0x80,0x03,0x80
+.byte	0x03,0x80,0x03,0x80,0x03,0x80,0x03,0x80
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_msg_avx512_pow:
+.short	0x8000,0x4000,0x2000,0x1000,0x0800,0x0400,0x0200,0x0100
+.short	0x8000,0x4000,0x2000,0x1000,0x0800,0x0400,0x0200,0x0100
+.short	0x8000,0x4000,0x2000,0x1000,0x0800,0x0400,0x0200,0x0100
+.short	0x8000,0x4000,0x2000,0x1000,0x0800,0x0400,0x0200,0x0100
+#ifndef __APPLE__
+.text
+.globl	mlkem_from_msg_avx512
+.type	mlkem_from_msg_avx512,@function
+.align	16
+mlkem_from_msg_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_from_msg_avx512
+.p2align	4
+_mlkem_from_msg_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_from_msg_avx512_shuf(%rip), %zmm0
+        vmovdqu64	L_mlkem_from_msg_avx512_pow(%rip), %zmm1
+        movq	$0x681, %rdx
+        vmovd	%edx, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        vpbroadcastd	(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, (%rdi)
+        vpbroadcastd	4(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 64(%rdi)
+        vpbroadcastd	8(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 128(%rdi)
+        vpbroadcastd	12(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 192(%rdi)
+        vpbroadcastd	16(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 256(%rdi)
+        vpbroadcastd	20(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 320(%rdi)
+        vpbroadcastd	24(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 384(%rdi)
+        vpbroadcastd	28(%rsi), %zmm3
+        vpshufb	%zmm0, %zmm3, %zmm3
+        vpmullw	%zmm1, %zmm3, %zmm3
+        vpsraw	$15, %zmm3, %zmm3
+        vpandq	%zmm2, %zmm3, %zmm3
+        vmovdqu64	%zmm3, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_from_msg_avx512,.-mlkem_from_msg_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_to_msg_avx512
+.type	mlkem_to_msg_avx512,@function
+.align	16
+mlkem_to_msg_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_to_msg_avx512
+.p2align	4
+_mlkem_to_msg_avx512:
+#endif /* __APPLE__ */
+        movq	$0x680, %rdx
+        vmovd	%edx, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        movq	$0xfcc1, %rax
+        vmovd	%eax, %xmm1
+        vpbroadcastw	%xmm1, %zmm1
+        vpsubw	(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, (%rdi)
+        vpsubw	64(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, 4(%rdi)
+        vpsubw	128(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, 8(%rdi)
+        vpsubw	192(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, 12(%rdi)
+        vpsubw	256(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, 16(%rdi)
+        vpsubw	320(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, 20(%rdi)
+        vpsubw	384(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, 24(%rdi)
+        vpsubw	448(%rsi), %zmm0, %zmm2
+        vpsraw	$15, %zmm2, %zmm3
+        vpxord	%zmm3, %zmm2, %zmm2
+        vpaddw	%zmm1, %zmm2, %zmm2
+        vextracti64x4	$0x01, %zmm2, %ymm4
+        vpacksswb	%ymm4, %ymm2, %ymm2
+        vpermq	$0xd8, %ymm2, %ymm2
+        vpmovmskb	%ymm2, %ecx
+        movl	%ecx, 28(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_to_msg_avx512,.-mlkem_to_msg_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_4_avx512_shuf:
+.byte	0x00,0x04,0x08,0x0c,0x80,0x80,0x80,0x80
+.byte	0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80
+.byte	0x00,0x04,0x08,0x0c,0x80,0x80,0x80,0x80
+.byte	0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80
+.byte	0x00,0x04,0x08,0x0c,0x80,0x80,0x80,0x80
+.byte	0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80
+.byte	0x00,0x04,0x08,0x0c,0x80,0x80,0x80,0x80
+.byte	0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_4_avx512_perm:
+.long	0x00000000,0x00000004,0x00000008,0x0000000c
+.long	0x00000000,0x00000000,0x00000000,0x00000000
+.long	0x00000000,0x00000000,0x00000000,0x00000000
+.long	0x00000000,0x00000000,0x00000000,0x00000000
+#ifndef __APPLE__
+.text
+.globl	mlkem_compress_4_avx512
+.type	mlkem_compress_4_avx512,@function
+.align	16
+mlkem_compress_4_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_compress_4_avx512
+.p2align	4
+_mlkem_compress_4_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_compress_4_avx512_shuf(%rip), %zmm0
+        vmovdqu64	L_mlkem_compress_4_avx512_perm(%rip), %zmm1
+        movq	$0x4ebf, %rdx
+        vmovd	%edx, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        movq	$0x200, %rdx
+        vmovd	%edx, %xmm3
+        vpbroadcastw	%xmm3, %zmm3
+        movq	$15, %rdx
+        vmovd	%edx, %xmm4
+        vpbroadcastw	%xmm4, %zmm4
+        vpmulhw	(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, (%rdi)
+        vpmulhw	64(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, 16(%rdi)
+        vpmulhw	128(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, 32(%rdi)
+        vpmulhw	192(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, 48(%rdi)
+        vpmulhw	256(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, 64(%rdi)
+        vpmulhw	320(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, 80(%rdi)
+        vpmulhw	384(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, 96(%rdi)
+        vpmulhw	448(%rsi), %zmm2, %zmm5
+        vpmulhrsw	%zmm3, %zmm5, %zmm5
+        vpandq	%zmm4, %zmm5, %zmm5
+        vpsrld	$12, %zmm5, %zmm6
+        vpord	%zmm6, %zmm5, %zmm5
+        vpshufb	%zmm0, %zmm5, %zmm5
+        vpermd	%zmm5, %zmm1, %zmm5
+        vmovdqu	%xmm5, 112(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_compress_4_avx512,.-mlkem_compress_4_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_4_avx512_shuf:
+.byte	0x00,0x00,0x00,0x00,0x01,0x01,0x01,0x01
+.byte	0x02,0x02,0x02,0x02,0x03,0x03,0x03,0x03
+.byte	0x04,0x04,0x04,0x04,0x05,0x05,0x05,0x05
+.byte	0x06,0x06,0x06,0x06,0x07,0x07,0x07,0x07
+.byte	0x08,0x08,0x08,0x08,0x09,0x09,0x09,0x09
+.byte	0x0a,0x0a,0x0a,0x0a,0x0b,0x0b,0x0b,0x0b
+.byte	0x0c,0x0c,0x0c,0x0c,0x0d,0x0d,0x0d,0x0d
+.byte	0x0e,0x0e,0x0e,0x0e,0x0f,0x0f,0x0f,0x0f
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_4_avx512_mask:
+.long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
+.long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
+.long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
+.long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_4_avx512_shift:
+.long	0x00800800,0x00800800,0x00800800,0x00800800
+.long	0x00800800,0x00800800,0x00800800,0x00800800
+.long	0x00800800,0x00800800,0x00800800,0x00800800
+.long	0x00800800,0x00800800,0x00800800,0x00800800
+#ifndef __APPLE__
+.text
+.globl	mlkem_decompress_4_avx512
+.type	mlkem_decompress_4_avx512,@function
+.align	16
+mlkem_decompress_4_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_decompress_4_avx512
+.p2align	4
+_mlkem_decompress_4_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_decompress_4_avx512_shuf(%rip), %zmm0
+        vmovdqu64	L_mlkem_decompress_4_avx512_mask(%rip), %zmm1
+        vmovdqu64	L_mlkem_decompress_4_avx512_shift(%rip), %zmm2
+        movq	$0xd01, %rdx
+        vmovd	%edx, %xmm3
+        vpbroadcastw	%xmm3, %zmm3
+        vbroadcasti32x4	(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, (%rdi)
+        vbroadcasti32x4	16(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 64(%rdi)
+        vbroadcasti32x4	32(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 128(%rdi)
+        vbroadcasti32x4	48(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 192(%rdi)
+        vbroadcasti32x4	64(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vbroadcasti32x4	80(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 320(%rdi)
+        vbroadcasti32x4	96(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 384(%rdi)
+        vbroadcasti32x4	112(%rsi), %zmm4
+        vpshufb	%zmm0, %zmm4, %zmm4
+        vpandq	%zmm1, %zmm4, %zmm4
+        vpmullw	%zmm2, %zmm4, %zmm4
+        vpmulhrsw	%zmm3, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_decompress_4_avx512,.-mlkem_decompress_4_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_5_avx512_q:
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_5_avx512_shuf:
+.byte	0x00,0x00,0x00,0x01,0x01,0x01,0x01,0x02
+.byte	0x02,0x03,0x03,0x03,0x03,0x04,0x04,0x04
+.byte	0x05,0x05,0x05,0x06,0x06,0x06,0x06,0x07
+.byte	0x07,0x08,0x08,0x08,0x08,0x09,0x09,0x09
+.byte	0x00,0x00,0x00,0x01,0x01,0x01,0x01,0x02
+.byte	0x02,0x03,0x03,0x03,0x03,0x04,0x04,0x04
+.byte	0x05,0x05,0x05,0x06,0x06,0x06,0x06,0x07
+.byte	0x07,0x08,0x08,0x08,0x08,0x09,0x09,0x09
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_5_avx512_mask:
+.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
+.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
+.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
+.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_5_avx512_shift:
+.short	0x0400,0x0020,0x0100,0x0008,0x0040,0x0200,0x0010,0x0080
+.short	0x0400,0x0020,0x0100,0x0008,0x0040,0x0200,0x0010,0x0080
+.short	0x0400,0x0020,0x0100,0x0008,0x0040,0x0200,0x0010,0x0080
+.short	0x0400,0x0020,0x0100,0x0008,0x0040,0x0200,0x0010,0x0080
+#ifndef __APPLE__
+.text
+.globl	mlkem_decompress_5_avx512
+.type	mlkem_decompress_5_avx512,@function
+.align	16
+mlkem_decompress_5_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_decompress_5_avx512
+.p2align	4
+_mlkem_decompress_5_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_decompress_5_avx512_q(%rip), %zmm0
+        vmovdqu64	L_mlkem_decompress_5_avx512_shuf(%rip), %zmm1
+        vmovdqu64	L_mlkem_decompress_5_avx512_mask(%rip), %zmm2
+        vmovdqu64	L_mlkem_decompress_5_avx512_shift(%rip), %zmm3
+        vbroadcasti128	(%rsi), %ymm4
+        vbroadcasti128	10(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, (%rdi)
+        vbroadcasti128	20(%rsi), %ymm4
+        vbroadcasti128	30(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 64(%rdi)
+        vbroadcasti128	40(%rsi), %ymm4
+        vbroadcasti128	50(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 128(%rdi)
+        vbroadcasti128	60(%rsi), %ymm4
+        vbroadcasti128	70(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 192(%rdi)
+        vbroadcasti128	80(%rsi), %ymm4
+        vbroadcasti128	90(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vbroadcasti128	100(%rsi), %ymm4
+        vbroadcasti128	110(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 320(%rdi)
+        vbroadcasti128	120(%rsi), %ymm4
+        vbroadcasti128	130(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 384(%rdi)
+        vbroadcasti128	140(%rsi), %ymm4
+        vmovq	150(%rsi), %xmm5
+        movzwq	158(%rsi), %rdx
+        vpinsrq	$0x01, %rdx, %xmm5, %xmm5
+        vinserti128	$0x01, %xmm5, %ymm5, %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm1, %zmm4, %zmm4
+        vpandq	%zmm2, %zmm4, %zmm4
+        vpmullw	%zmm3, %zmm4, %zmm4
+        vpmulhrsw	%zmm0, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_decompress_5_avx512,.-mlkem_decompress_5_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_mask:
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_sllv:
+.quad	0x0000000000000004,0x0000000000000004
+.quad	0x0000000000000004,0x0000000000000004
+.quad	0x0000000000000004,0x0000000000000004
+.quad	0x0000000000000004,0x0000000000000004
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_q:
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_shuf:
+.byte	0x00,0x01,0x01,0x02,0x02,0x03,0x03,0x04
+.byte	0x05,0x06,0x06,0x07,0x07,0x08,0x08,0x09
+.byte	0x02,0x03,0x03,0x04,0x04,0x05,0x05,0x06
+.byte	0x07,0x08,0x08,0x09,0x09,0x0a,0x0a,0x0b
+.byte	0x00,0x01,0x01,0x02,0x02,0x03,0x03,0x04
+.byte	0x05,0x06,0x06,0x07,0x07,0x08,0x08,0x09
+.byte	0x02,0x03,0x03,0x04,0x04,0x05,0x05,0x06
+.byte	0x07,0x08,0x08,0x09,0x09,0x0a,0x0a,0x0b
+#ifndef __APPLE__
+.text
+.globl	mlkem_decompress_10_avx512
+.type	mlkem_decompress_10_avx512,@function
+.align	16
+mlkem_decompress_10_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_decompress_10_avx512
+.p2align	4
+_mlkem_decompress_10_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_decompress_10_avx512_mask(%rip), %zmm0
+        vmovdqu64	L_mlkem_decompress_10_avx512_q(%rip), %zmm1
+        vmovdqu64	L_mlkem_decompress_10_avx512_shuf(%rip), %zmm2
+        vmovdqu64	L_mlkem_decompress_10_avx512_sllv(%rip), %zmm3
+L_mlkem_decompress_10_avx512_start:
+        vpermq	$0x94, (%rsi), %ymm4
+        vpermq	$0x94, 20(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, (%rdi)
+        vpermq	$0x94, 40(%rsi), %ymm4
+        vpermq	$0x94, 60(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 64(%rdi)
+        vpermq	$0x94, 80(%rsi), %ymm4
+        vpermq	$0x94, 100(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 128(%rdi)
+        vpermq	$0x94, 120(%rsi), %ymm4
+        vpermq	$0x94, 140(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 192(%rdi)
+        vpermq	$0x94, 160(%rsi), %ymm4
+        vpermq	$0x94, 180(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vpermq	$0x94, 200(%rsi), %ymm4
+        vpermq	$0x94, 220(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 320(%rdi)
+        vpermq	$0x94, 240(%rsi), %ymm4
+        vpermq	$0x94, 260(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 384(%rdi)
+        vpermq	$0x94, 280(%rsi), %ymm4
+        vpermq	$0x94, 300(%rsi), %ymm5
+        vinserti64x4	$0x01, %ymm5, %zmm4, %zmm4
+        vpshufb	%zmm2, %zmm4, %zmm4
+        vpsllvd	%zmm3, %zmm4, %zmm4
+        vpsrlw	$0x01, %zmm4, %zmm4
+        vpandq	%zmm0, %zmm4, %zmm4
+        vpmulhrsw	%zmm1, %zmm4, %zmm4
+        vmovdqu64	%zmm4, 448(%rdi)
+        addq	$0x140, %rsi
+        addq	$0x200, %rdi
+        subl	$0x01, %edx
+        jg	L_mlkem_decompress_10_avx512_start
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_decompress_10_avx512,.-mlkem_decompress_10_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_q:
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_shuf:
+.byte	0x00,0x01,0x01,0x02,0x02,0x03,0x04,0x05
+.byte	0x05,0x06,0x06,0x07,0x08,0x09,0x09,0x0a
+.byte	0x03,0x04,0x04,0x05,0x05,0x06,0x07,0x08
+.byte	0x08,0x09,0x09,0x0a,0x0b,0x0c,0x0c,0x0d
+.byte	0x00,0x01,0x01,0x02,0x02,0x03,0x04,0x05
+.byte	0x05,0x06,0x06,0x07,0x08,0x09,0x09,0x0a
+.byte	0x03,0x04,0x04,0x05,0x05,0x06,0x07,0x08
+.byte	0x08,0x09,0x09,0x0a,0x0b,0x0c,0x0c,0x0d
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_srlvd:
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_srlvq:
+.quad	0x0000000000000000,0x0000000000000002
+.quad	0x0000000000000000,0x0000000000000002
+.quad	0x0000000000000000,0x0000000000000002
+.quad	0x0000000000000000,0x0000000000000002
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_shift:
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_mask:
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+#ifndef __APPLE__
+.text
+.globl	mlkem_decompress_11_avx512
+.type	mlkem_decompress_11_avx512,@function
+.align	16
+mlkem_decompress_11_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_decompress_11_avx512
+.p2align	4
+_mlkem_decompress_11_avx512:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_decompress_11_avx512_q(%rip), %zmm0
+        vmovdqu64	L_mlkem_decompress_11_avx512_shuf(%rip), %zmm1
+        vmovdqu64	L_mlkem_decompress_11_avx512_srlvd(%rip), %zmm2
+        vmovdqu64	L_mlkem_decompress_11_avx512_srlvq(%rip), %zmm3
+        vmovdqu64	L_mlkem_decompress_11_avx512_shift(%rip), %zmm4
+        vmovdqu64	L_mlkem_decompress_11_avx512_mask(%rip), %zmm5
+L_mlkem_decompress_11_avx512_start:
+        vpermq	$0x94, (%rsi), %ymm6
+        vpermq	$0x94, 22(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, (%rdi)
+        vpermq	$0x94, 44(%rsi), %ymm6
+        vpermq	$0x94, 66(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 64(%rdi)
+        vpermq	$0x94, 88(%rsi), %ymm6
+        vpermq	$0x94, 110(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 128(%rdi)
+        vpermq	$0x94, 132(%rsi), %ymm6
+        vpermq	$0x94, 154(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 192(%rdi)
+        vpermq	$0x94, 176(%rsi), %ymm6
+        vpermq	$0x94, 198(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 256(%rdi)
+        vpermq	$0x94, 220(%rsi), %ymm6
+        vpermq	$0x94, 242(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 320(%rdi)
+        vpermq	$0x94, 264(%rsi), %ymm6
+        vpermq	$0x94, 286(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 384(%rdi)
+        vpermq	$0x94, 308(%rsi), %ymm6
+        vpermq	$0x94, 330(%rsi), %ymm7
+        vinserti64x4	$0x01, %ymm7, %zmm6, %zmm6
+        vpshufb	%zmm1, %zmm6, %zmm6
+        vpsrlvd	%zmm2, %zmm6, %zmm6
+        vpsrlvq	%zmm3, %zmm6, %zmm6
+        vpmullw	%zmm4, %zmm6, %zmm6
+        vpsrlw	$0x01, %zmm6, %zmm6
+        vpandq	%zmm5, %zmm6, %zmm6
+        vpmulhrsw	%zmm0, %zmm6, %zmm6
+        vmovdqu64	%zmm6, 448(%rdi)
+        addq	$0x160, %rsi
+        addq	$0x200, %rdi
+        subl	$0x01, %edx
+        jg	L_mlkem_decompress_11_avx512_start
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_decompress_11_avx512,.-mlkem_decompress_11_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_shift1:
+.short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
+.short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_shift2:
+.long	0x04000001,0x04000001,0x04000001,0x04000001
+.long	0x04000001,0x04000001,0x04000001,0x04000001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_shlv:
+.quad	0x000000000000000c,0x000000000000000c
+.quad	0x000000000000000c,0x000000000000000c
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_shuf:
+.byte	0x00,0x01,0x02,0x03,0x04,0xff,0xff,0xff
+.byte	0xff,0xff,0x08,0x09,0x0a,0x0b,0x0c,0xff
+.byte	0x09,0x0a,0x0b,0x0c,0xff,0x00,0x01,0x02
+.byte	0x03,0x04,0xff,0xff,0xff,0xff,0xff,0x08
+#ifndef __APPLE__
+.text
+.globl	mlkem_compress_5_avx512
+.type	mlkem_compress_5_avx512,@function
+.align	16
+mlkem_compress_5_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_compress_5_avx512
+.p2align	4
+_mlkem_compress_5_avx512:
+#endif /* __APPLE__ */
+        movq	$0x4ebf, %rdx
+        vmovd	%edx, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        movq	$0x400, %rdx
+        vmovd	%edx, %xmm1
+        vpbroadcastw	%xmm1, %zmm1
+        movq	$31, %rdx
+        vmovd	%edx, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        vmovdqu	L_mlkem_compress_5_avx512_shift1(%rip), %ymm3
+        vmovdqu	L_mlkem_compress_5_avx512_shift2(%rip), %ymm4
+        vmovdqu	L_mlkem_compress_5_avx512_shlv(%rip), %ymm5
+        vmovdqu	L_mlkem_compress_5_avx512_shuf(%rip), %ymm6
+        vpmulhw	(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, (%rdi)
+        vmovss	%xmm9, 16(%rdi)
+        vpmulhw	64(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, 20(%rdi)
+        vmovss	%xmm9, 36(%rdi)
+        vpmulhw	128(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, 40(%rdi)
+        vmovss	%xmm9, 56(%rdi)
+        vpmulhw	192(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, 60(%rdi)
+        vmovss	%xmm9, 76(%rdi)
+        vpmulhw	256(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, 80(%rdi)
+        vmovss	%xmm9, 96(%rdi)
+        vpmulhw	320(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, 100(%rdi)
+        vmovss	%xmm9, 116(%rdi)
+        vpmulhw	384(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, 120(%rdi)
+        vmovss	%xmm9, 136(%rdi)
+        vpmulhw	448(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vextracti64x4	$0x01, %zmm7, %ymm9
+        vpackuswb	%ymm9, %ymm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlvq	%ymm5, %ymm8, %ymm8
+        vpshufb	%ymm6, %ymm8, %ymm8
+        vextracti128	$0x01, %ymm8, %xmm9
+        vpblendvb	%xmm6, %xmm9, %xmm8, %xmm8
+        vmovdqu	%xmm8, 140(%rdi)
+        vmovss	%xmm9, 156(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_compress_5_avx512,.-mlkem_compress_5_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_10_avx512_shift:
+.quad	0x0400000104000001,0x0400000104000001
+.quad	0x0400000104000001,0x0400000104000001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_10_avx512_shlv:
+.quad	0x000000000000000c,0x000000000000000c
+.quad	0x000000000000000c,0x000000000000000c
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_10_avx512_shuf:
+.byte	0x00,0x01,0x02,0x03,0x04,0x08,0x09,0x0a
+.byte	0x0b,0x0c,0xff,0xff,0xff,0xff,0xff,0xff
+.byte	0x09,0x0a,0x0b,0x0c,0xff,0xff,0xff,0xff
+.byte	0xff,0xff,0x00,0x01,0x02,0x03,0x04,0x08
+#ifndef __APPLE__
+.text
+.globl	mlkem_compress_10_avx512
+.type	mlkem_compress_10_avx512,@function
+.align	16
+mlkem_compress_10_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_compress_10_avx512
+.p2align	4
+_mlkem_compress_10_avx512:
+#endif /* __APPLE__ */
+        movq	$0x4ebf, %rax
+        vmovd	%eax, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        movq	$15, %rax
+        vmovd	%eax, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        movq	$0x1000, %rax
+        vmovd	%eax, %xmm3
+        vpbroadcastw	%xmm3, %zmm3
+        movq	$0x3ff, %rax
+        vmovd	%eax, %xmm4
+        vpbroadcastw	%xmm4, %zmm4
+        vpsllw	$3, %zmm0, %zmm1
+        vmovdqu	L_mlkem_compress_10_avx512_shift(%rip), %ymm5
+        vmovdqu	L_mlkem_compress_10_avx512_shlv(%rip), %ymm6
+        vmovdqu	L_mlkem_compress_10_avx512_shuf(%rip), %ymm7
+L_mlkem_compress_10_avx512_start:
+        vmovdqu64	(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, (%rdi)
+        vmovss	%xmm12, 16(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 20(%rdi)
+        vmovss	%xmm12, 36(%rdi)
+        vmovdqu64	64(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 40(%rdi)
+        vmovss	%xmm12, 56(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 60(%rdi)
+        vmovss	%xmm12, 76(%rdi)
+        vmovdqu64	128(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 80(%rdi)
+        vmovss	%xmm12, 96(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 100(%rdi)
+        vmovss	%xmm12, 116(%rdi)
+        vmovdqu64	192(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 120(%rdi)
+        vmovss	%xmm12, 136(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 140(%rdi)
+        vmovss	%xmm12, 156(%rdi)
+        vmovdqu64	256(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 160(%rdi)
+        vmovss	%xmm12, 176(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 180(%rdi)
+        vmovss	%xmm12, 196(%rdi)
+        vmovdqu64	320(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 200(%rdi)
+        vmovss	%xmm12, 216(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 220(%rdi)
+        vmovss	%xmm12, 236(%rdi)
+        vmovdqu64	384(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 240(%rdi)
+        vmovss	%xmm12, 256(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 260(%rdi)
+        vmovss	%xmm12, 276(%rdi)
+        vmovdqu64	448(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%ymm5, %ymm8, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 280(%rdi)
+        vmovss	%xmm12, 296(%rdi)
+        vextracti64x4	$0x01, %zmm8, %ymm11
+        vpmaddwd	%ymm5, %ymm11, %ymm11
+        vpsllvd	%ymm6, %ymm11, %ymm11
+        vpsrlq	$12, %ymm11, %ymm11
+        vpshufb	%ymm7, %ymm11, %ymm11
+        vextracti128	$0x01, %ymm11, %xmm12
+        vpblendw	$0xe0, %xmm12, %xmm11, %xmm11
+        vmovdqu	%xmm11, 300(%rdi)
+        vmovss	%xmm12, 316(%rdi)
+        addq	$0x140, %rdi
+        addq	$0x200, %rsi
+        subl	$0x01, %edx
+        jg	L_mlkem_compress_10_avx512_start
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_compress_10_avx512,.-mlkem_compress_10_avx512
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_11_avx512_shift:
+.quad	0x0800000108000001,0x0800000108000001
+.quad	0x0800000108000001,0x0800000108000001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_11_avx512_shlvd:
+.long	0x0000000a,0x00000000,0x0000000a,0x00000000
+.long	0x0000000a,0x00000000,0x0000000a,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_11_avx512_shrvq:
+.quad	0x000000000000000a,0x000000000000001e
+.quad	0x000000000000000a,0x000000000000001e
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_11_avx512_shuf:
+.byte	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
+.byte	0x08,0x09,0x0a,0xff,0xff,0xff,0xff,0xff
+.byte	0x05,0x06,0x07,0x08,0x09,0x0a,0xff,0xff
+.byte	0xff,0xff,0x00,0x00,0x01,0x02,0x03,0x04
+#ifndef __APPLE__
+.text
+.globl	mlkem_compress_11_avx512
+.type	mlkem_compress_11_avx512,@function
+.align	16
+mlkem_compress_11_avx512:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_compress_11_avx512
+.p2align	4
+_mlkem_compress_11_avx512:
+#endif /* __APPLE__ */
+        movq	$0x4ebf, %rax
+        vmovd	%eax, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        movq	$36, %rax
+        vmovd	%eax, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        movq	$0x2000, %rax
+        vmovd	%eax, %xmm3
+        vpbroadcastw	%xmm3, %zmm3
+        movq	$0x7ff, %rax
+        vmovd	%eax, %xmm4
+        vpbroadcastw	%xmm4, %zmm4
+        vpsllw	$3, %zmm0, %zmm1
+        vmovdqu	L_mlkem_compress_11_avx512_shift(%rip), %ymm5
+        vmovdqu	L_mlkem_compress_11_avx512_shlvd(%rip), %ymm6
+        vmovdqu	L_mlkem_compress_11_avx512_shrvq(%rip), %ymm7
+        vmovdqu	L_mlkem_compress_11_avx512_shuf(%rip), %ymm8
+L_mlkem_compress_11_avx512_start:
+        vmovdqu64	(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, (%rdi)
+        vmovq	%xmm13, 16(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 22(%rdi)
+        vmovq	%xmm13, 38(%rdi)
+        vmovdqu64	64(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 44(%rdi)
+        vmovq	%xmm13, 60(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 66(%rdi)
+        vmovq	%xmm13, 82(%rdi)
+        vmovdqu64	128(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 88(%rdi)
+        vmovq	%xmm13, 104(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 110(%rdi)
+        vmovq	%xmm13, 126(%rdi)
+        vmovdqu64	192(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 132(%rdi)
+        vmovq	%xmm13, 148(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 154(%rdi)
+        vmovq	%xmm13, 170(%rdi)
+        vmovdqu64	256(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 176(%rdi)
+        vmovq	%xmm13, 192(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 198(%rdi)
+        vmovq	%xmm13, 214(%rdi)
+        vmovdqu64	320(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 220(%rdi)
+        vmovq	%xmm13, 236(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 242(%rdi)
+        vmovq	%xmm13, 258(%rdi)
+        vmovdqu64	384(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 264(%rdi)
+        vmovq	%xmm13, 280(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 286(%rdi)
+        vmovq	%xmm13, 302(%rdi)
+        vmovdqu64	448(%rsi), %zmm9
+        vpmullw	%zmm1, %zmm9, %zmm10
+        vpaddw	%zmm2, %zmm9, %zmm11
+        vpsllw	$3, %zmm9, %zmm9
+        vpmulhw	%zmm0, %zmm9, %zmm9
+        vpsubw	%zmm11, %zmm10, %zmm11
+        vpandnq	%zmm11, %zmm10, %zmm10
+        vpsrlw	$15, %zmm10, %zmm10
+        vpsubw	%zmm10, %zmm9, %zmm9
+        vpmulhrsw	%zmm3, %zmm9, %zmm9
+        vpandq	%zmm4, %zmm9, %zmm9
+        vpmaddwd	%ymm5, %ymm9, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 308(%rdi)
+        vmovq	%xmm13, 324(%rdi)
+        vextracti64x4	$0x01, %zmm9, %ymm12
+        vpmaddwd	%ymm5, %ymm12, %ymm12
+        vpsllvd	%ymm6, %ymm12, %ymm12
+        vpsrldq	$8, %ymm12, %ymm13
+        vpsrlvq	%ymm7, %ymm12, %ymm12
+        vpsllq	$34, %ymm13, %ymm13
+        vpaddq	%ymm13, %ymm12, %ymm12
+        vpshufb	%ymm8, %ymm12, %ymm12
+        vextracti128	$0x01, %ymm12, %xmm13
+        vpblendvb	%xmm8, %xmm13, %xmm12, %xmm12
+        vmovdqu	%xmm12, 330(%rdi)
+        vmovq	%xmm13, 346(%rdi)
+        addq	$0x160, %rdi
+        addq	$0x200, %rsi
+        subl	$0x01, %edx
+        jg	L_mlkem_compress_11_avx512_start
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_compress_11_avx512,.-mlkem_compress_11_avx512
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX512 */
+#endif /* WOLFSSL_HAVE_MLKEM */
+#ifdef WOLFSSL_HAVE_MLKEM
+#ifndef NO_AVX512_VBMI_SUPPORT
+#ifndef HAVE_INTEL_AVX512_VBMI
+#define HAVE_INTEL_AVX512_VBMI
+#endif /* HAVE_INTEL_AVX512_VBMI */
+#endif /* NO_AVX512_VBMI_SUPPORT */
+#ifdef HAVE_INTEL_AVX512_VBMI
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_vbmi_lo:
+.byte	0x00,0x01,0x02,0x00,0x03,0x04,0x05,0x00
+.byte	0x06,0x07,0x08,0x00,0x09,0x0a,0x0b,0x00
+.byte	0x0c,0x0d,0x0e,0x00,0x0f,0x10,0x11,0x00
+.byte	0x12,0x13,0x14,0x00,0x15,0x16,0x17,0x00
+.byte	0x18,0x19,0x1a,0x00,0x1b,0x1c,0x1d,0x00
+.byte	0x1e,0x1f,0x20,0x00,0x21,0x22,0x23,0x00
+.byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
+.byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_vbmi_hi:
+.byte	0x10,0x11,0x12,0x00,0x13,0x14,0x15,0x00
+.byte	0x16,0x17,0x18,0x00,0x19,0x1a,0x1b,0x00
+.byte	0x1c,0x1d,0x1e,0x00,0x1f,0x20,0x21,0x00
+.byte	0x22,0x23,0x24,0x00,0x25,0x26,0x27,0x00
+.byte	0x28,0x29,0x2a,0x00,0x2b,0x2c,0x2d,0x00
+.byte	0x2e,0x2f,0x30,0x00,0x31,0x32,0x33,0x00
+.byte	0x34,0x35,0x36,0x00,0x37,0x38,0x39,0x00
+.byte	0x3a,0x3b,0x3c,0x00,0x3d,0x3e,0x3f,0x00
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_vbmi_mask_lo:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_from_bytes_avx512_vbmi_mask_hi:
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+#ifndef __APPLE__
+.text
+.globl	mlkem_from_bytes_avx512_vbmi
+.type	mlkem_from_bytes_avx512_vbmi,@function
+.align	16
+mlkem_from_bytes_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_from_bytes_avx512_vbmi
+.p2align	4
+_mlkem_from_bytes_avx512_vbmi:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_from_bytes_avx512_vbmi_lo(%rip), %zmm0
+        vmovdqu64	L_mlkem_from_bytes_avx512_vbmi_hi(%rip), %zmm1
+        vmovdqu64	L_mlkem_from_bytes_avx512_vbmi_mask_lo(%rip), %zmm2
+        vmovdqu64	L_mlkem_from_bytes_avx512_vbmi_mask_hi(%rip), %zmm3
+        vpermb	(%rsi), %zmm0, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, (%rdi)
+        vpermb	48(%rsi), %zmm0, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, 64(%rdi)
+        vpermb	96(%rsi), %zmm0, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, 128(%rdi)
+        vpermb	144(%rsi), %zmm0, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, 192(%rdi)
+        vpermb	192(%rsi), %zmm0, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, 256(%rdi)
+        vpermb	240(%rsi), %zmm0, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, 320(%rdi)
+        vpermb	288(%rsi), %zmm0, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, 384(%rdi)
+        vpermb	320(%rsi), %zmm1, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vmovdqu64	%zmm4, 448(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_from_bytes_avx512_vbmi,.-mlkem_from_bytes_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_to_bytes_avx512_vbmi_mask:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_to_bytes_avx512_vbmi_permb:
+.byte	0x00,0x01,0x02,0x04,0x05,0x06,0x08,0x09
+.byte	0x0a,0x0c,0x0d,0x0e,0x10,0x11,0x12,0x14
+.byte	0x15,0x16,0x18,0x19,0x1a,0x1c,0x1d,0x1e
+.byte	0x20,0x21,0x22,0x24,0x25,0x26,0x28,0x29
+.byte	0x2a,0x2c,0x2d,0x2e,0x30,0x31,0x32,0x34
+.byte	0x35,0x36,0x38,0x39,0x3a,0x3c,0x3d,0x3e
+.byte	0x00,0x01,0x02,0x04,0x00,0x01,0x02,0x04
+.byte	0x00,0x01,0x02,0x04,0x00,0x01,0x02,0x04
+#ifndef __APPLE__
+.text
+.globl	mlkem_to_bytes_avx512_vbmi
+.type	mlkem_to_bytes_avx512_vbmi,@function
+.align	16
+mlkem_to_bytes_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_to_bytes_avx512_vbmi
+.p2align	4
+_mlkem_to_bytes_avx512_vbmi:
+#endif /* __APPLE__ */
+        movq	$0xd01, %rdx
+        vmovd	%edx, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        vmovdqu64	L_mlkem_to_bytes_avx512_vbmi_mask(%rip), %zmm1
+        vmovdqu64	L_mlkem_to_bytes_avx512_vbmi_permb(%rip), %zmm2
+        vmovdqu64	(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu64	%zmm6, (%rdi)
+        vmovdqu64	64(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu64	%zmm6, 48(%rdi)
+        vmovdqu64	128(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu64	%zmm6, 96(%rdi)
+        vmovdqu64	192(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu64	%zmm6, 144(%rdi)
+        vmovdqu64	256(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu64	%zmm6, 192(%rdi)
+        vmovdqu64	320(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu64	%zmm6, 240(%rdi)
+        vmovdqu64	384(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu64	%zmm6, 288(%rdi)
+        vmovdqu64	448(%rsi), %zmm3
+        vpsubw	%zmm0, %zmm3, %zmm4
+        vpsraw	$15, %zmm4, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpaddw	%zmm4, %zmm5, %zmm3
+        vpsrld	$16, %zmm3, %zmm4
+        vpslld	$12, %zmm4, %zmm4
+        vpternlogd	$0xea, %zmm4, %zmm1, %zmm3
+        vpermb	%zmm3, %zmm2, %zmm6
+        vmovdqu	%ymm6, 336(%rdi)
+        vextracti32x4	$2, %zmm6, %xmm4
+        vmovdqu	%xmm4, 368(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_to_bytes_avx512_vbmi,.-mlkem_to_bytes_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_avx512_vbmi_permb:
+.byte	0x00,0x01,0x02,0x00,0x03,0x04,0x05,0x00
+.byte	0x06,0x07,0x08,0x00,0x09,0x0a,0x0b,0x00
+.byte	0x0c,0x0d,0x0e,0x00,0x0f,0x10,0x11,0x00
+.byte	0x12,0x13,0x14,0x00,0x15,0x16,0x17,0x00
+.byte	0x18,0x19,0x1a,0x00,0x1b,0x1c,0x1d,0x00
+.byte	0x1e,0x1f,0x20,0x00,0x21,0x22,0x23,0x00
+.byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
+.byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_avx512_vbmi_mask_lo:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_avx512_vbmi_mask_hi:
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+#ifndef __APPLE__
+.text
+.globl	mlkem_rej_uniform_avx512_vbmi
+.type	mlkem_rej_uniform_avx512_vbmi,@function
+.align	16
+mlkem_rej_uniform_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_rej_uniform_avx512_vbmi
+.p2align	4
+_mlkem_rej_uniform_avx512_vbmi:
+#endif /* __APPLE__ */
+        pushq	%rbx
+        movl	%esi, %eax
+        movq	$0xd01, %r10
+        vmovd	%r10d, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        vmovdqu64	L_mlkem_rej_uniform_avx512_vbmi_permb(%rip), %zmm1
+        vmovdqu64	L_mlkem_rej_uniform_avx512_vbmi_mask_lo(%rip), %zmm2
+        vmovdqu64	L_mlkem_rej_uniform_avx512_vbmi_mask_hi(%rip), %zmm3
+L_mlkem_rej_uniform_avx512_vbmi_fast:
+        cmpl	$32, %esi
+        jl	L_mlkem_rej_uniform_avx512_vbmi_fast_end
+        cmpl	$0x40, %ecx
+        jl	L_mlkem_rej_uniform_avx512_vbmi_fast_end
+        vpermb	(%rdx), %zmm1, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vpcmpw	$0x01, %zmm0, %zmm4, %k1
+        vpcompressw	%zmm4, (%rdi){%k1}
+        kmovd	%k1, %ebx
+        popcntl	%ebx, %ebx
+        leaq	(%rdi,%rbx,2), %rdi
+        subl	%ebx, %esi
+        addq	$48, %rdx
+        subl	$48, %ecx
+        jmp	L_mlkem_rej_uniform_avx512_vbmi_fast
+L_mlkem_rej_uniform_avx512_vbmi_fast_end:
+L_mlkem_rej_uniform_avx512_vbmi_tail:
+        cmpl	$0x00, %esi
+        je	L_mlkem_rej_uniform_avx512_vbmi_tail_end
+        cmpl	$3, %ecx
+        jl	L_mlkem_rej_uniform_avx512_vbmi_tail_end
+        movzwl	(%rdx), %r8d
+        andl	$0xfff, %r8d
+        movzwl	1(%rdx), %r9d
+        shrl	$4, %r9d
+        cmpl	$0xd01, %r8d
+        jge	L_mlkem_rej_uniform_avx512_vbmi_skip0
+        movw	%r8w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_avx512_vbmi_tail_end
+L_mlkem_rej_uniform_avx512_vbmi_skip0:
+        cmpl	$0xd01, %r9d
+        jge	L_mlkem_rej_uniform_avx512_vbmi_skip1
+        movw	%r9w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_avx512_vbmi_tail_end
+L_mlkem_rej_uniform_avx512_vbmi_skip1:
+        addq	$3, %rdx
+        subl	$3, %ecx
+        jmp	L_mlkem_rej_uniform_avx512_vbmi_tail
+L_mlkem_rej_uniform_avx512_vbmi_tail_end:
+        subl	%esi, %eax
+        vzeroupper
+        popq	%rbx
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_rej_uniform_avx512_vbmi,.-mlkem_rej_uniform_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_n_avx512_vbmi_permb:
+.byte	0x00,0x01,0x02,0x00,0x03,0x04,0x05,0x00
+.byte	0x06,0x07,0x08,0x00,0x09,0x0a,0x0b,0x00
+.byte	0x0c,0x0d,0x0e,0x00,0x0f,0x10,0x11,0x00
+.byte	0x12,0x13,0x14,0x00,0x15,0x16,0x17,0x00
+.byte	0x18,0x19,0x1a,0x00,0x1b,0x1c,0x1d,0x00
+.byte	0x1e,0x1f,0x20,0x00,0x21,0x22,0x23,0x00
+.byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
+.byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_n_avx512_vbmi_mask_lo:
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+.long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_rej_uniform_n_avx512_vbmi_mask_hi:
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+.long	0x00fff000,0x00fff000,0x00fff000,0x00fff000
+#ifndef __APPLE__
+.text
+.globl	mlkem_rej_uniform_n_avx512_vbmi
+.type	mlkem_rej_uniform_n_avx512_vbmi,@function
+.align	16
+mlkem_rej_uniform_n_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_rej_uniform_n_avx512_vbmi
+.p2align	4
+_mlkem_rej_uniform_n_avx512_vbmi:
+#endif /* __APPLE__ */
+        pushq	%rbx
+        movl	%esi, %eax
+        movq	$0xd01, %r10
+        vmovd	%r10d, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        vmovdqu64	L_mlkem_rej_uniform_n_avx512_vbmi_permb(%rip), %zmm1
+        vmovdqu64	L_mlkem_rej_uniform_n_avx512_vbmi_mask_lo(%rip), %zmm2
+        vmovdqu64	L_mlkem_rej_uniform_n_avx512_vbmi_mask_hi(%rip), %zmm3
+L_mlkem_rej_uniform_n_avx512_vbmi_fast:
+        cmpl	$32, %esi
+        jl	L_mlkem_rej_uniform_n_avx512_vbmi_fast_end
+        cmpl	$0x40, %ecx
+        jl	L_mlkem_rej_uniform_n_avx512_vbmi_fast_end
+        vpermb	(%rdx), %zmm1, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm5
+        vpslld	$4, %zmm5, %zmm5
+        vpternlogd	$0xea, %zmm5, %zmm2, %zmm4
+        vpcmpw	$0x01, %zmm0, %zmm4, %k1
+        vpcompressw	%zmm4, (%rdi){%k1}
+        kmovd	%k1, %ebx
+        popcntl	%ebx, %ebx
+        leaq	(%rdi,%rbx,2), %rdi
+        subl	%ebx, %esi
+        addq	$48, %rdx
+        subl	$48, %ecx
+        jmp	L_mlkem_rej_uniform_n_avx512_vbmi_fast
+L_mlkem_rej_uniform_n_avx512_vbmi_fast_end:
+L_mlkem_rej_uniform_n_avx512_vbmi_tail:
+        cmpl	$0x00, %esi
+        je	L_mlkem_rej_uniform_n_avx512_vbmi_tail_end
+        cmpl	$3, %ecx
+        jl	L_mlkem_rej_uniform_n_avx512_vbmi_tail_end
+        movzwl	(%rdx), %r8d
+        andl	$0xfff, %r8d
+        movzwl	1(%rdx), %r9d
+        shrl	$4, %r9d
+        cmpl	$0xd01, %r8d
+        jge	L_mlkem_rej_uniform_n_avx512_vbmi_skip0
+        movw	%r8w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_n_avx512_vbmi_tail_end
+L_mlkem_rej_uniform_n_avx512_vbmi_skip0:
+        cmpl	$0xd01, %r9d
+        jge	L_mlkem_rej_uniform_n_avx512_vbmi_skip1
+        movw	%r9w, (%rdi)
+        addq	$2, %rdi
+        subl	$0x01, %esi
+        je	L_mlkem_rej_uniform_n_avx512_vbmi_tail_end
+L_mlkem_rej_uniform_n_avx512_vbmi_skip1:
+        addq	$3, %rdx
+        subl	$3, %ecx
+        jmp	L_mlkem_rej_uniform_n_avx512_vbmi_tail
+L_mlkem_rej_uniform_n_avx512_vbmi_tail_end:
+        subl	%esi, %eax
+        vzeroupper
+        popq	%rbx
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_rej_uniform_n_avx512_vbmi,.-mlkem_rej_uniform_n_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_4_avx512_vbmi_gather:
+.byte	0x00,0x04,0x08,0x0c,0x10,0x14,0x18,0x1c
+.byte	0x20,0x24,0x28,0x2c,0x30,0x34,0x38,0x3c
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+#ifndef __APPLE__
+.text
+.globl	mlkem_compress_4_avx512_vbmi
+.type	mlkem_compress_4_avx512_vbmi,@function
+.align	16
+mlkem_compress_4_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_compress_4_avx512_vbmi
+.p2align	4
+_mlkem_compress_4_avx512_vbmi:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_compress_4_avx512_vbmi_gather(%rip), %zmm0
+        movq	$0x4ebf, %rdx
+        vmovd	%edx, %xmm1
+        vpbroadcastw	%xmm1, %zmm1
+        movq	$0x200, %rdx
+        vmovd	%edx, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        movq	$15, %rdx
+        vmovd	%edx, %xmm3
+        vpbroadcastw	%xmm3, %zmm3
+        vpmulhw	(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, (%rdi)
+        vpmulhw	64(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, 16(%rdi)
+        vpmulhw	128(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, 32(%rdi)
+        vpmulhw	192(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, 48(%rdi)
+        vpmulhw	256(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, 64(%rdi)
+        vpmulhw	320(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, 80(%rdi)
+        vpmulhw	384(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, 96(%rdi)
+        vpmulhw	448(%rsi), %zmm1, %zmm4
+        vpmulhrsw	%zmm2, %zmm4, %zmm4
+        vpandq	%zmm3, %zmm4, %zmm4
+        vpsrld	$12, %zmm4, %zmm5
+        vpord	%zmm5, %zmm4, %zmm4
+        vpermb	%zmm4, %zmm0, %zmm6
+        vmovdqu	%xmm6, 112(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_compress_4_avx512_vbmi,.-mlkem_compress_4_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_vbmi_shift1:
+.short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
+.short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_vbmi_shift2:
+.long	0x04000001,0x04000001,0x04000001,0x04000001
+.long	0x04000001,0x04000001,0x04000001,0x04000001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_vbmi_shlv:
+.quad	0x000000000000000c,0x000000000000000c
+.quad	0x000000000000000c,0x000000000000000c
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_5_avx512_vbmi_gather:
+.byte	0x00,0x01,0x02,0x03,0x04,0x08,0x09,0x0a
+.byte	0x0b,0x0c,0x10,0x11,0x12,0x13,0x14,0x18
+.byte	0x19,0x1a,0x1b,0x1c,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+#ifndef __APPLE__
+.text
+.globl	mlkem_compress_5_avx512_vbmi
+.type	mlkem_compress_5_avx512_vbmi,@function
+.align	16
+mlkem_compress_5_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_compress_5_avx512_vbmi
+.p2align	4
+_mlkem_compress_5_avx512_vbmi:
+#endif /* __APPLE__ */
+        movq	$0x4ebf, %rdx
+        vmovd	%edx, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        movq	$0x400, %rdx
+        vmovd	%edx, %xmm1
+        vpbroadcastw	%xmm1, %zmm1
+        movq	$31, %rdx
+        vmovd	%edx, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        vmovdqu	L_mlkem_compress_5_avx512_vbmi_shift1(%rip), %ymm3
+        vmovdqu	L_mlkem_compress_5_avx512_vbmi_shift2(%rip), %ymm4
+        vmovdqu	L_mlkem_compress_5_avx512_vbmi_shlv(%rip), %ymm5
+        vmovdqu64	L_mlkem_compress_5_avx512_vbmi_gather(%rip), %zmm6
+        vpmulhw	(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, (%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 16(%rdi)
+        vpmulhw	64(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, 20(%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 36(%rdi)
+        vpmulhw	128(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, 40(%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 56(%rdi)
+        vpmulhw	192(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, 60(%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 76(%rdi)
+        vpmulhw	256(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, 80(%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 96(%rdi)
+        vpmulhw	320(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, 100(%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 116(%rdi)
+        vpmulhw	384(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, 120(%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 136(%rdi)
+        vpmulhw	448(%rsi), %zmm0, %zmm7
+        vpmulhrsw	%zmm1, %zmm7, %zmm7
+        vpandq	%zmm2, %zmm7, %zmm7
+        vpmovwb	%zmm7, %ymm8
+        vpmaddubsw	%ymm3, %ymm8, %ymm8
+        vpmaddwd	%ymm4, %ymm8, %ymm8
+        vpsllvd	%ymm5, %ymm8, %ymm8
+        vpsrlq	$12, %ymm8, %ymm8
+        vpermb	%ymm8, %ymm6, %ymm9
+        vmovdqu	%xmm9, 140(%rdi)
+        vextracti128	$0x01, %ymm9, %xmm8
+        vmovss	%xmm8, 156(%rdi)
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_compress_5_avx512_vbmi,.-mlkem_compress_5_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_10_avx512_vbmi_shift:
+.quad	0x0400000104000001,0x0400000104000001
+.quad	0x0400000104000001,0x0400000104000001
+.quad	0x0400000104000001,0x0400000104000001
+.quad	0x0400000104000001,0x0400000104000001
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_compress_10_avx512_vbmi_shlv:
+.quad	0x000000000000000c,0x000000000000000c
+.quad	0x000000000000000c,0x000000000000000c
+.quad	0x000000000000000c,0x000000000000000c
+.quad	0x000000000000000c,0x000000000000000c
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_compress_10_avx512_vbmi_gather:
+.byte	0x00,0x01,0x02,0x03,0x04,0x08,0x09,0x0a
+.byte	0x0b,0x0c,0x10,0x11,0x12,0x13,0x14,0x18
+.byte	0x19,0x1a,0x1b,0x1c,0x20,0x21,0x22,0x23
+.byte	0x24,0x28,0x29,0x2a,0x2b,0x2c,0x30,0x31
+.byte	0x32,0x33,0x34,0x38,0x39,0x3a,0x3b,0x3c
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+.byte	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+#ifndef __APPLE__
+.text
+.globl	mlkem_compress_10_avx512_vbmi
+.type	mlkem_compress_10_avx512_vbmi,@function
+.align	16
+mlkem_compress_10_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_compress_10_avx512_vbmi
+.p2align	4
+_mlkem_compress_10_avx512_vbmi:
+#endif /* __APPLE__ */
+        movq	$0x4ebf, %rax
+        vmovd	%eax, %xmm0
+        vpbroadcastw	%xmm0, %zmm0
+        movq	$15, %rax
+        vmovd	%eax, %xmm2
+        vpbroadcastw	%xmm2, %zmm2
+        movq	$0x1000, %rax
+        vmovd	%eax, %xmm3
+        vpbroadcastw	%xmm3, %zmm3
+        movq	$0x3ff, %rax
+        vmovd	%eax, %xmm4
+        vpbroadcastw	%xmm4, %zmm4
+        vpsllw	$3, %zmm0, %zmm1
+        vmovdqu64	L_mlkem_compress_10_avx512_vbmi_shift(%rip), %zmm5
+        vmovdqu64	L_mlkem_compress_10_avx512_vbmi_shlv(%rip), %zmm6
+        vmovdqu64	L_mlkem_compress_10_avx512_vbmi_gather(%rip), %zmm7
+L_mlkem_compress_10_avx512_vbmi_start:
+        vmovdqu64	(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, (%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 32(%rdi)
+        vmovdqu64	64(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, 40(%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 72(%rdi)
+        vmovdqu64	128(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, 80(%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 112(%rdi)
+        vmovdqu64	192(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, 120(%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 152(%rdi)
+        vmovdqu64	256(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, 160(%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 192(%rdi)
+        vmovdqu64	320(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, 200(%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 232(%rdi)
+        vmovdqu64	384(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, 240(%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 272(%rdi)
+        vmovdqu64	448(%rsi), %zmm8
+        vpmullw	%zmm1, %zmm8, %zmm9
+        vpaddw	%zmm2, %zmm8, %zmm10
+        vpsllw	$3, %zmm8, %zmm8
+        vpmulhuw	%zmm0, %zmm8, %zmm8
+        vpsubw	%zmm10, %zmm9, %zmm10
+        vpandnq	%zmm10, %zmm9, %zmm9
+        vpsrlw	$15, %zmm9, %zmm9
+        vpsubw	%zmm9, %zmm8, %zmm8
+        vpmulhrsw	%zmm3, %zmm8, %zmm8
+        vpandq	%zmm4, %zmm8, %zmm8
+        vpmaddwd	%zmm5, %zmm8, %zmm11
+        vpsllvd	%zmm6, %zmm11, %zmm11
+        vpsrlq	$12, %zmm11, %zmm11
+        vpermb	%zmm11, %zmm7, %zmm12
+        vmovdqu	%ymm12, 280(%rdi)
+        vextracti32x4	$2, %zmm12, %xmm9
+        vmovq	%xmm9, 312(%rdi)
+        addq	$0x140, %rdi
+        addq	$0x200, %rsi
+        subl	$0x01, %edx
+        jg	L_mlkem_compress_10_avx512_vbmi_start
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_compress_10_avx512_vbmi,.-mlkem_compress_10_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_vbmi_mask:
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+.long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_vbmi_sllv:
+.quad	0x0000000000000004,0x0000000000000004
+.quad	0x0000000000000004,0x0000000000000004
+.quad	0x0000000000000004,0x0000000000000004
+.quad	0x0000000000000004,0x0000000000000004
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_vbmi_q:
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+.long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_vbmi_lo:
+.byte	0x00,0x01,0x01,0x02,0x02,0x03,0x03,0x04
+.byte	0x05,0x06,0x06,0x07,0x07,0x08,0x08,0x09
+.byte	0x0a,0x0b,0x0b,0x0c,0x0c,0x0d,0x0d,0x0e
+.byte	0x0f,0x10,0x10,0x11,0x11,0x12,0x12,0x13
+.byte	0x14,0x15,0x15,0x16,0x16,0x17,0x17,0x18
+.byte	0x19,0x1a,0x1a,0x1b,0x1b,0x1c,0x1c,0x1d
+.byte	0x1e,0x1f,0x1f,0x20,0x20,0x21,0x21,0x22
+.byte	0x23,0x24,0x24,0x25,0x25,0x26,0x26,0x27
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_10_avx512_vbmi_hi:
+.byte	0x18,0x19,0x19,0x1a,0x1a,0x1b,0x1b,0x1c
+.byte	0x1d,0x1e,0x1e,0x1f,0x1f,0x20,0x20,0x21
+.byte	0x22,0x23,0x23,0x24,0x24,0x25,0x25,0x26
+.byte	0x27,0x28,0x28,0x29,0x29,0x2a,0x2a,0x2b
+.byte	0x2c,0x2d,0x2d,0x2e,0x2e,0x2f,0x2f,0x30
+.byte	0x31,0x32,0x32,0x33,0x33,0x34,0x34,0x35
+.byte	0x36,0x37,0x37,0x38,0x38,0x39,0x39,0x3a
+.byte	0x3b,0x3c,0x3c,0x3d,0x3d,0x3e,0x3e,0x3f
+#ifndef __APPLE__
+.text
+.globl	mlkem_decompress_10_avx512_vbmi
+.type	mlkem_decompress_10_avx512_vbmi,@function
+.align	16
+mlkem_decompress_10_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_decompress_10_avx512_vbmi
+.p2align	4
+_mlkem_decompress_10_avx512_vbmi:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_mask(%rip), %zmm0
+        vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_q(%rip), %zmm1
+        vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_sllv(%rip), %zmm2
+        vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_lo(%rip), %zmm3
+        vmovdqu64	L_mlkem_decompress_10_avx512_vbmi_hi(%rip), %zmm4
+L_mlkem_decompress_10_avx512_vbmi_start:
+        vpermb	(%rsi), %zmm3, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, (%rdi)
+        vpermb	40(%rsi), %zmm3, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 64(%rdi)
+        vpermb	80(%rsi), %zmm3, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 128(%rdi)
+        vpermb	120(%rsi), %zmm3, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 192(%rdi)
+        vpermb	160(%rsi), %zmm3, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 256(%rdi)
+        vpermb	200(%rsi), %zmm3, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 320(%rdi)
+        vpermb	240(%rsi), %zmm3, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 384(%rdi)
+        vpermb	256(%rsi), %zmm4, %zmm5
+        vpsllvd	%zmm2, %zmm5, %zmm5
+        vpsrlw	$0x01, %zmm5, %zmm5
+        vpandq	%zmm0, %zmm5, %zmm5
+        vpmulhrsw	%zmm1, %zmm5, %zmm5
+        vmovdqu64	%zmm5, 448(%rdi)
+        addq	$0x140, %rsi
+        addq	$0x200, %rdi
+        subl	$0x01, %edx
+        jg	L_mlkem_decompress_10_avx512_vbmi_start
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_decompress_10_avx512_vbmi,.-mlkem_decompress_10_avx512_vbmi
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_vbmi_q:
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_vbmi_srlvd:
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+.long	0x00000000,0x00000001,0x00000000,0x00000000
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_vbmi_srlvq:
+.quad	0x0000000000000000,0x0000000000000002
+.quad	0x0000000000000000,0x0000000000000002
+.quad	0x0000000000000000,0x0000000000000002
+.quad	0x0000000000000000,0x0000000000000002
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_vbmi_shift:
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+.short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_vbmi_mask:
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+.short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_vbmi_lo:
+.byte	0x00,0x01,0x01,0x02,0x02,0x03,0x04,0x05
+.byte	0x05,0x06,0x06,0x07,0x08,0x09,0x09,0x0a
+.byte	0x0b,0x0c,0x0c,0x0d,0x0d,0x0e,0x0f,0x10
+.byte	0x10,0x11,0x11,0x12,0x13,0x14,0x14,0x15
+.byte	0x16,0x17,0x17,0x18,0x18,0x19,0x1a,0x1b
+.byte	0x1b,0x1c,0x1c,0x1d,0x1e,0x1f,0x1f,0x20
+.byte	0x21,0x22,0x22,0x23,0x23,0x24,0x25,0x26
+.byte	0x26,0x27,0x27,0x28,0x29,0x2a,0x2a,0x2b
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_mlkem_decompress_11_avx512_vbmi_hi:
+.byte	0x14,0x15,0x15,0x16,0x16,0x17,0x18,0x19
+.byte	0x19,0x1a,0x1a,0x1b,0x1c,0x1d,0x1d,0x1e
+.byte	0x1f,0x20,0x20,0x21,0x21,0x22,0x23,0x24
+.byte	0x24,0x25,0x25,0x26,0x27,0x28,0x28,0x29
+.byte	0x2a,0x2b,0x2b,0x2c,0x2c,0x2d,0x2e,0x2f
+.byte	0x2f,0x30,0x30,0x31,0x32,0x33,0x33,0x34
+.byte	0x35,0x36,0x36,0x37,0x37,0x38,0x39,0x3a
+.byte	0x3a,0x3b,0x3b,0x3c,0x3d,0x3e,0x3e,0x3f
+#ifndef __APPLE__
+.text
+.globl	mlkem_decompress_11_avx512_vbmi
+.type	mlkem_decompress_11_avx512_vbmi,@function
+.align	16
+mlkem_decompress_11_avx512_vbmi:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_decompress_11_avx512_vbmi
+.p2align	4
+_mlkem_decompress_11_avx512_vbmi:
+#endif /* __APPLE__ */
+        vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_q(%rip), %zmm0
+        vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_srlvd(%rip), %zmm1
+        vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_srlvq(%rip), %zmm2
+        vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_shift(%rip), %zmm3
+        vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_mask(%rip), %zmm4
+        vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_lo(%rip), %zmm5
+        vmovdqu64	L_mlkem_decompress_11_avx512_vbmi_hi(%rip), %zmm6
+L_mlkem_decompress_11_avx512_vbmi_start:
+        vpermb	(%rsi), %zmm5, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, (%rdi)
+        vpermb	44(%rsi), %zmm5, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 64(%rdi)
+        vpermb	88(%rsi), %zmm5, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 128(%rdi)
+        vpermb	132(%rsi), %zmm5, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 192(%rdi)
+        vpermb	176(%rsi), %zmm5, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 256(%rdi)
+        vpermb	220(%rsi), %zmm5, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 320(%rdi)
+        vpermb	264(%rsi), %zmm5, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 384(%rdi)
+        vpermb	288(%rsi), %zmm6, %zmm7
+        vpsrlvd	%zmm1, %zmm7, %zmm7
+        vpsrlvq	%zmm2, %zmm7, %zmm7
+        vpmullw	%zmm3, %zmm7, %zmm7
+        vpsrlw	$0x01, %zmm7, %zmm7
+        vpandq	%zmm4, %zmm7, %zmm7
+        vpmulhrsw	%zmm0, %zmm7, %zmm7
+        vmovdqu64	%zmm7, 448(%rdi)
+        addq	$0x160, %rsi
+        addq	$0x200, %rdi
+        subl	$0x01, %edx
+        jg	L_mlkem_decompress_11_avx512_vbmi_start
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	mlkem_decompress_11_avx512_vbmi,.-mlkem_decompress_11_avx512_vbmi
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX512_VBMI */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
