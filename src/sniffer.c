@@ -5612,6 +5612,11 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
      * data after the IP record for the FCS for Ethernet. */
     *sslBytes = (int)(packet + ipInfo->total - *sslFrame);
 
+    if (*sslBytes < 0) {
+        SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     /* Ensure sslBytes does not exceed the actual size. */
     if (*sslBytes > (int)(length - (ipInfo->length + tcpInfo->length))) {
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
@@ -6180,6 +6185,10 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* adjust potential ethernet trailer */
     actualLen = ipInfo->total - ipInfo->length - tcpInfo->length;
+    if (actualLen < 0) {
+        SetError(PACKET_HDR_SHORT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (*sslBytes > actualLen) {
         *sslBytes = actualLen;
     }
