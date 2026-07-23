@@ -22559,11 +22559,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
      * CERTIFICATE format legitimately carries auxiliary trust data after the
      * certificate, so allow it when cert->allowTrailing is set. */
     if ((ret == 0) && (!done) &&
-            (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)
-#ifdef WOLFSSL_CERT_REQ
-            && (!cert->isCSR)
-#endif
-            ) {
+            (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)) {
         WOLFSSL_MSG("Trailing data after certificate");
         WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         ret = ASN_PARSE_E;
