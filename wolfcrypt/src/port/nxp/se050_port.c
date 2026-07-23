@@ -3458,7 +3458,6 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     }
     if (status == kStatus_SSS_Success) {
         word32 keyIdAes = se050_allocate_key(SE050_AES_KEY);
-        deriveKeyCreated = 1;
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
@@ -3480,6 +3479,9 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         XMEMSET(keyBuf, 0, sizeof(keyBuf));
         status = sss_key_store_set_key(&host_keystore, &deriveKey,
             keyBuf, keySize, keySize * 8, NULL, 0);
+        if (status == kStatus_SSS_Success) {
+            deriveKeyCreated = 1;
+        }
     }
     if (status == kStatus_SSS_Success) {
         status = sss_derive_key_context_init(&ctx_derive_key, cfg_se050_i2c_pi,
