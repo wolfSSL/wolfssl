@@ -433,8 +433,29 @@
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
 
+struct km_sha_state {
+    union {
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
+        struct wc_Sha sha1_state;
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
+        struct wc_Sha256 sha2_224_state;
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
+        struct wc_Sha256 sha2_256_state;
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
+        struct wc_Sha512 sha2_384_state;
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
+        struct wc_Sha512 sha2_512_state;
+#endif
+    };
+};
+
+wc_static_assert(sizeof(struct km_sha_state) <= HASH_MAX_DESCSIZE);
+
 #ifdef WOLFSSL_SHA3
-/* struct wc_Sha3 won't fit in HASH_MAX_DESCSIZE. */
 struct km_sha3_state {
     union {
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
@@ -454,35 +475,13 @@ struct km_sha3_state {
     /* pointers for the cleanup list */
     struct list_head desc_ent;
 };
-#endif /* WOLFSSL_SHA3 */
 
-struct km_sha_state {
-    union {
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-        struct wc_Sha sha1_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
-        struct wc_Sha256 sha2_224_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
-        struct wc_Sha256 sha2_256_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
-        struct wc_Sha512 sha2_384_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
-        struct wc_Sha512 sha2_512_state;
-#endif
-
-#ifdef WOLFSSL_SHA3
-        struct km_sha3_state *sha3_state;
-#endif /* WOLFSSL_SHA3 */
-    };
+/* struct wc_Sha3 won't fit in HASH_MAX_DESCSIZE. */
+struct km_sha3_state_by_pointer {
+    struct km_sha3_state *sha3_state;
 };
 
-wc_static_assert(sizeof(struct km_sha_state) <= HASH_MAX_DESCSIZE);
-
-#ifdef WOLFSSL_SHA3
+wc_static_assert(sizeof(struct km_sha3_state_by_pointer) <= HASH_MAX_DESCSIZE);
 
 #ifdef WOLFSSL_LINUXKM_USE_MUTEXES
     #error LINUXKM_LKCAPI_REGISTER_SHA3 requires spinlock-based mutexes.
@@ -527,6 +526,10 @@ WC_MAYBE_UNUSED static void km_sha3_exit_tfm(struct crypto_shash *tfm)
      */
     list_for_each_entry_safe(s_ctx_i, next_ent, &t_ctx->desc_list, desc_ent) {
         list_del(&s_ctx_i->desc_ent);
+        /* Use wc_Sha3_256_Free() as a proxy for unexported wc_Sha3Free()
+         * (currently a no-op in kernel configs, but that could change).
+         */
+        wc_Sha3_256_Free(&s_ctx_i->sha3_state);
         ForceZero(s_ctx_i, sizeof(*s_ctx_i));
         free(s_ctx_i);
     }
@@ -536,10 +539,16 @@ WC_MAYBE_UNUSED static void km_sha3_exit_tfm(struct crypto_shash *tfm)
 WC_MAYBE_UNUSED static int km_sha3_alloc_tstate(struct shash_desc *desc) {
     struct km_Sha3TfmCtx *t_ctx =
         (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
-    struct km_sha_state *s_ctx = (struct km_sha_state *)shash_desc_ctx(desc);
+    struct km_sha3_state_by_pointer *s_ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
     s_ctx->sha3_state = (struct km_sha3_state *)malloc(sizeof(struct km_sha3_state));
     if (! s_ctx->sha3_state)
         return -ENOMEM;
+
+    /* Must zero here to make unconditionally safe for wc_Sha3_256_Free() in
+     * km_sha3_exit_tfm() (currently a no-op in kernel configs, but that could
+     * change).
+     */
+    XMEMSET(&s_ctx->sha3_state->sha3_state, 0, sizeof s_ctx->sha3_state->sha3_state);
 
     if (wc_LockMutex(&t_ctx->desc_list_lock) != 0) {
         free(s_ctx->sha3_state);
@@ -555,7 +564,7 @@ WC_MAYBE_UNUSED static int km_sha3_alloc_tstate(struct shash_desc *desc) {
 WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct shash_desc *desc) {
     struct km_Sha3TfmCtx *t_ctx =
         (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
-    struct km_sha_state *s_ctx = (struct km_sha_state *)shash_desc_ctx(desc);
+    struct km_sha3_state_by_pointer *s_ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
 
     if (s_ctx->sha3_state == NULL)
         return;
@@ -611,7 +620,7 @@ wc_static_assert(sizeof(struct km_sha3_export_state) <= HASH_MAX_STATESIZE);
  * member, so the generic .sha3_state accessor serves all four. */
 WC_MAYBE_UNUSED static int km_sha3_export(struct shash_desc *desc, void *out)
 {
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);
+    struct km_sha3_state_by_pointer *ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
     struct km_sha3_export_state *blob = (struct km_sha3_export_state *)out;
     const struct wc_Sha3 *sha3;
 
@@ -767,7 +776,7 @@ out:
     return ret;
 }
 
-#endif
+#endif /* WOLFSSL_SHA3 */
 
 #define WC_LINUXKM_SHA1_IMPLEMENT(name, digest_size, block_size,           \
                                   this_cra_name, this_cra_driver_name,     \
@@ -1041,7 +1050,8 @@ struct wc_swallow_the_semicolon
                                                                            \
                                                                            \
 static int km_ ## name ## _init(struct shash_desc *desc) {                 \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
     int ret;                                                               \
                                                                            \
     ret = km_sha3_alloc_tstate(desc);                                      \
@@ -1059,7 +1069,8 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len)                        \
 {                                                                          \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
     int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
@@ -1072,7 +1083,8 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
     int ret = final_f(&ctx->sha3_state-> name ## _state, out);             \
                                                                            \
@@ -1086,7 +1098,8 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                  unsigned int len, u8 *out)                \
 {                                                                          \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
     int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
@@ -1121,7 +1134,8 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
 static int km_ ## name ## _import(struct shash_desc *desc,                 \
                                   const void *in)                          \
 {                                                                          \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
     const struct km_sha3_export_state *blob =                              \
         (const struct km_sha3_export_state *)in;                           \
     struct wc_Sha3 *sha3;                                                  \
@@ -1162,7 +1176,7 @@ static struct shash_alg name ## _alg =                                     \
     .final          =       km_ ## name ## _final,                         \
     .finup          =       km_ ## name ## _finup,                         \
     .digest         =       km_ ## name ## _digest,                        \
-    .descsize       =       sizeof(struct km_sha_state),                   \
+    .descsize       =       sizeof(struct km_sha3_state_by_pointer),       \
     .export         =       km_sha3_export,                                \
     .import         =       km_ ## name ## _import,                        \
     .statesize      =       sizeof(struct km_sha3_export_state),           \
