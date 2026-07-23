@@ -401,6 +401,11 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
         word32 len);
     WOLFSSL_LOCAL void sha3_blocksx8_out_avx512(word64* s, byte* out,
         word32 len);
+#ifndef NO_AVX512_SUPPORT
+    WOLFSSL_LOCAL void sha3_blocksx8_avx512(word64* s);
+    WOLFSSL_LOCAL void sha3_128_blocksx8_seed_avx512(word64* s, byte* seed);
+    WOLFSSL_LOCAL void sha3_256_blocksx8_seed_avx512(word64* s, byte* seed);
+#endif
 
     WOLFSSL_LOCAL void sha3_128_blocksx4_seed_avx2(word64* s, byte* seed);
     WOLFSSL_LOCAL void sha3_256_blocksx4_seed_avx2(word64* s, byte* seed);

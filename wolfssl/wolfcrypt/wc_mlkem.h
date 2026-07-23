@@ -387,7 +387,7 @@ struct MlKemKey {
     int  labelLen;
 #endif
 
-    /* A pseudo-random function object. */
+    /* A hash function object. */
     MLKEM_HASH_T hash;
     /* A pseudo-random function object. */
     MLKEM_PRF_T prf;
@@ -585,6 +585,26 @@ WOLFSSL_LOCAL
 int mlkem_check_reduced(const sword16* p, int k);
 
 #ifdef USE_INTEL_SPEEDUP
+/* AVX512 assembly for ML-KEM is built (and dispatched at runtime on capable
+ * CPUs) whenever the Intel speedups are enabled and AVX512 is not opted out.
+ * Matches the HAVE_INTEL_AVX512 guard around the generated assembly. */
+#ifndef NO_AVX512_SUPPORT
+    #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+    /* AVX512VBMI (vpermb) functions are built and dispatched at runtime when
+     * CPUID reports VBMI. Opt out with NO_AVX512_VBMI_SUPPORT if the assembler
+     * cannot emit the vpermb-based *_vbmi routines. VBMI2 (vpcompressw) is a
+     * separate opt-out (NO_AVX512_VBMI2_SUPPORT), handled below. */
+    #ifndef NO_AVX512_VBMI_SUPPORT
+        #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+    #endif
+    /* AVX512VBMI2 (vpcompressw) is used only by the rejection samplers; every
+     * other AVX512 routine is plain AVX512F/BW or VBMI. Opt out with
+     * NO_AVX512_VBMI2_SUPPORT when the assembler cannot emit VBMI2 - the
+     * AVX512F/BW rej variants (vpcompressd) are then used instead. */
+    #ifndef NO_AVX512_VBMI2_SUPPORT
+        #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+    #endif
+#endif
 WOLFSSL_LOCAL
 void mlkem_keygen_avx2(sword16* priv, sword16* pub, sword16* e,
     const sword16* a, int kp);
@@ -651,6 +671,131 @@ void mlkem_decompress_5_avx2(sword16* p, const byte* r);
 
 WOLFSSL_LOCAL
 int mlkem_cmp_avx2(const byte* a, const byte* b, int sz);
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+WOLFSSL_LOCAL
+void mlkem_keygen_avx512(sword16* priv, sword16* pub, sword16* e,
+    const sword16* a, int kp);
+WOLFSSL_LOCAL
+void mlkem_encapsulate_avx512(const sword16* pub, sword16* bp, sword16* v,
+    const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
+    const sword16* m, int kp);
+WOLFSSL_LOCAL
+void mlkem_decapsulate_avx512(const sword16* priv, sword16* mp, sword16* bp,
+    const sword16* v, int kp);
+WOLFSSL_LOCAL
+void mlkem_csubq_avx512(sword16* p);
+WOLFSSL_LOCAL
+int mlkem_cmp_avx512(const byte* a, const byte* b, int sz);
+WOLFSSL_LOCAL
+void mlkem_from_bytes_avx512(sword16* p, const byte* b);
+WOLFSSL_LOCAL
+void mlkem_to_bytes_avx512(byte* b, sword16* p);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+WOLFSSL_LOCAL
+void mlkem_from_bytes_avx512_vbmi(sword16* p, const byte* b);
+WOLFSSL_LOCAL
+void mlkem_to_bytes_avx512_vbmi(byte* b, sword16* p);
+#endif
+WOLFSSL_LOCAL
+void mlkem_from_msg_avx512(sword16* p, const byte* msg);
+WOLFSSL_LOCAL
+void mlkem_to_msg_avx512(byte* msg, sword16* p);
+WOLFSSL_LOCAL
+void mlkem_compress_10_avx512(byte* r, const sword16* p, int n);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+WOLFSSL_LOCAL
+void mlkem_compress_10_avx512_vbmi(byte* r, const sword16* p, int n);
+#endif
+WOLFSSL_LOCAL
+void mlkem_decompress_10_avx512(sword16* p, const byte* r, int n);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+WOLFSSL_LOCAL
+void mlkem_decompress_10_avx512_vbmi(sword16* p, const byte* r, int n);
+#endif
+WOLFSSL_LOCAL
+void mlkem_compress_11_avx512(byte* r, const sword16* p, int n);
+WOLFSSL_LOCAL
+void mlkem_decompress_11_avx512(sword16* p, const byte* r, int n);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+WOLFSSL_LOCAL
+void mlkem_decompress_11_avx512_vbmi(sword16* p, const byte* r, int n);
+#endif
+WOLFSSL_LOCAL
+void mlkem_compress_4_avx512(byte* r, const sword16* p);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+WOLFSSL_LOCAL
+void mlkem_compress_4_avx512_vbmi(byte* r, const sword16* p);
+#endif
+WOLFSSL_LOCAL
+void mlkem_decompress_4_avx512(sword16* p, const byte* r);
+WOLFSSL_LOCAL
+void mlkem_compress_5_avx512(byte* r, const sword16* p);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+WOLFSSL_LOCAL
+void mlkem_compress_5_avx512_vbmi(byte* r, const sword16* p);
+#endif
+WOLFSSL_LOCAL
+void mlkem_decompress_5_avx512(sword16* p, const byte* r);
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_n_avx512(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_avx512(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_n_avx512_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_avx512_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_n_avx512_vbmi(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_avx512_vbmi(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_n_avx512_vbmi_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+WOLFSSL_LOCAL
+unsigned int mlkem_rej_uniform_avx512_vbmi_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#endif
+#endif
+WOLFSSL_LOCAL
+void mlkem_redistribute_8_rand_avx512(const word64* s, byte* r0, byte* r1,
+    byte* r2, byte* r3);
+WOLFSSL_LOCAL
+void mlkem_redistribute_16_rand_avx512(const word64* s, byte* r0, byte* r1,
+    byte* r2, byte* r3);
+WOLFSSL_LOCAL
+void mlkem_redistribute_17_rand_avx512(const word64* s, byte* r0, byte* r1,
+    byte* r2, byte* r3);
+WOLFSSL_LOCAL
+void mlkem_redistribute_21_rand_avx512(const word64* s, byte* r0, byte* r1,
+    byte* r2, byte* r3);
+WOLFSSL_LOCAL
+void mlkem_redistribute_8_rand_x8_avx512(const word64* s, byte* out,
+    word32 stride);
+WOLFSSL_LOCAL
+void mlkem_redistribute_16_rand_x8_avx512(const word64* s, byte* out,
+    word32 stride);
+WOLFSSL_LOCAL
+void mlkem_redistribute_17_rand_x8_avx512(const word64* s, byte* out,
+    word32 stride);
+WOLFSSL_LOCAL
+void mlkem_redistribute_21_rand_x8_avx512(const word64* s, byte* out,
+    word32 stride);
+WOLFSSL_LOCAL
+void mlkem_cbd_eta2_avx512(sword16* p, const byte* r);
+WOLFSSL_LOCAL
+void mlkem_cbd_eta3_avx512(sword16* p, const byte* r);
+#endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 WOLFSSL_LOCAL void mlkem_ntt(sword16* r);
 WOLFSSL_LOCAL void mlkem_invntt(sword16* r);

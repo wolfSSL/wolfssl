@@ -461,7 +461,7 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
     #endif
     #endif
 
-        /* Zero out all data. */
+        /* Zero out the PRF object. */
         XMEMSET(&key->prf, 0, sizeof(key->prf));
 
         /* Initialize the hash algorithm object. */
@@ -1086,7 +1086,7 @@ int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len)
 
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
-/* Encapsulate data and derive secret.
+/* Encrypt a message to cipher text with the encryption key.
  *
  * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE, m, r)
  * Uses the encryption key to encrypt a plaintext message using the randomness
