@@ -5027,11 +5027,11 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             }
 
             /* Pack four 10-bit values into byte array. */
-            r[ 0] = (t[0] >> 0);
-            r[ 1] = (t[0] >> 8) | (t[1] << 2);
-            r[ 2] = (t[1] >> 6) | (t[2] << 4);
-            r[ 3] = (t[2] >> 4) | (t[3] << 6);
-            r[ 4] = (t[3] >> 2);
+            r[ 0] = WC_OCTET( t[0] >> 0);
+            r[ 1] = WC_OCTET((t[0] >> 8) | (t[1] << 2));
+            r[ 2] = WC_OCTET((t[1] >> 6) | (t[2] << 4));
+            r[ 3] = WC_OCTET((t[2] >> 4) | (t[3] << 6));
+            r[ 4] = WC_OCTET( t[3] >> 2);
         #else
             /* Compress four polynomial values to 10 bits each. */
             sword16 t0 = TO_COMP_WORD_10(v, i, j, 0);
