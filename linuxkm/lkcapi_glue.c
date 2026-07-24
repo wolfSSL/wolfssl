@@ -224,8 +224,8 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
 static int linuxkm_lkcapi_register(void);
 static int linuxkm_lkcapi_unregister(void);
 
-#if defined(HAVE_FIPS) && defined(WC_LINUX_CONFIG_SELFTESTS)
-static int enabled_fips = 0;
+#if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && defined(WC_LINUX_CONFIG_SELFTESTS)
+static int enabled_kernel_fips_enabled = 0;
 #endif
 
 static ssize_t install_algs_handler(struct kobject *kobj, struct kobj_attribute *attr,
@@ -268,9 +268,9 @@ static ssize_t deinstall_algs_handler(struct kobject *kobj, struct kobj_attribut
         return ret;
 
 #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && defined(WC_LINUX_CONFIG_SELFTESTS)
-    if (enabled_fips) {
+    if (enabled_kernel_fips_enabled) {
         pr_info("wolfCrypt: restoring fips_enabled to off.\n");
-        enabled_fips = fips_enabled = 0;
+        enabled_kernel_fips_enabled = fips_enabled = 0;
     }
 #endif
 
@@ -355,7 +355,7 @@ static int linuxkm_lkcapi_register(void)
          * test vectors and fuzzing from the CRYPTO_MANAGER.
          */
         pr_info("wolfCrypt: changing fips_enabled from 0 to 1 for FIPS module.\n");
-        enabled_fips = fips_enabled = 1;
+        enabled_kernel_fips_enabled = fips_enabled = 1;
     }
 #endif
 
@@ -401,7 +401,7 @@ static int linuxkm_lkcapi_register(void)
         if (! alg ## _loaded) {                                              \
             ret =  (crypto_register_ ## alg_class)(&(alg));                  \
             if (ret) {                                                       \
-                if (fips_enabled && (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) { \
+                if (ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E)) {            \
                     pr_info("wolfCrypt: skipping FIPS-incompatible alg %s.\n", \
                             (alg).base.cra_driver_name);                     \
                 }                                                            \
@@ -415,7 +415,7 @@ static int linuxkm_lkcapi_register(void)
             } else {                                                         \
                 ret = (tester());                                            \
                 if (ret) {                                                   \
-                    if (fips_enabled && (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) { \
+                    if (ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E)) {        \
                         pr_info("wolfCrypt: skipping FIPS-incompatible alg %s.\n", \
                                 (alg).base.cra_driver_name);                 \
                     }                                                        \
