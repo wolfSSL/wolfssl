@@ -1441,6 +1441,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_set_read_ahead              wolfSSL_set_read_ahead
 #define SSL_CTX_get_read_ahead          wolfSSL_CTX_get_read_ahead
 #define SSL_CTX_set_read_ahead          wolfSSL_CTX_set_read_ahead
+#define SSL_CTX_set_default_read_buffer_len wolfSSL_CTX_set_default_read_buffer_len
+#define SSL_set_default_read_buffer_len wolfSSL_set_default_read_buffer_len
 #define SSL_CTX_set_tlsext_status_arg   wolfSSL_CTX_set_tlsext_status_arg
 #define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg \
                             wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg

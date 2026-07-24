@@ -5486,6 +5486,21 @@ int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx);
     \ingroup Setup
 
     \brief This function sets the read ahead flag in the WOLFSSL_CTX structure.
+    When enabled, the record-header read pulls in up to a full TLS record in a
+    single recv(), so the body (and any following buffered records) is obtained
+    without a second syscall. The flag only changes I/O behaviour when the
+    library is built with read-ahead support (--enable-readahead /
+    WOLFSSL_TLS_READ_AHEAD); otherwise it is stored but inert.
+
+    \note With read-ahead enabled, undecrypted data can remain buffered
+    internally while the socket has no more data to read. wolfSSL_has_pending()
+    reports whether any such data is buffered, but a non-zero return does not
+    guarantee a full record is available: wolfSSL_read() may still return
+    WANT_READ when only a partial record is buffered. Event-driven applications
+    should therefore drain the connection by calling wolfSSL_read() until it
+    returns WANT_READ (or an error) before returning to select()/poll(), rather
+    than looping on wolfSSL_has_pending() alone; otherwise buffered data could
+    be missed or the loop could spin.
 
     \return SSL_SUCCESS If ctx read ahead flag set.
     \return SSL_FAILURE If ctx is NULL then SSL_FAILURE is returned.
@@ -5506,8 +5521,146 @@ int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx);
     \sa wolfSSL_CTX_new
     \sa wolfSSL_CTX_free
     \sa wolfSSL_CTX_get_read_ahead
+    \sa wolfSSL_has_pending
 */
 int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the read-ahead receive window size for contexts
+    created from this WOLFSSL_CTX. When read-ahead is enabled
+    (wolfSSL_CTX_set_read_ahead()), a single recv() pulls in up to \p len bytes:
+      - \p len of 0 resets the window to the one-record default. This is also
+        the window a freshly created context already carries, so the record body
+        is read together with its header without a second syscall.
+      - A \p len larger than one record lets a single recv() coalesce several
+        back-to-back records, one syscall instead of one per record.
+      - A \p len smaller than one record caps the receive buffer's footprint
+        when the peer's records are known to be small (e.g. 4 KB), saving heap
+        versus the one-record default.
+    \p len is only a speculative read window, not a hard limit: a record larger
+    than \p len is still received correctly, with the input buffer grown to the
+    record's actual size on demand (costing an extra syscall and reallocation
+    for that record) and then reallocated back down to the window once the
+    oversized record is consumed, so the retained footprint stays bounded by
+    \p len rather than by the largest record seen. The setting only affects I/O
+    when the library is built with read-ahead support (--enable-readahead /
+    WOLFSSL_TLS_READ_AHEAD); otherwise it is stored but inert. This is the
+    wolfSSL equivalent of OpenSSL's SSL_CTX_set_default_read_buffer_len(); unlike
+    OpenSSL it returns a status code (callers that ignore the return remain
+    source-compatible) and it honours sizes below one record, whereas OpenSSL
+    only ever enlarges the buffer. A \p len above WOLFSSL_MAX_READ_AHEAD_SZ
+    (16 MB) is clamped to that maximum. Because 0 and oversized values are both
+    normalised, wolfSSL_CTX_get_default_read_buffer_len() reports the effective
+    window (the one-record default rather than 0 when unset), not the raw
+    argument.
+
+    \note This is a memory-vs-syscall trade-off. While read-ahead is enabled the
+    input buffer is retained (bounded to \p len) for the connection's lifetime,
+    so a large \p len multiplied by many concurrent connections is persistent
+    memory, while a small \p len bounds per-connection footprint at the cost of
+    more syscalls for records that exceed it.
+
+    \return SSL_SUCCESS If the buffer length was set.
+    \return SSL_FAILURE If ctx is NULL.
+
+    \param ctx WOLFSSL_CTX structure to set the read-ahead buffer length on.
+    \param len read-ahead coalescing buffer size in bytes (0 = one record).
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    // setup ctx
+    wolfSSL_CTX_set_read_ahead(ctx, 1);
+    // coalesce up to four max-size records per recv()
+    wolfSSL_CTX_set_default_read_buffer_len(ctx, 4 * 16384);
+    \endcode
+
+    \sa wolfSSL_CTX_set_read_ahead
+    \sa wolfSSL_set_default_read_buffer_len
+    \sa wolfSSL_has_pending
+*/
+int  wolfSSL_CTX_set_default_read_buffer_len(WOLFSSL_CTX* ctx, size_t len);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the read-ahead coalescing buffer size on a single
+    WOLFSSL session, overriding the value inherited from its WOLFSSL_CTX. See
+    wolfSSL_CTX_set_default_read_buffer_len() for the full description, the
+    one-record default, and the memory-vs-syscall trade-off.
+
+    \return SSL_SUCCESS If the buffer length was set.
+    \return SSL_FAILURE If ssl is NULL.
+
+    \param ssl WOLFSSL structure to set the read-ahead buffer length on.
+    \param len read-ahead coalescing buffer size in bytes (0 = one record).
+
+    \sa wolfSSL_CTX_set_default_read_buffer_len
+    \sa wolfSSL_set_read_ahead
+    \sa wolfSSL_has_pending
+*/
+int  wolfSSL_set_default_read_buffer_len(WOLFSSL* ssl, size_t len);
+
+/*!
+    \ingroup Setup
+
+    \brief This function returns the read-ahead coalescing buffer size
+    configured on a WOLFSSL_CTX by wolfSSL_CTX_set_default_read_buffer_len().
+    Because a length of 0 and oversized values are normalised when set, the
+    value reported is the effective window actually in use (the one-record
+    default rather than 0 when the length was never changed), not the raw
+    argument last passed.
+
+    \return len On success returns the read-ahead buffer length in bytes.
+    \return SSL_FAILURE If ctx is NULL.
+
+    \param ctx WOLFSSL_CTX structure to get the read-ahead buffer length from.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    long len;
+    // setup ctx
+    len = wolfSSL_CTX_get_default_read_buffer_len(ctx);
+    // check len
+    \endcode
+
+    \sa wolfSSL_CTX_set_default_read_buffer_len
+    \sa wolfSSL_get_default_read_buffer_len
+    \sa wolfSSL_CTX_set_read_ahead
+*/
+long wolfSSL_CTX_get_default_read_buffer_len(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief This function returns the read-ahead coalescing buffer size in
+    effect for a single WOLFSSL session, whether inherited from its
+    WOLFSSL_CTX or overridden by wolfSSL_set_default_read_buffer_len(). As with
+    the WOLFSSL_CTX getter, the value reported is the effective window in use,
+    not the raw argument last passed.
+
+    \return len On success returns the read-ahead buffer length in bytes.
+    \return SSL_FAILURE If ssl is NULL.
+
+    \param ssl WOLFSSL structure to get the read-ahead buffer length from.
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    long len;
+    // setup ssl
+    len = wolfSSL_get_default_read_buffer_len(ssl);
+    // check len
+    \endcode
+
+    \sa wolfSSL_set_default_read_buffer_len
+    \sa wolfSSL_CTX_get_default_read_buffer_len
+    \sa wolfSSL_set_read_ahead
+*/
+long wolfSSL_get_default_read_buffer_len(const WOLFSSL* ssl);
 
 /*!
     \ingroup Setup

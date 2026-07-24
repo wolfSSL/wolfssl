@@ -2467,6 +2467,19 @@ then
   AM_CFLAGS="$AM_CFLAGS -DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE -DWOLFSSL_KEYLOG_EXPORT_WARNED"
 fi
 
+# TLS receive read-ahead: when enabled at runtime via wolfSSL_set_read_ahead(),
+# the record-header read pulls in up to a full record in one recv(), avoiding a
+# second syscall for the body. Opt-in (default: disabled).
+AC_ARG_ENABLE([readahead],
+    [AS_HELP_STRING([--enable-readahead],[Enable TLS receive read-ahead support, activated at runtime with wolfSSL_set_read_ahead() (default: disabled)])],
+    [ ENABLED_READAHEAD=$enableval ],
+    [ ENABLED_READAHEAD=no ]
+    )
+if test "$ENABLED_READAHEAD" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_READ_AHEAD"
+fi
+
 # TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)
 AC_ARG_ENABLE([tls13-draft18],
     [AS_HELP_STRING([--enable-tls13-draft18],[Enable wolfSSL TLS v1.3 Draft 18 (default: disabled)])],
@@ -13718,6 +13731,7 @@ echo "   * FrodoKEM decapsulate:       $ENABLED_FRODOKEM_DECAPSULATE"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
+echo "   * TLS receive read-ahead:     $ENABLED_READAHEAD"
 echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
 echo "   * ML-KEM  standalone:         $ENABLED_MLKEM_STANDALONE"
 echo "   * PQ/T hybrids:               $ENABLED_PQC_HYBRIDS"
