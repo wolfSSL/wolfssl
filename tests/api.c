@@ -1816,6 +1816,46 @@ static int test_wolfSSL_CTX_new(void)
 }
 #endif
 
+#if defined(WOLFSSL_VERIFY_NONE_DEFAULT) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+/* WOLFSSL_VERIFY_NONE_DEFAULT makes a fresh CTX default to SSL_VERIFY_NONE
+ * (OpenSSL compat). Assert the default is applied, inherited by a spawned
+ * SSL, and correctly overridden by wolfSSL_CTX_set_verify(). */
+static int test_wolfSSL_CTX_verify_none_default(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* Freshly created CTX defaults to no verification. */
+    ExpectIntEQ(ctx->verifyNone, 1);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    ExpectIntEQ(wolfSSL_CTX_get_verify_mode(ctx), WOLFSSL_VERIFY_NONE);
+#endif
+
+    /* A spawned SSL inherits the default. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(ssl->options.verifyNone, 1);
+    wolfSSL_free(ssl);
+
+    /* SSL_VERIFY_PEER clears the default. */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(ctx->verifyNone, 0);
+    ExpectIntEQ(ctx->verifyPeer, 1);
+
+    /* WOLFSSL_VERIFY_DEFAULT resets verifyNone back to 0 (does not restore
+     * the compat default). */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
+    ExpectIntEQ(ctx->verifyNone, 0);
+
+    wolfSSL_CTX_free(ctx);
+
+    return EXPECT_RESULT();
+}
+#endif
+
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     !defined(NO_TLS) && \
     (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_FILESYSTEM)
@@ -38066,6 +38106,10 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Method_Allocators),
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     TEST_DECL(test_wolfSSL_CTX_new),
+#endif
+#if defined(WOLFSSL_VERIFY_NONE_DEFAULT) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+    TEST_DECL(test_wolfSSL_CTX_verify_none_default),
 #endif
     TEST_DECL(test_server_wolfSSL_new),
     TEST_DECL(test_client_wolfSSL_new),
