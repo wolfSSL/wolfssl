@@ -97,6 +97,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv, int dir)
     }
     aes->keylen = len;
     aes->rounds = len / 4 + 6;
+    /* Mark key installed so the shared aes.c mode guards accept this context. */
+    aes->keyInstalled = 1;
 
     XMEMCPY(aes->key, key, len);
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \

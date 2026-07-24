@@ -60,6 +60,10 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
     byte* key = (byte*)aes->key;
 #endif
 
+    if (aes->keyInstalled == 0) {
+        return BAD_FUNC_ARG;
+    }
+
     if (aes->alFd == WC_SOCK_NOTSET) {
         aes->alFd = wc_Afalg_Socket();
         if (aes->alFd < 0) {
@@ -146,6 +150,8 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 #endif
     aes->keylen = keylen;
     aes->rounds = keylen/4 + 6;
+    /* Mark key installed so the shared aes.c mode guards accept this context. */
+    aes->keyInstalled = 1;
 
 #ifdef WOLFSSL_AES_COUNTER
     aes->left = 0;
@@ -556,6 +562,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     aes->keylen = len;
     aes->rounds = len/4 + 6;
     aes->dir = AES_ENCRYPTION;
+    /* Mark key installed so the shared aes.c mode guards accept this context. */
+    aes->keyInstalled = 1;
 
     if (aes->rdFd > WC_SOCK_NOTSET) {
         (void)close(aes->rdFd);
