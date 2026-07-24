@@ -2417,6 +2417,14 @@ int test_dtls_certreq_order(void)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
             wolfDTLSv1_2_client_method, NULL), 0);
 
+#if defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    /* This fixed capture predates renegotiation_info advertising, so its
+     * ServerHello omits the extension. Disable the RFC 5746 check so the test
+     * exercises message ordering rather than renegotiation_info enforcement. */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_scr_check_enabled(ssl_c, 0));
+#endif
+
     /* start handshake, send first ClientHello */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
