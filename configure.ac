@@ -13183,7 +13183,6 @@ AC_PATH_PROG([PYTHON3], [python3])
 AC_PATH_PROG([PYSPDXTOOLS], [pyspdxtools])
 AC_PATH_PROG([GIT], [git])
 AC_SUBST([ENABLED_LIBZ])
-AC_SUBST([ENABLED_LIBOQS])
 
 # Bomsh (OmniBOR build artifact tracing + SBOM enrichment)
 AC_PATH_PROG([BOMTRACE3], [bomtrace3])

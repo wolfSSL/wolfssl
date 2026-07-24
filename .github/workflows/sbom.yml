@@ -655,101 +655,19 @@ jobs:
           print('simple SPDX override: ok')
           PY
 
-      # ---- liboqs / Falcon dep entry ---------------------------------------
-      # Without this, every code path that emits a dep package - pkg-config
-      # lookup, supplier/purl/license construction, deterministic UUID
-      # derivation for deps - is uncovered by CI.  A future rename or shape
-      # break in DEP_META['liboqs'] would silently land.
+      # ---- Falcon (native) build-property coverage --------------------------
+      # liboqs was removed from wolfSSL (Falcon is now provided natively by
+      # wolfCrypt), so there is no external dependency package to record; this
+      # exercises the SBOM build-property capture with an algorithm enabled.
 
-      - name: Install liboqs (provides liboqs.pc for --with-liboqs)
-        # Ubuntu noble (24.04) does not ship liboqs-dev in its archive
-        # (Debian sid has 0.7.x; Ubuntu only has unsupported PPAs).  Build
-        # from a pinned upstream commit so this job stays deterministic across
-        # runs - any future liboqs API/ABI break shows up here, not in
-        # production builds.  Pinning matters: SBOM correctness assertions
-        # below check purl shape, and an unpinned 'main' would silently
-        # change what pkg-config reports as the version string.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build libssl-dev
-          # Pin to the exact commit the 0.12.0 tag resolves to (a tag is
-          # mutable, a SHA is not) so this provenance workflow's own build
-          # inputs are immutable.  --filter=blob:none keeps the commit graph
-          # so `git checkout <SHA>` works without a full blob download.
-          git clone --filter=blob:none \
-            https://github.com/open-quantum-safe/liboqs /tmp/liboqs
-          git -C /tmp/liboqs checkout f4b96220e4bd208895172acc4fedb5a191d9f5b1 # 0.12.0
-          # -DOQS_USE_OPENSSL=OFF is load-bearing: without it, liboqs's
-          # installed common.h pulls <openssl/crypto.h> (system) into every
-          # TU that includes <oqs/oqs.h>.  wolfssl/wolfcrypt/falcon.h
-          # includes <oqs/oqs.h>, so once --enable-falcon is on, every
-          # wolfSSL TU that pulls falcon.h also pulls system OpenSSL,
-          # which collides with wolfssl/openssl/ssl.h under -Werror
-          # (CRYPTO_UNLOCK, sk_num, OPENSSL_malloc_init, ... all redefined).
-          # OFF makes liboqs use its bundled SHA/randombytes (the #else
-          # branches in oqs/common.h), keeping the build hermetic.
-          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DBUILD_SHARED_LIBS=ON \
-            -DOQS_BUILD_ONLY_LIB=ON \
-            -DOQS_DIST_BUILD=OFF \
-            -DOQS_USE_OPENSSL=OFF
-          cmake --build /tmp/liboqs/build --parallel "$(nproc)"
-          sudo cmake --install /tmp/liboqs/build
-          sudo ldconfig
-          # /usr/local/lib/pkgconfig is on pkg-config's compiled-in path
-          # on Ubuntu, but export via $GITHUB_ENV so a future image change
-          # cannot silently break --with-liboqs autodetection.  ${VAR:+:$VAR}
-          # avoids a trailing colon when PKG_CONFIG_PATH is unset.
-          echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
-            >> "$GITHUB_ENV"
-
-      - name: Verify liboqs.pc visible to pkg-config
-        # Separate step so the $GITHUB_ENV write above has taken effect
-        # for this shell; an in-step call would only be exercising the
-        # compiled-in default path, not the export.
-        run: pkg-config --modversion liboqs
-
-      - name: Configure with --with-liboqs --enable-falcon
+      - name: Configure with --enable-falcon (native)
         run: |
           make distclean
           autoreconf -ivf
-          ./configure --enable-shared --enable-experimental \
-                      --with-liboqs --enable-falcon
+          ./configure --enable-shared --enable-experimental --enable-falcon
 
-      - name: Build + generate SBOM with liboqs enabled
+      - name: Build + generate SBOM with Falcon enabled
         run: make sbom
-
-      - name: liboqs dep entry resolves to a CVE-trackable identifier
-        # The point of recording liboqs (rather than `falcon`) is that
-        # OSV / Grype / Trivy / Dependency-Track key vulnerability
-        # records off purl + name.  These assertions guard the contract
-        # that pulled the entry away from the algorithm name.
-        run: |
-          python3 - <<'PY'
-          import glob, json, re, sys
-          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
-              d = json.load(f)
-          pkgs = {p['name']: p for p in d['packages']}
-          assert 'liboqs' in pkgs, list(pkgs)
-          assert 'falcon' not in pkgs, "algorithm name leaked as a dep package"
-          liboqs = pkgs['liboqs']
-          assert liboqs['supplier'] == 'Organization: Open Quantum Safe', \
-              liboqs['supplier']
-          refs = {r['referenceType']: r['referenceLocator']
-                  for r in liboqs.get('externalRefs', [])}
-          assert 'purl' in refs, refs
-          assert re.match(r'pkg:github/open-quantum-safe/liboqs@', refs['purl']), \
-              refs['purl']
-          # CycloneDX side: same package + version present.
-          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
-              cdx = json.load(f)
-          deps = {c['name']: c for c in cdx.get('components', [])}
-          assert 'liboqs' in deps, list(deps)
-          print('liboqs dep entry: ok ->', refs['purl'])
-          PY
 
       - name: HAVE_FALCON algorithm flag is captured as a build property
         # Algorithm visibility moved out of the dep entry; this verifies
@@ -811,7 +729,7 @@ jobs:
       # a downstream packager, or the next maintainer triaging a regression
       # can download them straight from the run summary instead of replaying
       # the full job locally.  `if: always()` so a failed assertion above
-      # (license matrix, NTIA, CDX schema, liboqs dep entry, ...) still ships
+      # (license matrix, NTIA, CDX schema, Falcon build prop, ...) still ships
       # the bytes it failed on.  The last `make sbom` invocation in this job
       # is the simple SPDX override step, but the path matches every wolfssl
       # SPDX/CDX in $PWD - if any are present at job end they will be picked

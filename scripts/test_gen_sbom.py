@@ -830,9 +830,9 @@ class TestDepMetaShape(unittest.TestCase):
         # wolfssl is tracked so downstream wolfSSL-stack products (wolfSSH,
         # wolfMQTT, ...) can declare it via --dep-wolfssl; openssl so the
         # OpenSSL-compat products (wolfProvider, wolfEngine) can declare it via
-        # --dep-openssl; libz/liboqs are wolfSSL's own optional linked deps.
+        # --dep-openssl; libz is wolfSSL's own optional linked dep.
         self.assertEqual(set(gs.DEP_META.keys()),
-                         {'wolfssl', 'openssl', 'libz', 'liboqs'})
+                         {'wolfssl', 'openssl', 'libz'})
 
     def test_wolfssl_dep_entry_describes_the_linked_artefact(self):
         wolfssl = gs.DEP_META['wolfssl']
@@ -861,22 +861,14 @@ class TestDepMetaShape(unittest.TestCase):
             openssl['purl']('3.5.0'),
             'pkg:github/openssl/openssl@openssl-3.5.0')
 
-    def test_liboqs_entry_describes_the_linked_artefact(self):
-        liboqs = gs.DEP_META['liboqs']
-        self.assertEqual(liboqs['name'], 'liboqs')
-        self.assertEqual(liboqs['supplier'], 'Open Quantum Safe')
-        self.assertEqual(liboqs['pkgconfig'], 'liboqs')
-        self.assertEqual(
-            liboqs['purl']('0.10.0'),
-            'pkg:github/open-quantum-safe/liboqs@0.10.0')
-
     def test_no_stale_dep_keys(self):
         # `falcon` is an algorithm, not a linked package; it must not
         # appear as a dep entry (algorithm enablement lives in
-        # build_props parsed from options.h).  `libxmss` and `liblms`
-        # were removed upstream; their re-appearance here would
-        # silently emit unresolvable identifiers in the SBOM.
-        for stale in ('falcon', 'libxmss', 'liblms', 'xmss', 'lms'):
+        # build_props parsed from options.h).  `liboqs`, `libxmss` and
+        # `liblms` were removed upstream (Falcon is now native wolfCrypt,
+        # no liboqs); their re-appearance here would silently emit
+        # unresolvable identifiers in the SBOM.
+        for stale in ('falcon', 'liboqs', 'libxmss', 'liblms', 'xmss', 'lms'):
             self.assertNotIn(stale, gs.DEP_META)
 
 
@@ -895,22 +887,21 @@ class TestEnabledDepsCli(unittest.TestCase):
             capture_output=True, text=True
         )
 
-    def test_dep_liboqs_is_accepted(self):
+    def test_dep_flags_are_accepted(self):
         result = self._run('--help')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('--dep-liboqs', result.stdout)
         self.assertIn('--dep-libz', result.stdout)
         self.assertIn('--dep-wolfssl', result.stdout)
         self.assertIn('--dep-openssl', result.stdout)
 
     def test_removed_flags_are_rejected(self):
-        # Each of these was either renamed (--dep-falcon -> --dep-liboqs)
-        # or removed entirely (--dep-libxmss/--dep-liblms with upstream
-        # removal of the libraries).  argparse should reject them as
-        # unrecognised, not silently accept them.  We pass the full set
-        # of required args (against /dev/null sentinels) so argparse
-        # progresses to the unknown-flag check; we never want
-        # gen-sbom to actually generate anything in this test.
+        # Each of these was removed: --dep-falcon/--dep-libxmss/--dep-liblms
+        # (the libraries were removed upstream) and --dep-liboqs (liboqs support
+        # was removed; Falcon is now provided natively by wolfCrypt).  argparse
+        # should reject them as unrecognised, not silently accept them.  We pass
+        # the full set of required args (against /dev/null sentinels) so argparse
+        # progresses to the unknown-flag check; we never want gen-sbom to
+        # actually generate anything in this test.
         required = [
             '--name', 'wolfssl',
             '--version', '0.0.0-test',
@@ -920,9 +911,9 @@ class TestEnabledDepsCli(unittest.TestCase):
             '--cdx-out', '/dev/null',
             '--spdx-out', '/dev/null',
         ]
-        for stale_flag in ('--dep-falcon', '--dep-libxmss', '--dep-liblms',
-                           '--dep-libxmss-root', '--dep-liblms-root',
-                           '--git'):
+        for stale_flag in ('--dep-falcon', '--dep-liboqs', '--dep-libxmss',
+                           '--dep-liblms', '--dep-libxmss-root',
+                           '--dep-liblms-root', '--git'):
             result = self._run(*required, stale_flag, 'no')
             self.assertNotEqual(result.returncode, 0,
                                 f"{stale_flag!r} unexpectedly accepted")
@@ -1313,7 +1304,7 @@ class TestDepVersionOverride(unittest.TestCase):
             self.assertEqual(gs.dep_version('libz'), '1.0.0')
             self.assertEqual(gs.dep_version('libz', {}), '1.0.0')
             self.assertEqual(
-                gs.dep_version('libz', {'liboqs': '0.0'}), '1.0.0')
+                gs.dep_version('libz', {'openssl': '0.0'}), '1.0.0')
         finally:
             gs.pkgconfig_version = original
 
@@ -1327,16 +1318,16 @@ class TestDepVersionOverride(unittest.TestCase):
 
     def test_parse_overrides_accepts_known_keys(self):
         out = gs._parse_dep_version_overrides([
-            'libz=1.3.1', 'liboqs=0.10.0',
+            'libz=1.3.1', 'openssl=3.5.0',
         ])
-        self.assertEqual(out, {'libz': '1.3.1', 'liboqs': '0.10.0'})
+        self.assertEqual(out, {'libz': '1.3.1', 'openssl': '3.5.0'})
 
 
 class TestResolveDepVersionsSingleShot(unittest.TestCase):
     """Each enabled dependency's version must be resolved exactly once (in
     main, via _resolve_dep_versions), not once per output format.  Without
     the precompute, generate_cdx and generate_spdx each call dep_version()
-    independently, so a default --with-libz --with-liboqs build would shell
+    independently, so a build linking libz + openssl would shell
     out to `pkg-config --modversion` four times (2 deps x CDX+SPDX) instead
     of twice -- and the two documents could disagree if pkg-config were ever
     non-deterministic.  These tests lock that single-resolution behaviour in."""
@@ -1346,14 +1337,14 @@ class TestResolveDepVersionsSingleShot(unittest.TestCase):
         original = gs.pkgconfig_version
         try:
             gs.pkgconfig_version = lambda pkg: (calls.append(pkg), '1.2.3')[1]
-            overrides = gs._resolve_dep_versions(['libz', 'liboqs'], {})
+            overrides = gs._resolve_dep_versions(['libz', 'openssl'], {})
             self.assertEqual(len(calls), 2)
             self.assertEqual(overrides['libz'], '1.2.3')
-            self.assertEqual(overrides['liboqs'], '1.2.3')
+            self.assertEqual(overrides['openssl'], '1.2.3')
             # The emitters reuse the cached value: a later dep_version() for
             # an already-resolved key must not re-invoke pkg-config.
             gs.dep_version('libz', overrides)
-            gs.dep_version('liboqs', overrides)
+            gs.dep_version('openssl', overrides)
             self.assertEqual(len(calls), 2)
         finally:
             gs.pkgconfig_version = original
@@ -1374,11 +1365,11 @@ class TestResolveDepVersionsSingleShot(unittest.TestCase):
         original = gs.pkgconfig_version
         try:
             gs.pkgconfig_version = lambda pkg: (calls.append(pkg), None)[1]
-            overrides = gs._resolve_dep_versions(['liboqs'], {})
-            self.assertIn('liboqs', overrides)
-            self.assertIsNone(overrides['liboqs'])
+            overrides = gs._resolve_dep_versions(['openssl'], {})
+            self.assertIn('openssl', overrides)
+            self.assertIsNone(overrides['openssl'])
             # A cached None must short-circuit later lookups too.
-            gs.dep_version('liboqs', overrides)
+            gs.dep_version('openssl', overrides)
             self.assertEqual(len(calls), 1)
         finally:
             gs.pkgconfig_version = original
@@ -1740,7 +1731,7 @@ class TestCdxDepComponent(unittest.TestCase):
 
     def test_returns_bomref_and_component(self):
         # Stub pkgconfig_version so the test does not depend on the
-        # build host having libz / liboqs installed.
+        # build host having libz / openssl installed.
         original = gs.pkgconfig_version
         try:
             gs.pkgconfig_version = lambda *_a, **_k: '1.3.1'
@@ -1812,7 +1803,7 @@ class TestSpdxDepPackage(unittest.TestCase):
         original = gs.pkgconfig_version
         try:
             gs.pkgconfig_version = lambda *_a, **_k: '0.10.0'
-            spdx_id, pkg = gs.spdx_dep_package('liboqs')
+            spdx_id, pkg = gs.spdx_dep_package('openssl')
         finally:
             gs.pkgconfig_version = original
         self.assertTrue(spdx_id.startswith('SPDXRef-Package-'))
@@ -1825,7 +1816,7 @@ class TestSpdxDepPackage(unittest.TestCase):
             _re.match(r'\ASPDXRef-[A-Za-z0-9.-]+\Z', spdx_id),
             f'invalid SPDXID shape: {spdx_id!r}')
         self.assertEqual(pkg['SPDXID'], spdx_id)
-        self.assertEqual(pkg['name'], 'liboqs')
+        self.assertEqual(pkg['name'], 'openssl')
         self.assertEqual(pkg['versionInfo'], '0.10.0')
         self.assertEqual(pkg['filesAnalyzed'], False)
         # Both license fields must agree; SPDX validators accept
@@ -1840,7 +1831,7 @@ class TestSpdxDepPackage(unittest.TestCase):
         original = gs.pkgconfig_version
         try:
             gs.pkgconfig_version = lambda *_a, **_k: None
-            _, pkg = gs.spdx_dep_package('liboqs')
+            _, pkg = gs.spdx_dep_package('openssl')
         finally:
             gs.pkgconfig_version = original
         self.assertEqual(pkg['versionInfo'], 'NOASSERTION')
@@ -1853,7 +1844,7 @@ class TestSpdxDepPackage(unittest.TestCase):
         original = gs.pkgconfig_version
         try:
             gs.pkgconfig_version = lambda *_a, **_k: '0.10.0'
-            _, pkg = gs.spdx_dep_package('liboqs')
+            _, pkg = gs.spdx_dep_package('openssl')
         finally:
             gs.pkgconfig_version = original
         purl_refs = [
@@ -1861,7 +1852,7 @@ class TestSpdxDepPackage(unittest.TestCase):
             if r.get('referenceType') == 'purl'
         ]
         self.assertEqual(len(purl_refs), 1)
-        self.assertIn('liboqs', purl_refs[0]['referenceLocator'])
+        self.assertIn('openssl', purl_refs[0]['referenceLocator'])
         self.assertIn('0.10.0', purl_refs[0]['referenceLocator'])
 
 

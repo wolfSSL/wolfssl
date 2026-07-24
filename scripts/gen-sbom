@@ -122,19 +122,6 @@ DEP_META = {
         'pkgconfig': 'wolfssl',
         'purl': lambda v: f'pkg:github/wolfSSL/wolfssl@v{v}',
     },
-    # liboqs is the only PQ external dependency wolfSSL still links against
-    # after upstream PR #10293 collapsed the rest of the PQ surface into
-    # native wolfCrypt.  Today, --enable-falcon strictly implies --with-liboqs
-    # (configure.ac enforces both directions), so a build that links liboqs
-    # is precisely a build that exposed Falcon.
-    'liboqs': {
-        'name': 'liboqs',
-        'supplier': 'Open Quantum Safe',
-        'license': 'MIT',
-        'download': 'https://github.com/open-quantum-safe/liboqs',
-        'pkgconfig': 'liboqs',
-        'purl': lambda v: f'pkg:github/open-quantum-safe/liboqs@{v}',
-    },
     'libz': {
         'name': 'zlib',
         'supplier': 'Jean-loup Gailly and Mark Adler',
@@ -1078,7 +1065,7 @@ def _resolve_dep_versions(enabled_deps, overrides):
     value instead of each re-invoking pkg-config.  Caching the result
     (including None) means a later dep_version() lookup short-circuits on the
     membership check rather than re-shelling to `pkg-config --modversion`, so
-    a default --with-libz --with-liboqs build calls pkg-config once per dep
+    a default --with-libz build calls pkg-config once per dep
     (not once per dep per output format) and the two documents can never
     disagree if pkg-config output were ever non-deterministic."""
     for key in enabled_deps:
@@ -1185,10 +1172,6 @@ def main():
                              'openssl.pc.')
     parser.add_argument('--dep-libz', default='no',
                         help='yes if built with --with-libz')
-    parser.add_argument('--dep-liboqs', default='no',
-                        help='yes if built with --with-liboqs (the package '
-                             'wolfSSL links against; --enable-falcon implies '
-                             'this in any legal configuration)')
     parser.add_argument('--dep-version', action='append', default=[],
                         metavar='KEY=VERSION',
                         help='Override pkg-config version detection for a '
@@ -1257,7 +1240,6 @@ def main():
             ('wolfssl', args.dep_wolfssl),
             ('openssl', args.dep_openssl),
             ('libz',    args.dep_libz),
-            ('liboqs',  args.dep_liboqs),
         ]
         if flag.lower() == 'yes'
     ]

@@ -499,12 +499,12 @@ WOLFSSL_LIB_DSO_BASENAMES = \
 #                          https://example.com/sbom/wolfssl-X.Y.Z.spdx.json).
 #   SBOM_DEP_VERSIONS      Space-separated KEY=VERSION list forwarded to
 #                          gen-sbom as repeated --dep-version flags (KEY is
-#                          one of the known deps, e.g. liboqs / libz).  Use
+#                          one of the known deps, e.g. libz / openssl).  Use
 #                          this on build/packaging hosts that lack the dep's
 #                          pkg-config .pc file, where version detection would
 #                          otherwise fall back to NOASSERTION (SPDX) / an
 #                          omitted version+purl (CycloneDX).  Example:
-#                          make sbom SBOM_DEP_VERSIONS='liboqs=0.10.0 libz=1.3.1'.
+#                          make sbom SBOM_DEP_VERSIONS='libz=1.3.1 openssl=3.5.0'.
 #   SBOM_LIB_OVERRIDE      Absolute path to the library artefact whose
 #                          SHA-256 should land in the SBOM, INSTEAD of
 #                          discovering one via a private staging install.
@@ -581,7 +581,6 @@ sbom:
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
 	    --dep-libz "$(ENABLED_LIBZ)" \
-	    --dep-liboqs "$(ENABLED_LIBOQS)" \
 	    $(foreach dv,$(SBOM_DEP_VERSIONS),--dep-version '$(dv)') \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
 	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \

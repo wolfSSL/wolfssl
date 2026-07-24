@@ -81,7 +81,6 @@ Optional flags:
 |---|---|
 | `--supplier "Acme Inc."` | Override the default `wolfSSL Inc.` (rare) |
 | `--dep-libz yes` | If your build links `libz` |
-| `--dep-liboqs yes` | If your build links `liboqs` |
 | `--dep-version libz=1.3.1` | Explicit dep version when `pkg-config` is unavailable (typical cross-compile) |
 | `--license-override LicenseRef-wolfSSL-Commercial` | If you are a commercial licensee, not GPL |
 | `--license-text /path/to/commercial-license.txt` | Required when `--license-override` is a `LicenseRef-*` |
@@ -458,7 +457,7 @@ Both formats contain the same information:
 | CPE | `cpe:2.3:a:wolfssl:wolfssl:<version>:*:*:*:*:*:*:*` |
 | PURL | `pkg:github/wolfSSL/wolfssl@v<version>` (resolves directly in OSV / GHSA / Snyk / Trivy without per-vendor mapping) |
 | Download location | `https://github.com/wolfSSL/wolfssl` |
-| Third-party deps | none in a default build; `--with-libz` adds zlib and `--with-liboqs` adds liboqs (recorded as `DEPENDS_ON` packages with their own purl/CPE/supplier).  All builds depend transitively on the host C runtime; this is not enumerated as an SBOM component since it is system-supplied and varies per runtime target. |
+| Third-party deps | none in a default build; `--with-libz` adds zlib (recorded as a `DEPENDS_ON` package with its own purl/CPE/supplier).  All builds depend transitively on the host C runtime; this is not enumerated as an SBOM component since it is system-supplied and varies per runtime target. |
 
 #### License detection
 
@@ -519,14 +518,14 @@ make sbom \
 
 #### External dependency version detection
 
-The optional external dependencies wolfSSL can link against (`libz` and
-`liboqs`) are both installed packages and are queried via
-`pkg-config --modversion` at SBOM generation time.  The SBOM records each
-linked library by its package name (`zlib`, `liboqs`) so that downstream
-vulnerability scanners (OSV, Grype, Trivy, Dependency-Track) match CVEs
-against the right component.  Algorithm enablement (e.g. Falcon, which is
-reachable only via liboqs) is captured separately as build properties
-(`wolfssl:build:HAVE_FALCON` etc.) parsed from `wolfssl/options.h`.
+The optional external dependency wolfSSL can link against (`libz`) is an
+installed package and is queried via `pkg-config --modversion` at SBOM
+generation time.  The SBOM records the linked library by its package name
+(`zlib`) so that downstream vulnerability scanners (OSV, Grype, Trivy,
+Dependency-Track) match CVEs against the right component.  Algorithm
+enablement (e.g. Falcon, now provided natively by wolfCrypt) is captured
+separately as build properties (`wolfssl:build:HAVE_FALCON` etc.) parsed
+from `wolfssl/options.h`.
 
 If pkg-config does not report a version (the package is not installed, or
 its `.pc` file is missing):
@@ -543,7 +542,7 @@ that lacks the dependency's `.pc` file can still record the version instead
 of `NOASSERTION`:
 
 ```sh
-make sbom SBOM_DEP_VERSIONS='liboqs=0.10.0 libz=1.3.1'
+make sbom SBOM_DEP_VERSIONS='libz=1.3.1'
 ```
 
 ### 2.5 Validating the SBOM manually
