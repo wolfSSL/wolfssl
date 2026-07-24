@@ -22793,6 +22793,31 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
     }
 
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* Reject trailing data after the certificate's outer SEQUENCE.
+     *
+     * The template parser (GetASN_Items) only verifies that constructed items
+     * nested under the top-level item are fully consumed - it never checks that
+     * the outermost SEQUENCE spans all the way to maxIdx. Without this check,
+     * arbitrary bytes appended after a certificate are silently accepted and
+     * then returned/hashed verbatim by wolfSSL_i2d_X509 / wolfSSL_X509_get_der /
+     * wolfSSL_X509_digest (which operate on the stored source buffer of length
+     * maxIdx).
+     *
+     * cert->srcIdx points just past the certificate's outer SEQUENCE after the
+     * x509CertASN parse above. Only enforce this on a full parse; the
+     * pubkey-only paths (stopAtPubKey/stopAfterPubKey) intentionally parse the
+     * whole template but their callers may pass larger buffers. The TRUSTED
+     * CERTIFICATE format legitimately carries auxiliary trust data after the
+     * certificate, so allow it when cert->allowTrailing is set. */
+    if ((ret == 0) && (!done) &&
+            (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)) {
+        WOLFSSL_MSG("Trailing data after certificate");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
+    }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
+
     if ((ret == 0) && (!done) && (badDate != 0)) {
         /* Parsed whole certificate fine but return any date errors. */
         ret = badDate;
@@ -23993,6 +24018,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
     int    ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 confirmOID = 0;
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* Full input length before GetCertHeader() rebounds cert->maxIdx to the
+     * certificate's outer SEQUENCE; used to detect trailing data. */
+    word32 origMaxIdx = 0;
+#endif
 #ifdef WOLFSSL_CERT_REQ
     int    len = 0;
 #endif
@@ -24013,6 +24043,17 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         return BAD_FUNC_ARG;
     }
 
+    /* TRUSTED CERTIFICATE blobs (RFC/OpenSSL "TRUSTED CERTIFICATE") carry
+     * auxiliary trust data after the certificate. Permit that trailing data and
+     * parse only the certificate prefix; treat it as a normal certificate for
+     * all verification/path-length logic below. Doing this here (rather than in
+     * a single caller) means any caller of wc_ParseCert()/ParseCertRelative()
+     * that passes TRUSTED_CERT_TYPE gets the correct, consistent behavior. */
+    if (type == TRUSTED_CERT_TYPE) {
+        cert->allowTrailing = 1;
+        type = CERT_TYPE;
+    }
+
 #ifdef WOLFSSL_CERT_REQ
     if (type == CERTREQ_TYPE)
         cert->isCSR = 1;
@@ -24020,6 +24061,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 
     if (cert->sigCtx.state == SIG_STATE_BEGIN) {
 #ifndef WOLFSSL_ASN_TEMPLATE
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* Capture the full input length now: DecodeToKey()->GetCertHeader()
+         * rebounds cert->maxIdx to the certificate's outer SEQUENCE, after
+         * which trailing bytes would otherwise be invisible. */
+        origMaxIdx = cert->maxIdx;
+#endif
         cert->badDate = 0;
         cert->criticalExt = 0;
         if ((ret = DecodeToKey(cert, verify)) < 0) {
@@ -24262,6 +24309,27 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
             return ASN_SIG_OID_E;
         }
+
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* Reject trailing data after the certificate's outer SEQUENCE.
+         *
+         * This is the non-template counterpart to the trailing-data check in
+         * DecodeCertInternal(). GetCertHeader() rebounded cert->maxIdx to the
+         * end of the certificate's outer SEQUENCE, so comparing it against the
+         * original input length (origMaxIdx) detects any appended bytes. The
+         * TRUSTED CERTIFICATE format legitimately carries auxiliary trust data
+         * after the certificate (cert->allowTrailing), and CSRs carry their own
+         * trailing structure, so both are exempt. */
+        if ((cert->maxIdx != origMaxIdx) && (!cert->allowTrailing)
+#ifdef WOLFSSL_CERT_REQ
+                && (!cert->isCSR)
+#endif
+                ) {
+            WOLFSSL_MSG("Trailing data after certificate");
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            return ASN_PARSE_E;
+        }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
 #else
 #ifdef WOLFSSL_CERT_REQ
         if (cert->isCSR) {

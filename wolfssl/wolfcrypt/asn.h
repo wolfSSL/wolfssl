@@ -2210,6 +2210,10 @@ struct DecodedCert {
 #ifdef HAVE_RPK
     WC_BITFIELD isRPK:1;   /* indicate the cert is Raw-Public-Key cert in RFC7250 */
 #endif
+    WC_BITFIELD allowTrailing:1;        /* permit data after the cert's outer
+                                         * SEQUENCE. Used internally for the
+                                         * TRUSTED CERTIFICATE auxiliary trust
+                                         * info. */
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
     wc_UnknownExtCallbackEx unknownExtCallbackEx;
