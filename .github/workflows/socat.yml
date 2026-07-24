@@ -129,10 +129,20 @@ jobs:
           # numeric non-loopback addresses (e.g. the multicast tests). Best-effort
           # (|| true), errors left visible so a runner without IPv6 still runs the
           # IPv4 tests and any failure stays diagnosable in the log.
+          #
+          # The inverted OPENSSL testserversec tests run a one-shot foreground
+          # listener with no port-wait; the background connector quits after
+          # 2s (retry=2), and a later listener then hangs in accept() forever.
+          # retry=30 widens the window at no cost to passing runs. timeout
+          # makes any remaining hang fail fast with the culprit test named in
+          # the shard output instead of stalling into the 15-min job kill.
+          # Assert the retry=2 pattern is present first: a silent sed no-op
+          # (upstream test.sh changed) would otherwise reintroduce the hang
+          # while the run still looked green.
           cat > socat-configs.json <<'EOF'
           [{
             "name": "socat", "build": false, "netns": true, "shards": __SHARDS__,
-            "run": [["bash", "-c", "set -e; ip link set lo up || true; sysctl -wq net.ipv6.conf.lo.disable_ipv6=0 || true; ip addr add ::1/128 dev lo || true; ip addr add fc00::1/128 dev lo || true; ip addr add 192.0.2.1/32 dev lo || true; sysctl -wq net.ipv6.bindv6only=0 || true; cp -a \"$SOCAT_SRC/.\" .; tests=$(seq \"$SHARD\" \"$SHARDS\" 999); SOCAT=\"$PWD/socat\" SHELL=/bin/bash ./test.sh -t 1.0 --expect-fail \"$EXPECT_FAIL\" ${tests:-0}"]]
+            "run": [["bash", "-c", "set -e; ip link set lo up || true; sysctl -wq net.ipv6.conf.lo.disable_ipv6=0 || true; ip addr add ::1/128 dev lo || true; ip addr add fc00::1/128 dev lo || true; ip addr add 192.0.2.1/32 dev lo || true; sysctl -wq net.ipv6.bindv6only=0 || true; cp -a \"$SOCAT_SRC/.\" .; grep -q 'fork,retry=2,' test.sh || { echo 'socat test.sh: fork,retry=2 pattern gone, retry-widen would silently no-op (upstream changed?)' >&2; exit 1; }; sed -i 's/fork,retry=2,/fork,retry=30,/' test.sh; tests=$(seq \"$SHARD\" \"$SHARDS\" 999); SOCAT=\"$PWD/socat\" SHELL=/bin/bash timeout -k 10 600 ./test.sh -t 1.0 --expect-fail \"$EXPECT_FAIL\" ${tests:-0}"]]
           }]
           EOF
           sed -i "s/__SHARDS__/$(( 6 * $(nproc) ))/" socat-configs.json
