@@ -475,7 +475,10 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     byte ctr;
     word32 i;
     word32 len;
-    word32 bits = (outSz * 8); /* reverse byte order */
+    word32 bits = (outSz * 8);
+#ifdef WOLFSSL_WIDE_BYTE
+    byte bitsBuf[4]; /* the 32-bit length as four big-endian octets */
+#endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256* sha = &drbg->sha256;
 #else
@@ -500,7 +503,11 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         return DRBG_FAILURE;
 #endif
 
-#ifdef LITTLE_ENDIAN_ORDER
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A word32 cannot be aliased as an octet stream where a C byte is wider
+     * than 8 bits; emit the length as four big-endian octets (shared helper). */
+    BytesFromWordsBE32(bitsBuf, &bits, 4);
+#elif defined(LITTLE_ENDIAN_ORDER)
     bits = ByteReverseWord32(bits);
 #endif
     len = (outSz / OUTPUT_BLOCK_LEN)
@@ -520,7 +527,11 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
         if (ret == 0) {
             ctr++;
+#ifdef WOLFSSL_WIDE_BYTE
+            ret = wc_Sha256Update(sha, bitsBuf, sizeof(bitsBuf));
+#else
             ret = wc_Sha256Update(sha, (byte*)&bits, sizeof(bits));
+#endif
         }
 
         if (ret == 0) {
@@ -677,7 +688,7 @@ static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 {
     int i;
     for (i = (int)dataSz - 1; i >= 0; i--) {
-        data[i]++;
+        data[i] = WC_OCTET(data[i] + 1);
         if (data[i] != 0) break;
     }
 }
@@ -800,14 +811,14 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
         dIdx = (int)dLen - 1;
         for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
             carry = (word16)(carry + d[dIdx] + s[sIdx]);
-            d[dIdx] = (byte)carry;
+            d[dIdx] = WC_OCTET(carry);
             carry >>= 8;
             dIdx--;
         }
 
         for (; dIdx >= 0; dIdx--) {
             carry = (word16)(carry + d[dIdx]);
-            d[dIdx] = (byte)carry;
+            d[dIdx] = WC_OCTET(carry);
             carry >>= 8;
         }
     }
@@ -830,6 +841,9 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
     word64 reseedCtr;
 #else
     word32 reseedCtr;
+#endif
+#ifdef WOLFSSL_WIDE_BYTE
+    byte ctrBuf[8]; /* reseed counter as big-endian octets */
 #endif
 
     if (drbg == NULL) {
@@ -925,6 +939,17 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
             if (ret == 0) {
                 array_add(drbg->V, sizeof(drbg->V), digest, WC_SHA256_DIGEST_SIZE);
                 array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
+#ifdef WOLFSSL_WIDE_BYTE
+                /* A word cannot be aliased as an octet stream where a C byte is
+                 * wider than 8 bits; add the counter as big-endian octets. */
+            #ifdef WORD64_AVAILABLE
+                BytesFromWordsBE64(ctrBuf, &reseedCtr, 8);
+                array_add(drbg->V, sizeof(drbg->V), ctrBuf, 8);
+            #else
+                BytesFromWordsBE32(ctrBuf, &reseedCtr, 4);
+                array_add(drbg->V, sizeof(drbg->V), ctrBuf, 4);
+            #endif
+#else
             #ifdef LITTLE_ENDIAN_ORDER
                 #ifdef WORD64_AVAILABLE
                 reseedCtr = ByteReverseWord64(reseedCtr);
@@ -934,6 +959,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
             #endif
                 array_add(drbg->V, sizeof(drbg->V),
                                           (byte*)&reseedCtr, sizeof(reseedCtr));
+#endif
                 ret = DRBG_SUCCESS;
             }
             drbg->reseedCtr++;
@@ -1061,6 +1087,9 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
     word32 i;
     word32 len;
     word32 bits = (outSz * 8);
+#ifdef WOLFSSL_WIDE_BYTE
+    byte bitsBuf[4]; /* the 32-bit length as four big-endian octets */
+#endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha512* sha = &drbg->sha512;
 #else
@@ -1093,7 +1122,9 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
         return DRBG_FAILURE;
 #endif
 
-#ifdef LITTLE_ENDIAN_ORDER
+#ifdef WOLFSSL_WIDE_BYTE
+    BytesFromWordsBE32(bitsBuf, &bits, 4);   /* see Hash_df */
+#elif defined(LITTLE_ENDIAN_ORDER)
     bits = ByteReverseWord32(bits);
 #endif
     len = (outSz / OUTPUT_BLOCK_LEN_SHA512)
@@ -1113,7 +1144,11 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
         ret = wc_Sha512Update(sha, &ctr, sizeof(ctr));
         if (ret == 0) {
             ctr++;
+#ifdef WOLFSSL_WIDE_BYTE
+            ret = wc_Sha512Update(sha, bitsBuf, sizeof(bitsBuf));
+#else
             ret = wc_Sha512Update(sha, (byte*)&bits, sizeof(bits));
+#endif
         }
 
         if (ret == 0) {
@@ -1311,6 +1346,9 @@ static int Hash512_DRBG_Generate(DRBG_SHA512_internal* drbg, byte* out,
 #endif
     byte type;
     word64 reseedCtr;
+#ifdef WOLFSSL_WIDE_BYTE
+    byte ctrBuf[8]; /* reseed counter as big-endian octets */
+#endif
 
     if (drbg == NULL) {
         return DRBG_FAILURE;
@@ -1388,11 +1426,17 @@ static int Hash512_DRBG_Generate(DRBG_SHA512_internal* drbg, byte* out,
                 array_add(drbg->V, sizeof(drbg->V), digest,
                           WC_SHA512_DIGEST_SIZE);
                 array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
+#ifdef WOLFSSL_WIDE_BYTE
+                /* See Hash_DRBG_Generate. */
+                BytesFromWordsBE64(ctrBuf, &reseedCtr, 8);
+                array_add(drbg->V, sizeof(drbg->V), ctrBuf, 8);
+#else
             #ifdef LITTLE_ENDIAN_ORDER
                 reseedCtr = ByteReverseWord64(reseedCtr);
             #endif
                 array_add(drbg->V, sizeof(drbg->V),
                                           (byte*)&reseedCtr, sizeof(reseedCtr));
+#endif
                 ret = DRBG_SUCCESS;
             }
             drbg->reseedCtr++;

@@ -226,7 +226,7 @@ on the specific device platform.
     #endif
 #endif
 #ifndef SHA256_REV_BYTES
-    #if defined(LITTLE_ENDIAN_ORDER)
+    #if defined(LITTLE_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
         #define SHA256_REV_BYTES(ctx)       1
     #else
         #define SHA256_REV_BYTES(ctx)       0
@@ -255,7 +255,6 @@ on the specific device platform.
 #else
     #define SHA256_UPDATE_REV_BYTES(ctx)    SHA256_REV_BYTES(ctx)
 #endif
-
 
 #if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH_SHA2) && \
     (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH) || \
@@ -1743,8 +1742,14 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             #endif
 
             if (SHA256_UPDATE_REV_BYTES(&sha256->ctx)) {
+            #ifdef WOLFSSL_WIDE_BYTE
+                /* CHAR_BIT != 8: pack 16 big-endian schedule words octet-wise */
+                WordsFromBytesBE32(sha256->buffer, (const byte*)sha256->buffer,
+                    WC_SHA256_BLOCK_SIZE / 4);
+            #else
                 ByteReverseWords(sha256->buffer, sha256->buffer,
                     WC_SHA256_BLOCK_SIZE);
+            #endif
             }
 
             #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
@@ -1847,7 +1852,12 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             #endif
 
             if (SHA256_UPDATE_REV_BYTES(&sha256->ctx)) {
+            #ifdef WOLFSSL_WIDE_BYTE
+                WordsFromBytesBE32(local32, (const byte*)local32,
+                    WC_SHA256_BLOCK_SIZE / 4);
+            #else
                 ByteReverseWords(local32, local32, WC_SHA256_BLOCK_SIZE);
+            #endif
             }
 
             #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
@@ -1949,8 +1959,13 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         #endif
 
         if (SHA256_UPDATE_REV_BYTES(&sha256->ctx)) {
+        #ifdef WOLFSSL_WIDE_BYTE
+            WordsFromBytesBE32(sha256->buffer, (const byte*)sha256->buffer,
+                WC_SHA256_BLOCK_SIZE / 4);
+        #else
             ByteReverseWords(sha256->buffer, sha256->buffer,
                 WC_SHA256_BLOCK_SIZE);
+        #endif
         }
 
         #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
@@ -1976,7 +1991,8 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             WC_SHA256_PAD_SIZE - sha256->buffLen);
 
         /* put 64 bit length in separate 32 bit parts */
-        sha256->hiLen = (sha256->loLen >> (8 * sizeof(sha256->loLen) - 3)) +
+        sha256->hiLen = (sha256->loLen >>
+                            (CHAR_BIT * sizeof(sha256->loLen) - 3)) +
                                                          (sha256->hiLen << 3);
         sha256->loLen = sha256->loLen << 3;
 
@@ -1988,14 +2004,34 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #endif
 
         /* store lengths */
+#ifdef WOLFSSL_WIDE_BYTE
+        /* CHAR_BIT != 8: 'local' indexes octet cells, so place the 64-bit
+         * bit-length as 8 big-endian octets (W[14]=hiLen, W[15]=loLen). */
+        local[WC_SHA256_PAD_SIZE + 0] = (byte)((sha256->hiLen >> 24) & 0xFF);
+        local[WC_SHA256_PAD_SIZE + 1] = (byte)((sha256->hiLen >> 16) & 0xFF);
+        local[WC_SHA256_PAD_SIZE + 2] = (byte)((sha256->hiLen >>  8) & 0xFF);
+        local[WC_SHA256_PAD_SIZE + 3] = (byte)((sha256->hiLen      ) & 0xFF);
+        local[WC_SHA256_PAD_SIZE + 4] = (byte)((sha256->loLen >> 24) & 0xFF);
+        local[WC_SHA256_PAD_SIZE + 5] = (byte)((sha256->loLen >> 16) & 0xFF);
+        local[WC_SHA256_PAD_SIZE + 6] = (byte)((sha256->loLen >>  8) & 0xFF);
+        local[WC_SHA256_PAD_SIZE + 7] = (byte)((sha256->loLen      ) & 0xFF);
+#endif
         if (SHA256_UPDATE_REV_BYTES(&sha256->ctx)) {
+        #ifdef WOLFSSL_WIDE_BYTE
+            /* pack all 16 big-endian schedule words octet-wise (incl. length) */
+            WordsFromBytesBE32(sha256->buffer, (const byte*)sha256->buffer,
+                WC_SHA256_BLOCK_SIZE / 4);
+        #else
             ByteReverseWords(sha256->buffer, sha256->buffer,
                 WC_SHA256_PAD_SIZE);
+        #endif
         }
+#ifndef WOLFSSL_WIDE_BYTE
         /* ! 64-bit length ordering dependent on digest endian type ! */
         XMEMCPY(&local[WC_SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
         XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
                 sizeof(word32));
+#endif
 
     /* Only the ESP32-C3 with HW enabled may need pad size byte order reversal
      * depending on HW or SW mode */
@@ -2095,7 +2131,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             return BAD_FUNC_ARG;
         }
 
-    #ifdef LITTLE_ENDIAN_ORDER
+    #if defined(WOLFSSL_WIDE_BYTE)
+        /* CHAR_BIT != 8: store digest words as big-endian octets. */
+        BytesFromWordsBE32(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
+        (void)digest;
+    #elif defined(LITTLE_ENDIAN_ORDER)
         if (SHA256_REV_BYTES(&sha256->ctx)) {
             ByteReverseWords((word32*)digest, (word32*)sha256->digest,
                               WC_SHA256_DIGEST_SIZE);
@@ -2143,6 +2183,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
             return ret;
         }
 
+    #if defined(WOLFSSL_WIDE_BYTE)
+        /* CHAR_BIT != 8: store digest words as big-endian octets. */
+        BytesFromWordsBE32(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
+    #else
     #if defined(LITTLE_ENDIAN_ORDER)
         if (SHA256_REV_BYTES(&sha256->ctx)) {
             ByteReverseWords(sha256->digest, sha256->digest,
@@ -2150,6 +2194,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         }
     #endif
         XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
+    #endif
 
         return InitSha256(sha256);  /* reset state */
     }
@@ -2689,6 +2734,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (ret != 0)
             return ret;
 
+    #if defined(WOLFSSL_WIDE_BYTE)
+        /* CHAR_BIT != 8: store digest words as big-endian octets. */
+        BytesFromWordsBE32(hash, sha224->digest, WC_SHA224_DIGEST_SIZE);
+    #else
     #if defined(LITTLE_ENDIAN_ORDER)
         if (SHA256_REV_BYTES(&sha224->ctx)) {
             ByteReverseWords(sha224->digest,
@@ -2697,6 +2746,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         }
     #endif
         XMEMCPY(hash, sha224->digest, WC_SHA224_DIGEST_SIZE);
+    #endif
 
         return InitSha224(sha224);  /* reset state */
     }

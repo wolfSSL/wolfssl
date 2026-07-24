@@ -145,6 +145,22 @@
         #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
     #endif
 #endif
+#ifdef WOLFSSL_DILITHIUM_VERIFY_SMALLEST_MEM
+    #ifndef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+        #define WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+    #endif
+#endif
+#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+    /* Smallest verify RAM: on top of the small-mem, no-malloc path, stream the
+     * signature's z vector one polynomial at a time instead of pinning the whole
+     * l-vector (~6 KB for ML-DSA-87) at the cost of a per-row z decode+NTT. */
+    #ifndef WOLFSSL_MLDSA_VERIFY_SMALL_MEM
+        #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
+    #endif
+    #ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
+        #define WOLFSSL_MLDSA_VERIFY_NO_MALLOC
+    #endif
+#endif
 #ifdef WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM
     #ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
         #define WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
@@ -285,6 +301,29 @@
 #ifdef DILITHIUM_USE_HINT_CT
     #ifndef MLDSA_USE_HINT_CT
         #define MLDSA_USE_HINT_CT
+    #endif
+#endif
+
+/* MLDSA_MUL_QINV_WIDE64: do the q^-1 step of mldsa_mont_red() with a 32x64->64
+ * widening multiply rather than 32x32->32 (which some 16-bit toolchains, e.g.
+ * TI cl2000, miscompile); correct everywhere and no slower.  Default on for
+ * WC_16BIT_CPU; force the shift form with MLDSA_MUL_QINV_SLOW. */
+#if defined(WC_16BIT_CPU)
+    #if !defined(MLDSA_MUL_QINV_SLOW) && !defined(MLDSA_MUL_QINV_WIDE64)
+        #define MLDSA_MUL_QINV_WIDE64
+    #endif
+#endif
+
+/* MLDSA_MUL_Q_SLOW: compute the "* q" step of mldsa_red()/mldsa_mont_red() with
+ * shifts (q = 2^23 - 2^13 + 1) instead of a 32-bit multiply.  TI cl2000 at -O2
+ * MISCOMPILES the multiply form of mldsa_red()'s Barrett reduction on the C28x:
+ * the reduced value is still correct (verify KAT passes) but the generated code
+ * emits a stray store that corrupts memory a later allocation trips on.  The
+ * shift reformulation avoids the faulty -O2 codegen (a widening 32x64 multiply
+ * does NOT); correct everywhere.  Default on for WC_16BIT_CPU. */
+#if defined(WC_16BIT_CPU)
+    #ifndef MLDSA_MUL_Q_SLOW
+        #define MLDSA_MUL_Q_SLOW
     #endif
 #endif
 

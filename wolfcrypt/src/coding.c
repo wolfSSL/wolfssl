@@ -72,7 +72,7 @@ static WC_INLINE byte Base64_Char2Val_CT(byte c)
     v |= ((slashStart >> 8) ^ (slashEnd >> 8)) & (slashStart + 63 + 1);
     v |= ((plusStart  >> 8) ^ (plusEnd  >> 8)) & (plusStart  + 62 + 1);
 
-    return (byte)(v - 1);
+    return WC_OCTET(v - 1);
 }
 
 #ifndef BASE64_NO_TABLE

@@ -125,7 +125,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
  * => r = a - ((V * a) >> 26) * q), as V based on 2^26
  * V is the multiplier that gets the quotient after shifting.
  */
-#define MLKEM_V          (((1U << 26) + (MLKEM_Q / 2)) / MLKEM_Q)
+#define MLKEM_V          (((1UL << 26) + (MLKEM_Q / 2)) / MLKEM_Q)
 
 /* Used in converting to Montgomery form.
  * f is the normalizer = 2^k % m.
@@ -2174,7 +2174,7 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
     mlkem_from_msg(m, msg);
 
     /* Generate noise using PRF. */
-    coins[WC_ML_KEM_SYM_SZ] = (byte)(2 * k);
+    coins[WC_ML_KEM_SYM_SZ] = WC_OCTET(2 * k);
     ret = mlkem_get_noise_eta2_c(prf, e2, coins);
     if (ret == 0) {
         /* Add errors and message to v and reduce. */
@@ -3275,7 +3275,7 @@ static unsigned int mlkem_rej_uniform_c(sword16* p, unsigned int len,
     unsigned int j;
 
 #if defined(WOLFSSL_MLKEM_SMALL) || !defined(WC_64BIT_CPU) || \
-    defined(BIG_ENDIAN_ORDER)
+    defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
     /* Keep sampling until max number of integers reached or buffer is used up.
      * Step 4. */
     for (i = 0, j = 0; (i < len) && (j <= rLen - 3); j += 3) {
@@ -3879,7 +3879,7 @@ static void mlkem_cbd_eta3(sword16* p, const byte* r)
     unsigned int i;
 
 #if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_MLKEM_NO_LARGE_CODE) || \
-    defined(BIG_ENDIAN_ORDER)
+    defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
 #ifndef WORD64_AVAILABLE
     /* Calculate four integer coefficients at a time. */
     for (i = 0; i < MLKEM_N; i += 4) {
@@ -4635,7 +4635,7 @@ static int mlkem_get_noise_c(MLKEM_PRF_T* prf, int k, sword16* vec1, int eta1,
         }
     }
     else {
-        seed[WC_ML_KEM_SYM_SZ] = (byte)(2 * k);
+        seed[WC_ML_KEM_SYM_SZ] = WC_OCTET(2 * k);
     }
     if ((ret == 0) && (poly != NULL)) {
         /* Generating random error polynomial. */
@@ -4759,7 +4759,7 @@ static int mlkem_get_noise_i(MLKEM_PRF_T* prf, int k, sword16* vec2,
     mlkem_prf_init(prf);
 
     /* Set index of polynomial of second vector into seed. */
-    seed[WC_ML_KEM_SYM_SZ] = (byte)(k + i);
+    seed[WC_ML_KEM_SYM_SZ] = WC_OCTET(k + i);
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
     if ((k == WC_ML_KEM_512_K) && make) {
         ret = mlkem_get_noise_eta1_c(prf, vec2, seed, MLKEM_CBD_ETA3);
@@ -5015,7 +5015,7 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
     /* Each polynomial. */
     for (i = 0; i < k; i++) {
 #if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_MLKEM_NO_LARGE_CODE) || \
-    defined(BIG_ENDIAN_ORDER)
+    defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
         /* Each 4 polynomial coefficients. */
         for (j = 0; j < MLKEM_N; j += 4) {
         #ifdef WOLFSSL_MLKEM_SMALL
@@ -5027,11 +5027,11 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             }
 
             /* Pack four 10-bit values into byte array. */
-            r[ 0] = (t[0] >> 0);
-            r[ 1] = (t[0] >> 8) | (t[1] << 2);
-            r[ 2] = (t[1] >> 6) | (t[2] << 4);
-            r[ 3] = (t[2] >> 4) | (t[3] << 6);
-            r[ 4] = (t[3] >> 2);
+            r[ 0] = WC_OCTET( t[0] >> 0);
+            r[ 1] = WC_OCTET((t[0] >> 8) | (t[1] << 2));
+            r[ 2] = WC_OCTET((t[1] >> 6) | (t[2] << 4));
+            r[ 3] = WC_OCTET((t[2] >> 4) | (t[3] << 6));
+            r[ 4] = WC_OCTET( t[3] >> 2);
         #else
             /* Compress four polynomial values to 10 bits each. */
             sword16 t0 = TO_COMP_WORD_10(v, i, j, 0);
@@ -5040,11 +5040,11 @@ static void mlkem_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
             sword16 t3 = TO_COMP_WORD_10(v, i, j, 3);
 
             /* Pack four 10-bit values into byte array. */
-            r[ 0] = (byte)( t0 >> 0);
-            r[ 1] = (byte)((t0 >> 8) | (t1 << 2));
-            r[ 2] = (byte)((t1 >> 6) | (t2 << 4));
-            r[ 3] = (byte)((t2 >> 4) | (t3 << 6));
-            r[ 4] = (byte)( t3 >> 2);
+            r[ 0] = WC_OCTET( t0 >> 0);
+            r[ 1] = WC_OCTET((t0 >> 8) | (t1 << 2));
+            r[ 2] = WC_OCTET((t1 >> 6) | (t2 << 4));
+            r[ 3] = WC_OCTET((t2 >> 4) | (t3 << 6));
+            r[ 4] = WC_OCTET( t3 >> 2);
         #endif
 
             /* Move over set bytes. */
@@ -5148,17 +5148,17 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
             }
 
             /* Pack eight 11-bit values into byte array. */
-            r[ 0] = (byte)( t[0] >>  0);
-            r[ 1] = (byte)((t[0] >>  8) | (t[1] << 3));
-            r[ 2] = (byte)((t[1] >>  5) | (t[2] << 6));
-            r[ 3] = (byte)( t[2] >>  2);
-            r[ 4] = (byte)((t[2] >> 10) | (t[3] << 1));
-            r[ 5] = (byte)((t[3] >>  7) | (t[4] << 4));
-            r[ 6] = (byte)((t[4] >>  4) | (t[5] << 7));
-            r[ 7] = (byte)( t[5] >>  1);
-            r[ 8] = (byte)((t[5] >>  9) | (t[6] << 2));
-            r[ 9] = (byte)((t[6] >>  6) | (t[7] << 5));
-            r[10] = (byte)( t[7] >>  3);
+            r[ 0] = WC_OCTET( t[0] >>  0);
+            r[ 1] = WC_OCTET((t[0] >>  8) | (t[1] << 3));
+            r[ 2] = WC_OCTET((t[1] >>  5) | (t[2] << 6));
+            r[ 3] = WC_OCTET( t[2] >>  2);
+            r[ 4] = WC_OCTET((t[2] >> 10) | (t[3] << 1));
+            r[ 5] = WC_OCTET((t[3] >>  7) | (t[4] << 4));
+            r[ 6] = WC_OCTET((t[4] >>  4) | (t[5] << 7));
+            r[ 7] = WC_OCTET( t[5] >>  1);
+            r[ 8] = WC_OCTET((t[5] >>  9) | (t[6] << 2));
+            r[ 9] = WC_OCTET((t[6] >>  6) | (t[7] << 5));
+            r[10] = WC_OCTET( t[7] >>  3);
         #else
             /* Compress eight polynomial values to 11 bits each. */
             sword16 t0 = TO_COMP_WORD_11(v, i, j, 0);
@@ -5171,17 +5171,17 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
             sword16 t7 = TO_COMP_WORD_11(v, i, j, 7);
 
             /* Pack eight 11-bit values into byte array. */
-            r[ 0] = (byte)( t0 >>  0);
-            r[ 1] = (byte)((t0 >>  8) | (t1 << 3));
-            r[ 2] = (byte)((t1 >>  5) | (t2 << 6));
-            r[ 3] = (byte)( t2 >>  2);
-            r[ 4] = (byte)((t2 >> 10) | (t3 << 1));
-            r[ 5] = (byte)((t3 >>  7) | (t4 << 4));
-            r[ 6] = (byte)((t4 >>  4) | (t5 << 7));
-            r[ 7] = (byte)( t5 >>  1);
-            r[ 8] = (byte)((t5 >>  9) | (t6 << 2));
-            r[ 9] = (byte)((t6 >>  6) | (t7 << 5));
-            r[10] = (byte)( t7 >>  3);
+            r[ 0] = WC_OCTET( t0 >>  0);
+            r[ 1] = WC_OCTET((t0 >>  8) | (t1 << 3));
+            r[ 2] = WC_OCTET((t1 >>  5) | (t2 << 6));
+            r[ 3] = WC_OCTET( t2 >>  2);
+            r[ 4] = WC_OCTET((t2 >> 10) | (t3 << 1));
+            r[ 5] = WC_OCTET((t3 >>  7) | (t4 << 4));
+            r[ 6] = WC_OCTET((t4 >>  4) | (t5 << 7));
+            r[ 7] = WC_OCTET( t5 >>  1);
+            r[ 8] = WC_OCTET((t5 >>  9) | (t6 << 2));
+            r[ 9] = WC_OCTET((t6 >>  6) | (t7 << 5));
+            r[10] = WC_OCTET( t7 >>  3);
         #endif
 
             /* Move over set bytes. */
@@ -5456,12 +5456,12 @@ void mlkem_vec_decompress_11(sword16* v, const byte* b)
 #else
 
 /* Multiplier that does div q. */
-#define MLKEM_V28         ((word32)(((1U << 28) + MLKEM_Q_HALF)) / MLKEM_Q)
+#define MLKEM_V28         ((word32)(((1UL << 28) + MLKEM_Q_HALF)) / MLKEM_Q)
 /* Multiplier times half of q plus one. */
 #define MLKEM_V28_HALF    ((word32)(MLKEM_V28 * (MLKEM_Q_HALF + 1)))
 
 /* Multiplier that does div q. */
-#define MLKEM_V27         ((word32)(((1U << 27) + MLKEM_Q_HALF)) / MLKEM_Q)
+#define MLKEM_V27         ((word32)(((1UL << 27) + MLKEM_Q_HALF)) / MLKEM_Q)
 /* Multiplier times half of q. */
 #define MLKEM_V27_HALF    ((word32)(MLKEM_V27 * MLKEM_Q_HALF))
 
@@ -5526,10 +5526,10 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
             t[j] = TO_COMP_WORD_4(p, i, j);
         }
 
-        b[0] = (byte)(t[0] | (t[1] << 4));
-        b[1] = (byte)(t[2] | (t[3] << 4));
-        b[2] = (byte)(t[4] | (t[5] << 4));
-        b[3] = (byte)(t[6] | (t[7] << 4));
+        b[0] = WC_OCTET(t[0] | (t[1] << 4));
+        b[1] = WC_OCTET(t[2] | (t[3] << 4));
+        b[2] = WC_OCTET(t[4] | (t[5] << 4));
+        b[3] = WC_OCTET(t[6] | (t[7] << 4));
     #else
         /* Compress eight polynomial values to 4 bits each. */
         byte t0 = TO_COMP_WORD_4(p, i, 0);
@@ -5542,10 +5542,10 @@ static void mlkem_compress_4_c(byte* b, sword16* p)
         byte t7 = TO_COMP_WORD_4(p, i, 7);
 
         /* Pack eight 4-bit values into byte array. */
-        b[0] = (byte)(t0 | (t1 << 4));
-        b[1] = (byte)(t2 | (t3 << 4));
-        b[2] = (byte)(t4 | (t5 << 4));
-        b[3] = (byte)(t6 | (t7 << 4));
+        b[0] = WC_OCTET(t0 | (t1 << 4));
+        b[1] = WC_OCTET(t2 | (t3 << 4));
+        b[2] = WC_OCTET(t4 | (t5 << 4));
+        b[3] = WC_OCTET(t6 | (t7 << 4));
     #endif
 
         /* Move over set bytes. */
@@ -5602,11 +5602,11 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
         }
 
         /* Pack 5 bits into byte array. */
-        b[0] = (byte)((t[0] >> 0) | (t[1] << 5));
-        b[1] = (byte)((t[1] >> 3) | (t[2] << 2) | (t[3] << 7));
-        b[2] = (byte)((t[3] >> 1) | (t[4] << 4));
-        b[3] = (byte)((t[4] >> 4) | (t[5] << 1) | (t[6] << 6));
-        b[4] = (byte)((t[6] >> 2) | (t[7] << 3));
+        b[0] = WC_OCTET((t[0] >> 0) | (t[1] << 5));
+        b[1] = WC_OCTET((t[1] >> 3) | (t[2] << 2) | (t[3] << 7));
+        b[2] = WC_OCTET((t[3] >> 1) | (t[4] << 4));
+        b[3] = WC_OCTET((t[4] >> 4) | (t[5] << 1) | (t[6] << 6));
+        b[4] = WC_OCTET((t[6] >> 2) | (t[7] << 3));
     #else
         /* Compress eight polynomial values to 5 bits each. */
         byte t0 = TO_COMP_WORD_5(p, i, 0);
@@ -5619,11 +5619,11 @@ static void mlkem_compress_5_c(byte* b, sword16* p)
         byte t7 = TO_COMP_WORD_5(p, i, 7);
 
         /* Pack eight 5-bit values into byte array. */
-        b[0] = (byte)((t0 >> 0) | (t1 << 5));
-        b[1] = (byte)((t1 >> 3) | (t2 << 2) | (t3 << 7));
-        b[2] = (byte)((t3 >> 1) | (t4 << 4));
-        b[3] = (byte)((t4 >> 4) | (t5 << 1) | (t6 << 6));
-        b[4] = (byte)((t6 >> 2) | (t7 << 3));
+        b[0] = WC_OCTET((t0 >> 0) | (t1 << 5));
+        b[1] = WC_OCTET((t1 >> 3) | (t2 << 2) | (t3 << 7));
+        b[2] = WC_OCTET((t3 >> 1) | (t4 << 4));
+        b[3] = WC_OCTET((t4 >> 4) | (t5 << 1) | (t6 << 6));
+        b[4] = WC_OCTET((t6 >> 2) | (t7 << 3));
     #endif
 
         /* Move over set bytes. */
@@ -5742,12 +5742,12 @@ static void mlkem_decompress_5_c(sword16* p, const byte* b)
 
         /* Extract out 8 values of 5 bits each. */
         t[0] = (b[0] >> 0);
-        t[1] = (byte)((b[0] >> 5) | (b[1] << 3));
+        t[1] = WC_OCTET((b[0] >> 5) | (b[1] << 3));
         t[2] = (b[1] >> 2);
-        t[3] = (byte)((b[1] >> 7) | (b[2] << 1));
-        t[4] = (byte)((b[2] >> 4) | (b[3] << 4));
+        t[3] = WC_OCTET((b[1] >> 7) | (b[2] << 1));
+        t[4] = WC_OCTET((b[2] >> 4) | (b[3] << 4));
         t[5] = (b[3] >> 1);
-        t[6] = (byte)((b[3] >> 6) | (b[4] << 2));
+        t[6] = WC_OCTET((b[3] >> 6) | (b[4] << 2));
         t[7] = (b[4] >> 3);
         b += 5;
 
@@ -5899,7 +5899,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
 #else
 
 /* Multiplier that does div q. */
-#define MLKEM_V31       (((1U << 31) + (MLKEM_Q / 2)) / MLKEM_Q)
+#define MLKEM_V31       (((1UL << 31) + (MLKEM_Q / 2)) / MLKEM_Q)
 /* 2 * multiplier that does div q. Only need bit 32 of result. */
 #define MLKEM_V31_2     ((word32)(MLKEM_V31 * 2))
 /* Multiplier times half of q. */
@@ -5917,7 +5917,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
  * @param  [in]       j   Index of bit in byte.
  */
 #define TO_MSG_BIT(m, p, i, j) \
-    (m)[i] |= (byte)((((MLKEM_V31_2 * (word16)(p)[8 * (i) + (j)]) + \
+    (m)[i] |= WC_OCTET((((MLKEM_V31_2 * (word16)(p)[8 * (i) + (j)]) + \
                        MLKEM_V31_HALF) >> 31) << (j))
 
 #endif /* CONV_WITH_DIV */
@@ -6097,9 +6097,9 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
         for (i = 0; i < MLKEM_N / 2; i++) {
             word16 t0 = (word16)p[2 * i];
             word16 t1 = (word16)p[2 * i + 1];
-            b[3 * i + 0] = (byte)(t0 >> 0);
-            b[3 * i + 1] = (byte)((t0 >> 8) | (t1 << 4));
-            b[3 * i + 2] = (byte)(t1 >> 4);
+            b[3 * i + 0] = WC_OCTET(t0 >> 0);
+            b[3 * i + 1] = WC_OCTET((t0 >> 8) | (t1 << 4));
+            b[3 * i + 2] = WC_OCTET(t1 >> 4);
         }
         p += MLKEM_N;
         b += WC_ML_KEM_POLY_SIZE;
