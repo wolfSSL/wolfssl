@@ -2867,9 +2867,6 @@ static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
         }
     }
 
-    if (sk == NULL) {
-        WOLFSSL_MSG("Null session chain");
-    }
     return sk;
 }
 
