@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""Generate CycloneDX 1.6 and SPDX 2.3 SBOMs for wolfssl."""
+
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+import sys
+import uuid
+from datetime import datetime, timezone
+
+
+# Known metadata for optional external dependencies.
+# Version is detected at runtime via pkg-config; falls back to None.
+DEP_META = {
+    'liboqs': {
+        'name': 'liboqs',
+        'supplier': 'Open Quantum Safe',
+        'license': 'MIT',
+        'download': 'https://github.com/open-quantum-safe/liboqs',
+        'pkgconfig': 'liboqs',
+        'purl': lambda v: f'pkg:github/open-quantum-safe/liboqs@{v}',
+    },
+    'libxmss': {
+        'name': 'xmss-reference',
+        'supplier': 'XMSS reference implementation authors',
+        'license': 'CC0-1.0',
+        'download': 'https://github.com/XMSS/xmss-reference',
+        'pkgconfig': None,
+        'purl': lambda v: f'pkg:github/XMSS/xmss-reference@{v}',
+    },
+    'liblms': {
+        'name': 'hash-sigs',
+        'supplier': 'Cisco Systems',
+        'license': 'MIT',
+        'download': 'https://github.com/cisco/hash-sigs',
+        'pkgconfig': None,
+        'purl': lambda v: f'pkg:github/cisco/hash-sigs@{v}',
+    },
+    'libz': {
+        'name': 'zlib',
+        'supplier': 'Jean-loup Gailly and Mark Adler',
+        'license': 'Zlib',
+        'download': 'https://github.com/madler/zlib',
+        'pkgconfig': 'zlib',
+        'purl': lambda v: f'pkg:generic/zlib@{v}',
+    },
+}
+
+
+def detect_license(license_file):
+    """Parse LICENSING file and return an SPDX license ID.
+
+    Looks for 'GNU General Public License version N' and whether
+    'or later' / 'or any later version' follows.  Returns None and
+    prints a warning if the file cannot be parsed.
+    """
+    try:
+        text = open(license_file).read()
+    except OSError as e:
+        print(f"WARNING: cannot read license file {license_file}: {e}",
+              file=sys.stderr)
+        return None
+
+    m = re.search(
+        r'gnu general public license\s+version\s+(\d+)',
+        text, re.IGNORECASE
+    )
+    if not m:
+        print(f"WARNING: no GPL version found in {license_file}",
+              file=sys.stderr)
+        return None
+
+    version = m.group(1)
+    excerpt = text[m.end():m.end() + 100]
+    if re.search(r'or\s+(any\s+)?later', excerpt, re.IGNORECASE):
+        return f'GPL-{version}.0-or-later'
+    return f'GPL-{version}.0-only'
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    try:
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(65536), b''):
+                h.update(chunk)
+    except OSError as e:
+        sys.exit(f"ERROR: cannot read library for hashing: {e}")
+    return h.hexdigest()
+
+
+GIT_BIN = None
+
+
+def pkgconfig_version(pkgname):
+    """Return version string from pkg-config, or None if unavailable."""
+    try:
+        r = subprocess.run(
+            ['pkg-config', '--modversion', pkgname],
+            capture_output=True, text=True
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except FileNotFoundError:
+        pass
+    return None
+
+
+def git_describe_version(root, git_bin):
+    """Return version from git describe --tags --always, or None."""
+    if not root or not git_bin:
+        return None
+    try:
+        r = subprocess.run(
+            [git_bin, '-C', root, 'describe', '--tags', '--always'],
+            capture_output=True, text=True
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except FileNotFoundError:
+        pass
+    return None
+
+
+def dep_version(key):
+    pkgname = DEP_META[key]['pkgconfig']
+    if pkgname:
+        return pkgconfig_version(pkgname)
+    git_root = DEP_META[key].get('git_root')
+    if git_root:
+        return git_describe_version(git_root, GIT_BIN)
+    return None
+
+
+def parse_options_h(path):
+    """Parse wolfssl/options.h and return sorted deduplicated list of
+    (name, value) pairs for every #define found."""
+    try:
+        text = open(path).read()
+    except OSError as e:
+        print(f"WARNING: cannot read options.h {path}: {e}", file=sys.stderr)
+        return []
+
+    defines = {}
+    for m in re.finditer(r'^#define[ \t]+(\w+)(?:[ \t]+(.+))?$', text, re.MULTILINE):
+        defines[m.group(1)] = (m.group(2) or '').strip()
+    return sorted(defines.items())
+
+
+def cdx_dep_component(key):
+    """Return (bom_ref, component_dict) for a CDX dependency component."""
+    meta = DEP_META[key]
+    version = dep_version(key)
+    bom_ref = str(uuid.uuid4())
+    comp = {
+        'bom-ref': bom_ref,
+        'type': 'library',
+        'supplier': {'name': meta['supplier']},
+        'name': meta['name'],
+        'licenses': [{'license': {'id': meta['license']}}],
+        'externalReferences': [{'type': 'vcs', 'url': meta['download']}],
+    }
+    if version:
+        comp['version'] = version
+        comp['purl'] = meta['purl'](version)
+    else:
+        print(f"WARNING: version unknown for {meta['name']}; "
+              "omitting version and purl", file=sys.stderr)
+    return bom_ref, comp
+
+
+def spdx_dep_package(key):
+    """Return (spdx_id, package_dict) for an SPDX dependency package."""
+    meta = DEP_META[key]
+    version = dep_version(key)
+    spdx_id = 'SPDXRef-Package-' + re.sub(r'[^A-Za-z0-9.]', '', meta['name'])
+    pkg = {
+        'SPDXID': spdx_id,
+        'name': meta['name'],
+        'versionInfo': version if version else 'NOASSERTION',
+        'supplier': f"Organization: {meta['supplier']}",
+        'downloadLocation': meta['download'],
+        'filesAnalyzed': False,
+        'licenseConcluded': meta['license'],
+        'licenseDeclared': meta['license'],
+        'copyrightText': 'NOASSERTION',
+    }
+    if version:
+        pkg['externalRefs'] = [{
+            'referenceCategory': 'PACKAGE-MANAGER',
+            'referenceType': 'purl',
+            'referenceLocator': meta['purl'](version),
+        }]
+    return spdx_id, pkg
+
+
+def generate_cdx(name, version, supplier, license_id, lib_hash,
+                 timestamp, serial, enabled_deps, build_props):
+    year = datetime.now(timezone.utc).year
+    bom_ref = str(uuid.uuid4())
+
+    dep_bom_refs = []
+    components = []
+    for key in enabled_deps:
+        ref, comp = cdx_dep_component(key)
+        dep_bom_refs.append(ref)
+        components.append(comp)
+
+    properties = [
+        {'name': f'wolfssl:build:{k}', 'value': v if v else '1'}
+        for k, v in build_props
+    ]
+
+    return {
+        '$schema': 'http://cyclonedx.org/schema/bom-1.6.schema.json',
+        'bomFormat': 'CycloneDX',
+        'specVersion': '1.6',
+        'serialNumber': f'urn:uuid:{serial}',
+        'version': 1,
+        'metadata': {
+            'timestamp': timestamp,
+            'tools': {
+                'components': [{
+                    'type': 'application',
+                    'author': 'wolfSSL Inc.',
+                    'name': 'wolfssl-sbom-gen',
+                    'version': '1.0'
+                }]
+            },
+            'component': {
+                'bom-ref': bom_ref,
+                'type': 'library',
+                'supplier': {'name': supplier},
+                'name': name,
+                'version': version,
+                'licenses': [{'license': {'id': license_id}}],
+                'copyright': f'Copyright (C) 2006-{year} wolfSSL Inc.',
+                'cpe': f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*',
+                'purl': f'pkg:generic/{name}@{version}',
+                'hashes': [{'alg': 'SHA-256', 'content': lib_hash}],
+                'externalReferences': [{
+                    'type': 'vcs',
+                    'url': 'https://github.com/wolfSSL/wolfssl'
+                }],
+                'properties': properties,
+            }
+        },
+        'components': components,
+        'dependencies': [
+            {'ref': bom_ref, 'dependsOn': dep_bom_refs},
+            *[{'ref': r, 'dependsOn': []} for r in dep_bom_refs],
+        ],
+    }
+
+
+def generate_spdx(name, version, supplier, license_id, lib_hash,
+                  timestamp, doc_ns_uuid, enabled_deps, build_props):
+    year = datetime.now(timezone.utc).year
+
+    build_defines = ', '.join(k for k, _ in build_props)
+    wolfssl_pkg = {
+        'SPDXID': 'SPDXRef-Package-wolfssl',
+        'name': name,
+        'versionInfo': version,
+        'supplier': f'Organization: {supplier}',
+        'downloadLocation': 'https://github.com/wolfSSL/wolfssl',
+        'filesAnalyzed': False,
+        'checksums': [{'algorithm': 'SHA256', 'checksumValue': lib_hash}],
+        'licenseConcluded': license_id,
+        'licenseDeclared': license_id,
+        'copyrightText': f'Copyright (C) 2006-{year} wolfSSL Inc.',
+        'comment': f'Build configuration defines: {build_defines}',
+        'externalRefs': [
+            {
+                'referenceCategory': 'SECURITY',
+                'referenceType': 'cpe23Type',
+                'referenceLocator': (
+                    f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*'
+                )
+            },
+            {
+                'referenceCategory': 'PACKAGE-MANAGER',
+                'referenceType': 'purl',
+                'referenceLocator': f'pkg:generic/{name}@{version}'
+            }
+        ],
+    }
+
+    packages = [wolfssl_pkg]
+    relationships = [{
+        'spdxElementId': 'SPDXRef-DOCUMENT',
+        'relatedSpdxElement': 'SPDXRef-Package-wolfssl',
+        'relationshipType': 'DESCRIBES',
+    }]
+
+    for key in enabled_deps:
+        spdx_id, pkg = spdx_dep_package(key)
+        packages.append(pkg)
+        relationships.append({
+            'spdxElementId': 'SPDXRef-Package-wolfssl',
+            'relatedSpdxElement': spdx_id,
+            'relationshipType': 'DEPENDS_ON',
+        })
+
+    return {
+        'spdxVersion': 'SPDX-2.3',
+        'dataLicense': 'CC0-1.0',
+        'SPDXID': 'SPDXRef-DOCUMENT',
+        'name': f'{name}-{version}',
+        'documentNamespace': (
+            f'https://wolfssl.com/sbom/{name}-{version}-{doc_ns_uuid}'
+        ),
+        'creationInfo': {
+            'licenseListVersion': '3.28',
+            'creators': [
+                f'Organization: {supplier}',
+                'Tool: wolfssl-sbom-gen-1.0'
+            ],
+            'created': timestamp,
+        },
+        'packages': packages,
+        'relationships': relationships,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Generate CycloneDX and SPDX SBOMs for wolfssl'
+    )
+    parser.add_argument('--name', required=True, help='Package name')
+    parser.add_argument('--version', required=True, help='Package version')
+    parser.add_argument('--supplier', default='wolfSSL Inc.',
+                        help='Supplier name (default: wolfSSL Inc.)')
+    parser.add_argument('--lib', required=True,
+                        help='Path to libwolfssl.so.X.Y.Z for SHA-256 hashing')
+    parser.add_argument('--license-file', required=True,
+                        help='Path to LICENSING file for SPDX ID detection')
+    parser.add_argument('--options-h', required=True,
+                        help='Path to wolfssl/options.h for build config')
+    parser.add_argument('--dep-liboqs', default='no',
+                        help='yes if built with --with-liboqs')
+    parser.add_argument('--dep-libxmss', default='no',
+                        help='yes if built with --with-libxmss')
+    parser.add_argument('--dep-libxmss-root', default='',
+                        help='Path to xmss-reference source tree root')
+    parser.add_argument('--dep-liblms', default='no',
+                        help='yes if built with --with-liblms')
+    parser.add_argument('--dep-liblms-root', default='',
+                        help='Path to hash-sigs source tree root')
+    parser.add_argument('--dep-libz', default='no',
+                        help='yes if built with --with-libz')
+    parser.add_argument('--git', default='',
+                        help='Path to git binary for version detection')
+    parser.add_argument('--cdx-out', required=True,
+                        help='Output path for CycloneDX JSON')
+    parser.add_argument('--spdx-out', required=True,
+                        help='Output path for SPDX JSON')
+    args = parser.parse_args()
+
+    global GIT_BIN
+    GIT_BIN = args.git or None
+
+    if args.dep_libxmss_root:
+        DEP_META['libxmss']['git_root'] = args.dep_libxmss_root
+    if args.dep_liblms_root:
+        DEP_META['liblms']['git_root'] = args.dep_liblms_root
+
+    enabled_deps = [
+        key for key, flag in [
+            ('liboqs',  args.dep_liboqs),
+            ('libxmss', args.dep_libxmss),
+            ('liblms',  args.dep_liblms),
+            ('libz',    args.dep_libz),
+        ]
+        if flag.lower() == 'yes'
+    ]
+
+    license_id = detect_license(args.license_file)
+    if license_id is None:
+        print("WARNING: license could not be determined; using NOASSERTION",
+              file=sys.stderr)
+        license_id = 'NOASSERTION'
+
+    build_props = parse_options_h(args.options_h)
+    lib_hash = sha256_file(args.lib)
+    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    serial = str(uuid.uuid4())
+    doc_ns_uuid = str(uuid.uuid4())
+
+    cdx = generate_cdx(
+        args.name, args.version, args.supplier,
+        license_id, lib_hash, timestamp, serial,
+        enabled_deps, build_props,
+    )
+    spdx = generate_spdx(
+        args.name, args.version, args.supplier,
+        license_id, lib_hash, timestamp, doc_ns_uuid,
+        enabled_deps, build_props,
+    )
+
+    try:
+        with open(args.cdx_out, 'w') as f:
+            json.dump(cdx, f, indent=2)
+            f.write('\n')
+        with open(args.spdx_out, 'w') as f:
+            json.dump(spdx, f, indent=2)
+            f.write('\n')
+    except OSError as e:
+        sys.exit(f"ERROR: cannot write SBOM output: {e}")
+
+    print(f"Generated: {args.cdx_out}")
+    print(f"Generated: {args.spdx_out}")
+
+
+if __name__ == '__main__':
+    main()
