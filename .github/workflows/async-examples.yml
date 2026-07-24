@@ -188,3 +188,25 @@ jobs:
               cat "$f"
             fi
           done
+
+  # Crypto-callback record-cipher poll completion (WOLF_CRYPTO_CB_ASYNC_POLL):
+  # build the unit test with the feature macro and run the async test group.
+  cryptocb_async_poll:
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    name: Crypto-cb async poll completion
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Build with WOLF_CRYPTO_CB_ASYNC_POLL
+        run: |
+          ./autogen.sh
+          ./configure --enable-asynccrypt --enable-cryptocb --enable-tls13 \
+            --enable-des3 --enable-aesccm --enable-aesctr \
+            CPPFLAGS=-DWOLF_CRYPTO_CB_ASYNC_POLL
+          make
+
+      - name: Run async unit tests
+        run: ./tests/unit.test --group async

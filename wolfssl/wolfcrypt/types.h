@@ -1461,7 +1461,10 @@ enum wc_AlgoType {
     WC_ALGO_TYPE_SETKEY = 12,
     WC_ALGO_TYPE_EXPORT_KEY = 13,
     WC_ALGO_TYPE_SHE = 14,
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_SHE
+    /* async: re-enter a crypto callback device to poll a pending operation so
+     * it can complete the work and fill the output buffer (QAT-style). */
+    WC_ALGO_TYPE_ASYNC_POLL = 15,
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_ASYNC_POLL
 };
 
 /* KDF types */

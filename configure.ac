@@ -11290,6 +11290,23 @@ then
     fi
 fi
 
+# Crypto callbacks with async crypt may not work for TLS unless
+# WOLF_CRYPTO_CB_ASYNC_POLL is defined. Warn once here and silence the
+# source-level #warning.
+if test "$ENABLED_ASYNCCRYPT" = "yes" && test "x$ENABLED_CRYPTOCB" != "xno" &&
+   test "x$ENABLED_ASYNCCRYPT_SW" != "xyes" &&
+   test "x$ENABLED_CAVIUM" != "xyes" && test "x$ENABLED_INTEL_QA" != "xyes"
+then
+    case "$CPPFLAGS $CFLAGS $AM_CFLAGS" in
+        *WOLF_CRYPTO_CB_ASYNC_POLL*)
+            ;;
+        *)
+            AC_MSG_WARN([crypto callbacks with async crypt may not work for TLS. Define WOLF_CRYPTO_CB_ASYNC_POLL to enable it.])
+            AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ASYNC_NO_WARN"
+            ;;
+    esac
+fi
+
 # check for async if using Intel QuckAssist or Cavium
 if test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_CAVIUM" = "xyes" ; then
     if test "x$ENABLED_ASYNCCRYPT" = "xno" ; then

@@ -28,6 +28,11 @@
 #define NO_FILESYSTEM
 #define WOLFSSL_IGNORE_FILE_WARN
 
+#ifdef WOLF_CRYPTO_CB
+    /* PK-only offload: silence pending-bulk-cipher warning. */
+    #define WOLF_CRYPTO_CB_ASYNC_NO_WARN
+#endif
+
 #define HAVE_ECC
 #define WC_ECC_NONBLOCK
 #define WC_ECC_NONBLOCK_ONLY
