@@ -475,7 +475,9 @@ int wc_CryptoCb_Poll(int devId)
         wc_CryptoInfo info;
         XMEMSET(&info, 0, sizeof(info));
         info.algo_type = WC_ALGO_TYPE_ASYNC_POLL;
-        ret = dev->cb(devId, &info, dev->ctx);
+        /* Call with the resolved device id (dev->devId), matching submit-time
+         * dispatch, so a remapped device is invoked under its own id. */
+        ret = dev->cb(dev->devId, &info, dev->ctx);
         if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE) ||
             ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN) ||
             ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E)) {
