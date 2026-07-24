@@ -3731,6 +3731,15 @@ static word16 InitSuites_Tls13(Suites* suites, word16 idx, int tls1_3,
 #endif
 
 #ifdef HAVE_NULL_CIPHER
+    /* RFC 9150 integrity-only (zero-confidentiality) TLS 1.3 suites.
+     * These provide authentication and integrity but no confidentiality, so
+     * they are NOT advertised in the default cipher preference list. A caller
+     * that genuinely needs them (e.g. constrained/IoT deployments) must opt in
+     * explicitly with a cipher list, for example:
+     *     wolfSSL_set_cipher_list(ssl, "TLS13-SHA256-SHA256");
+     * Define WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT to restore the legacy
+     * behaviour of including them in the default list. */
+    #ifdef WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
     #ifdef BUILD_TLS_SHA256_SHA256
         if (tls1_3 && haveNull) {
             suites->suites[idx++] = ECC_BYTE;
@@ -3744,6 +3753,7 @@ static word16 InitSuites_Tls13(Suites* suites, word16 idx, int tls1_3,
             suites->suites[idx++] = TLS_SHA384_SHA384;
         }
     #endif
+    #endif /* WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT */
 #endif
 
     return idx;
@@ -32758,16 +32768,41 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         if (ssl->options.resuming && ssl->session->ticketLen > 0) {
             SessionTicket* ticket;
 
-            ticket = TLSX_SessionTicket_Create(0, ssl->session->ticket,
-                                             ssl->session->ticketLen, ssl->heap);
-            if (ticket == NULL) return MEMORY_E;
-
-            ret = TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap);
-            if (ret != WOLFSSL_SUCCESS) {
-                TLSX_SessionTicket_Free(ticket, ssl->heap);
-                return ret;
+#if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
+            /* RFC 5077 Section 3.3 / RFC 8446 Section 4.6.1: a client SHOULD
+             * NOT use a ticket whose lifetime has expired. Drop the expired
+             * ticket and fall back to a full handshake. Skip the check when
+             * bornOn is 0 or a secret callback is set (session is managed
+             * externally, e.g. hostap). */
+            if (ssl->session->bornOn != 0 &&
+            #ifdef HAVE_SECRET_CALLBACK
+                ssl->sessionSecretCb == NULL &&
+            #endif
+                LowResTimer() >=
+                    (ssl->session->bornOn + ssl->session->timeout)) {
+                WOLFSSL_MSG("Stored session ticket expired; full handshake");
+                ssl->options.resuming = 0;
+                /* Send an empty SessionTicket extension (NULL ticket) so the
+                 * client still requests a new ticket from the server without
+                 * sending the stale one. */
+                ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
             }
+            else
+#endif
+            {
+                ticket = TLSX_SessionTicket_Create(0, ssl->session->ticket,
+                                             ssl->session->ticketLen, ssl->heap);
+                if (ticket == NULL) return MEMORY_E;
 
+                ret = TLSX_UseSessionTicket(&ssl->extensions, ticket,
+                                            ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) {
+                    TLSX_SessionTicket_Free(ticket, ssl->heap);
+                    return ret;
+                }
+            }
             idSz = 0;
         }
 #endif /* HAVE_SESSION_TICKET */
@@ -37014,6 +37049,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         switch (err) {
             case WC_NO_ERR_TRACE(BUFFER_ERROR):
+            case WC_NO_ERR_TRACE(BUFFER_E):
                 return decode_error;
             case WC_NO_ERR_TRACE(EXT_NOT_ALLOWED):
             case WC_NO_ERR_TRACE(PEER_KEY_ERROR):

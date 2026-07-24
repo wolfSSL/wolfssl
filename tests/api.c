@@ -2513,10 +2513,15 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
     wolfSSL_free(ssl);
     ssl = NULL;
 
-    /* OpenSSL compat: "ALL" is "all but eNULL" - it does not generate NULL
-     * suites, but it is not a delete directive, so a following "eNULL"
-     * re-enables them. (The earlier sticky excludeNull-for-ALL wrongly kept
-     * them disabled; only "!eNULL"/"DEFAULT" should.) */
+    /* By default the RFC 9150 integrity-only TLS 1.3 suites are
+     * zero-confidentiality and are treated as SSL_NOT_DEFAULT:
+     * they are never produced by the generic cipher-string directives ("ALL",
+     * "eNULL", ...) and are kept out of the default preference list, so they
+     * must be requested by explicit suite name.
+     *
+     * Defining WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT restores the legacy
+     * behaviour where the "eNULL" directive re-enables them via the generated
+     * list. "ALL" on its own never generates NULL ciphers in either mode. */
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL"), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
@@ -2524,10 +2529,28 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
     wolfSSL_free(ssl);
     ssl = NULL;
 
+    {
+#ifdef WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
+        const int eNullExpectsSuite = 1;
+#else
+        const int eNullExpectsSuite = 0;
+#endif
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL:eNULL"),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE, TLS_SHA256_SHA256),
+                    eNullExpectsSuite);
+        wolfSSL_free(ssl);
+        ssl = NULL;
+    }
+
+    /* Explicit suite name remains the supported opt-in and works in both
+     * modes. */
     ExpectNotNull(ssl = wolfSSL_new(ctx));
-    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL:eNULL"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-SHA256-SHA256"),
+                WOLFSSL_SUCCESS);
     ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
-                TLS_SHA256_SHA256), 1); /* "eNULL" after "ALL" re-enables NULL */
+                TLS_SHA256_SHA256), 1);
     wolfSSL_free(ssl);
     ssl = NULL;
 #endif /* BUILD_TLS_SHA256_SHA256 */

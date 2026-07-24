@@ -3326,6 +3326,16 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         return WOLFSSL_FAILURE;
     }
 
+    /* RFC 8446 Section 7.5 / RFC 5705: keying-material exporters derive from
+     * exporter_master_secret, which exists only after the handshake is
+     * complete. Refuse the export until the handshake has completed so that
+     * a premature call cannot derive material from an uninitialised
+     * exporterSecret buffer. */
+    if (ssl->options.handShakeDone == 0) {
+        WOLFSSL_MSG("Handshake not complete; refusing keying-material export");
+        return WOLFSSL_FAILURE;
+    }
+
     /* Sanity check contextLen to prevent integer overflow when cast to word32
      * and to ensure it fits in the 2-byte length encoding (max 65535). */
     if (use_context && contextLen > WOLFSSL_MAX_16BIT) {
