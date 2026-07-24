@@ -76738,6 +76738,16 @@ typedef struct {
                               * public point, simulating a private scalar
                               * resident in the device (input key->k empty) */
 #endif
+#ifdef HAVE_ED448
+    int ed448SignCount;   /* Ed448 sign callback invocations */
+    int ed448VerifyCount; /* Ed448 verify callback invocations */
+#endif
+#if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE)
+    int cmacFreeCount;    /* CMAC free callback invocations */
+#endif
+#if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -77698,6 +77708,51 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         WOLFSSL_MSG_EX("CryptoDevCb: Pk Type %d\n", info->pk.type);
     #endif
 
+    #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+        if (info->pk.type == WC_PK_TYPE_RSA_PSS_VERIFY) {
+            RsaKey* pssKey = info->pk.rsa_pss_verify.key;
+            int     pssSaveDevId = pssKey->devId;
+            int     pssVer = 0;
+            byte*   pssOut;
+            word32  pssOutSz = 512;
+
+            pssOut = (byte*)XMALLOC(pssOutSz, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+            if (pssOut == NULL)
+                return MEMORY_E;
+
+            myCtx->rsaPssVerifyCount++;
+
+            /* perform software based RSA-PSS verify */
+            pssKey->devId = INVALID_DEVID;
+            pssVer = wc_RsaPSS_VerifyCheck(
+                info->pk.rsa_pss_verify.sig, info->pk.rsa_pss_verify.sigSz,
+                pssOut, pssOutSz,
+                info->pk.rsa_pss_verify.digest,
+                info->pk.rsa_pss_verify.digestSz,
+                info->pk.rsa_pss_verify.hash, info->pk.rsa_pss_verify.mgf,
+                pssKey);
+            pssKey->devId = pssSaveDevId;
+
+            XFREE(pssOut, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+            /* Only a real verdict maps to res; a genuine internal error (e.g.
+             * MEMORY_E) is propagated so it is not masked as a bad signature. */
+            if (pssVer > 0) {
+                if (info->pk.rsa_pss_verify.res != NULL)
+                    *info->pk.rsa_pss_verify.res = 1;
+                return 0;
+            }
+            if (pssVer == WC_NO_ERR_TRACE(BAD_PADDING_E) ||
+                    pssVer == WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+                if (info->pk.rsa_pss_verify.res != NULL)
+                    *info->pk.rsa_pss_verify.res = 0;
+                return 0;
+            }
+            return pssVer;
+        }
+    #endif /* WC_RSA_PSS && WOLF_CRYPTO_CB_RSA_PAD */
+
     #ifndef NO_RSA
         if (info->pk.type == WC_PK_TYPE_RSA) {
             /* set devId to invalid, so software is used */
@@ -78164,6 +78219,43 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.ed25519checkkey.key->devId = devIdArg;
         }
     #endif /* HAVE_ED25519 */
+    #ifdef HAVE_ED448
+        #ifdef HAVE_ED448_SIGN
+        if (info->pk.type == WC_PK_TYPE_ED448) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed448sign.key->devId = INVALID_DEVID;
+
+            ret = wc_ed448_sign_msg_ex(
+                info->pk.ed448sign.in, info->pk.ed448sign.inLen,
+                info->pk.ed448sign.out, info->pk.ed448sign.outLen,
+                info->pk.ed448sign.key, info->pk.ed448sign.type,
+                info->pk.ed448sign.context, info->pk.ed448sign.contextLen);
+
+            /* reset devId */
+            info->pk.ed448sign.key->devId = devIdArg;
+
+            myCtx->ed448SignCount++;
+        }
+        #endif
+        #ifdef HAVE_ED448_VERIFY
+        if (info->pk.type == WC_PK_TYPE_ED448_VERIFY) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed448verify.key->devId = INVALID_DEVID;
+
+            ret = wc_ed448_verify_msg_ex(
+                info->pk.ed448verify.sig, info->pk.ed448verify.sigLen,
+                info->pk.ed448verify.msg, info->pk.ed448verify.msgLen,
+                info->pk.ed448verify.res, info->pk.ed448verify.key,
+                info->pk.ed448verify.type, info->pk.ed448verify.context,
+                info->pk.ed448verify.contextLen);
+
+            /* reset devId */
+            info->pk.ed448verify.key->devId = devIdArg;
+
+            myCtx->ed448VerifyCount++;
+        }
+        #endif
+    #endif /* HAVE_ED448 */
     #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
         if (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN) {
             int pqcType = info->pk.pqc_stateful_sig_kg.type;
@@ -79446,6 +79538,13 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 #endif
         }
+#if defined(WOLFSSL_CMAC)
+        else if (info->free.algo == WC_ALGO_TYPE_CMAC) {
+            /* count the CMAC free dispatch and let software do the free */
+            myCtx->cmacFreeCount++;
+            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+#endif
         else {
             ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
         }
@@ -80063,6 +80162,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.eccCheckPubSawZeroPoint = 0;
     myCtx.eccResidentKey = NULL;
 #endif
+#ifdef HAVE_ED448
+    myCtx.ed448SignCount = 0;
+    myCtx.ed448VerifyCount = 0;
+#endif
+#if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE)
+    myCtx.cmacFreeCount = 0;
+#endif
+#if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    myCtx.rsaPssVerifyCount = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -80526,6 +80635,196 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = cmac_test();
 #endif
+
+    /* Driver coverage for the new CryptoCb hooks: confirm each op is routed
+     * through myCryptoDevCb (counter bumped) and the round-trip is correct. */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
+    defined(HAVE_ED448_VERIFY) && !defined(WC_NO_RNG)
+    if (ret == 0) {
+        WC_RNG ed448Rng;
+        int    ed448RngInit = 0;
+        byte   ed448Msg[32];
+        word32 ed448SigLen = ED448_SIG_SIZE;
+        int    ed448Verify = 0;
+        WC_DECLARE_VAR(ed448Key, ed448_key, 1, HEAP_HINT);
+        WC_DECLARE_VAR(ed448Sig, byte, ED448_SIG_SIZE, HEAP_HINT);
+
+        WC_ALLOC_VAR_EX(ed448Key, ed448_key, 1, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+        if (ret == 0)
+            WC_ALLOC_VAR_EX(ed448Sig, byte, ED448_SIG_SIZE, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+
+        XMEMSET(ed448Msg, 0x5a, sizeof(ed448Msg));
+        myCtx.ed448SignCount = 0;
+        myCtx.ed448VerifyCount = 0;
+
+        if (ret == 0) {
+            ret = wc_InitRng_ex(&ed448Rng, HEAP_HINT, devId);
+            if (ret == 0)
+                ed448RngInit = 1;
+            else
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_ed448_init_ex(ed448Key, HEAP_HINT, devId);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_ed448_make_key(&ed448Rng, ED448_KEY_SIZE, ed448Key);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_ed448_sign_msg(ed448Msg, (word32)sizeof(ed448Msg),
+                ed448Sig, &ed448SigLen, ed448Key, NULL, 0);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0 && myCtx.ed448SignCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0) {
+            ret = wc_ed448_verify_msg(ed448Sig, ed448SigLen, ed448Msg,
+                (word32)sizeof(ed448Msg), &ed448Verify, ed448Key, NULL, 0);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0 && (myCtx.ed448VerifyCount == 0 || ed448Verify != 1))
+            ret = WC_TEST_RET_ENC_NC;
+
+        if (WC_VAR_OK(ed448Key))
+            wc_ed448_free(ed448Key);
+        if (ed448RngInit)
+            wc_FreeRng(&ed448Rng);
+        WC_FREE_VAR_EX(ed448Sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(ed448Key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* HAVE_ED448 */
+
+#if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+    if (ret == 0) {
+        byte   cmacKey[16] = {
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+            0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10
+        };
+        byte   cmacIn[16] = {
+            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+            0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00
+        };
+        byte   cmacTag[WC_AES_BLOCK_SIZE];
+        word32 cmacTagSz = (word32)sizeof(cmacTag);
+        WC_DECLARE_VAR(cmac, Cmac, 1, HEAP_HINT);
+
+        WC_ALLOC_VAR_EX(cmac, Cmac, 1, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+
+        if (ret == 0) {
+            ret = wc_InitCmac_ex(cmac, cmacKey, (word32)sizeof(cmacKey),
+                WC_CMAC_AES, NULL, HEAP_HINT, devId);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_CmacUpdate(cmac, cmacIn, (word32)sizeof(cmacIn));
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            /* wc_CmacFinal() frees the Cmac -> free dispatched to device */
+            myCtx.cmacFreeCount = 0;
+            ret = wc_CmacFinal(cmac, cmacTag, &cmacTagSz);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0 && myCtx.cmacFreeCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        WC_FREE_VAR_EX(cmac, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* WOLFSSL_CMAC && WOLF_CRYPTO_CB_FREE */
+
+#if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+    !defined(NO_RSA) && !defined(WC_NO_RNG) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(NO_SHA256)
+    if (ret == 0) {
+        WC_RNG rsaRng;
+        int    rsaRngInit = 0;
+        int    rsaKeyInit = 0;
+        byte   rsaDigest[WC_SHA256_DIGEST_SIZE];
+        word32 rsaSigLen = 0;
+        int    rsaVer;
+        WC_DECLARE_VAR(rsaKey, RsaKey, 1, HEAP_HINT);
+        WC_DECLARE_VAR(rsaSig, byte, 512, HEAP_HINT);
+        WC_DECLARE_VAR(rsaRec, byte, 512, HEAP_HINT);
+
+        WC_ALLOC_VAR_EX(rsaKey, RsaKey, 1, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+        if (ret == 0)
+            WC_ALLOC_VAR_EX(rsaSig, byte, 512, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+        if (ret == 0)
+            WC_ALLOC_VAR_EX(rsaRec, byte, 512, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+
+        XMEMSET(rsaDigest, 0x2b, sizeof(rsaDigest));
+        myCtx.rsaPssVerifyCount = 0;
+
+        if (ret == 0) {
+            ret = wc_InitRng_ex(&rsaRng, HEAP_HINT, devId);
+            if (ret == 0)
+                rsaRngInit = 1;
+            else
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_InitRsaKey_ex(rsaKey, HEAP_HINT, devId);
+            if (ret == 0)
+                rsaKeyInit = 1;
+            else
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_MakeRsaKey(rsaKey, 2048, WC_RSA_EXPONENT, &rsaRng);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_RsaSetRNG(rsaKey, &rsaRng);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        if (ret == 0) {
+            ret = wc_RsaPSS_Sign(rsaDigest, (word32)sizeof(rsaDigest), rsaSig,
+                512, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, rsaKey, &rsaRng);
+            if (ret > 0) {
+                rsaSigLen = (word32)ret;
+                ret = 0;
+            }
+            else {
+                ret = WC_TEST_RET_ENC_EC(ret);
+            }
+        }
+        if (ret == 0) {
+            rsaVer = wc_RsaPSS_VerifyCheck(rsaSig, rsaSigLen, rsaRec, 512,
+                rsaDigest, (word32)sizeof(rsaDigest), WC_HASH_TYPE_SHA256,
+                WC_MGF1SHA256, rsaKey);
+            if (rsaVer <= 0)
+                ret = WC_TEST_RET_ENC_EC(rsaVer);
+        }
+        if (ret == 0 && myCtx.rsaPssVerifyCount == 0)
+            ret = WC_TEST_RET_ENC_NC;
+
+        if (rsaKeyInit)
+            wc_FreeRsaKey(rsaKey);
+        if (rsaRngInit)
+            wc_FreeRng(&rsaRng);
+        WC_FREE_VAR_EX(rsaRec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(rsaSig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(rsaKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* WC_RSA_PSS && WOLF_CRYPTO_CB_RSA_PAD */
 
     wc_CryptoCb_UnRegisterDevice(devId);
 

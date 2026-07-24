@@ -4635,6 +4635,9 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
  * mgf    Mask generation function.
  * key    Public RSA key.
  * returns the length of the PSS data on success and negative indicates failure.
+ *
+ * Note: when a crypto callback device performs the verify, *out is set to NULL
+ * even though a positive length is returned; callers must not dereference *out.
  */
 int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                            const byte* digest, word32 digestLen,
@@ -4669,6 +4672,27 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    /* Let a device verify signature + padding in one shot (it gets the digest,
+     * which the RsaPad path does not). Fall through to software if unavailable. */
+    if (key != NULL && key->devId != INVALID_DEVID) {
+        int res = 0;
+        ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
+                                       saltLen, key, &res);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0) {
+                /* Device verified internally; no recovered PSS block to expose,
+                 * so report no inline output rather than a misleading pointer. */
+                if (out != NULL)
+                    *out = NULL;
+                ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
+            }
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
 
     verify = wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, saltLen, key);
     if (verify > 0)
@@ -4729,6 +4753,22 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    /* Let a device verify signature + padding in one shot (it gets the digest,
+     * which the RsaPad path does not). Fall through to software if unavailable. */
+    if (key != NULL && key->devId != INVALID_DEVID) {
+        int res = 0;
+        ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
+                                       saltLen, key, &res);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0)
+                ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
 
     verify = wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash,
                                  mgf, saltLen, key);
