@@ -468,7 +468,9 @@ int wc_CryptoCb_Poll(int devId)
      * the pending job, so never report "no pending" and leave the output
      * buffer unfilled. */
     int ret = WC_NO_ERR_TRACE(WC_HW_E);
-    CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
+    /* Resolve with WC_ALGO_TYPE_CIPHER, the algo the op was submitted under, so
+     * a WOLF_CRYPTO_CB_FIND remap lands on the same device as the submit. */
+    CryptoCb* dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_CIPHER);
     if (dev != NULL && dev->cb != NULL) {
         wc_CryptoInfo info;
         XMEMSET(&info, 0, sizeof(info));
