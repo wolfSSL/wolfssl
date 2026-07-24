@@ -10447,7 +10447,7 @@ static int _ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
         /* store byte point type */
         out[0] = ECC_POINT_UNCOMP;
 
-        if (caamReadPartition((CAAM_ADDRESS)key->securePubKey, out+1, keySz*2) != 0)
+        if (caamReadPartition(key->securePubKey, out+1, keySz*2) != 0)
             return WC_HW_E;
 
         *outLen = 1 + 2*keySz;
@@ -12070,7 +12070,7 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
             }
 
             key->partNum  = part;
-            key->blackKey = (word32)vaddr;
+            key->blackKey = vaddr;
             if (caamWriteToPartition(vaddr, priv, privSz) != 0)
                 return WC_HW_E;
 
@@ -12078,7 +12078,7 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
                 /* +1 to account for x963 compressed bit */
                 if (caamWriteToPartition(vaddr + privSz, pub + 1, pubSz - 1) != 0)
                     return WC_HW_E;
-                key->securePubKey = (word32)vaddr + privSz;
+                key->securePubKey = vaddr + privSz;
             }
         }
         else {

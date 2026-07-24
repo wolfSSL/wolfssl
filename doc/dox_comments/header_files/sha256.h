@@ -366,11 +366,11 @@ int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
     \return negative on error
 
     \param src Source SHA256 structure
-    \param dst Destination SHA256 structure
+    \param dst Destination SHA256 structure; must be zeroed/initialized
 
     _Example_
     \code
-    wc_Sha256 src, dst;
+    wc_Sha256 src, dst = {0};
     int ret = wc_Sha256Copy(&src, &dst);
     \endcode
 

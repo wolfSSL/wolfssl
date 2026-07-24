@@ -41,10 +41,11 @@
 #define CAAM_LOCK_MUTEX(x) pthread_mutex_lock((x))
 #define CAAM_UNLOCK_MUTEX(x) pthread_mutex_unlock((x))
 
+#include <wolfssl/wolfcrypt/port/caam/caam_type.h>
+
 #define Error int
 #define Value int
 #define Boolean int
-#define CAAM_ADDRESS uintptr_t
 #define Success 1
 #define Failure 0
 #define INTERRUPT_Panic() do {} while (0)

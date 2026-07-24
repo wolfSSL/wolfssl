@@ -49,7 +49,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0) {
         return 0;
     }
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
             ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CBC,
                     (byte*)aes->devKey, aes->keylen);
             if (ret != 0)
@@ -82,7 +82,7 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CBC,
                     (byte*)aes->devKey, aes->keylen);
         if (ret != 0)
@@ -110,7 +110,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
 #endif
 
-    if (aes == NULL ||
+    if (aes == NULL || userKey == NULL ||
             !((keylen == 16) || (keylen == 24) || (keylen == 32))) {
         return BAD_FUNC_ARG;
     }
@@ -129,6 +129,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     aes->left = 0;
 #endif
     aes->ctx.cfd = -1;
+    aes->ctx.inited = 0;
     XMEMCPY(aes->devKey, userKey, keylen);
 
     (void)dir;
@@ -151,7 +152,7 @@ static int wc_DevCrypto_AesDirect(Aes* aes, byte* out, const byte* in,
         return BAD_FUNC_ARG;
     }
 
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_ECB, (byte*)aes->devKey,
                 aes->keylen);
         if (ret != 0)
@@ -221,7 +222,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         sz--;
     }
 
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CTR, (byte*)aes->devKey,
                 aes->keylen);
         if (ret != 0)
@@ -284,8 +285,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     return wc_AesSetKey(aes, key, len, NULL, AES_ENCRYPTION);
 }
 
-
-
 /* common code for AES-GCM encrypt/decrypt */
 static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
@@ -310,7 +309,7 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
         in = scratch;
 
     XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
-    if (aes->ctx.cfd == -1) {
+    if (aes->ctx.inited == 0) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_GCM, (byte*)aes->devKey,
                 aes->keylen);
         if (ret != 0)
@@ -399,4 +398,3 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* HAVE_AES_ECB */
 #endif /* WOLFSSL_DEVCRYPTO_AES */
 #endif /* !NO_AES && WOLFSSL_DEVCRYPTO */
-

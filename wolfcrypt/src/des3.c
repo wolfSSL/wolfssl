@@ -1570,11 +1570,15 @@
                           pc1m[(l = j + totrot[i]) < (j < 28 ? 28 : 56) ? l : l-28];
 
                 /* rotate left and right halves independently */
-                for (j = 0; j < 48; j++) {        /* select bits individually     */
-                    if (pcr[pc2[j] - 1]) {        /* check bit that goes to ks[j] */
-                        l= j % 6;                 /* mask it in if it's there     */
-                        ks[j/6] |= (byte)(bytebit[l] >> 2);
-                    }
+                for (j = 0; j < 48; j++) { /* select bits individually */
+                    byte bit;
+                    byte mask;
+                    bit =
+                        (byte)(pcr[pc2[j] - 1]); /* all pcr values are either 0 or 1 */
+                    mask = (byte)(0 - bit);   /* mask is either 0xFF or 0x00 */
+                    /* only set to bytebit value if bit == 1 */
+                    ks[j/6] |=
+                        (byte)((bytebit[j % 6] >> 2) & mask);
                 }
 
                 /* Now convert to odd/even interleaved form for use in F */

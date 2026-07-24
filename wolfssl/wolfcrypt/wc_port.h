@@ -775,6 +775,31 @@
     }
 #endif
 
+/* Yield the CPU to another runnable thread. Used by spin-wait loops that are
+ * waiting on another thread to finish a short critical section. Ports may
+ * override. */
+#ifndef WOLFSSL_THREAD_YIELD
+    #if defined(SINGLE_THREADED)
+        #define WOLFSSL_THREAD_YIELD() WC_DO_NOTHING
+    #elif defined(WOLFSSL_PTHREADS)
+        #include <sched.h>
+        #define WOLFSSL_THREAD_YIELD() (void)sched_yield()
+    #elif defined(USE_WINDOWS_API) && !defined(WOLFSSL_NOT_WINDOWS_API)
+        #include <windows.h>
+        #define WOLFSSL_THREAD_YIELD() (void)SwitchToThread()
+    #elif defined(FREERTOS)
+        #define WOLFSSL_THREAD_YIELD() taskYIELD()
+    #elif defined(THREADX)
+        #define WOLFSSL_THREAD_YIELD() tx_thread_relinquish()
+    #elif defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x30100
+        #define WOLFSSL_THREAD_YIELD() k_yield()
+    #elif defined(WOLFSSL_VXWORKS)
+        #include <vxWorks.h>
+        #include <taskLib.h>
+        #define WOLFSSL_THREAD_YIELD() (void)taskDelay(0)
+    #endif
+#endif
+
 /* Reference counting. */
 typedef struct wolfSSL_RefWithMutex {
 #if !defined(SINGLE_THREADED)

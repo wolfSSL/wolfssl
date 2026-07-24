@@ -3260,13 +3260,15 @@ int test_wc_AesGcmEncryptDecrypt_Sizes(void)
     int sz;
     int i;
     WC_DECLARE_VAR(plain, byte, GCM_LEN, NULL);
-    WC_DECLARE_VAR(cipher, byte, GCM_LEN, NULL);
+    /* enlarged size is to accommodate devcrypto build which assumes
+     * space in buffer to append auth tag */
+    WC_DECLARE_VAR(cipher, byte, GCM_LEN+WC_AES_BLOCK_SIZE, NULL);
 #ifdef HAVE_AES_DECRYPT
     WC_DECLARE_VAR(decrypted, byte, GCM_LEN, NULL);
 #endif
 
     WC_ALLOC_VAR(plain, byte, GCM_LEN, NULL);
-    WC_ALLOC_VAR(cipher, byte, GCM_LEN, NULL);
+    WC_ALLOC_VAR(cipher, byte, GCM_LEN+WC_AES_BLOCK_SIZE, NULL);
 #ifdef HAVE_AES_DECRYPT
     WC_ALLOC_VAR(decrypted, byte, GCM_LEN, NULL);
 #endif
@@ -3286,7 +3288,7 @@ int test_wc_AesGcmEncryptDecrypt_Sizes(void)
 
     ExpectIntEQ(wc_AesGcmSetKey(&aes, key32, sizeof(key32)/sizeof(byte)), 0);
     for (sz = 0; sz < WC_AES_BLOCK_SIZE; sz++) {
-        XMEMSET(cipher, 0, GCM_LEN);
+        XMEMSET(cipher, 0, GCM_LEN + WC_AES_BLOCK_SIZE);
         ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, plain, sz, iv, ivLen, tag,
             sizeof(tag), NULL, 0), 0);
         ExpectBufEQ(cipher, expected, sz);
@@ -3302,7 +3304,7 @@ int test_wc_AesGcmEncryptDecrypt_Sizes(void)
 
     i = 0;
     for (sz = WC_AES_BLOCK_SIZE; sz <= GCM_LEN; sz *= 2) {
-        XMEMSET(cipher, 0, GCM_LEN);
+        XMEMSET(cipher, 0, GCM_LEN + WC_AES_BLOCK_SIZE);
         ExpectIntEQ(wc_AesGcmEncrypt(&aes, cipher, plain, sz, iv, ivLen, tag,
             sizeof(tag), NULL, 0), 0);
         ExpectBufEQ(tag, expTagLong[i], WC_AES_BLOCK_SIZE);
@@ -3992,7 +3994,9 @@ int test_wc_AesGcmNonStdNonce(void)
  * and cannot exercise the GHASH-based counter derivation. */
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
     !defined(HAVE_FIPS) && \
-    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES)
+    /* DEVCRYPTO does not support Non std Nonce */
 
     /* ------------------------------------------------------------------
      * Section 1: 1-byte IV, AES-128
