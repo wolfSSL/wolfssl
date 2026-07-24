@@ -2126,9 +2126,23 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 #endif
 
 /* Return a new BIO type index, or WOLFSSL_FATAL_ERROR when exhausted.
- * Not thread-safe. */
+ * Thread-safe when atomic operations are available (like OpenSSL's
+ * BIO_get_new_index()); otherwise falls back to a plain counter. */
 int wolfSSL_BIO_get_new_index(void)
 {
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_ATOMIC_OPS) && \
+    defined(WOLFSSL_ATOMIC_INITIALIZER)
+    static wolfSSL_Atomic_Int wolfssl_bio_type_index =
+        WOLFSSL_ATOMIC_INITIALIZER(WOLFSSL_BIO_TYPE_START);
+    int idx = (int)wolfSSL_Atomic_Int_AddFetch(&wolfssl_bio_type_index, 1);
+
+    if (idx > 0xff) {
+        (void)wolfSSL_Atomic_Int_SubFetch(&wolfssl_bio_type_index, 1);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return idx;
+#else
     static int wolfssl_bio_type_index = WOLFSSL_BIO_TYPE_START;
 
     if (wolfssl_bio_type_index >= 0xff) {
@@ -2136,6 +2150,7 @@ int wolfSSL_BIO_get_new_index(void)
     }
 
     return ++wolfssl_bio_type_index;
+#endif
 }
 
 /* creates a new custom WOLFSSL_BIO_METHOD */
