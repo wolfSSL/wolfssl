@@ -688,10 +688,13 @@ int test_helloRequest_advertise_only_refused(void)
      * must not be willing to renegotiate on the server's request. */
     ExpectIntNE(0, (int)wolfSSL_SSL_get_secure_renegotiation_support(ssl_c));
 
-    /* advertiseOnly clients release handshake resources (master secret,
-     * arrays) after the handshake rather than retaining them for a
-     * renegotiation that will never happen. */
-    ExpectNull(ssl_c->arrays);
+    /* advertiseOnly clients do not retain handshake resources for a
+     * renegotiation that will never happen. Unless the build deliberately
+     * keeps the arrays for another reason (saveArrays, e.g. keying material),
+     * the master secret and arrays are released after the handshake. */
+    if (ssl_c != NULL && ssl_c->options.saveArrays == 0) {
+        ExpectNull(ssl_c->arrays);
+    }
 
     /* Server asks the client to renegotiate, then waits for a ClientHello. */
     ExpectIntLT(wolfSSL_Rehandshake(ssl_s), 0);
