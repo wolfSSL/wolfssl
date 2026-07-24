@@ -82,7 +82,7 @@ WOLFKMOD_SIMD_AVX  = -mavx -mavx2
 .endif # ENABLED_AESNI
 
 .if ${ENABLED_ASM} == "yes"
-.for f in chacha dilithium poly1305 sha sha256 sha3 sha512
+.for f in chacha dilithium poly1305 sha sha256 sha3 sha512 random
   CFLAGS.${f}.c += ${WOLFKMOD_SIMD_BASE}
   CFLAGS.${f}.c += ${WOLFKMOD_SIMD_AVX}
   CFLAGS.${f}.c := ${CFLAGS.${f}.c:N-nostdinc}
