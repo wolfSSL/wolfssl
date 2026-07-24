@@ -1899,5 +1899,40 @@ int test_wolfSSL_BIO_get_init(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_BIO_get_new_index(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO_METHOD* method = NULL;
+    BIO* bio = NULL;
+    int idx = 0;
+    int prev;
+
+    /* First call hands out BIO_TYPE_START + 1, later calls increment by
+     * one. The index counter is process-global, so this test drains it
+     * completely; it must stay the only consumer in the test suite. */
+    ExpectIntEQ(prev = BIO_get_new_index(), BIO_TYPE_START + 1);
+
+    /* A returned index is usable as a custom method type. */
+    ExpectNotNull(method = BIO_meth_new(prev, "new_index_test"));
+    ExpectNotNull(bio = BIO_new(method));
+    ExpectIntEQ(BIO_method_type(bio), prev);
+    BIO_free(bio);
+    BIO_meth_free(method);
+
+    /* Monotonic by one up to the last valid index 0xff, then
+     * WOLFSSL_FATAL_ERROR once exhausted. */
+    while (EXPECT_SUCCESS() && (idx = BIO_get_new_index()) > 0) {
+        ExpectIntEQ(idx, prev + 1);
+        prev = idx;
+    }
+    ExpectIntEQ(prev, 0xff);
+    ExpectIntEQ(idx, WOLFSSL_FATAL_ERROR);
+    /* Exhaustion is sticky. */
+    ExpectIntEQ(BIO_get_new_index(), WOLFSSL_FATAL_ERROR);
+#endif
+    return EXPECT_RESULT();
+}
+
 #endif /* !NO_BIO */
 
