@@ -9901,35 +9901,48 @@ static int test_wolfSSL_SCR_Reconnect(void)
 
 /* Test SCR check when server doesn't reply to secure_renegotiation. */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK) && \
-    defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK) && \
+    !defined(WOLFSSL_ALLOW_LEGACY_SERVER_CONNECT) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
-/* IO callback to remove secure renegotiation extension from ServerHello */
-static int test_SCR_check_remove_ext_io_cb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+/* Set to 1 to strip renegotiation_info from the next ServerHello sent. */
+static int test_scr_strip_serverhello = 0;
+
+/* IO callback to remove secure renegotiation extension from ServerHello.
+ * Anchors to the ServerHello extension block so a chance 0xFF01 in the server
+ * random or session id cannot be mistaken for the renegotiation_info type. */
+static int test_SCR_check_remove_ext_io_cb(WOLFSSL *ssl, char *buf, int sz,
+    void *ctx)
 {
-    static int sentServerHello = FALSE;
+    int off;
+    int sidLen;
+    int extLen;
+    int extEnd;
 
-    if (!sentServerHello) {
-        /* Look for secure renegotiation extension: 0xFF 0x01 (extension type) */
-        byte renegExt[] = { 0xFF, 0x01 };
-        size_t i;
-
-        if (sz < (int)sizeof(renegExt))
-            return test_memio_write_cb(ssl, buf, sz, ctx);
-
-        /* Search for the extension in the buffer */
-        for (i = 0; i < (size_t)sz - sizeof(renegExt); i++) {
-            if (XMEMCMP(buf + i, renegExt, sizeof(renegExt)) == 0) {
-                /* Found the extension. Remove it by changing the type to something
-                 * unrecognized so it won't be parsed as secure renegotiation. */
-                buf[i+1] = 0x11;
-                break;
+    if (test_scr_strip_serverhello && sz > 44 &&
+            (byte)buf[0] == 0x16 && (byte)buf[5] == 0x02) {
+        /* 5 record hdr + 4 handshake hdr + 2 version + 32 random */
+        off = 5 + 4 + 2 + 32;
+        sidLen = (byte)buf[off];
+        off += 1 + sidLen + 2 + 1; /* session id + cipher suite + compression */
+        if (off + 2 <= sz) {
+            extLen = ((byte)buf[off] << 8) | (byte)buf[off + 1];
+            off += 2;
+            extEnd = off + extLen;
+            if (extEnd > sz)
+                extEnd = sz;
+            for (; off + 1 < extEnd; off++) {
+                if ((byte)buf[off] == 0xFF && (byte)buf[off + 1] == 0x01) {
+                    /* Change the type so the client does not parse it as
+                     * renegotiation_info, simulating a server that omits it. */
+                    buf[off + 1] = 0x11;
+                    test_scr_strip_serverhello = 0; /* only the ServerHello */
+                    break;
+                }
             }
         }
-        sentServerHello = TRUE;
     }
 
-    /* Call the original test_memio_write_cb */
     return test_memio_write_cb(ssl, buf, sz, ctx);
 }
 #endif
@@ -9938,64 +9951,27 @@ static int test_wolfSSL_SCR_check_enabled(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK) && \
-    defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK) && \
+    !defined(WOLFSSL_ALLOW_LEGACY_SERVER_CONNECT) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_ALERT_HISTORY history;
     int ret;
-    int enabled;
 
+    /* Phase 1: a default TLS 1.2 client advertises renegotiation_info and,
+     * when the server acknowledges it, the handshake succeeds and secure
+     * renegotiation is negotiated. Enforcement is on by default. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-
-    /* Set up client and server */
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-
-    /* Enable secure renegotiation on client (so it sends the extension) */
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx_c));
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl_c));
-
-    /* Set up IO callback on server to remove the extension from ServerHello */
-    wolfSSL_SSLSetIOSend(ssl_s, test_SCR_check_remove_ext_io_cb);
-
-    /* Try to connect - should fail with SECURE_RENEGOTIATION_E */
-    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
-    ExpectIntNE(0, ret); /* Handshake should fail */
-    ret = wolfSSL_get_error(ssl_c, 0);
-    ExpectIntEQ(WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E), ret);
-
-    /* Clean up for next attempt */
-    wolfSSL_free(ssl_c);
-    ssl_c = NULL;
-    wolfSSL_free(ssl_s);
-    ssl_s = NULL;
-    test_memio_clear_buffer(&test_ctx, 1);
-    test_memio_clear_buffer(&test_ctx, 0);
-
-    /* Set up new client and server */
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-
-    /* Enable secure renegotiation on client */
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx_c));
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl_c));
-
-    /* Set up IO callback on server to remove the extension from ServerHello */
-    wolfSSL_SSLSetIOSend(ssl_s, test_SCR_check_remove_ext_io_cb);
-
-    /* Disable the SCR check */
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_scr_check_enabled(ssl_c, 0));
-
-    /* Verify the state is 0 */
-    enabled = wolfSSL_get_scr_check_enabled(ssl_c);
-    ExpectIntEQ(0, enabled);
-
-    /* Now connection should succeed */
+    ExpectIntEQ(1, wolfSSL_CTX_get_scr_check_enabled(ctx_c));
+    ExpectIntEQ(1, wolfSSL_get_scr_check_enabled(ssl_c));
     ExpectIntEQ(0, test_memio_do_handshake(ssl_c, ssl_s, 10, NULL));
+    ExpectIntNE(0, (int)wolfSSL_SSL_get_secure_renegotiation_support(ssl_c));
 
-    /* Cleanup */
     wolfSSL_free(ssl_c);
     ssl_c = NULL;
     wolfSSL_free(ssl_s);
@@ -10004,6 +9980,66 @@ static int test_wolfSSL_SCR_check_enabled(void)
     ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s);
     ctx_s = NULL;
+
+    /* Phase 2: a default client aborts with a fatal handshake_failure alert
+     * when the server's ServerHello omits renegotiation_info (RFC 5746 4.1 /
+     * RFC 9325). No explicit opt-in is required. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_SSLSetIOSend(ssl_s, test_SCR_check_remove_ext_io_cb);
+    test_scr_strip_serverhello = 1;
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    ExpectIntNE(0, ret);
+    ExpectIntEQ(WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E),
+        wolfSSL_get_error(ssl_c, ret));
+    /* The callback clears this only if it actually stripped the extension. */
+    ExpectIntEQ(0, test_scr_strip_serverhello);
+
+    XMEMSET(&history, 0, sizeof(history));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_get_alert_history(ssl_c, &history));
+    ExpectIntEQ(alert_fatal, history.last_tx.level);
+    ExpectIntEQ(handshake_failure, history.last_tx.code);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+    test_scr_strip_serverhello = 0;
+
+    /* Phase 3: the enforcement setting can be toggled per object and per
+     * context, and WOLFSSL objects inherit the context setting. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(1, wolfSSL_CTX_get_scr_check_enabled(ctx_c));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectIntEQ(1, wolfSSL_get_scr_check_enabled(ssl_c));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_scr_check_enabled(ssl_c, 0));
+    ExpectIntEQ(0, wolfSSL_get_scr_check_enabled(ssl_c));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_scr_check_enabled(ssl_c, 1));
+    ExpectIntEQ(1, wolfSSL_get_scr_check_enabled(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+
+    /* Disabling on the context propagates to newly created objects. */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_set_scr_check_enabled(ctx_c, 0));
+    ExpectIntEQ(0, wolfSSL_CTX_get_scr_check_enabled(ctx_c));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectIntEQ(0, wolfSSL_get_scr_check_enabled(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+
+    /* NULL argument handling. */
+    ExpectIntEQ(BAD_FUNC_ARG, wolfSSL_get_scr_check_enabled(NULL));
+    ExpectIntEQ(BAD_FUNC_ARG, wolfSSL_set_scr_check_enabled(NULL, 1));
+    ExpectIntEQ(BAD_FUNC_ARG, wolfSSL_CTX_get_scr_check_enabled(NULL));
+    ExpectIntEQ(BAD_FUNC_ARG, wolfSSL_CTX_set_scr_check_enabled(NULL, 1));
 #endif
     return EXPECT_RESULT();
 }
@@ -38257,6 +38293,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_scr_verify_data_mismatch),
     TEST_DECL(test_scr_no_renegotiation_option),
     TEST_DECL(test_helloRequest_no_renegotiation_option),
+    TEST_DECL(test_helloRequest_advertise_only_refused),
     TEST_DECL(test_tls13_hrr_cipher_suite_mismatch),
     TEST_DECL(test_tls13_ticket_age_out_of_window),
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),

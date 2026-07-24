@@ -3558,6 +3558,11 @@ typedef struct SecureRenegotiation {
    WC_BITFIELD          renegInfoSeen:1; /* renegotiation_info ext seen this
                                           * handshake (RFC 5746 3.7) */
    WC_BITFIELD          subject_hash_set:1; /* if peer cert hash is set */
+#ifdef HAVE_SECURE_RENEGOTIATION
+   WC_BITFIELD          advertiseOnly:1; /* extension advertised for the RFC
+                                          * 5746 initial-handshake check only;
+                                          * refuse peer-initiated renegotiation */
+#endif
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
@@ -3570,6 +3575,8 @@ WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
 WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif
+
+WOLFSSL_LOCAL int SetupClientSecureRenegotiation(WOLFSSL* ssl);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -4094,6 +4101,13 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO)
     byte        useSecureReneg:1; /* when set will set WOLFSSL objects generated to enable */
+#endif
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    byte        scr_check_enabled:1; /* require server renegotiation_info on the
+                                      * initial handshake (RFC 5746/9325);
+                                      * inherited by WOLFSSL objects */
 #endif
 #ifdef HAVE_ENCRYPT_THEN_MAC
     byte        disallowEncThenMac:1;  /* Don't do Encrypt-Then-MAC */
@@ -6702,7 +6716,8 @@ struct WOLFSSL {
     int secLevel; /* The security level of system-wide crypto policy. */
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
     WC_BITFIELD          scr_check_enabled:1;  /* enable/disable SCR check */
 #endif
 #ifdef HAVE_WRITE_DUP

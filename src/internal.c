@@ -2699,6 +2699,17 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->minMlDsaKeySz = MIN_MLDSAKEY_SZ;
 #endif /* WOLFSSL_HAVE_MLDSA */
     ctx->verifyDepth = MAX_CHAIN_DEPTH;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK) && \
+    !defined(WOLFSSL_ALLOW_LEGACY_SERVER_CONNECT)
+    /* RFC 5746 / RFC 9325: a TLS 1.2 client requires the server to acknowledge
+     * the renegotiation_info extension on the initial handshake. Enabled by
+     * default; define WOLFSSL_ALLOW_LEGACY_SERVER_CONNECT (or call
+     * wolfSSL_CTX_set_scr_check_enabled(ctx, 0)) to connect to servers that do
+     * not support secure renegotiation. */
+    ctx->scr_check_enabled = 1;
+#endif
 #ifdef OPENSSL_EXTRA
     ctx->cbioFlag = WOLFSSL_CBIO_NONE;
 #endif
@@ -8023,6 +8034,58 @@ static void InitSSL_Multicast(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 }
 #endif /* WOLFSSL_MULTICAST */
 
+#if defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+/* Set up the client's renegotiation_info advertising. Shared by InitSSL and the
+ * ClientHello send paths so the "advertise implies enforce" invariant survives
+ * WOLFSSL object reuse: without re-advertising after wolfSSL_clear the client
+ * would send no renegotiation_info yet still enforce its presence, failing
+ * every reused-object handshake.
+ *
+ * Willingness to perform a peer-initiated renegotiation is derived from
+ * ssl->ctx->useSecureReneg. A per-object wolfSSL_UseSecureRenegotiation() opt-in
+ * is not tracked here, so after wolfSSL_clear a reused object reverts to
+ * advertise-only; applications that renegotiate on reused objects should opt in
+ * at the context level with wolfSSL_CTX_UseSecureRenegotiation(). */
+int SetupClientSecureRenegotiation(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        int useSecureReneg = ssl->ctx->useSecureReneg;
+    #ifdef HAVE_SECURE_RENEGOTIATION
+        int advertiseOnly = 0;
+    #endif
+        /* Advertise the empty renegotiation_info extension by default so the
+         * client can enforce RFC 5746 / RFC 9325 on the initial handshake.
+         * Advertising is always safe: legacy servers ignore it and secure
+         * servers echo it. */
+    #if defined(WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT)
+        /* Integrator asked for secure renegotiation by default: keep the full
+         * renegotiation behavior (advertiseOnly stays 0). */
+        useSecureReneg = 1;
+    #elif !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
+    #ifdef HAVE_SECURE_RENEGOTIATION
+        /* Advertising was forced on for the RFC 5746 check, not requested by
+         * the application, so do not also grant willingness to perform a
+         * peer-initiated renegotiation. */
+        if (!useSecureReneg)
+            advertiseOnly = 1;
+    #endif
+        useSecureReneg = 1;
+    #endif
+        if (useSecureReneg) {
+            ret = wolfSSL_UseSecureRenegotiation(ssl);
+        #ifdef HAVE_SECURE_RENEGOTIATION
+            if (ret == WOLFSSL_SUCCESS && ssl->secure_renegotiation != NULL)
+                ssl->secure_renegotiation->advertiseOnly = (byte)advertiseOnly;
+        #endif
+        }
+    }
+
+    return ret;
+}
+#endif /* HAVE_SECURE_RENEGOTIATION || HAVE_SERVER_RENEGOTIATION_INFO */
+
 int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     int  ret;
@@ -8239,8 +8302,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->disabledCurves = ctx->disabledCurves;
 #endif
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
-    ssl->scr_check_enabled = 1;
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+    /* Inherit the renegotiation_info enforcement setting from the context. */
+    ssl->scr_check_enabled = ctx->scr_check_enabled;
 #endif
 
     InitCiphers(ssl);
@@ -8366,20 +8431,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 #if defined(HAVE_SECURE_RENEGOTIATION) || \
     defined(HAVE_SERVER_RENEGOTIATION_INFO)
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        int useSecureReneg = ssl->ctx->useSecureReneg;
-        /* use secure renegotiation by default (not recommend) */
-    #if defined(WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT) || \
-        (defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_NO_TLS12) && \
-                !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK))
-        useSecureReneg = 1;
-    #endif
-        if (useSecureReneg) {
-            ret = wolfSSL_UseSecureRenegotiation(ssl);
-            if (ret != WOLFSSL_SUCCESS)
-                return ret;
-        }
-    }
+    ret = SetupClientSecureRenegotiation(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 #ifdef WOLFSSL_QUIC
@@ -9428,7 +9482,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-    if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+    /* advertiseOnly clients never renegotiate, so do not retain (and leave
+     * unzeroed) the master secret and other handshake resources for them. */
+    if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
+            !ssl->secure_renegotiation->advertiseOnly) {
         WOLFSSL_MSG("Secure Renegotiation needs to retain handshake resources");
         return;
     }
@@ -18586,8 +18643,13 @@ static int DoHelloRequest(WOLFSSL* ssl, word32 size)
         return FATAL_ERROR;
     }
 #ifdef HAVE_SECURE_RENEGOTIATION
-    else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
-        /* WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
+    else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
+             !ssl->secure_renegotiation->advertiseOnly) {
+        /* advertiseOnly: renegotiation_info was advertised only for the RFC
+         * 5746 initial-handshake check, so the application did not opt into
+         * secure renegotiation; the else branch below refuses the request.
+         *
+         * WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
          * peer-initiated renegotiation. Respond with a no_renegotiation
          * warning alert instead of starting a secure renegotiation. */
         if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
@@ -32730,6 +32792,17 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
             return BAD_FUNC_ARG;
         }
 
+#if defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+        /* Re-establish renegotiation_info advertising for a reused object
+         * (wolfSSL_clear frees it). Only when absent, so an in-progress
+         * renegotiation keeps its verify_data state. */
+        if (ssl->secure_renegotiation == NULL) {
+            ret = SetupClientSecureRenegotiation(ssl);
+            if (ret != WOLFSSL_SUCCESS)
+                return ret;
+        }
+#endif
+
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version))
             return SendTls13ClientHello(ssl);
@@ -33432,7 +33505,9 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         }
 #endif /* HAVE_TLS_EXTENSIONS */
 
-#if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
         if (ssl->scr_check_enabled && (ssl->secure_renegotiation == NULL ||
                 !ssl->secure_renegotiation->enabled)) {
             /* If the server does not acknowledge the extension, the client
@@ -33440,6 +33515,8 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
              * terminating the connection.
              * https://www.rfc-editor.org/rfc/rfc9325#name-renegotiation-in-tls-12 */
             WOLFSSL_MSG("ServerHello did not contain SCR extension");
+            WOLFSSL_ERROR_VERBOSE(SECURE_RENEGOTIATION_E);
+            (void)SendAlert(ssl, alert_fatal, handshake_failure);
             return SECURE_RENEGOTIATION_E;
         }
 #endif
