@@ -889,7 +889,6 @@ struct WOLFSSL_X509_STORE {
     WOLF_STACK_OF(WOLFSSL_X509)* certs;
     WOLF_STACK_OF(WOLFSSL_X509)* trusted;
     WOLF_STACK_OF(WOLFSSL_X509)* owned;
-    word32 numAdded; /* Number of objs in objs that are in certs sk */
 };
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
