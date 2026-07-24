@@ -11414,16 +11414,24 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY) {
     #ifdef HAVE_COMP_KEY
         /* adjust inLen if compressed */
-        if (compressed)
-            inLen = inLen*2 + 1;  /* used uncompressed len */
+        if (compressed) {
+            /* a compressed coordinate cannot exceed MAX_ECC_BYTES; bound it
+             * before doubling so inLen*2 + 1 cannot overflow word32. */
+            if (inLen > MAX_ECC_BYTES)
+                err = ECC_BAD_ARG_E;
+            else
+                inLen = inLen*2 + 1;  /* used uncompressed len */
+        }
     #endif
 
         /* determine key size */
-        keysize = (int)(inLen>>1);
-        /* NOTE: FIPS v6.0.0 or greater, no restriction on imported keys, only
-         *       on created keys or signatures */
-        err = wc_ecc_set_curve(key, keysize, curve_id);
-        key->type = ECC_PUBLICKEY;
+        if (err == MP_OKAY) {
+            keysize = (int)(inLen>>1);
+            /* NOTE: FIPS v6.0.0 or greater, no restriction on imported keys,
+             *       only on created keys or signatures */
+            err = wc_ecc_set_curve(key, keysize, curve_id);
+            key->type = ECC_PUBLICKEY;
+        }
     }
 
     /* read data */

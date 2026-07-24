@@ -89,6 +89,10 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     Hmac   hmac[1];
 #endif
 
+    if ((result == NULL && resLen != 0) || (secret == NULL && secLen != 0) ||
+       (seed == NULL && seedLen != 0))
+        return BAD_FUNC_ARG;
+
     switch (hash_type) {
     #ifndef NO_MD5
         case md5_mac:
@@ -234,8 +238,18 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     WC_DECLARE_VAR(sha_result, byte, MAX_PRF_DIG, heap); /* digLen is real size */
     WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
 
+    if ((digest == NULL && digLen  != 0) ||
+        (secret == NULL && secLen  != 0) ||
+        (label  == NULL && labLen  != 0) ||
+        (seed   == NULL && seedLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* labLen + seedLen is checked with subtraction to avoid word32 wraparound
+     * (the labLen bound first ensures MAX_PRF_LABSEED - labLen cannot
+     * underflow). */
     if (half > MAX_PRF_HALF ||
-        labLen + seedLen > MAX_PRF_LABSEED ||
+        labLen > MAX_PRF_LABSEED || seedLen > (MAX_PRF_LABSEED - labLen) ||
         digLen > MAX_PRF_DIG)
     {
         return BUFFER_E;
@@ -251,8 +265,10 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     sha_half = secret + half - secLen % 2;
     md5_result = digest;
 
-    XMEMCPY(labelSeed, label, labLen);
-    XMEMCPY(labelSeed + labLen, seed, seedLen);
+    if (labLen != 0)
+        XMEMCPY(labelSeed, label, labLen);
+    if (seedLen != 0)
+        XMEMCPY(labelSeed + labLen, seed, seedLen);
 
     if ((ret = wc_PRF(md5_result, digLen, md5_half, half, labelSeed,
                                 labLen + seedLen, md5_mac, heap, devId)) == 0) {
@@ -286,6 +302,13 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 {
     int ret = 0;
 
+    if ((digest == NULL && digLen  != 0) ||
+        (secret == NULL && secLen  != 0) ||
+        (label  == NULL && labLen  != 0) ||
+        (seed   == NULL && seedLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("  secret");
     WOLFSSL_BUFFER(secret, secLen);
@@ -298,15 +321,19 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     if (useAtLeastSha256) {
         WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, 0);
 
-        if (labLen + seedLen > MAX_PRF_LABSEED) {
+        /* Checked with subtraction to avoid word32 wraparound of
+         * labLen + seedLen. */
+        if (labLen > MAX_PRF_LABSEED || seedLen > (MAX_PRF_LABSEED - labLen)) {
             return BUFFER_E;
         }
 
         WC_ALLOC_VAR_EX(labelSeed, byte, MAX_PRF_LABSEED, heap,
             DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 
-        XMEMCPY(labelSeed, label, labLen);
-        XMEMCPY(labelSeed + labLen, seed, seedLen);
+        if (labLen != 0)
+            XMEMCPY(labelSeed, label, labLen);
+        if (seedLen != 0)
+            XMEMCPY(labelSeed + labLen, seed, seedLen);
 
         /* If a cipher suite wants an algorithm better than sha256, it
          * should use better. */

@@ -31214,7 +31214,7 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        if (ret != WC_NO_ERR_TRACE(WC_KEY_SIZE_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
     }
 #endif /* !WOLFSSL_NO_DH186 && !HAVE_SELFTEST && !HAVE_FIPS */

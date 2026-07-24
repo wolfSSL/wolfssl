@@ -98,14 +98,13 @@ struct Cmac {
 
 
 
-
-#ifndef NO_AES
-#define WC_CMAC_TAG_MAX_SZ WC_AES_BLOCK_SIZE
-#define WC_CMAC_TAG_MIN_SZ (WC_AES_BLOCK_SIZE/4)
-#else
 /* Reasonable defaults */
-#define WC_CMAC_TAG_MAX_SZ 16
-#define WC_CMAC_TAG_MIN_SZ 4
+/* SP800-38b recommends a minimum tag length of 64-bits */
+#ifndef WC_CMAC_TAG_MAX_SZ
+    #define WC_CMAC_TAG_MAX_SZ 16
+#endif
+#ifndef WC_CMAC_TAG_MIN_SZ
+    #define WC_CMAC_TAG_MIN_SZ 8
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)

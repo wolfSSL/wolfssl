@@ -1825,7 +1825,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if (ret != 0) {
         ForceZero(tmp, hLen);
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmp, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+        XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
         wc_MemZero_Check(tmp, hLen);
 #endif
@@ -5445,7 +5445,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         goto out;
     }
 
+#if defined(HAVE_FIPS)
+    if (e < WC_RSA_EXPONENT || (e & 1) == 0) {
+#else
     if (e < 3 || (e & 1) == 0) {
+#endif
         err = BAD_FUNC_ARG;
         goto out;
     }
