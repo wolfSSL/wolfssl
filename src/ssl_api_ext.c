@@ -554,7 +554,15 @@ int wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
  * @param [in] ssl                    SSL/TLS object.
  * @param [in] protocol_name_list     Comma-separated list of protocol names.
  * @param [in] protocol_name_listSz   Length of the list in bytes.
- * @param [in] options                Bitmask of ALPN options.
+ * @param [in] options                Bitmask of ALPN options. A mismatch
+ *          behavior must be set or BAD_FUNC_ARG is returned.
+ *          WOLFSSL_ALPN_FAILED_ON_MISMATCH sends the fatal
+ *          no_application_protocol alert and fails the handshake when no
+ *          protocol matches, per RFC 7301 section 3.2.
+ *          WOLFSSL_ALPN_CONTINUE_ON_MISMATCH instead continues without an
+ *          agreed protocol like OpenSSL. That does not send the alert and is
+ *          therefore not RFC 7301 compliant, so use it only for OpenSSL
+ *          interop.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when an argument is NULL, the list is too long or
  *          options are unsupported.

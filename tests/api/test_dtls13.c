@@ -1073,6 +1073,7 @@ int test_dtls13_epochs(void) {
     WOLFSSL* ssl = NULL;
     byte input[20];
     word32 inOutIdx = 0;
+    WOLFSSL_ALERT_HISTORY alertHistory;
 
     XMEMSET(input, 0, sizeof(input));
 
@@ -1107,6 +1108,11 @@ int test_dtls13_epochs(void) {
     ExpectIntEQ(Dtls13CheckEpoch(ssl, key_update), SANITY_MSG_E);
     ExpectIntEQ(Dtls13CheckEpoch(ssl, session_ticket), SANITY_MSG_E);
     ExpectIntEQ(Dtls13CheckEpoch(ssl, end_of_early_data), SANITY_MSG_E);
+    /* RFC 9147 5.6.1: EndOfEarlyData is not used in DTLS 1.3 and its receipt
+     * must terminate the connection with an unexpected_message alert. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl, &alertHistory), WOLFSSL_SUCCESS);
+    ExpectIntEQ(alertHistory.last_tx.level, alert_fatal);
+    ExpectIntEQ(alertHistory.last_tx.code, unexpected_message);
     ExpectIntEQ(Dtls13CheckEpoch(ssl, message_hash), SANITY_MSG_E);
     ExpectIntEQ(Dtls13CheckEpoch(ssl, no_shake), SANITY_MSG_E);
 

@@ -19471,6 +19471,12 @@ static int test_wolfSSL_sigalg_info(void)
     word16 len = 0;
     word16 idx = 0;
     int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_MLDSA;
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1))
+    int sawSha1 = 0;
+#endif
+#ifndef WOLFSSL_ALLOW_TLS_SHA1
+    int tls13 = 0;
+#endif
 
     InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs, 1, 1, 0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
@@ -19495,6 +19501,37 @@ static int test_wolfSSL_sigalg_info(void)
 
         ExpectIntNE(hashAlgo, 0);
     }
+
+    /* RFC 9155 deprecates SHA-1 signatures for TLS 1.2, and RFC 8446 forbids
+     * them for TLS 1.3. When the negotiated version is TLS 1.2 or higher
+     * (tls1_2 argument set, whether or not tls1_3 is also set) the SHA-1
+     * schemes must not be offered unless the operator opts in with
+     * WOLFSSL_ALLOW_TLS_SHA1. */
+#ifndef WOLFSSL_ALLOW_TLS_SHA1
+    for (tls13 = 0; tls13 <= 1; tls13++) {
+        InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs, 1, tls13, 0xFFFFFFFF,
+            &len);
+        for (idx = 0; idx < len; idx += 2) {
+            ExpectFalse((hashSigAlgo[idx] == sha_mac) &&
+                ((hashSigAlgo[idx + 1] == rsa_sa_algo) ||
+                 (hashSigAlgo[idx + 1] == ecc_dsa_sa_algo)));
+        }
+    }
+#endif
+
+    /* For a TLS 1.0/1.1 handshake the SHA-1 schemes remain available when
+     * they are compiled in. */
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1))
+    InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs, 0, 0, 0xFFFFFFFF, &len);
+    for (idx = 0; idx < len; idx += 2) {
+        if ((hashSigAlgo[idx] == sha_mac) &&
+            ((hashSigAlgo[idx + 1] == rsa_sa_algo) ||
+             (hashSigAlgo[idx + 1] == ecc_dsa_sa_algo))) {
+            sawSha1 = 1;
+        }
+    }
+    ExpectIntEQ(sawSha1, 1);
+#endif
 
 #endif
     return EXPECT_RESULT();

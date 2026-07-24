@@ -140,8 +140,17 @@ ASN Options:
  * NO_STRICT_ECDSA_LEN:      Allow non-strict ECDSA signature length
  * NO_WOLFSSL_CM_VERIFY:     Disable cert manager verify callback
  * NO_WOLFSSL_SKIP_TRAILING_PAD: Don't skip trailing padding
+ * ALLOW_INVALID_CERTSIGN:   Opt-in, RFC 5280 non-conformant. Accept a
+ *                            certificate that asserts keyCertSign without the
+ *                            cA basic-constraint (RFC 5280 4.2.1.9), and a CA
+ *                            whose present keyUsage extension omits keyCertSign
+ *                            (RFC 5280 6.1.4). Off by default; enforcement is
+ *                            active in a stock build. Intended for interop with
+ *                            deployed certs that carry malformed keyUsage
+ *                            (e.g. the Mosquitto integration).
  * ALLOW_SELFSIGNED_INVALID_CERTSIGN: Allow self-signed certs
- *                            without keyCertSign in keyUsage
+ *                            without keyCertSign in keyUsage. Narrower opt-in
+ *                            than ALLOW_INVALID_CERTSIGN (self-signed only).
  * ALLOW_V1_EXTENSIONS:      Allow extensions in v1 certificates
  * USE_WOLF_VALIDDATE:       Use wolfSSL date validation
  * WC_ASN_RUNTIME_DATE_CHECK_CONTROL: Runtime control of date checking
@@ -157,7 +166,13 @@ ASN Options:
  * WOLFSSL_SEP:              Enable SubjectEntryPoint extension
  * WOLFSSL_EKU_OID:          Enable Extended Key Usage OID support
  * WOLFSSL_ACERT:            Enable attribute certificate support
- * IGNORE_KEY_EXTENSIONS:    Ignore key usage extensions
+ * IGNORE_KEY_EXTENSIONS:    Opt-in, RFC non-conformant. Suppress all key-usage
+ *                            and extended-key-usage enforcement: the TLS
+ *                            keyEncipherment/digitalSignature checks and the
+ *                            serverAuth/clientAuth EKU checks (ProcessPeerCerts,
+ *                            src/internal.c), and the cRLSign requirement on a
+ *                            CRL-signing CA (VerifyCRL_Signature, below). Off by
+ *                            default; enforcement is active in a stock build.
  * IGNORE_NETSCAPE_CERT_TYPE: Ignore Netscape cert type extension
  * WOLFSSL_ALLOW_CRIT_AIA:   Allow critical Authority Info Access
  * WOLFSSL_ALLOW_CRIT_AKID:  Allow critical Auth Key Identifier
@@ -24323,7 +24338,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 #endif
 
     #ifndef ALLOW_INVALID_CERTSIGN
-        /* https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9
+        /* Enforced by default. ALLOW_INVALID_CERTSIGN is a deliberate,
+         * RFC-non-conformant opt-out for interop with deployed certs that
+         * carry malformed keyUsage; see the macro list at the top of file.
+         * https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9
          *   If the cA boolean is not asserted, then the keyCertSign bit in the
          *   key usage extension MUST NOT be asserted. */
         if (!cert->isCA && cert->extKeyUsageSet &&
@@ -37029,6 +37047,9 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
                         int sigParamsSz, Signer *ca, void* heap)
 {
     /* try to confirm/verify signature */
+    /* Enforced by default (RFC 5280 4.2.1.3 / 5.2: a CRL issuer MUST assert
+     * cRLSign). IGNORE_KEY_EXTENSIONS is a deliberate, RFC-non-conformant
+     * opt-out; see the macro list at the top of file. */
 #ifndef IGNORE_KEY_EXTENSIONS
     if ((ca->keyUsage & KEYUSE_CRL_SIGN) == 0) {
         WOLFSSL_MSG("CA cannot sign CRLs");
@@ -40285,7 +40306,7 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
         if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE) &&
             (! AsnSkipDateCheck))
         {
-            badDate = ASN_BEFORE_DATE_E;
+            badDate = ASN_AFTER_DATE_E;
         }
     }
 
@@ -40585,6 +40606,16 @@ int VerifyX509Acert(const byte* der, word32 derSz,
         ret = ASN_PARSE_E;
     }
     #endif
+
+    /* Enforce the attribute certificate validity period (RFC 5755 section
+     * 5.4). CheckDate returns the appropriate date error, or 0, and honors
+     * the runtime skip-date control internally. */
+    if (ret == 0) {
+        ret = CheckDate(&dataASN[ACERT_IDX_ACINFO_VALIDITY_NOTB_GT], ASN_BEFORE);
+    }
+    if (ret == 0) {
+        ret = CheckDate(&dataASN[ACERT_IDX_ACINFO_VALIDITY_NOTA_GT], ASN_AFTER);
+    }
 
     if (ret == 0) {
         /* Finally, do the verification. */
