@@ -33513,6 +33513,13 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
         return MEMORY_E;
 #endif
     XMEMSET(tmpDer, 0, ECC_BUFSIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Track tmpDer from the point it is zeroed; it will hold a plaintext
+     * copy of the ECC private key. Registering here (rather than after it is
+     * populated) widens the window so any path that reaches 'exit' without a
+     * ForceZero is caught. Every exit below is a 'goto exit'. */
+    wc_MemZero_Add("eccToPKCS8 tmpDer", tmpDer, ECC_BUFSIZE);
+#endif
 
     ret = wc_BuildEccKeyDer(key, tmpDer, &sz, includePublic, 0);
     if (ret < 0) {
@@ -33551,7 +33558,12 @@ exit:
      * it before releasing (or before the stack buffer goes out of scope). */
     ForceZero(tmpDer, ECC_BUFSIZE);
 #ifndef WOLFSSL_NO_MALLOC
+    /* Heap build: XFREE (wolfSSL_Free) auto-runs wc_MemZero_Check over the
+     * freed block, so no explicit check is needed here. */
     XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    /* Stack build: tmpDer is not freed, so verify+deregister explicitly. */
+    wc_MemZero_Check(tmpDer, ECC_BUFSIZE);
 #endif
 
     return ret;

@@ -494,6 +494,12 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         return DRBG_FAILURE;
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* poison so a missed ForceZero on any path is caught by the check */
+    XMEMSET(digest, 0xff, WC_SHA256_DIGEST_SIZE);
+    wc_MemZero_Add("Hash_df digest", digest, WC_SHA256_DIGEST_SIZE);
+#endif
+
 #ifdef LITTLE_ENDIAN_ORDER
     bits = ByteReverseWord32(bits);
 #endif
@@ -551,6 +557,12 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     }
 
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
+    /* Explicit check only where the buffer is NOT XFREEd (XFREE auto-checks):
+     * the stack build and the small-stack-cache build (drbg member). */
+#if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(digest, WC_SHA256_DIGEST_SIZE);
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -583,6 +595,9 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 #endif
     XMEMSET(newV, 0, DRBG_SEED_LEN);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("Hash_DRBG_Reseed newV", newV, DRBG_SEED_LEN);
+#endif
 
     ret = Hash_df(drbg, newV, DRBG_SEED_LEN, drbgReseed,
                 drbg->V, sizeof(drbg->V), seed, seedSz,
@@ -598,6 +613,10 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
     }
 
     ForceZero(newV, DRBG_SEED_LEN);
+#if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(newV, DRBG_SEED_LEN);
+#endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -723,6 +742,9 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     len = (outSz / OUTPUT_BLOCK_LEN) + ((outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
 
     XMEMCPY(data, V, DRBG_SEED_LEN);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("Hash_gen data", data, DRBG_SEED_LEN);
+#endif
     for (i = 0; i < len; i++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -759,6 +781,10 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
         }
     }
     ForceZero(data, DRBG_SEED_LEN);
+#if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(data, DRBG_SEED_LEN);
+#endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -850,6 +876,15 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
         byte digest[WC_SHA256_DIGEST_SIZE];
     #endif
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* baseline 0 (not 0xff): a pre-write early exit on this path checks
+         * digest, so it must read zero.  Registered across the whole generate;
+         * every exit below force-zeros+checks (or XFREEs) it. */
+        XMEMSET(digest, 0, WC_SHA256_DIGEST_SIZE);
+        wc_MemZero_Add("Hash_DRBG_Generate digest", digest,
+            WC_SHA256_DIGEST_SIZE);
+    #endif
+
         type = drbgGenerateH;
         reseedCtr = drbg->reseedCtr;
 
@@ -864,6 +899,12 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
             ret = wc_InitSha256(sha);
         #endif
             if (ret != 0) {
+                /* digest holds only the 0 baseline here (never written) */
+            #if (!defined(WOLFSSL_SMALL_STACK) || \
+                 defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+                defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(digest, WC_SHA256_DIGEST_SIZE);
+            #endif
             #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
                 XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
             #endif
@@ -889,6 +930,11 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
             }
             else {
                 ForceZero(digest, WC_SHA256_DIGEST_SIZE);
+            #if (!defined(WOLFSSL_SMALL_STACK) || \
+                 defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+                defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(digest, WC_SHA256_DIGEST_SIZE);
+            #endif
             #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
                 XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
             #endif
@@ -933,6 +979,11 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
             drbg->reseedCtr++;
         }
         ForceZero(digest, WC_SHA256_DIGEST_SIZE);
+    #if (!defined(WOLFSSL_SMALL_STACK) || \
+         defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+        defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(digest, WC_SHA256_DIGEST_SIZE);
+    #endif
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
         XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
     #endif
@@ -1087,6 +1138,12 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
         return DRBG_FAILURE;
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* poison so a missed ForceZero on any path is caught by the check */
+    XMEMSET(digest, 0xff, WC_SHA512_DIGEST_SIZE);
+    wc_MemZero_Add("Hash512_df digest", digest, WC_SHA512_DIGEST_SIZE);
+#endif
+
 #ifdef LITTLE_ENDIAN_ORDER
     bits = ByteReverseWord32(bits);
 #endif
@@ -1144,6 +1201,12 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
     }
 
     ForceZero(digest, WC_SHA512_DIGEST_SIZE);
+    /* Explicit check only where the buffer is NOT XFREEd (XFREE auto-checks):
+     * the stack build and the small-stack-cache build (drbg member). */
+#if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(digest, WC_SHA512_DIGEST_SIZE);
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -1177,6 +1240,9 @@ static int Hash512_DRBG_Reseed(DRBG_SHA512_internal* drbg, const byte* seed,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 #endif
     XMEMSET(newV, 0, DRBG_SHA512_SEED_LEN);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("Hash512_DRBG_Reseed newV", newV, DRBG_SHA512_SEED_LEN);
+#endif
 
     ret = Hash512_df(drbg, newV, DRBG_SHA512_SEED_LEN, drbgReseed,
                 drbg->V, sizeof(drbg->V), seed, seedSz,
@@ -1193,6 +1259,10 @@ static int Hash512_DRBG_Reseed(DRBG_SHA512_internal* drbg, const byte* seed,
     }
 
     ForceZero(newV, DRBG_SHA512_SEED_LEN);
+#if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(newV, DRBG_SHA512_SEED_LEN);
+#endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1248,6 +1318,9 @@ static int Hash512_gen(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
         + ((outSz % OUTPUT_BLOCK_LEN_SHA512) ? 1 : 0);
 
     XMEMCPY(data, V, DRBG_SHA512_SEED_LEN);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("Hash512_gen data", data, DRBG_SHA512_SEED_LEN);
+#endif
     for (i = 0; i < len; i++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -1283,6 +1356,10 @@ static int Hash512_gen(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
         }
     }
     ForceZero(data, DRBG_SHA512_SEED_LEN);
+#if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(data, DRBG_SHA512_SEED_LEN);
+#endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -1323,6 +1400,14 @@ static int Hash512_DRBG_Generate(DRBG_SHA512_internal* drbg, byte* out,
             return DRBG_FAILURE;
     #else
         byte digest[WC_SHA512_DIGEST_SIZE];
+    #endif
+
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* baseline 0; registered across the whole generate, force-zeroed and
+         * checked at the single exit below (all paths funnel there). */
+        XMEMSET(digest, 0, WC_SHA512_DIGEST_SIZE);
+        wc_MemZero_Add("Hash512_DRBG_Generate digest", digest,
+            WC_SHA512_DIGEST_SIZE);
     #endif
 
         type = drbgGenerateH;
@@ -1392,6 +1477,11 @@ static int Hash512_DRBG_Generate(DRBG_SHA512_internal* drbg, byte* out,
             drbg->reseedCtr++;
         }
         ForceZero(digest, WC_SHA512_DIGEST_SIZE);
+    #if (!defined(WOLFSSL_SMALL_STACK) || \
+         defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+        defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(digest, WC_SHA512_DIGEST_SIZE);
+    #endif
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
         XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
     #endif
@@ -2019,6 +2109,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
 #endif /* WC_RNG_SEED_CB */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            /* seed now holds entropy; register across DRBG instantiation */
+            wc_MemZero_Add("_InitRng seed", seed, seedSz);
+#endif
             if (ret != 0) {
     #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG_EX("Seed generation failed... %d", ret);
@@ -2075,6 +2169,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
     {
         ForceZero(seed, seedSz);
+    #if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+        /* heap build's WC_FREE_VAR_EX/XFREE auto-checks; stack build needs it */
+        wc_MemZero_Check(seed, seedSz);
+    #endif
     }
     WC_FREE_VAR_EX(seed, rng->heap, DYNAMIC_TYPE_SEED);
 
@@ -2313,7 +2411,17 @@ static int PollAndReSeed(WC_RNG* rng)
         }
         XFREE(newSeed, rng->heap, DYNAMIC_TYPE_SEED);
     #else
-        ForceZero(newSeed, sizeof(newSeed));
+        /* newSeed is a byte[] in the plain build but a byte* in the
+         * SMALL_STACK_CACHE build, so use the explicit buffer length (not
+         * sizeof) to zero the whole reseed entropy buffer in both cases. */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("PollAndReSeed newSeed", newSeed,
+            SEED_SZ + SEED_BLOCK_SZ);
+    #endif
+        ForceZero(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+    #endif
     #endif
     }
     else {
@@ -3733,8 +3841,14 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_GenerateSeed rndTmp", &rndTmp, sizeof(rndTmp));
+#endif
     XMEMCPY(output, &rndTmp, sz);
     ForceZero(&rndTmp, sizeof(rndTmp));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(&rndTmp, sizeof(rndTmp));
+#endif
 
     return 0;
 }

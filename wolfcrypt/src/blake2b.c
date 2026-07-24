@@ -502,6 +502,9 @@ int wc_Blake2bHmacInit(Blake2b* b2b, const byte* key, size_t key_len)
         return BAD_FUNC_ARG;
 
     XMEMSET(x_key, 0, sizeof(x_key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Blake2bHmacInit x_key", x_key, sizeof(x_key));
+#endif
 
     if (key_len > BLAKE2B_BLOCKBYTES) {
         ret = wc_InitBlake2b(b2b, BLAKE2B_OUTBYTES);
@@ -524,6 +527,9 @@ int wc_Blake2bHmacInit(Blake2b* b2b, const byte* key, size_t key_len)
         ret = wc_Blake2bUpdate(b2b, x_key, BLAKE2B_BLOCKBYTES);
 
     ForceZero(x_key, sizeof(x_key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(x_key, sizeof(x_key));
+#endif
 
     return ret;
 }
@@ -554,14 +560,25 @@ int wc_Blake2bHmacFinal(Blake2b* b2b, const byte* key, size_t key_len,
         return BUFFER_E;
 
     XMEMSET(x_key, 0, sizeof(x_key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Blake2bHmacFinal x_key", x_key, sizeof(x_key));
+#endif
 
     if (key_len > BLAKE2B_BLOCKBYTES) {
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(&keyHash, 0, sizeof(keyHash));
+        wc_MemZero_Add("wc_Blake2bHmacFinal keyHash", &keyHash,
+            sizeof(keyHash));
+#endif
         ret = wc_InitBlake2b(&keyHash, BLAKE2B_OUTBYTES);
         if (ret == 0)
             ret = wc_Blake2bUpdate(&keyHash, key, (word32)key_len);
         if (ret == 0)
             ret = wc_Blake2bFinal(&keyHash, x_key, 0);
         ForceZero(&keyHash, sizeof(keyHash));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&keyHash, sizeof(keyHash));
+#endif
     } else {
         XMEMCPY(x_key, key, key_len);
     }
@@ -584,6 +601,9 @@ int wc_Blake2bHmacFinal(Blake2b* b2b, const byte* key, size_t key_len,
         ret = wc_Blake2bFinal(b2b, out, 0);
 
     ForceZero(x_key, sizeof(x_key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(x_key, sizeof(x_key));
+#endif
 
     return ret;
 }

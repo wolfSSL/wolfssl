@@ -35,6 +35,7 @@
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/memory.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -1000,6 +1001,11 @@ static int slhdsakey_hash_prf_sha2(SlhDsaKey* key, const byte* pk_seed,
     }
     if (ret == 0) {
         ret = wc_Sha256Final(&key->hash.sha2.sha256, digest);
+        /* digest now holds the secret PRF output (WOTS+/FORS key); register it
+         * before it is copied out so any later exit is covered. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa prf digest", digest, sizeof(digest));
+#endif
     }
     if (ret == 0) {
         XMEMCPY(hash, digest, n);
@@ -1007,6 +1013,9 @@ static int slhdsakey_hash_prf_sha2(SlhDsaKey* key, const byte* pk_seed,
 
     /* digest holds the secret PRF output (WOTS+/FORS key). */
     ForceZero(digest, sizeof(digest));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+#endif
     return ret;
 }
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
@@ -3349,7 +3358,13 @@ static int slhdsakey_wots_pkgen_chain_c(SlhDsaKey* key, const byte* sk_seed,
     /* On error sk still holds a secret WOTS+ leaf; on success it is overwritten
      * with a public chain value. */
     if (ret != 0) {
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa wots sk", sk, n);
+#endif
         ForceZero(sk, n);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(sk, n);
+#endif
     }
 #endif
 
@@ -3852,6 +3867,12 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     {
         byte sk[SLHDSA_MAX_N];
 
+        /* sk will hold secret WOTS+ leaves; baseline-zero and register it up
+         * front (block has a single exit through the ForceZero below). */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(sk, 0, n);
+        wc_MemZero_Add("slhdsa wots sk", sk, n);
+#endif
         /* Step 11: For each value of msg. */
         for (i = 0; i < len; i++) {
             /* Step 12: Set chain address for WOTS PRF. */
@@ -3876,6 +3897,9 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
 
         /* sk held the secret WOTS+ leaf. */
         ForceZero(sk, n);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(sk, n);
+#endif
     }
 
     return ret;
@@ -7518,6 +7542,11 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     if (ret == 0) {
         /* Generate n bytes of random. */
         ret = wc_RNG_GenerateBlock(rng, addRnd, key->params->n);
+        /* addRnd now holds the secret signing randomness; register before the
+         * sign call so a future early-exit before the ForceZero is caught. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa sign addRnd", addRnd, sizeof(addRnd));
+#endif
     }
     if (ret == 0) {
         /* Pure sign. */
@@ -7526,6 +7555,9 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 
     ForceZero(addRnd, sizeof(addRnd));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(addRnd, sizeof(addRnd));
+#endif
 
     return ret;
 }
@@ -8441,6 +8473,11 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     if (ret == 0) {
         /* Generate n bytes of random. */
         ret = wc_RNG_GenerateBlock(rng, addRnd, key->params->n);
+        /* addRnd now holds the secret signing randomness; register before the
+         * sign call so a future early-exit before the ForceZero is caught. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("slhdsa sign_hash addRnd", addRnd, sizeof(addRnd));
+#endif
     }
     if (ret == 0) {
         /* HashSLH-DSA sign with caller-supplied digest. */
@@ -8449,6 +8486,9 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 
     ForceZero(addRnd, sizeof(addRnd));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(addRnd, sizeof(addRnd));
+#endif
 
     return ret;
 }

@@ -166,6 +166,13 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
     int ret = 0;
     int i;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Register the shared-secret buffer up front (no early return bypasses the
+     * cleanup ForceZero) so every path is checked. XMEMSET makes it defined. */
+    XMEMSET(o, 0, sizeof(o));
+    wc_MemZero_Add("wc_curve448_shared_secret_ex o", o, CURVE448_PUB_KEY_SIZE);
+#endif
+
     /* sanity check */
     if ((private_key == NULL) || (public_key == NULL) || (out == NULL) ||
                         (outLen == NULL) || (*outLen < CURVE448_PUB_KEY_SIZE)) {
@@ -206,6 +213,9 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
     }
 
     ForceZero(o, CURVE448_PUB_KEY_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(o, CURVE448_PUB_KEY_SIZE);
+#endif
 
     return ret;
 }

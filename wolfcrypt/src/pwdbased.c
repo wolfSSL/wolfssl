@@ -123,6 +123,12 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         return err;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* poison so a missed ForceZero on any path is caught by the check */
+    XMEMSET(digest, 0xff, sizeof(digest));
+    wc_MemZero_Add("wc_PBKDF1_ex digest", digest, sizeof(digest));
+#endif
+
     keyLeft = keyLen;
     ivLeft  = ivLen;
     while (keyOutput < (keyLen + ivLen)) {
@@ -181,6 +187,9 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     WC_FREE_VAR_EX(hash, heap, DYNAMIC_TYPE_HASHCTX);
 
     ForceZero(digest, sizeof(digest));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+#endif
 
     if (err != 0)
         return err;
@@ -264,6 +273,12 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     }
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* poison so a missed ForceZero on any path is caught by the check */
+    XMEMSET(buffer, 0xff, (word32)hLen);
+    wc_MemZero_Add("wc_PBKDF2_ex buffer", buffer, (word32)hLen);
+#endif
+
     ret = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
         word32 i = 1;
@@ -330,6 +345,9 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     }
 
     ForceZero(buffer, (word32)hLen);
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(buffer, (word32)hLen);
+#endif
     WC_FREE_VAR_EX(buffer, heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_HMAC);
 
@@ -513,6 +531,12 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     for (i = 0; i < pLen; i++)
         P[i] = passwd[i % (word32)passLen];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_PKCS12_PBKDF_ex Ai", Ai, WC_MAX_DIGEST_SIZE);
+    wc_MemZero_Add("wc_PKCS12_PBKDF_ex B", B, WC_MAX_BLOCK_SIZE);
+    wc_MemZero_Add("wc_PKCS12_PBKDF_ex buffer", buffer, totalLen);
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK
     if (((B1 = (mp_int *)XMALLOC(sizeof(*B1), heap, DYNAMIC_TYPE_TMP_BUFFER))
          == NULL) ||
@@ -605,9 +629,17 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #else
     ForceZero(Ai, WC_MAX_DIGEST_SIZE);
     ForceZero(B, WC_MAX_BLOCK_SIZE);
+#if defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(Ai, WC_MAX_DIGEST_SIZE);
+    wc_MemZero_Check(B, WC_MAX_BLOCK_SIZE);
+#endif
 #endif
 
     ForceZero(buffer, totalLen);
+#if defined(WOLFSSL_CHECK_MEM_ZERO)
+    if (!dynamic)
+        wc_MemZero_Check(buffer, totalLen);
+#endif
     if (dynamic)
         XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
 
@@ -729,6 +761,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     for (i = 0; i < pLen; i++)
         I[sLen + i] = passwd[i % (word32)passLen];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_PKCS12_PBKDF_ex buffer", buffer, totalLen);
+#endif
+
     ret = 0;
     while ((ret == 0) && (kLen > 0)) {
         /* RFC 7292 B.2 step 6a: A_i = H^r(D || I) */
@@ -782,6 +818,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     ForceZero(B, WC_MAX_BLOCK_SIZE);
     WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
     ForceZero(buffer, totalLen);
+#if defined(WOLFSSL_CHECK_MEM_ZERO)
+    if (buffer == staticBuffer)
+        wc_MemZero_Check(buffer, totalLen);
+#endif
     if (buffer != staticBuffer) {
         XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
     }

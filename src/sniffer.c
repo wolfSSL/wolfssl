@@ -7594,6 +7594,22 @@ static int parseKeyLogFile(const char* fileName, char* error)
         return WOLFSSL_SNIFFER_ERROR;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Register the secret-bearing stack buffers as high as possible (right
+     * after the last early return that bypasses the ForceZeros, i.e. the
+     * fopen failure above) so any future path that fails to clear them before
+     * scope exit is caught. Every exit path below (the in-loop error return
+     * and the normal post-loop return) ForceZeros and Checks each of them, so
+     * exactly one Add is balanced by one Check. Baseline the not-yet-written
+     * buffers so they are defined at registration time (secretHex is already
+     * zero-initialized at declaration). */
+    XMEMSET(secret, 0, sizeof(secret));
+    XMEMSET(line, 0, sizeof(line));
+    wc_MemZero_Add("parseKeyLogFile secret", secret, sizeof(secret));
+    wc_MemZero_Add("parseKeyLogFile secretHex", secretHex, sizeof(secretHex));
+    wc_MemZero_Add("parseKeyLogFile line", line, sizeof(line));
+#endif
+
     while (fgets(line, (int)sizeof(line), file) != NULL) {
         /* RFC 9850 Section 1: ignore empty lines and lines whose first
          * character is the octothorpe ('#') comment marker. */
@@ -7658,6 +7674,11 @@ static int parseKeyLogFile(const char* fileName, char* error)
             ForceZero(secret, SECRET_LENGTH);
             ForceZero(secretHex, sizeof(secretHex));
             ForceZero(line, sizeof(line));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(secret, sizeof(secret));
+            wc_MemZero_Check(secretHex, sizeof(secretHex));
+            wc_MemZero_Check(line, sizeof(line));
+        #endif
             return ret;
         }
     }
@@ -7666,6 +7687,11 @@ static int parseKeyLogFile(const char* fileName, char* error)
     ForceZero(secret, SECRET_LENGTH);
     ForceZero(secretHex, sizeof(secretHex));
     ForceZero(line, sizeof(line));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(secret, sizeof(secret));
+    wc_MemZero_Check(secretHex, sizeof(secretHex));
+    wc_MemZero_Check(line, sizeof(line));
+#endif
     return 0;
 }
 
