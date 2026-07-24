@@ -63,21 +63,28 @@ int test_dtls12_basic_connection_id(void)
 #endif
 #endif /* WOLFSSL_AES_128 && WOLFSSL_STATIC_RSA */
 #if defined(WOLFSSL_AES_128)
+#ifndef NO_DH
         "DHE-RSA-AES128-SHA256",
+#endif
         "ECDHE-RSA-AES128-SHA256",
 #ifdef HAVE_AESGCM
+#ifndef NO_DH
         "DHE-RSA-AES128-GCM-SHA256",
+#endif
         "ECDHE-RSA-AES128-GCM-SHA256",
 #endif
 #endif /* WOLFSSL_AES_128 */
 #endif /* NO_SHA256 */
 #endif /* NO_RSA */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(HAVE_FIPS)
+#ifndef NO_DH
         "DHE-RSA-CHACHA20-POLY1305",
         "DHE-RSA-CHACHA20-POLY1305-OLD",
+#endif
         "ECDHE-RSA-CHACHA20-POLY1305",
         "ECDHE-RSA-CHACHA20-POLY1305-OLD",
 #endif
+#ifndef NO_DH
 #ifndef NO_PSK
         "DHE-PSK-AES128-CBC-SHA256",
     #ifdef WOLFSSL_AES_256
@@ -88,6 +95,7 @@ int test_dtls12_basic_connection_id(void)
 #endif
         "DHE-PSK-AES128-CCM",
 #endif
+#endif /* !NO_DH */
     };
     size_t i;
     struct {

@@ -433,46 +433,141 @@
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
 
-struct km_sha_state {
-    union {
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-        struct wc_Sha sha1_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
-        struct wc_Sha256 sha2_224_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
-        struct wc_Sha256 sha2_256_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
-        struct wc_Sha512 sha2_384_state;
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
-        struct wc_Sha512 sha2_512_state;
+/* HASH_MAX_STATESIZE added by 2b1a29ce33, kernel 6.16.  Before that it was
+ * implicitly same as HASH_MAX_DESCSIZE.
+ */
+#ifndef HASH_MAX_STATESIZE
+    #define HASH_MAX_STATESIZE HASH_MAX_DESCSIZE
 #endif
 
+#if defined(WOLFSSL_SHA3) && \
+    (defined(LINUXKM_LKCAPI_REGISTER_SHA3_224) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_256) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_384) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_512))
+
+struct km_sha3_state {
+    union {
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
-        struct wc_Sha3 *sha3_224_state;
+        struct wc_Sha3 sha3_224_state;
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
-        struct wc_Sha3 *sha3_256_state;
+        struct wc_Sha3 sha3_256_state;
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
-        struct wc_Sha3 *sha3_384_state;
+        struct wc_Sha3 sha3_384_state;
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
-        struct wc_Sha3 *sha3_512_state;
+        struct wc_Sha3 sha3_512_state;
 #endif
-#ifdef WOLFSSL_SHA3
-        void *sha3_ptr;
-#endif
+        struct wc_Sha3 sha3_state;
     };
+    /* pointers for the cleanup list */
+    struct list_head desc_ent;
 };
 
-#ifdef WOLFSSL_SHA3
-WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct km_sha_state *t_ctx) {
-    free(t_ctx->sha3_ptr);
-    t_ctx->sha3_ptr = NULL;
+/* struct wc_Sha3 won't fit in HASH_MAX_DESCSIZE. */
+struct km_sha3_state_by_pointer {
+    struct km_sha3_state *sha3_state;
+};
+
+wc_static_assert(sizeof(struct km_sha3_state_by_pointer) <= HASH_MAX_DESCSIZE);
+
+#ifdef WOLFSSL_LINUXKM_USE_MUTEXES
+    #error LINUXKM_LKCAPI_REGISTER_SHA3 requires spinlock-based mutexes.
+#endif
+
+/* The kernel list macros provoke "pointer of type `void *' used in arithmetic",
+ * and on older kernels, "nested extern declaration of
+ * `__compiletime_assert_foo'".
+ */
+PRAGMA_DIAG_PUSH
+PRAGMA("GCC diagnostic ignored \"-Wpointer-arith\"");
+PRAGMA("GCC diagnostic ignored \"-Wnested-externs\"");
+
+#include <linux/list.h>
+
+struct km_Sha3TfmCtx {
+    wolfSSL_Mutex desc_list_lock;
+    struct list_head desc_list;
+};
+
+WC_MAYBE_UNUSED static int km_sha3_init_tfm(struct crypto_shash *tfm)
+{
+    struct km_Sha3TfmCtx *t_ctx = (struct km_Sha3TfmCtx *)crypto_shash_ctx(tfm);
+    if (wc_InitMutex(&t_ctx->desc_list_lock) != 0)
+        return -EINVAL;
+    INIT_LIST_HEAD(&t_ctx->desc_list);
+    return 0;
+}
+
+WC_MAYBE_UNUSED static void km_sha3_exit_tfm(struct crypto_shash *tfm)
+{
+    struct km_Sha3TfmCtx *t_ctx = (struct km_Sha3TfmCtx *)crypto_shash_ctx(tfm);
+    struct km_sha3_state *s_ctx_i;
+    struct km_sha3_state *next_ent;
+
+    /* Don't need to lock the mutex to clean up, because the API contract
+     * forbids any use of descs at/after exit of the associated TFM -- i.e. the
+     * list holds only abandoned descs -- and we're deallocating the lock
+     * besides.  Moreover, we definitely don't want to lock, so that the
+     * iteration and heap operations aren't in a locked context that might make
+     * desc deallocation awkward or impossible (leak).
+     */
+    list_for_each_entry_safe(s_ctx_i, next_ent, &t_ctx->desc_list, desc_ent) {
+        list_del(&s_ctx_i->desc_ent);
+        /* Use wc_Sha3_256_Free() as a proxy for unexported wc_Sha3Free()
+         * (currently a no-op in kernel configs, but that could change).
+         */
+        wc_Sha3_256_Free(&s_ctx_i->sha3_state);
+        ForceZero(s_ctx_i, sizeof(*s_ctx_i));
+        free(s_ctx_i);
+    }
+    (void)wc_FreeMutex(&t_ctx->desc_list_lock);
+}
+
+WC_MAYBE_UNUSED static int km_sha3_alloc_tstate(struct shash_desc *desc) {
+    struct km_Sha3TfmCtx *t_ctx =
+        (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
+    struct km_sha3_state_by_pointer *s_ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
+    s_ctx->sha3_state = (struct km_sha3_state *)malloc(sizeof(struct km_sha3_state));
+    if (! s_ctx->sha3_state)
+        return -ENOMEM;
+
+    /* Must zero here to make unconditionally safe for wc_Sha3_256_Free() in
+     * km_sha3_exit_tfm() (currently a no-op in kernel configs, but that could
+     * change).
+     */
+    XMEMSET(&s_ctx->sha3_state->sha3_state, 0, sizeof s_ctx->sha3_state->sha3_state);
+
+    if (wc_LockMutex(&t_ctx->desc_list_lock) != 0) {
+        free(s_ctx->sha3_state);
+        s_ctx->sha3_state = NULL;
+        return -EINVAL;
+    }
+    list_add(&s_ctx->sha3_state->desc_ent, &t_ctx->desc_list);
+    (void)wc_UnLockMutex(&t_ctx->desc_list_lock);
+
+    return 0;
+}
+
+WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct shash_desc *desc) {
+    struct km_Sha3TfmCtx *t_ctx =
+        (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
+    struct km_sha3_state_by_pointer *s_ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
+
+    if (s_ctx->sha3_state == NULL)
+        return;
+
+    if (wc_LockMutex(&t_ctx->desc_list_lock) != 0)
+        return;
+    list_del(&s_ctx->sha3_state->desc_ent);
+    (void)wc_UnLockMutex(&t_ctx->desc_list_lock);
+
+    wc_Sha3_256_Free(&s_ctx->sha3_state->sha3_state);
+    ForceZero(s_ctx->sha3_state, sizeof *s_ctx->sha3_state);
+    free(s_ctx->sha3_state);
+    s_ctx->sha3_state = NULL;
 }
 
 WC_MAYBE_UNUSED static int sha3_test_once(void) {
@@ -484,18 +579,205 @@ WC_MAYBE_UNUSED static int sha3_test_once(void) {
     }
     return ret;
 }
-#endif
 
-#define WC_LINUXKM_SHA_IMPLEMENT(name, digest_size, block_size,            \
+PRAGMA_DIAG_POP
+
+/* Serialized SHA-3 state for .export / .import.  This is the canonical
+ * {core, block, len} form the kernel budgets HASH_MAX_STATESIZE for -- worst
+ * case sha3-224, 200 + 144 + 1.  Deliberately NOT a struct copy of wc_Sha3:
+ * that carries the full 200-byte t[] plus heap/devId/fn-ptrs, which would both
+ * blow the statesize budget and ship non-portable, non-state fields across
+ * descs.  s[] and t[] are stored in native byte order -- export/import always
+ * round-trips within one host, so no canonical encoding is needed. */
+struct km_sha3_export_state {
+    byte   s[sizeof(((struct wc_Sha3 *)0)->s)]; /* KECCAK sponge, 200 bytes */
+    byte   t[WC_SHA3_224_BLOCK_SIZE];           /* pending block; 144 = max rate
+                                                 * of the registered SHA-3
+                                                 * variants (sha3-224) */
+    byte   i;                                   /* valid bytes in t[]; always
+                                                 * < rate <= 144, since
+                                                 * Sha3Final rejects i >= rate */
+};
+
+wc_static_assert(sizeof(struct km_sha3_export_state) <= HASH_MAX_STATESIZE);
+
+/* Non-destructive: serialize the live sponge into the caller's statesize
+ * buffer, leaving the desc (and its cleanup-list node) intact for continued
+ * streaming.  Variant-agnostic -- s/t/i live at the same offset in every union
+ * member, so the generic .sha3_state accessor serves all four. */
+WC_MAYBE_UNUSED static int km_sha3_export(struct shash_desc *desc, void *out)
+{
+    struct km_sha3_state_by_pointer *ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
+    struct km_sha3_export_state *blob = (struct km_sha3_export_state *)out;
+    const struct wc_Sha3 *sha3;
+
+    if (ctx->sha3_state == NULL)
+        return -EINVAL;
+    sha3 = &ctx->sha3_state->sha3_state;
+
+    /* i < rate <= sizeof(blob->t) always; guard defensively so a corrupted
+     * live state can't overrun blob->t. */
+    if (sha3->i > sizeof(blob->t))
+        return -EINVAL;
+
+    XMEMCPY(blob->s, sha3->s, sizeof(blob->s));
+    XMEMSET(blob->t, 0, sizeof(blob->t));
+    XMEMCPY(blob->t, sha3->t, sha3->i);
+    blob->i = (byte)sha3->i;
+
+    return 0;
+}
+
+/* Kernel-API export/import test coverage.  Exercises the cross-desc path that
+ * distinguishes real state serialization from pointer aliasing: testmgr's
+ * reimport divisions are same-desc, so a default memcpy of the desc pointer
+ * would round-trip within one desc yet double-free across two.  Here we export
+ * mid-stream, import into a distinct poisoned desc, finish BOTH independently,
+ * and require both to match a one-shot reference -- plus statesize and
+ * malformed-blob rejection probes.
+ */
+WC_MAYBE_UNUSED static int km_sha3_test_export_import(
+    const char *cra_name, const char *cra_driver_name, unsigned int block_size)
+{
+    int ret;
+    struct crypto_shash *tfm = NULL;
+    struct shash_desc *desc = NULL;
+    struct shash_desc *desc2 = NULL;
+    struct km_sha3_export_state *blob = NULL;
+    size_t desc_size = 0;
+    unsigned int split, i;
+    byte msg[300];
+    byte ref[WC_SHA3_512_DIGEST_SIZE];
+    byte tag[WC_SHA3_512_DIGEST_SIZE];
+
+    for (i = 0; i < (unsigned int)sizeof(msg); i++)
+        msg[i] = (byte)(i * 7 + 1);
+
+    tfm = crypto_alloc_shash(cra_name, 0, 0);
+    if (IS_ERR(tfm)) {
+        ret = (int)PTR_ERR(tfm);
+        pr_err("error: crypto_alloc_shash(%s) failed: %d\n", cra_name, ret);
+        return ret;
+    }
+
+    if (crypto_shash_statesize(tfm) != sizeof(struct km_sha3_export_state)) {
+        pr_err("error: %s statesize %u != expected %u\n", cra_driver_name,
+               crypto_shash_statesize(tfm),
+               (unsigned int)sizeof(struct km_sha3_export_state));
+        ret = -EINVAL;
+        goto out;
+    }
+
+    desc_size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
+    desc = (struct shash_desc *)malloc(desc_size);
+    desc2 = (struct shash_desc *)malloc(desc_size);
+    blob = (struct km_sha3_export_state *)malloc(sizeof(*blob));
+    if ((desc == NULL) || (desc2 == NULL) || (blob == NULL)) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    XMEMSET(desc, 0, desc_size);
+    desc->tfm = tfm;
+
+    /* Reference digest over the whole message. */
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, sizeof(msg));
+    if (ret == 0)
+        ret = crypto_shash_final(desc, ref);
+    if (ret) {
+        pr_err("error: %s reference digest failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Split leaves block_size/2 unabsorbed bytes, so the export blob carries a
+     * non-empty partial block for every variant (rate 72..144).
+     */
+    split = block_size + block_size / 2;
+
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, split);
+    if (ret == 0)
+        ret = crypto_shash_export(desc, blob);
+    if (ret) {
+        pr_err("error: %s export sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Import into a poisoned second desc: import must not read prior ctx. */
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    ret = crypto_shash_import(desc2, blob);
+    if (ret == 0)
+        ret = crypto_shash_update(desc2, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc2, tag);
+    if (ret) {
+        pr_err("error: %s import sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, crypto_shash_digestsize(tfm)) != 0) {
+        pr_err("error: %s import-continuation digest mismatch\n",
+               cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* The exporting desc must remain live and independent of desc2. */
+    ret = crypto_shash_update(desc, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc, tag);
+    if (ret) {
+        pr_err("error: %s post-export continuation failed: %d\n",
+               cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, crypto_shash_digestsize(tfm)) != 0) {
+        pr_err("error: %s post-export digest mismatch\n", cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* Malformed state (partial length >= rate) must be rejected before any
+     * allocation or installation.
+     */
+    blob->i = (byte)block_size;
+    if (crypto_shash_import(desc2, blob) == 0) {
+        pr_err("error: %s import accepted out-of-range partial length\n",
+               cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = 0;
+
+out:
+
+    free(blob);
+    free(desc2);
+    free(desc);
+    if (tfm)
+        crypto_free_shash(tfm);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_SHA3 && LINUXKM_LKCAPI_REGISTER_SHA3_* */
+
+#define WC_LINUXKM_SHA1_IMPLEMENT(name, s_name, digest_size, block_size,   \
                                   this_cra_name, this_cra_driver_name,     \
                                   init_f, update_f, final_f,               \
                                   free_f, test_routine)                    \
                                                                            \
                                                                            \
-static int km_ ## name ## _init(struct shash_desc *desc) {                 \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+wc_static_assert(sizeof(struct s_name) <= HASH_MAX_DESCSIZE);              \
+wc_static_assert(sizeof(struct s_name) <= HASH_MAX_STATESIZE);             \
                                                                            \
-    int ret = init_f(&ctx-> name ## _state);                               \
+static int km_ ## name ## _init(struct shash_desc *desc) {                 \
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+                                                                           \
+    int ret = init_f(ctx);                                                 \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
@@ -505,24 +787,24 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len)                        \
 {                                                                          \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
                                                                            \
-    int ret = update_f(&ctx-> name ## _state, data, len);                  \
+    int ret = update_f(ctx, data, len);                                    \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
-        free_f(&ctx-> name ## _state);                                     \
+        free_f(ctx);                                                       \
         return -EINVAL;                                                    \
     }                                                                      \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
                                                                            \
-    int ret = final_f(&ctx-> name ## _state, out);                         \
+    int ret = final_f(ctx, out);                                           \
                                                                            \
-    free_f(&ctx-> name ## _state);                                         \
+    free_f(ctx);                                                           \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -533,12 +815,12 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                  unsigned int len, u8 *out)                \
 {                                                                          \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
                                                                            \
-    int ret = update_f(&ctx-> name ## _state, data, len);                  \
+    int ret = update_f(ctx, data, len);                                    \
                                                                            \
     if (ret != 0) {                                                        \
-        free_f(&ctx-> name ## _state);                                     \
+        free_f(ctx);                                                       \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
@@ -563,7 +845,185 @@ static struct shash_alg name ## _alg =                                     \
     .final          =       km_ ## name ## _final,                         \
     .finup          =       km_ ## name ## _finup,                         \
     .digest         =       km_ ## name ## _digest,                        \
-    .descsize       =       sizeof(struct km_sha_state),                   \
+    .descsize       =       sizeof(struct s_name),                         \
+    .base           =       {                                              \
+        .cra_name        =      (this_cra_name),                           \
+        .cra_driver_name =      (this_cra_driver_name),                    \
+        .cra_priority    =      WOLFSSL_LINUXKM_LKCAPI_PRIORITY,           \
+        .cra_blocksize   =      (block_size),                              \
+        .cra_module      =      THIS_MODULE                                \
+    }                                                                      \
+};                                                                         \
+static int name ## _alg_loaded = 0;                                        \
+                                                                           \
+static int linuxkm_test_ ## name(void) {                                   \
+    wc_test_ret_t ret = test_routine();                                    \
+    if (ret >= 0)                                                          \
+        return check_shash_driver_masking(NULL /* tfm */, this_cra_name,   \
+                                          this_cra_driver_name);           \
+    else {                                                                 \
+        wc_test_render_error_message("linuxkm_test_" #name " failed: ",    \
+                                     ret);                                 \
+        return WC_TEST_RET_DEC_EC(ret);                                    \
+    }                                                                      \
+}                                                                          \
+                                                                           \
+struct wc_swallow_the_semicolon
+
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && \
+    (!defined(WC_HAVE_SHA2_NO_SMALL_STACK) || !defined(WC_SHA2_NO_SMALL_STACK))
+    /* The glue layer needs to take ownership of the .W working buffer to assure
+     * it can't leak on abandoned descs, or double-free on export-import cycled
+     * descs.  It's small enough to fit comfortably on the stack, so there's
+     * almost no overhead associated with this.
+     *
+     * Eager allocation of .W in SHA-2 init is to assure no heap operations in
+     * SHA-2 after init, mitigating an infinite recursion:  The wolfCrypt DRBG
+     * sits atop SHA-2, and when LINUXKM_DRBG_GET_RANDOM_BYTES &&
+     * WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS && CONFIG_SLAB_FREELIST_RANDOM,
+     * it sits _under_ the kernel heap.
+     */
+    #define WC_LINUXKM_SHA2_FREE_W(s) do { free((s)->W); (s)->W = NULL; } while (0)
+    #define WC_LINUXKM_SHA2_DECL_W(s, l) wc_static_assert((l) % sizeof (s)->W[0] == 0); \
+                                         typeof((s)->W[0]) w_buf[(l) / sizeof (s)->W[0]]
+    #define WC_LINUXKM_SHA2_PUSH_W(s) { (s)->W = w_buf
+    #define WC_LINUXKM_SHA2_POP_W(s) ForceZero(w_buf, sizeof w_buf); (s)->W = NULL; } WC_DO_NOTHING
+#else
+    #define WC_LINUXKM_SHA2_FREE_W(s) WC_DO_NOTHING
+    #define WC_LINUXKM_SHA2_DECL_W(s, l) struct wc_swallow_the_semicolon
+    #define WC_LINUXKM_SHA2_PUSH_W(s) { WC_DO_NOTHING
+    #define WC_LINUXKM_SHA2_POP_W(s) } WC_DO_NOTHING
+#endif
+
+/* WC_SHA*_W_SIZE are only used when WC_LINUXKM_SHA2_FREE_W() and friends are
+ * substantively implemented.
+ */
+#ifndef WC_SHA256_W_SIZE
+    #define WC_SHA256_W_SIZE (sizeof(word32) * WC_SHA256_BLOCK_SIZE)
+#endif
+#ifndef WC_SHA512_W_SIZE
+    #define WC_SHA512_W_SIZE ((sizeof(word64) * 16) + WC_SHA512_BLOCK_SIZE)
+#endif
+
+#define WC_LINUXKM_SHA2_IMPLEMENT(name, s_name, digest_size, block_size,   \
+                                  W_size,                                  \
+                                  this_cra_name, this_cra_driver_name,     \
+                                  init_f, update_f, final_f,               \
+                                  free_f, test_routine)                    \
+                                                                           \
+                                                                           \
+wc_static_assert(sizeof(struct s_name) <= HASH_MAX_DESCSIZE);              \
+wc_static_assert(sizeof(struct s_name) <= HASH_MAX_STATESIZE);             \
+                                                                           \
+static int km_ ## name ## _init(struct shash_desc *desc) {                 \
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+                                                                           \
+    int ret = init_f(ctx);                                                 \
+    if (ret == 0) {                                                        \
+        WC_LINUXKM_SHA2_FREE_W(ctx);                                       \
+        return 0;                                                          \
+    }                                                                      \
+    else                                                                   \
+        return -EINVAL;                                                    \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
+                                  unsigned int len)                        \
+{                                                                          \
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    int ret;                                                               \
+    WC_LINUXKM_SHA2_DECL_W(ctx, W_size);                                   \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
+    ret = update_f(ctx, data, len);                                        \
+    WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else {                                                                 \
+        free_f(ctx);                                                       \
+        return -EINVAL;                                                    \
+    }                                                                      \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    int ret;                                                               \
+    WC_LINUXKM_SHA2_DECL_W(ctx, W_size);                                   \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
+    ret = final_f(ctx, out);                                               \
+    WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+                                                                           \
+    free_f(ctx);                                                           \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
+                                 unsigned int len, u8 *out)                \
+{                                                                          \
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    int ret;                                                               \
+    WC_LINUXKM_SHA2_DECL_W(ctx, W_size);                                   \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
+    ret = update_f(ctx, data, len);                                        \
+    WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+                                                                           \
+    if (ret != 0) {                                                        \
+        free_f(ctx);                                                       \
+        return -EINVAL;                                                    \
+    }                                                                      \
+                                                                           \
+    WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
+    ret = final_f(ctx, out);                                               \
+    WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+                                                                           \
+    free_f(ctx);                                                           \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
+}                                                                          \
+                                                                           \
+static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
+                                  unsigned int len, u8 *out)               \
+{                                                                          \
+    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    int ret;                                                               \
+                                                                           \
+    ret = init_f(ctx);                                                     \
+    if (ret != 0)                                                          \
+        return -EINVAL;                                                    \
+                                                                           \
+    ret = update_f(ctx, data, len);                                        \
+                                                                           \
+    if (ret == 0)                                                          \
+        ret = final_f(ctx, out);                                           \
+                                                                           \
+    free_f(ctx);                                                           \
+                                                                           \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
+}                                                                          \
+                                                                           \
+                                                                           \
+static struct shash_alg name ## _alg =                                     \
+{                                                                          \
+    .digestsize     =       (digest_size),                                 \
+    .init           =       km_ ## name ## _init,                          \
+    .update         =       km_ ## name ## _update,                        \
+    .final          =       km_ ## name ## _final,                         \
+    .finup          =       km_ ## name ## _finup,                         \
+    .digest         =       km_ ## name ## _digest,                        \
+    .descsize       =       sizeof(struct s_name),                         \
     .base           =       {                                              \
         .cra_name        =      (this_cra_name),                           \
         .cra_driver_name =      (this_cra_driver_name),                    \
@@ -595,18 +1055,18 @@ struct wc_swallow_the_semicolon
                                                                            \
                                                                            \
 static int km_ ## name ## _init(struct shash_desc *desc) {                 \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
     int ret;                                                               \
                                                                            \
-    ctx-> name ## _state = malloc(sizeof *ctx-> name ## _state);           \
-    if (! ctx-> name ## _state)                                            \
-        return -ENOMEM;                                                    \
-    ret = init_f(ctx-> name ## _state, NULL, INVALID_DEVID);               \
+    ret = km_sha3_alloc_tstate(desc);                                      \
+    if (ret)                                                               \
+        return ret;                                                        \
+    ret = init_f(&ctx->sha3_state-> name ## _state, NULL, INVALID_DEVID);  \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
-        free(ctx-> name ## _state);                                        \
-        ctx-> name ## _state = NULL;                                       \
+        km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
 }                                                                          \
@@ -614,26 +1074,26 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len)                        \
 {                                                                          \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
-    int ret = update_f(ctx-> name ## _state, data, len);                   \
+    int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
-        free_f(ctx-> name ## _state);                                      \
-        km_sha3_free_tstate(ctx);                                          \
+        km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
-    int ret = final_f(ctx-> name ## _state, out);                          \
+    int ret = final_f(&ctx->sha3_state-> name ## _state, out);             \
                                                                            \
-    free_f(ctx-> name ## _state);                                          \
-    km_sha3_free_tstate(ctx);                                              \
+    km_sha3_free_tstate(desc);                                             \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
@@ -643,13 +1103,13 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                  unsigned int len, u8 *out)                \
 {                                                                          \
-    struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
-    int ret = update_f(ctx-> name ## _state, data, len);                   \
+    int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
     if (ret != 0) {                                                        \
-        free_f(ctx-> name ## _state);                                      \
-        km_sha3_free_tstate(ctx);                                          \
+        km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
@@ -659,26 +1119,79 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
 static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len, u8 *out)               \
 {                                                                          \
-    int ret = km_ ## name ## _init(desc);                                  \
+    struct km_sha3_state sha3_state;                                       \
+    int ret;                                                               \
+                                                                           \
+    (void)desc;                                                            \
+    ret = init_f(&sha3_state. name ## _state, NULL, INVALID_DEVID);        \
     if (ret != 0)                                                          \
-        return ret;                                                        \
-    return km_ ## name ## _finup(desc, data, len, out);                    \
+        return -EINVAL;                                                    \
+    ret = update_f(&sha3_state. name ## _state, data, len);                \
+    if (ret == 0)                                                          \
+        ret = final_f(&sha3_state. name ## _state, out);                   \
+                                                                           \
+    free_f(&sha3_state. name ## _state);                                   \
+    ForceZero(&sha3_state, sizeof sha3_state);                             \
+                                                                           \
+    return ret == 0 ? 0 : -EINVAL;                                         \
 }                                                                          \
+                                                                           \
+static int km_ ## name ## _import(struct shash_desc *desc,                 \
+                                  const void *in)                          \
+{                                                                          \
+    struct km_sha3_state_by_pointer *ctx =                                 \
+        (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
+    const struct km_sha3_export_state *blob =                              \
+        (const struct km_sha3_export_state *)in;                           \
+    struct wc_Sha3 *sha3;                                                  \
+    int ret;                                                               \
+                                                                           \
+    if (blob->i >= (block_size))                                           \
+        return -EINVAL;                                                    \
+                                                                           \
+    ret = km_sha3_alloc_tstate(desc);                                      \
+    if (ret)                                                               \
+        return ret;                                                        \
+                                                                           \
+    sha3 = &ctx->sha3_state-> name ## _state;                              \
+    ret = init_f(sha3, NULL, INVALID_DEVID);                               \
+    if (ret != 0) {                                                        \
+        km_sha3_free_tstate(desc);                                         \
+        return -EINVAL;                                                    \
+    }                                                                      \
+                                                                           \
+    XMEMCPY(sha3->s, blob->s, sizeof(sha3->s));                            \
+    XMEMCPY(sha3->t, blob->t, blob->i);                                    \
+    XMEMSET(sha3->t + blob->i, 0, sizeof(sha3->t) - blob->i);              \
+    sha3->i = blob->i;                                                     \
+                                                                           \
+    return 0;                                                              \
+}                                                                          \
+                                                                           \
+wc_static_assert((block_size) <=                                           \
+                 sizeof(((struct km_sha3_export_state *)0)->t));           \
+                                                                           \
                                                                            \
 static struct shash_alg name ## _alg =                                     \
 {                                                                          \
+    .init_tfm       =       km_sha3_init_tfm,                              \
     .digestsize     =       (digest_size),                                 \
     .init           =       km_ ## name ## _init,                          \
     .update         =       km_ ## name ## _update,                        \
     .final          =       km_ ## name ## _final,                         \
     .finup          =       km_ ## name ## _finup,                         \
     .digest         =       km_ ## name ## _digest,                        \
-    .descsize       =       sizeof(struct km_sha_state),                   \
+    .descsize       =       sizeof(struct km_sha3_state_by_pointer),       \
+    .export         =       km_sha3_export,                                \
+    .import         =       km_ ## name ## _import,                        \
+    .statesize      =       sizeof(struct km_sha3_export_state),           \
+    .exit_tfm       =       km_sha3_exit_tfm,                              \
     .base           =       {                                              \
         .cra_name        =      (this_cra_name),                           \
         .cra_driver_name =      (this_cra_driver_name),                    \
         .cra_priority    =      WOLFSSL_LINUXKM_LKCAPI_PRIORITY,           \
         .cra_blocksize   =      (block_size),                              \
+        .cra_ctxsize     =      sizeof(struct km_Sha3TfmCtx),              \
         .cra_module      =      THIS_MODULE                                \
     }                                                                      \
 };                                                                         \
@@ -686,48 +1199,55 @@ static int name ## _alg_loaded = 0;                                        \
                                                                            \
 static int linuxkm_test_ ## name(void) {                                   \
     wc_test_ret_t ret = test_routine();                                    \
-    if (ret >= 0)                                                          \
-        return check_shash_driver_masking(NULL /* tfm */, this_cra_name,   \
-                                          this_cra_driver_name);           \
-    else {                                                                 \
+    if (ret < 0) {                                                         \
         wc_test_render_error_message("linuxkm_test_" #name " failed: ",    \
                                      ret);                                 \
         return WC_TEST_RET_DEC_EC(ret);                                    \
     }                                                                      \
+    ret = check_shash_driver_masking(NULL /* tfm */, this_cra_name,        \
+                                      this_cra_driver_name);               \
+    if (ret)                                                               \
+        return ret;                                                        \
+    return km_sha3_test_export_import(this_cra_name, this_cra_driver_name, \
+                                      (block_size));                       \
 }                                                                          \
                                                                            \
 struct wc_swallow_the_semicolon
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-    WC_LINUXKM_SHA_IMPLEMENT(sha1, WC_SHA_DIGEST_SIZE, WC_SHA_BLOCK_SIZE,
+    WC_LINUXKM_SHA1_IMPLEMENT(sha1, wc_Sha, WC_SHA_DIGEST_SIZE, WC_SHA_BLOCK_SIZE,
                              WOLFKM_SHA1_NAME, WOLFKM_SHA1_DRIVER,
                              wc_InitSha, wc_ShaUpdate, wc_ShaFinal,
                              wc_ShaFree, sha_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_224, WC_SHA224_DIGEST_SIZE, WC_SHA224_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_224, wc_Sha256, WC_SHA224_DIGEST_SIZE, WC_SHA224_BLOCK_SIZE,
+                             WC_SHA256_W_SIZE,
                              WOLFKM_SHA2_224_NAME, WOLFKM_SHA2_224_DRIVER,
                              wc_InitSha224, wc_Sha224Update, wc_Sha224Final,
                              wc_Sha224Free, sha224_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_256, WC_SHA256_DIGEST_SIZE, WC_SHA256_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_256, wc_Sha256, WC_SHA256_DIGEST_SIZE, WC_SHA256_BLOCK_SIZE,
+                             WC_SHA256_W_SIZE,
                              WOLFKM_SHA2_256_NAME, WOLFKM_SHA2_256_DRIVER,
                              wc_InitSha256, wc_Sha256Update, wc_Sha256Final,
                              wc_Sha256Free, sha256_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_384, WC_SHA384_DIGEST_SIZE, WC_SHA384_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_384, wc_Sha512, WC_SHA384_DIGEST_SIZE, WC_SHA384_BLOCK_SIZE,
+                             WC_SHA512_W_SIZE,
                              WOLFKM_SHA2_384_NAME, WOLFKM_SHA2_384_DRIVER,
                              wc_InitSha384, wc_Sha384Update, wc_Sha384Final,
                              wc_Sha384Free, sha384_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
-    WC_LINUXKM_SHA_IMPLEMENT(sha2_512, WC_SHA512_DIGEST_SIZE, WC_SHA512_BLOCK_SIZE,
+    WC_LINUXKM_SHA2_IMPLEMENT(sha2_512, wc_Sha512, WC_SHA512_DIGEST_SIZE, WC_SHA512_BLOCK_SIZE,
+                             WC_SHA512_W_SIZE,
                              WOLFKM_SHA2_512_NAME, WOLFKM_SHA2_512_DRIVER,
                              wc_InitSha512, wc_Sha512Update, wc_Sha512Final,
                              wc_Sha512Free, sha512_test);
@@ -761,21 +1281,93 @@ struct wc_swallow_the_semicolon
                              wc_Sha3_512_Free, sha3_test_once);
 #endif
 
-struct km_sha_hmac_pstate {
+#ifndef NO_HMAC
+
+struct km_sha_hmac_node {
     struct Hmac wc_hmac;
+    /* linkage for the tfm-owned cleanup list */
+    struct list_head desc_ent;
+    word64 desc_id;
 };
 struct km_sha_hmac_state {
-    struct Hmac *wc_hmac; /* HASH_MAX_DESCSIZE is 368, but sizeof(struct Hmac) is 832 */
+    /* HASH_MAX_DESCSIZE is 368, but sizeof(struct Hmac) is 832, so the working
+     * Hmac lives in a heap node hung off the desc and tracked on the tfm
+     * cleanup list for garbage collection at .exit_tfm. */
+    struct km_sha_hmac_node *node;
+};
+struct km_sha_hmac_pstate {
+    /* keyed, pristine Hmac, deep-copied into each desc's node at .init */
+    struct Hmac wc_hmac;
+    /* desc_list_lock guards BOTH lists below. */
+    wolfSSL_Mutex desc_list_lock;
+    /* cleanup list of live/abandoned desc working nodes (abandonment GC) */
+    struct list_head desc_list;
+    /* bounded ring of .export snapshots; import validates handles against it */
+    struct list_head export_list;
+    unsigned int export_list_len;
+    word64 cur_desc_id;
+    word64 tfm_cookie;
 };
 
-#ifndef NO_HMAC
+/* Serialized HMAC state for .export / .import.  sizeof(struct Hmac) is 832, and
+ * an HMAC-over-SHA-3 state is two full sponges, so real state cannot fit
+ * HASH_MAX_STATESIZE (345).  .export deep-copies the live Hmac into a snapshot
+ * node on the tfm's export_list and the blob carries only a desc_id; .import
+ * looks it up by desc_id, validated using the tfm_cookie, and copies from the
+ * snapshot.  Snapshots are deallocated at exit_tfm.
+ */
+#define WC_LINUXKM_HMAC_EXPORT_MAGIC W64LIT(0x57435F484d414331) /* "WC_HMAC1" */
+
+/* Upper bound on live .export snapshots per tfm.  Bounds worst-case memory to
+ * this many nodes (~832B each): without it, algif_hash's export-on-accept lets
+ * userspace grow the parent's list without limit (close(accept(fd)) in a loop).
+ * The accept-clone path imports immediately after export, so a snapshot is
+ * consumed long before it can be evicted; this need only exceed the max
+ * concurrent in-flight export->import pairs on one tfm (accept drops the sock
+ * lock between the two).  Over-cap merely degrades a stale import to graceful
+ * -EINVAL, never corruption.  Override at build time if a workload needs more.
+ *
+ * Note the default expression is runtime-evaluated to scale with host size.
+ */
+#ifndef WC_LINUXKM_HMAC_EXPORT_LIST_MAX
+    #define WC_LINUXKM_HMAC_EXPORT_LIST_MAX (nr_cpu_ids * 2)
+#else
+    wc_static_assert_if_const(WC_LINUXKM_HMAC_EXPORT_LIST_MAX > 0,
+                              "WC_LINUXKM_HMAC_EXPORT_LIST_MAX must be positive.");
+#endif
+
+struct km_sha_hmac_export_state {
+    word64 magic;      /* identifies the export as an HMAC handle. */
+    word64 tfm_cookie; /* associates the export unambiguously with this TFM. */
+    word64 desc_id;    /* local to this TFM, allocated serially from zero. */
+};
+
+wc_static_assert(sizeof(struct km_sha_hmac_state) <= HASH_MAX_DESCSIZE);
+
+wc_static_assert(sizeof(struct km_sha_hmac_export_state) <= HASH_MAX_STATESIZE);
+
+#ifdef WOLFSSL_LINUXKM_USE_MUTEXES
+    #error LINUXKM_LKCAPI_REGISTER_HMAC requires spinlock-based mutexes.
+#endif
+
+/* The kernel list macros provoke "pointer of type `void *' used in arithmetic",
+ * and on older kernels, "nested extern declaration of
+ * `__compiletime_assert_foo'".
+ */
+PRAGMA_DIAG_PUSH
+PRAGMA("GCC diagnostic ignored \"-Wpointer-arith\"");
+PRAGMA("GCC diagnostic ignored \"-Wnested-externs\"");
+
+#include <linux/list.h>
 
 WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, int type, const byte* key, word32 length)
 {
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
     int ret;
 
-#if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(6, 0, 0) || defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)))
+#if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(6, 0, 0) || \
+                           !defined(WC_LINUX_CONFIG_SELFTESTS) || \
+                           (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)))
     ret = wc_HmacSetKey(&p_ctx->wc_hmac, type, key, length);
 #else
     /* kernel 5.10.x crypto manager expects FIPS-undersized keys to succeed. */
@@ -788,43 +1380,117 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, 
         return -EINVAL;
 }
 
-WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct km_sha_hmac_state *t_ctx) {
-    wc_HmacFree(t_ctx->wc_hmac);
-    free(t_ctx->wc_hmac);
-    t_ctx->wc_hmac = NULL;
+WC_MAYBE_UNUSED static int km_hmac_alloc_tstate(struct shash_desc *desc) {
+    struct km_sha_hmac_pstate *p_ctx =
+        (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    s_ctx->node = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
+    if (! s_ctx->node)
+        return -ENOMEM;
+    /* Must zero to assure the Hmac object is safe to pass to wc_HmacFree() even
+     * if init fails.
+     */
+    XMEMSET(s_ctx->node, 0, sizeof *s_ctx->node);
+
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
+        free(s_ctx->node);
+        s_ctx->node = NULL;
+        return -EINVAL;
+    }
+    s_ctx->node->desc_id = p_ctx->cur_desc_id++;
+    list_add(&s_ctx->node->desc_ent, &p_ctx->desc_list);
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    return 0;
+}
+
+WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct shash_desc *desc) {
+    struct km_sha_hmac_pstate *p_ctx =
+        (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+
+    if (s_ctx->node == NULL)
+        return;
+
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0)
+        return;
+    list_del(&s_ctx->node->desc_ent);
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    /* wc_HmacFree is NOT a no-op: a wc_HmacCopy'd node can own inner/outer hash
+     * heap (e.g. SMALL_STACK_CACHE W buffers), so it must run before free().
+     */
+    wc_HmacFree(&s_ctx->node->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    ForceZero(s_ctx->node, sizeof *s_ctx->node);
+#endif
+    free(s_ctx->node);
+    s_ctx->node = NULL;
 }
 
 WC_MAYBE_UNUSED static int km_hmac_init_tfm(struct crypto_shash *tfm)
 {
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
     int ret = wc_HmacInit(&p_ctx->wc_hmac, NULL /* heap */, INVALID_DEVID);
-    if (ret == 0)
-        return 0;
-    else
+    if (ret != 0)
         return -EINVAL;
+    if (wc_InitMutex(&p_ctx->desc_list_lock) != 0) {
+        wc_HmacFree(&p_ctx->wc_hmac);
+        return -EINVAL;
+    }
+    INIT_LIST_HEAD(&p_ctx->desc_list);
+    INIT_LIST_HEAD(&p_ctx->export_list);
+    p_ctx->export_list_len = 0;
+    p_ctx->cur_desc_id = 0;
+    p_ctx->tfm_cookie = get_random_u64();
+    return 0;
 }
 
 WC_MAYBE_UNUSED static void km_hmac_exit_tfm(struct crypto_shash *tfm)
 {
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
+    struct km_sha_hmac_node *node_i;
+    struct km_sha_hmac_node *next_ent;
+
+    /* Don't need to lock the mutex to clean up, because the API contract
+     * forbids any use of descs at/after exit of the associated TFM -- i.e. the
+     * list holds only abandoned descs -- and we're deallocating the lock
+     * besides.  Moreover, we definitely don't want to lock, so that the
+     * iteration and heap operations aren't in a locked context that might make
+     * desc deallocation awkward or impossible (leak).
+     */
+    list_for_each_entry_safe(node_i, next_ent, &p_ctx->desc_list, desc_ent) {
+        list_del(&node_i->desc_ent);
+        wc_HmacFree(&node_i->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(node_i, sizeof(*node_i));
+#endif
+        free(node_i);
+    }
+    list_for_each_entry_safe(node_i, next_ent, &p_ctx->export_list, desc_ent) {
+        list_del(&node_i->desc_ent);
+        wc_HmacFree(&node_i->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(node_i, sizeof(*node_i));
+#endif
+        free(node_i);
+    }
     wc_HmacFree(&p_ctx->wc_hmac);
-    return;
+    (void)wc_FreeMutex(&p_ctx->desc_list_lock);
 }
 
 WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
     int ret;
-    struct km_sha_hmac_state *t_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
 
-    t_ctx->wc_hmac = malloc(sizeof *t_ctx->wc_hmac);
-    if (! t_ctx->wc_hmac)
-        return -ENOMEM;
+    ret = km_hmac_alloc_tstate(desc);
+    if (ret)
+        return ret;
 
-    ret = wc_HmacCopy(&p_ctx->wc_hmac, t_ctx->wc_hmac);
+    ret = wc_HmacCopy(&p_ctx->wc_hmac, &s_ctx->node->wc_hmac);
     if (ret != 0) {
-        ForceZero(t_ctx->wc_hmac, sizeof *t_ctx->wc_hmac);
-        free(t_ctx->wc_hmac);
-        t_ctx->wc_hmac = NULL;
+        km_hmac_free_tstate(desc);
         return -EINVAL;
     }
 
@@ -836,12 +1502,12 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
 {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
-    int ret = wc_HmacUpdate(ctx->wc_hmac, data, len);
+    int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
 
     if (ret == 0)
         return 0;
     else {
-        km_hmac_free_tstate(ctx);
+        km_hmac_free_tstate(desc);
         return -EINVAL;
     }
 }
@@ -849,9 +1515,9 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
 WC_MAYBE_UNUSED static int km_hmac_final(struct shash_desc *desc, u8 *out) {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
-    int ret = wc_HmacFinal(ctx->wc_hmac, out);
+    int ret = wc_HmacFinal(&ctx->node->wc_hmac, out);
 
-    km_hmac_free_tstate(ctx);
+    km_hmac_free_tstate(desc);
 
     if (ret == 0)
         return 0;
@@ -864,10 +1530,10 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
-    int ret = wc_HmacUpdate(ctx->wc_hmac, data, len);
+    int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
 
     if (ret != 0) {
-        km_hmac_free_tstate(ctx);
+        km_hmac_free_tstate(desc);
         return -EINVAL;
     }
 
@@ -877,11 +1543,386 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *data,
                       unsigned int len, u8 *out)
 {
-    int ret = km_hmac_init(desc);
-    if (ret != 0)
-        return ret;
-    return km_hmac_finup(desc, data, len, out);
+    /* One-shot: no abandonment or export window, so skip the cleanup list.
+     * sizeof(struct Hmac) is 832 -- too large for the stack (cf. the SHA-3
+     * digest's stack state), so use a bare heap Hmac that is always freed
+     * here rather than a listed node.
+     */
+    struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct Hmac *h;
+    int ret;
+
+    h = (struct Hmac *)malloc(sizeof *h);
+    if (! h)
+        return -ENOMEM;
+
+    ret = wc_HmacCopy(&p_ctx->wc_hmac, h);
+    if (ret != 0) {
+        ForceZero(h, sizeof *h);
+        free(h);
+        return -EINVAL;
+    }
+    ret = wc_HmacUpdate(h, data, len);
+    if (ret == 0)
+        ret = wc_HmacFinal(h, out);
+
+    wc_HmacFree(h);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    ForceZero(h, sizeof(*h));
+#endif
+    free(h);
+
+    return ret == 0 ? 0 : -EINVAL;
 }
+
+/* Note that km_hmac_export() is implementing a pseudo-export -- the "out"
+ * buffer only gets a pointer to the actual deep-copied HMAC state, not a bona
+ * fide serialization of it, because HASH_MAX_STATESIZE is simply too small to
+ * accommodate the full state.
+ */
+WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
+{
+    struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    struct km_sha_hmac_export_state *blob = (struct km_sha_hmac_export_state *)out;
+    struct km_sha_hmac_node *snapshot;
+    struct km_sha_hmac_node *evicted = NULL;
+    int ret;
+
+    if (s_ctx->node == NULL)
+        return -EINVAL;
+
+    /* Snapshot the live state into a fresh node.  Allocate and deep-copy
+     * OUTSIDE the lock -- wc_HmacCopy may allocate inner-hash heap.  Copying
+     * from this desc's own working node needs no lock (a desc is not used
+     * concurrently); the lock protects the lists, not the nodes. */
+    snapshot = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
+    if (! snapshot)
+        return -ENOMEM;
+    ret = wc_HmacCopy(&s_ctx->node->wc_hmac, &snapshot->wc_hmac);
+    if (ret != 0) {
+        ForceZero(snapshot, sizeof(*snapshot));
+        free(snapshot);
+        return -EINVAL;
+    }
+
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
+        wc_HmacFree(&snapshot->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(snapshot, sizeof(*snapshot));
+#endif
+        free(snapshot);
+        return -EINVAL;
+    }
+    /* Bound the ring: at capacity, unlink the oldest (list tail) under the lock;
+     * it is freed below, outside the lock.  Unlinking under the lock is what
+     * lets .import lookup-and-copy under the same lock without racing a free.
+     */
+    if (p_ctx->export_list_len >= WC_LINUXKM_HMAC_EXPORT_LIST_MAX) {
+        evicted = list_last_entry(&p_ctx->export_list,
+                                  struct km_sha_hmac_node, desc_ent);
+        list_del(&evicted->desc_ent);
+        p_ctx->export_list_len--;
+    }
+    snapshot->desc_id = p_ctx->cur_desc_id++;
+    /* list_add() prepends, so the tail from list_last_entry() is the oldest. */
+    list_add(&snapshot->desc_ent, &p_ctx->export_list);
+    p_ctx->export_list_len++;
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    /* The evicted node is now unlinked and unreachable (any outstanding handle
+     * to it will fail import lookup), so free it outside the lock.
+     */
+    if (evicted != NULL) {
+        wc_HmacFree(&evicted->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(evicted, sizeof(*evicted));
+#endif
+        free(evicted);
+    }
+
+    /* Zero first so no uninitialized padding leaks into the caller's buffer. */
+    XMEMSET(blob, 0, sizeof(*blob));
+    blob->magic = WC_LINUXKM_HMAC_EXPORT_MAGIC;
+    blob->tfm_cookie = p_ctx->tfm_cookie;
+    blob->desc_id = snapshot->desc_id;
+
+    return 0;
+}
+
+WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *in)
+{
+    struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
+    struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+    const struct km_sha_hmac_export_state *blob = (const struct km_sha_hmac_export_state *)in;
+    struct km_sha_hmac_node *node_i;
+    struct km_sha_hmac_node *newnode;
+    int found = 0;
+    int ret;
+
+    if (blob->magic != WC_LINUXKM_HMAC_EXPORT_MAGIC)
+        return -EINVAL;
+
+    if (blob->tfm_cookie != p_ctx->tfm_cookie)
+        return -EINVAL;
+
+    /* Fresh working node, allocated outside the lock; its inner Hmac heap is
+     * populated by the copy under the lock below.
+     */
+    newnode = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
+    if (! newnode)
+        return -ENOMEM;
+
+    /* Validate the handle AND copy from the snapshot under ONE lock hold, so a
+     * concurrent export's eviction cannot free the snapshot between the match
+     * and the copy.  A handle from another tfm, an evicted snapshot, or a
+     * forged/poisoned blob is not a live member -> graceful -EINVAL, with no
+     * dereference of attacker-influenced memory.
+     */
+    if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
+        free(newnode);
+        return -EINVAL;
+    }
+    list_for_each_entry(node_i, &p_ctx->export_list, desc_ent) {
+        if (node_i->desc_id == blob->desc_id) {
+            found = 1;
+            break;
+        }
+    }
+    if (! found) {
+        (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+        free(newnode);
+        return -EINVAL;
+    }
+    ret = wc_HmacCopy(&node_i->wc_hmac, &newnode->wc_hmac);
+    if (ret != 0) {
+        (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+        /* No need for wc_HmacFree() here -- failed wc_HmacCopy() guarantees no
+         * allocations are held under the Hmac -- in fact, it leaves the object
+         * in an indeterminate state that's unsafe to pass to wc_HmacFree(),
+         * since we aren't zeroing it after the malloc() (zeroing would be
+         * frivolous for allocations to be handed immediately to wc_HmacCopy()).
+         */
+        ForceZero(newnode, sizeof(*newnode));
+        free(newnode);
+        return -EINVAL;
+    }
+    /* Publish: link the working node onto desc_list and into the desc ctx,
+     * overwriting any poisoned prior pointer without reading it.  A real prior
+     * node orphans onto desc_list and is reaped at exit_tfm.
+     */
+    newnode->desc_id = p_ctx->cur_desc_id++;
+    list_add(&newnode->desc_ent, &p_ctx->desc_list);
+    s_ctx->node = newnode;
+    (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    return 0;
+}
+
+/* Kernel-API export/import test coverage: cross-desc round-trip through a
+ * poisoned desc; the two rejection cases the design relies on (corrupted
+ * handle, and a valid handle presented to a different tfm); and eviction of an
+ * aged-out handle once WC_LINUXKM_HMAC_EXPORT_LIST_MAX exports have intervened.
+ */
+WC_MAYBE_UNUSED static int km_hmac_test_export_import(
+    const char *cra_name, const char *cra_driver_name)
+{
+    int ret;
+    struct crypto_shash *tfm = NULL;
+    struct crypto_shash *tfm2 = NULL;
+    struct shash_desc *desc = NULL;
+    struct shash_desc *desc2 = NULL;
+    struct km_sha_hmac_export_state *blob = NULL;
+    struct km_sha_hmac_export_state old_blob;
+    size_t desc_size = 0;
+    unsigned int split, i, dsz;
+    byte key[32];
+    byte msg[300];
+    byte ref[WC_MAX_DIGEST_SIZE];
+    byte tag[WC_MAX_DIGEST_SIZE];
+
+    for (i = 0; i < (unsigned int)sizeof(key); i++)
+        key[i] = (byte)(i + 1);
+    for (i = 0; i < (unsigned int)sizeof(msg); i++)
+        msg[i] = (byte)(i * 7 + 1);
+
+    tfm = crypto_alloc_shash(cra_name, 0, 0);
+    if (IS_ERR(tfm)) {
+        ret = (int)PTR_ERR(tfm);
+        pr_err("error: crypto_alloc_shash(%s) failed: %d\n", cra_name, ret);
+        return ret;
+    }
+
+    ret = crypto_shash_setkey(tfm, key, sizeof(key));
+    if (ret) {
+        pr_err("error: %s setkey failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    if (crypto_shash_statesize(tfm) != sizeof(struct km_sha_hmac_export_state)) {
+        pr_err("error: %s statesize %u != expected %u\n", cra_driver_name,
+               crypto_shash_statesize(tfm),
+               (unsigned int)sizeof(struct km_sha_hmac_export_state));
+        ret = -EINVAL;
+        goto out;
+    }
+
+    dsz = crypto_shash_digestsize(tfm);
+    desc_size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
+    desc = (struct shash_desc *)malloc(desc_size);
+    desc2 = (struct shash_desc *)malloc(desc_size);
+    blob = (struct km_sha_hmac_export_state *)malloc(sizeof(*blob));
+    if ((desc == NULL) || (desc2 == NULL) || (blob == NULL)) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    XMEMSET(desc, 0, desc_size);
+    desc->tfm = tfm;
+
+    /* Reference digest over the whole message. */
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, sizeof(msg));
+    if (ret == 0)
+        ret = crypto_shash_final(desc, ref);
+    if (ret) {
+        pr_err("error: %s reference digest failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Export mid-stream, import into a poisoned desc, finish BOTH, require both
+     * to match the reference.
+     */
+    split = 150;
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, split);
+    if (ret == 0)
+        ret = crypto_shash_export(desc, blob);
+    if (ret) {
+        pr_err("error: %s export sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    ret = crypto_shash_import(desc2, blob);
+    if (ret == 0)
+        ret = crypto_shash_update(desc2, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc2, tag);
+    if (ret) {
+        pr_err("error: %s import sequence failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, dsz) != 0) {
+        pr_err("error: %s import-continuation digest mismatch\n", cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* Exporting desc stays live and independent. */
+    ret = crypto_shash_update(desc, msg + split, sizeof(msg) - split);
+    if (ret == 0)
+        ret = crypto_shash_final(desc, tag);
+    if (ret) {
+        pr_err("error: %s post-export continuation failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    if (XMEMCMP(tag, ref, dsz) != 0) {
+        pr_err("error: %s post-export digest mismatch\n", cra_driver_name);
+        ret = -EBADMSG;
+        goto out;
+    }
+
+    /* Corrupted handle (bad magic) must be rejected. */
+    ret = crypto_shash_init(desc);
+    if (ret == 0)
+        ret = crypto_shash_update(desc, msg, split);
+    if (ret == 0)
+        ret = crypto_shash_export(desc, blob);
+    if (ret) {
+        pr_err("error: %s re-export failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    old_blob = *blob;
+    blob->magic ^= 0xffffffffU;
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    if (crypto_shash_import(desc2, blob) == 0) {
+        pr_err("error: %s import accepted a corrupted handle magic\n", cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* Valid handle, wrong tfm: snapshot is on tfm's list, not tfm2's. */
+    tfm2 = crypto_alloc_shash(cra_name, 0, 0);
+    if (IS_ERR(tfm2)) {
+        ret = (int)PTR_ERR(tfm2);
+        tfm2 = NULL;
+        pr_err("error: %s second crypto_alloc_shash failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    ret = crypto_shash_setkey(tfm2, key, sizeof(key));
+    if (ret) {
+        pr_err("error: %s tfm2 setkey failed: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm2;
+    if (crypto_shash_import(desc2, &old_blob) == 0) {
+        pr_err("error: %s cross-tfm import was accepted\n", cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* Eviction: after WC_LINUXKM_HMAC_EXPORT_LIST_MAX further exports, the aged
+     * handle (old_blob) is evicted and no longer importable, while the newest
+     * remains valid.
+     */
+    for (i = 0; i < (unsigned int)WC_LINUXKM_HMAC_EXPORT_LIST_MAX; i++) {
+        ret = crypto_shash_export(desc, blob);
+        if (ret) {
+            pr_err("error: %s eviction-fill export failed: %d\n", cra_driver_name, ret);
+            goto out;
+        }
+    }
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    if (crypto_shash_import(desc2, &old_blob) == 0) {
+        pr_err("error: %s evicted handle still importable\n", cra_driver_name);
+        ret = -EINVAL;
+        goto out;
+    }
+    XMEMSET(desc2, 0xa5, desc_size);
+    desc2->tfm = tfm;
+    ret = crypto_shash_import(desc2, blob);
+    if (ret == 0)
+        ret = crypto_shash_final(desc2, tag);
+    if (ret) {
+        pr_err("error: %s newest handle not importable: %d\n", cra_driver_name, ret);
+        goto out;
+    }
+
+    /* Finish the still-open exporting desc to free its working node. */
+    (void)crypto_shash_final(desc, tag);
+
+    ret = 0;
+
+out:
+
+    free(blob);
+    free(desc2);
+    free(desc);
+    if (tfm2)
+        crypto_free_shash(tfm2);
+    if (tfm)
+        crypto_free_shash(tfm);
+
+    return ret;
+}
+
+PRAGMA_DIAG_POP
 
 WC_MAYBE_UNUSED static int hmac_sha3_test_once(void) {
     static int once = 0;
@@ -911,6 +1952,9 @@ static struct shash_alg name ## _alg =                                    \
     .final          =       km_hmac_final,                                \
     .finup          =       km_hmac_finup,                                \
     .digest         =       km_hmac_digest,                               \
+    .export         =       km_hmac_export,                               \
+    .import         =       km_hmac_import,                               \
+    .statesize      =       sizeof(struct km_sha_hmac_export_state),      \
     .setkey         =       km_ ## name ## _setkey,                       \
     .init_tfm       =       km_hmac_init_tfm,                             \
     .exit_tfm       =       km_hmac_exit_tfm,                             \
@@ -928,14 +1972,16 @@ static int name ## _alg_loaded = 0;                                       \
                                                                           \
 static int linuxkm_test_ ## name(void) {                                  \
     wc_test_ret_t ret = test_routine();                                   \
-    if (ret >= 0)                                                         \
-        return check_shash_driver_masking(NULL /* tfm */, this_cra_name,  \
-                                          this_cra_driver_name);          \
-    else {                                                                \
+    if (ret < 0) {                                                        \
         wc_test_render_error_message("linuxkm_test_" #name " failed: ",   \
                                      ret);                                \
         return WC_TEST_RET_DEC_EC(ret);                                   \
     }                                                                     \
+    ret = check_shash_driver_masking(NULL /* tfm */, this_cra_name,       \
+                                      this_cra_driver_name);              \
+    if (ret)                                                              \
+        return ret;                                                       \
+    return km_hmac_test_export_import(this_cra_name, this_cra_driver_name);\
 }                                                                         \
                                                                           \
 struct wc_swallow_the_semicolon
