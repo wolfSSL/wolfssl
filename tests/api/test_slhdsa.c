@@ -34,8 +34,11 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #include <tests/api/api.h>
 #include <tests/api/test_slhdsa.h>
+#include <tests/utils.h>
 
 
 #ifdef WOLFSSL_HAVE_SLHDSA
@@ -3289,4 +3292,136 @@ int test_wc_SlhdsaFeatureCoverage(void)
     #undef TEST_SLHDSA_DEFAULT_PRIV_LEN
     #undef TEST_SLHDSA_DEFAULT_PUB_LEN
     #undef TEST_SLHDSA_DEFAULT_SEED_LEN
+#endif
+
+/* Gate the streamed-CertificateVerify WANT_WRITE resume test: needs an SLH-DSA
+ * 128f leaf (the ~17KB signature spans multiple records, taking the streaming
+ * send path) chained to the shared 128s root, TLS 1.3 with the streaming path
+ * compiled in, a signing (not verify-only) build, and the memio test harness.
+ * Works with whichever 128f/128s hash family is compiled in (SHAKE preferred,
+ * else SHA2) so a SHAKE-disabled (--enable-slhdsa=sha2) build still runs it. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_STREAM_CERT_VERIFY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    ((defined(WOLFSSL_SLHDSA_PARAM_128F) &&                                    \
+      defined(WOLFSSL_SLHDSA_PARAM_128S)) ||                                   \
+     (defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F) &&                              \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)))
+    #define TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    #if defined(WOLFSSL_SLHDSA_PARAM_128F) && defined(WOLFSSL_SLHDSA_PARAM_128S)
+        #define SLHDSA_CV_FAM "shake"
+    #else
+        #define SLHDSA_CV_FAM "sha2"
+    #endif
+#endif
+
+#ifdef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+/* The server's SLH-DSA-128f flight fragments two oversized handshake messages
+ * into multiple ~16KB encrypted records: first the certificate, then the
+ * CertificateVerify. bigWritesUntilWantWrite counts those oversized records and
+ * fires a single WANT_WRITE on the CertificateVerify's first fragment (the
+ * second oversized record), so the streamed-CertificateVerify resume branch
+ * (the fragOffset != 0 re-entry) is taken - a path the blocking .conf
+ * handshakes never reach. */
+struct slhdsa_wwrite_ctx {
+    int bigWritesUntilWantWrite;
+    struct test_memio_ctx* memio;
+};
+
+static int slhdsa_want_write_send_cb(WOLFSSL* ssl, char* data, int sz,
+    void* ctx)
+{
+    struct slhdsa_wwrite_ctx* ww = (struct slhdsa_wwrite_ctx*)ctx;
+
+    if (sz > 8000 && ww->bigWritesUntilWantWrite > 0) {
+        if (--ww->bigWritesUntilWantWrite == 0) {
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        }
+    }
+    return test_memio_write_cb(ssl, data, sz, ww->memio);
+}
+#endif /* TEST_SLHDSA_STREAM_CV_WANT_WRITE */
+
+int test_slhdsa_tls13_certverify_want_write(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    struct test_memio_ctx test_ctx;
+    struct slhdsa_wwrite_ctx ww_s;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    const char msg[] = "want-write slhdsa";
+    char readBuf[sizeof(msg)];
+    const char* svrCert =
+        "./certs/slhdsa/server-slhdsa-" SLHDSA_CV_FAM "-128f.pem";
+    const char* svrKey  =
+        "./certs/slhdsa/server-slhdsa-" SLHDSA_CV_FAM "-128f-priv.pem";
+    const char* caCert  =
+        "./certs/slhdsa/root-slhdsa-" SLHDSA_CV_FAM "-128s.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Server presents the SLH-DSA-128f leaf + key over the memio transport. */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrCert),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    /* Client trusts the shared SLH-DSA root so it verifies the server chain. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCert, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+
+    /* Install the want-write send callback on the server (the peer that signs
+     * and sends the ~17KB SLH-DSA CertificateVerify) so its first oversized
+     * fragment returns WANT_WRITE once before being flushed, driving the
+     * streamed-CertificateVerify resume branch. */
+    ww_s.bigWritesUntilWantWrite = 2;
+    ww_s.memio = &test_ctx;
+    wolfSSL_SetIOWriteCtx(ssl_s, &ww_s);
+    wolfSSL_SSLSetIOSend(ssl_s, slhdsa_want_write_send_cb);
+
+    /* Completing despite the interruption means the resumed CertificateVerify
+     * re-emitted the exact same signature and the transcript stayed
+     * consistent. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 100, NULL), 0);
+    ExpectTrue(wolfSSL_is_init_finished(ssl_c));
+    ExpectTrue(wolfSSL_is_init_finished(ssl_s));
+
+    /* Restore direct transport and confirm the connection carries app data. */
+    wolfSSL_SSLSetIOSend(ssl_s, test_memio_write_cb);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SSLSetIOSend(ssl_c, test_memio_write_cb);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        (int)sizeof(msg));
+    ExpectStrEQ(readBuf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* TEST_SLHDSA_STREAM_CV_WANT_WRITE */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    #undef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    #undef SLHDSA_CV_FAM
 #endif

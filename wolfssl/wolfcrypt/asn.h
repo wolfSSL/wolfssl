@@ -936,7 +936,16 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
     #endif
 #endif
 
-#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+/* Maximum size of a CertificateVerify signature buffer. Retained as public API
+ * for backward compatibility; wolfSSL no longer uses it internally. The TLS and
+ * certificate-generation paths now size their buffers from the actual signature
+ * length instead of this worst case, which balloons to ~50KB when SLH-DSA is
+ * enabled. Downstream code that sizes a stack buffer with this should account
+ * for that when SLH-DSA is compiled in. */
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    /* SLH-DSA signatures are large (up to ~50KB for the 'f' parameter sets). */
+    #define WC_MAX_CERT_VERIFY_SZ (WC_SLHDSA_MAX_SIG_LEN + 1024)
+#elif defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     #define WC_MAX_CERT_VERIFY_SZ 6000            /* For ML-DSA */
 #elif defined(WOLFSSL_CERT_EXT)
     #define WC_MAX_CERT_VERIFY_SZ 2048            /* For larger extensions */

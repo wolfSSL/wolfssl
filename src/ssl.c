@@ -4409,6 +4409,42 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         case mldsa_87_sa_algo:
             *sigAlgo = ML_DSA_87k;
             break;
+        case slhdsa_sha2_128s_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_128Sk;
+            break;
+        case slhdsa_sha2_128f_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_128Fk;
+            break;
+        case slhdsa_sha2_192s_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_192Sk;
+            break;
+        case slhdsa_sha2_192f_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_192Fk;
+            break;
+        case slhdsa_sha2_256s_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_256Sk;
+            break;
+        case slhdsa_sha2_256f_sa_algo:
+            *sigAlgo = SLH_DSA_SHA2_256Fk;
+            break;
+        case slhdsa_shake_128s_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_128Sk;
+            break;
+        case slhdsa_shake_128f_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_128Fk;
+            break;
+        case slhdsa_shake_192s_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_192Sk;
+            break;
+        case slhdsa_shake_192f_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_192Fk;
+            break;
+        case slhdsa_shake_256s_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_256Sk;
+            break;
+        case slhdsa_shake_256f_sa_algo:
+            *sigAlgo = SLH_DSA_SHAKE_256Fk;
+            break;
         case sm2_sa_algo:
             *sigAlgo = SM2k;
             break;

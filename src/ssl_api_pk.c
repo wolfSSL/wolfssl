@@ -2022,6 +2022,42 @@ static int SaToNid(byte sa, int* nid)
         case mldsa_87_sa_algo:
             *nid = CTC_ML_DSA_87;
             break;
+        case slhdsa_sha2_128s_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_128S;
+            break;
+        case slhdsa_sha2_128f_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_128F;
+            break;
+        case slhdsa_sha2_192s_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_192S;
+            break;
+        case slhdsa_sha2_192f_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_192F;
+            break;
+        case slhdsa_sha2_256s_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_256S;
+            break;
+        case slhdsa_sha2_256f_sa_algo:
+            *nid = CTC_SLH_DSA_SHA2_256F;
+            break;
+        case slhdsa_shake_128s_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_128S;
+            break;
+        case slhdsa_shake_128f_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_128F;
+            break;
+        case slhdsa_shake_192s_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_192S;
+            break;
+        case slhdsa_shake_192f_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_192F;
+            break;
+        case slhdsa_shake_256s_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_256S;
+            break;
+        case slhdsa_shake_256f_sa_algo:
+            *nid = CTC_SLH_DSA_SHAKE_256F;
+            break;
         case sm2_sa_algo:
             *nid = WC_NID_sm2;
             break;

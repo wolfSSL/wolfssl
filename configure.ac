@@ -8210,6 +8210,11 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_SLHDSA"
 
+    # SLH-DSA is an X.509 certificate signature algorithm, so keep the
+    # certificate/ASN code enabled (mirrors ML-DSA) - otherwise a build with
+    # RSA, ECC and DH disabled turns ASN off and cannot authenticate a peer.
+    ENABLED_CERTS=yes
+
     if test "$SLHDSA_PARAM_128S" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SLHDSA_PARAM_128S"

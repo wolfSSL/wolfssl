@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 #
-# Regenerate SLH-DSA root certificates and ML-DSA-44 entity certificates
-# used by tests/test-tls13-slhdsa-{shake,sha2}.conf.
+# Regenerate the SLH-DSA root certificates, the ML-DSA-44 entity certificates
+# used by tests/test-tls13-slhdsa-{shake,sha2}.conf, and the SLH-DSA entity
+# (leaf) certificates used by tests/test-tls13-slhdsa-entity{,-128s}.conf.
 #
 # Requires: OpenSSL >= 3.5 (native SLH-DSA + ML-DSA support).
 #
 # The ML-DSA-44 entity keys are reused from ../mldsa/ (mldsa44_bare-priv.der
 # for the server, mldsa44_seed-priv.der for the client) so this script does
-# not generate or write new entity private keys.
+# not generate or write new ML-DSA entity private keys. The SLH-DSA entity
+# leaves get fresh keys and are signed by the family 128s root.
 
 check_result(){
     if [ "$1" -ne 0 ]; then
@@ -161,8 +163,73 @@ gen_variant() {
     echo "Variant ${tag} complete."
 }
 
+# Generate one SLH-DSA leaf (server or client) signed by the matching 128s root
+# of its hash family. Unlike the ML-DSA leaves above, the leaf key itself is
+# SLH-DSA, so this cert exercises the SLH-DSA CertificateVerify handshake
+# signature. The serials must stay distinct from the ML-DSA leaves (01/02) since
+# they share the same issuer.
+# $1 = role (server|client), $2 = hash family (shake|sha2),
+# $3 = param tag (128f|128s), $4 = OpenSSL algorithm,
+# $5 = cnf extension section, $6 = cert serial.
+gen_slhdsa_leaf() {
+    local role=$1
+    local family=$2
+    local param=$3
+    local alg=$4
+    local ext=$5
+    local serial=$6
+    local root_base="root-slhdsa-${family}-128s"
+    local base="${role}-slhdsa-${family}-${param}"
+
+    echo "====================================================================="
+    echo " Generating ${base} (${alg}) signed by ${root_base}"
+    echo "====================================================================="
+
+    openssl genpkey -algorithm "$alg" -out "${base}-priv.pem"
+    check_result $? "Generate ${base} key"
+    openssl pkey -in "${base}-priv.pem" -outform DER -out "${base}-priv.der"
+    check_result $? "Convert ${base} key to DER"
+
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SLH-DSA\\nSLHDSA-${role}-${family}-${param}\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | \
+        openssl req -new -key "${base}-priv.pem" -config "$CNF" -nodes \
+            -out "${base}.csr"
+    check_result $? "Generate ${base} CSR"
+
+    openssl x509 -req -in "${base}.csr" -days 1000 \
+        -extfile "$CNF" -extensions "$ext" \
+        -CA "${root_base}.pem" -CAkey "${root_base}-priv.pem" \
+        -set_serial "$serial" \
+        -out "${base}-cert.pem"
+    check_result $? "Sign ${base} cert"
+    rm -f "${base}.csr"
+
+    openssl x509 -in "${base}-cert.pem" -outform DER > "${base}.der"
+    check_result $? "Convert ${base} cert to DER"
+
+    openssl x509 -in "${base}-cert.pem" -text > tmp.pem
+    mv tmp.pem "${base}-cert.pem"
+
+    # Served chain: leaf || root (ed25519/ML-DSA convention).
+    cat "${base}-cert.pem" "${root_base}.pem" > "${base}.pem"
+    rm -f "${base}-cert.pem"
+}
+
 gen_variant shake SLH-DSA-SHAKE-128s
 gen_variant sha2  SLH-DSA-SHA2-128s
+
+# SLH-DSA entity leaves for the TLS 1.3 handshake-signature tests, each signed
+# by the 128s root of its own hash family above. 128f leaves drive a ~17KB
+# CertificateVerify signature (fragmented send + reassembly); 128s leaves fit in
+# a single record. Both the SHAKE and SHA2 families are covered so that builds
+# that enable only one family still have working entity certs.
+gen_slhdsa_leaf server shake 128f SLH-DSA-SHAKE-128f server_ecc 03
+gen_slhdsa_leaf client shake 128f SLH-DSA-SHAKE-128f client_ecc 04
+gen_slhdsa_leaf server shake 128s SLH-DSA-SHAKE-128s server_ecc 05
+gen_slhdsa_leaf client shake 128s SLH-DSA-SHAKE-128s client_ecc 06
+gen_slhdsa_leaf server sha2  128f SLH-DSA-SHA2-128f  server_ecc 03
+gen_slhdsa_leaf client sha2  128f SLH-DSA-SHA2-128f  client_ecc 04
+gen_slhdsa_leaf server sha2  128s SLH-DSA-SHA2-128s  server_ecc 05
+gen_slhdsa_leaf client sha2  128s SLH-DSA-SHA2-128s  client_ecc 06
 
 echo
 echo "All SLH-DSA / ML-DSA-44 test certificates regenerated."

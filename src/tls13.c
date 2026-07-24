@@ -192,7 +192,8 @@ static const byte
 
 #ifndef NO_CERTS
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
 
 static WC_INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash);
 
@@ -8743,7 +8744,8 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 #ifndef NO_CERTS
 #if (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)) && \
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-     defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA))
+     defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+     defined(WOLFSSL_HAVE_SLHDSA))
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -8842,6 +8844,80 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo,
             output[1] = MLDSA_87_SA_MINOR;
             break;
 #endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        case slhdsa_sha2_128s_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHA2_128S_SA_MINOR;
+            break;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+        case slhdsa_sha2_128f_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHA2_128F_SA_MINOR;
+            break;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+        case slhdsa_sha2_192s_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHA2_192S_SA_MINOR;
+            break;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F)
+        case slhdsa_sha2_192f_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHA2_192F_SA_MINOR;
+            break;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+        case slhdsa_sha2_256s_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHA2_256S_SA_MINOR;
+            break;
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+        case slhdsa_sha2_256f_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHA2_256F_SA_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128S
+        case slhdsa_shake_128s_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHAKE_128S_SA_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128F
+        case slhdsa_shake_128f_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHAKE_128F_SA_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192S
+        case slhdsa_shake_192s_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHAKE_192S_SA_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192F
+        case slhdsa_shake_192f_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHAKE_192F_SA_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256S
+        case slhdsa_shake_256s_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHAKE_256S_SA_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256F
+        case slhdsa_shake_256f_sa_algo:
+            output[0] = SLHDSA_SA_MAJOR;
+            output[1] = SLHDSA_SHAKE_256F_SA_MINOR;
+            break;
+    #endif
+#endif /* WOLFSSL_HAVE_SLHDSA */
         default:
             break;
     }
@@ -8849,7 +8925,8 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo,
 #endif
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 /* These match up with what the OQS team has defined. */
 #define HYBRID_SA_MAJOR 0xFE
@@ -8975,6 +9052,9 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
                                        byte* hsType)
 {
     int ret = 0;
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    byte slhType;
+#endif
 
     switch (input[0]) {
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -9042,27 +9122,40 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
                 ret = INVALID_PARAMETER;
             break;
 #endif /* HAVE_FALCON */
-#if defined(WOLFSSL_HAVE_MLDSA)
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
+        /* ML-DSA and SLH-DSA share the same major byte (0x09); their minor
+         * bytes are disjoint (ML-DSA 0x04-0x06, SLH-DSA 0x11-0x1C). */
         case MLDSA_SA_MAJOR:
+            ret = INVALID_PARAMETER;
+    #if defined(WOLFSSL_HAVE_MLDSA)
             if (input[1] == MLDSA_44_SA_MINOR) {
                 *hsType = mldsa_44_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
                 *hashAlgo = sha512_mac;
+                ret = 0;
             } else if (input[1] == MLDSA_65_SA_MINOR) {
                 *hsType = mldsa_65_sa_algo;
-                /* Hash performed as part of sign/verify operation. */
                 *hashAlgo = sha512_mac;
+                ret = 0;
             } else if (input[1] == MLDSA_87_SA_MINOR) {
                 *hsType = mldsa_87_sa_algo;
-                /* Hash performed as part of sign/verify operation. */
                 *hashAlgo = sha512_mac;
+                ret = 0;
             }
-            else
-            {
-                ret = INVALID_PARAMETER;
+    #endif /* WOLFSSL_HAVE_MLDSA */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+            if (ret != 0) {
+                slhType = SlhDsaSigMinorToType(input[1]);
+                if (slhType != (byte)invalid_sa_algo) {
+                    *hsType = slhType;
+                    /* Hash performed as part of sign/verify operation. */
+                    *hashAlgo = sha512_mac;
+                    ret = 0;
+                }
             }
+    #endif /* WOLFSSL_HAVE_SLHDSA */
             break;
-#endif /* WOLFSSL_HAVE_MLDSA */
+#endif /* WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
         default:
             *hashAlgo = input[0];
             *hsType   = input[1];
@@ -10009,7 +10102,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_ED448) || defined(HAVE_FALCON) || \
-     defined(WOLFSSL_HAVE_MLDSA)) && \
+     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)) && \
     (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 typedef struct Scv13Args {
     byte*  output; /* not allocated */
@@ -10017,7 +10110,7 @@ typedef struct Scv13Args {
     word32 idx;
     word32 sigLen;
     int    sendSz;
-    word16 length;
+    word32 length;
 
     byte   sigAlgo;
     byte*  sigData;
@@ -10032,6 +10125,15 @@ typedef struct Scv13Args {
     byte*  altSigData;
     word16 altSigDataSz;
 #endif
+    word32 outputSz;     /* reserved capacity of the output record buffer */
+    /* Fragmented CertificateVerify send cursor, used when the signature does
+     * not fit in a single TLS record (SLH-DSA and other oversized signatures).
+     * Kept in the async args so a WC_PENDING_E from the record AEAD under
+     * WOLFSSL_ASYNC_CRYPT resumes on the same fragment instead of re-emitting
+     * the records already committed to the output buffer. */
+    byte*  frag;         /* body copy, freed by FreeScv13Args; NULL when idle */
+    word32 fragOffset;   /* body bytes already committed to records */
+    byte   fragActive;   /* current fragment laid out, record build may pend */
 } Scv13Args;
 
 static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
@@ -10050,6 +10152,10 @@ static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
         args->altSigData = NULL;
     }
 #endif
+    if (args != NULL && args->frag != NULL) {
+        XFREE(args->frag, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        args->frag = NULL;
+    }
 }
 
 /* handle generation TLS v1.3 certificate_verify (15) */
@@ -10134,6 +10240,16 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     #endif
     }
 
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+    /* Resuming a partially-sent streamed CertificateVerify (e.g. after a
+     * non-blocking WANT_WRITE): the signature is already assembled in
+     * ssl->buffers.certVerifyMsg and ssl->fragOffset marks how much has been
+     * committed to records, so skip re-signing and continue sending. */
+    if (ssl->buffers.certVerifyMsg.buffer != NULL && ssl->fragOffset != 0) {
+        ssl->options.asyncState = TLS_ASYNC_END;
+    }
+#endif
+
     switch(ssl->options.asyncState)
     {
         case TLS_ASYNC_BEGIN:
@@ -10146,17 +10262,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 return 0;  /* sent blank cert, can't verify */
             }
 
-            args->sendSz = WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
-            /* Always encrypted.  */
-            args->sendSz += MAX_MSG_EXTRA;
-
-            /* check for available size */
-            if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0) {
-                goto exit_scv;
-            }
-
-            /* get output buffer */
-            args->output = GetOutputBuffer(ssl);
+            /* The output buffer is reserved in TLS_ASYNC_BUILD, once the
+             * private key has been decoded and the actual signature size is
+             * known. This avoids reserving the worst-case WC_MAX_CERT_VERIFY_SZ
+             * (very large when SLH-DSA is enabled) for every algorithm. */
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
@@ -10165,27 +10274,20 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_BUILD:
         {
-            int rem = (int)(ssl->buffers.outputBuffer.bufferSize
-              - ssl->buffers.outputBuffer.length
-              - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ);
+            int rem;
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+            word32 bodySz;
+            word32 maxFrag;
+#endif
+            int doStream = 0;
 
-            /* idx is used to track verify pointer offset to output */
-            args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-            args->verify =
-                          &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
-
-#ifdef WOLFSSL_DTLS13
-            if (ssl->options.dtls) {
-                rem -= recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
-                args->idx += recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
-                args->verify += recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
-            }
-#endif /* WOLFSSL_DTLS13 */
-
+            /* Decode the private key first so the output buffer can be sized
+             * to the actual signature length rather than the worst-case
+             * WC_MAX_CERT_VERIFY_SZ (very large when SLH-DSA is enabled). */
             if (ssl->buffers.key == NULL) {
             #ifdef HAVE_PK_CALLBACKS
                 if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
-                    args->sigLen = (word16)GetPrivateKeySigSize(ssl);
+                    args->sigLen = (word32)GetPrivateKeySigSize(ssl);
                 else
             #endif
                     ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
@@ -10224,12 +10326,153 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     goto exit_scv;
             }
 
-            if (rem < 0 || (int)args->sigLen > rem) {
-                ERROR_OUT(BUFFER_E, exit_scv);
-            }
-
             if (args->sigLen == 0) {
                 ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
+            }
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            if (ssl->peerSigSpec == NULL) {
+                /* The peer did not respond. We didn't send CKS or they don't
+                 * support it. Either way, we do not need to handle dual
+                 * key/sig case. */
+                ssl->sigSpec = NULL;
+                ssl->sigSpecSz = 0;
+            }
+
+            if (ssl->sigSpec != NULL &&
+                *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                /* The native was already decoded. Decode the alternative now
+                 * too so its signature length is included when the output
+                 * buffer is sized below. */
+                if (ssl->buffers.altKey == NULL) {
+                    ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
+                }
+
+                /* After this call, args->altSigLen has the length we need for
+                 * the alternative signature. */
+                ret = DecodeAltPrivateKey(ssl, &args->altSigLen);
+                if (ret != 0)
+                    goto exit_scv;
+
+                if (ssl->buffers.altKeyType == ecc_dsa_sa_algo ||
+                    ssl->buffers.altKeyType == falcon_level1_sa_algo ||
+                    ssl->buffers.altKeyType == falcon_level5_sa_algo ||
+                    ssl->buffers.altKeyType == mldsa_44_sa_algo ||
+                    ssl->buffers.altKeyType == mldsa_65_sa_algo ||
+                    ssl->buffers.altKeyType == mldsa_87_sa_algo) {
+                    args->altSigAlgo = ssl->buffers.altKeyType;
+                }
+                else if (ssl->buffers.altKeyType == rsa_sa_algo &&
+                         ssl->hsAltType == DYNAMIC_TYPE_RSA) {
+                    args->altSigAlgo = rsa_pss_sa_algo;
+                }
+                else {
+                    ERROR_OUT(ALGO_ID_E, exit_scv);
+                }
+            }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
+            /* Decide how the CertificateVerify body will be emitted. When it
+             * exceeds a single record (e.g. a large SLH-DSA/ML-DSA signature,
+             * or any signature under a small max_fragment_length) on TLS 1.3,
+             * use the streaming path: generate the signature into a
+             * connection-level body buffer and send it one record at a time in
+             * TLS_ASYNC_END, so the shared output buffer never has to hold the
+             * whole signature. Otherwise reserve the output buffer for the
+             * whole message and build it in place. */
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+            bodySz = HASH_SIG_SIZE + VERIFY_HEADER + (word32)args->sigLen;
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
+            /* A dual (BOTH) body carries a second length-prefixed signature.
+             * args->sigLen/altSigLen are upper bounds here for variable-length
+             * schemes (ECDSA, Falcon), so this may over-size the body buffer by
+             * a few bytes; the body is assembled contiguously with the actual
+             * lengths, the exact length is recorded in TLS_ASYNC_FINALIZE, and
+             * the trailing slack is never sent. */
+            if (ssl->sigSpec != NULL &&
+                    *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                bodySz += (word32)args->altSigLen + OPAQUE16_LEN + OPAQUE16_LEN;
+            }
+        #endif
+            maxFrag = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
+            if (!ssl->options.dtls &&
+                    (word32)HANDSHAKE_HEADER_SZ + bodySz > maxFrag) {
+                doStream = 1;
+            }
+#endif /* WOLFSSL_TLS13_STREAM_CERT_VERIFY */
+
+            if (doStream) {
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+                /* Generate the body directly into the connection-level buffer.
+                 * bodySz is exact here (a single fixed-or-max-length
+                 * signature); the final length is recorded in
+                 * TLS_ASYNC_FINALIZE. args->output stays NULL to mark the
+                 * streaming path; the send loop reserves one record at a
+                 * time. */
+                XFREE(ssl->buffers.certVerifyMsg.buffer, ssl->heap,
+                      DYNAMIC_TYPE_TMP_BUFFER);
+                ssl->buffers.certVerifyMsg.buffer =
+                    (byte*)XMALLOC(bodySz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (ssl->buffers.certVerifyMsg.buffer == NULL) {
+                    ssl->buffers.certVerifyMsg.length = 0;
+                    ERROR_OUT(MEMORY_E, exit_scv);
+                }
+                ssl->buffers.certVerifyMsg.length = bodySz;
+                ssl->fragOffset = 0;
+                args->verify = ssl->buffers.certVerifyMsg.buffer;
+                args->idx = 0;
+                args->sendSz = (int)bodySz;
+                args->output = NULL;
+                args->outputSz = 0;
+#endif /* WOLFSSL_TLS13_STREAM_CERT_VERIFY */
+            }
+            else {
+                /* Reserve the output buffer, sized from the actual signature
+                 * length(s) plus record/handshake framing and encryption
+                 * slack. */
+                args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
+                               HASH_SIG_SIZE + VERIFY_HEADER + (int)args->sigLen;
+            #ifdef WOLFSSL_DUAL_ALG_CERTS
+                args->sendSz += (int)args->altSigLen;
+            #endif
+            #ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls)
+                    args->sendSz += recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
+            #endif /* WOLFSSL_DTLS13 */
+                /* Framing and always-on encryption expansion. */
+                args->sendSz += MAX_MSG_EXTRA;
+
+                /* check for available size */
+                if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0) {
+                    goto exit_scv;
+                }
+
+                /* get output buffer */
+                args->output = GetOutputBuffer(ssl);
+                /* Remember the reserved capacity for BuildTls13Message /
+                 * Dtls13HandshakeSend in TLS_ASYNC_END. */
+                args->outputSz = (word32)args->sendSz;
+
+                rem = (int)(ssl->buffers.outputBuffer.bufferSize
+                                - ssl->buffers.outputBuffer.length
+                                - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ);
+
+                /* idx is used to track verify pointer offset to output */
+                args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+                args->verify =
+                          &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
+
+            #ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    rem -= recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
+                    args->idx += recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
+                    args->verify += recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
+                }
+            #endif /* WOLFSSL_DTLS13 */
+
+                if (rem < 0 || (int)args->sigLen > rem) {
+                    ERROR_OUT(BUFFER_E, exit_scv);
+                }
             }
 
             /* Add signature algorithm. */
@@ -10266,50 +10509,21 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->sigAlgo = ssl->buffers.keyType;
             }
         #endif /* WOLFSSL_HAVE_MLDSA */
+        #if defined(WOLFSSL_HAVE_SLHDSA)
+            else if (ssl->hsType == DYNAMIC_TYPE_SLHDSA) {
+                args->sigAlgo = ssl->buffers.keyType;
+            }
+        #endif /* WOLFSSL_HAVE_SLHDSA */
             else {
                 ERROR_OUT(ALGO_ID_E, exit_scv);
             }
 
         #ifdef WOLFSSL_DUAL_ALG_CERTS
-            if (ssl->peerSigSpec == NULL) {
-                /* The peer did not respond. We didn't send CKS or they don't
-                 * support it. Either way, we do not need to handle dual
-                 * key/sig case. */
-                ssl->sigSpec = NULL;
-                ssl->sigSpecSz = 0;
-            }
-
             if (ssl->sigSpec != NULL &&
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
-                /* The native was already decoded. Now we need to do the
-                 * alternative. Note that no swap was done because this case is
-                 * both native and alternative, not just alternative. */
-                if (ssl->buffers.altKey == NULL) {
-                    ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
-                }
-
-                /* After this call, args->altSigLen has the length we need for
-                 * the alternative signature. */
-                ret = DecodeAltPrivateKey(ssl, &args->altSigLen);
-                if (ret != 0)
-                    goto exit_scv;
-
-                if (ssl->buffers.altKeyType == ecc_dsa_sa_algo ||
-                    ssl->buffers.altKeyType == falcon_level1_sa_algo ||
-                    ssl->buffers.altKeyType == falcon_level5_sa_algo ||
-                    ssl->buffers.altKeyType == mldsa_44_sa_algo ||
-                    ssl->buffers.altKeyType == mldsa_65_sa_algo ||
-                    ssl->buffers.altKeyType == mldsa_87_sa_algo) {
-                    args->altSigAlgo = ssl->buffers.altKeyType;
-                }
-                else if (ssl->buffers.altKeyType == rsa_sa_algo &&
-                         ssl->hsAltType == DYNAMIC_TYPE_RSA) {
-                    args->altSigAlgo = rsa_pss_sa_algo;
-                }
-                else {
-                    ERROR_OUT(ALGO_ID_E, exit_scv);
-                }
-
+                /* The alternative key was already decoded and its sig-alg
+                 * determined above (when sizing the output buffer). Encode the
+                 * dual (native + alternative) signature algorithm pair. */
                 EncodeDualSigAlg(args->sigAlgo, args->altSigAlgo, args->verify);
                 if (args->verify[0] == 0) {
                     ERROR_OUT(ALGO_ID_E, exit_scv);
@@ -10432,6 +10646,15 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->sigLen = MLDSA_MAX_SIG_SIZE;
             }
         #endif /* WOLFSSL_HAVE_MLDSA */
+        #if defined(WOLFSSL_HAVE_SLHDSA)
+            if (ssl->hsType == DYNAMIC_TYPE_SLHDSA) {
+                int slhSigSz = wc_SlhDsaKey_SigSize((SlhDsaKey*)ssl->hsKey);
+                if (slhSigSz <= 0) {
+                    ERROR_OUT(ALGO_ID_E, exit_scv);
+                }
+                args->sigLen = (word32)slhSigSz;
+            }
+        #endif /* WOLFSSL_HAVE_SLHDSA */
 
         #ifdef WOLFSSL_DUAL_ALG_CERTS
             if (ssl->sigSpec != NULL &&
@@ -10509,7 +10732,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 #endif
                     );
                 }
-                args->length = (word16)args->sigLen;
+                args->length = args->sigLen;
             }
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
@@ -10522,7 +10745,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     NULL
             #endif
                 );
-                args->length = (word16)args->sigLen;
+                args->length = args->sigLen;
             }
         #endif
         #ifdef HAVE_ED448
@@ -10535,7 +10758,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     NULL
             #endif
                 );
-                args->length = (word16)args->sigLen;
+                args->length = args->sigLen;
             }
         #endif
         #if defined(HAVE_FALCON)
@@ -10543,7 +10766,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = wc_falcon_sign_msg(args->sigData, args->sigDataSz,
                                          sigOut, &args->sigLen,
                                          (falcon_key*)ssl->hsKey, ssl->rng);
-                args->length = (word16)args->sigLen;
+                args->length = args->sigLen;
             }
         #endif /* HAVE_FALCON */
         #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN)
@@ -10552,9 +10775,23 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                           sigOut, &args->sigLen,
                                           args->sigData, args->sigDataSz,
                                           ssl->rng);
-                args->length = (word16)args->sigLen;
+                args->length = args->sigLen;
             }
         #endif /* WOLFSSL_HAVE_MLDSA */
+        #if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+            if (ssl->hsType == DYNAMIC_TYPE_SLHDSA) {
+                /* The FIPS wrapper for wc_SlhDsaKey_Sign gates on the per-thread
+                 * privateKeyReadEnable flag (unlike ML-DSA sign), returning
+                 * FIPS_PRIVATE_KEY_LOCKED_E when the key is locked. Bracket the
+                 * sign so it can read the SLH-DSA private key. */
+                PRIVATE_KEY_UNLOCK();
+                ret = wc_SlhDsaKey_Sign((SlhDsaKey*)ssl->hsKey, NULL, 0,
+                                        args->sigData, args->sigDataSz,
+                                        sigOut, &args->sigLen, ssl->rng);
+                PRIVATE_KEY_LOCK();
+                args->length = args->sigLen;
+            }
+        #endif /* WOLFSSL_HAVE_SLHDSA */
         #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
             !defined(WOLFSSL_RSA_VERIFY_ONLY)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
@@ -10573,7 +10810,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                               ssl->options.hashAlgo, (RsaKey*)ssl->hsKey,
                               ssl->buffers.key);
                 if (ret == 0) {
-                    args->length = (word16)args->sigLen;
+                    args->length = args->sigLen;
                     XMEMCPY(args->sigData, sigOut, args->sigLen);
                 }
             }
@@ -10664,8 +10901,19 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
         #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
+            /* The TLS 1.3 CertificateVerify signature is length-prefixed with a
+             * 2-byte field (opaque signature<0..2^16-1>), so the body - a single
+             * signature, or the combined native + alternative signature with
+             * WOLFSSL_DUAL_ALG_CERTS - cannot exceed 65535 bytes. Reject rather
+             * than let c16toa truncate it into a malformed message. args->length
+             * is word32 so the dual-alg accumulation above cannot wrap before
+             * this check. */
+            if (args->length > WOLFSSL_MAX_16BIT) {
+                ERROR_OUT(BUFFER_E, exit_scv);
+            }
+
             /* Add signature length. */
-            c16toa(args->length, args->verify + HASH_SIG_SIZE);
+            c16toa((word16)args->length, args->verify + HASH_SIG_SIZE);
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
@@ -10768,17 +11016,29 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_FINALIZE:
         {
-            /* Put the record and handshake headers on. */
-            AddTls13Headers(args->output, args->length + HASH_SIG_SIZE +
-                            VERIFY_HEADER, certificate_verify, ssl);
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+            if (ssl->buffers.certVerifyMsg.buffer != NULL) {
+                /* Streaming path: the assembled body sits in certVerifyMsg;
+                 * record its final length (exact even for variable-length
+                 * signatures). Per-fragment record/handshake headers are added
+                 * in TLS_ASYNC_END. */
+                ssl->buffers.certVerifyMsg.length =
+                    (word32)args->length + HASH_SIG_SIZE + VERIFY_HEADER;
+            }
+#endif /* WOLFSSL_TLS13_STREAM_CERT_VERIFY */
+            /* In-place path: put the record and handshake headers on now.
+             * args->output is NULL only on the streaming path. */
+            if (args->output != NULL) {
+                AddTls13Headers(args->output, args->length + HASH_SIG_SIZE +
+                                VERIFY_HEADER, certificate_verify, ssl);
 
-            args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
+                args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
                                 args->length + HASH_SIG_SIZE + VERIFY_HEADER;
-#ifdef WOLFSSL_DTLS13
-            if (ssl->options.dtls)
-                args->sendSz += recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
-
-#endif /* WOLFSSL_DTLS13 */
+            #ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls)
+                    args->sendSz += recordLayerHdrExtra + DTLS_HANDSHAKE_EXTRA;
+            #endif /* WOLFSSL_DTLS13 */
+            }
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
@@ -10786,11 +11046,140 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_END:
         {
+            /* Body of the handshake message: [sigAlg(2) | sigLen(2) | sig]. In
+             * the in-place path it sits at args->verify in the output buffer;
+             * in the streaming path it sits in ssl->buffers.certVerifyMsg. */
+            word32 msgSz;
+            word32 maxFrag = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
+            byte*  output;
+            word32 fragSz;
+            word32 i;
+            int    recSz;
+            int    thisSendSz;
+
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+            if (ssl->buffers.certVerifyMsg.buffer != NULL) {
+                /* Streamed send: the assembled body lives in
+                 * ssl->buffers.certVerifyMsg and the send cursor in
+                 * ssl->fragOffset - both connection-level - so a non-blocking
+                 * WANT_WRITE resumes here (via TLS_ASYNC_END) without
+                 * recomputing the signature. Emit one encrypted record per
+                 * iteration and flush it, so the output buffer never holds more
+                 * than a single fragment. Only the first record carries the
+                 * handshake header; BuildTls13Message hashes each fragment's
+                 * plaintext in order, keeping the transcript hash correct. The
+                 * cursor is advanced before the flush because the record is
+                 * already committed to the output buffer; the cursor tracks
+                 * message-body -> record progress, not bytes on the wire, so a
+                 * WANT_WRITE resumes on the next fragment. Advancing after the
+                 * flush would rebuild and double-send the fragment on resume.
+                 * This is not merely a convention: the accept/connect loop
+                 * flushes pending output and returns WANT_WRITE without
+                 * re-entering this function until the output buffer drains, so
+                 * the committed record is never skipped or overwritten.
+                 * certVerifyMsg is released on completion or error at exit_scv;
+                 * it is kept across WANT_WRITE for resume. */
+                msgSz = ssl->buffers.certVerifyMsg.length;
+                if (maxFrag <= HANDSHAKE_HEADER_SZ) {
+                    ERROR_OUT(BUFFER_E, exit_scv);
+                }
+                while (ssl->fragOffset < msgSz && ret == 0) {
+                    if (ssl->fragOffset == 0) {
+                        fragSz = maxFrag - HANDSHAKE_HEADER_SZ;
+                        if (fragSz > msgSz)
+                            fragSz = msgSz;
+                        i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+                        thisSendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
+                                     (int)fragSz + MAX_MSG_EXTRA;
+                    }
+                    else {
+                        fragSz = msgSz - ssl->fragOffset;
+                        if (fragSz > maxFrag)
+                            fragSz = maxFrag;
+                        i = RECORD_HEADER_SZ;
+                        thisSendSz = RECORD_HEADER_SZ + (int)fragSz +
+                                     MAX_MSG_EXTRA;
+                    }
+
+                    if ((ret = CheckAvailableSize(ssl, thisSendSz)) != 0) {
+                        goto exit_scv;
+                    }
+                    output = GetOutputBuffer(ssl);
+
+                    if (ssl->fragOffset == 0) {
+                        AddTls13FragHeaders(output, fragSz, 0, msgSz,
+                                            certificate_verify, ssl);
+                    }
+                    else {
+                        AddTls13RecordHeader(output, fragSz, handshake, ssl);
+                    }
+                    XMEMCPY(output + i,
+                            ssl->buffers.certVerifyMsg.buffer + ssl->fragOffset,
+                            fragSz);
+
+                    /* This message is always encrypted. */
+                    recSz = BuildTls13Message(ssl, output, thisSendSz,
+                                output + RECORD_HEADER_SZ,
+                                (int)(i - RECORD_HEADER_SZ + fragSz), handshake,
+                                1, 0, 0);
+                    if (recSz < 0) {
+                        ret = recSz;
+                        goto exit_scv;
+                    }
+
+                #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+                    /* Trace the logical CertificateVerify once (first fragment),
+                     * matching the single-record path. */
+                    if (ssl->fragOffset == 0) {
+                        if (ssl->hsInfoOn)
+                            AddPacketName(ssl, "CertificateVerify");
+                        if (ssl->toInfoOn) {
+                            ret = AddPacketInfo(ssl, "CertificateVerify",
+                                        handshake, output, recSz, WRITE_PROTO, 0,
+                                        ssl->heap);
+                            if (ret != 0)
+                                goto exit_scv;
+                        }
+                    }
+                #endif
+
+                    ssl->buffers.outputBuffer.length += (word32)recSz;
+                    ssl->fragOffset += fragSz;
+                    /* Flush every fragment unconditionally - unlike the
+                     * in-place path this cannot honor ssl->options.groupMessages
+                     * (batch with later handshake messages), because streaming
+                     * exists precisely to keep the output buffer bounded to a
+                     * single fragment. */
+                    ret = SendBuffered(ssl);
+                }
+
+                ssl->options.buildingMsg = 0;
+                break;
+            }
+#endif /* WOLFSSL_TLS13_STREAM_CERT_VERIFY */
+
+            /* In-place path: the whole message is in args->output. */
+            msgSz = (word32)args->length + HASH_SIG_SIZE + VERIFY_HEADER;
+
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls) {
                 ssl->options.buildingMsg = 0;
+
+                /* Dtls13HandshakeSend takes word16 output/send sizes, so the
+                 * whole assembled CertificateVerify (signature plus framing)
+                 * must fit in 16 bits. Every current SLH-DSA parameter set
+                 * stays well under this (256f, the largest, is ~50KB), but
+                 * guard the casts explicitly - mirroring the args->length check
+                 * on the TLS path - so a future larger signature fails loudly
+                 * instead of being silently truncated into a malformed record.
+                 * outputSz is the reserved capacity and is >= sendSz, so it
+                 * bounds both casts. */
+                if (args->outputSz > WOLFSSL_MAX_16BIT) {
+                    ERROR_OUT(BUFFER_E, exit_scv);
+                }
+
                 ret = Dtls13HandshakeSend(ssl, args->output,
-                    WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA + MAX_MSG_EXTRA,
+                    (word16)args->outputSz,
                     (word16)args->sendSz, certificate_verify, 1);
                 if (ret != 0)
                     goto exit_scv;
@@ -10799,34 +11188,147 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
 #endif /* WOLFSSL_DTLS13 */
 
-            /* This message is always encrypted. */
-            ret = BuildTls13Message(ssl, args->output,
-                                    WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA,
-                                    args->output + RECORD_HEADER_SZ,
-                                    args->sendSz - RECORD_HEADER_SZ, handshake,
-                                    1, 0, 0);
+            if (HANDSHAKE_HEADER_SZ + msgSz <= maxFrag) {
+                /* Fits in a single record: the common path used by RSA, ECC,
+                 * EdDSA and ML-DSA is left byte-for-byte unchanged. */
 
-            if (ret < 0) {
-                goto exit_scv;
+                /* This message is always encrypted. */
+                ret = BuildTls13Message(ssl, args->output,
+                                        (int)args->outputSz,
+                                        args->output + RECORD_HEADER_SZ,
+                                        args->sendSz - RECORD_HEADER_SZ,
+                                        handshake, 1, 0, 0);
+
+                if (ret < 0) {
+                    goto exit_scv;
+                }
+                else {
+                    args->sendSz = ret;
+                    ret = 0;
+                }
+
+            #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+                if (ssl->hsInfoOn)
+                    AddPacketName(ssl, "CertificateVerify");
+                if (ssl->toInfoOn) {
+                    ret = AddPacketInfo(ssl, "CertificateVerify", handshake,
+                                args->output, args->sendSz, WRITE_PROTO, 0,
+                                ssl->heap);
+                    if (ret != 0)
+                        goto exit_scv;
+                }
+            #endif
+
+                ssl->buffers.outputBuffer.length += (word32)args->sendSz;
             }
             else {
-                args->sendSz = ret;
-                ret = 0;
+                /* Signature does not fit in a single TLS record (e.g. SLH-DSA,
+                 * whose signatures range up to ~50KB). Fragment the handshake
+                 * message across multiple encrypted records. Only the first
+                 * fragment carries the 4-byte handshake header; the transcript
+                 * hash is maintained correctly because BuildTls13Message hashes
+                 * each fragment's plaintext in order.
+                 *
+                 * The fragmentation cursor lives in args (frag/fragOffset/
+                 * fragActive) so that a WC_PENDING_E from the record AEAD under
+                 * WOLFSSL_ASYNC_CRYPT resumes on the same fragment rather than
+                 * restarting at offset 0 and re-emitting committed records. */
+                if (maxFrag <= HANDSHAKE_HEADER_SZ) {
+                    ERROR_OUT(BUFFER_E, exit_scv);
+                }
+
+                /* Copy the assembled body out of the output buffer once, before
+                 * we begin overwriting it with per-record data. args->frag is
+                 * preserved across async resumes and freed by FreeScv13Args. */
+                if (args->frag == NULL) {
+                    args->frag = (byte*)XMALLOC(msgSz, ssl->heap,
+                                                DYNAMIC_TYPE_TMP_BUFFER);
+                    if (args->frag == NULL) {
+                        ERROR_OUT(MEMORY_E, exit_scv);
+                    }
+                    XMEMCPY(args->frag, args->verify, msgSz);
+                    args->fragOffset = 0;
+                    args->fragActive = 0;
+                }
+
+                while (args->fragOffset < msgSz && ret == 0) {
+                    if (args->fragOffset == 0) {
+                        fragSz = maxFrag - HANDSHAKE_HEADER_SZ;
+                        if (fragSz > msgSz)
+                            fragSz = msgSz;
+                        thisSendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
+                                     (int)fragSz + MAX_MSG_EXTRA;
+                    }
+                    else {
+                        fragSz = msgSz - args->fragOffset;
+                        if (fragSz > maxFrag)
+                            fragSz = maxFrag;
+                        thisSendSz = RECORD_HEADER_SZ + (int)fragSz +
+                                     MAX_MSG_EXTRA;
+                    }
+
+                    if ((ret = CheckAvailableSize(ssl, thisSendSz)) != 0) {
+                        goto exit_scv;
+                    }
+                    output = GetOutputBuffer(ssl);
+
+                    i = RECORD_HEADER_SZ;
+                    if (args->fragOffset == 0)
+                        i += HANDSHAKE_HEADER_SZ;
+
+                    /* Lay out this fragment's record header and plaintext once.
+                     * On an async resume of a pending fragment they are already
+                     * in place (outputBuffer.length was not advanced), so skip
+                     * straight to re-driving BuildTls13Message. */
+                    if (!args->fragActive) {
+                        if (args->fragOffset == 0) {
+                            AddTls13FragHeaders(output, fragSz, 0, msgSz,
+                                                certificate_verify, ssl);
+                        }
+                        else {
+                            AddTls13RecordHeader(output, fragSz, handshake, ssl);
+                        }
+                        XMEMCPY(output + i, args->frag + args->fragOffset,
+                                fragSz);
+                        args->fragActive = 1;
+                    }
+                    i += fragSz;
+
+                    /* This message is always encrypted. */
+                    recSz = BuildTls13Message(ssl, output, thisSendSz,
+                                output + RECORD_HEADER_SZ,
+                                (int)(i - RECORD_HEADER_SZ), handshake, 1, 0, 0);
+                    if (recSz < 0) {
+                        /* WC_PENDING_E leaves frag/fragOffset/fragActive intact
+                         * for resume; real errors are cleaned up by
+                         * FreeScv13Args at exit_scv. */
+                        ret = recSz;
+                        goto exit_scv;
+                    }
+
+                #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+                    /* Trace the logical CertificateVerify once (on the first
+                     * fragment), matching the single-record path rather than
+                     * emitting one entry per record. */
+                    if (args->fragOffset == 0) {
+                        if (ssl->hsInfoOn)
+                            AddPacketName(ssl, "CertificateVerify");
+                        if (ssl->toInfoOn) {
+                            ret = AddPacketInfo(ssl, "CertificateVerify",
+                                        handshake, output, recSz, WRITE_PROTO, 0,
+                                        ssl->heap);
+                            if (ret != 0)
+                                goto exit_scv;
+                        }
+                    }
+                #endif
+
+                    ssl->buffers.outputBuffer.length += (word32)recSz;
+                    args->fragOffset += fragSz;
+                    args->fragActive = 0;
+                }
             }
 
-        #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-            if (ssl->hsInfoOn)
-                AddPacketName(ssl, "CertificateVerify");
-            if (ssl->toInfoOn) {
-                ret = AddPacketInfo(ssl, "CertificateVerify", handshake,
-                            args->output, args->sendSz, WRITE_PROTO, 0,
-                            ssl->heap);
-                if (ret != 0)
-                    goto exit_scv;
-            }
-        #endif
-
-            ssl->buffers.outputBuffer.length += (word32)args->sendSz;
             ssl->options.buildingMsg = 0;
             if (!ssl->options.groupMessages)
                 ret = SendBuffered(ssl);
@@ -10837,6 +11339,22 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     } /* switch(ssl->options.asyncState) */
 
 exit_scv:
+#ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
+    /* A streamed CertificateVerify keeps its assembled body across a
+     * non-blocking WANT_WRITE so the send resumes without recomputing the
+     * signature; release it on completion or on any real error. This path is
+     * mutually exclusive with WOLFSSL_ASYNC_CRYPT (see the feature guard in
+     * internal.h), so ret is never WC_PENDING_E here and the buffer needs no
+     * retention across an async resume. */
+    if (ret != WC_NO_ERR_TRACE(WANT_WRITE) &&
+            ssl->buffers.certVerifyMsg.buffer != NULL) {
+        XFREE(ssl->buffers.certVerifyMsg.buffer, ssl->heap,
+              DYNAMIC_TYPE_TMP_BUFFER);
+        ssl->buffers.certVerifyMsg.buffer = NULL;
+        ssl->buffers.certVerifyMsg.length = 0;
+        ssl->fragOffset = 0;
+    }
+#endif /* WOLFSSL_TLS13_STREAM_CERT_VERIFY */
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
     if (ret == 0) {
         ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
@@ -10928,7 +11446,8 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_ED448) || defined(HAVE_FALCON) || \
-     defined(WOLFSSL_HAVE_MLDSA)) && !defined(NO_CERTS)
+     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)) && \
+    !defined(NO_CERTS)
 
 typedef struct Dcv13Args {
     byte*  output; /* not allocated */
@@ -11265,6 +11784,27 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ret = decodeMlDsaKey(ssl, WC_ML_DSA_87);
                     break;
             #endif
+            #ifdef WOLFSSL_HAVE_SLHDSA
+                case slhdsa_sha2_128s_sa_algo:
+                case slhdsa_sha2_128f_sa_algo:
+                case slhdsa_sha2_192s_sa_algo:
+                case slhdsa_sha2_192f_sa_algo:
+                case slhdsa_sha2_256s_sa_algo:
+                case slhdsa_sha2_256f_sa_algo:
+                case slhdsa_shake_128s_sa_algo:
+                case slhdsa_shake_128f_sa_algo:
+                case slhdsa_shake_192s_sa_algo:
+                case slhdsa_shake_192f_sa_algo:
+                case slhdsa_shake_256s_sa_algo:
+                case slhdsa_shake_256f_sa_algo:
+                    /* SLH-DSA is not supported as an alternative (dual-algorithm
+                     * / CKS) key. The alternative-signature verification block
+                     * in this function has no SLH-DSA case, so a decoded key
+                     * would never be verified and the handshake would always be
+                     * rejected at TLS_ASYNC_FINALIZE. Fail fast here instead of
+                     * allocating a key that can never authenticate the peer. */
+                    ERROR_OUT(ALGO_ID_E, exit_dcv);
+            #endif
             #ifdef HAVE_FALCON
                 case falcon_level1_sa_algo:
                     ret = decodeFalconKey(ssl, 1);
@@ -11306,6 +11846,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                         FreeKey(ssl, DYNAMIC_TYPE_MLDSA,
                                 (void**)&ssl->peerMlDsaKey);
                         ssl->peerMlDsaKeyPresent = 0;
+                    }
+                #endif
+                #ifdef WOLFSSL_HAVE_SLHDSA
+                    else if (ssl->peerSlhDsaKeyPresent &&
+                             !IsSlhDsaSigAlgo(sa)) {
+                        FreeKey(ssl, DYNAMIC_TYPE_SLHDSA,
+                                (void**)&ssl->peerSlhDsaKey);
+                        ssl->peerSlhDsaKeyPresent = 0;
                     }
                 #endif
                 #ifdef HAVE_FALCON
@@ -11382,6 +11930,13 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Peer sent ML-DSA Level 5 sig");
                 validSigAlgo = (ssl->peerMlDsaKey != NULL) &&
                                ssl->peerMlDsaKeyPresent;
+            }
+        #endif
+        #ifdef WOLFSSL_HAVE_SLHDSA
+            if (IsSlhDsaSigAlgo(ssl->options.peerSigAlgo)) {
+                WOLFSSL_MSG("Peer sent SLH-DSA sig");
+                validSigAlgo = (ssl->peerSlhDsaKey != NULL) &&
+                               ssl->peerSlhDsaKeyPresent;
             }
         #endif
         #ifndef NO_RSA
@@ -11691,6 +12246,47 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
             }
         #endif /* WOLFSSL_HAVE_MLDSA */
+        #if defined(WOLFSSL_HAVE_SLHDSA)
+            if (IsSlhDsaSigAlgo(ssl->options.peerSigAlgo) &&
+                (ssl->peerSlhDsaKeyPresent)) {
+                WOLFSSL_MSG("Doing SLH-DSA peer cert verify");
+
+                /* The advertised signature scheme must match the parameter set
+                 * of the peer's certificate key (RFC 8446 4.4.3). The key
+                 * params come from the certificate OID, so a mismatch means the
+                 * peer is over-claiming its security level; reject it. */
+                if ((ssl->peerSlhDsaKey->params == NULL) ||
+                    (SlhDsaParamToType((int)ssl->peerSlhDsaKey->params->param)
+                        != ssl->options.peerSigAlgo)) {
+                    ERROR_OUT(SIG_VERIFY_E, exit_dcv);
+                }
+
+                /* wc_SlhDsaKey_Verify returns 0 for a valid signature. */
+                ret = wc_SlhDsaKey_Verify(ssl->peerSlhDsaKey, NULL, 0,
+                                          args->sigData, args->sigDataSz,
+                                          sig, args->sigSz);
+
+                if (ret == 0) {
+                    /* CLIENT/SERVER: data verified with public key from
+                     * certificate. */
+                    ssl->options.peerAuthGood = 1;
+
+                    FreeKey(ssl, DYNAMIC_TYPE_SLHDSA,
+                            (void**)&ssl->peerSlhDsaKey);
+                    ssl->peerSlhDsaKeyPresent = 0;
+                }
+                else {
+                    /* wc_SlhDsaKey_Verify already returns SIG_VERIFY_E on a
+                     * signature mismatch and propagates real errors verbatim
+                     * (WC_PENDING_E on the async crypto-callback path, MEMORY_E,
+                     * ...), so leave ret unchanged. Flattening everything to
+                     * SIG_VERIFY_E would break async resume and mask
+                     * diagnostics; the ML-DSA/Falcon blocks above likewise
+                     * preserve non-completion return codes. */
+                    WOLFSSL_MSG("SLH-DSA signature verification failed");
+                }
+            }
+        #endif /* WOLFSSL_HAVE_SLHDSA */
 
             /* Check for error */
             if (ret != 0) {
@@ -14064,7 +14660,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
      defined(HAVE_ED448) || defined(HAVE_FALCON) || \
-     defined(WOLFSSL_HAVE_MLDSA)) && !defined(NO_CERTS)
+     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)) && \
+    !defined(NO_CERTS)
     case certificate_verify:
         WOLFSSL_MSG("processing certificate verify");
         ret = DoTls13CertificateVerify(ssl, input, inOutIdx, size);
@@ -14751,7 +15348,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case FIRST_REPLY_THIRD:
         #if (!defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
              defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-             defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA))) && \
+             defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+             defined(WOLFSSL_HAVE_SLHDSA))) && \
              (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
@@ -15995,7 +16593,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_CERT_SENT :
 #if !defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
      defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_FALCON) || \
-     defined(WOLFSSL_HAVE_MLDSA))
+     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 if ((ssl->error = SendTls13CertificateVerify(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);

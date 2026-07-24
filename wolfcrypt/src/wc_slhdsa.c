@@ -70,20 +70,28 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #define SLHDSA_WM1              (SLHDSA_W - 1)
 
 
-#ifndef WOLFSSL_SLHDSA_PARAM_NO_256
+/* The buffer-sizing maxima below (SLHDSA_MAX_N/A/H_M/INDICES_SZ/MD) size
+ * stack/heap buffers that are later written using the true n/a/h_m taken from
+ * key->params at runtime, so they must stay large enough for every compiled-in
+ * parameter set across BOTH hash families. They key off the combined
+ * SLHDSA_ALL_NO_* guards (derived in wc_slhdsa.h), NOT the per-family SHAKE
+ * 'NO' guards, otherwise a SHA2-only build (SHAKE disabled) would collapse the
+ * maxima below the SHA2 parameters' true needs and overflow the FORS/XMSS
+ * 'nodes' buffers. */
+#ifndef SLHDSA_ALL_NO_256
     /* Maximum size of hash output. */
     #define SLHDSA_MAX_N                32
-    #ifndef WOLFSSL_SLHDSA_PARAM_NO_FAST
+    #ifndef SLHDSA_ALL_NO_FAST
         /* Maximum number of indices for FORS signatures. */
         #define SLHDSA_MAX_INDICES_SZ   35
     #else
         /* Maximum number of indices for FORS signatures. */
         #define SLHDSA_MAX_INDICES_SZ   22
     #endif
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192)
+#elif !defined(SLHDSA_ALL_NO_192)
     /* Maximum size of hash output. */
     #define SLHDSA_MAX_N                24
-    #ifndef WOLFSSL_SLHDSA_PARAM_NO_FAST
+    #ifndef SLHDSA_ALL_NO_FAST
         /* Maximum number of indices for FORS signatures. */
         #define SLHDSA_MAX_INDICES_SZ   33
     #else
@@ -93,7 +101,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #else
     /* Maximum size of hash output. */
     #define SLHDSA_MAX_N                16
-    #ifndef WOLFSSL_SLHDSA_PARAM_NO_FAST
+    #ifndef SLHDSA_ALL_NO_FAST
         /* Maximum number of indices for FORS signatures. */
         #define SLHDSA_MAX_INDICES_SZ   33
     #else
@@ -102,11 +110,11 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
     #endif
 #endif
 
-#ifndef WOLFSSL_SLHDSA_PARAM_NO_SMALL
-    #if !defined(WOLFSSL_SLHDSA_PARAM_NO_256)
+#ifndef SLHDSA_ALL_NO_SMALL
+    #if !defined(SLHDSA_ALL_NO_256)
         /* Maximum number of trees for FORS. */
         #define SLHDSA_MAX_A            14
-    #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192)
+    #elif !defined(SLHDSA_ALL_NO_192)
         /* Maximum number of trees for FORS. */
         #define SLHDSA_MAX_A            14
     #else
@@ -114,10 +122,10 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
         #define SLHDSA_MAX_A            12
     #endif
 #else
-    #if !defined(WOLFSSL_SLHDSA_PARAM_NO_256)
+    #if !defined(SLHDSA_ALL_NO_256)
         /* Maximum number of trees for FORS. */
         #define SLHDSA_MAX_A            9
-    #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192)
+    #elif !defined(SLHDSA_ALL_NO_192)
         /* Maximum number of trees for FORS. */
         #define SLHDSA_MAX_A            8
     #else
@@ -126,7 +134,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
     #endif
 #endif
 
-#ifndef WOLFSSL_SLHDSA_PARAM_NO_SMALL
+#ifndef SLHDSA_ALL_NO_SMALL
     /* Maximum height of Merkle tree. */
     #define SLHDSA_MAX_H_M              9
 #else
@@ -147,19 +155,19 @@ wc_static_assert(SLHDSA_MAX_MSG_SZ <= 255);
  * declarations and the ForceZero() sizes so they cannot drift. */
 #define SLHDSA_SHAKE_X4_STATE_W     (25 * 4)
 
-#ifndef WOLFSSL_SLHDSA_PARAM_NO_256F
+#ifndef SLHDSA_ALL_NO_256F
     /* Maximum number of bytes to produce from digest of message. */
     #define SLHDSA_MAX_MD               49
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_256S)
+#elif !defined(SLHDSA_ALL_NO_256S)
     /* Maximum number of bytes to produce from digest of message. */
     #define SLHDSA_MAX_MD               47
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192F)
+#elif !defined(SLHDSA_ALL_NO_192F)
     /* Maximum number of bytes to produce from digest of message. */
     #define SLHDSA_MAX_MD               42
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192S)
+#elif !defined(SLHDSA_ALL_NO_192S)
     /* Maximum number of bytes to produce from digest of message. */
     #define SLHDSA_MAX_MD               39
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_128F)
+#elif !defined(SLHDSA_ALL_NO_128F)
     /* Maximum number of bytes to produce from digest of message. */
     #define SLHDSA_MAX_MD               34
 #else
@@ -9152,6 +9160,31 @@ int wc_SlhDsaKey_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         *inOutIdx = savedIdx;
         return ASN_PARSE_E;
     }
+
+#ifdef WOLFSSL_SLHDSA_SHA2
+    /* The key may have been initialised with a placeholder parameter set from a
+     * different hash family (callers pass WC_SLHDSA_DEFAULT_PARAM, a SHAKE set
+     * whenever any SHAKE parameter is built in). If the detected set uses a
+     * different hash family, re-initialise the hash objects for it so the
+     * placeholder's SHAKE objects are released via wc_SlhDsaKey_Free() instead
+     * of being orphaned when key->params switches to a SHA2 set below. */
+    if ((key->params != NULL) &&
+        (SLHDSA_IS_SHA2(key->params->param) != SLHDSA_IS_SHA2(params->param))) {
+        void* keyHeap = key->heap;
+    #ifdef WOLF_CRYPTO_CB
+        int keyDevId = key->devId;
+    #else
+        int keyDevId = INVALID_DEVID;
+    #endif
+        wc_SlhDsaKey_Free(key);
+        ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)paramId, keyHeap,
+            keyDevId);
+        if (ret != 0) {
+            *inOutIdx = savedIdx;
+            return ret;
+        }
+    }
+#endif /* WOLFSSL_SLHDSA_SHA2 */
 
     /* RFC 9909: privateKey is a single OCTET STRING containing the raw key
      * (4*n bytes). Unlike Ed25519/Ed448, there is no nested inner OCTET
