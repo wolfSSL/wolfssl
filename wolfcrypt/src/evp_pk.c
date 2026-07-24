@@ -1083,8 +1083,13 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Copy the consumed DER into pkey->pkey.ptr when the input was DER */
-    ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
+    /* Copy the consumed DER into pkey->pkey.ptr when the input was DER.
+     * If the caller already populated the EVP PKEY with the input bytes
+     * (pkey.ptr set), skip the allocate/copy. */
+    ret = 1;
+    if ((out == NULL) || (*out == NULL) || ((*out)->pkey.ptr == NULL)) {
+        ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
+    }
     if ((ret == 1) && (out != NULL) && (*out != NULL) && (oidSum != 0)) {
         WOLFSSL_ATOMIC_STORE((*out)->mldsaOID, oidSum);
     }
@@ -1540,6 +1545,15 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             }
             break;
 #endif /* HAVE_ED448 */
+#if defined(WOLFSSL_HAVE_MLDSA)
+        case WC_EVP_PKEY_DILITHIUM:
+            /* See WC_EVP_PKEY_ED25519 case above. */
+            if (d2iTryMlDsaKey(&local, p, local->pkey_sz, priv) != 1) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            break;
+#endif /* WOLFSSL_HAVE_MLDSA */
         default:
             WOLFSSL_MSG("Unsupported key type");
             wolfSSL_EVP_PKEY_free(local);

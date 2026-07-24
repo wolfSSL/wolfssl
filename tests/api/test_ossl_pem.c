@@ -603,6 +603,58 @@ int test_wolfSSL_PEM_PrivateKey_dh(void)
     return EXPECT_RESULT();
 }
 
+/* test loading ML-DSA keys with PEM_read_bio_PrivateKey and
+ * PEM_read_PrivateKey */
+int test_wolfSSL_PEM_PrivateKey_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO)
+    const char* fnames[] = {
+    #ifndef WOLFSSL_NO_ML_DSA_44
+        "./certs/mldsa/mldsa44-key.pem",
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_65
+        "./certs/mldsa/mldsa65-key.pem",
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_87
+        "./certs/mldsa/mldsa87-key.pem",
+    #endif
+    };
+    BIO*      bio  = NULL;
+    EVP_PKEY* pkey = NULL;
+    XFILE     file = XBADFILE;
+    word32    i;
+
+    for (i = 0; i < (word32)(sizeof(fnames) / sizeof(*fnames)); i++) {
+        /* BIO variant */
+        ExpectNotNull(bio = BIO_new_file(fnames[i], "rb"));
+        ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL,
+            NULL));
+        ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+
+        /* XFILE variant */
+        ExpectTrue((file = XFOPEN(fnames[i], "rb")) != XBADFILE);
+        ExpectNotNull(pkey = wolfSSL_PEM_read_PrivateKey(file, NULL, NULL,
+            NULL));
+        ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+        if (file != XBADFILE) {
+            XFCLOSE(file);
+            file = XBADFILE;
+        }
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_PEM_PrivateKey(void)
 {
     EXPECT_DECLS;
