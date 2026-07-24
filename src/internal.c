@@ -33422,8 +33422,13 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
     defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
     !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
-        if (ssl->scr_check_enabled && (ssl->secure_renegotiation == NULL ||
-                !ssl->secure_renegotiation->enabled)) {
+        /* SSL 3.0 does not carry the renegotiation_info extension in its
+         * ServerHello (RFC 5746 relies on the SCSV for SSL 3.0), so only
+         * enforce for TLS 1.0+ and DTLS. ssl->options.tls is not yet set at
+         * this point, so key off the negotiated version. */
+        if (ssl->version.minor != SSLv3_MINOR && ssl->scr_check_enabled &&
+                (ssl->secure_renegotiation == NULL ||
+                 !ssl->secure_renegotiation->enabled)) {
             /* If the server does not acknowledge the extension, the client
              * MUST generate a fatal handshake_failure alert prior to
              * terminating the connection.
