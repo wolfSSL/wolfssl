@@ -12996,13 +12996,21 @@ cleanup:
 
 #ifndef WC_MAX_X509_GEN
     /* able to override max size until dynamic buffer created */
-    #ifdef WOLFSSL_HAVE_MLDSA
+    #define WC_MAX_X509_GEN 4096
+#endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    #ifndef WC_MAX_X509_GEN_MLDSA
         /* ML-DSA public keys and signatures are large (ML-DSA-87:
          * 2592 byte public key, 4627 byte signature). */
-        #define WC_MAX_X509_GEN 20480
-    #else
-        #define WC_MAX_X509_GEN 4096
+        #define WC_MAX_X509_GEN_MLDSA 20480
     #endif
+    /* DER buffer size for certificate/CSR signing, chosen from the signing
+     * key type so that only ML-DSA keys pay for the large buffer. */
+    #define X509_GEN_BUF_SZ(pkey) \
+        (((pkey) != NULL && (pkey)->type == WC_EVP_PKEY_DILITHIUM) ? \
+            WC_MAX_X509_GEN_MLDSA : WC_MAX_X509_GEN)
+#else
+    #define X509_GEN_BUF_SZ(pkey) WC_MAX_X509_GEN
 #endif
 
 /* returns the size of signature on success */
@@ -13010,13 +13018,21 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         const WOLFSSL_EVP_MD* md)
 {
     int  ret;
-    /* @TODO dynamic set based on expected cert size */
-    byte *der = (byte *)XMALLOC(WC_MAX_X509_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    int  derSz = WC_MAX_X509_GEN;
+    byte *der = NULL;
+    int  bufSz = 0;
+    int  derSz = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_sign");
 
     if (x509 == NULL || pkey == NULL || md == NULL) {
+        ret = WOLFSSL_FAILURE;
+        goto out;
+    }
+
+    bufSz = X509_GEN_BUF_SZ(pkey);
+    derSz = bufSz;
+    der = (byte *)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
         ret = WOLFSSL_FAILURE;
         goto out;
     }
@@ -13031,7 +13047,7 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         goto out;
     }
 
-    ret = wolfSSL_X509_resign_cert(x509, 0, der, WC_MAX_X509_GEN, derSz,
+    ret = wolfSSL_X509_resign_cert(x509, 0, der, bufSz, derSz,
             (WOLFSSL_EVP_MD*)md, pkey);
     if (ret <= 0) {
         WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
@@ -16968,33 +16984,38 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                           const WOLFSSL_EVP_MD *md)
 {
     int ret;
-    WC_DECLARE_VAR(der, byte, WC_MAX_X509_GEN, 0);
-    int derSz = WC_MAX_X509_GEN;
+    byte* der = NULL;
+    int bufSz;
+    int derSz;
 
     if (req == NULL || pkey == NULL || md == NULL) {
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", BAD_FUNC_ARG);
         return WOLFSSL_FAILURE;
     }
 
-    WC_ALLOC_VAR_EX(der, byte, derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-        return WOLFSSL_FAILURE);
+    bufSz = X509_GEN_BUF_SZ(pkey);
+    derSz = bufSz;
+    der = (byte*)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        return WOLFSSL_FAILURE;
+    }
 
     /* Create a Cert that has the certificate request fields. */
     req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
     ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0);
     if (ret != WOLFSSL_SUCCESS) {
-        WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_MSG("Unable to make DER for X509");
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", ret);
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_X509_resign_cert(req, 1, der, WC_MAX_X509_GEN, derSz,
+    if (wolfSSL_X509_resign_cert(req, 1, der, bufSz, derSz,
             (WOLFSSL_EVP_MD*)md, pkey) <= 0) {
-        WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
-    WC_FREE_VAR_EX(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
 }
 

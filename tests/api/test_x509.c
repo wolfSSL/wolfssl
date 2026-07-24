@@ -35,6 +35,7 @@
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/x509.h>
 #include <wolfssl/openssl/x509v3.h>
+#include <wolfssl/openssl/pem.h>
 
 #include <wolfssl/internal.h>
 #include <wolfssl/wolfcrypt/asn.h>
@@ -1150,8 +1151,8 @@ int test_x509_ReqCertFromX509_ext_critical(void)
 /* Sign a certificate request with an ML-DSA key through the compat layer
  * (wolfSSL_X509_REQ_sign), round-trip it through DER and verify the
  * signature with the public key recovered from the parsed request. The
- * REQ path sizes its DER buffer with WC_DECLARE_VAR/WC_MAX_X509_GEN,
- * separately from wolfSSL_X509_sign, so it needs its own coverage. */
+ * REQ path sizes and allocates its DER buffer separately from
+ * wolfSSL_X509_sign, so it needs its own coverage. */
 int test_x509_REQ_sign_mldsa(void)
 {
     EXPECT_DECLS;
