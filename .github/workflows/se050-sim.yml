@@ -31,14 +31,16 @@ permissions:
 # We patch it to COPY the PR checkout instead so CI reflects the PR's source.
 
 env:
-  SIMULATORS_REF: 745893640e21a15b7df8c70567c522953aba2f2c
+  SIMULATORS_REF: 41f85a521c66a3f7ed57fda745a39495f493e9d9
 
 jobs:
   se050_sim:
     name: wolfCrypt against SE050 simulator (${{ matrix.name }})
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Cold image rebuilds (registry cache miss after a SIMULATORS_REF bump,
+    # until the weekend cron refreshes the cache) need well over 30 minutes.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -100,4 +102,8 @@ jobs:
           cache-to: ${{ ((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && matrix.name == 'default') && 'type=registry,ref=ghcr.io/wolfssl/wolfssl-sim-cache:se050,mode=max' || '' }}
 
       - name: Run wolfCrypt tests against simulator
-        run: docker run --rm wolfssl-se050-sim:ci-${{ matrix.name }}
+        # SE050_SIM_STRICT_ECDH=1 makes the simulator enforce the applet 7.2
+        # ECDH InObject contract: the Tag7 target must be pre-created as an
+        # HMACKey object of exactly the shared-secret size or the derive is
+        # refused with SW 0x6985, matching SE05x applet >= 7.2 hardware.
+        run: docker run --rm -e SE050_SIM_STRICT_ECDH=1 wolfssl-se050-sim:ci-${{ matrix.name }}
