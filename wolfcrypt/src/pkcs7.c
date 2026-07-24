@@ -11820,6 +11820,11 @@ static int wc_PKCS7_KtriFakeCEK(wc_PKCS7* pkcs7, const byte* encryptedKey,
         return ret;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* seed is used as an HMAC key to derive the fallback CEK. */
+    wc_MemZero_Add("wc_PKCS7_KtriFakeCEK seed", seed, sizeof(seed));
+#endif
+
     ret = wc_HmacInit(hmac, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(hmac, WC_SHA256, seed, (word32)sizeof(seed));
@@ -11832,6 +11837,9 @@ static int wc_PKCS7_KtriFakeCEK(wc_PKCS7* pkcs7, const byte* encryptedKey,
         wc_HmacFree(hmac);
     }
     ForceZero(seed, sizeof(seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seed, sizeof(seed));
+#endif
     WC_FREE_VAR_EX(hmac, pkcs7->heap, DYNAMIC_TYPE_HMAC);
     return ret;
 }
@@ -12205,9 +12213,18 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                  * content decryption fail indistinguishably from "unwrap
                  * succeeded but CEK is wrong". */
                 byte fakeKey[WC_SHA256_DIGEST_SIZE];
-                int  fakeRet = wc_PKCS7_KtriFakeCEK(pkcs7, encryptedKey,
-                                                    (word32)encryptedKeySz,
-                                                    fakeKey);
+                int  fakeRet;
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* Register fakeKey from declaration (baseline-zeroed so it is
+                 * defined). It will hold the fallback content-encryption key.
+                 * Both exits below ForceZero+Check it. */
+                XMEMSET(fakeKey, 0, sizeof(fakeKey));
+                wc_MemZero_Add("wc_PKCS7_DecryptKtri fakeKey", fakeKey,
+                               sizeof(fakeKey));
+            #endif
+                fakeRet = wc_PKCS7_KtriFakeCEK(pkcs7, encryptedKey,
+                                               (word32)encryptedKeySz,
+                                               fakeKey);
 
                 if (fakeRet != 0) {
                     /* Fallback generation failed (e.g. RNG/HMAC error).
@@ -12215,6 +12232,9 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                      * not depend on RSA padding validity, rather than the
                      * RSA status which would re-open the oracle. */
                     ForceZero(fakeKey, sizeof(fakeKey));
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    wc_MemZero_Check(fakeKey, sizeof(fakeKey));
+                #endif
                     /* In the non-OAEP path RSA is decrypted in-place via
                      * wc_RsaPrivateDecryptInline, so encryptedKey holds
                      * the (possibly valid) plaintext CEK. Zero it before
@@ -12248,6 +12268,12 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     byte   realPad[WC_SHA256_DIGEST_SIZE];
 
                     XMEMSET(realPad, 0, sizeof(realPad));
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    /* realPad holds the real (padded) content-encryption
+                     * key selected in constant time. */
+                    wc_MemZero_Add("wc_PKCS7_DecryptKtri realPad", realPad,
+                                   sizeof(realPad));
+                #endif
                     /* Constant-time copy: avoid data-dependent branches
                      * that could leak whether RSA padding was valid.
                      * When outKey is NULL (inline RSA failure), use
@@ -12300,8 +12326,14 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     *decryptedKeySz = (word32)ctMaskSelInt(useFake,
                                         (int)sizeof(fakeKey), realLen);
                     ForceZero(realPad, sizeof(realPad));
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    wc_MemZero_Check(realPad, sizeof(realPad));
+                #endif
                 }
                 ForceZero(fakeKey, sizeof(fakeKey));
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(fakeKey, sizeof(fakeKey));
+                #endif
                 /* In the non-OAEP path RSA is decrypted in-place via
                  * wc_RsaPrivateDecryptInline, so encryptedKey holds the
                  * plaintext CEK after the unwrap. Zero it before free. */

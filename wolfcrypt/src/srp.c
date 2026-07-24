@@ -450,6 +450,13 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
     if (digestSz < 0)
         return digestSz;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* digest will hold the SRP private key x = H(salt | H(user:pass)).
+     * Register early so any future path that skips the ForceZero is caught. */
+    XMEMSET(digest, 0, SRP_MAX_DIGEST_SIZE);
+    wc_MemZero_Add("wc_SrpSetPassword digest", digest, SRP_MAX_DIGEST_SIZE);
+#endif
+
     /* digest = H(username | ':' | password) */
             r = SrpHashInit(&hash, srp->type, srp->heap);
     if (!r) r = SrpHashUpdate(&hash, srp->user, srp->userSz);
@@ -469,6 +476,9 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
     if (!r) r = mp_read_unsigned_bin(&srp->auth, digest, (word32)digestSz);
 
     ForceZero(digest, SRP_MAX_DIGEST_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, SRP_MAX_DIGEST_SIZE);
+#endif
 
     return r;
 }
@@ -667,6 +677,15 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
 
     srp->keySz = 2 * (word32)digestSz;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* digest and hash will hold derived session-key K material. Register now
+     * (past the MEMORY_E exit) so any later path that skips the ForceZero is
+     * caught. digest was already zeroed above; baseline the hash struct. */
+    XMEMSET(&hash, 0, sizeof(SrpHash));
+    wc_MemZero_Add("wc_SrpSetKey digest", digest, sizeof(digest));
+    wc_MemZero_Add("wc_SrpSetKey hash", &hash, sizeof(SrpHash));
+#endif
+
     for (i = j = 0; j < srp->keySz; i++) {
         counter[0] = (byte)(i >> 24);
         counter[1] = (byte)(i >> 16);
@@ -696,6 +715,10 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
 
     ForceZero(digest, sizeof(digest));
     ForceZero(&hash, sizeof(SrpHash));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+    wc_MemZero_Check(&hash, sizeof(SrpHash));
+#endif
 
     return r;
 }
@@ -997,6 +1020,13 @@ int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size)
     if (size != (word32)hashSize || size > INT_MAX)
         return BUFFER_E;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* digest will hold the expected peer proof derived from session key K.
+     * Register early so any future path that skips the ForceZero is caught. */
+    XMEMSET(digest, 0, sizeof(digest));
+    wc_MemZero_Add("wc_SrpVerifyPeersProof digest", digest, sizeof(digest));
+#endif
+
     r = SrpHashFinal(srp->side == SRP_CLIENT_SIDE ? &srp->server_proof
                                                   : &srp->client_proof, digest);
 
@@ -1010,6 +1040,9 @@ int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size)
         r = SRP_VERIFY_E;
 
     ForceZero(digest, sizeof(digest));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(digest, sizeof(digest));
+#endif
 
     return r;
 }

@@ -238,18 +238,23 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
             byte l[WC_AES_BLOCK_SIZE];
 
             XMEMSET(l, 0, WC_AES_BLOCK_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("InitInternal l", l, WC_AES_BLOCK_SIZE);
+#endif
 #ifndef HAVE_SELFTEST
             ret = wc_AesEncryptDirect(&cmac->aes, l, l);
             if (ret == 0) {
                 ShiftAndXorRb(cmac->k1, l);
                 ShiftAndXorRb(cmac->k2, cmac->k1);
-                ForceZero(l, WC_AES_BLOCK_SIZE);
             }
 #else
             wc_AesEncryptDirect(&cmac->aes, l, l);
             ShiftAndXorRb(cmac->k1, l);
             ShiftAndXorRb(cmac->k2, cmac->k1);
+#endif
             ForceZero(l, WC_AES_BLOCK_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(l, WC_AES_BLOCK_SIZE);
 #endif
         }
         break;

@@ -166,6 +166,12 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     /* setup aead context */
     XMEMSET(aead, 0, sizeof(ChaChaPoly_Aead));
     XMEMSET(authKey, 0, sizeof(authKey));
+    /* authKey has a zero baseline above; register here (past the arg check)
+     * so every exit funnels to the single ForceZero+Check below. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ChaCha20Poly1305_Init authKey", authKey,
+        sizeof(authKey));
+#endif
     aead->isEncrypt = isEncrypt ? 1 : 0;
 
     /* Initialize the ChaCha20 context (key and iv) */
@@ -199,6 +205,9 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     }
 
     ForceZero(authKey, sizeof(authKey));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(authKey, sizeof(authKey));
+#endif
 
     return ret;
 }
@@ -342,6 +351,10 @@ int wc_XChaCha20Poly1305_Init(
 
     XMEMSET(authKey, 0, sizeof authKey);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("xchacha20poly1305 authKey", authKey, sizeof authKey);
+#endif
+
     /* Create the Poly1305 key */
     if ((ret = wc_Chacha_Process(&aead->chacha, authKey, authKey,
                                  (word32)sizeof authKey)) < 0)
@@ -367,6 +380,9 @@ int wc_XChaCha20Poly1305_Init(
 
 out:
     ForceZero(authKey, sizeof(authKey));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(authKey, sizeof(authKey));
+#endif
 
     return ret;
 }

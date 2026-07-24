@@ -561,6 +561,18 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
         return ret;
     }
 
+    /* Register the key-material buffers now: past this point every path reaches
+     * the scrub below. Baseline-zero first so they are defined at registration. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(k1, 0xff, sizeof(k1));
+    XMEMSET(k2, 0xff, sizeof(k2));
+    XMEMSET(kdfInput, 0xff, sizeof(kdfInput));
+    wc_MemZero_Add("wc_SHE_GenerateM1M2M3 kdfInput", kdfInput,
+        sizeof(kdfInput));
+    wc_MemZero_Add("wc_SHE_GenerateM1M2M3 k1", k1, sizeof(k1));
+    wc_MemZero_Add("wc_SHE_GenerateM1M2M3 k2", k2, sizeof(k2));
+#endif
+
     /* ---- Derive K1 = AES-MP(AuthKey || CENC) ---- */
     XMEMCPY(kdfInput, authKey, WC_SHE_KEY_SZ);
     XMEMCPY(kdfInput + WC_SHE_KEY_SZ, encC, WC_SHE_KEY_SZ);
@@ -613,6 +625,11 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     ForceZero(k1, sizeof(k1));
     ForceZero(k2, sizeof(k2));
     ForceZero(kdfInput, sizeof(kdfInput));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(k1, sizeof(k1));
+    wc_MemZero_Check(k2, sizeof(k2));
+    wc_MemZero_Check(kdfInput, sizeof(kdfInput));
+#endif
 
     wc_AesFree(aes);
     WC_FREE_VAR(aes, she->heap);
@@ -716,6 +733,18 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
         return ret;
     }
 
+    /* Register the key-material buffers now: past this point every path reaches
+     * the scrub below. Baseline-zero first so they are defined at registration. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(k3, 0xff, sizeof(k3));
+    XMEMSET(k4, 0xff, sizeof(k4));
+    XMEMSET(kdfInput, 0xff, sizeof(kdfInput));
+    wc_MemZero_Add("wc_SHE_GenerateM4M5 kdfInput", kdfInput,
+        sizeof(kdfInput));
+    wc_MemZero_Add("wc_SHE_GenerateM4M5 k3", k3, sizeof(k3));
+    wc_MemZero_Add("wc_SHE_GenerateM4M5 k4", k4, sizeof(k4));
+#endif
+
     /* ---- Derive K3 = AES-MP(NewKey || CENC) ---- */
     XMEMCPY(kdfInput, newKey, WC_SHE_KEY_SZ);
     XMEMCPY(kdfInput + WC_SHE_KEY_SZ, encC, WC_SHE_KEY_SZ);
@@ -760,6 +789,11 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     ForceZero(k3, sizeof(k3));
     ForceZero(k4, sizeof(k4));
     ForceZero(kdfInput, sizeof(kdfInput));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(k3, sizeof(k3));
+    wc_MemZero_Check(k4, sizeof(k4));
+    wc_MemZero_Check(kdfInput, sizeof(kdfInput));
+#endif
 
     wc_AesFree(aes);
     WC_FREE_VAR(aes, she->heap);

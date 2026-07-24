@@ -28,6 +28,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/memory.h>
 /* fpr / FFT / poly seam declarations, folded in from the former internal
  * wc_falcon_{fpr,fft,poly}.h so the native Falcon implementation is a single
  * translation unit (the AVX2/NEON FFT backends at the end of this file
@@ -4246,6 +4247,11 @@ int falcon_prng_init(falcon_prng* p, WC_RNG* rng)
     p->err = 0;
 
     ret = wc_RNG_GenerateBlock(rng, seed, (word32)sizeof(seed));
+    /* seed now holds the secret PRNG seed; register before the init/absorb
+     * steps so no future early-exit can leak it unzeroed. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("falcon prng seed", seed, (word32)sizeof(seed));
+#endif
     if (ret == 0) {
         ret = wc_InitShake256(&p->shake, NULL, INVALID_DEVID);
         if (ret == 0) {
@@ -4262,6 +4268,9 @@ int falcon_prng_init(falcon_prng* p, WC_RNG* rng)
         }
     }
     ForceZero(seed, (word32)sizeof(seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seed, (word32)sizeof(seed));
+#endif
 
     return ret;
 }
@@ -4552,19 +4561,28 @@ static int falcon_rng_init(falcon_rng* r, WC_RNG* rng, void* heap)
     if (ret != 0) {
         return ret;
     }
+    /* seed now holds the secret key material; register it before the init /
+     * absorb steps so an error path cannot leak it unzeroed. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("falcon rng seed", seed, sizeof(seed));
+#endif
     ret = wc_InitShake256(&r->shake, heap, INVALID_DEVID);
-    if (ret != 0) {
-        return ret;
+    if (ret == 0) {
+        ret = wc_Shake256_Absorb(&r->shake, seed, (word32)sizeof(seed));
+        if (ret != 0) {
+            wc_Shake256_Free(&r->shake);
+        }
+        else {
+            /* Force a squeeze on the first extraction. */
+            r->ptr = sizeof(r->buf);
+        }
     }
-    ret = wc_Shake256_Absorb(&r->shake, seed, (word32)sizeof(seed));
-    if (ret != 0) {
-        wc_Shake256_Free(&r->shake);
-        return ret;
-    }
-    /* Force a squeeze on the first extraction. */
-    r->ptr = sizeof(r->buf);
-    wc_ForceZero(seed, sizeof(seed));   /* seed determines the secret key */
-    return 0;
+    /* seed determines the secret key: zeroed on every path below. */
+    wc_ForceZero(seed, sizeof(seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seed, sizeof(seed));
+#endif
+    return ret;
 }
 
 static void falcon_rng_free(falcon_rng* r)
@@ -8243,6 +8261,14 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     }
     heap = key->heap;
 
+    /* spc may hold seed-derived sampler state; baseline-zero and register it
+     * before the arena/decode/sampler work so every goto-out and any future
+     * early-exit path is covered by the check. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(&spc, 0, sizeof(spc));
+    wc_MemZero_Add("falcon sign spc", &spc, sizeof(spc));
+#endif
+
     /* One allocation backs every sign buffer (the working set is >100KB at
      * Falcon-1024, so it stays on the heap in all builds). Ordered by decreasing
      * alignment -- fpr (expanded, tmp), then word16 (c, s2), then sword8
@@ -8360,6 +8386,9 @@ out:
     /* Always zeroize: the SHAKE sponge may hold seed-derived state even if
      * falcon_sampler_init failed after absorbing the seed. */
     ForceZero(&spc, sizeof(spc));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(&spc, sizeof(spc));
+#endif
     /* One ForceZero + free covers every secret in the arena (f/g/F/G, the
      * expanded basis, and the sign scratch). */
     if (arena != NULL) {
