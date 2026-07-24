@@ -5328,10 +5328,53 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #include <posix/time.h>
     #endif
 
+    #if defined(CONFIG_ENTROPY_HAS_DRIVER) && DT_HAS_CHOSEN(zephyr_entropy)
+        /* Match the zephyr/-prefixed include layout used above: it did not
+         * exist before Zephyr 3.1. */
+        #if KERNEL_VERSION_NUMBER >= 0x30100
+            #include <zephyr/device.h>
+            #include <zephyr/drivers/entropy.h>
+        #else
+            #include <device.h>
+            #include <drivers/entropy.h>
+        #endif
+    #endif
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
+    /* Seed the DRBG straight from the hardware entropy driver when the platform
+     * exposes one (a zephyr,entropy chosen node), so wolfCrypt gets
+     * cryptographic-quality seed material instead of the general-purpose
+     * sys_rand_get(). A dead source returns an error, which makes wc_InitRng()
+     * fail (RNG_FAILURE_E) rather than yield weak output. Boards that set
+     * CONFIG_ENTROPY_HAS_DRIVER without a chosen entropy node fall back to
+     * sys_rand_get() rather than failing the build. */
+    #if defined(CONFIG_ENTROPY_HAS_DRIVER) && DT_HAS_CHOSEN(zephyr_entropy)
+        const struct device *dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_entropy));
+        word32 off = 0;
+        word32 rem;
+        uint16_t chunk;
+
+        (void)os;
+        if (!device_is_ready(dev)) {
+            return RNG_FAILURE_E;
+        }
+        /* entropy_get_entropy() takes a uint16_t length; chunk the request so
+         * any word32 seed size is honored without silent truncation. */
+        while (off < sz) {
+            rem = sz - off;
+            chunk = (rem > 0xFFFFU) ? (uint16_t)0xFFFFU : (uint16_t)rem;
+            if (entropy_get_entropy(dev, (uint8_t *)output + off, chunk) != 0) {
+                return RNG_FAILURE_E;
+            }
+            off += chunk;
+        }
+        return 0;
+    #else
+        (void)os;
         sys_rand_get(output, sz);
         return 0;
+    #endif
     }
 
 #elif defined(WOLFSSL_TELIT_M2MB)

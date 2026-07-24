@@ -238,7 +238,6 @@ Threading/Mutex options:
 #if defined(WOLFSSL_ZEPHYR)
 #if defined(CONFIG_BOARD_NATIVE_POSIX) || defined(CONFIG_BOARD_NATIVE_SIM)
 #include "native_rtc.h"
-#define CONFIG_RTC
 #endif
 #endif
 
@@ -4439,16 +4438,13 @@ time_t xilinx_time(time_t * timer)
 
 time_t z_time(time_t * timer)
 {
-    struct timespec ts;
-
-    #if defined(CONFIG_RTC) && \
-        (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
-
     #if defined(CONFIG_BOARD_NATIVE_POSIX) || defined(CONFIG_BOARD_NATIVE_SIM)
 
-    /* When using native sim, get time from simulator rtc */
+    /* native_sim: read the simulator RTC for a real host wall-clock. The
+     * real-target RTC/libc gate below is compiled out under the host libc. */
     uint32_t nsec = 0;
     uint64_t sec = 0;
+
     native_rtc_gettime(RTC_CLOCK_PSEUDOHOSTREALTIME, &nsec, &sec);
 
     if (timer != NULL)
@@ -4457,6 +4453,11 @@ time_t z_time(time_t * timer)
     return sec;
 
     #else
+
+    struct timespec ts = { 0 };
+
+    #if defined(CONFIG_RTC) && \
+        (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
 
     /* Try to obtain the actual time from an RTC */
     static const struct device *rtc = DEVICE_DT_GET(DT_NODELABEL(rtc));
@@ -4476,8 +4477,7 @@ time_t z_time(time_t * timer)
             return epochTime;
         }
     }
-    #endif /* CONFIG_BOARD_NATIVE_POSIX || CONFIG_BOARD_NATIVE_SIM */
-    #endif
+    #endif /* CONFIG_RTC && (CONFIG_PICOLIBC || CONFIG_NEWLIB_LIBC) */
 
     /* Fallback to uptime since boot. This works for relative times, but
      * not for ASN.1 date validation */
@@ -4486,6 +4486,8 @@ time_t z_time(time_t * timer)
             *timer = ts.tv_sec;
 
     return ts.tv_sec;
+
+    #endif /* CONFIG_BOARD_NATIVE_POSIX || CONFIG_BOARD_NATIVE_SIM */
 }
 
 #endif /* WOLFSSL_ZEPHYR */
@@ -5261,8 +5263,78 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
     }
 
 #ifdef WOLFSSL_COND
-    /* Use the pthreads translation layer for signaling */
+    /* Native Zephyr condition variables (k_condvar) over a k_mutex; no POSIX
+     * pthread layer required. Semantics mirror the pthread implementation. */
+    int wolfSSL_CondInit(COND_TYPE* cond)
+    {
+        int ret;
 
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        ret = wc_InitMutex(&cond->mutex);
+        if (ret == 0) {
+            /* k_condvar_init always returns 0 on Zephyr. */
+            (void)k_condvar_init(&cond->cond);
+        }
+
+        return ret;
+    }
+
+    int wolfSSL_CondFree(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        /* k_condvar has no destroy; just release the backing mutex. */
+        return wc_FreeMutex(&cond->mutex);
+    }
+
+    int wolfSSL_CondStart(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondSignal(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        /* Caller holds cond->mutex; wake a single waiter. */
+        (void)k_condvar_signal(&cond->cond);
+
+        return 0;
+    }
+
+    int wolfSSL_CondWait(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        /* Atomically releases the mutex, blocks, and re-acquires it on wake,
+         * matching pthread_cond_wait semantics. */
+        if (k_condvar_wait(&cond->cond, &cond->mutex, K_FOREVER) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondEnd(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
 #endif /* WOLFSSL_COND */
 
 #elif defined(WOLFSSL_PTHREADS) || \

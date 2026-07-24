@@ -1,0 +1,32 @@
+common:
+  tags:
+    - wolfssl
+    - threading
+  harness: ztest
+tests:
+  crypto.wolfssl.condvar:
+    # native_sim only: the test builds wolfCrypt multi-threaded with no POSIX.
+    # wc_port.c's z_time() reads the native_sim simulator RTC (native_rtc_gettime)
+    # for a real wall clock; non-native boards would need the POSIX clock enabled,
+    # so restrict to native_sim rather than fail elsewhere. Allow both the plain
+    # board (older Zephyr / x86 CI, where native_sim/native/64 does not exist) and
+    # the hardware-model-v2 64-bit variant (aarch64 host).
+    platform_allow:
+      - native_sim
+      - native_sim/native/64
+    integration_platforms:
+      - native_sim
+      - native_sim/native/64
+  crypto.wolfssl.condvar_crypto_only:
+    # Same threaded condvar test with the WOLFSSL_CRYPTO_ONLY build-profile knob
+    # set (WOLFCRYPT_ONLY, no TLS layer), giving that knob explicit build+run
+    # coverage in the module: the native k_mutex/k_thread/k_condvar path must
+    # still work in a crypto-only image.
+    platform_allow:
+      - native_sim
+      - native_sim/native/64
+    integration_platforms:
+      - native_sim
+      - native_sim/native/64
+    extra_configs:
+      - CONFIG_WOLFSSL_CRYPTO_ONLY=y

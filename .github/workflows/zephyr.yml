@@ -92,10 +92,13 @@ jobs:
       - name: Run wolfssl test
         id: wolfssl-test
         working-directory: zephyr
+        # Scope -T to the sample directory (not the whole module) so twister does
+        # not load zephyr/tests/*/testcase.yaml. The condvar test's modern
+        # list-form platform_allow is rejected by the 2.7.4 twister schema, and
+        # this is the only sample step that runs on 2.7.4. Runs both scenarios
+        # (wolfssl_test and wolfssl_test_no_malloc).
         run: |
-          ./zephyr/scripts/twister -T modules/crypto/wolfssl --test zephyr/samples/wolfssl_test/sample.crypto.wolfssl_test -vvv
-          rm -rf zephyr/twister-out
-          ./zephyr/scripts/twister -T modules/crypto/wolfssl --test zephyr/samples/wolfssl_test/sample.crypto.wolfssl_test_no_malloc -vvv
+          ./zephyr/scripts/twister -T modules/crypto/wolfssl/zephyr/samples/wolfssl_test -vvv
           rm -rf zephyr/twister-out
 
       - name: Run wolfssl TLS sock test

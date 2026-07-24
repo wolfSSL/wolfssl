@@ -24,10 +24,17 @@
 
 #ifdef CONFIG_WOLFSSL
 
-/* If a custom user_settings file is provided use it instead.
- * CONFIG_WOLFSSL_SETTINGS_FILE is always defined. If it is not explicitly set
- * in prj.conf then it is auto-defined to "". This obviously causes issues here.
- * That is why we define WOLFSSL_SETTINGS_FILE in CMakeLists.txt. */
+/* The wolfCrypt feature configuration comes from the user's own settings file
+ * if one was supplied (CONFIG_WOLFSSL_SETTINGS_FILE), otherwise from the module
+ * default below. CONFIG_WOLFSSL_SETTINGS_FILE is always defined; when it is not
+ * set in prj.conf it is auto-defined to "", so WOLFSSL_SETTINGS_FILE is only
+ * defined (in CMakeLists.txt) when a real path was given. A user-supplied
+ * settings file is authoritative: the build-profile Kconfig knobs
+ * (WOLFSSL_CRYPTO_ONLY, WOLFSSL_SINGLE_THREADED) shape ONLY the module default
+ * below and are NOT applied on top of a settings file, so the two config
+ * interfaces never mix. A consumer like wolfPSA that needs specific wolfCrypt
+ * options checks for them itself and fails the build if a settings file omits
+ * them, rather than injecting them here. */
 #ifdef WOLFSSL_SETTINGS_FILE
 #include WOLFSSL_SETTINGS_FILE
 #else
@@ -82,9 +89,38 @@ extern "C" {
 /* FIPS */
 /* ------------------------------------------------------------------------- */
 #ifdef CONFIG_WOLFCRYPT_FIPS
-    /* FIPS Ready */
-    #define HAVE_FIPS_VERSION 5
-    #define HAVE_FIPS_VERSION_MINOR 3
+    /* HAVE_FIPS is the master switch that routes the wolfCrypt algorithms
+     * through the FIPS module boundary. The version macros below must match the
+     * dropped-in FIPS bundle (see the CMake FIPS-boundary block); settings.h
+     * folds them into WOLFSSL_FIPS_VERSION_CODE for the in-boundary gating. */
+    #define HAVE_FIPS
+    /* Version triples mirror configure.ac's --enable-fips=VERSION mapping. */
+    #if defined(CONFIG_WOLFCRYPT_FIPS_READY)
+        /* FIPS Ready: in-tree, feature locked, one ahead of the latest. */
+        #define HAVE_FIPS_VERSION       8
+        #define HAVE_FIPS_VERSION_MINOR 0
+        #define HAVE_FIPS_VERSION_PATCH 0
+    #elif defined(CONFIG_WOLFCRYPT_FIPS_V7)
+        /* FIPS 140-3 v7 full submission. */
+        #define HAVE_FIPS_VERSION       7
+        #define HAVE_FIPS_VERSION_MINOR 0
+        #define HAVE_FIPS_VERSION_PATCH 0
+    #elif defined(CONFIG_WOLFCRYPT_FIPS_V6)
+        /* FIPS 140-3 SRTP-KDF full submission. */
+        #define HAVE_FIPS_VERSION       6
+        #define HAVE_FIPS_VERSION_MINOR 0
+        #define HAVE_FIPS_VERSION_PATCH 0
+    #elif defined(CONFIG_WOLFCRYPT_FIPS_V5)
+        /* FIPS 140-3 Cert #4718 (wolfCrypt 5.2.1). */
+        #define HAVE_FIPS_VERSION       5
+        #define HAVE_FIPS_VERSION_MINOR 2
+        #define HAVE_FIPS_VERSION_PATCH 1
+    #elif defined(CONFIG_WOLFCRYPT_FIPS_V2)
+        /* FIPS 140-2 Cert #3389. */
+        #define HAVE_FIPS_VERSION       2
+        #define HAVE_FIPS_VERSION_MINOR 0
+        #define HAVE_FIPS_VERSION_PATCH 0
+    #endif
 #endif
 
 
@@ -114,7 +150,9 @@ extern "C" {
 #define HAVE_EXTENDED_MASTER
 #define HAVE_ENCRYPT_THEN_MAC
 #define HAVE_SERVER_RENEGOTIATION_INFO
-#define HAVE_SNI /* optional Server Name Indicator (SNI) */
+#if defined(CONFIG_WOLFSSL_SNI)
+    #define HAVE_SNI /* optional Server Name Indication (SNI) */
+#endif
 
 /* ASN */
 #define WOLFSSL_ASN_TEMPLATE /* use newer ASN template asn.c code (default) */
@@ -124,13 +162,14 @@ extern "C" {
 #endif
 
 /* Session Cache */
-#if 1
+#if defined(CONFIG_WOLFSSL_SESSION_CACHE)
     #define SMALL_SESSION_CACHE
-    #ifdef WOLFSSL_TLS13
-        #define HAVE_SESSION_TICKET /* session tickets required for resumption in TLS v1.3 */
-    #endif
 #else
     #define NO_SESSION_CACHE /* disable session resumption */
+#endif
+/* TLS 1.3 stateless session tickets -- independent of the internal cache. */
+#if defined(CONFIG_WOLFSSL_SESSION_TICKET) && defined(WOLFSSL_TLS13)
+    #define HAVE_SESSION_TICKET
 #endif
 
 /* Session export (external session cache) */
@@ -194,15 +233,27 @@ extern "C" {
 /* Algorithms */
 /* ------------------------------------------------------------------------- */
 /* RNG */
+/* wolfCrypt Hash-DRBG (SHA2-256). On Zephyr its seed comes from wc_GenerateSeed()
+ * (wolfcrypt/src/random.c), which draws from the hardware entropy driver when one
+ * is present and falls back to sys_rand_get() otherwise -- so no seed callback is
+ * registered. Guarded by WC_NO_HASHDRBG so a PSA-RNG build
+ * (CONFIG_MBEDTLS_PSA_CRYPTO_C above) can still disable the internal DRBG and
+ * route randomness through the PSA provider. */
 #ifndef WC_NO_HASHDRBG
-    #define HAVE_HASHDRBG /* Use DRBG SHA2-256 and seed */
-    #ifdef CONFIG_CSPRNG_ENABLED
-        #define WC_RNG_SEED_CB
-    #endif
+    #define HAVE_HASHDRBG
+#endif
+
+/* Build-profile knobs for the module-default config only (a user-supplied
+ * settings file sets these itself). */
+#ifdef CONFIG_WOLFSSL_CRYPTO_ONLY
+    #define WOLFCRYPT_ONLY
+#endif
+#ifdef CONFIG_WOLFSSL_SINGLE_THREADED
+    #define SINGLE_THREADED
 #endif
 
 /* ECC */
-#if 1
+#if defined(CONFIG_WOLFSSL_ECC)
     #define HAVE_ECC
     #define ECC_USER_CURVES      /* Enable only ECC curves specific */
     #undef  NO_ECC256            /* Enable SECP256R1 only (on by default) */
@@ -225,7 +276,7 @@ extern "C" {
 #define WOLFSSL_OLD_PRIME_CHECK /* Use faster DH prime checking */
 
 /* RSA */
-#if 1
+#if defined(CONFIG_WOLFSSL_RSA)
     #undef NO_RSA
     #define WC_RSA_BLINDING
     //#define WC_RSA_NO_PADDING
@@ -256,7 +307,7 @@ extern "C" {
 #endif
 
 /* ChaCha20 / Poly1305 */
-#if 1
+#if defined(CONFIG_WOLFSSL_CHACHA_POLY)
     #define HAVE_CHACHA
     #define HAVE_POLY1305
 
@@ -265,7 +316,7 @@ extern "C" {
 #endif
 
 /* Ed25519 / Curve25519 */
-#if 0
+#if defined(CONFIG_WOLFSSL_CURVE25519)
     #define HAVE_CURVE25519
     #define HAVE_ED25519 /* ED25519 Requires SHA512 */
 
@@ -358,13 +409,52 @@ extern "C" {
 #define NO_MD5
 //#define NO_DES3 /* Necessary for pkcs12 tests */
 
-/* PQC ML-KEM */
+/* PQC families -- each independently selectable so a Kconfig-driven build (no
+ * user-provided settings file) can include only what a consumer needs and keep
+ * the flash footprint down. All default off. */
 #if defined(CONFIG_WOLFSSL_MLKEM)
     #define WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_MLKEM_NO_LARGE_CODE
     #define WOLFSSL_MLKEM_SMALL
     #define WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
     #define WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    #define WOLFSSL_MLKEM_DYNAMIC_KEYS
+#endif
+
+#if defined(CONFIG_WOLFSSL_MLDSA)
+    #define WOLFSSL_HAVE_MLDSA
+    #define WOLFSSL_MLDSA_NO_LARGE_CODE
+    #define WOLFSSL_MLDSA_SMALL
+    #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
+    #define WOLFSSL_MLDSA_DYNAMIC_KEYS
+    #define WOLFSSL_MLDSA_SIGN_SMALL_MEM
+    #define WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+#endif
+
+#if defined(CONFIG_WOLFSSL_LMS)
+    #define WOLFSSL_HAVE_LMS
+    #define WOLFSSL_LMS_VERIFY_ONLY
+#endif
+
+#if defined(CONFIG_WOLFSSL_XMSS)
+    #define WOLFSSL_HAVE_XMSS
+    #define WOLFSSL_XMSS_VERIFY_ONLY
+#endif
+
+#if defined(CONFIG_WOLFSSL_FALCON)
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS /* HAVE_FALCON is gated experimental */
+    #define HAVE_FALCON
+    /* Small-memory dynamic signer instead of the fast tree-signer (keeps full
+     * sign+verify); the default portable integer FPR backend needs no ASM. */
+    #define WOLFSSL_FALCON_SIGN_SMALL_MEM
+#endif
+
+/* SHA-3 / SHAKE are required by ML-KEM, ML-DSA, and Falcon; enable them (small
+ * variant) when any is on, and explicitly disable SHAKE otherwise to keep a
+ * non-PQC build lean. */
+#if defined(CONFIG_WOLFSSL_MLKEM) || defined(CONFIG_WOLFSSL_MLDSA) || \
+    defined(CONFIG_WOLFSSL_FALCON)
+    #define WOLFSSL_SHA3_SMALL
     #define WOLFSSL_SHAKE128
     #define WOLFSSL_SHAKE256
 #else
@@ -496,7 +586,8 @@ extern "C" {
 }
 #endif
 
-#endif /* CONFIG_WOLFSSL_SETTINGS_FILE */
+#endif /* WOLFSSL_SETTINGS_FILE */
+
 #endif /* CONFIG_WOLFSSL */
 
 #endif /* USER_SETTINGS_H */
