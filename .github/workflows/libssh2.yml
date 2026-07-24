@@ -90,7 +90,12 @@ jobs:
 
       - name: Run libssh2 tests
         working-directory: libssh2
-        run: make -j check
+        # The Docker OpenSSH-server tests hit a container-readiness race
+        # ("Failed getting banner"): the client connects before sshd in the
+        # freshly started container is ready to send its banner. Re-run only
+        # the tests that did not pass, so a transient race does not fail the
+        # job while a genuine failure still does.
+        run: make -j check || make recheck || make recheck
 
       - name: Confirm libssh2 built with wolfSSL
         run: ldd libssh2/src/.libs/libssh2.so | grep wolfssl
