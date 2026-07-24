@@ -83,6 +83,13 @@ runs:
     - name: Configure ccache and PATH
       shell: bash
       run: |
+        # Set CCACHE_DIR for the commands below too, not only via
+        # GITHUB_ENV (which applies to later steps): without it the
+        # settings land in a different default dir on runs where
+        # ~/.ccache does not exist yet, and seed runs then compile
+        # with mismatched hash settings that later runs cannot reuse.
+        export CCACHE_DIR="$HOME/.ccache"
+        mkdir -p "$CCACHE_DIR"
         ccache -M "${{ inputs.max-size }}"
         # base_dir lets ccache reuse hits across different workspace
         # checkout paths (different runs use different /home/.../work/ dirs).
