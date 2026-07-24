@@ -1735,8 +1735,12 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleCheck(
     ret = 0;
 
 out:
+#ifdef WOLFSSL_KERNEL_MODE
+    (void)abort_p;
+#else
     if ((ret < 0) && abort_p)
         abort();
+#endif
 
     return ret;
 }

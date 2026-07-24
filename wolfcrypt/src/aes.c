@@ -15550,7 +15550,11 @@ void wc_AesFree(Aes* aes)
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
-    (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, aes->heap, 1);
+    {
+        int ret = wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, aes->heap, 1);
+        if (ret != 0)
+            WOLFSSL_DEBUG_PRINTF("ERROR: wc_AesFree(): wc_debug_CipherLifecycleFree() returned %d.\n", ret);
+    }
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)

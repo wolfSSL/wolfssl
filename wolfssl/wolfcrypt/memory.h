@@ -340,12 +340,17 @@ WOLFSSL_API int wc_ConstantCompare(const byte* a, const byte* b, int length);
 #endif
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
-WOLFSSL_LOCAL int wc_debug_CipherLifecycleInit(void **CipherLifecycleTag,
-                                               void *heap);
-WOLFSSL_LOCAL int wc_debug_CipherLifecycleCheck(void *CipherLifecycleTag,
-                                                int abort_p);
-WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
-                                               void *heap, int abort_p);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    #define WC_DEBUG_CIPHERLIFECYCLE_WUR WARN_UNUSED_RESULT
+#else
+    #define WC_DEBUG_CIPHERLIFECYCLE_WUR
+#endif
+WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleInit
+                                       (void **CipherLifecycleTag, void *heap);
+WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleCheck
+                                       (void *CipherLifecycleTag, int abort_p);
+WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
+                          (void **CipherLifecycleTag, void *heap, int abort_p);
 #else
 #define wc_debug_CipherLifecycleInit(CipherLifecycleTag, heap) \
         ((void)(CipherLifecycleTag), (void)(heap), 0)

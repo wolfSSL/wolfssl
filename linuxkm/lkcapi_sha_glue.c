@@ -407,7 +407,11 @@
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)) &&  \
-    (defined(LINUXKM_LKCAPI_REGISTER_SHA1_HMAC) ||     \
+    (defined(LINUXKM_LKCAPI_REGISTER_SHA3_224)      || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_256)      || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_384)      || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_512)      || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA1_HMAC)     || \
      defined(LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC) || \
      defined(LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC) || \
      defined(LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC) || \
@@ -416,7 +420,7 @@
      defined(LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC) || \
      defined(LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC) || \
      defined(LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC))
-    #error LINUXKM_LKCAPI_REGISTER for HMACs is supported only on Linux kernel versions >= 5.6.0.
+    #error LINUXKM_LKCAPI_REGISTER for SHA-3 and HMACs is supported only on Linux kernel versions >= 5.6.0.
 #endif
 
 #ifdef HAVE_HASHDRBG
@@ -1588,6 +1592,7 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
     struct km_sha_hmac_node *snapshot;
     struct km_sha_hmac_node *evicted = NULL;
     int ret;
+    typeof(snapshot->desc_id) snapshot_desc_id;
 
     if (s_ctx->node == NULL)
         return -EINVAL;
@@ -1624,7 +1629,7 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
         list_del(&evicted->desc_ent);
         p_ctx->export_list_len--;
     }
-    snapshot->desc_id = p_ctx->cur_desc_id++;
+    snapshot_desc_id = snapshot->desc_id = p_ctx->cur_desc_id++;
     /* list_add() prepends, so the tail from list_last_entry() is the oldest. */
     list_add(&snapshot->desc_ent, &p_ctx->export_list);
     p_ctx->export_list_len++;
@@ -1645,7 +1650,7 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
     XMEMSET(blob, 0, sizeof(*blob));
     blob->magic = WC_LINUXKM_HMAC_EXPORT_MAGIC;
     blob->tfm_cookie = p_ctx->tfm_cookie;
-    blob->desc_id = snapshot->desc_id;
+    blob->desc_id = snapshot_desc_id;
 
     return 0;
 }

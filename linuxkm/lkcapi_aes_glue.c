@@ -271,6 +271,10 @@
     #undef LINUXKM_LKCAPI_REGISTER_AESCMAC
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)) && defined(LINUXKM_LKCAPI_REGISTER_AESCMAC)
+    #error LINUXKM_LKCAPI_REGISTER for AES-CMAC is supported only on Linux kernel versions >= 5.6.0.
+#endif
+
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCMAC
     #include <wolfssl/wolfcrypt/cmac.h>
 #endif
@@ -513,6 +517,16 @@ static int km_AesGet(struct km_AesCtx *ctx, int decrypt_p, int copy_p, Aes **aes
         XMEMCPY(aes_copy, ret, sizeof(Aes));
 #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
         aes_copy->streamData = NULL;
+#endif
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        {
+            int ret2 = wc_debug_CipherLifecycleInit(&aes_copy->CipherLifecycleTag, NULL);
+            if (ret2 != 0) {
+                ForceZero(aes_copy, sizeof *aes_copy);
+                free(aes_copy);
+                return -ENOMEM;
+            }
+        }
 #endif
         *aes = aes_copy;
     }
@@ -5017,6 +5031,9 @@ static int linuxkm_test_aesecb(void) {
  * configurations: wc_AesFree()'s only mainstream XFREE() target is the
  * GCM-streaming streamData buffer, which the CMAC path never allocates.
  * _CRYPTO_CB per-instance contexts would break that invariant.
+ *
+ * The tracking allocation when WC_DEBUG_CIPHER_LIFECYCLE is accommodated
+ * explicitly in km_AesCmacMaterialize().
  */
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #error LINUXKM_LKCAPI_REGISTER_AESCMAC is incompatible with WOLF_CRYPTO_CB_FREE.
@@ -5111,14 +5128,16 @@ static int km_AesCmacSetKey(struct crypto_shash *tfm, const u8 *key,
         /* wc_InitCmac() zeroizes the Cmac before use, but doesn't release the
          * embedded Aes on post-wc_AesInit() failures.
          */
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
 #ifdef WC_LINUXKM_CMAC_HAVE_CMACFREE
-        (void)wc_CmacFree(new_pristine);
+            (void)wc_CmacFree(new_pristine);
 #else
-        /* no wc_CmacFree() in the boundary -- a failed-init Cmac holds no
-         * allocations in pre-v6 FIPS configurations, so zeroization suffices.
-         */
-        ForceZero(new_pristine, sizeof(*new_pristine));
+            /* no wc_CmacFree() in the boundary -- a failed-init Cmac holds no
+             * allocations in pre-v6 FIPS configurations, so zeroization suffices.
+             */
+            ForceZero(new_pristine, sizeof(*new_pristine));
 #endif
+        }
         free(new_pristine);
         /* fail closed on rekey failure -- the kernel re-flags NEED_KEY, and a
          * stale pristine would misattribute subsequent traffic to the old
@@ -5166,6 +5185,16 @@ static int km_AesCmacMaterialize(struct crypto_shash *tfm,
         return -ENOMEM;
 
     XMEMCPY(cmac, t_ctx->pristine, sizeof(*cmac));
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+    {
+        int ret = wc_debug_CipherLifecycleInit(&cmac->aes.CipherLifecycleTag, NULL);
+        if (ret != 0) {
+            ForceZero(cmac, sizeof *cmac);
+            free(cmac);
+            return -ENOMEM;
+        }
+    }
+#endif
 
     XMEMCPY(cmac->digest, st->digest, WC_AES_BLOCK_SIZE);
     XMEMCPY(cmac->buffer, st->buffer, WC_AES_BLOCK_SIZE);
