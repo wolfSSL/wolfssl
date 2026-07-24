@@ -348,8 +348,14 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     int wc_Tls13_HKDF_Extract_ex(byte* prk, const byte* salt, word32 saltLen,
         byte* ikm, word32 ikmLen, int digest, void* heap, int devId)
     {
-        int ret;
+        byte   tmp[WC_MAX_DIGEST_SIZE]; /* localIkm helper */
+        const  byte* localIkm;  /* either points to user input or tmp */
+        int    ret;
         word32 len = 0;
+
+        if (prk == NULL || (ikm == NULL && ikmLen > 0)) {
+            return BAD_FUNC_ARG;
+        }
 
         switch (digest) {
             #ifndef NO_SHA256
@@ -380,25 +386,28 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
                 return BAD_FUNC_ARG;
         }
 
-        /* When length is 0 then use zeroed data of digest length. */
+        /* When length is 0 then use zeroed data of digest length. The caller's
+         * buffer is not sized for this, so use a local one. */
+        localIkm = ikm;
         if (ikmLen == 0) {
+            XMEMSET(tmp, 0, len);
+            localIkm = tmp;
             ikmLen = len;
-            XMEMSET(ikm, 0, len);
         }
 
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("  Salt");
         WOLFSSL_BUFFER(salt, saltLen);
         WOLFSSL_MSG("  IKM");
-        WOLFSSL_BUFFER(ikm, ikmLen);
+        WOLFSSL_BUFFER(localIkm, ikmLen);
 #endif
 
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
     (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-        ret = wc_HKDF_Extract_ex(digest, salt, saltLen, ikm, ikmLen, prk, heap,
-            devId);
+        ret = wc_HKDF_Extract_ex(digest, salt, saltLen, localIkm, ikmLen, prk,
+            heap, devId);
 #else
-        ret = wc_HKDF_Extract(digest, salt, saltLen, ikm, ikmLen, prk);
+        ret = wc_HKDF_Extract(digest, salt, saltLen, localIkm, ikmLen, prk);
         (void)heap;
         (void)devId;
 #endif

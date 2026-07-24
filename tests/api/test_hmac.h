@@ -46,6 +46,7 @@ int test_wc_HmacInit_Id(void);
 int test_wc_HmacInit_Label(void);
 int test_wc_HmacFree_CryptoCb(void);
 int test_wc_HKDF_NullKeyEdgeCases(void);
+int test_wc_Tls13_HKDF_Extract_ZeroLenIkm(void);
 
 #define TEST_HMAC_DECLS                                 \
     TEST_DECL_GROUP("hmac", test_wc_Md5HmacSetKey),     \
@@ -69,6 +70,7 @@ int test_wc_HKDF_NullKeyEdgeCases(void);
     TEST_DECL_GROUP("hmac", test_wc_HmacInit_Id),       \
     TEST_DECL_GROUP("hmac", test_wc_HmacInit_Label),    \
     TEST_DECL_GROUP("hmac", test_wc_HmacFree_CryptoCb), \
-    TEST_DECL_GROUP("hmac", test_wc_HKDF_NullKeyEdgeCases)
+    TEST_DECL_GROUP("hmac", test_wc_HKDF_NullKeyEdgeCases), \
+    TEST_DECL_GROUP("hmac", test_wc_Tls13_HKDF_Extract_ZeroLenIkm)
 
 #endif /* WOLFCRYPT_TEST_HMAC_H */
