@@ -832,6 +832,7 @@ void FreeWriteDup(WOLFSSL* ssl)
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         Free_HS_Hashes(ssl->dupWrite->postHandshakeHashState, ssl->heap);
+        Free_HS_Hashes(ssl->dupWrite->postHandshakeSyncedHashState, ssl->heap);
         {
             CertReqCtx* ctx = ssl->dupWrite->postHandshakeCertReqCtx;
             while (ctx != NULL) {
@@ -1570,7 +1571,6 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
 
     return wolfssl_local_GetRecordSize(ssl, inSz, 1);
 }
-
 
 
 #endif /* !NO_TLS */

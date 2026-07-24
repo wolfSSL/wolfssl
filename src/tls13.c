@@ -9604,6 +9604,24 @@ static int SetupOcspResp(WOLFSSL* ssl)
     OcspRequest* request = NULL;
 
     extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    /* During post-handshake client authentication the client must staple
+     * its own OCSP response, but the status_request extension it offered in
+     * the initial ClientHello is no longer present on ssl->extensions.
+     * Recreate it here (the request extension still lives on
+     * ctx->extensions). Pass ssl so csr->ssl is set, which the response
+     * size/write path requires. */
+    if (extension == NULL &&
+            ssl->options.side == WOLFSSL_CLIENT_END &&
+            ssl->options.handShakeDone &&
+            TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST) != NULL) {
+        ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
+                WOLFSSL_CSR_OCSP, 0, ssl, ssl->heap, ssl->devId);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+        extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    }
+#endif
     if (extension == NULL)
         return 0; /* peer didn't signal ocsp support */
     csr = (CertificateStatusRequest*)extension->data;
@@ -9633,12 +9651,33 @@ static int SetupOcspResp(WOLFSSL* ssl)
         XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
         return ret;
     }
-    ret = TLSX_CSR_InitRequest(ssl->extensions, cert, ssl->heap);
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    /* On client PHA the same certificate is re-stapled every round; reuse
+     * request slot 0 instead of appending, else csr->requests grows until
+     * MAX_CERT_EXTENSIONS_ERR. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.handShakeDone) {
+        ret = TLSX_CSR_InitRequest_ex(ssl->extensions, cert, ssl->heap, 0);
+    }
+    else
+#endif
+    {
+        ret = TLSX_CSR_InitRequest(ssl->extensions, cert, ssl->heap);
+    }
     FreeDecodedCert(cert);
     XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
     if (ret != 0 )
         return ret;
 
+    /* Free previous OCSP response buffers to avoid leak on PHA reuse */
+    {
+        int j;
+        for (j = 0; j < MAX_CERT_EXTENSIONS; j++) {
+            XFREE(csr->responses[j].buffer, ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            csr->responses[j].buffer = NULL;
+            csr->responses[j].length = 0;
+        }
+    }
     request = &csr->request.ocsp[0];
     ret = CreateOcspResponse(ssl, &request, &csr->responses[0]);
     if (request != &csr->request.ocsp[0] &&
@@ -9751,10 +9790,16 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             extSz[extIdx] = OPAQUE16_LEN;
 
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
-        /* We only send CSR on the server side. On client side, the CSR data
-         * is populated with the server response. We would be sending the server
-         * its own stapling data. */
-        if (ssl->options.side == WOLFSSL_SERVER_END) {
+        /* Staple our own OCSP response with the Certificate. Normally only the
+         * server staples; the client's CSR holds the server's response, so
+         * echoing it back is wrong. The exception is post-handshake auth (PHA),
+         * where the client sends its own Certificate and staples for it. */
+        if (ssl->options.side == WOLFSSL_SERVER_END
+        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            || (ssl->options.side == WOLFSSL_CLIENT_END
+                && ssl->options.handShakeDone)
+        #endif
+        ) {
             ret = SetupOcspResp(ssl);
             if (ret != 0)
                 return ret;
@@ -14123,6 +14168,25 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->error = 0;
     }
 #endif
+#if defined(HAVE_WRITE_DUP) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    /* Read side: a fresh PHA CertificateRequest. Resume from the transcript
+     * the write side published after the previous PHA response, so this CR is
+     * hashed onto the same base the server has. */
+    if (ret == 0 && type == certificate_request &&
+            ssl->options.side == WOLFSSL_CLIENT_END &&
+            ssl->dupSide == READ_DUP_SIDE &&
+            ssl->options.handShakeState == HANDSHAKE_DONE &&
+            ssl->dupWrite != NULL) {
+        if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+            return BAD_MUTEX_E;
+        if (ssl->dupWrite->postHandshakeSyncedHashState != NULL) {
+            FreeHandshakeHashes(ssl);
+            ssl->hsHashes = ssl->dupWrite->postHandshakeSyncedHashState;
+            ssl->dupWrite->postHandshakeSyncedHashState = NULL;
+        }
+        wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+    }
+#endif /* HAVE_WRITE_DUP && WOLFSSL_POST_HANDSHAKE_AUTH */
     if (ret == 0 && type != client_hello && type != session_ticket &&
                                                            type != key_update
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)

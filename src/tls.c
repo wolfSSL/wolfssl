@@ -3486,7 +3486,7 @@ word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr, byte isRequest,
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    if (!isRequest && IsAtLeastTLSv1_3(csr->ssl->version)) {
+    if (!isRequest && csr->ssl != NULL && IsAtLeastTLSv1_3(csr->ssl->version)) {
         if (csr->ssl != NULL && SSL_CM(csr->ssl) != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling->statusCb != NULL) {
@@ -3626,7 +3626,7 @@ int TLSX_CSR_Write_ex(CertificateStatusRequest* csr, byte* output,
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    if (!isRequest && IsAtLeastTLSv1_3(csr->ssl->version)) {
+    if (!isRequest && csr->ssl != NULL && IsAtLeastTLSv1_3(csr->ssl->version)) {
         word16 offset = 0;
         if (csr->ssl != NULL && SSL_CM(csr->ssl) != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling != NULL &&
@@ -15424,8 +15424,9 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 break;
 
             case TLSX_STATUS_REQUEST:
-                length += CSR_GET_SIZE(
-                         (CertificateStatusRequest*)extension->data, isRequest);
+                if (msgType != certificate_request)
+                    length += CSR_GET_SIZE(
+                            (CertificateStatusRequest*)extension->data, isRequest);
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
@@ -15702,11 +15703,15 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_STATUS_REQUEST:
                 WOLFSSL_MSG("Certificate Status Request extension to write");
-                ret = CSR_WRITE((CertificateStatusRequest*)extension->data,
-                        output + offset, isRequest);
-                if (ret > 0) {
-                    offset += (word16)ret;
+                if (msgType == certificate_request) {
                     ret = 0;
+                } else {
+                    ret = CSR_WRITE((CertificateStatusRequest*)extension->data,
+                            output + offset, isRequest);
+                    if (ret > 0) {
+                        offset += (word16)ret;
+                        ret = 0;
+                    }
                 }
                 break;
 
@@ -17142,9 +17147,10 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
 #endif
-        /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, OID_FILTERS
-         *       TLSX_STATUS_REQUEST
-         */
+        /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, OID_FILTERS */
+        /* TLSX_STATUS_REQUEST is enabled: the server may request the client
+         * to staple an OCSP response with its CertificateRequest. */
+        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
     }
     #endif
 #if defined(HAVE_ECH)
@@ -17365,11 +17371,12 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
 #endif
-        /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, TLSX_OID_FILTERS
-         *       TLSX_STATUS_REQUEST
-         */
+        /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, TLSX_OID_FILTERS */
+        /* TLSX_STATUS_REQUEST is enabled: the server may request the client
+         * to staple an OCSP response with its CertificateRequest. */
+        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
     }
-    #endif
+#endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     if (!ssl->options.disableECH && msgType == client_hello) {
