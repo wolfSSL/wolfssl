@@ -2385,6 +2385,31 @@ int test_wc_EccDecisionCoverage2(void)
         mp_clear(&s);
         mp_clear(&bigVal);
     }
+
+    /* r/s with MORE bytes than the curve size (keySz + 1). This is the
+     * byte-length overshoot that overflows the fixed signature_buf on hardware
+     * ports; the software path rejects it in wc_ecc_check_r_s_range() (value >=
+     * order) and the PSoC6 port rejects it via the rSz/sSz > keySz guard.
+     * Assert path-agnostically: a failure return with verify == 0. */
+    if (key.dp != NULL)
+    {
+        mp_int r, s;
+        int    verify = 0;
+        byte   oversized[MAX_ECC_BYTES + 1];
+        word32 osSz = (word32)key.dp->size + 1;
+        byte   digest[] = TEST_STRING;
+
+        XMEMSET(oversized, 0xFF, sizeof(oversized));
+        ExpectIntEQ(mp_init(&r), MP_OKAY);
+        ExpectIntEQ(mp_init(&s), MP_OKAY);
+        ExpectIntEQ(mp_read_unsigned_bin(&r, oversized, osSz), MP_OKAY);
+        ExpectIntEQ(mp_read_unsigned_bin(&s, oversized, osSz), MP_OKAY);
+        ExpectIntNE(ret = wc_ecc_verify_hash_ex(&r, &s, digest,
+            (word32)TEST_STRING_SZ, &verify, &key), 0);
+        ExpectIntEQ(verify, 0);
+        mp_clear(&r);
+        mp_clear(&s);
+    }
 #endif
 
     /* ---- wc_ecc_import_point_der_ex / wc_ecc_export_point_der{,_compressed}:
