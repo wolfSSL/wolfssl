@@ -583,7 +583,7 @@ int wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags)
 int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-    WOLFSSL_ENTER("wolfSSL_recv");
+    WOLFSSL_ENTER("wolfSSL_SendUserCanceled");
 
     if (ssl != NULL) {
         ssl->error = SendAlert(ssl, alert_warning, user_canceled);
