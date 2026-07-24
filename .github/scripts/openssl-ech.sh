@@ -70,6 +70,13 @@ if [ "$FORCE_HRR" -ne 0 ] && [ -n "$PQC" ]; then
     exit 1
 fi
 
+# corrupt_ech_config() flips the first public-key byte, this is valid only for
+# the default X25519 KEM so consider --suite and --reject mutually exclusive
+if [ "$REJECT" -ne 0 ] && [ -n "$SUITE" ]; then
+    echo "ERROR: --reject only supports the default X25519 suite"
+    exit 1
+fi
+
 # Pick exactly one test variant. The variant decides which -groups go to
 # each side and any extra flags needed to drive the desired handshake.
 #   default - both sides use secp256r1 (no HRR)
@@ -89,17 +96,34 @@ WOLFSSL_CLIENT=${WOLFSSL_CLIENT:-"$WORKSPACE/examples/client/client"}
 WOLFSSL_SERVER=${WOLFSSL_SERVER:-"$WORKSPACE/examples/server/server"}
 CERT_DIR=${CERT_DIR:-"$WORKSPACE/certs"}
 
-# correct ECH config, but it's old, ECH will be rejected
-REJECT_ECH_CONFIG="AD7+DQA6rAAgACCATZdDlHed6GlDeiYsu3r7sdWUkLVHZuTa3lbOf+hIbAAEAAEAAQALZXhhbXBsZS5jb20AAA=="
-
 TMP_LOG="$WORKSPACE/tmp_file.log"
-# Will need to look into validating the name against the cert for the OSSL cli.
-# This is fine, but should be upgraded to use a second cert in the future.
-PRIV_NAME="ech-private-name.com"
-# example.com is taken from the server certificate,
-# echConfigs needs to authenticate against the cert with this name to succeed
-PUB_NAME="example.com"
+# private inner name; matches the private cert swapped in once ECH is accepted
+PRIV_NAME="example.com"
+# ECH public name; matches certs/ech-public-cert.pem, the public-facing cert the
+# outer (or a rejected) handshake authenticates against
+PUB_NAME="public.com"
 MAX_WAIT=50
+
+# --------------------------------------------------------------------------
+# Flip a bit in the HPKE public key of the config the server published. The
+# client will offer ECH, but the server can't decrypt so ECH is rejected.
+# --------------------------------------------------------------------------
+corrupt_ech_config() {
+    local config="$1"
+    local bytes=()
+    local b
+
+    mapfile -t bytes < <(printf '%s' "$config" | base64 -d | od -An -tx1 -v \
+        | tr -s ' ' '\n' | grep -v '^$')
+
+    # list len (2) + version (2) + config len (2) + config_id (1) +
+    # kem_id (2) + public key len (2), so byte 11 is the first key byte
+    bytes[11]=$(printf '%02x' $(( 0x${bytes[11]} ^ 0x01 )))
+
+    for b in "${bytes[@]}"; do
+        printf "\\x$b"
+    done | base64 -w 0
+}
 
 # --------------------------------------------------------------------------
 # server mode -- OpenSSL is the server, wolfSSL is the client
@@ -140,16 +164,22 @@ openssl_server(){
 
     # parse ECH config from file
     ech_config=$(sed -n '/BEGIN ECHCONFIG/,/END ECHCONFIG/{/BEGIN ECHCONFIG\|END ECHCONFIG/d;p}' "$ech_file" | tr -d '\n')
-    # reject overrides the config the client connects with
-    [ "$REJECT" -ne 0 ] && ech_config="$REJECT_ECH_CONFIG"
     echo "parsed ech config: $ech_config" &>> "$TMP_LOG"
+
+    # reject: corrupt the config so the server can't decrypt the client's ECH
+    if [ "$REJECT" -ne 0 ]; then
+        ech_config=$(corrupt_ech_config "$ech_config")
+        echo "bad ech config   : $ech_config" &>> "$TMP_LOG"
+    fi
 
     # start OpenSSL ECH server with ephemeral port; line-buffer so the
     # log can be grepped
-    stdbuf -oL $OPENSSL s_server \
+    # -cert/-key is the public-name cert served on the outer/rejected handshake;
+    # -cert2/-key2 is the private inner cert switched to on ECH acceptance.
+    timeout 30 stdbuf -oL $OPENSSL s_server \
         -tls1_3 \
-        -cert "$CERT_DIR/server-cert.pem" \
-        -key "$CERT_DIR/server-key.pem" \
+        -cert "$CERT_DIR/ech-public-cert.pem" \
+        -key "$CERT_DIR/ech-public-key.pem" \
         -cert2 "$CERT_DIR/server-cert.pem" \
         -key2 "$CERT_DIR/server-key.pem" \
         -ech_key "$ech_file" \
@@ -184,11 +214,16 @@ openssl_server(){
         $wolfssl_extra \
         &>> "$TMP_LOG" || [ "$REJECT" -ne 0 ]
 
+    # let s_server finish writing its ech_success= line before grepping;
+    # on reject it sees a fatal alert, so tolerate a nonzero exit
+    wait || [ "$REJECT" -ne 0 ]
+
     if [ "$REJECT" -ne 0 ]; then
-        grep -q "ECH offered but rejected by server" "$TMP_LOG" && \
-            grep -q "ech_success=0" "$TMP_LOG"
+        grep -q "ech_success=0" "$TMP_LOG" && \
+            grep -q "ECH status: rejected" "$TMP_LOG"
     else
-        grep -q "ech_success=1" "$TMP_LOG"
+        grep -q "ech_success=1" "$TMP_LOG" && \
+            grep -q "ECH status: accepted" "$TMP_LOG"
     fi
 }
 
@@ -231,7 +266,7 @@ openssl_client(){
 
     # start server with ephemeral port + ready file; line-buffer so the
     # log can be grepped
-    stdbuf -oL $WOLFSSL_SERVER \
+    timeout 30 stdbuf -oL $WOLFSSL_SERVER \
                 -v 4 \
                 -R "$ready_file" \
                 -p "$port" \
@@ -267,9 +302,13 @@ openssl_client(){
             exit 1
         fi
     done
-    # reject overrides the config the client connects with
-    [ "$REJECT" -ne 0 ] && ech_config="$REJECT_ECH_CONFIG"
     echo "parsed ech config: $ech_config" &>> "$TMP_LOG"
+
+    # reject: corrupt the config so the server can't decrypt the client's ECH
+    if [ "$REJECT" -ne 0 ]; then
+        ech_config=$(corrupt_ech_config "$ech_config")
+        echo "bad ech config   : $ech_config" &>> "$TMP_LOG"
+    fi
 
     # test with OpenSSL s_client using ECH
     # in reject mode the s_client is expected to error out, so tolerate a
@@ -285,10 +324,16 @@ openssl_client(){
         $openssl_groups \
         &>> "$TMP_LOG" || [ "$REJECT" -ne 0 ]
 
+    # let the wolfSSL server finish writing its ECH status line before
+    # grepping; on reject it errors out, so tolerate a nonzero exit
+    wait || [ "$REJECT" -ne 0 ]
+
     if [ "$REJECT" -ne 0 ]; then
-        grep -q "ECH: Got 1 retry-configs" "$TMP_LOG"
+        grep -q "ECH: Got 1 retry-configs" "$TMP_LOG" && \
+            grep -q "ECH status: rejected" "$TMP_LOG"
     else
-        grep -q "ECH: success: 1" "$TMP_LOG"
+        grep -q "ECH: success: 1" "$TMP_LOG" && \
+            grep -q "ECH status: accepted" "$TMP_LOG"
     fi
 }
 

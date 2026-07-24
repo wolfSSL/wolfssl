@@ -938,7 +938,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][71] = {
+static const char* server_usage_msg[][73] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -1145,11 +1145,13 @@ static const char* server_usage_msg[][71] = {
         "--ech-suite <KEM,KDF,AEAD>  HPKE suite to use for ech config.\n"
             "                            Supplied as 3 integers (ex: 32,1,3)\n",
                                                                         /* 69 */
+        "--ech-cert <file>  Cert for the ECH public name\n",            /* 70 */
+        "--ech-key <file>  Key for the ECH public name\n",              /* 71 */
 #endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 70 */
+                                                                        /* 72 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1371,12 +1373,14 @@ static const char* server_usage_msg[][71] = {
         "--ech-suite <KEM,KDF,AEAD>  HPKE suite to use for ech config.\n"
             "                            Supplied as 3 integers (ex: 32,1,3)\n",
                                                                         /* 69 */
+        "--ech-cert <file>  Cert for the ECH public name\n",            /* 70 */
+        "--ech-key <file>  Key for the ECH public name\n",              /* 71 */
 #endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 70 */
+                                                                        /* 72 */
         NULL,
     },
 #endif
@@ -1543,6 +1547,8 @@ static void Usage(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     printf("%s", msg[++msgId]);     /* --ech */
     printf("%s", msg[++msgId]);     /* --ech-suite */
+    printf("%s", msg[++msgId]);     /* --ech-cert */
+    printf("%s", msg[++msgId]);     /* --ech-key */
 #endif
     printf("%s", msg[++msgId]);     /* Examples repo link */
 }
@@ -1610,6 +1616,87 @@ static int server_srtp_test(WOLFSSL *ssl, func_args *args)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && !defined(NO_CERTS)
+/* The cert/key the SNI callback should install */
+typedef struct EchPrivateCert {
+#ifdef NO_FILESYSTEM
+    const unsigned char* cert;
+    long                 certSz;
+    const unsigned char* key;
+    long                 keySz;
+#else
+    const char* certFile;
+    const char* keyFile;
+#endif
+    const char* name;
+    const char* publicName;
+} EchPrivateCert;
+
+/* SNI callback: swap the private cert/key if ECH is accepted and the name
+ * is matched */
+static int EchSwapToPrivateCert(WOLFSSL* ssl, int* ad, void* arg)
+{
+    const EchPrivateCert* priv = (const EchPrivateCert*)arg;
+    char* name = NULL;
+    word16 nameLen;
+
+    /* keep the public cert if ECH is not accepted */
+    if (wolfSSL_GetEchStatus(ssl) != WOLFSSL_ECH_STATUS_ACCEPTED)
+        return 0;
+
+#ifdef NO_FILESYSTEM
+    if (priv == NULL || priv->cert == NULL || priv->key == NULL) {
+#else
+    if (priv == NULL || priv->certFile == NULL || priv->keyFile == NULL) {
+#endif
+        *ad = internal_error;
+        return fatal_return;
+    }
+
+    nameLen = wolfSSL_SNI_GetRequest(ssl, WOLFSSL_SNI_HOST_NAME, (void**)&name);
+    if (nameLen == 0)
+        name = NULL;
+
+    /* the public cert is already in place, keep it for the public name */
+    if (priv->publicName != NULL && name != NULL &&
+            nameLen == (word16)XSTRLEN(priv->publicName) &&
+            XSTRCMP(name, priv->publicName) == 0) {
+        return 0;
+    }
+
+    if (priv->name != NULL &&
+            (name == NULL || nameLen != (word16)XSTRLEN(priv->name) ||
+            XSTRCMP(name, priv->name) != 0)) {
+        *ad = unrecognized_name;
+        return fatal_return;
+    }
+
+    printf("ECH accepted, serving private cert\n");
+
+#if defined(NO_FILESYSTEM)
+    if (wolfSSL_use_certificate_chain_buffer_format(ssl, priv->cert,
+                priv->certSz, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS ||
+            wolfSSL_use_PrivateKey_buffer(ssl, priv->key, priv->keySz,
+                WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
+#elif defined(WOLFSSL_PEM_TO_DER)
+    if (wolfSSL_use_certificate_chain_file(ssl, priv->certFile)
+                != WOLFSSL_SUCCESS ||
+            wolfSSL_use_PrivateKey_file(ssl, priv->keyFile,
+                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_use_certificate_chain_file_format(ssl, priv->certFile,
+                WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS ||
+            wolfSSL_use_PrivateKey_file(ssl, priv->keyFile,
+                WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
+#endif
+        *ad = internal_error;
+        return fatal_return;
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_TLS13 && HAVE_ECH && !NO_CERTS */
+
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 {
@@ -1669,6 +1756,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
         { "ech", 1, 269 },
         { "ech-suite", 1, 270 },
+        { "ech-cert", 1, 272 },
+        { "ech-key", 1, 273 },
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
     !defined(NO_PSK)
@@ -1735,6 +1824,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     const char* verifyCert;
     const char* ourCert;
     const char* ourKey;
+#if defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    const unsigned char* ourCertBuf = server_cert_der_2048;
+    long ourCertBufSz = (long)sizeof_server_cert_der_2048;
+    const unsigned char* ourKeyBuf = server_key_der_2048;
+    long ourKeyBufSz = (long)sizeof_server_key_der_2048;
+#endif
     const char* ourDhParam = dhParamFile;
     tcp_ready*  readySignal = NULL;
     int    argc = ((func_args*)args)->argc;
@@ -1754,6 +1849,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     char*  echPublicName = NULL;
     char*  echSuite = NULL;
+    const char* echPublicCert = echPublicCertFile;
+    const char* echPublicKey  = echPublicKeyFile;
+#ifndef NO_CERTS
+    EchPrivateCert echPrivateCert = { 0 };
+#endif
     word16 kemId = 0;
     word16 kdfId = 0;
     word16 aeadId = 0;
@@ -1928,6 +2028,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)usePqc;
     (void)altPrivKey;
     (void)usePskWithCerts;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    (defined(NO_FILESYSTEM) || defined(NO_CERTS))
+    /* the ECH public cert/key files are unused when loading from buffers */
+    (void)echPublicCert;
+    (void)echPublicKey;
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -2617,6 +2723,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
 
                 break;
+            case 272:
+                echPublicCert = myoptarg;
+                break;
+            case 273:
+                echPublicKey = myoptarg;
+                break;
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
     !defined(NO_PSK)
@@ -2651,6 +2763,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (dtlsUDP && dtlsSCTP) {
         err_sys_ex(runWithErrors, "Cannot use DTLS with both UDP and SCTP.");
     }
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(HAVE_PK_CALLBACKS)
+    if (echPublicName != NULL && pkCallbacks) {
+        err_sys_ex(catastrophic, "PK callbacks not tested with ECH.");
+    }
+#endif
 
     /* sort out DTLS versus TLS versions */
     if (version == CLIENT_INVALID_VERSION) {
@@ -2972,12 +3090,36 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && !defined(NO_CERTS)
+    /* with ECH active use the 'public' cert/key, the servername callback swaps
+     * in the private cert/key once ECH is accepted */
+    if (echPublicName != NULL) {
+    #ifdef NO_FILESYSTEM
+        echPrivateCert.cert   = ourCertBuf;
+        echPrivateCert.certSz = ourCertBufSz;
+        echPrivateCert.key    = ourKeyBuf;
+        echPrivateCert.keySz  = ourKeyBufSz;
+        ourCertBuf   = ech_public_cert_der_2048;
+        ourCertBufSz = (long)sizeof_ech_public_cert_der_2048;
+        ourKeyBuf    = ech_public_key_der_2048;
+        ourKeyBufSz  = (long)sizeof_ech_public_key_der_2048;
+    #else
+        echPrivateCert.certFile = ourCert;
+        echPrivateCert.keyFile  = ourKey;
+        ourCert = echPublicCert;
+        ourKey  = echPublicKey;
+    #endif
+        echPrivateCert.name = sniHostName;
+        echPrivateCert.publicName = echPublicName;
+    }
+#endif
+
 #if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus || usePskWithCerts) && !useAnon &&
             !(loadCertKeyIntoSSLObj == 1)) {
     #if defined(NO_FILESYSTEM) && defined(USE_CERT_BUFFERS_2048)
         if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
-                server_cert_der_2048, sizeof_server_cert_der_2048,
+                ourCertBuf, ourCertBufSz,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server cert buffer");
     #elif !defined(TEST_LOAD_BUFFER)
@@ -3025,8 +3167,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
     ) {
     #ifdef NO_FILESYSTEM
-        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
-            sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, ourKeyBuf,
+            ourKeyBufSz, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         #if defined(WOLFSSL_PEM_TO_DER)
@@ -3203,7 +3345,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #ifdef HAVE_SNI
-    if (sniHostName)
+    /* with ECH rely on the SNI callback to match against the private name */
+    if (sniHostName
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+            && echPublicName == NULL
+    #endif
+        )
         if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, sniHostName,
                     (word16) XSTRLEN(sniHostName)) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "UseSNI failed");
@@ -3216,6 +3363,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         char echConfigBase64[512];
         char* echConfigBase64Ptr;
         word32 echConfigBase64Len = sizeof(echConfigBase64);
+
+    #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS)
+        wolfSSL_CTX_set_servername_callback(ctx, EchSwapToPrivateCert);
+        if (wolfSSL_CTX_set_servername_arg(ctx, &echPrivateCert)
+                != WOLFSSL_SUCCESS) {
+            err_sys_ex(runWithErrors, "set_servername_arg failed");
+        }
+    #endif
 
         if (wolfSSL_CTX_GenerateEchConfig(ctx, echPublicName, kemId, kdfId,
                 aeadId) != WOLFSSL_SUCCESS) {
@@ -3353,7 +3508,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             loadCertKeyIntoSSLObj) {
     #if defined(NO_FILESYSTEM) && defined(USE_CERT_BUFFERS_2048)
         if (wolfSSL_use_certificate_chain_buffer_format(ssl,
-                server_cert_der_2048, sizeof_server_cert_der_2048,
+                ourCertBuf, ourCertBufSz,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server cert buffer");
     #elif !defined(TEST_LOAD_BUFFER)
@@ -3374,8 +3529,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
     ) {
     #if defined(NO_FILESYSTEM)
-        if (wolfSSL_use_PrivateKey_buffer(ssl, server_key_der_2048,
-            sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        if (wolfSSL_use_PrivateKey_buffer(ssl, ourKeyBuf,
+            ourKeyBufSz, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (wolfSSL_use_PrivateKey_file(ssl, ourKey, WOLFSSL_FILETYPE_PEM)
@@ -3777,6 +3932,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #ifdef WOLFSSL_EARLY_DATA
         EarlyDataStatus(ssl);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        /* print before ret is checked: ECH status is always significant */
+        PrintEchStatus(ssl);
 #endif
         if (ret != WOLFSSL_SUCCESS) {
             err = wolfSSL_get_error(ssl, ret);

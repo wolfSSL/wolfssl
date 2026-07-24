@@ -129,6 +129,29 @@ basicConstraints=CA:true
 subjectAltName=DNS:example.com, IP:127.0.0.1
 extendedKeyUsage=serverAuth, clientAuth
 
+# ECH public name cert, presented when ECH is rejected
+[ech_public_opts]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:false
+subjectAltName=DNS:public.com
+extendedKeyUsage=serverAuth
+
+# ECH multi-SNI demo tenant extensions
+[ech_tenant_a_opts]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:false
+subjectAltName=DNS:tenant-a.example
+extendedKeyUsage=serverAuth
+
+[ech_tenant_b_opts]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:false
+subjectAltName=DNS:tenant-b.example
+extendedKeyUsage=serverAuth
+
 #wolfssl extensions for intermediate CAs
 [wolfssl_opts_ICA]
 subjectKeyIdentifier=hash

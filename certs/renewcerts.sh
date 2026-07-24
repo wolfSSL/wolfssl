@@ -50,6 +50,14 @@
 #                       tsa-chain-cert.pem
 #                       tsa-chain-cert.der
 #                       intermediate/ca-int-cert.der
+#                       ech-public-cert.pem
+#                       ech-public-cert.der
+#                       ech-public-key.pem
+#                       ech-public-key.der
+#                       tenant-a-cert.pem
+#                       tenant-a-cert.der
+#                       tenant-b-cert.pem
+#                       tenant-b-cert.der
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -1057,6 +1065,76 @@ run_renewcerts(){
     cd ../ || exit 1
     echo "End of section"
     echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## update and sign ech-public-cert.pem ############
+    ############################################################
+    echo "Updating ech-public-cert.pem"
+    echo ""
+    openssl genrsa -out ech-public-key.pem 2048
+    check_result $? "Step 1"
+
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nECH\\npublic.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ech-public-key.pem -config ./wolfssl.cnf -nodes > ech-public-req.pem
+    check_result $? "Step 2"
+
+    openssl x509 -req -in ech-public-req.pem -extfile wolfssl.cnf -extensions ech_public_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 0x23 > ech-public-cert.pem
+    check_result $? "Step 3"
+
+    rm ech-public-req.pem
+
+    openssl x509 -in ech-public-cert.pem -text > tmp.pem
+    check_result $? "Step 4"
+    mv tmp.pem ech-public-cert.pem
+
+    openssl x509 -inform PEM -in ech-public-cert.pem -outform DER -out ech-public-cert.der
+    check_result $? "Step 5"
+    openssl rsa -inform PEM -in ech-public-key.pem -outform DER -out ech-public-key.der
+    check_result $? "Step 6"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## update and sign tenant-a-cert.pem ##############
+    ############################################################
+    echo "Updating tenant-a-cert.pem"
+    echo ""
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nECH demo\\ntenant-a.example\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > tenant-a-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in tenant-a-req.pem -extfile wolfssl.cnf -extensions ech_tenant_a_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 0x21 > tenant-a-cert.pem
+    check_result $? "Step 2"
+    rm tenant-a-req.pem
+
+    openssl x509 -in tenant-a-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem tenant-a-cert.pem
+
+    openssl x509 -inform PEM -in tenant-a-cert.pem -outform DER -out tenant-a-cert.der
+    check_result $? "Step 4"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## update and sign tenant-b-cert.pem ##############
+    ############################################################
+    echo "Updating tenant-b-cert.pem"
+    echo ""
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nECH demo\\ntenant-b.example\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > tenant-b-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in tenant-b-req.pem -extfile wolfssl.cnf -extensions ech_tenant_b_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 0x22 > tenant-b-cert.pem
+    check_result $? "Step 2"
+    rm tenant-b-req.pem
+
+    openssl x509 -in tenant-b-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem tenant-b-cert.pem
+
+    openssl x509 -inform PEM -in tenant-b-cert.pem -outform DER -out tenant-b-cert.der
+    check_result $? "Step 4"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
     ############################################################
     ########## store DER files as buffers ######################
     ############################################################

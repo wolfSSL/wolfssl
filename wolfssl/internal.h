@@ -3208,7 +3208,8 @@ typedef struct WOLFSSL_ECH {
     byte configId;
     byte enc[HPKE_Npk_MAX];
     byte innerCount;
-    byte writeEncoded;
+    WC_BITFIELD writeEncoded:1;
+    WC_BITFIELD copiedConfig:1;
 } WOLFSSL_ECH;
 
 WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
@@ -3240,6 +3241,8 @@ WOLFSSL_LOCAL int GetEchConfigsEx(WOLFSSL_EchConfig* configs,
     byte* output, word32* outputLen);
 
 WOLFSSL_LOCAL void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap);
+
+WOLFSSL_LOCAL int CopyEchConfigsPub(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int SetRetryConfigs(WOLFSSL* ssl, const byte* echConfigs,
     word32 echConfigsLen);
@@ -3295,6 +3298,7 @@ WOLFSSL_LOCAL int TLSX_Push(TLSX** list, TLSX_Type type,
                             const void* data, void* heap);
 WOLFSSL_LOCAL int TLSX_Append(TLSX** list, TLSX_Type type,
                             const void* data, void* heap);
+WOLFSSL_LOCAL void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
 
 #elif defined(HAVE_SNI)                           \
    || defined(HAVE_MAX_FRAGMENT)                  \
