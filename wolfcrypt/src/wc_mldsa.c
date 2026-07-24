@@ -5612,13 +5612,21 @@ static sword32 mldsa_mont_red(sword64 a)
 #ifndef MLDSA_MUL_QINV_SLOW
     sword64 t = (sword32)((sword32)a * (sword32)MLDSA_QINV);
 #else
-    sword64 t = (sword32)((sword32)a + (sword32)((sword32)a << 13) -
-        (sword32)((sword32)a << 23) + (sword32)((sword32)a << 26));
+    /* Shifts are done on word32: a is routinely negative and left-shifting
+     * a negative signed value is UB. Only the low 32 bits are kept, so
+     * unsigned wrap-around gives the identical result. */
+    sword64 t = (sword32)((word32)a + ((word32)a << 13) -
+        ((word32)a << 23) + ((word32)a << 26));
 #endif
 #ifndef MLDSA_MUL_Q_SLOW
     return (sword32)((a - ((sword32)t * (sword64)MLDSA_Q)) >> 32);
 #else
-    return (sword32)((a - (t << 23) + (t << 13) - t) >> 32);
+    /* The whole expression is computed in word64 with a single conversion
+     * back: shifts on word64 avoid the signed-shift UB, |t << 23| < 2^54
+     * keeps every term exact, so the one conversion to sword64 is
+     * value-preserving ahead of the arithmetic >> 32. */
+    return (sword32)((sword64)((word64)a - ((word64)t << 23) +
+        ((word64)t << 13) - (word64)t) >> 32);
 #endif
 }
 
@@ -5642,7 +5650,10 @@ static sword32 mldsa_red(sword32 a)
 #ifndef MLDSA_MUL_Q_SLOW
     return (sword32)(a - (t * MLDSA_Q));
 #else
-    return (sword32)(a - (t << 23) + (t << 13) - t);
+    /* Shifts are done on word32: t is routinely negative and left-shifting
+     * a negative signed value is UB. Result is taken mod 2^32. */
+    return (sword32)((word32)a - ((word32)t << 23) + ((word32)t << 13) -
+        (word32)t);
 #endif
 }
 #endif
