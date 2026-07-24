@@ -913,7 +913,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
         if ((PTR_ERR(tfm) == -ENOENT) && fips_enabled) {
             pr_info("info: skipping unsupported kpp algorithm %s: %d\n",
                     driver, (int)PTR_ERR(tfm));
-            test_rc = NOT_COMPILED_IN;
+            test_rc = FIPS_NOT_ALLOWED_E;
         }
         else
         #endif
