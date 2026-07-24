@@ -528,11 +528,31 @@ int wc_XChacha_SetKey(ChaCha *ctx,
     XMEMSET(iv, 0, 4);
     XMEMCPY(iv + 4, nonce + 16, 8);
 
-    if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0)
+    /* k now holds the HChacha-derived subkey and iv the derived IV; register
+     * from here (their first-written point) so the error return below is also
+     * covered. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_XChacha_SetKey k", k, sizeof k);
+    wc_MemZero_Add("wc_XChacha_SetKey iv", iv, sizeof iv);
+#endif
+
+    if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0) {
+        /* k and iv hold derived key material - wipe before erroring out. */
+        ForceZero(k, sizeof k);
+        ForceZero(iv, sizeof iv);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(k, sizeof k);
+        wc_MemZero_Check(iv, sizeof iv);
+    #endif
         return ret;
+    }
 
     ForceZero(k, sizeof k);
     ForceZero(iv, sizeof iv);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(k, sizeof k);
+    wc_MemZero_Check(iv, sizeof iv);
+#endif
 
     return 0;
 }

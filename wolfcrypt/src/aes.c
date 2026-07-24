@@ -5886,7 +5886,13 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         aes->ctx.cfd = -1;
     #endif
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_AesSetKeyLocal local", local, sizeof(local));
+    #endif
         ForceZero(local, sizeof(local));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(local, sizeof(local));
+    #endif
     #endif
         return ret;
 #endif
@@ -7483,6 +7489,9 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             byte ks[WC_AES_BLOCK_SIZE];
             int  ret = wc_Stm32_Aes_Ecb(aes, ks, (const byte*)aes->reg,
                                         WC_AES_BLOCK_SIZE, 1);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_AesCtrEncryptBlock ks", ks, sizeof(ks));
+        #endif
             if (ret == 0) {
                 xorbufout(out, in, ks, WC_AES_BLOCK_SIZE);
             }
@@ -7493,6 +7502,9 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 ForceZero(out, WC_AES_BLOCK_SIZE);
             }
             ForceZero(ks, sizeof(ks));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(ks, sizeof(ks));
+        #endif
             return ret;
         #else
             int ret = 0;
@@ -8356,7 +8368,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     if (aes == NULL || key == NULL) {
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_AesGcmSetKey local", local, sizeof(local));
+#endif
         ForceZero(local, sizeof(local));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(local, sizeof(local));
+#endif
 #endif
         return BAD_FUNC_ARG;
     }
@@ -8508,7 +8526,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_AesGcmSetKey local", local, sizeof(local));
+#endif
     ForceZero(local, sizeof(local));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(local, sizeof(local));
+#endif
 #endif
     return ret;
 }
@@ -18719,6 +18743,15 @@ static WARN_UNUSED_RESULT int AesSivCipher(
     WC_DECLARE_VAR(aes, Aes, 1, 0);
     byte sivTmp[WC_AES_BLOCK_SIZE];
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Poison before the (conditional) fill so error paths that never write
+     * sivTmp still leave it defined; the used paths overwrite it. Register
+     * here (the highest point from which every exit funnels to the single
+     * ForceZero+Check below). */
+    XMEMSET(sivTmp, 0xff, sizeof(sivTmp));
+    wc_MemZero_Add("AesSivCipher sivTmp", sivTmp, sizeof(sivTmp));
+#endif
+
     if (key == NULL || siv == NULL || out == NULL) {
         WOLFSSL_MSG("Bad parameter");
         ret = BAD_FUNC_ARG;
@@ -18798,6 +18831,9 @@ static WARN_UNUSED_RESULT int AesSivCipher(
     }
 
     ForceZero(sivTmp, sizeof(sivTmp));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(sivTmp, sizeof(sivTmp));
+#endif
 
     return ret;
 }
@@ -19286,6 +19322,11 @@ static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
     /* m[8] = 1 * H = mulX_GHASH(ByteReverse(h)); successive halvings give the
      * power-of-two nibble entries. */
     AesGcmSivByteReverse(hrev, h);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* hrev now holds ByteReverse(H), the per-message hash key; register from
+     * its first write so every exit reaches the ForceZero+Check below. */
+    wc_MemZero_Add("AesGcmSivPolyvalInitSw hrev", hrev, sizeof(hrev));
+#endif
     m[0x8][0] = AesGcmSivLoad64(hrev);
     m[0x8][1] = AesGcmSivLoad64(hrev + 8);
     AesGcmSivMulX64(&m[0x8][0], &m[0x8][1]);
@@ -19308,6 +19349,9 @@ static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
     XMEMSET(poly->s, 0, sizeof(poly->s));
     /* hrev held ByteReverse(H), the per-message hash key; wipe it. */
     ForceZero(hrev, sizeof(hrev));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(hrev, sizeof(hrev));
+#endif
 }
 
 #else /* word32: GCM_WORD32 or no 64-bit type */
@@ -19413,6 +19457,11 @@ static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
     /* m[8] = 1 * H = mulX_GHASH(ByteReverse(h)); successive halvings give the
      * power-of-two nibble entries. */
     AesGcmSivByteReverse(hrev, h);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* hrev now holds ByteReverse(H), the per-message hash key; register from
+     * its first write so every exit reaches the ForceZero+Check below. */
+    wc_MemZero_Add("AesGcmSivPolyvalInitSw hrev", hrev, sizeof(hrev));
+#endif
     m[0x8][0] = AesGcmSivLoad32(hrev);
     m[0x8][1] = AesGcmSivLoad32(hrev + 4);
     m[0x8][2] = AesGcmSivLoad32(hrev + 8);
@@ -19439,6 +19488,9 @@ static void AesGcmSivPolyvalInitSw(AesGcmSivPolyval* poly, const byte* h)
     XMEMSET(poly->s, 0, sizeof(poly->s));
     /* hrev held ByteReverse(H), the per-message hash key; wipe it. */
     ForceZero(hrev, sizeof(hrev));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(hrev, sizeof(hrev));
+#endif
 }
 
 #endif /* POLYVAL multiply variant */
@@ -19604,6 +19656,10 @@ static void AesGcmSivPolyvalInit(AesGcmSivPolyval* poly, const byte* h)
             /* Prepare the hash key for the asm: byte-reversed
              * mulX_GHASH(ByteReverse(h)). */
             AesGcmSivByteReverse(t, h);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            /* t now holds the prepared hash key; register from first write. */
+            wc_MemZero_Add("AesGcmSivPolyvalInit t", t, sizeof(t));
+        #endif
             AesGcmSivMulX(t);
             AesGcmSivByteReverse(poly->hHw, t);
             XMEMSET(poly->s, 0, sizeof(poly->s));
@@ -19611,6 +19667,9 @@ static void AesGcmSivPolyvalInit(AesGcmSivPolyval* poly, const byte* h)
             poly->fn = fn;
             /* t held the prepared hash key; wipe the stack copy. */
             ForceZero(t, sizeof(t));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(t, sizeof(t));
+        #endif
         }
         return;
     }
@@ -19633,6 +19692,13 @@ static void AesGcmSivPolyvalUpdate(AesGcmSivPolyval* poly, const byte* data,
     if (poly->fn != NULL) {
         word32 blocks = sz / WC_AES_BLOCK_SIZE;
         word32 partial = sz % WC_AES_BLOCK_SIZE;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* block holds a padded AAD/plaintext tail; register from branch entry
+         * (baseline covers the partial == 0 case) so every exit of this branch
+         * reaches the ForceZero+Check below. */
+        XMEMSET(block, 0, sizeof(block));
+        wc_MemZero_Add("AesGcmSivPolyvalUpdate block", block, sizeof(block));
+    #endif
         if (blocks > 0) {
             poly->fn(poly->s, poly->asmKey, data, blocks);
             data += blocks * WC_AES_BLOCK_SIZE;
@@ -19644,8 +19710,20 @@ static void AesGcmSivPolyvalUpdate(AesGcmSivPolyval* poly, const byte* data,
         }
         /* block may have held a padded AAD/plaintext tail; wipe it. */
         ForceZero(block, sizeof(block));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(block, sizeof(block));
+    #endif
         return;
     }
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* block/rev hold byte-reversed AAD/plaintext blocks; register before the
+     * loops (baselines cover the sz == 0 case) so every exit reaches the
+     * ForceZero+Check below. */
+    XMEMSET(block, 0, sizeof(block));
+    XMEMSET(rev, 0, sizeof(rev));
+    wc_MemZero_Add("AesGcmSivPolyvalUpdate block", block, sizeof(block));
+    wc_MemZero_Add("AesGcmSivPolyvalUpdate rev", rev, sizeof(rev));
 #endif
     while (sz >= WC_AES_BLOCK_SIZE) {
         AesGcmSivByteReverse(rev, data);
@@ -19668,6 +19746,10 @@ static void AesGcmSivPolyvalUpdate(AesGcmSivPolyval* poly, const byte* data,
     /* block/rev held byte-reversed AAD/plaintext blocks; wipe them. */
     ForceZero(block, sizeof(block));
     ForceZero(rev, sizeof(rev));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(block, sizeof(block));
+    wc_MemZero_Check(rev, sizeof(rev));
+#endif
 }
 
 /* Output the 16-byte POLYVAL result and wipe the key material and state. */
@@ -19694,6 +19776,12 @@ static WARN_UNUSED_RESULT int AesGcmSivDeriveKeys(Aes* kgk, const byte* nonce,
      * bytes of each AES output are concatenated to form the derived keys. */
     XMEMCPY(block + 4, nonce, AES_GCM_SIV_NONCE_SZ);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* out receives the derived auth/enc key bytes from each AES block. */
+    XMEMSET(out, 0xff, sizeof(out));
+    wc_MemZero_Add("AesGcmSivDeriveKeys out", out, sizeof(out));
+#endif
+
     for (ctr = 0; ctr < 2; ctr++) {
         block[0] = (byte)ctr;
         block[1] = 0; block[2] = 0; block[3] = 0;
@@ -19714,6 +19802,9 @@ static WARN_UNUSED_RESULT int AesGcmSivDeriveKeys(Aes* kgk, const byte* nonce,
 
     ForceZero(block, sizeof(block));
     ForceZero(out, sizeof(out));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(out, sizeof(out));
+#endif
 
     return ret;
 }
@@ -19733,6 +19824,14 @@ static WARN_UNUSED_RESULT int AesGcmSivCalcTag(Aes* enc, const byte* authKey,
     word32 ptLo  = plainSz << 3, ptHi = plainSz >> 29;
     int i;
     int ret;
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* s holds the POLYVAL result then the pre-encryption tag input. Register
+     * from the top (single exit funnels to the ForceZero+Check below);
+     * baseline keeps it defined for the checker. */
+    XMEMSET(s, 0, sizeof(s));
+    wc_MemZero_Add("AesGcmSivCalcTag s", s, sizeof(s));
+#endif
 
     AesGcmSivPolyvalInit(&poly, authKey);
     AesGcmSivPolyvalUpdate(&poly, aad, aadSz);
@@ -19761,6 +19860,9 @@ static WARN_UNUSED_RESULT int AesGcmSivCalcTag(Aes* enc, const byte* authKey,
     ret = wc_AesEncrypt(enc, s, tag);
 
     ForceZero(s, sizeof(s));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(s, sizeof(s));
+#endif
     return ret;
 }
 
@@ -19776,6 +19878,13 @@ static WARN_UNUSED_RESULT int AesGcmSivCtr(Aes* enc, const byte* tag,
     byte ks[WC_AES_BLOCK_SIZE];
     word32 c;
     int ret = 0;
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* ks holds the AES-CTR keystream block; register from the top (single
+     * exit funnels to the ForceZero+Check below). */
+    XMEMSET(ks, 0, sizeof(ks));
+    wc_MemZero_Add("AesGcmSivCtr ks", ks, sizeof(ks));
+#endif
 
     XMEMCPY(ctrBlock, tag, WC_AES_BLOCK_SIZE);
     ctrBlock[WC_AES_BLOCK_SIZE - 1] |= 0x80;
@@ -19824,6 +19933,9 @@ static WARN_UNUSED_RESULT int AesGcmSivCtr(Aes* enc, const byte* tag,
 
     ForceZero(ks, sizeof(ks));
     ForceZero(ctrBlock, sizeof(ctrBlock));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(ks, sizeof(ks));
+#endif
     return ret;
 }
 
@@ -19869,6 +19981,17 @@ int wc_AesGcmSivEncrypt(const byte* key, word32 keySz, const byte* nonce,
     byte tagTmp[AES_GCM_SIV_TAG_SZ];
     int ret;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Derived per-message MAC key, encryption key, and tag. Register from the
+     * top; every exit funnels to the shared ForceZero+Check block below. */
+    XMEMSET(authKey, 0, sizeof(authKey));
+    XMEMSET(encKey, 0, sizeof(encKey));
+    XMEMSET(tagTmp, 0, sizeof(tagTmp));
+    wc_MemZero_Add("wc_AesGcmSivEncrypt authKey", authKey, sizeof(authKey));
+    wc_MemZero_Add("wc_AesGcmSivEncrypt encKey", encKey, sizeof(encKey));
+    wc_MemZero_Add("wc_AesGcmSivEncrypt tagTmp", tagTmp, sizeof(tagTmp));
+#endif
+
     ret = AesGcmSivCheckArgs(key, keySz, nonce, nonceSz, aad, aadSz, in, inSz,
                              out, tag, tagSz);
 
@@ -19913,6 +20036,11 @@ int wc_AesGcmSivEncrypt(const byte* key, word32 keySz, const byte* nonce,
     ForceZero(authKey, sizeof(authKey));
     ForceZero(encKey, sizeof(encKey));
     ForceZero(tagTmp, sizeof(tagTmp));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(authKey, sizeof(authKey));
+    wc_MemZero_Check(encKey, sizeof(encKey));
+    wc_MemZero_Check(tagTmp, sizeof(tagTmp));
+#endif
 
     return ret;
 }
@@ -19933,6 +20061,18 @@ int wc_AesGcmSivDecrypt(const byte* key, word32 keySz, const byte* nonce,
     byte encKey[32];
     byte expTag[AES_GCM_SIV_TAG_SZ];
     int ret;
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Derived per-message MAC key, encryption key, and recomputed tag.
+     * Register from the top; every exit funnels to the shared ForceZero+Check
+     * block below. */
+    XMEMSET(authKey, 0, sizeof(authKey));
+    XMEMSET(encKey, 0, sizeof(encKey));
+    XMEMSET(expTag, 0, sizeof(expTag));
+    wc_MemZero_Add("wc_AesGcmSivDecrypt authKey", authKey, sizeof(authKey));
+    wc_MemZero_Add("wc_AesGcmSivDecrypt encKey", encKey, sizeof(encKey));
+    wc_MemZero_Add("wc_AesGcmSivDecrypt expTag", expTag, sizeof(expTag));
+#endif
 
     ret = AesGcmSivCheckArgs(key, keySz, nonce, nonceSz, aad, aadSz, in, inSz,
                              out, tag, tagSz);
@@ -19980,6 +20120,11 @@ int wc_AesGcmSivDecrypt(const byte* key, word32 keySz, const byte* nonce,
     ForceZero(authKey, sizeof(authKey));
     ForceZero(encKey, sizeof(encKey));
     ForceZero(expTag, sizeof(expTag));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(authKey, sizeof(authKey));
+    wc_MemZero_Check(encKey, sizeof(encKey));
+    wc_MemZero_Check(expTag, sizeof(expTag));
+#endif
 
     return ret;
 }

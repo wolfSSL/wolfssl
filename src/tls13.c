@@ -1054,6 +1054,14 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
             return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Poison and register firstExpand before it is written so that any path
+     * below (all of which funnel through cleanup) is covered. */
+    XMEMSET(firstExpand, 0xff, sizeof(firstExpand));
+    wc_MemZero_Add("Tls13_Exporter firstExpand", firstExpand,
+                   sizeof(firstExpand));
+#endif
+
     /* Derive-Secret(Secret, label, "") */
     ret = Tls13HKDFExpandLabel(ssl, firstExpand, hashLen,
             ssl->arrays->exporterSecret, hashLen,
@@ -1076,6 +1084,9 @@ cleanup:
      * Hash(context_value); wipe both before the stack frame is reclaimed. */
     ForceZero(firstExpand, sizeof(firstExpand));
     ForceZero(hashOut, sizeof(hashOut));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(firstExpand, sizeof(firstExpand));
+#endif
     return ret;
 }
 #endif
@@ -1533,6 +1544,11 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     WC_ALLOC_VAR_EX(key_dig, byte, MAX_PRF_DIG, ssl->heap,
         DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(key_dig, 0xff, MAX_PRF_DIG);
+    wc_MemZero_Add("DeriveTls13Keys key_dig", key_dig, MAX_PRF_DIG);
+#endif
+
     if (side == ENCRYPT_AND_DECRYPT_SIDE) {
         provision = PROVISION_CLIENT_SERVER;
     }
@@ -1665,7 +1681,8 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
                         WOLFSSL_SERVER_END);
         if (ret != 0)
             goto end;
-        i += ssl->specs.iv_size;
+        /* Server IV is the last key material written to key_dig, so i is not
+         * advanced here; the whole buffer is zeroed at end regardless. */
     }
 
     /* Store keys and IVs but don't activate them. */
@@ -1717,7 +1734,9 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 #endif /* WOLFSSL_DTLS13 */
 
 end:
-    ForceZero(key_dig, (word32)i);
+    /* Zero the whole key_dig buffer (not just the i bytes derived) so no
+     * key-schedule material can linger in the unused tail. */
+    ForceZero(key_dig, MAX_PRF_DIG);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -6522,6 +6541,13 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
     (void)suite;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Poison and register binderKey up front; every exit below (including the
+     * error paths) funnels through the cleanup label which zeroes it. */
+    XMEMSET(binderKey, 0xff, sizeof(binderKey));
+    wc_MemZero_Add("DoPreSharedKeys binderKey", binderKey, sizeof(binderKey));
+#endif
+
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
     if (ext == NULL) {
         WOLFSSL_MSG("No pre shared extension keys found");
@@ -6738,6 +6764,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 cleanup:
     ForceZero(binderKey, sizeof(binderKey));
     ForceZero(binder, sizeof(binder));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(binderKey, sizeof(binderKey));
+#endif
     WOLFSSL_LEAVE("DoPreSharedKeys", ret);
 
     return ret;

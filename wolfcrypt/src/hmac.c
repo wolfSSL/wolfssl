@@ -1903,6 +1903,9 @@ int wolfSSL_GetHmacMaxSize(void)
         }
 
         XMEMSET(tmp, 0, WC_MAX_DIGEST_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_HKDF_Expand_ex tmp", tmp, WC_MAX_DIGEST_SIZE);
+#endif
 
         while (outIdx < outSz) {
             word32 tmpSz = (n == 1) ? 0 : hashSz;
@@ -1937,6 +1940,9 @@ int wolfSSL_GetHmacMaxSize(void)
         }
 
         ForceZero(tmp, WC_MAX_DIGEST_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(tmp, WC_MAX_DIGEST_SIZE);
+#endif
         wc_HmacFree(myHmac);
         WC_FREE_VAR_EX(myHmac, NULL, DYNAMIC_TYPE_HMAC);
 
@@ -1989,6 +1995,10 @@ int wolfSSL_GetHmacMaxSize(void)
             return ret;
         hashSz = (word32)ret;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(prk, 0, WC_MAX_DIGEST_SIZE);
+        wc_MemZero_Add("wc_HKDF_ex prk", prk, WC_MAX_DIGEST_SIZE);
+#endif
         ret = wc_HKDF_Extract_ex(type, salt, saltSz, inKey, inKeySz, prk, heap,
                                  devId);
         if (ret == 0) {
@@ -1996,6 +2006,9 @@ int wolfSSL_GetHmacMaxSize(void)
                                     out, outSz, heap, devId);
         }
         ForceZero(prk, WC_MAX_DIGEST_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(prk, WC_MAX_DIGEST_SIZE);
+#endif
         return ret;
     }
 

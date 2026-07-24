@@ -687,6 +687,11 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
          */
         ret = wc_RNG_GenerateBlock(rng, rand, WC_ML_KEM_SYM_SZ * 2);
         /* Step 3: ret is not zero when d == NULL or z == NULL. */
+        /* rand now holds the secret seeds d||z; register before key gen /
+         * PCT so any future early-exit before the ForceZero is caught. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mlkem makekey rand", (void*)rand, (word32)sizeof(rand));
+#endif
     }
     if (ret == 0) {
         /* Make a key pair from the random.
@@ -724,8 +729,16 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
                 ret = ML_KEM_PCT_E;
         }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mlkem pct ss1", pct_ss1, sizeof(pct_ss1));
+        wc_MemZero_Add("mlkem pct ss2", pct_ss2, sizeof(pct_ss2));
+#endif
         ForceZero(pct_ss1, sizeof(pct_ss1));
         ForceZero(pct_ss2, sizeof(pct_ss2));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(pct_ss1, sizeof(pct_ss1));
+        wc_MemZero_Check(pct_ss2, sizeof(pct_ss2));
+#endif
         if (WC_VAR_OK(pct_ct))
             ForceZero(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
 
@@ -742,6 +755,9 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 
     /* Ensure seeds are zeroized. */
     ForceZero((void*)rand, (word32)sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check((void*)rand, (word32)sizeof(rand));
+#endif
 
     /* Step 4: return ret != 0 on falsum or internal key generation failure. */
     return ret;
@@ -968,9 +984,21 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     }
 
     /* Zeroize the secret seed material in rho||sigma (sigma) before return. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem keygen buf", buf, sizeof(buf));
+#endif
     ForceZero(buf, sizeof(buf));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(buf, sizeof(buf));
+#endif
 #ifdef WC_MLKEM_FAULT_HARDEN
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem keygen sigma", sigma, sizeof(sigma));
+#endif
     ForceZero(sigma, sizeof(sigma));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(sigma, sizeof(sigma));
+#endif
 #endif
 
 #ifndef WOLFSSL_NO_MALLOC
@@ -984,7 +1012,13 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
     }
 #else
     /* e is a stack buffer holding the secret noise vector; zeroize it. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem keygen e", e, (size_t)(k * MLKEM_N) * sizeof(sword16));
+#endif
     ForceZero(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
+#endif
 #endif
 
     /* Note: PCT is performed in wc_MlKemKey_MakeKey() which calls this
@@ -1323,7 +1357,13 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     }
 #else
     /* y is a stack buffer holding secret noise/message material; zeroize it. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem encrypt y", y, sizeof(y));
+#endif
     ForceZero(y, sizeof(y));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(y, sizeof(y));
+#endif
 #endif
 
     return ret;
@@ -1446,6 +1486,11 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
          * Step 1: m is 32 random bytes
          */
         ret = wc_RNG_GenerateBlock(rng, m, sizeof(m));
+        /* m now holds the encapsulation randomness (the shared secret is
+         * derived from it); register before the encapsulate call. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mlkem encapsulate m", m, sizeof(m));
+#endif
         /* Step 2: ret is not zero when m == NULL. */
     }
     if (ret == 0) {
@@ -1458,6 +1503,9 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
     /* Zeroize the random message seed before return - it is the encapsulation
      * randomness from which the shared secret is derived (FIPS 203 Alg 17). */
     ForceZero(m, sizeof(m));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(m, sizeof(m));
+#endif
 
     /* Step 3: return ret != 0 on falsum or internal key generation failure. */
     return ret;
@@ -1646,9 +1694,21 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
 #ifdef WOLFSSL_MLKEM_KYBER
     /* msg holds the secret message H(rand) used for Kyber encapsulation;
      * zeroize it before return (the ML-KEM path uses the caller's rand). */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem encapsulate msg", msg, sizeof(msg));
+#endif
     ForceZero(msg, sizeof(msg));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(msg, sizeof(msg));
+#endif
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem encapsulate kr", kr, sizeof(kr));
 #endif
     ForceZero(kr, sizeof(kr));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(kr, sizeof(kr));
+#endif
 
     return ret;
 }
@@ -1810,7 +1870,13 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
     }
 #else
     /* u is a stack buffer holding the secret decrypted polynomial; zeroize. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem decrypt u", u, sizeof(u));
+#endif
     ForceZero(u, sizeof(u));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(u, sizeof(u));
+#endif
 #endif
 
     return ret;
@@ -2026,8 +2092,16 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     ForceZero(cmp, sizeof(cmp));
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem decapsulate msg", msg, sizeof(msg));
+    wc_MemZero_Add("mlkem decapsulate kr", kr, sizeof(kr));
+#endif
     ForceZero(msg, sizeof(msg));
     ForceZero(kr, sizeof(kr));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(msg, sizeof(msg));
+    wc_MemZero_Check(kr, sizeof(kr));
+#endif
 
     return ret;
 }

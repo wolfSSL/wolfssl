@@ -4933,6 +4933,13 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         if (privSz <= 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
+    #if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+        /* Register as soon as the stack array holds the private key so any
+         * future path that fails to zeroize it before exit is caught. */
+        else {
+            wc_MemZero_Add("_DH_compute_key priv", priv, (word32)privSz);
+        }
+    #endif
     }
     if (ret == 0) {
         /* Get the public key into the array. */
@@ -4996,6 +5003,9 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         {
             /* Zeroize sensitive data. */
             ForceZero(priv, (word32)privSz);
+        #if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+            wc_MemZero_Check(priv, sizeof(priv));
+        #endif
         }
     }
     WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -7226,6 +7236,14 @@ int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data, long* len,
         if (passwordSz < 0) {
             ret = 0;
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Register as soon as the stack buffer holds the secret so any future
+         * path that fails to zeroize it before exit is caught. */
+        else if (passwordSz > 0) {
+            wc_MemZero_Add("wolfSSL_PEM_do_header password", password,
+                (word32)passwordSz);
+        }
+    #endif
     }
 
     if (ret == 1) {
@@ -7239,6 +7257,9 @@ int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data, long* len,
     if (passwordSz > 0) {
         /* Ensure password is erased from memory. */
         ForceZero(password, (word32)passwordSz);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(password, NAME_SZ);
+    #endif
     }
 
     return ret;
@@ -7476,6 +7497,14 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
                 res = 0;
             }
             passwd = password;
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            /* Register as soon as the stack buffer holds the secret so any
+             * future path that fails to zeroize it before exit is caught. */
+            if (passwdSz > 0) {
+                wc_MemZero_Add("pem_write_mem_pkcs8privatekey password",
+                    password, (word32)passwdSz);
+            }
+        #endif
         }
 
         if (res == 1) {
@@ -7489,6 +7518,9 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
         /* Zeroize the password from memory. */
         if ((password == passwd) && (passwdSz > 0)) {
             ForceZero(password, (word32)passwdSz);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(password, NAME_SZ);
+        #endif
         }
     }
     else if ((res == 1) && (enc == NULL)) {

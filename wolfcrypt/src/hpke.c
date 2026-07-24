@@ -659,6 +659,11 @@ static int wc_HpkeExtractAndExpand( Hpke* hpke, byte* dh, word32 dh_len,
 
     WC_ALLOC_VAR_EX(eae_prk, byte, WC_MAX_DIGEST_SIZE, hpke->heap,
         DYNAMIC_TYPE_DIGEST, return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(eae_prk, 0xff, WC_MAX_DIGEST_SIZE);
+    wc_MemZero_Add("wc_HpkeExtractAndExpand eae_prk", eae_prk,
+        WC_MAX_DIGEST_SIZE);
+#endif
 
     /* extract */
     ret = wc_HpkeLabeledExtract(hpke, hpke->kem_suite_id,
@@ -675,6 +680,9 @@ static int wc_HpkeExtractAndExpand( Hpke* hpke, byte* dh, word32 dh_len,
     }
 
     ForceZero(eae_prk, WC_MAX_DIGEST_SIZE);
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(eae_prk, WC_MAX_DIGEST_SIZE);
+#endif
     WC_FREE_VAR_EX(eae_prk, hpke->heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
@@ -711,6 +719,11 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
         XFREE(secret, hpke->heap, DYNAMIC_TYPE_DIGEST);
         return MEMORY_E;
     }
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(secret, 0xff, WC_MAX_DIGEST_SIZE);
+    wc_MemZero_Add("wc_HpkeKeyScheduleBase secret", secret,
+        WC_MAX_DIGEST_SIZE);
 #endif
 
     /* set the sequence to 0 */
@@ -767,6 +780,9 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
 
     ForceZero(key_schedule_context, 1 + 2 * WC_MAX_DIGEST_SIZE);
     ForceZero(secret, WC_MAX_DIGEST_SIZE);
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(secret, WC_MAX_DIGEST_SIZE);
+#endif
     WC_FREE_VAR_EX(key_schedule_context, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(secret, hpke->heap, DYNAMIC_TYPE_DIGEST);
@@ -810,6 +826,11 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
         XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
+#endif
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(dh, 0xff, hpke->Ndh);
+    wc_MemZero_Add("wc_HpkeEncap dh", dh, hpke->Ndh);
 #endif
 
     /* generate dh */
@@ -874,6 +895,9 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
 
     ForceZero(dh, hpke->Ndh);
     ForceZero(kemContext, hpke->Npk * 2);
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(dh, hpke->Ndh);
+#endif
     WC_FREE_VAR_EX(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -899,6 +923,12 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
     }
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(sharedSecret, 0xff, hpke->Nsecret);
+    wc_MemZero_Add("wc_HpkeSetupBaseSender sharedSecret", sharedSecret,
+        hpke->Nsecret);
+#endif
+
     /* encap */
     ret = wc_HpkeEncap(hpke, ephemeralKey, receiverKey, sharedSecret);
 
@@ -914,6 +944,9 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
     }
 #endif
     ForceZero(sharedSecret, hpke->Nsecret);
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(sharedSecret, hpke->Nsecret);
+#endif
     WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -991,6 +1024,11 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
 
     WC_ALLOC_VAR_EX(context, HpkeBaseContext, 1, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(context, 0xff, sizeof(HpkeBaseContext));
+    wc_MemZero_Add("wc_HpkeSealBase context", context,
+        sizeof(HpkeBaseContext));
+#endif
 
     PRIVATE_KEY_UNLOCK();
 
@@ -1007,6 +1045,9 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     PRIVATE_KEY_LOCK();
 
     ForceZero(context, sizeof(HpkeBaseContext));
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(context, sizeof(HpkeBaseContext));
+#endif
     WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -1046,6 +1087,11 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
         XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
+#endif
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(dh, 0xff, hpke->Ndh);
+    wc_MemZero_Add("wc_HpkeDecap dh", dh, hpke->Ndh);
 #endif
 
     /* deserialize ephemeralKey from pubKey */
@@ -1129,6 +1175,9 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
 
     ForceZero(dh, hpke->Ndh);
     ForceZero(kemContext, hpke->Npk * 2);
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(dh, hpke->Ndh);
+#endif
     WC_FREE_VAR_EX(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -1145,6 +1194,11 @@ static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
 
     WC_ALLOC_VAR_EX(sharedSecret, byte, hpke->Nsecret, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(sharedSecret, 0xff, hpke->Nsecret);
+    wc_MemZero_Add("wc_HpkeSetupBaseReceiver sharedSecret", sharedSecret,
+        hpke->Nsecret);
+#endif
 
     /* decap */
     ret = wc_HpkeDecap(hpke, receiverKey, pubKey, pubKeySz, sharedSecret);
@@ -1161,6 +1215,9 @@ static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
     }
 #endif
     ForceZero(sharedSecret, hpke->Nsecret);
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(sharedSecret, hpke->Nsecret);
+#endif
     WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -1238,6 +1295,11 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
 
     WC_ALLOC_VAR_EX(context, HpkeBaseContext, 1, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(context, 0xff, sizeof(HpkeBaseContext));
+    wc_MemZero_Add("wc_HpkeOpenBase context", context,
+        sizeof(HpkeBaseContext));
+#endif
 
     PRIVATE_KEY_UNLOCK();
 
@@ -1254,6 +1316,9 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
     PRIVATE_KEY_LOCK();
 
     ForceZero(context, sizeof(HpkeBaseContext));
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(context, sizeof(HpkeBaseContext));
+#endif
     WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;

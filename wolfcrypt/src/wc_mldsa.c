@@ -167,6 +167,7 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/memory.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -3631,7 +3632,13 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
     }
 
     /* z holds the secret s1/s2 bytes. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa_rej_bound_poly z", z, sizeof(z));
+#endif
     ForceZero(z, sizeof(z));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(z, sizeof(z));
+#endif
     return ret;
 #else
     int ret;
@@ -4145,7 +4152,13 @@ static int mldsa_expand_s_c(wc_Shake* shake256, byte* priv_seed, byte eta,
 
     /* seed holds a copy of the secret private seed (rho_prime) from which the
      * s1/s2 vectors are derived; zeroize it before return. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa gen_s seed", seed, sizeof(seed));
+#endif
     ForceZero(seed, sizeof(seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seed, sizeof(seed));
+#endif
 
     return ret;
 }
@@ -8233,6 +8246,11 @@ static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
 
     /* Step 1: Generate a 32 byte random seed. */
     ret = wc_RNG_GenerateBlock(rng, seed, MLDSA_SEED_SZ);
+    /* seed now holds the secret key seed; register before the derive step so a
+     * future early-exit ahead of the ForceZero cannot leak it. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_MlDsaKey_MakeKey seed", seed, sizeof(seed));
+#endif
     /* Step 2: Check for error. */
     if (ret == 0) {
         /* Step 5: Make key with random seed. */
@@ -8240,6 +8258,9 @@ static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
     }
 
     ForceZero(seed, sizeof(seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seed, sizeof(seed));
+#endif
     return ret;
 }
 #endif /* !WOLFSSL_MLDSA_NO_MAKE_KEY */
@@ -8630,7 +8651,14 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         mldsa_vec_encode_gamma1(z, params->l, params->gamma1_bits, ze);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa sign priv_rand_seed", priv_rand_seed,
+        sizeof(priv_rand_seed));
+#endif
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
+#endif
     if (y != NULL) {
         word32 zeroSz = allocSz;
 #ifndef WC_MLDSA_CACHE_MATRIX_A
@@ -9194,7 +9222,14 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         while ((ret == 0) && (!valid));
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa sign priv_rand_seed", priv_rand_seed,
+        sizeof(priv_rand_seed));
+#endif
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(priv_rand_seed, sizeof(priv_rand_seed));
+#endif
     if (y != NULL) {
         ForceZero(y, allocSz);
     }
@@ -9251,7 +9286,13 @@ static int mldsa_sign_ctx_msg_with_seed(wc_MlDsaKey* key,
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa sign seedMu", seedMu, sizeof(seedMu));
+#endif
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seedMu, sizeof(seedMu));
+#endif
     return ret;
 }
 
@@ -9301,7 +9342,13 @@ static int mldsa_sign_msg_with_seed(wc_MlDsaKey* key, const byte* seed,
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa sign seedMu", seedMu, sizeof(seedMu));
+#endif
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seedMu, sizeof(seedMu));
+#endif
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_NO_CTX */
@@ -9367,7 +9414,13 @@ static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa sign seedMu", seedMu, sizeof(seedMu));
+#endif
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seedMu, sizeof(seedMu));
+#endif
     return ret;
 }
 
@@ -9430,7 +9483,13 @@ static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa sign seedMu", seedMu, sizeof(seedMu));
+#endif
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seedMu, sizeof(seedMu));
+#endif
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_NO_CTX */
@@ -9505,7 +9564,13 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mldsa sign seedMu", seedMu, sizeof(seedMu));
+#endif
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seedMu, sizeof(seedMu));
+#endif
     return ret;
 }
 
@@ -9548,6 +9613,10 @@ static int mldsa_sign_ctx_hash(wc_MlDsaKey* key, WC_RNG* rng,
     if (ret == 0) {
         /* Step 7: Generate random seed. */
         ret = wc_RNG_GenerateBlock(rng, seed, MLDSA_RND_SZ);
+        /* seed now holds the secret signing randomness; register before use. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mldsa sign_ctx_hash seed", seed, sizeof(seed));
+#endif
     }
 
     if (ret == 0) {
@@ -9556,6 +9625,9 @@ static int mldsa_sign_ctx_hash(wc_MlDsaKey* key, WC_RNG* rng,
     }
 
     ForceZero(seed, sizeof(seed));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seed, sizeof(seed));
+#endif
     return ret;
 }
 
@@ -10602,7 +10674,13 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         XMEMCPY(seedMu, seed, MLDSA_RND_SZ);
         XMEMCPY(seedMu + MLDSA_RND_SZ, mu, MLDSA_MU_SZ);
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mldsa sign_mu seedMu", seedMu, sizeof(seedMu));
+#endif
         ForceZero(seedMu, sizeof(seedMu));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(seedMu, sizeof(seedMu));
+#endif
     }
 
     return ret;

@@ -1600,10 +1600,19 @@ static int xil_mpi_import(mp_int *mpi,
 
     WC_ALLOC_VAR_EX(buf, byte, len, heap, DYNAMIC_TYPE_PRIVATE_KEY,
         return MEMORY_E);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    /* Register the stack buffer before it is filled so any future exit before
+     * the ForceZero is checked. XMEMSET makes it defined for registration. */
+    XMEMSET(buf, 0, len);
+    wc_MemZero_Add("xil_mpi_import buf", buf, len);
+#endif
     buf_reverse(buf, inbuf, len);
 
     err = mp_read_unsigned_bin(mpi, buf, len);
     ForceZero(buf, len);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(buf, len);
+#endif
     WC_FREE_VAR_EX(buf, heap, DYNAMIC_TYPE_PRIVATE_KEY);
     return err;
 }
@@ -8334,6 +8343,12 @@ int wc_ecc_dev_make_key(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     wrapped = scratch + (3 * MAX_ECC_BYTES);
 #endif
 
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    /* Register the stack private-key buffer before keygen/export so any exit
+     * before the ForceZero is checked. XMEMSET makes it defined. */
+    XMEMSET(d, 0, MAX_ECC_BYTES);
+    wc_MemZero_Add("wc_ecc_dev_make_key d", d, MAX_ECC_BYTES);
+#endif
     ret = wc_ecc_init_ex(tmp, key->heap, INVALID_DEVID);
     if (ret == 0) {
         tmpInit = 1;
@@ -8358,6 +8373,9 @@ int wc_ecc_dev_make_key(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     }
 
     ForceZero(d, MAX_ECC_BYTES);
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(d, MAX_ECC_BYTES);
+#endif
     if (tmpInit) {
         wc_ecc_free(tmp);
     }

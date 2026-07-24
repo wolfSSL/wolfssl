@@ -442,6 +442,20 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Register the secret nonce/expanded-key buffers up front so that any exit
+     * path from here to the ForceZero below is checked for proper zeroization.
+     * XMEMSET gives them a defined value before the hash steps fill them. */
+    XMEMSET(az, 0, sizeof(az));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    wc_MemZero_Add("wc_ed448_sign_msg_ex az", az, sizeof(az));
+    wc_MemZero_Add("wc_ed448_sign_msg_ex nonce", nonce, sizeof(nonce));
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    XMEMSET(orig_k, 0, sizeof(orig_k));
+    wc_MemZero_Add("wc_ed448_sign_msg_ex orig_k", orig_k, sizeof(orig_k));
+#endif
+#endif
+
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL) ||
                                      ((context == NULL) && (contextLen != 0))) {
@@ -579,10 +593,17 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         ret = ctMaskGT(c, 0) & SIG_VERIFY_E;
     }
     ForceZero(orig_k, sizeof(orig_k));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(orig_k, sizeof(orig_k));
+#endif
 #endif
 
     ForceZero(az, sizeof(az));
     ForceZero(nonce, sizeof(nonce));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(nonce, sizeof(nonce));
+    wc_MemZero_Check(az, sizeof(az));
+#endif
     return ret;
 }
 

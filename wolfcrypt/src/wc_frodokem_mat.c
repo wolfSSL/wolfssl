@@ -291,7 +291,13 @@ static void frodokem_sa_accum_sme_wrap(word16* out, const word16* s,
     }
     frodokem_sa_accum_sme(out, sc, row, n);
     /* sc held two columns of the secret matrix S^T. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("frodokem sme sc", sc, sizeof(sc));
+#endif
     ForceZero(sc, sizeof(sc));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(sc, sizeof(sc));
+#endif
 }
 
 /* Transpose the two A rows and S into the SME interleaved layout, then run the

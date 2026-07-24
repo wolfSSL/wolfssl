@@ -566,8 +566,21 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
     *outLen = ED25519_SIG_SIZE;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Register the secret nonce/expanded-key buffers up front so that any exit
+     * path from here to the ForceZero below is checked for proper zeroization.
+     * XMEMSET gives them a defined value before the hash steps fill them. */
+    XMEMSET(az, 0, sizeof(az));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    wc_MemZero_Add("wc_ed25519_sign_msg_ex az", az, sizeof(az));
+    wc_MemZero_Add("wc_ed25519_sign_msg_ex nonce", nonce, sizeof(nonce));
+#endif
+
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
     XMEMCPY(orig_k, key->k, ED25519_KEY_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ed25519_sign_msg_ex orig_k", orig_k, sizeof(orig_k));
+#endif
 #endif
 
     /* step 1: create nonce to use where nonce is r in
@@ -681,6 +694,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     ForceZero(az, sizeof(az));
     ForceZero(nonce, sizeof(nonce));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(nonce, sizeof(nonce));
+    wc_MemZero_Check(az, sizeof(az));
+#endif
 
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
     /* belongs to the software path: orig_k snapshots the key the software
@@ -694,6 +711,9 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         ret = ctMaskGT(c, 0) & SIG_VERIFY_E;
     }
     ForceZero(orig_k, sizeof(orig_k));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(orig_k, sizeof(orig_k));
+#endif
 #endif
 #endif /* WOLFSSL_SE050 */
 

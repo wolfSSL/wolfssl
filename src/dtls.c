@@ -571,10 +571,21 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
                 byte psk_key[MAX_PSK_KEY_LEN];
                 word32 psk_keySz;
                 byte foundSuite[SUITE_LEN];
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* Register before the key is populated so any future path that
+                 * fails to clear it before scope exit is caught. Baseline the
+                 * buffer so it is defined at registration time. */
+                XMEMSET(psk_key, 0, sizeof(psk_key));
+                wc_MemZero_Add("FindPskSuiteFromExt psk_key", psk_key,
+                    sizeof(psk_key));
+            #endif
                 ret = FindPskSuite(ssl, current, psk_key, &psk_keySz,
                         suites->suites + i, &found, foundSuite);
                 /* Clear the key just in case */
                 ForceZero(psk_key, sizeof(psk_key));
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(psk_key, sizeof(psk_key));
+            #endif
                 if (ret == 0 && found) {
                     pskInfo->cipherSuite0 = foundSuite[0];
                     pskInfo->cipherSuite  = foundSuite[1];
