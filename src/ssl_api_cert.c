@@ -2760,10 +2760,6 @@ int wolfSSL_get0_chain_certs(WOLFSSL *ssl, WOLF_STACK_OF(WOLFSSL_X509) **sk)
                 ret = wolfSSL_X509_dup(&ssl->peerCert);
 #ifdef SESSION_CERTS
             else if (ssl->session->chain.count > 0) {
-                /* Re-decoding into ssl->peerCert would orphan any contents it
-                 * already holds (e.g. the handshake's copy). Free them first. */
-                FreeX509(&ssl->peerCert);
-                InitX509(&ssl->peerCert, 0, ssl->heap);
                 if (DecodeToX509(&ssl->peerCert,
                         ssl->session->chain.certs[0].buffer,
                         ssl->session->chain.certs[0].length) == 0) {
