@@ -39,6 +39,12 @@
     #endif
 #endif
 
+/* The CubeMX AES crypto-callback device needs cryptocb.h on any WOLF_CRYPTO_CB
+ * build, not only WOLFSSL_DHUK. */
+#if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_DHUK)
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -75,6 +81,9 @@
 #elif defined(WOLFSSL_STM32U5)
 #include <stm32u5xx_hal_conf.h>
 #include <stm32u5xx_hal_pka.h>
+#elif defined(WOLFSSL_STM32U3)
+#include <stm32u3xx_hal_conf.h>
+#include <stm32u3xx_hal_pka.h>
 #elif defined(WOLFSSL_STM32WB)
 #include <stm32wbxx_hal_conf.h>
 #include <stm32wbxx_hal_pka.h>
@@ -5046,6 +5055,226 @@ void wc_Stm32_Aes_Cleanup(void)
 
 #endif /* WOLFSSL_STM32_BARE / WOLFSSL_STM32_CUBEMX / StdPeriph */
 
+/* CubeMX/HAL AES crypto-callback device -- makes WOLF_CRYPTO_CB_ONLY_AES work on
+ * the HAL build. That mode strips the software AES core and routes AES through
+ * the crypto callback; wc_AesGcmSetKey derives the GHASH subkey H via
+ * wc_CryptoCb_AesEcbEncrypt, so an AES-ECB handler is required just to key GCM.
+ * Providing it here lets AES-GCM be keyed, after which wc_AesGcmEncrypt runs on
+ * the native HAL GCM engine (wc_AesGcmEncrypt_STM32) via its CRYPTOCB_UNAVAILABLE
+ * fall-through. Uses the plaintext key on the Aes (aes->key) and the plain CRYP
+ * (AES/TinyAES) instance -- no DHUK/SAES. */
+#if defined(WOLFSSL_STM32_CUBEMX) && defined(WOLF_CRYPTO_CB)
+
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+/* One or more whole AES blocks through the HAL in ECB mode. enc != 0 selects
+ * encrypt. Mirrors the HAL ECB sequence in wc_AesEncrypt/wc_AesDecrypt (aes.c)
+ * that WOLF_CRYPTO_CB_ONLY_AES compiles out. */
+static int Stm32Cube_AesEcb(struct Aes* aes, byte* out, const byte* in,
+    word32 sz, int enc)
+{
+    CRYP_HandleTypeDef hcryp;
+    int ret;
+
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        /* wc_Stm32_Aes_Init enabled the CRYP clock (STM32_HW_CLOCK_AUTO);
+         * release it before bailing out. */
+        wc_Stm32_Aes_Cleanup();
+        return ret;
+    }
+
+#if defined(STM32_HAL_V2)
+    hcryp.Init.Algorithm = CRYP_AES_ECB;
+#elif defined(STM32_CRYPTO_AES_ONLY)
+    hcryp.Init.OperatingMode = enc ?
+        CRYP_ALGOMODE_ENCRYPT : CRYP_ALGOMODE_KEYDERIVATION_DECRYPT;
+    hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_ECB;
+    hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
+#endif
+    if (HAL_CRYP_Init(&hcryp) != HAL_OK) {
+        wolfSSL_CryptHwMutexUnLock();
+        wc_Stm32_Aes_Cleanup();
+        return WC_HW_E;
+    }
+
+#if defined(STM32_HAL_V2)
+    if (enc) {
+        ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
+            STM32_HAL_TIMEOUT);
+    }
+    else {
+        ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
+            STM32_HAL_TIMEOUT);
+    }
+#elif defined(STM32_CRYPTO_AES_ONLY)
+    ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, sz, out, STM32_HAL_TIMEOUT);
+#else
+    if (enc) {
+        ret = HAL_CRYP_AESECB_Encrypt(&hcryp, (uint8_t*)in, sz, out,
+            STM32_HAL_TIMEOUT);
+    }
+    else {
+        ret = HAL_CRYP_AESECB_Decrypt(&hcryp, (uint8_t*)in, sz, out,
+            STM32_HAL_TIMEOUT);
+    }
+#endif
+    if (ret != HAL_OK) {
+        /* Keep HAL_TIMEOUT distinct from HAL_ERROR/HAL_BUSY so callers and
+         * debugging can tell a real timeout from a HW fault. */
+        ret = (ret == HAL_TIMEOUT) ? WC_TIMEOUT_E : WC_HW_E;
+    }
+
+    HAL_CRYP_DeInit(&hcryp);
+    wolfSSL_CryptHwMutexUnLock();
+    wc_Stm32_Aes_Cleanup();
+    return ret;
+}
+#endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT || WOLF_CRYPTO_CB_ONLY_AES */
+
+/* Cipher dispatch (shared with the CCB device below). Services AES-ECB; other
+ * modes return CRYPTOCB_UNAVAILABLE so the caller falls through to the native
+ * HAL path (e.g. wc_AesGcmEncrypt_STM32) or another provider. */
+static int Stm32Cube_Cipher(struct wc_CryptoInfo* info)
+{
+    if (info == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    switch (info->cipher.type) {
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    case WC_CIPHER_AES_ECB:
+        return Stm32Cube_AesEcb(info->cipher.aesecb.aes,
+            info->cipher.aesecb.out, info->cipher.aesecb.in,
+            info->cipher.aesecb.sz, info->cipher.enc);
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+
+#if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
+/* HW ECDSA sign/verify via the STM32 PKA, dispatched through the crypto
+ * callback. Needed on CubeMX under WOLF_CRYPTO_CB_ONLY_ECC, where ecc.c compiles
+ * out the direct PKA path and routes ECDSA through the callback instead. The
+ * PKA workers (stm32_ecc_*_hash_ex) run on the HAL PKA driver; the application
+ * must provide/init the PKA (extern hpka + HAL_PKA_Init). */
+#if defined(HAVE_ECC_VERIFY) && !defined(WC_STM32_PKA_SIGN_ONLY)
+static int Stm32Cube_EccVerify(struct wc_CryptoInfo* info)
+{
+    ecc_key* key = info->pk.eccverify.key;
+    mp_int   r;
+    mp_int   s;
+    int      ret;
+
+    if (key == NULL || info->pk.eccverify.sig == NULL ||
+            info->pk.eccverify.res == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    XMEMSET(&r, 0, sizeof(r));
+    XMEMSET(&s, 0, sizeof(s));
+
+    /* DecodeECC_DSA_Sig() mp_init's r and s (mirrors the ecc.c verify path). */
+    ret = DecodeECC_DSA_Sig(info->pk.eccverify.sig,
+                            info->pk.eccverify.siglen, &r, &s);
+    if (ret == 0) {
+        ret = stm32_ecc_verify_hash_ex(&r, &s, info->pk.eccverify.hash,
+                                       info->pk.eccverify.hashlen,
+                                       info->pk.eccverify.res, key);
+    }
+    mp_free(&r);
+    mp_free(&s);
+    return ret;
+}
+#endif /* HAVE_ECC_VERIFY && !WC_STM32_PKA_SIGN_ONLY */
+
+#if defined(HAVE_ECC_SIGN) && !defined(WC_STM32_PKA_VERIFY_ONLY)
+static int Stm32Cube_EccSign(struct wc_CryptoInfo* info)
+{
+    ecc_key* key = info->pk.eccsign.key;
+    mp_int   r;
+    mp_int   s;
+    int      ret;
+
+    if (key == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    XMEMSET(&r, 0, sizeof(r));
+    XMEMSET(&s, 0, sizeof(s));
+    ret = mp_init_multi(&r, &s, NULL, NULL, NULL, NULL);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = stm32_ecc_sign_hash_ex(info->pk.eccsign.in, info->pk.eccsign.inlen,
+                                 info->pk.eccsign.rng, key, &r, &s);
+    if (ret == 0) {
+        ret = StoreECC_DSA_Sig(info->pk.eccsign.out, info->pk.eccsign.outlen,
+                               &r, &s);
+    }
+    mp_free(&r);
+    mp_free(&s);
+    return ret;
+}
+#endif /* HAVE_ECC_SIGN && !WC_STM32_PKA_VERIFY_ONLY */
+#endif /* WOLFSSL_STM32_PKA && HAVE_ECC */
+
+/* Standalone AES(+PKA-ECC) device for CubeMX builds without the CCB/DHUK ECDSA
+ * device. Register at a devId, then wc_AesInit(aes, heap, devId). (With
+ * WOLFSSL_STM32_CCB the CCB device dispatches ciphers here too.) */
+static int Stm32Cube_AesCryptoDevCb(int devId, struct wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+
+    if (info == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+        return Stm32Cube_Cipher(info);
+    }
+#if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+#if defined(HAVE_ECC_VERIFY) && !defined(WC_STM32_PKA_SIGN_ONLY)
+        if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
+            return Stm32Cube_EccVerify(info);
+        }
+#endif
+#if defined(HAVE_ECC_SIGN) && !defined(WC_STM32_PKA_VERIFY_ONLY)
+        if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+            return Stm32Cube_EccSign(info);
+        }
+#endif
+    }
+#endif /* WOLFSSL_STM32_PKA && HAVE_ECC */
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+int wc_Stm32_CubeAesRegister(int devId)
+{
+    return wc_CryptoCb_RegisterDevice(devId, Stm32Cube_AesCryptoDevCb, NULL);
+}
+
+void wc_Stm32_CubeAesUnRegister(int devId)
+{
+    wc_CryptoCb_UnRegisterDevice(devId);
+}
+
+#endif /* WOLFSSL_STM32_CUBEMX && WOLF_CRYPTO_CB */
+
 /* CubeMX/HAL CCB ECDSA port -- placed after the build-branch structure and
  * guarded on WOLFSSL_STM32_CUBEMX so it compiles only for the HAL build (the
  * BARE build provides its own wc_Stm32_Ccb_* above). */
@@ -5217,12 +5446,11 @@ int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
 }
 
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-/* CubeMX CCB crypto-callback device. Transparent DHUK AES/GMAC is bare-only, so
- * under the HAL build the CCB-protected ECDSA sign is the only transparent DHUK
- * operation. This minimal device routes WC_PK_TYPE_ECDSA_SIGN for a CCB key
- * (key->dhuk_is_ccb) to the HAL CCB sign and returns the DER-encoded (r,s); it
- * mirrors the bare-metal device's CCB branch so the same wc_ecc_sign_hash flow
- * works on both build paths. */
+/* CubeMX/HAL crypto-callback device. Routes AES (Stm32Cube_Cipher), ECDSA sign
+ * (CCB key -> HAL_CCB; normal key -> HW PKA), ECDSA verify -> HW PKA, and CCB
+ * keygen -- giving full HW ECC + AES through the callback on the HAL build, so
+ * WOLF_CRYPTO_CB_ONLY_ECC / _AES work here as they do on the bare device.
+ * (Transparent DHUK-derived AES/GMAC remains bare-only.) */
 static int Stm32Ccb_CryptoDevCb(int devId, struct wc_CryptoInfo* info,
                                 void* ctx)
 {
@@ -5234,7 +5462,17 @@ static int Stm32Ccb_CryptoDevCb(int devId, struct wc_CryptoInfo* info,
 
     (void)devId;
     (void)ctx;
-    if (info == NULL || info->algo_type != WC_ALGO_TYPE_PK) {
+    if (info == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    /* Route ciphers to the shared CubeMX AES handler so one devId serves both
+     * CCB ECDSA and HAL AES (lets WOLF_CRYPTO_CB_ONLY_AES work here). */
+#ifndef NO_AES
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+        return Stm32Cube_Cipher(info);
+    }
+#endif
+    if (info->algo_type != WC_ALGO_TYPE_PK) {
         return CRYPTOCB_UNAVAILABLE;
     }
     /* Transparent provisioning: wc_ecc_make_key() on a WC_DHUK_DEVID key binds
@@ -5243,13 +5481,30 @@ static int Stm32Ccb_CryptoDevCb(int devId, struct wc_CryptoInfo* info,
         return wc_ecc_dev_make_key(info->pk.eckg.rng, info->pk.eckg.size,
             info->pk.eckg.key, info->pk.eckg.curveId);
     }
+#if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC_VERIFY) && \
+    !defined(WC_STM32_PKA_SIGN_ONLY)
+    /* ECDSA verify -> HW PKA (public key). */
+    if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
+        return Stm32Cube_EccVerify(info);
+    }
+#endif
     if (info->pk.type != WC_PK_TYPE_ECDSA_SIGN) {
         return CRYPTOCB_UNAVAILABLE;
     }
     key = info->pk.eccsign.key;
-    if (key == NULL || key->dhuk_is_ccb == 0u) {
+    if (key == NULL) {
         return CRYPTOCB_UNAVAILABLE;
     }
+    if (key->dhuk_is_ccb == 0u) {
+        /* Normal (non-CCB) key: HW PKA sign. */
+#if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC_SIGN) && \
+    !defined(WC_STM32_PKA_VERIFY_ONLY)
+        return Stm32Cube_EccSign(info);
+#else
+        return CRYPTOCB_UNAVAILABLE;
+#endif
+    }
+    /* CCB-protected key: scalar unwrapped SAES->PKA in HW, returns raw (r,s). */
     sz = (word32)wc_ecc_size(key);
     ret = wc_Stm32_Ccb_EccSign(ECC_SECP256R1, key->ccb_iv, key->ccb_tag,
                                key->dhuk_wrapped_priv,
