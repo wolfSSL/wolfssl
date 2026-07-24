@@ -1979,8 +1979,16 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return ret;
     }
 
-    tmp[0] &= (byte)((1 << bits) - 1);
-    pkcsBlock[0] &= (byte)((1 << bits) - 1);
+    /* When bits==0, the modulus bit length is congruent to 1 mod 8, so
+     * the encoded block includes a leading 0x00 byte and pkcsBlock was
+     * already advanced past it (see above); no masking is needed.
+     * (1<<0)-1 == 0 would zero both bytes and corrupt the XOR separator
+     * check below.  RsaPad_PSS guards the same step with "if (hiBits)"
+     * for the same reason. */
+    if (bits) {
+        tmp[0] &= (byte)((1 << bits) - 1);
+        pkcsBlock[0] &= (byte)((1 << bits) - 1);
+    }
 #ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
     if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
         for (i = 0; i < maskLen - 1; i++) {
