@@ -2,6 +2,12 @@
 
 # google.test
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
 server=www.google.com
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
@@ -26,7 +32,7 @@ RESULT=$?
 [ $RESULT -ne 0 ] && exit 0
 
 # client test against the server
-./examples/client/client -X -C -h $server -p 443 -g -d
+timeout -s KILL 2m ./examples/client/client -X -C -h $server -p 443 -g -d
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 

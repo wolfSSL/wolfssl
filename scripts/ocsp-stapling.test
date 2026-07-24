@@ -275,14 +275,20 @@ fi
 
 get_first_free_port() {
     local ret="$1"
+    local scanned=0
     while :; do
         if [[ "$ret" -ge 65536 ]]; then
             ret=1024
         fi
-        if ! nc -z $V4V6_FLAG $LOCALHOST_FOR_NC "$ret"; then
+        if ! nc -w 1 -z $V4V6_FLAG $LOCALHOST_FOR_NC "$ret"; then
             break
         fi
         ret=$((ret+1))
+        scanned=$((scanned+1))
+        if [ "$scanned" -ge 100 ]; then
+            echo "ERROR: no free port found after scanning 100 ports" 1>&2
+            exit 1
+        fi
     done
     echo "$ret"
     return 0
@@ -335,7 +341,7 @@ if [ ! -f "$ready_file" ]; then
 else
     printf '%s\n' "Random port selected: $port2"
     # Use client connection to shutdown the server cleanly
-    ./examples/client/client -p "$port2"
+    timeout -s KILL 2m ./examples/client/client -p "$port2"
     create_new_cnf "$port2"
 fi
 sleep 0.1
@@ -351,7 +357,7 @@ ca=./certs/external/ca_collection.pem
 if [[ -z "${WOLFSSL_EXTERNAL_TEST-}" || "$WOLFSSL_EXTERNAL_TEST" == "0" ]]; then
     echo "Skipping OCSP test on $server (set WOLFSSL_EXTERNAL_TEST=1 to run)"
 elif [[ "$V4V6" == "4" ]]; then
-    retry_with_backoff 3 ./examples/client/client -C -h "$server" -p 443 -A "$ca" -g -W 1
+    retry_with_backoff 3 timeout -s KILL 2m ./examples/client/client -C -h "$server" -p 443 -A "$ca" -g -W 1
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 else
@@ -386,7 +392,7 @@ printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
                          -k certs/ocsp/server1-key.pem -p "$port3" &
 wolf_pid3=$!
 wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p "$port3"
+timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p "$port3"
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
@@ -399,7 +405,7 @@ remove_single_rF "$ready_file2"
 wolf_pid3=$!
 wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
 sleep 0.1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p "$port3"
+timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p "$port3"
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
                   && exit 1
@@ -415,7 +421,7 @@ printf '%s\n\n' "Test successfully REVOKED!"
                              -p "$port3" &
     wolf_pid3=$!
     wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                              -p "$port3"
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed" && exit 1
@@ -429,7 +435,7 @@ printf '%s\n\n' "Test successfully REVOKED!"
                              -p "$port3" &
     wolf_pid3=$!
     wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
                              -p "$port3"
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 4 failed" && exit 1
@@ -443,7 +449,7 @@ printf '%s\n\n' "Test successfully REVOKED!"
                              -p "$port3" &
     wolf_pid3=$!
     wait_for_readyFile "$ready_file2" "$wolf_pid3" "$port3"
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+    timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                              -p "$port3"
     RESULT=$?
     [ $RESULT -ne 1 ] && \
@@ -465,7 +471,7 @@ if ./examples/client/client -? 2>&1 | grep -q 'DTLSv1.2'; then
   wolf_pid3=$!
 
   sleep 0.2
-  ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
+  timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 3 \
                            -W 1 -p "$port3"
   RESULT=$?
   [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 5 failed" && exit 1
@@ -480,7 +486,7 @@ fi
                           -p "$port3" &
   wolf_pid3=$!
   sleep 0.2
-  ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
+  timeout -s KILL 2m ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -u -v 4 \
                            -W 1 -p "$port3"
   RESULT=$?
   [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 5 failed" && exit 1
@@ -545,7 +551,7 @@ generate_port() {
 generate_port
 openssl s_server $V4V6_FLAG -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port "$port" &
 MAX_TIMEOUT=10
-until nc -z localhost "$port" # Wait for openssl to be ready
+until nc -w 1 -z localhost "$port" # Wait for openssl to be ready
 do
     sleep 0.05
     if [ "$MAX_TIMEOUT" == "0" ]; then
@@ -556,7 +562,7 @@ done
 
 printf '%s\n\n' "------------- TEST CASE 6 SHOULD PASS ----------------------"
 # client asks for OCSP staple but doesn't fail when none returned
-./examples/client/client -p "$port" -g -v 3 -W 1
+timeout -s KILL 2m ./examples/client/client -p "$port" -g -v 3 -W 1
 
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 6 failed" && exit 1
@@ -564,7 +570,7 @@ printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 7 SHOULD UNKNOWN -------------------"
 # client asks for OCSP staple but doesn't fail when none returned
-./examples/client/client -p "$port" -g -v 3 -W 1m
+timeout -s KILL 2m ./examples/client/client -p "$port" -g -v 3 -W 1m
 
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 7 succeeded $RESULT" \
@@ -578,7 +584,7 @@ wolfssl_tls13=$?
 if [ "$openssl_tls13" = "0" ] && [ "$wolfssl_tls13" = "0" ]; then
     printf '%s\n\n' "------------- TEST CASE 8 SHOULD PASS --------------------"
     # client asks for OCSP staple but doesn't fail when none returned
-    ./examples/client/client -p "$port" -g -v 4 -W 1
+    timeout -s KILL 2m ./examples/client/client -p "$port" -g -v 4 -W 1
 
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 8 failed" && exit 1
@@ -586,7 +592,7 @@ if [ "$openssl_tls13" = "0" ] && [ "$wolfssl_tls13" = "0" ]; then
 
     printf '%s\n\n' "------------- TEST CASE 9 SHOULD UNKNOWN -----------------"
     # client asks for OCSP staple but doesn't fail when none returned
-    ./examples/client/client -p "$port" -g -v 4 -W 1m
+    timeout -s KILL 2m ./examples/client/client -p "$port" -g -v 4 -W 1m
 
     RESULT=$?
     [ $RESULT -ne 1 ] \
