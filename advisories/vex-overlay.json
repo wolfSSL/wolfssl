@@ -1,0 +1,21 @@
+{
+  "_comment": "Canonical wolfSSL VEX overlay consumed by `make advisory` / `scripts/gen-advisory`. Keyed by CVE id; carries the determinations the CVE Program record cannot express (analysis state, justification, fixed versions, remediation, optional FIPS product, optional build-reachability hedge). Constrained by scripts/advisory-vex-overlay.schema.json. To model a wolfCrypt FIPS module as a separate product, add a \"fips\" block per the format in scripts/advisory-vex-overlay.example.json using the real validated module version and CMVP certificate number (do NOT copy the illustrative placeholder values from the example).",
+
+  "CVE-2026-5501": {
+    "state": "exploitable",
+    "response": ["update"],
+    "detail": "Limited to applications using the OpenSSL compatibility API directly (wolfSSL_X509_verify_cert), such as nginx and haproxy integrations. The native wolfSSL TLS handshake path (ProcessPeerCerts) is not susceptible.",
+    "fixed_versions": ["5.9.1"],
+    "remediation": "Update to wolfSSL 5.9.1 or later, or avoid relying on wolfSSL_X509_verify_cert in the OpenSSL compatibility layer for chain validation."
+  },
+
+  "CVE-2026-5778": {
+    "state": "exploitable",
+    "response": ["update"],
+    "detail": "Integer underflow in the ChaCha20-Poly1305 decryption path of the packet sniffer.",
+    "requires_defines": ["WOLFSSL_SNIFFER", "HAVE_CHACHA", "HAVE_POLY1305"],
+    "default_status": "off",
+    "fixed_versions": ["5.9.1"],
+    "remediation": "Update to wolfSSL 5.9.1 or later. Builds without --enable-sniffer are not affected."
+  }
+}

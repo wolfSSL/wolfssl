@@ -1,0 +1,229 @@
+# scripts/sbom.am - shared Automake recipe for CRA-compliant SBOM generation.
+#
+# One generator (gen-sbom) does the work; each product just describes itself and
+# includes this fragment.  It is deliberately product-agnostic: a Makefile.am
+# sets a few variables (below) and does `include scripts/sbom.am` to get the
+# `sbom`, `install-sbom` and `uninstall-sbom` targets.
+#
+# This is the canonical copy (wolfSSL repository, scripts/sbom.am); product
+# repositories vendor a copy of it and must be kept in sync with this file.
+# gen-sbom is taken from a vendored scripts/gen-sbom if a product ships one
+# (used automatically), otherwise from a wolfSSL source tree via WOLFSSL_DIR.
+# Products such as wolfSSH use the WOLFSSL_DIR route; vendoring gen-sbom for
+# fully offline tarball builds can be added later with no change here.
+#
+# ---------------------------------------------------------------------------
+# The including Makefile.am MUST set, before `include scripts/sbom.am`:
+#   SBOM_PKGNAME        Product name recorded in the SBOM (e.g. wolfssh).  Drives
+#                       the output filenames and gen-sbom --name.
+#   SBOM_LICENSE_FILE   Path to the product's LICENSING file
+#                       (e.g. $(srcdir)/LICENSING).
+#
+# Optional (defaults shown):
+#   SBOM_OPTIONS_H      Path to a product-generated options header (e.g.
+#                       wolfMQTT's $(builddir)/wolfmqtt/options.h) that records
+#                       the enabled build macros.  Set this for products whose
+#                       feature flags are NOT in config.h (no AC_DEFINE); when
+#                       unset the recipe derives the macros from the compiler +
+#                       config.h.  Default: unset.
+#   SBOM_ARTIFACT       lib | bin - which build output to hash.  Default: lib.
+#   SBOM_LIB_STEM       Library basename w/o extension.  Default: lib$(SBOM_PKGNAME).
+#   SBOM_BIN_NAME       Program name when SBOM_ARTIFACT = bin.  Default: $(SBOM_PKGNAME).
+#   SBOM_DEP_WOLFSSL    yes | no - record wolfSSL as a dependency.  Default: no.
+#   SBOM_DEP_OPENSSL    yes | no - record OpenSSL as a dependency (wolfProvider /
+#                       wolfEngine).  Default: no.
+#   SBOM_LICENSE_OVERRIDE  SPDX expression to record instead of the licence
+#                       detected from SBOM_LICENSE_FILE.
+#   SBOM_LICENSE_TEXT   Path to licence text for any LicenseRef-* used in
+#                       SBOM_LICENSE_OVERRIDE (required by SPDX 2.3).
+#   SBOM_WOLFSSL_VERSION   Version recorded for the wolfSSL dependency;
+#                       auto-detected from WOLFSSL_DIR/wolfssl/version.h when unset.
+#   SBOM_OPENSSL_VERSION   Version recorded for the OpenSSL dependency;
+#                       gen-sbom resolves it via pkg-config when unset.
+#   SBOM_CONFIG_H       Path to the configure-generated config header to
+#                       force-include when capturing the configured build
+#                       macros.  Products whose AC_CONFIG_HEADERS lives in a
+#                       subdirectory MUST override this so config.h defines are
+#                       captured (e.g. wolfEngine: $(abs_builddir)/include/config.h;
+#                       wolfCLU: $(abs_builddir)/src/config.h).
+#                       Default: $(abs_builddir)/config.h.
+#
+# The wolfSSL/OpenSSL dependency flags are feature-detected against gen-sbom
+# --help, so a product wired for them still produces a valid SBOM (with a NOTE)
+# against a gen-sbom that predates the flag.
+#
+# gen-sbom is located at $(srcdir)/scripts/gen-sbom if vendored, else at
+# $(WOLFSSL_DIR)/scripts/gen-sbom.  python3, pyspdxtools and git come from
+# configure (AC_PATH_PROG); git is used only to derive SOURCE_DATE_EPOCH.
+#
+# NOTE: this fragment requires GNU make.  It uses GNU conditional assignment
+# (?=) and the GNU make functions $(wildcard), $(if), $(firstword) and
+# $(addprefix); under a non-GNU make the SBOM targets will not work.
+# ---------------------------------------------------------------------------
+
+SBOM_ARTIFACT ?= lib
+SBOM_LIB_STEM ?= lib$(SBOM_PKGNAME)
+SBOM_BIN_NAME ?= $(SBOM_PKGNAME)
+SBOM_DEP_WOLFSSL ?= no
+SBOM_DEP_OPENSSL ?= no
+SBOM_CONFIG_H ?= $(abs_builddir)/config.h
+
+SBOM_CDX     = $(SBOM_PKGNAME)-$(PACKAGE_VERSION).cdx.json
+SBOM_SPDX    = $(SBOM_PKGNAME)-$(PACKAGE_VERSION).spdx.json
+SBOM_SPDX_TV = $(SBOM_PKGNAME)-$(PACKAGE_VERSION).spdx
+# Use Automake's $(docdir) so a user's --docdir override is honoured (this
+# equals $(datadir)/doc/$(PACKAGE) by default).
+sbomdir      = $(docdir)
+
+# Prefer a vendored gen-sbom; fall back to an external wolfSSL source tree.
+# The fallback is $(wildcard)-guarded and only consulted when WOLFSSL_DIR is
+# set, so an unset WOLFSSL_DIR leaves SBOM_GEN empty (and the sbom recipe's
+# `test -f` prints the "set WOLFSSL_DIR" error) rather than resolving to an
+# absolute /scripts/gen-sbom that could run an unrelated host script.
+SBOM_GEN = $(firstword $(wildcard $(srcdir)/scripts/gen-sbom) \
+                       $(if $(WOLFSSL_DIR),$(wildcard $(WOLFSSL_DIR)/scripts/gen-sbom)))
+
+# Library artifact search order (versioned first) covering ELF, Mach-O and PE.
+# Windows import libs (.lib) come with and without the "lib" prefix.
+SBOM_LIB_GLOBS = \
+    $(SBOM_LIB_STEM).so.[0-9]* \
+    $(SBOM_LIB_STEM).so \
+    $(SBOM_LIB_STEM).[0-9]*.dylib \
+    $(SBOM_LIB_STEM).dylib \
+    $(SBOM_LIB_STEM).dll \
+    $(SBOM_LIB_STEM).dll.a \
+    $(SBOM_LIB_STEM).lib \
+    $(SBOM_PKGNAME).lib \
+    $(SBOM_LIB_STEM).a
+
+# Automake requires CLEANFILES to be initialised with `=` before `+=`; the
+# including Makefile.am must declare `CLEANFILES =` (typically in its primaries
+# init block) before `include scripts/sbom.am`.
+CLEANFILES += $(SBOM_CDX) $(SBOM_SPDX) $(SBOM_SPDX_TV)
+
+.PHONY: sbom install-sbom uninstall-sbom
+
+# Stage a `make install` into a private tree, discover the installed artifact
+# (shared/static library or program; ELF/Mach-O/PE), hash it, capture the
+# configured build macros (from SBOM_OPTIONS_H if set, else AM_CPPFLAGS/
+# AM_CFLAGS/CFLAGS + config.h; some products carry their feature -D flags in
+# AM_CFLAGS rather than AM_CPPFLAGS, and some outside config.h entirely),
+# generate SPDX+CDX, validate
+# the SPDX, then convert to tag-value.  The staging tree and temp defines file
+# are removed unconditionally via `trap`, even on failure.  SOURCE_DATE_EPOCH is
+# honoured for reproducible output (defaults to the last git commit time).
+sbom:
+	@test -n "$(PYTHON3)" || { \
+	    echo "ERROR: 'python3' not found in PATH. Cannot generate SBOM."; \
+	    exit 1; }
+	@test -n "$(PYSPDXTOOLS)" || { \
+	    echo "ERROR: 'pyspdxtools' not found (pip install spdx-tools)."; \
+	    exit 1; }
+	@test -f "$(SBOM_GEN)" || { \
+	    echo "ERROR: gen-sbom not found. Vendor scripts/gen-sbom, or re-run:"; \
+	    echo "       make sbom WOLFSSL_DIR=/path/to/wolfssl"; \
+	    exit 1; }
+	@rm -rf $(abs_builddir)/_sbom_staging
+	@set -e; \
+	_defines=`mktemp $(abs_builddir)/_sbom_defines.XXXXXX`; \
+	trap 'rm -rf $(abs_builddir)/_sbom_staging "$$_defines"' EXIT INT TERM HUP; \
+	$(MAKE) install DESTDIR=$(abs_builddir)/_sbom_staging; \
+	sbom_art=""; \
+	if test "$(SBOM_ARTIFACT)" = bin; then \
+	    for art in \
+	        "$(abs_builddir)/_sbom_staging$(bindir)/$(SBOM_BIN_NAME)" \
+	        "$(abs_builddir)/_sbom_staging$(bindir)/$(SBOM_BIN_NAME)".exe; do \
+	        if test -f "$$art"; then sbom_art="$$art"; break; fi; \
+	    done; \
+	else \
+	    for art in \
+	        $(addprefix "$(abs_builddir)/_sbom_staging$(libdir)"/,$(SBOM_LIB_GLOBS)) \
+	        $(addprefix "$(abs_builddir)/_sbom_staging$(bindir)"/,$(SBOM_LIB_STEM).dll $(SBOM_PKGNAME).dll); do \
+	        if test -f "$$art"; then sbom_art="$$art"; break; fi; \
+	    done; \
+	fi; \
+	if test -z "$$sbom_art"; then \
+	    echo ""; \
+	    echo "ERROR: no installed $(SBOM_PKGNAME) artifact found for SBOM."; \
+	    echo "       (configure with --enable-shared or --enable-static)"; \
+	    echo ""; \
+	    exit 1; \
+	fi; \
+	echo "SBOM: hashing $$sbom_art"; \
+	opts_h="$(SBOM_OPTIONS_H)"; \
+	if test -z "$$opts_h"; then \
+	    opts_h="$$_defines"; \
+	    $(CC) -dM -E $(DEFAULT_INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	        $(AM_CFLAGS) $(CFLAGS) \
+	        $(if $(wildcard $(SBOM_CONFIG_H)),-include $(SBOM_CONFIG_H)) \
+	        -x c /dev/null > "$$_defines"; \
+	fi; \
+	if test -z "$${SOURCE_DATE_EPOCH:-}" && test -n "$(GIT)" && \
+	   $(GIT) -C "$(srcdir)" rev-parse --git-dir >/dev/null 2>&1; then \
+	    sde=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null`; \
+	    if test -n "$$sde"; then SOURCE_DATE_EPOCH="$$sde"; export SOURCE_DATE_EPOCH; fi; \
+	fi; \
+	dep_args=""; \
+	if test "$(SBOM_DEP_WOLFSSL)" = yes; then \
+	    if $(PYTHON3) "$(SBOM_GEN)" --help 2>/dev/null \
+	        | $(GREP) -q -- '--dep-wolfssl'; then \
+	        dep_args="$$dep_args --dep-wolfssl yes"; \
+	        wv="$(SBOM_WOLFSSL_VERSION)"; \
+	        if test -z "$$wv" && test -f "$(WOLFSSL_DIR)/wolfssl/version.h"; then \
+	            wv=`sed -n 's/.*LIBWOLFSSL_VERSION_STRING[[:space:]]*"\([^"]*\)".*/\1/p' \
+	                "$(WOLFSSL_DIR)/wolfssl/version.h"`; \
+	        fi; \
+	        if test -n "$$wv"; then \
+	            dep_args="$$dep_args --dep-version wolfssl=$$wv"; \
+	        fi; \
+	    else \
+	        echo "NOTE: this gen-sbom has no --dep-wolfssl support, so the SBOM"; \
+	        echo "      will not list wolfssl as a dependency component. That"; \
+	        echo "      support is added by wolfSSL/wolfssl#10343; until it merges"; \
+	        echo "      to wolfssl master, point WOLFSSL_DIR at that PR's branch"; \
+	        echo "      to enable it. The generated SBOM is valid either way."; \
+	    fi; \
+	fi; \
+	if test "$(SBOM_DEP_OPENSSL)" = yes; then \
+	    if $(PYTHON3) "$(SBOM_GEN)" --help 2>/dev/null \
+	        | $(GREP) -q -- '--dep-openssl'; then \
+	        dep_args="$$dep_args --dep-openssl yes"; \
+	        if test -n "$(SBOM_OPENSSL_VERSION)"; then \
+	            dep_args="$$dep_args --dep-version openssl=$(SBOM_OPENSSL_VERSION)"; \
+	        fi; \
+	    else \
+	        echo "NOTE: this gen-sbom has no --dep-openssl support; openssl will"; \
+	        echo "      not be listed as a dependency component."; \
+	    fi; \
+	fi; \
+	$(PYTHON3) "$(SBOM_GEN)" \
+	    --name $(SBOM_PKGNAME) \
+	    --version $(PACKAGE_VERSION) \
+	    --supplier "wolfSSL Inc." \
+	    --license-file $(SBOM_LICENSE_FILE) \
+	    --options-h "$$opts_h" \
+	    --lib "$$sbom_art" \
+	    $$dep_args \
+	    $(if $(SBOM_LICENSE_OVERRIDE),--license-override '$(SBOM_LICENSE_OVERRIDE)') \
+	    $(if $(SBOM_LICENSE_TEXT),--license-text '$(SBOM_LICENSE_TEXT)') \
+	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
+	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
+	$(PYSPDXTOOLS) --infile $(abs_builddir)/$(SBOM_SPDX) \
+	    --outfile $(abs_builddir)/$(SBOM_SPDX_TV)
+
+install-sbom: sbom
+	$(MKDIR_P) $(DESTDIR)$(sbomdir)
+	$(INSTALL_DATA) $(SBOM_CDX) $(DESTDIR)$(sbomdir)/
+	$(INSTALL_DATA) $(SBOM_SPDX) $(DESTDIR)$(sbomdir)/
+	$(INSTALL_DATA) $(SBOM_SPDX_TV) $(DESTDIR)$(sbomdir)/
+
+uninstall-sbom:
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_CDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX_TV)
+
+# SBOM install is intentionally opt-in (`make install-sbom`), so `make install`
+# does NOT place SBOM files.  uninstall-sbom is still chained into the standard
+# `make uninstall` via uninstall-hook so a prior `make install-sbom` is cleaned
+# up; it uses `rm -f`, so it is a harmless no-op when no SBOM was installed.
+uninstall-hook: uninstall-sbom
