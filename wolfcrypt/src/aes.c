@@ -13992,9 +13992,19 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
         #ifdef WOLFSSL_AESNI
             if (aes->use_aesni) {
-                SAVE_VECTOR_REGISTERS(return _svr_ret;);
-                ret = AesGcmInit_aesni(aes, iv, ivSz);
-                RESTORE_VECTOR_REGISTERS();
+                ret = SAVE_VECTOR_REGISTERS2();
+                if (ret == 0) {
+                    ret = AesGcmInit_aesni(aes, iv, ivSz);
+                    RESTORE_VECTOR_REGISTERS();
+                }
+                else {
+#ifdef WC_C_DYNAMIC_FALLBACK
+                    aes->use_aesni = 0;
+                    ret = AesGcmInit_C(aes, iv, ivSz);
+#else
+                    return ret;
+#endif
+                }
             }
             else
         #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
