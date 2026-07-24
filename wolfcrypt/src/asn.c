@@ -19881,8 +19881,9 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             return ret;
         }
     #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
-        /* FPKI/SEP also OID-decode the otherName into a separate altNames
-         * entry that holds the parsed UPN/FASCN value (with oidSum != 0).
+        /* FPKI/SEP/DTN also OID-decode the otherName into a separate altNames
+         * entry that holds the parsed UPN/FASCN/bundleEID value (with
+         * oidSum != 0).
          * That parsed entry is consumed by wc_GetUUIDFromCert /
          * wc_GetFASCNFromCert; ConfirmNameConstraints() does not look at
          * it - it iterates altOtherNamesRaw instead. */
@@ -19891,10 +19892,11 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         idx += (word32)len;
     #endif
     }
-#elif defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
+#elif defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
     /* No name constraints support in the build, but FPKI/SEP still need
      * the parsed otherName entry for wc_GetUUIDFromCert /
-     * wc_GetFASCNFromCert. */
+     * wc_GetFASCNFromCert, and DTN needs the parsed bundleEID entry in
+     * cert->altNames. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
         ret = DecodeOtherName(cert, input, &idx, len);
     }
