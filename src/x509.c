@@ -12855,6 +12855,7 @@ cleanup:
             /* Decode the ML-DSA private key held as DER in pkey.ptr. */
             word32 idx = 0;
             byte level = 0;
+            int decRet;
 
             mldsa = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), NULL,
                     DYNAMIC_TYPE_MLDSA);
@@ -12864,9 +12865,12 @@ cleanup:
                 XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FATAL_ERROR;
             }
-            if (wc_MlDsaKey_PrivateKeyDecode(mldsa,
+            PRIVATE_KEY_UNLOCK();
+            decRet = wc_MlDsaKey_PrivateKeyDecode(mldsa,
                     (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
-                    &idx) != 0 ||
+                    &idx);
+            PRIVATE_KEY_LOCK();
+            if (decRet != 0 ||
                     wc_MlDsaKey_GetParams(mldsa, &level) != 0) {
                 wc_MlDsaKey_Free(mldsa);
                 XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
@@ -16548,11 +16552,13 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                 return WOLFSSL_FAILURE;
             }
         #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+            PRIVATE_KEY_UNLOCK();
             if (wc_MlDsaKey_PrivateKeyDecode(mldsa,
                     (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
                     &idx) == 0) {
                 decodeOk = 1;
             }
+            PRIVATE_KEY_LOCK();
         #endif
             if (!decodeOk) {
                 idx = 0;
