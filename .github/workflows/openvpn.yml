@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [ release/2.6, v2.6.19 ]
+        ref: [ master, release/2.6, v2.6.19 ]
     name: ${{ matrix.ref }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04

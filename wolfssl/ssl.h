@@ -722,6 +722,12 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLF_STACK_OF(WOLFSSL_X509)* setTrustedSk;/* A trusted stack override
                                                * set with
                                                * X509_STORE_CTX_trusted_stack */
+#ifdef HAVE_CRL
+    WOLF_STACK_OF(WOLFSSL_X509_CRL)* crls; /* CRLs to use during verification,
+                                            * set with
+                                            * X509_STORE_CTX_set0_crls.
+                                            * Not owned by this ctx. */
+#endif
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 };
 
@@ -2458,6 +2464,10 @@ WOLFSSL_API int  wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx,
         WOLF_STACK_OF(WOLFSSL_X509) *sk);
+#ifdef HAVE_CRL
+WOLFSSL_API void wolfSSL_X509_STORE_CTX_set0_crls(WOLFSSL_X509_STORE_CTX *ctx,
+        WOLF_STACK_OF(WOLFSSL_X509_CRL) *sk);
+#endif
 
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl);
 WOLFSSL_API int wolfSSL_X509_CRL_set_lastUpdate(WOLFSSL_X509_CRL* crl,

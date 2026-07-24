@@ -456,7 +456,10 @@ static int FindRevokedSerial(RevokedCert* rc, byte* serial, int serialSz,
     return ret;
 }
 
-static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle)
+/* cacheResult should only be set when cm is the owning cm of crl. A cached
+ * result is not valid for other cms because they can trust different CAs. */
+static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle,
+        WOLFSSL_CERT_MANAGER* cm, int cacheResult)
 {
     Signer* ca = NULL;
     SignatureCtx sigCtx;
@@ -464,11 +467,11 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle)
 
 #ifndef NO_SKID
     if (crle->extAuthKeyIdSet)
-        ca = GetCA(crl->cm, crle->extAuthKeyId);
+        ca = GetCA(cm, crle->extAuthKeyId);
     if (ca == NULL)
-        ca = GetCAByName(crl->cm, crle->issuerHash);
+        ca = GetCAByName(cm, crle->issuerHash);
 #else /* NO_SKID */
-    ca = GetCA(crl->cm, crle->issuerHash);
+    ca = GetCA(cm, crle->issuerHash);
 #endif /* NO_SKID */
     if (ca == NULL) {
         WOLFSSL_MSG("Did NOT find CRL issuer CA");
@@ -484,18 +487,21 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle)
         #endif
             ca, crl->heap);
 
-    if (ret == 0) {
-        crle->verified = 1;
-    }
-    else {
-        crle->verified = ret;
+    if (cacheResult) {
+        if (ret == 0) {
+            crle->verified = 1;
+        }
+        else {
+            crle->verified = ret;
+        }
     }
 
     return ret;
 }
 
 static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
-        int serialSz, byte* serialHash, int *pFoundEntry)
+        int serialSz, byte* serialHash, int *pFoundEntry,
+        WOLFSSL_CERT_MANAGER* cm)
 {
     CRL_Entry* crle;
     int        foundEntry = 0;
@@ -512,27 +518,38 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
             WOLFSSL_MSG("Found CRL Entry on list");
 
-            if (crle->verified == 0) {
-                if (wc_LockMutex(&crle->verifyMutex) != 0) {
-                    WOLFSSL_MSG("wc_LockMutex failed");
+            if (cm != crl->cm) {
+                /* cm is not the owning cm of crl. The cached result is only
+                 * valid for the owning cm. Verify again without caching. */
+                ret = VerifyCRLE(crl, crle, cm, 0);
+                if (ret != 0) {
+                    WOLFSSL_MSG("Cannot use CRL as it didn't verify");
                     break;
                 }
-
-                /* A different thread may have verified the entry while we were
-                 * waiting for the mutex. */
-                if (crle->verified == 0)
-                    ret = VerifyCRLE(crl, crle);
-
-                wc_UnLockMutex(&crle->verifyMutex);
-
-                if (ret != 0)
-                    break;
             }
+            else {
+                if (crle->verified == 0) {
+                    if (wc_LockMutex(&crle->verifyMutex) != 0) {
+                        WOLFSSL_MSG("wc_LockMutex failed");
+                        break;
+                    }
 
-            if (crle->verified < 0) {
-                WOLFSSL_MSG("Cannot use CRL as it didn't verify");
-                ret = crle->verified;
-                break;
+                    /* A different thread may have verified the entry while we
+                     * were waiting for the mutex. */
+                    if (crle->verified == 0)
+                        ret = VerifyCRLE(crl, crle, cm, 1);
+
+                    wc_UnLockMutex(&crle->verifyMutex);
+
+                    if (ret != 0)
+                        break;
+                }
+
+                if (crle->verified < 0) {
+                    WOLFSSL_MSG("Cannot use CRL as it didn't verify");
+                    ret = crle->verified;
+                    break;
+                }
             }
 
             WOLFSSL_MSG("Checking next date validity");
@@ -569,9 +586,12 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     return ret;
 }
 
-int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
+/* cm is the CertManager to use for CRL signature verification and
+ * callbacks. It can differ from crl->cm when checking CRLs the app supplied
+ * with X509_STORE_CTX_set0_crls. The caller-owned crl is not modified. */
+static int CheckCertCRLCm(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         int serialSz, byte* serialHash, const byte* extCrlInfo,
-        int extCrlInfoSz, void* issuerName)
+        int extCrlInfoSz, void* issuerName, WOLFSSL_CERT_MANAGER* cm)
 {
     int        foundEntry = 0;
     int        ret = 0;
@@ -592,7 +612,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 #endif
 
     ret = CheckCertCRLList(crl, issuerHash, serial, serialSz, serialHash,
-            &foundEntry);
+            &foundEntry, cm);
 
 #ifdef HAVE_CRL_IO
     if (foundEntry == 0) {
@@ -606,7 +626,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             else if (cbRet >= 0) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry);
+                        serialHash, &foundEntry, cm);
             }
         }
     }
@@ -623,13 +643,13 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     /* and try again checking Cert in the CRL list.                         */
     /* When not set the folder or not use hash_dir, do nothing.             */
     if ((foundEntry == 0) && (ret != WC_NO_ERR_TRACE(OCSP_WANT_READ))) {
-        if (crl->cm != NULL && crl->cm->x509_store_p != NULL) {
-            int loadRet = LoadCertByIssuer(crl->cm->x509_store_p,
+        if (cm != NULL && cm->x509_store_p != NULL) {
+            int loadRet = LoadCertByIssuer(cm->x509_store_p,
                           (WOLFSSL_X509_NAME*)issuerName, X509_LU_CRL);
             if (loadRet == WOLFSSL_SUCCESS) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
-                        serialHash, &foundEntry);
+                        serialHash, &foundEntry, cm);
             }
         }
     }
@@ -640,7 +660,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             ret = CRL_MISSING;
         }
 
-        if (crl->cm != NULL && crl->cm->cbMissingCRL) {
+        if (cm != NULL && cm->cbMissingCRL) {
             char url[256];
 
             WOLFSSL_MSG("Issuing missing CRL callback");
@@ -655,11 +675,11 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
                 }
             }
 
-            crl->cm->cbMissingCRL(url);
+            cm->cbMissingCRL(url);
         }
 
-        if (crl->cm != NULL && crl->cm->crlCb &&
-                crl->cm->crlCb(ret, crl, crl->cm, crl->cm->crlCbCtx)) {
+        if (cm != NULL && cm->crlCb &&
+                cm->crlCb(ret, crl, cm, cm->crlCbCtx)) {
             if (ret != 0)
                 WOLFSSL_MSG("Overriding CRL error");
             ret = 0;
@@ -667,6 +687,14 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     }
 
     return ret;
+}
+
+int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
+        int serialSz, byte* serialHash, const byte* extCrlInfo,
+        int extCrlInfoSz, void* issuerName)
+{
+    return CheckCertCRLCm(crl, issuerHash, serial, serialSz, serialHash,
+            extCrlInfo, extCrlInfoSz, issuerName, crl->cm);
 }
 
 /* Is the cert ok with CRL, return 0 on success */
@@ -679,6 +707,21 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 #endif
     return CheckCertCRL_ex(crl, cert->issuerHash, cert->serial, cert->serialSz,
             NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName);
+}
+
+/* Check cert against crl using cm for CRL signature verification. Does not
+ * modify crl, so crl can be a caller-owned object shared between threads.
+ * Return 0 on success. */
+int CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_CRL* crl,
+        DecodedCert* cert)
+{
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    void* issuerName = cert->issuerName;
+#else
+    void* issuerName = NULL;
+#endif
+    return CheckCertCRLCm(crl, cert->issuerHash, cert->serial, cert->serialSz,
+            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName, cm);
 }
 
 #ifdef HAVE_CRL_UPDATE_CB
