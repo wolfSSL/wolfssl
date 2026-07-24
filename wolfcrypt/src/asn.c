@@ -19482,7 +19482,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-#if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI) || defined(WOLFSSL_DTN)
 /* ASN.1 template for OtherName of an X.509 certificate.
  * X.509: RFC 5280, 4.2.1.6 - OtherName (without implicit outer SEQUENCE).
  * HW Name: RFC 4108, 5 - Hardware Module Name
@@ -19675,7 +19675,7 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
     FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 }
-#endif /* WOLFSSL_SEP || WOLFSSL_FPKI */
+#endif /* WOLFSSL_SEP || WOLFSSL_FPKI || WOLFSSL_DTN */
 
 /* Decode a GeneralName.
  *
