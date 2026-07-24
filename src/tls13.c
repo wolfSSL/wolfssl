@@ -2828,6 +2828,14 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            #if defined(WOLF_CRYPTO_CB) && \
+                !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
+                !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
+                /* No completion path for a pending bulk cipher op. */
+                WOLFSSL_ERROR_VERBOSE(ASYNC_OP_E);
+                return ASYNC_OP_E;
+            #else
                 /* if async is not okay, then block */
                 if (!asyncOkay) {
                     ret = wc_AsyncWait(ret, asyncDev, event_flags);
@@ -2836,6 +2844,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                     /* If pending, then leave and return will resume below */
                     return wolfSSL_AsyncPush(ssl, asyncDev);
                 }
+            #endif
             }
         #endif
         }
@@ -3227,7 +3236,16 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* If pending, leave now */
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            #if defined(WOLF_CRYPTO_CB) && \
+                !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
+                !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
+                /* No completion path for a pending bulk cipher op. */
+                WOLFSSL_ERROR_VERBOSE(ASYNC_OP_E);
+                return ASYNC_OP_E;
+            #else
                 return ret;
+            #endif
             }
         #endif
         }

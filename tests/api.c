@@ -217,6 +217,7 @@
 #include <tests/api/test_kdf.h>
 #include <tests/api/test_she.h>
 #include <tests/api/test_des3.h>
+#include <tests/api/test_async.h>
 #include <tests/api/test_chacha.h>
 #include <tests/api/test_poly1305.h>
 #include <tests/api/test_chacha20_poly1305.h>
@@ -37621,6 +37622,8 @@ TEST_CASE testCases[] = {
 #endif
 
     /* Cipher */
+    /* Crypto callback async poll completion */
+    TEST_ASYNC_DECLS,
     /* Triple-DES */
     TEST_DES3_DECLS,
     /* Chacha20 */

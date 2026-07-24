@@ -391,6 +391,12 @@ typedef struct WC_ASYNC_DEV {
 #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
     WC_ASYNC_SW         sw;
 #endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+    /* Crypto callback to re-enter at poll time. INVALID_DEVID: none. */
+    struct {
+        int devId;
+    } cryptocb;
+#endif
 } WC_ASYNC_DEV;
 
 

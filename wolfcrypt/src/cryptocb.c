@@ -74,6 +74,14 @@ Crypto Callback Build Options:
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
+    !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
+    !defined(HAVE_CAVIUM) && !defined(WOLF_CRYPTO_CB_ASYNC_NO_WARN)
+    #warning "crypto callbacks with async crypt may not work for TLS. Define \
+WOLF_CRYPTO_CB_ASYNC_POLL to enable it, or WOLF_CRYPTO_CB_ASYNC_NO_WARN to \
+silence."
+#endif
+
 #ifdef HAVE_ARIA
     #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
 #endif
@@ -452,6 +460,35 @@ int wc_CryptoCb_GetDevIdAtIndex(int startIdx)
     }
     return devId;
 }
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+/* Returns WC_PENDING_E while in-flight, 0 or an error when done. */
+int wc_CryptoCb_Poll(int devId)
+{
+    /* Default hard-fails: a missing or unregistered device cannot complete
+     * the pending job, so never report "no pending" and leave the output
+     * buffer unfilled. */
+    int ret = WC_NO_ERR_TRACE(WC_HW_E);
+    /* Resolve with WC_ALGO_TYPE_CIPHER, the algo the op was submitted under, so
+     * a WOLF_CRYPTO_CB_FIND remap lands on the same device as the submit. */
+    CryptoCb* dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_CIPHER);
+    if (dev != NULL && dev->cb != NULL) {
+        wc_CryptoInfo info;
+        XMEMSET(&info, 0, sizeof(info));
+        info.algo_type = WC_ALGO_TYPE_ASYNC_POLL;
+        ret = dev->cb(devId, &info, dev->ctx);
+        if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE) ||
+            ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN) ||
+            ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E)) {
+            /* Device cannot complete the in-flight job (no poll support, or it
+             * reports nothing pending for an op we are polling): fail hard
+             * rather than let the async layer treat it as done. */
+            ret = WC_NO_ERR_TRACE(WC_HW_E);
+        }
+    }
+    return ret;
+}
+#endif /* WOLFSSL_ASYNC_CRYPT && WOLF_CRYPTO_CB_ASYNC_POLL */
 
 
 #ifdef WOLF_CRYPTO_CB_FIND

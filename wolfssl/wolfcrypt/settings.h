@@ -3972,6 +3972,11 @@
         #error No async backend defined with WOLFSSL_ASYNC_CRYPT!
     #endif
 
+    #if defined(WOLF_CRYPTO_CB_ASYNC_POLL) && defined(WC_ASYNC_NO_CRYPT)
+        /* Poll routing needs the bulk cipher async marker. */
+        #error WOLF_CRYPTO_CB_ASYNC_POLL requires bulk cipher async support
+    #endif
+
     /* Make sure wolf events are enabled */
     #undef HAVE_WOLF_EVENT
     #define HAVE_WOLF_EVENT
