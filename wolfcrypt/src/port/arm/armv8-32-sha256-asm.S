@@ -2528,7 +2528,7 @@ L_SHA256_transform_len_blk_end_15:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	Transform_Sha256_Len_base,.-Transform_Sha256_Len_base
 #else
-#ifdef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 #ifndef __APPLE__
 	.text
 	.type	L_SHA256_transform_neon_len_k, %object
@@ -3588,7 +3588,8 @@ L_SHA256_transform_neon_len_start:
 	vpop	{d8-d11}
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
 	.size	Transform_Sha256_Len_neon,.-Transform_Sha256_Len_neon
-#else
+#endif /* !WOLFSSL_ARMASM_NO_NEON_IMPL || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 #ifndef __APPLE__
 	.text
 	.type	L_SHA256_trans_crypto_len_k, %object
@@ -3621,6 +3622,7 @@ L_SHA256_trans_crypto_len_k:
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.align	4
+	.fpu	crypto-neon-fp-armv8
 	.globl	Transform_Sha256_Len_crypto
 	.type	Transform_Sha256_Len_crypto, %function
 Transform_Sha256_Len_crypto:

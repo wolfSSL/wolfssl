@@ -3960,10 +3960,12 @@ ENABLED_ARMASM_INLINE="no"
 ENABLED_ARMASM_SHA256_SMALL="no"
 ENABLED_ARMASM_SHA3="unknown"
 ENABLED_ARMASM_CRYPTO_SM4="no"
+ENABLED_ARMASM_NO_BASE_IMPL="no"
+ENABLED_ARMASM_NO_NEON_IMPL="no"
 # ARM Assembly
 # Both SHA3 and SHA512 instructions available with ARMV8.2-a
 AC_ARG_ENABLE([armasm],
-    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled). Set to sha512-crypto or sha3-crypto to use SHA512 and SHA3 instructions with Aarch64 CPU.])],
+    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled). Set to sha512-crypto or sha3-crypto to use SHA512 and SHA3 instructions with Aarch64 CPU. On 32-bit ARM, no-base and no-neon-impl drop the base/NEON run-time fallbacks when the crypto extension is always present.])],
     [ ENABLED_ARMASM=$enableval ],
     [ ENABLED_ARMASM=no ]
     )
@@ -4068,13 +4070,33 @@ then
             esac
             ENABLED_ARMASM_AES_BLOCK_INLINE=yes
             ;;
+        no-base)
+            case $host_cpu in
+            *arm*)
+                ;;
+            *)
+                AC_MSG_ERROR([no-base option only available on 32-bit ARM CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_NO_BASE_IMPL=yes
+            ;;
+        no-neon-impl)
+            case $host_cpu in
+            *arm*)
+                ;;
+            *)
+                AC_MSG_ERROR([no-neon-impl option only available on 32-bit ARM CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_NO_NEON_IMPL=yes
+            ;;
         *)
             case $host_cpu in
             *aarch64*)
                 AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, inline, no-crypto, sha512-crypto, sha3-crypto, no-sha512-crypto, no-sha3-crypto, barrier-sb, barrier-detect): $ENABLED_ARMASM.])
                 break;;
             *arm*)
-                AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, inline, no-crypto, sha256-small, aes-block-dup): $ENABLED_ARMASM.])
+                AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, inline, no-crypto, sha256-small, aes-block-dup, no-base, no-neon-impl): $ENABLED_ARMASM.])
                 break;;
             esac
             break;;
@@ -4236,6 +4258,17 @@ fi
 if test "$ENABLED_ARMASM_NEON" = "no"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_NEON"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_NO_NEON"
+fi
+# 32-bit ARM run-time dispatch: drop a fallback implementation when the crypto
+# extension is always present.  Gates both the C dispatch and the generated
+# assembly, so define for the C and assembler flags.
+if test "$ENABLED_ARMASM_NO_BASE_IMPL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_BASE_IMPL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_NO_BASE_IMPL"
+fi
+if test "$ENABLED_ARMASM_NO_NEON_IMPL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_NEON_IMPL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_NO_NEON_IMPL"
 fi
 
 if test "$ENABLED_ARMASM_INLINE" = "yes"; then

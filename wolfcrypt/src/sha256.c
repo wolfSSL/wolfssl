@@ -1342,6 +1342,48 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
 #elif defined(WOLFSSL_ARMASM) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
+/* On 32-bit Arm a NEON build compiles in both the NEON and (unless disabled)
+ * the Armv8 crypto-extension block transforms, so the best supported one is
+ * chosen at run time - mirroring the AArch64 path.  Thumb-2, no-NEON, no-crypto
+ * (NO_HW_CRYPTO) and crypto-only (NO_NEON_IMPL) builds compile a single variant
+ * and call it directly. */
+#if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    !defined(WOLFSSL_ARMASM_NO_NEON_IMPL)
+    #define SHA256_ARM32_DISPATCH
+#endif
+
+#ifdef SHA256_ARM32_DISPATCH
+
+static int sha256_transform_check = 0;
+static cpuid_flags_atomic_t sha256_cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
+
+/* Initialize to the NEON transform: it is valid on any Armv8-32/NEON CPU, so
+ * the pointer is safe to use even if read before Sha256_SetTransform() runs. */
+static void (*Transform_Sha256_Len_p)(wc_Sha256* sha256, const byte* data,
+    word32 len) = Transform_Sha256_Len_neon;
+
+/* Select the crypto-extension transform when the CPU implements FEAT_SHA256,
+ * otherwise stay on NEON. */
+static void Sha256_SetTransform(void)
+{
+    if (sha256_transform_check)
+        return;
+
+    cpuid_get_flags_atomic(&sha256_cpuid_flags);
+
+    if (IS_ARM32_SHA256(sha256_cpuid_flags))
+        Transform_Sha256_Len_p = Transform_Sha256_Len_crypto;
+    else
+        Transform_Sha256_Len_p = Transform_Sha256_Len_neon;
+
+    sha256_transform_check = 1;
+}
+
+#else
+#define Sha256_SetTransform()   WC_DO_NOTHING
+#endif /* SHA256_ARM32_DISPATCH */
+
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
     int ret = 0;
@@ -1351,6 +1393,8 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
+
+    Sha256_SetTransform();
 
     sha256->heap = heap;
 #ifdef WOLF_CRYPTO_CB
@@ -1373,8 +1417,10 @@ static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
     Transform_Sha256_Len_base(sha256, data, WC_SHA256_BLOCK_SIZE);
 #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     Transform_Sha256_Len_neon(sha256, data, WC_SHA256_BLOCK_SIZE);
-#else
+#elif defined(WOLFSSL_ARMASM_NO_NEON_IMPL)
     Transform_Sha256_Len_crypto(sha256, data, WC_SHA256_BLOCK_SIZE);
+#else
+    (*Transform_Sha256_Len_p)(sha256, data, WC_SHA256_BLOCK_SIZE);
 #endif
     return 0;
 }
@@ -1386,8 +1432,10 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     Transform_Sha256_Len_base(sha256, data, len);
 #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     Transform_Sha256_Len_neon(sha256, data, len);
-#else
+#elif defined(WOLFSSL_ARMASM_NO_NEON_IMPL)
     Transform_Sha256_Len_crypto(sha256, data, len);
+#else
+    (*Transform_Sha256_Len_p)(sha256, data, len);
 #endif
     return 0;
 }
