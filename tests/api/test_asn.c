@@ -1629,6 +1629,307 @@ int test_ParseCert_SM3wSM2_short_pubkey(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_RSA)
+/* Number of bytes needed to DER-encode the definite length "len".
+ * Only handles len < 0x10000, which is all this test needs. */
+static int dnb_lenSz(int len)
+{
+    if (len < 0x80)
+        return 1;
+    if (len < 0x100)
+        return 2;
+    return 3;
+}
+
+/* Write the DER definite length "len" to out. Returns the bytes written. */
+static int dnb_encodeLen(byte* out, int len)
+{
+    int i = 0;
+
+    if (len < 0x80) {
+        out[i++] = (byte)len;
+    }
+    else if (len < 0x100) {
+        out[i++] = 0x81;
+        out[i++] = (byte)len;
+    }
+    else {
+        out[i++] = 0x82;
+        out[i++] = (byte)(len >> 8);
+        out[i++] = (byte)(len & 0xff);
+    }
+    return i;
+}
+
+/* Build one RDN: SET { SEQUENCE { <oidTlv>, <valTag> <val> } }, where oidTlv is
+ * the full DER attribute-type OID (tag, length and content). Returns the total
+ * number of bytes written to out. */
+static int dnb_buildRdn(byte* out, const byte* oidTlv, int oidTlvLen,
+    byte valTag, const byte* val, int valLen)
+{
+    int attrTlvLen;
+    int seqContentLen;
+    int setContentLen;
+    int idx = 0;
+
+    attrTlvLen    = 1 + dnb_lenSz(valLen) + valLen;
+    seqContentLen = oidTlvLen + attrTlvLen;
+    setContentLen = 1 + dnb_lenSz(seqContentLen) + seqContentLen;
+
+    out[idx++] = 0x31;                                  /* SET OF */
+    idx += dnb_encodeLen(&out[idx], setContentLen);
+    out[idx++] = 0x30;                                  /* SEQUENCE */
+    idx += dnb_encodeLen(&out[idx], seqContentLen);
+    XMEMCPY(&out[idx], oidTlv, (size_t)oidTlvLen);
+    idx += oidTlvLen;
+    out[idx++] = valTag;                                /* string tag */
+    idx += dnb_encodeLen(&out[idx], valLen);
+    XMEMCPY(&out[idx], val, (size_t)valLen);
+    idx += valLen;
+
+    return idx;
+}
+#endif /* !NO_CERTS && !NO_ASN && !NO_RSA */
+
+/* Regression test for a 1-byte out-of-bounds NUL write in GetCertName().
+ * When a Subject DN exactly fills the WC_ASN_NAME_MAX character buffer the
+ * classic (WOLFSSL_ASN_ORIGINAL) parser wrote the string terminator one byte
+ * past cert->subject. Each certificate below is built so its second (boundary)
+ * RDN would land the running index on exactly WC_ASN_NAME_MAX, which must now
+ * be rejected as too big, leaving only the first RDN. Several attribute types
+ * are exercised because the too-big guards differ per attribute: commonName
+ * uses the "/CN=" prefix, emailAddress takes the distinct email branch with the
+ * longer "/emailAddress=" prefix, and (under WOLFSSL_CERT_EXT) jurisdictionC
+ * takes the JOI branch. Each attribute is checked on both boundary sides: at
+ * the cap (dropped) and one byte under it (kept in full), so an over-tightening
+ * off-by-one on any single guard is caught too. Runs under both ASN parsers. */
+int test_ParseCert_dnBufferBoundary(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_RSA)
+    /* 2048-bit RSA SubjectPublicKeyInfo, extracted with OpenSSL from
+     * certs/client-cert.pem, so the key decodes and the parse succeeds. */
+    static const byte rsaSpki[] = {
+        0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00,
+        0x30, 0x82, 0x01, 0x0a, 0x02, 0x82, 0x01, 0x01, 0x00, 0xc3, 0x03, 0xd1,
+        0x2b, 0xfe, 0x39, 0xa4, 0x32, 0x45, 0x3b, 0x53, 0xc8, 0x84, 0x2b, 0x2a,
+        0x7c, 0x74, 0x9a, 0xbd, 0xaa, 0x2a, 0x52, 0x07, 0x47, 0xd6, 0xa6, 0x36,
+        0xb2, 0x07, 0x32, 0x8e, 0xd0, 0xba, 0x69, 0x7b, 0xc6, 0xc3, 0x44, 0x9e,
+        0xd4, 0x81, 0x48, 0xfd, 0x2d, 0x68, 0xa2, 0x8b, 0x67, 0xbb, 0xa1, 0x75,
+        0xc8, 0x36, 0x2c, 0x4a, 0xd2, 0x1b, 0xf7, 0x8b, 0xba, 0xcf, 0x0d, 0xf9,
+        0xef, 0xec, 0xf1, 0x81, 0x1e, 0x7b, 0x9b, 0x03, 0x47, 0x9a, 0xbf, 0x65,
+        0xcc, 0x7f, 0x65, 0x24, 0x69, 0xa6, 0xe8, 0x14, 0x89, 0x5b, 0xe4, 0x34,
+        0xf7, 0xc5, 0xb0, 0x14, 0x93, 0xf5, 0x67, 0x7b, 0x3a, 0x7a, 0x78, 0xe1,
+        0x01, 0x56, 0x56, 0x91, 0xa6, 0x13, 0x42, 0x8d, 0xd2, 0x3c, 0x40, 0x9c,
+        0x4c, 0xef, 0xd1, 0x86, 0xdf, 0x37, 0x51, 0x1b, 0x0c, 0xa1, 0x3b, 0xf5,
+        0xf1, 0xa3, 0x4a, 0x35, 0xe4, 0xe1, 0xce, 0x96, 0xdf, 0x1b, 0x7e, 0xbf,
+        0x4e, 0x97, 0xd0, 0x10, 0xe8, 0xa8, 0x08, 0x30, 0x81, 0xaf, 0x20, 0x0b,
+        0x43, 0x14, 0xc5, 0x74, 0x67, 0xb4, 0x32, 0x82, 0x6f, 0x8d, 0x86, 0xc2,
+        0x88, 0x40, 0x99, 0x36, 0x83, 0xba, 0x1e, 0x40, 0x72, 0x22, 0x17, 0xd7,
+        0x52, 0x65, 0x24, 0x73, 0xb0, 0xce, 0xef, 0x19, 0xcd, 0xae, 0xff, 0x78,
+        0x6c, 0x7b, 0xc0, 0x12, 0x03, 0xd4, 0x4e, 0x72, 0x0d, 0x50, 0x6d, 0x3b,
+        0xa3, 0x3b, 0xa3, 0x99, 0x5e, 0x9d, 0xc8, 0xd9, 0x0c, 0x85, 0xb3, 0xd9,
+        0x8a, 0xd9, 0x54, 0x26, 0xdb, 0x6d, 0xfa, 0xac, 0xbb, 0xff, 0x25, 0x4c,
+        0xc4, 0xd1, 0x79, 0xf4, 0x71, 0xd3, 0x86, 0x40, 0x18, 0x13, 0xb0, 0x63,
+        0xb5, 0x72, 0x4e, 0x30, 0xc4, 0x97, 0x84, 0x86, 0x2d, 0x56, 0x2f, 0xd7,
+        0x15, 0xf7, 0x7f, 0xc0, 0xae, 0xf5, 0xfc, 0x5b, 0xe5, 0xfb, 0xa1, 0xba,
+        0xd3, 0x02, 0x03, 0x01, 0x00, 0x01
+    };
+    /* Certificate fields up to (not including) the subject Name. The two 0x0000
+     * placeholders are the outer and tbsCertificate SEQUENCE lengths, patched
+     * once the subject size is known. */
+    static const byte certPrefix[] = {
+        /* Certificate SEQUENCE (length patched) */
+        0x30, 0x82, 0x00, 0x00,
+        /* tbsCertificate SEQUENCE (length patched) */
+        0x30, 0x82, 0x00, 0x00,
+        /* version [0] INTEGER 2 */
+        0xa0, 0x03, 0x02, 0x01, 0x02,
+        /* serialNumber INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* signature AlgorithmIdentifier: sha256WithRSAEncryption */
+        0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+        0x0b, 0x05, 0x00,
+        /* issuer Name: /CN=Test */
+        0x30, 0x0f, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13,
+        0x04, 0x54, 0x65, 0x73, 0x74,
+        /* validity: notBefore 20000101000000Z, notAfter 20491231235959Z */
+        0x30, 0x1e,
+        0x17, 0x0d, 0x30, 0x30, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x5a,
+        0x17, 0x0d, 0x34, 0x39, 0x31, 0x32, 0x33, 0x31, 0x32, 0x33, 0x35, 0x39,
+        0x35, 0x39, 0x5a
+    };
+    /* Outer signatureAlgorithm and a placeholder signatureValue. Not checked
+     * because NO_VERIFY is used, but the structure must be present. */
+    static const byte certSuffix[] = {
+        /* signatureAlgorithm: sha256WithRSAEncryption */
+        0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+        0x0b, 0x05, 0x00,
+        /* signatureValue BIT STRING */
+        0x03, 0x05, 0x00, 0xde, 0xad, 0xbe, 0xef
+    };
+    /* commonName OID (2.5.4.3). */
+    static const byte cnOid[] = { 0x06, 0x03, 0x55, 0x04, 0x03 };
+    /* emailAddress OID (1.2.840.113549.1.9.1, PKCS#9). */
+    static const byte emailOid[] = {
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01
+    };
+#ifdef WOLFSSL_CERT_EXT
+    /* jurisdictionCountryName OID (ASN_JOI_PREFIX + ASN_JOI_C). */
+    static const byte joiCOid[] = {
+        0x06, 0x0b, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37, 0x3c, 0x02, 0x01,
+        0x03
+    };
+#endif
+    /* One entry per boundary attribute. valLen is sized relative to the buffer
+     * cap: after the leading /CN=A (index 5) the parser adds copyLen + strLen,
+     * where commonName copyLen is 4 ("/CN="), emailAddress copyLen is
+     * sizeof(WOLFSSL_EMAIL_ADDR) - 1 ("/emailAddress="), and jurisdictionC
+     * copyLen is sizeof(WOLFSSL_JOI_C) - 1 ("/jurisdictionC="). The reject cases
+     * land on exactly WC_ASN_NAME_MAX (must be dropped); the accept case lands
+     * one byte under (largest name that still fits, must be kept in full). */
+    struct {
+        const byte* oid;
+        int         oidLen;
+        byte        valTag;
+        int         valLen;
+        int         expectFull; /* 1: second RDN kept in full; 0: dropped */
+    } cases[6];
+    DecodedCert cert;
+    byte* der = NULL;
+    byte* val2 = NULL;
+    byte  rdn1[16];
+    int   numCases = 4;
+    int   valLen;
+    int   rdn1Len;
+    int   rdn2Len;
+    int   nameContentLen;
+    int   tbsContentLen;
+    int   outerContentLen;
+    int   pos;
+    int   derSz;
+    int   c;
+
+    /* Each attribute is tested on both boundary sides: valLen at the cap
+     * (copyLen + strLen == WC_ASN_NAME_MAX - idx) must be dropped, and one byte
+     * under the cap must be kept in full. Both sides are covered per attribute
+     * because the too-big guards are independent comparison sites. */
+    /* commonName (final catch-all guard). */
+    cases[0].oid        = cnOid;
+    cases[0].oidLen     = (int)sizeof(cnOid);
+    cases[0].valTag     = 0x13;                         /* PrintableString */
+    cases[0].valLen     = WC_ASN_NAME_MAX - 9;
+    cases[0].expectFull = 0;
+    cases[1].oid        = cnOid;
+    cases[1].oidLen     = (int)sizeof(cnOid);
+    cases[1].valTag     = 0x13;
+    cases[1].valLen     = WC_ASN_NAME_MAX - 10;
+    cases[1].expectFull = 1;
+    /* emailAddress (distinct email branch guard). */
+    cases[2].oid        = emailOid;
+    cases[2].oidLen     = (int)sizeof(emailOid);
+    cases[2].valTag     = 0x16;                         /* IA5String */
+    cases[2].valLen     = WC_ASN_NAME_MAX - 5 -
+        ((int)sizeof(WOLFSSL_EMAIL_ADDR) - 1);
+    cases[2].expectFull = 0;
+    cases[3].oid        = emailOid;
+    cases[3].oidLen     = (int)sizeof(emailOid);
+    cases[3].valTag     = 0x16;
+    cases[3].valLen     = WC_ASN_NAME_MAX - 6 -
+        ((int)sizeof(WOLFSSL_EMAIL_ADDR) - 1);
+    cases[3].expectFull = 1;
+#ifdef WOLFSSL_CERT_EXT
+    /* jurisdictionCountryName (JOI branch guard). */
+    cases[4].oid        = joiCOid;
+    cases[4].oidLen     = (int)sizeof(joiCOid);
+    cases[4].valTag     = 0x13;                         /* PrintableString */
+    cases[4].valLen     = WC_ASN_NAME_MAX - 5 -
+        ((int)sizeof(WOLFSSL_JOI_C) - 1);
+    cases[4].expectFull = 0;
+    cases[5].oid        = joiCOid;
+    cases[5].oidLen     = (int)sizeof(joiCOid);
+    cases[5].valTag     = 0x13;
+    cases[5].valLen     = WC_ASN_NAME_MAX - 6 -
+        ((int)sizeof(WOLFSSL_JOI_C) - 1);
+    cases[5].expectFull = 1;
+    numCases = 6;
+#endif
+
+    ExpectNotNull(val2 = (byte*)XMALLOC((size_t)WC_ASN_NAME_MAX, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(der = (byte*)XMALLOC(2048, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    for (c = 0; (der != NULL) && (val2 != NULL) && (c < numCases); c++) {
+        valLen = cases[c].valLen;
+        XMEMSET(val2, 'B', (size_t)valLen);
+
+        /* Fixed leading fields. */
+        XMEMCPY(der, certPrefix, sizeof(certPrefix));
+        pos = (int)sizeof(certPrefix);
+
+        /* First RDN: /CN=A (a short name that must survive). */
+        rdn1Len = dnb_buildRdn(rdn1, cnOid, (int)sizeof(cnOid), 0x13,
+            (const byte*)"A", 1);
+
+        /* Second RDN length, computed the same way dnb_buildRdn() lays it
+         * out. */
+        rdn2Len = 1 + dnb_lenSz(valLen) + valLen;          /* value TLV */
+        rdn2Len = cases[c].oidLen + rdn2Len;               /* SEQUENCE content */
+        rdn2Len = 1 + dnb_lenSz(rdn2Len) + rdn2Len;        /* SET content */
+        rdn2Len = 1 + dnb_lenSz(rdn2Len) + rdn2Len;        /* SET TLV */
+        nameContentLen = rdn1Len + rdn2Len;
+
+        /* Subject Name SEQUENCE header, then the two RDNs in order. */
+        der[pos++] = 0x30;
+        pos += dnb_encodeLen(&der[pos], nameContentLen);
+        XMEMCPY(&der[pos], rdn1, (size_t)rdn1Len);
+        pos += rdn1Len;
+        pos += dnb_buildRdn(&der[pos], cases[c].oid, cases[c].oidLen,
+            cases[c].valTag, val2, valLen);
+
+        /* SubjectPublicKeyInfo. */
+        XMEMCPY(&der[pos], rsaSpki, sizeof(rsaSpki));
+        pos += (int)sizeof(rsaSpki);
+
+        /* tbsCertificate content spans from offset 8 to here. */
+        tbsContentLen = pos - 8;
+
+        /* Outer signature algorithm and value. */
+        XMEMCPY(&der[pos], certSuffix, sizeof(certSuffix));
+        pos += (int)sizeof(certSuffix);
+        derSz = pos;
+        outerContentLen = derSz - 4;
+
+        /* Patch the two SEQUENCE lengths (both use the 0x82 long form). */
+        der[6] = (byte)(tbsContentLen >> 8);
+        der[7] = (byte)(tbsContentLen & 0xff);
+        der[2] = (byte)(outerContentLen >> 8);
+        der[3] = (byte)(outerContentLen & 0xff);
+
+        wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
+        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+        if (cases[c].expectFull) {
+            /* Largest name that still fits: the second RDN is kept and the
+             * subject fills the buffer up to the in-bounds terminator. */
+            ExpectIntEQ((int)XSTRLEN(cert.subject), WC_ASN_NAME_MAX - 1);
+        }
+        else {
+            /* The boundary attribute is dropped so the terminator stays in
+             * bounds; only the first RDN remains. */
+            ExpectStrEQ(cert.subject, "/CN=A");
+        }
+        wc_FreeDecodedCert(&cert);
+    }
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(val2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !NO_CERTS && !NO_ASN && !NO_RSA */
+    return EXPECT_RESULT();
+}
+
 int test_SerialNumber0_RootCA(void)
 {
     EXPECT_DECLS;

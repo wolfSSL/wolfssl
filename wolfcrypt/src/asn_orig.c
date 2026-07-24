@@ -2340,7 +2340,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #endif /* OPENSSL_EXTRA */
             }
 
-            if ((strLen + copyLen) > (int)(WC_ASN_NAME_MAX - idx)) {
+            if ((strLen + copyLen) >= (int)(WC_ASN_NAME_MAX - idx)) {
                 WOLFSSL_MSG("ASN Name too big, skipping");
                 tooBig = TRUE;
             }
@@ -2374,14 +2374,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 return ASN_PARSE_E;
             }
 
-            if (strLen > (int)(WC_ASN_NAME_MAX - idx)) {
+            if (strLen >= (int)(WC_ASN_NAME_MAX - idx)) {
                 WOLFSSL_MSG("ASN name too big, skipping");
                 tooBig = TRUE;
             }
 
             if (email) {
                 copyLen = sizeof(WOLFSSL_EMAIL_ADDR) - 1;
-                if ((copyLen + strLen) > (int)(WC_ASN_NAME_MAX - idx)) {
+                if ((copyLen + strLen) >= (int)(WC_ASN_NAME_MAX - idx)) {
                     WOLFSSL_MSG("ASN name too big, skipping");
                     tooBig = TRUE;
                 }
@@ -2468,7 +2468,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 }
             }
         }
-        if ((copyLen + strLen) > (int)(WC_ASN_NAME_MAX - idx))
+        if ((copyLen + strLen) >= (int)(WC_ASN_NAME_MAX - idx))
         {
             WOLFSSL_MSG("ASN Name too big, skipping");
             tooBig = TRUE;
