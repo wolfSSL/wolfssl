@@ -870,6 +870,16 @@ int test_wc_ecc_import_x963(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ecc_import_x963(x963, x963Len + 1, &pubKey),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#ifdef HAVE_COMP_KEY
+    /* A bare compressed format byte (0x02) with no x coordinate must be
+     * rejected.  inLen == 1 is odd, so the early even-length check does not
+     * catch this -- the compressed-point length validation must. */
+    {
+        byte trunc[1] = { 0x02 };
+        ExpectIntEQ(wc_ecc_import_x963(trunc, 1, &pubKey),
+            WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    }
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);
@@ -1591,6 +1601,17 @@ int test_wc_ecc_pointFns(void)
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_import_point_der(der, derSz + 1, idx, point),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#ifdef HAVE_COMP_KEY
+    /* A bare format byte (0x02) with no x coordinate must be rejected.
+     * The failing import zeroes point's coordinates, so re-import the
+     * valid DER afterward to restore state for subsequent tests. */
+    {
+        byte trunc[1] = { 0x02 };
+        ExpectIntEQ(wc_ecc_import_point_der(trunc, 1, idx, point),
+            WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    }
+    ExpectIntEQ(wc_ecc_import_point_der(der, derSz, idx, point), 0);
+#endif
 
     /* Copy */
     ExpectIntEQ(wc_ecc_copy_point(point, cpypt), 0);
