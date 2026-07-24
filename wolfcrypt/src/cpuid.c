@@ -53,6 +53,7 @@
             new_cpuid_flags |= CPUID_ADX;
             new_cpuid_flags |= CPUID_MOVBE;
             new_cpuid_flags |= CPUID_BMI1;
+            new_cpuid_flags |= CPUID_SSSE3;
         #ifdef WOLFSSL_SGX_CPUID_AVX512_VAES
             /* CPUID is unavailable inside an SGX enclave, so the integrator
              * defines this macro to assert the target CPU implements VAES and
@@ -60,6 +61,10 @@
              * rest), not just AES-GCM-SIV - only set it when that is true. */
             new_cpuid_flags |= CPUID_VAES;
             new_cpuid_flags |= CPUID_AVX512;
+            new_cpuid_flags |= CPUID_AVX512VL;
+            new_cpuid_flags |= CPUID_AVX512_IFMA;
+            /* SGX is an Intel-only technology. */
+            new_cpuid_flags |= CPUID_INTEL;
         #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange
@@ -152,6 +157,11 @@
             if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
+            if (cpuid_flag(1, 0, ECX,  9)) { new_cpuid_flags |= CPUID_SSSE3 ; }
+            if (cpuid_flag(7, 0, EBX, 31)) { new_cpuid_flags |= CPUID_AVX512VL;}
+            if (cpuid_flag(7, 0, EBX, 21)) {
+                new_cpuid_flags |= CPUID_AVX512_IFMA;
+            }
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }

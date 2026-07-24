@@ -100,6 +100,13 @@ Public domain.
     #ifndef NO_AVX2_SUPPORT
         #define HAVE_INTEL_AVX2
     #endif
+    #if !defined(NO_AVX512_SUPPORT) && !defined(HAVE_INTEL_AVX512)
+        #define HAVE_INTEL_AVX512
+    #endif
+    /* SSSE3 is the baseline SIMD path, used on CPUs that lack AVX. */
+    #ifndef HAVE_INTEL_SSSE3
+        #define HAVE_INTEL_SSSE3
+    #endif
 
     static cpuid_flags_t cpuidFlags = WC_CPUID_INITIALIZER;
 #endif
@@ -303,10 +310,52 @@ extern void chacha_encrypt_avx1(ChaCha* ctx, const byte* m, byte* c,
                                 word32 bytes);
 extern void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
                                 word32 bytes);
+extern void chacha_encrypt_avx512(ChaCha* ctx, const byte* m, byte* c,
+                                  word32 bytes);
+extern void chacha_encrypt_avx512vl(ChaCha* ctx, const byte* m, byte* c,
+                                    word32 bytes);
+/* Not exported (WOLFSSL_LOCAL/hidden): its _sse3 (SSSE3) suffix is not in the
+ * symbol-prefix allowlist, and internal asm helpers should not be exported. */
+WOLFSSL_LOCAL void chacha_encrypt_sse3(ChaCha* ctx, const byte* m, byte* c,
+                                word32 bytes);
 
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
+
+#if defined(USE_INTEL_CHACHA_SPEEDUP) && defined(HAVE_INTEL_AVX512)
+/* Decide whether to use the 512-bit (zmm) ChaCha path for this CPU.
+ *
+ * The zmm path processes 16 blocks at a time and is the fastest option on
+ * microarchitectures that run 512-bit code at full clock: AMD Zen 4/5 (no
+ * AVX-512 license) and Intel Ice Lake and later.  On Intel Skylake-SP /
+ * Cascade Lake-class parts, sustained 512-bit instructions trip the AVX-512
+ * frequency license and downclock the core - enough that the 256-bit AVX2 path
+ * is faster in practice (this matches OpenSSL, which suppresses its 16x zmm
+ * ChaCha there, and the Linux kernel, which uses only 256-bit AVX-512VL).
+ *
+ * There is no direct "does this core downclock" CPUID bit, so VAES presence is
+ * used as a generational proxy: the throttling parts (Skylake-SP / Skylake-X /
+ * Cascade Lake) predate VAES, whereas every microarchitecture that runs 512-bit
+ * without penalty (AMD Zen 4/5, Intel Ice Lake+) implements it.  A missing VAES
+ * only costs a little throughput (fall back to AVX2), never correctness.
+ *
+ * Override the heuristic with:
+ *   WOLFSSL_CHACHA20_AVX512_ALWAYS - use zmm whenever AVX-512 is present
+ *   WOLFSSL_CHACHA20_AVX512_NEVER  - never use zmm (always AVX2 or below)
+ */
+static WC_INLINE int chacha_avx512_beneficial(cpuid_flags_t flags)
+{
+#if defined(WOLFSSL_CHACHA20_AVX512_NEVER)
+    (void)flags;
+    return 0;
+#elif defined(WOLFSSL_CHACHA20_AVX512_ALWAYS)
+    return IS_INTEL_AVX512(flags) != 0;
+#else
+    return (IS_INTEL_AVX512(flags) != 0) && (IS_INTEL_VAES(flags) != 0);
+#endif
+}
+#endif /* USE_INTEL_CHACHA_SPEEDUP && HAVE_INTEL_AVX512 */
 
 
 #if (!defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP) && \
@@ -390,6 +439,73 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 
     cpuid_get_flags_ex(&cpuidFlags);
 
+    /* One block or less. */
+#if defined(HAVE_INTEL_AVX1) && !defined(WOLFSSL_LINUXKM)
+    /* In userspace SAVE_VECTOR_REGISTERS is free, so a single AVX block (~285
+     * cyc) beats the scalar block (~435) - e.g. the per-record Poly1305 key
+     * derivation (a 32-byte ChaCha) in the ChaCha20-Poly1305 two-pass path.
+     * The AVX-512VL path already uses SIMD for one block; match that here. */
+    if (msglen <= CHACHA_CHUNK_BYTES && IS_INTEL_AVX512VL(cpuidFlags) == 0 &&
+            IS_INTEL_AVX1(cpuidFlags)) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        chacha_encrypt_avx1(ctx, input, output, msglen);
+        RESTORE_VECTOR_REGISTERS();
+        return 0;
+    }
+#endif
+    /* At most one block: the scalar path avoids the SIMD broadcast/transpose
+     * setup and (in the Linux kernel module) the costly vector-register
+     * save/restore. */
+    if (msglen <= CHACHA_CHUNK_BYTES) {
+        chacha_encrypt_x64(ctx, input, output, msglen);
+        return 0;
+    }
+
+    /* 65..255 bytes without AVX-512VL: use the SSSE3 128-bit exact-block path.
+     * It is ~1.8x the scalar path and beats the 8-block AVX2 kernel (which
+     * always emits a full 512-byte key stream) below 256 bytes - e.g. a
+     * 192-byte key stream is 735 vs 1335 (scalar) vs 836 (AVX2) cycles on
+     * Coffee Lake.  This is the ChaCha20-Poly1305 short-record hot path (poly
+     * key + <=2 data blocks).  At >=256 bytes the four-block AVX2/AVX1 kernels
+     * take over below. */
+#ifdef HAVE_INTEL_SSSE3
+    if (IS_INTEL_AVX512VL(cpuidFlags) == 0 &&
+            msglen < 4 * CHACHA_CHUNK_BYTES &&
+            IS_INTEL_SSSE3(cpuidFlags)) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        chacha_encrypt_sse3(ctx, input, output, msglen);
+        RESTORE_VECTOR_REGISTERS();
+        return 0;
+    }
+#endif
+    if (IS_INTEL_AVX512VL(cpuidFlags) == 0 &&
+            msglen < 4 * CHACHA_CHUNK_BYTES) {
+        chacha_encrypt_x64(ctx, input, output, msglen);
+        return 0;
+    }
+
+    #ifdef HAVE_INTEL_AVX512
+    /* Below one 16-block chunk (1024 bytes) the zmm path does no work and
+     * just tail-calls AVX2, so dispatch straight to AVX2 for smaller input. */
+    if (chacha_avx512_beneficial(cpuidFlags) &&
+            msglen >= 16 * CHACHA_CHUNK_BYTES) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        chacha_encrypt_avx512(ctx, input, output, msglen);
+        RESTORE_VECTOR_REGISTERS();
+        return 0;
+    }
+    /* Everything below the AVX2 512-byte minimum (1..511 bytes) is handled by
+     * the AVX-512VL path itself - whole 256-byte four-block chunks plus a
+     * partial four-block tail - using single-instruction vprold rotations on
+     * 128-bit registers (no AVX-512 frequency penalty).  It does not fall back
+     * to any other implementation. */
+    if (IS_INTEL_AVX512VL(cpuidFlags) && msglen < 8 * CHACHA_CHUNK_BYTES) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        chacha_encrypt_avx512vl(ctx, input, output, msglen);
+        RESTORE_VECTOR_REGISTERS();
+        return 0;
+    }
+    #endif
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(cpuidFlags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -404,6 +520,14 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
         RESTORE_VECTOR_REGISTERS();
         return 0;
     }
+    #ifdef HAVE_INTEL_SSSE3
+    else if (IS_INTEL_SSSE3(cpuidFlags)) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        chacha_encrypt_sse3(ctx, input, output, msglen);
+        RESTORE_VECTOR_REGISTERS();
+        return 0;
+    }
+    #endif
     else {
         chacha_encrypt_x64(ctx, input, output, msglen);
         return 0;
