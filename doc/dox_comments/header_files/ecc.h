@@ -2025,6 +2025,11 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
     \param ctx Optional: pointer to an ecEncCtx object specifying different
     encryption algorithms to use
 
+    \note Selecting an AES-GCM DEM algorithm (ecAES_128_GCM, ecAES_256_GCM) in
+    the default IV mode requires the WOLFSSL_ECIES_STATIC_GCM_NONCE build macro;
+    otherwise this function returns NOT_COMPILED_IN. See wc_ecc_encrypt_ex for
+    the full rationale.
+
     _Example_
     \code
     byte msg[] = { initialize with msg to encrypt. Ensure padded to block size };
@@ -2072,6 +2077,9 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     small to store the encrypted ciphertext
     \return MEMORY_E Returned if there is an error allocating memory
     for the shared secret key
+    \return NOT_COMPILED_IN Returned if an AES-GCM DEM algorithm
+    (ecAES_128_GCM or ecAES_256_GCM) is requested in the default IV mode
+    without the WOLFSSL_ECIES_STATIC_GCM_NONCE build macro defined
 
     \param privKey pointer to the ecc_key object containing the
     private key to use for encryption
@@ -2087,6 +2095,16 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \param ctx Optional: pointer to an ecEncCtx object specifying different
     encryption algorithms to use
     \param compressed Public key field is to be output in compressed format.
+
+    \note The AES-GCM DEM algorithms (ecAES_128_GCM, ecAES_256_GCM) in the
+    default IV mode use a fixed all-zero GCM nonce. That is safe only because
+    ECIES derives a fresh symmetric key from a fresh ephemeral key on every
+    encryption, so the (key, nonce) pair never repeats; reusing the ephemeral
+    key is catastrophic for AES-GCM. For that reason the fixed-nonce GCM DEM is
+    off by default and must be enabled with the WOLFSSL_ECIES_STATIC_GCM_NONCE
+    build macro, otherwise this function returns NOT_COMPILED_IN for a GCM
+    algorithm. The macro is not needed with WOLFSSL_ECIES_GEN_IV (random
+    per-message nonce) or WOLFSSL_ECIES_OLD (nonce derived from the KDF output).
 
     _Example_
     \code
@@ -2136,6 +2154,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     small to store the decrypted plaintext
     \return MEMORY_E Returned if there is an error allocating memory
     for the shared secret key
+    \return NOT_COMPILED_IN Returned if an AES-GCM DEM algorithm
+    (ecAES_128_GCM or ecAES_256_GCM) is requested in the default IV mode
+    without the WOLFSSL_ECIES_STATIC_GCM_NONCE build macro defined
 
     \param privKey pointer to the ecc_key object containing the private
     key to use for decryption
@@ -2149,6 +2170,11 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     ciphertext, holds the number of bytes written to the output buffer
     \param ctx Optional: pointer to an ecEncCtx object specifying
     different decryption algorithms to use
+
+    \note Selecting an AES-GCM DEM algorithm (ecAES_128_GCM, ecAES_256_GCM) in
+    the default IV mode requires the WOLFSSL_ECIES_STATIC_GCM_NONCE build macro;
+    otherwise this function returns NOT_COMPILED_IN. See wc_ecc_encrypt_ex for
+    the full rationale.
 
     _Example_
     \code
