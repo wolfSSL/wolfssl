@@ -82,6 +82,12 @@
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_compat.h>
 
+#if defined(_MSC_VER) && defined(_M_ARM64)
+    /* MSVC has no inline asm on ARM64. Pull in the system register intrinsics
+     * (_ReadStatusReg, __isb) the AArch64 cycle counter below uses. */
+    #include <intrin.h>
+#endif
+
 #ifdef WOLFSSL_LINUXKM
     /* remap current_time() -- collides with a function in kernel linux/fs.h */
     #define current_time benchmark_current_time
@@ -4895,6 +4901,12 @@ static void print_cpu_features(void)
 static void print_clock_freq(void)
 {
 #ifdef __aarch64__
+#if defined(_MSC_VER)
+    /* MSVC/ARM64: no inline asm. Read CNTFRQ_EL0 (3,3,14,0,0) via the
+     * system register intrinsic. */
+    __isb(_ARM64_BARRIER_SY);
+    tick_freq = (word64)_ReadStatusReg(ARM64_SYSREG(3, 3, 14, 0, 0));
+#else
     __asm__ __volatile__ (
         "isb\n\t"
         "mrs    %[freq], cntfrq_el0\n\t"
@@ -4902,6 +4914,7 @@ static void print_clock_freq(void)
         :
         :
     );
+#endif
     if (tick_freq != 0 && actual_freq != 0) {
         printf("Tick frequency: %ld Hz, Clock frequency: %ld Hz\n", tick_freq,
                actual_freq);
@@ -17553,6 +17566,12 @@ out:
         static WC_INLINE word64 get_aarch64_cycles(void)
         {
             word64 ticks;
+        #if defined(_MSC_VER)
+            /* MSVC/ARM64: no inline asm. Read CNTVCT_EL0 (3,3,14,0,2) via the
+             * system register intrinsic. */
+            __isb(_ARM64_BARRIER_SY);
+            ticks = (word64)_ReadStatusReg(ARM64_SYSREG(3, 3, 14, 0, 2));
+        #else
             __asm__ __volatile__ (
                 "isb\n\t"
            #ifdef __APPLE__
@@ -17564,6 +17583,7 @@ out:
                 :
                 :
             );
+        #endif
             if ((tick_freq != 0) && (actual_freq != 0)) {
                 ticks *= actual_freq / tick_freq;
             }
