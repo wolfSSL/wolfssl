@@ -45318,6 +45318,11 @@ typedef struct EciesCbCtx {
     int decryptInvoked; /* set when the callback services an ECIES decrypt */
 } EciesCbCtx;
 
+/* Arbitrary per-message overhead the simulated (mode==2) device adds beyond
+ * the plaintext.  The fabricated output is never parsed, it only needs to fit
+ * the caller's buffer. */
+#define ECIES_CB_FAKE_OVERHEAD 64
+
 static int myEciesCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -45332,7 +45337,8 @@ static int myEciesCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 /* Simulate a device that produces output without re-entering
                  * software, leaving the ecEncCtx state untouched.  Used to
                  * prove the caller still enforces single-use on this path. */
-                word32 needed = info->pk.eciesencrypt.msgSz + 64;
+                word32 needed = info->pk.eciesencrypt.msgSz +
+                                ECIES_CB_FAKE_OVERHEAD;
                 if (info->pk.eciesencrypt.out == NULL ||
                         *info->pk.eciesencrypt.outSz < needed)
                     return WC_NO_ERR_TRACE(BUFFER_E);

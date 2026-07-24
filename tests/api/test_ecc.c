@@ -1644,8 +1644,8 @@ int test_wc_ecc_ecies_gcm(void)
 
         ExpectIntEQ(wc_ecc_init(&cliKey), 0);
         ExpectIntEQ(wc_ecc_init(&srvKey), 0);
-        ExpectIntEQ(wc_ecc_make_key(&rng, 32, &cliKey), 0);
-        ExpectIntEQ(wc_ecc_make_key(&rng, 32, &srvKey), 0);
+        ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+        ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
@@ -1803,8 +1803,8 @@ int test_wc_ecc_ecies_cryptocb(void)
     /* build keys with software, then route ECIES through the callback */
     ExpectIntEQ(wc_ecc_init(&cliKey), 0);
     ExpectIntEQ(wc_ecc_init(&srvKey), 0);
-    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &cliKey), 0);
-    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
@@ -1878,8 +1878,8 @@ int test_wc_ecc_ecies_gcm_no_rng(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_init(&cliKey), 0);
     ExpectIntEQ(wc_ecc_init(&srvKey), 0);
-    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &cliKey), 0);
-    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
 
     /* Deliberately do NOT call wc_ecc_set_rng() on cliKey, and pass a NULL
      * context so no RNG is available for the GCM nonce. */
