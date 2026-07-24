@@ -478,8 +478,10 @@ typedef struct Flags {
 
 /* Out of Order FIN capture */
 typedef struct FinCapture {
-    word32 cliFinSeq;               /* client relative sequence FIN  0 is no */
-    word32 srvFinSeq;               /* server relative sequence FIN, 0 is no */
+    word32 cliFinSeq;               /* client relative sequence FIN (may be 0) */
+    word32 srvFinSeq;               /* server relative sequence FIN (may be 0) */
+    byte   cliHasFin;               /* client FIN captured (seq value may be 0) */
+    byte   srvHasFin;               /* server FIN captured (seq value may be 0) */
     byte   cliCounted;              /* did we count yet, detects duplicates */
     byte   srvCounted;              /* did we count yet, detects duplicates */
 } FinCapture;
@@ -5826,12 +5828,16 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
 static int AddFinCapture(SnifferSession* session, word32 sequence)
 {
     if (session->flags.side == WOLFSSL_SERVER_END) {
-        if (session->finCapture.cliCounted == 0)
+        if (session->finCapture.cliCounted == 0) {
             session->finCapture.cliFinSeq = sequence;
+            session->finCapture.cliHasFin = 1;
+        }
     }
     else {
-        if (session->finCapture.srvCounted == 0)
+        if (session->finCapture.srvCounted == 0) {
             session->finCapture.srvFinSeq = sequence;
+            session->finCapture.srvHasFin = 1;
+        }
     }
     return 1;
 }
@@ -5842,6 +5848,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                           int* sslBytes, const byte** sslFrame, char* error)
 {
     int ret = 0;
+    sword32 seqDiff;
     word32  seqStart = (session->flags.side == WOLFSSL_SERVER_END) ?
                                     session->cliSeqStart : session->srvSeqStart;
     word32* seqLast = (session->flags.side == WOLFSSL_SERVER_END) ?
@@ -5859,12 +5866,17 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
     if (tcpInfo->sequence < seqStart)
         real = 0xffffffffU - seqStart + tcpInfo->sequence + 1;
 
+    /* Relative sequence numbers wrap at 2^32, so order them with signed
+     * (RFC 1982) serial-number arithmetic; plain unsigned </> mis-handles
+     * the wrap boundary and would drop wrapped segments as already-seen. */
+    seqDiff = (sword32)(real - *expected);
+
     TraceRelativeSequence(*expected, real);
 
-    if (real < *expected) {
+    if (seqDiff < 0) {
         int overlap = *expected - real;
 
-        if (real + *sslBytes > *expected) {
+        if ((sword32)(real + (word32)*sslBytes - *expected) > 0) {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (session->sslServer->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
                 session->pendSeq != tcpInfo->sequence)
@@ -5952,7 +5964,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             }
         }
     }
-    else if (real > *expected) {
+    else if (seqDiff > 0) {
         Trace(OUT_OF_ORDER_STR);
         if (*sslBytes > 0) {
             int addResult = AddToReassembly(session->flags.side, real,
@@ -6146,7 +6158,10 @@ static int CheckAck(TcpInfo* tcpInfo, SnifferSession* session)
 
         TraceAck(real, expected);
 
-        if (real > expected)
+        /* Relative sequence numbers wrap at 2^32; compare with signed
+         * (RFC 1982) serial-number arithmetic to avoid a false positive at
+         * the wrap boundary. */
+        if ((sword32)(real - expected) > 0)
             return WOLFSSL_FATAL_ERROR;  /* we missed a packet, ACKing data we never saw */
     }
     return 0;
@@ -6734,8 +6749,13 @@ static int CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
                             SnifferSession* session)
 {
     int ret = 0;
-    if (session->finCapture.cliFinSeq && session->finCapture.cliFinSeq <=
-                                         session->cliExpected) {
+    /* FIN sequences are relative and wrap at 2^32, so compare "reached" with
+     * signed (RFC 1982) serial-number arithmetic. A dedicated has-FIN flag
+     * marks capture, since a relative sequence of 0 is itself a valid FIN
+     * position at the wrap boundary. */
+    if (session->finCapture.cliHasFin &&
+            (sword32)(session->finCapture.cliFinSeq - session->cliExpected)
+                <= 0) {
         if (session->finCapture.cliCounted == 0) {
             session->flags.finCount += 1;
             session->finCapture.cliCounted = 1;
@@ -6743,8 +6763,9 @@ static int CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
     }
 
-    if (session->finCapture.srvFinSeq && session->finCapture.srvFinSeq <=
-                                         session->srvExpected) {
+    if (session->finCapture.srvHasFin &&
+            (sword32)(session->finCapture.srvFinSeq - session->srvExpected)
+                <= 0) {
         if (session->finCapture.srvCounted == 0) {
             session->flags.finCount += 1;
             session->finCapture.srvCounted = 1;
