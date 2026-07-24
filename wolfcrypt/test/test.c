@@ -2334,7 +2334,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     if (wc_LoadStaticMemory(&HEAP_HINT, gTestMemory, sizeof(gTestMemory),
                                                 WOLFMEM_GENERAL, 1) != 0) {
         printf("unable to load static memory.\n");
-        return(EXIT_FAILURE);
+        EXIT_TEST(EXIT_FAILURE);
     }
     #ifndef OPENSSL_EXTRA
     wolfSSL_SetGlobalHeapHint(HEAP_HINT);
@@ -3692,7 +3692,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         }
 #endif
 
-#ifdef WOLFSSL_TRACK_MEMORY
+#if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
         if (wc_MemStats_Ptr && (wc_MemStats_Ptr->currentBytes > 0) &&
             (args.return_code == 0))
         {
@@ -24662,7 +24662,8 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
     byte block[32];
     wc_test_ret_t ret;
     int i;
-#if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
+#if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
     long current_totalAllocs = wc_MemStats_Ptr->totalAllocs;
 #endif
 
@@ -24749,7 +24750,8 @@ static wc_test_ret_t _rng_test(WC_RNG* rng)
 
 #endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_SELFTEST */
 
-#if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE)
+#if defined(WOLFSSL_TRACK_MEMORY) && defined(WOLFSSL_SMALL_STACK_CACHE) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
     /* wc_RNG_GenerateBlock() must not allocate any memory in
      * WOLFSSL_SMALL_STACK_CACHE builds, even if it had to reseed.
      * LINUXKM_DRBG_GET_RANDOM_BYTES depends on this --
