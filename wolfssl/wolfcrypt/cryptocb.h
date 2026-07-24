@@ -267,6 +267,27 @@ typedef struct wc_CryptoInfo {
                                           * public point)                       */
             } ecc_check_pub;          /* distinct from ecc_check (priv-key cmp)  */
             #endif
+            #ifdef HAVE_ECC_ENCRYPT
+            struct {
+                ecc_key*    privKey;
+                ecc_key*    pubKey;
+                const byte* msg;
+                word32      msgSz;
+                byte*       out;
+                word32*     outSz;
+                ecEncCtx*   ctx;
+                int         compressed;
+            } eciesencrypt;
+            struct {
+                ecc_key*    privKey;
+                ecc_key*    pubKey;
+                const byte* msg;
+                word32      msgSz;
+                byte*       out;
+                word32*     outSz;
+                ecEncCtx*   ctx;
+            } eciesdecrypt;
+            #endif /* HAVE_ECC_ENCRYPT */
         #endif /* HAVE_ECC */
         #ifdef HAVE_CURVE25519
             struct {
@@ -810,6 +831,13 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
 #ifdef HAVE_ECC_CHECK_KEY
 WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder,
     int checkPriv);
+#endif
+#ifdef HAVE_ECC_ENCRYPT
+WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
+    int compressed);
+WOLFSSL_LOCAL int wc_CryptoCb_EciesDecrypt(ecc_key* privKey, ecc_key* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 #endif
 #endif /* HAVE_ECC */
 

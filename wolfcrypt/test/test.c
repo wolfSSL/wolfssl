@@ -45036,6 +45036,36 @@ static wc_test_ret_t ecc_encrypt_combos_test(WC_RNG* rng, ecc_key* userA,
     }
 #endif
 #endif /* !NO_AES && WOLFSSL_AES_COUNTER */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_ECIES_STATIC_GCM_NONCE) && !defined(WOLFSSL_NO_MALLOC)
+#ifdef WOLFSSL_AES_128
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(rng, userA, userB, ecAES_128_GCM,
+            ecHKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_GCM, HKDF_SHA256\n");
+        }
+    }
+#ifdef HAVE_X963_KDF
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(rng, userA, userB, ecAES_128_GCM,
+            ecKDF_X963_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_GCM, KDF_X963_SHA256\n");
+        }
+    }
+#endif
+#endif
+#ifdef WOLFSSL_AES_256
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(rng, userA, userB, ecAES_256_GCM,
+            ecHKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_256_GCM, HKDF_SHA256\n");
+        }
+    }
+#endif
+#endif /* !NO_AES && HAVE_AESGCM */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
         ret = ecc_ctx_kdf_salt_test(rng, userA, userB);
@@ -45047,6 +45077,568 @@ static wc_test_ret_t ecc_encrypt_combos_test(WC_RNG* rng, ecc_key* userA,
     (void)userB;
     return ret;
 }
+
+/* Fixed-vector (decrypt-only) KAT + negative tests for ECIES with an AES-GCM
+ * DEM.  ECIES is non-deterministic (random ephemeral key + random GCM nonce),
+ * so each ciphertext is captured once and decrypted here with a FIXED recipient
+ * private key and FIXED exchange salts.  The salt mixing in
+ * wc_ecc_ctx_set_peer_salt() is symmetric, so decrypt reproduces the KDF/MAC
+ * salts from the blob alone.  Only valid for the default SEC1 wire format.
+ *
+ * ecc_encrypt_gcm_kat_vec() is parameterized over (encAlgo, kdfAlgo, blob) so
+ * the same body validates every captured vector below. */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(HAVE_HKDF) && !defined(WOLFSSL_ECIES_OLD) && \
+    !defined(WOLFSSL_ECIES_ISO18033) && !defined(WOLFSSL_ECIES_GEN_IV) && \
+    defined(WOLFSSL_ECIES_STATIC_GCM_NONCE) && !defined(WOLFSSL_NO_MALLOC)
+
+/* recipient private key (SECP256R1 raw scalar) - shared by every GCM vector.
+ * File-scope so all vectors share them; must be 'static' (internal linkage)
+ * because WOLFSSL_SMALL_STACK_STATIC expands to nothing in non-small-stack
+ * builds, which at file scope would create external globals. */
+static const byte ecc_gcm_kat_privKey[] = {
+    0x04, 0x80, 0xef, 0x1d, 0xbe, 0x02, 0x0c, 0x20,
+    0x5b, 0xab, 0x80, 0x35, 0x5b, 0x2a, 0x0f, 0x6d,
+    0xd3, 0xb0, 0x7f, 0x7e, 0x7f, 0x86, 0x8a, 0x49,
+    0xee, 0xb4, 0xaa, 0x09, 0x2d, 0x1e, 0x1d, 0x02
+};
+/* fixed exchange salts (client's own, server's own) */
+static const byte ecc_gcm_kat_cliSalt[EXCHANGE_SALT_SZ] = {
+    0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+    0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+};
+static const byte ecc_gcm_kat_srvSalt[EXCHANGE_SALT_SZ] = {
+    0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+    0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+};
+/* the fixed 48-byte plaintext every vector encrypts */
+static const byte ecc_gcm_kat_msg[] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+    0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f
+};
+
+/* Decrypt-side KAT for one captured vector, plus tamper passes:
+ *   i==0 valid blob            -> success + plaintext matches
+ *   i==1 corrupt GCM tag       -> auth failure
+ *   i==2 corrupt ciphertext    -> auth failure
+ * (Buffer-size and truncated-input error paths are covered by the API unit
+ * test test_wc_ecc_ecies_gcm().)  A fresh server ctx is built each pass since
+ * the exchange ctx is single-use. */
+static wc_test_ret_t ecc_encrypt_gcm_kat_vec(WC_RNG* rng, byte encAlgo,
+    byte kdfAlgo, const byte* enc_msg, word32 enc_msgSz)
+{
+    wc_test_ret_t ret = 0;
+    ecc_key* userB = NULL;
+    byte*    bad = NULL;
+    byte     plain[sizeof(ecc_gcm_kat_msg)];
+    word32   plainSz;
+    int      i;
+    int      userBInit = 0;
+
+    userB = (ecc_key*)XMALLOC(sizeof(*userB), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    bad   = (byte*)XMALLOC(enc_msgSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (userB == NULL || bad == NULL) {
+        ret = WC_TEST_RET_ENC_ERRNO;
+        goto vec_done;
+    }
+
+    for (i = 0; i <= 2 && ret == 0; i++) {
+        ecEncCtx* srvCtx = NULL;
+        const byte* in = enc_msg;
+
+        if (userBInit) {
+            wc_ecc_free(userB);
+            userBInit = 0;
+        }
+        ret = wc_ecc_init_ex(userB, HEAP_HINT, devId);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        userBInit = 1;
+
+        ret = wc_ecc_import_private_key_ex(ecc_gcm_kat_privKey,
+                (word32)sizeof(ecc_gcm_kat_privKey), NULL, 0, userB,
+                ECC_SECP256R1);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+        ret = wc_ecc_set_rng(userB, rng);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+#endif
+
+        srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
+        if (srvCtx == NULL) { ret = WC_TEST_RET_ENC_ERRNO; break; }
+        ret = wc_ecc_ctx_set_algo(srvCtx, encAlgo, kdfAlgo, ecHMAC_SHA256);
+        if (ret == 0) {
+            /* force our fixed own salt, then set the peer's fixed salt */
+            byte* ownSalt = (byte*)wc_ecc_ctx_get_own_salt(srvCtx);
+            if (ownSalt == NULL) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+            else {
+                XMEMCPY(ownSalt, ecc_gcm_kat_srvSalt, EXCHANGE_SALT_SZ);
+                ret = wc_ecc_ctx_set_peer_salt(srvCtx, ecc_gcm_kat_cliSalt);
+            }
+        }
+        if (ret != 0) {
+            wc_ecc_ctx_free(srvCtx);
+            ret = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+
+        plainSz = sizeof(plain);
+        if (i == 1) {              /* corrupt the trailing GCM tag */
+            XMEMCPY(bad, enc_msg, enc_msgSz);
+            bad[enc_msgSz - 1] ^= 0x01;
+            in = bad;
+        }
+        else if (i == 2) {         /* corrupt a ciphertext byte */
+            XMEMCPY(bad, enc_msg, enc_msgSz);
+            bad[enc_msgSz - (word32)sizeof(ecc_gcm_kat_msg)] ^= 0x01;
+            in = bad;
+        }
+
+        ret = wc_ecc_decrypt(userB, NULL, in, enc_msgSz, plain, &plainSz,
+                             srvCtx);
+        wc_ecc_ctx_free(srvCtx);
+
+        if (i == 0) {
+            /* valid blob must decrypt and match */
+            if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            if (plainSz != sizeof(ecc_gcm_kat_msg) ||
+                    XMEMCMP(plain, ecc_gcm_kat_msg,
+                            sizeof(ecc_gcm_kat_msg)) != 0) {
+                ret = WC_TEST_RET_ENC_NC;
+                break;
+            }
+        }
+        else {
+            /* corrupted blob must be rejected by GCM authentication */
+            if (ret == 0) { ret = WC_TEST_RET_ENC_NC; break; }
+            ret = 0; /* expected failure -> continue */
+        }
+    }
+
+vec_done:
+    if (userBInit)
+        wc_ecc_free(userB);
+    XFREE(userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bad, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* Run every fixed GCM KAT vector available in this build. */
+static wc_test_ret_t ecc_encrypt_gcm_kat(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+
+#ifdef WOLFSSL_AES_256
+    /* AES-256-GCM, HKDF-SHA256, SEC1 default mode (fixed zero nonce, not sent):
+     * 0x04||point(65)||ciphertext(48)||tag(16).  Generated with OpenSSL's
+     * (NIST SP 800-38D) AES-GCM so wolfSSL decrypting it validates the DEM. */
+    WOLFSSL_SMALL_STACK_STATIC const byte enc_msg_256_hkdf[] = {
+        0x04, 0x2a, 0x15, 0xd9, 0x15, 0xec, 0x17, 0xf0,
+        0xcb, 0xa0, 0x16, 0xcb, 0x87, 0x8b, 0xb5, 0x0a,
+        0x71, 0x88, 0xd9, 0x62, 0xdc, 0x66, 0x08, 0x03,
+        0x37, 0xbf, 0xff, 0x04, 0x9f, 0xae, 0x32, 0xa5,
+        0x1f, 0xa2, 0x30, 0xbc, 0x18, 0x01, 0x01, 0xc3,
+        0x87, 0x37, 0xd4, 0xd5, 0xbc, 0xa2, 0x72, 0xe7,
+        0x91, 0xc7, 0xeb, 0x3d, 0x52, 0x2e, 0xe1, 0x12,
+        0x07, 0x77, 0x56, 0x35, 0xed, 0x57, 0xf8, 0x9e,
+        0xae, 0xb4, 0xb8, 0x29, 0x89, 0xdf, 0x6f, 0xda,
+        0xbf, 0xdf, 0xd4, 0x08, 0x67, 0x9d, 0x76, 0x11,
+        0x55, 0x44, 0x86, 0x56, 0xc2, 0x62, 0x70, 0x1e,
+        0xd7, 0x30, 0xec, 0x61, 0x91, 0xb6, 0x22, 0x57,
+        0x41, 0x71, 0x6e, 0x5c, 0xbd, 0x91, 0x63, 0x14,
+        0x81, 0x12, 0x17, 0x98, 0x67, 0x8a, 0xfb, 0xa7,
+        0xba, 0x2f, 0x36, 0xd9, 0xba, 0xa8, 0xda, 0xda,
+        0xd9, 0x89, 0xbd, 0xf8, 0x21, 0x55, 0x43, 0x88,
+        0x19
+    };
+    if (ret == 0) {
+        ret = ecc_encrypt_gcm_kat_vec(rng, ecAES_256_GCM, ecHKDF_SHA256,
+                enc_msg_256_hkdf, (word32)sizeof(enc_msg_256_hkdf));
+    }
+#endif /* WOLFSSL_AES_256 */
+
+#ifdef WOLFSSL_AES_128
+    /* AES-128-GCM, HKDF-SHA256, SEC1 format */
+    WOLFSSL_SMALL_STACK_STATIC const byte enc_msg_128_hkdf[] = {
+        0x04,0x33,0xb1,0x00,0x18,0x4a,0x91,0x6e,
+        0x4d,0x4b,0xad,0x90,0xfb,0x25,0xaa,0xe7,
+        0x1b,0x82,0x38,0xda,0xab,0x85,0x51,0x91,
+        0xb8,0xd9,0xf8,0xa4,0x7b,0x7d,0xca,0x4d,
+        0x03,0xe4,0xe1,0x44,0xcf,0xf6,0x9e,0x70,
+        0x6f,0x23,0x2a,0xaf,0xcd,0x16,0xe4,0x02,
+        0x14,0x0c,0xf7,0x0b,0x1d,0x24,0x1a,0xf3,
+        0xc1,0xa8,0xe3,0x8e,0x96,0xa1,0x63,0xe0,
+        0x0d,0xa5,0xdd,0x32,0x27,0xdb,0x01,0x57,
+        0x59,0x65,0x2b,0xa8,0x32,0xdc,0x03,0x59,
+        0x5a,0xc7,0xb2,0xb7,0x1c,0xef,0x03,0xc5,
+        0x05,0x84,0x03,0x9d,0x6b,0x7c,0x59,0x65,
+        0xeb,0xa1,0x67,0xfb,0x94,0xd6,0x7d,0xa1,
+        0x22,0x58,0xf5,0x35,0x55,0xd7,0x5c,0x36,
+        0xb6,0x48,0x01,0x0a,0x8c,0x24,0xac,0x85,
+        0x20,0xab,0x13,0xac,0xe9,0xcd,0x6d,0x89,
+        0xb0
+    };
+    if (ret == 0) {
+        ret = ecc_encrypt_gcm_kat_vec(rng, ecAES_128_GCM, ecHKDF_SHA256,
+                enc_msg_128_hkdf, (word32)sizeof(enc_msg_128_hkdf));
+    }
+#ifdef HAVE_X963_KDF
+    /* AES-128-GCM, X9.63-KDF-SHA256, SEC1 format */
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte enc_msg_128_x963[] = {
+            0x04,0x7b,0x1a,0x46,0x41,0x7c,0x5e,0x64,
+            0xb4,0x55,0x73,0x78,0xf1,0x7f,0xe9,0xbf,
+            0xd9,0x01,0xdb,0x1a,0x5d,0xef,0x96,0x1c,
+            0x78,0x58,0x1b,0x68,0x5f,0x5d,0xe4,0x40,
+            0xcd,0x8f,0xdf,0x88,0xc5,0x06,0xc1,0x64,
+            0x00,0x37,0x45,0xe0,0x6c,0xf0,0x61,0x70,
+            0xda,0x2d,0x65,0xff,0xd2,0x59,0x5b,0x73,
+            0x9d,0x4f,0x72,0x15,0x21,0xa5,0x54,0xbc,
+            0x80,0x2f,0x0d,0x83,0x64,0x0e,0x41,0x2b,
+            0x1e,0x61,0xbb,0x0c,0x98,0x37,0x0e,0xbe,
+            0xf4,0xb2,0xf3,0xae,0x07,0x20,0x88,0x79,
+            0xb3,0x08,0xca,0x73,0x2b,0xb3,0x26,0x8f,
+            0x2b,0x22,0x05,0x57,0x4f,0x50,0x04,0xc1,
+            0x51,0x9c,0xbb,0xb5,0xd2,0xad,0x3b,0x19,
+            0x1c,0x14,0xc0,0xd5,0x81,0x60,0x34,0x79,
+            0x04,0x26,0x18,0x20,0x2d,0xd7,0xda,0xa2,
+            0x31
+        };
+        if (ret == 0) {
+            ret = ecc_encrypt_gcm_kat_vec(rng, ecAES_128_GCM,
+                    ecKDF_X963_SHA256, enc_msg_128_x963,
+                    (word32)sizeof(enc_msg_128_x963));
+        }
+    }
+#endif /* HAVE_X963_KDF */
+#endif /* WOLFSSL_AES_128 */
+
+    return ret;
+}
+#endif /* GCM KAT guards */
+
+#if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC)
+/* Minimal ECIES CryptoCb: with mode==1 it services the operation (forwarding to
+ * software after clearing devId) and records that it was invoked; with mode==0
+ * it returns CRYPTOCB_UNAVAILABLE so ECIES falls back to software. */
+typedef struct EciesCbCtx {
+    int mode;           /* 0 = force fallback, 1 = handle in callback */
+    int encryptInvoked; /* set when the callback services an ECIES encrypt */
+    int decryptInvoked; /* set when the callback services an ECIES decrypt */
+} EciesCbCtx;
+
+/* Arbitrary per-message overhead the simulated (mode==2) device adds beyond
+ * the plaintext.  The fabricated output is never parsed, it only needs to fit
+ * the caller's buffer. */
+#define ECIES_CB_FAKE_OVERHEAD 64
+
+static int myEciesCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    EciesCbCtx* cbCtx = (EciesCbCtx*)ctx;
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+        if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT) {
+            if (cbCtx->mode == 0)
+                return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            cbCtx->encryptInvoked = 1;
+            if (cbCtx->mode == 2) {
+                /* Simulate a device that produces output without re-entering
+                 * software, leaving the ecEncCtx state untouched.  Used to
+                 * prove the caller still enforces single-use on this path. */
+                word32 needed = info->pk.eciesencrypt.msgSz +
+                                ECIES_CB_FAKE_OVERHEAD;
+                if (info->pk.eciesencrypt.out == NULL ||
+                        *info->pk.eciesencrypt.outSz < needed)
+                    return WC_NO_ERR_TRACE(BUFFER_E);
+                XMEMSET(info->pk.eciesencrypt.out, 0, needed);
+                *info->pk.eciesencrypt.outSz = needed;
+                return 0;
+            }
+            info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
+            ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
+                info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
+                info->pk.eciesencrypt.msgSz, info->pk.eciesencrypt.out,
+                info->pk.eciesencrypt.outSz, info->pk.eciesencrypt.ctx,
+                info->pk.eciesencrypt.compressed);
+            info->pk.eciesencrypt.privKey->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
+            if (cbCtx->mode == 0)
+                return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+            cbCtx->decryptInvoked = 1;
+            info->pk.eciesdecrypt.privKey->devId = INVALID_DEVID;
+            ret = wc_ecc_decrypt(info->pk.eciesdecrypt.privKey,
+                info->pk.eciesdecrypt.pubKey, info->pk.eciesdecrypt.msg,
+                info->pk.eciesdecrypt.msgSz, info->pk.eciesdecrypt.out,
+                info->pk.eciesdecrypt.outSz, info->pk.eciesdecrypt.ctx);
+            info->pk.eciesdecrypt.privKey->devId = devIdArg;
+        }
+    }
+
+    return ret;
+}
+
+#define ECIES_CB_TEST_DEVID 0x45434945 /* 'ECIE' */
+
+/* Every ECIES DEM cipher available in this build. The CryptoCb dispatch is
+ * whole-operation (cipher-agnostic), but we route each mode through the
+ * callback to prove the round-trip works for all of them. */
+static const byte eciesCbModes[] = {
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    #ifdef WOLFSSL_AES_128
+    ecAES_128_CBC,
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ecAES_256_CBC,
+    #endif
+#endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+    #ifdef WOLFSSL_AES_128
+    ecAES_128_CTR,
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ecAES_256_CTR,
+    #endif
+#endif
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)
+    #ifdef WOLFSSL_AES_128
+    ecAES_128_GCM,
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ecAES_256_GCM,
+    #endif
+#endif
+    0 /* sentinel so the array is never zero-sized; skipped at runtime */
+};
+
+/* One callback round-trip for a specific DEM cipher. handleInCb selects whether
+ * the callback services the op (mode 1) or declines so software runs (mode 0).
+ * Verifies the plaintext round-trips and that the callback was/ wasn't used. */
+static wc_test_ret_t ecies_cryptocb_roundtrip(WC_RNG* rng, EciesCbCtx* cbCtx,
+    ecc_key* userA, ecc_key* userB, byte encAlgo, int handleInCb)
+{
+    wc_test_ret_t ret;
+    ecEncCtx*   cliCtx = NULL;
+    ecEncCtx*   srvCtx = NULL;
+    byte        msg[32];
+    byte        out[256];
+    byte        plain[64];
+    word32      outSz   = (word32)sizeof(out);
+    word32      plainSz = (word32)sizeof(plain);
+    byte        cliSalt[EXCHANGE_SALT_SZ];
+    byte        srvSalt[EXCHANGE_SALT_SZ];
+    const byte* tmpSalt;
+    ecc_key*    decPub = NULL;
+    int         i;
+
+#ifdef WOLFSSL_ECIES_OLD
+    decPub = userA; /* OLD needs the sender's public key to decrypt */
+#endif
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
+    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
+    if (cliCtx == NULL || srvCtx == NULL) { ret = WC_TEST_RET_ENC_ERRNO; goto rt_done; }
+
+    ret = wc_ecc_ctx_set_algo(cliCtx, encAlgo, ecHKDF_SHA256, ecHMAC_SHA256);
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_algo(srvCtx, encAlgo, ecHKDF_SHA256, ecHMAC_SHA256);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto rt_done; }
+
+    tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
+    if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto rt_done; }
+    XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx);
+    if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto rt_done; }
+    XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ret = wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt);
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto rt_done; }
+
+    cbCtx->mode = handleInCb;
+    cbCtx->encryptInvoked = 0;
+    cbCtx->decryptInvoked = 0;
+
+    ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, cliCtx);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto rt_done; }
+    ret = wc_ecc_decrypt(userB, decPub, out, outSz, plain, &plainSz, srvCtx);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto rt_done; }
+
+    if (plainSz != sizeof(msg) || XMEMCMP(plain, msg, sizeof(msg)) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto rt_done;
+    }
+    /* Both directions must be serviced by the callback when handleInCb==1, and
+     * neither when it's 0 (software ran). Checking them separately catches a
+     * silently-broken dispatch in one direction that a single flag would hide. */
+    if (cbCtx->encryptInvoked != (handleInCb ? 1 : 0) ||
+            cbCtx->decryptInvoked != (handleInCb ? 1 : 0))
+        ret = WC_TEST_RET_ENC_NC;
+
+rt_done:
+    wc_ecc_ctx_free(cliCtx);
+    wc_ecc_ctx_free(srvCtx);
+    return ret;
+}
+
+/* A callback that services ECIES purely in hardware never re-enters software,
+ * so the caller must advance the single-use REQ/RESP state itself.  Without that
+ * the same ctx could be reused, which is nonce reuse for the static-nonce GCM
+ * DEM.  Verify a second encrypt on the same ctx is rejected with BAD_STATE_E. */
+static wc_test_ret_t ecies_cryptocb_state_test(WC_RNG* rng, EciesCbCtx* cbCtx,
+    ecc_key* userA, ecc_key* userB)
+{
+    wc_test_ret_t ret = 0;
+    ecEncCtx*   cliCtx = NULL;
+    ecEncCtx*   srvCtx = NULL;
+    byte        out[256];
+    word32      outSz = sizeof(out);
+    byte        msg[16];
+    byte        cliSalt[EXCHANGE_SALT_SZ];
+    byte        srvSalt[EXCHANGE_SALT_SZ];
+    const byte* tmpSalt;
+    int         i;
+
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
+    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
+    if (cliCtx == NULL || srvCtx == NULL) {
+        ret = WC_TEST_RET_ENC_NC; goto st_done;
+    }
+
+    /* Salt exchange brings the client ctx to ecCLI_SALT_SET (encrypt-ready). */
+    tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
+    if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
+    XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx);
+    if (tmpSalt == NULL) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
+    XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+    ret = wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt);
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto st_done; }
+
+    cbCtx->mode = 2; /* pure hardware: succeed without touching ctx state */
+    cbCtx->encryptInvoked = 0;
+
+    /* First encrypt: serviced "in hardware". */
+    ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, cliCtx);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto st_done; }
+    if (cbCtx->encryptInvoked != 1) { ret = WC_TEST_RET_ENC_NC; goto st_done; }
+
+    /* Second encrypt on the same ctx must be rejected: the hardware path must
+     * have advanced the single-use state. */
+    outSz = sizeof(out);
+    ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, cliCtx);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        ret = (ret == 0) ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret);
+        goto st_done;
+    }
+    ret = 0;
+
+st_done:
+    wc_ecc_ctx_free(cliCtx);
+    wc_ecc_ctx_free(srvCtx);
+    return ret;
+}
+
+/* Exercises the ECIES CryptoCb dispatch for every DEM cipher in the build, and
+ * for each: pass with the callback servicing the op, and a pass verifying
+ * software fallback on CRYPTOCB_UNAVAILABLE. */
+static wc_test_ret_t ecc_encrypt_cryptocb_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    ecc_key* userA = NULL;
+    ecc_key* userB = NULL;
+    int     registered = 0;
+    int     userAInit = 0, userBInit = 0;
+    int     m, pass;
+    EciesCbCtx cbCtx;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+    ret = wc_CryptoCb_RegisterDevice(ECIES_CB_TEST_DEVID, myEciesCryptoCb,
+                                     &cbCtx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    registered = 1;
+
+    userA = (ecc_key*)XMALLOC(sizeof(*userA), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    userB = (ecc_key*)XMALLOC(sizeof(*userB), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (userA == NULL || userB == NULL) {
+        ret = WC_TEST_RET_ENC_ERRNO;
+        goto cb_done;
+    }
+
+    /* Fresh keys owned by this test, routed to our callback via devId. */
+    ret = wc_ecc_init_ex(userA, HEAP_HINT, ECIES_CB_TEST_DEVID);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
+    userAInit = 1;
+    ret = wc_ecc_init_ex(userB, HEAP_HINT, ECIES_CB_TEST_DEVID);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
+    userBInit = 1;
+    /* Our callback only handles ECIES, so keygen falls back to software.
+     * Clear devId during make so keygen uses software directly, then restore
+     * for the ECIES ops. */
+    userA->devId = INVALID_DEVID;
+    userB->devId = INVALID_DEVID;
+    ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, userA);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
+    ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, userB);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(userA, rng);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
+    ret = wc_ecc_set_rng(userB, rng);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
+#endif
+    userA->devId = ECIES_CB_TEST_DEVID;
+    userB->devId = ECIES_CB_TEST_DEVID;
+
+    /* For each DEM cipher in the build: pass 1 = callback services the op,
+     * pass 0 = callback declines and software fallback runs. */
+    for (m = 0;
+         m < (int)(sizeof(eciesCbModes) / sizeof(eciesCbModes[0])) && ret == 0;
+         m++) {
+        if (eciesCbModes[m] == 0) /* sentinel entry */
+            continue;
+        for (pass = 1; pass >= 0 && ret == 0; pass--) {
+            ret = ecies_cryptocb_roundtrip(rng, &cbCtx, userA, userB,
+                                           eciesCbModes[m], pass);
+        }
+    }
+
+    /* Single-use state must be enforced even for a pure-hardware callback. */
+    if (ret == 0)
+        ret = ecies_cryptocb_state_test(rng, &cbCtx, userA, userB);
+
+cb_done:
+    if (userAInit)
+        wc_ecc_free(userA);
+    if (userBInit)
+        wc_ecc_free(userB);
+    XFREE(userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(ECIES_CB_TEST_DEVID);
+
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB && !WOLFSSL_NO_MALLOC */
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
@@ -45122,6 +45714,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
 #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
     if (ret == 0)
         ret = ecc_encrypt_combos_test(&rng, userA, userB);
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(HAVE_HKDF) && !defined(WOLFSSL_ECIES_OLD) && \
+    !defined(WOLFSSL_ECIES_ISO18033) && !defined(WOLFSSL_ECIES_GEN_IV) && \
+    defined(WOLFSSL_ECIES_STATIC_GCM_NONCE) && !defined(WOLFSSL_NO_MALLOC)
+    if (ret == 0)
+        ret = ecc_encrypt_gcm_kat(&rng);
+#endif
+#if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC)
+    if (ret == 0)
+        ret = ecc_encrypt_cryptocb_test(&rng);
+#endif
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 done:
@@ -77848,6 +78451,27 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.ecdh.private_key->devId = devIdArg;
         #endif
         }
+    #ifdef HAVE_ECC_ENCRYPT
+        else if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT) {
+            /* set devId to invalid so the software path runs */
+            info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
+            ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
+                info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
+                info->pk.eciesencrypt.msgSz, info->pk.eciesencrypt.out,
+                info->pk.eciesencrypt.outSz, info->pk.eciesencrypt.ctx,
+                info->pk.eciesencrypt.compressed);
+            /* reset devId */
+            info->pk.eciesencrypt.privKey->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
+            info->pk.eciesdecrypt.privKey->devId = INVALID_DEVID;
+            ret = wc_ecc_decrypt(info->pk.eciesdecrypt.privKey,
+                info->pk.eciesdecrypt.pubKey, info->pk.eciesdecrypt.msg,
+                info->pk.eciesdecrypt.msgSz, info->pk.eciesdecrypt.out,
+                info->pk.eciesdecrypt.outSz, info->pk.eciesdecrypt.ctx);
+            info->pk.eciesdecrypt.privKey->devId = devIdArg;
+        }
+    #endif /* HAVE_ECC_ENCRYPT */
         else if (info->pk.type == WC_PK_TYPE_EC_GET_SIZE) {
             WC_DECLARE_VAR(tmpEcc, ecc_key, 1, NULL);
             WC_ALLOC_VAR(tmpEcc, ecc_key, 1, NULL);
