@@ -4484,6 +4484,24 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API void wolfSSL_CertManagerSetUnknownExtCallback(
         WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallback cb);
+#if defined(HAVE_CRL)
+    /* Register a callback invoked for each CRL extension (CRL-level and
+     * revoked-entry) whose OID the parser does not recognize, critical or
+     * not.  Returning 0 accepts the extension; a non-zero return rejects
+     * the CRL and fails the load.
+     *
+     * The callback runs on pre-signature-verification data: extensions are
+     * parsed before the CRL signature is checked, so callback input is
+     * attacker-controlled even for CRLs that ultimately fail verification.
+     * Callbacks must not trust the bytes they're handed. */
+    WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallback(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback cb);
+    WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallbackEx cb,
+        void* ctx);
+#endif
 #endif
 
     WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm,

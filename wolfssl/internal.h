@@ -2706,6 +2706,11 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
+#if defined(HAVE_CRL)
+    wc_UnknownExtCallback   crlUnknownExtCallback;
+    wc_UnknownExtCallbackEx crlUnknownExtCallbackEx;
+    void*                   crlUnknownExtCallbackExCtx;
+#endif
 #endif
 #ifdef HAVE_CRL_UPDATE_CB
     CbUpdateCRL    cbUpdateCRL; /* notify thru cb that crl has updated */

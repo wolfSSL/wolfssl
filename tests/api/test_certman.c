@@ -2846,12 +2846,10 @@ int test_wolfSSL_CRL_critical_idp(void)
     return EXPECT_RESULT();
 }
 
-int test_wolfSSL_CRL_unknown_critical_ext(void)
-{
-    EXPECT_DECLS;
 #if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA)
-
-    static const unsigned char ca_cert[] = {
+/* claim-root CA, DER.  Shared by the unknown-critical-CRL-extension tests
+ * below. */
+static const unsigned char crl_unk_ca_der[] = {
         0x30, 0x82, 0x03, 0x1b, 0x30, 0x82, 0x02, 0x03, 0xa0, 0x03, 0x02,
         0x01, 0x02, 0x02, 0x14, 0x1e, 0x25, 0xc1, 0x5d, 0x6f, 0x02, 0x21,
         0xa0, 0xf0, 0x14, 0x15, 0x9c, 0x3b, 0x4d, 0x1d, 0x73, 0x16, 0x00,
@@ -2927,10 +2925,10 @@ int test_wolfSSL_CRL_unknown_critical_ext(void)
         0xa2, 0xb0, 0x3e, 0x61, 0x16, 0x69, 0x8f
     };
 
-    /* CRL with critical obsolete extension OID 2.5.29.1, 422 bytes DER.
-     * OID 2.5.29.1 is the old X.509v2 Authority Key Identifier, permanently
-     * superseded by 2.5.29.35. No implementation will ever support it. */
-    static const unsigned char crl_obsolete_critical[] = {
+/* CRL with a critical obsolete CRL-level extension OID 2.5.29.1, 422 bytes
+ * DER.  OID 2.5.29.1 is the old X.509v2 Authority Key Identifier, permanently
+ * superseded by 2.5.29.35. No implementation will ever support it. */
+static const unsigned char crl_obsolete_critical[] = {
         0x30, 0x82, 0x01, 0xa6, 0x30, 0x81, 0x8f, 0x02, 0x01, 0x01, 0x30,
         0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
         0x0b, 0x05, 0x00, 0x30, 0x15, 0x31, 0x13, 0x30, 0x11, 0x06, 0x03,
@@ -2970,13 +2968,18 @@ int test_wolfSSL_CRL_unknown_critical_ext(void)
         0xff, 0xad, 0x4d, 0x6e, 0x10, 0x73, 0x68, 0xfa, 0x54, 0x9e, 0xdc,
         0x34, 0x70, 0xe4, 0x5d, 0x9e, 0x7c, 0xfa, 0x59, 0x97, 0xde, 0x35,
         0x17, 0xbb, 0xaf, 0xa0, 0x28, 0x78, 0x13, 0xbf
-    };
+};
+#endif /* !NO_CERTS && HAVE_CRL && !NO_RSA */
 
+int test_wolfSSL_CRL_unknown_critical_ext(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA)
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert,
-        sizeof(ca_cert), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
         WOLFSSL_SUCCESS);
 
@@ -3008,6 +3011,264 @@ int test_wolfSSL_CRL_unknown_critical_entry_ext(void)
     ExpectIntNE(wolfSSL_CertManagerLoadCRLFile(cm,
         "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM),
         WOLFSSL_SUCCESS);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+/* Counter context plus the OID we observed on the unknown extension. */
+typedef struct CRLUnkExtCtx {
+    int   calls;
+    int   sawCritical;
+    int   oidMatched;
+} CRLUnkExtCtx;
+
+/* CRL Reason OID 2.5.29.21 (last component for the entry-ext test) and
+ * obsolete X.509v2 AKI 2.5.29.1 (last component for the CRL-level test). */
+static int crl_unk_ext_cb_accept(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    CRLUnkExtCtx* ctx = (CRLUnkExtCtx*)ctxIn;
+    (void)der;
+    (void)derSz;
+    if (ctx != NULL) {
+        ctx->calls++;
+        if (crit)
+            ctx->sawCritical = 1;
+        /* Expect OID arc starts at {2, 5, 29, ...}. */
+        if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
+            ctx->oidMatched = 1;
+    }
+    return 0; /* accept */
+}
+
+static int crl_unk_ext_cb_reject(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    if (ctxIn != NULL)
+        ((CRLUnkExtCtx*)ctxIn)->calls++;
+    return ASN_PARSE_E;
+}
+
+static int crl_unk_ext_cb_reject_positive(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    if (ctxIn != NULL)
+        ((CRLUnkExtCtx*)ctxIn)->calls++;
+    return 1;
+}
+
+/* The non-Ex wc_UnknownExtCallback carries no context pointer, so the
+ * callbacks registered through wolfSSL_CertManagerSetCRLUnknownExtCallback()
+ * report what they saw through these file-static counters.  The exercising
+ * test resets them before each load. */
+static int crl_unk_ext_noctx_calls;
+static int crl_unk_ext_noctx_sawCritical;
+static int crl_unk_ext_noctx_oidMatched;
+
+static int crl_unk_ext_cb_noctx_accept(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz)
+{
+    (void)der;
+    (void)derSz;
+    crl_unk_ext_noctx_calls++;
+    if (crit)
+        crl_unk_ext_noctx_sawCritical = 1;
+    /* Expect OID arc starts at {2, 5, 29, ...}. */
+    if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
+        crl_unk_ext_noctx_oidMatched = 1;
+    return 0; /* accept */
+}
+
+static int crl_unk_ext_cb_noctx_reject(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    crl_unk_ext_noctx_calls++;
+    return ASN_PARSE_E;
+}
+#endif
+
+/* Callback rescues a critical unknown CRL ENTRY extension that would
+ * otherwise be rejected per RFC 5280 5.3.  The fixture
+ * crl_critical_entry.pem carries OID 2.5.29.1 in a revoked entry. */
+int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_entry_ext(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    CRLUnkExtCtx ctx = { 0, 0, 0 };
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+        "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+
+    /* Register a callback that accepts any unknown extension. */
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+        crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+
+    /* Without the callback, this load fails (see
+     * test_wolfSSL_CRL_unknown_critical_entry_ext above).  With an
+     * accepting callback registered, the load must succeed. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+        "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    /* Callback must have fired at least once on the unknown critical OID. */
+    ExpectIntGT(ctx.calls, 0);
+    ExpectIntEQ(ctx.sawCritical, 1);
+    ExpectIntEQ(ctx.oidMatched, 1);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Callback rescues a critical unknown CRL-LEVEL extension.  Drives the
+ * dispatch in ParseCRL_Extensions (as opposed to the entry-extension test
+ * above, which drives ParseCRL_EntryExtensions) using the same embedded
+ * crl_obsolete_critical fixture that test_wolfSSL_CRL_unknown_critical_ext
+ * proves is rejected without a callback. */
+int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    CRLUnkExtCtx ctx = { 0, 0, 0 };
+
+    /* Accepting callback: the load must succeed and the callback must have
+     * seen the critical unknown OID. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+        crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(ctx.calls, 0);
+    ExpectIntEQ(ctx.sawCritical, 1);
+    ExpectIntEQ(ctx.oidMatched, 1);
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* Rejecting callback: the same CRL must fail to load. */
+    ctx.calls = 0;
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+        crl_unk_ext_cb_reject, &ctx), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(ctx.calls, 0);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A callback that rejects with a positive value must not make the load
+ * report success.  WOLFSSL_SUCCESS is 1, and BufferLoadCRL converts its
+ * error code with "ret ? ret : WOLFSSL_SUCCESS", so a positive callback
+ * return that propagates unsanitized out of ParseCRL is indistinguishable
+ * from success while the CRL entry has been discarded. */
+int test_wolfSSL_CRL_unknown_ext_cb_positive_return_fails_load(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    CRLUnkExtCtx ctx = { 0, 0, 0 };
+    int rc;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+        "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+        crl_unk_ext_cb_reject_positive, &ctx), WOLFSSL_SUCCESS);
+
+    rc = wolfSSL_CertManagerLoadCRLFile(cm,
+        "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM);
+    ExpectIntNE(rc, WOLFSSL_SUCCESS);
+    ExpectIntLT(rc, 0);
+    ExpectIntGT(ctx.calls, 0);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Exercises the context-free entry point
+ * wolfSSL_CertManagerSetCRLUnknownExtCallback() (as opposed to the ...Ex()
+ * variant covered by the tests above).  Confirms NULL-argument rejection,
+ * that an accepting callback rescues a critical unknown CRL-level extension,
+ * and that a rejecting callback fails the load. */
+int test_wolfSSL_CRL_unknown_ext_cb_noctx(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    /* A NULL cert manager is rejected by both registration entry points. */
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(NULL,
+        crl_unk_ext_cb_noctx_accept), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(NULL,
+        crl_unk_ext_cb_accept, NULL), BAD_FUNC_ARG);
+
+    /* Accepting callback: the critical unknown CRL-level extension in the
+     * crl_obsolete_critical fixture is rescued and the load succeeds.  The
+     * callback must have seen the critical unknown OID. */
+    crl_unk_ext_noctx_calls = 0;
+    crl_unk_ext_noctx_sawCritical = 0;
+    crl_unk_ext_noctx_oidMatched = 0;
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
+        crl_unk_ext_cb_noctx_accept), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(crl_unk_ext_noctx_calls, 0);
+    ExpectIntEQ(crl_unk_ext_noctx_sawCritical, 1);
+    ExpectIntEQ(crl_unk_ext_noctx_oidMatched, 1);
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* Rejecting callback: the same CRL must fail to load. */
+    crl_unk_ext_noctx_calls = 0;
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
+        crl_unk_ext_cb_noctx_reject), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(crl_unk_ext_noctx_calls, 0);
 
     wolfSSL_CertManagerFree(cm);
 #endif
