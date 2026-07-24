@@ -2004,7 +2004,10 @@
         static __always_inline int wc_FreeMutex(wolfSSL_Mutex* m)
         {
         #ifdef CONFIG_DEBUG_SPINLOCK
-            m->lock.magic = 0;
+            /* clear raw_spinlock.magic, but without drilling through the
+             * abstraction barrier.
+             */
+            memset(&m->lock, 0, sizeof m->lock);
         #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             m->magic = 0;
