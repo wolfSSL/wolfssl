@@ -56,6 +56,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_CMAC:            Enable AES-CMAC (RFC 4493)            default: off
  * HAVE_AESCCM:             Enable AES-CCM mode                   default: off
  * HAVE_AES_KEYWRAP:        Enable AES key wrap (RFC 3394)        default: off
+ * WOLFSSL_AES_KEYWRAP_PADDING: AES key wrap padding (RFC 5649) default: off
  * WOLFSSL_AES_CBC_LENGTH_CHECKS: Validate CBC input length       default: off
  *
  * AES-GCM:
@@ -16718,8 +16719,9 @@ static WC_INLINE void DecrementKeyWrapCounter(byte* inOutCtr)
     }
 }
 
-int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
-        word32 outSz, const byte* iv)
+/* Core RFC 3394 wrapping loop: plaintext at out+8, initial A in aiv; writes
+ * C[0]=A and wrapped R[i] in place.  Caller owns output-buffer sizing. */
+static int AesKeyWrapRaw(Aes* aes, word32 inSz, byte* out, const byte* aiv)
 {
     word32 i;
     byte* r;
@@ -16729,34 +16731,34 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     byte t[KEYWRAP_BLOCK_SIZE];
     byte tmp[WC_AES_BLOCK_SIZE];
 
-    /* n must be at least 2 64-bit blocks, output size is (n + 1) 8 bytes (64-bit) */
-    if (aes == NULL || in  == NULL || inSz < 2*KEYWRAP_BLOCK_SIZE ||
-        out == NULL || outSz < (inSz + KEYWRAP_BLOCK_SIZE))
+    /* at least two 64-bit blocks, on a 64-bit boundary */
+    if (aes == NULL || out == NULL || aiv == NULL ||
+        inSz < 2 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
-
-    /* input must be multiple of 64-bits */
-    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
-        return BAD_FUNC_ARG;
-
-    r = out + 8;
-    XMEMCPY(r, in, inSz);
-    XMEMSET(t, 0, sizeof(t));
-
-    /* user IV is optional */
-    if (iv == NULL) {
-        XMEMSET(tmp, 0xA6, KEYWRAP_BLOCK_SIZE);
-    } else {
-        XMEMCPY(tmp, iv, KEYWRAP_BLOCK_SIZE);
     }
 
+    r = out + KEYWRAP_BLOCK_SIZE;
+    XMEMSET(t, 0, sizeof(t));
+
+    /* A = initial value */
+    XMEMCPY(tmp, aiv, KEYWRAP_BLOCK_SIZE);
+
+#ifndef HAVE_AES_ECB
+    /* Direct block access must save vector registers across the loop; with
+     * HAVE_AES_ECB wc_AesEcbEncrypt saves them and can route to an ECB cb. */
     VECTOR_REGISTERS_PUSH;
+#endif
 
     for (j = 0; j <= 5; j++) {
         for (i = 1; i <= inSz / KEYWRAP_BLOCK_SIZE; i++) {
             /* load R[i] */
             XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
 
+#ifdef HAVE_AES_ECB
+            ret = wc_AesEcbEncrypt(aes, tmp, tmp, WC_AES_BLOCK_SIZE);
+#else
             ret = wc_AesEncryptDirect(aes, tmp, tmp);
+#endif
             if (ret != 0)
                 break;
 
@@ -16773,13 +16775,64 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
         r = out + KEYWRAP_BLOCK_SIZE;
     }
 
+#ifndef HAVE_AES_ECB
     VECTOR_REGISTERS_POP;
+#endif
 
     if (ret != 0)
         return ret;
 
     /* C[0] = A */
     XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
+
+    return 0;
+}
+
+int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    byte aiv[KEYWRAP_BLOCK_SIZE];
+
+    /* >= two 64-bit blocks on a 64-bit boundary, output fits outSz; inSz
+     * capped at INT_MAX-8 so the returned inSz+8 stays a non-negative int. */
+    if (aes == NULL || in == NULL || out == NULL ||
+        inSz < 2 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0 ||
+        inSz > 0x7FFFFFFFU - KEYWRAP_BLOCK_SIZE ||
+        outSz < inSz + KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyWrap(aes, in, inSz, out, outSz, iv, 0);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* user IV is optional */
+    if (iv == NULL) {
+        XMEMSET(aiv, 0xA6, KEYWRAP_BLOCK_SIZE);
+    }
+    else {
+        XMEMCPY(aiv, iv, KEYWRAP_BLOCK_SIZE);
+    }
+
+    /* stage plaintext at out+8; XMEMMOVE so in-place wrap (in == out) is safe */
+    XMEMMOVE(out + KEYWRAP_BLOCK_SIZE, in, inSz);
+
+    ret = AesKeyWrapRaw(aes, inSz, out, aiv);
+    if (ret != 0) {
+        /* wipe the plaintext staged at out+8 (and any partial cipher state
+         * left there) so it is not leaked to the caller on failure */
+        ForceZero(out + KEYWRAP_BLOCK_SIZE, inSz);
+        return ret;
+    }
 
     return (int)(inSz + KEYWRAP_BLOCK_SIZE);
 }
@@ -16820,8 +16873,10 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     return ret;
 }
 
-int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
-        word32 outSz, const byte* iv)
+/* Core RFC 3394 unwrapping loop: decrypts (n+1) blocks in `in` to n blocks in
+ * out and recovered A in aOut.  No integrity check; caller verifies A. */
+static int AesKeyUnWrapRaw(Aes* aes, const byte* in, word32 inSz, byte* out,
+        byte* aOut)
 {
     byte* r;
     word32 i, n;
@@ -16831,31 +16886,22 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     byte t[KEYWRAP_BLOCK_SIZE];
     byte tmp[WC_AES_BLOCK_SIZE];
 
-    const byte* expIv;
-    const byte defaultIV[] = {
-        0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
-    };
-
-    if (aes == NULL || in == NULL || inSz < 3 * KEYWRAP_BLOCK_SIZE ||
-        out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
+    /* (n+1) blocks in, n >= 2 recovered blocks out, on a 64-bit boundary */
+    if (aes == NULL || in == NULL || out == NULL || aOut == NULL ||
+        inSz < 3 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
+    }
 
-    /* input must be multiple of 64-bits */
-    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
-        return BAD_FUNC_ARG;
-
-    /* user IV optional */
-    if (iv != NULL)
-        expIv = iv;
-    else
-        expIv = defaultIV;
-
-    /* A = C[0], R[i] = C[i] */
+    /* A = C[0], R[i] = C[i]; XMEMMOVE so in-place unwrap (in == out) is safe */
     XMEMCPY(tmp, in, KEYWRAP_BLOCK_SIZE);
-    XMEMCPY(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
+    XMEMMOVE(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
     XMEMSET(t, 0, sizeof(t));
 
+#ifndef HAVE_AES_ECB
+    /* Like AesKeyWrapRaw: HAVE_AES_ECB routes each block through wc_AesEcbDecrypt
+     * (saves registers + ECB cb); otherwise save vector registers here. */
     VECTOR_REGISTERS_PUSH;
+#endif
 
     /* initialize counter to 6n */
     n = (inSz - 1) / KEYWRAP_BLOCK_SIZE;
@@ -16871,7 +16917,11 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
             /* load R[i], starting at end of R */
             r = out + ((i - 1) * KEYWRAP_BLOCK_SIZE);
             XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
+#ifdef HAVE_AES_ECB
+            ret = wc_AesEcbDecrypt(aes, tmp, tmp, WC_AES_BLOCK_SIZE);
+#else
             ret = wc_AesDecryptDirect(aes, tmp, tmp);
+#endif
             if (ret != 0)
                 break;
 
@@ -16882,14 +16932,70 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
             break;
     }
 
+#ifndef HAVE_AES_ECB
     VECTOR_REGISTERS_POP;
+#endif
 
     if (ret != 0)
         return ret;
 
+    /* return recovered A */
+    XMEMCPY(aOut, tmp, KEYWRAP_BLOCK_SIZE);
+
+    return 0;
+}
+
+int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    byte a[KEYWRAP_BLOCK_SIZE];
+
+    const byte* expIv;
+    const byte defaultIV[] = {
+        0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
+    };
+
+    /* (n+1) >= 3 blocks on a 64-bit boundary, n blocks fit outSz; inSz capped
+     * at INT_MAX so the returned inSz-8 stays a non-negative int. */
+    if (aes == NULL || in == NULL || out == NULL ||
+        inSz < 3 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0 ||
+        inSz > 0x7FFFFFFFU || outSz < inSz - KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyUnWrap(aes, in, inSz, out, outSz, iv, 0);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* user IV optional */
+    if (iv != NULL) {
+        expIv = iv;
+    }
+    else {
+        expIv = defaultIV;
+    }
+
+    ret = AesKeyUnWrapRaw(aes, in, inSz, out, a);
+    if (ret != 0) {
+        return ret;
+    }
+
     /* verify IV */
-    if (ConstantCompare(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
+    if (ConstantCompare(a, expIv, KEYWRAP_BLOCK_SIZE) != 0) {
+        /* IV check failed: wipe the recovered plaintext key material left in
+         * out before returning so it is not leaked to the caller */
+        ForceZero(out, inSz - KEYWRAP_BLOCK_SIZE);
         return BAD_KEYWRAP_IV_E;
+    }
 
     return (int)(inSz - KEYWRAP_BLOCK_SIZE);
 }
@@ -16931,6 +17037,301 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
     return ret;
 }
+
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+
+/* RFC 5649 AIV high-half constant; the low half carries the 32-bit MLI. */
+static const byte kwpAivConst[] = { 0xA6, 0x59, 0x59, 0xA6 };
+
+/* Build the RFC 5649 AIV: 4-byte constant (iv override or default) | 4-byte
+ * big-endian MLI m. */
+static void BuildKwpAiv(byte* aiv, const byte* iv, word32 m)
+{
+    if (iv == NULL) {
+        XMEMCPY(aiv, kwpAivConst, sizeof(kwpAivConst));
+    }
+    else {
+        XMEMCPY(aiv, iv, sizeof(kwpAivConst));
+    }
+
+    aiv[4] = (byte)(m >> 24);
+    aiv[5] = (byte)(m >> 16);
+    aiv[6] = (byte)(m >>  8);
+    aiv[7] = (byte)(m);
+}
+
+int wc_AesKeyWrap_Pad_ex(Aes* aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    word32 n;
+    word32 padSz;
+    byte aiv[KEYWRAP_BLOCK_SIZE];
+
+    /* inSz capped at INT_MAX-(2*8-1) so rounding up to whole blocks plus the
+     * AIV block can't overflow padSz+8; too-small output -> BAD_FUNC_ARG. */
+    if (aes == NULL || in == NULL || inSz == 0 || out == NULL ||
+        inSz > 0x7FFFFFFFU - (2 * KEYWRAP_BLOCK_SIZE - 1))
+        return BAD_FUNC_ARG;
+
+    /* n = ceil(m/8) padded blocks; output is (n+1) blocks */
+    n = (inSz + KEYWRAP_BLOCK_SIZE - 1) / KEYWRAP_BLOCK_SIZE;
+    padSz = n * KEYWRAP_BLOCK_SIZE;
+    if (outSz < padSz + KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyWrap(aes, in, inSz, out, outSz, iv, 1);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* AIV = const | MLI(inSz) */
+    BuildKwpAiv(aiv, iv, inSz);
+
+    /* stage plaintext at out+8 (XMEMMOVE for in-place), zeroing the pad octets */
+    XMEMMOVE(out + KEYWRAP_BLOCK_SIZE, in, inSz);
+    if (padSz > inSz) {
+        XMEMSET(out + KEYWRAP_BLOCK_SIZE + inSz, 0, padSz - inSz);
+    }
+
+    if (n == 1) {
+        /* single block: C[0]|C[1] = ENC(K, AIV | P[1]) */
+        byte tmp[WC_AES_BLOCK_SIZE];
+        XMEMCPY(tmp, aiv, KEYWRAP_BLOCK_SIZE);
+        XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, out + KEYWRAP_BLOCK_SIZE,
+                KEYWRAP_BLOCK_SIZE);
+#ifdef HAVE_AES_ECB
+        /* Route through wc_AesEcbEncrypt so an ECB crypto callback can service
+         * the block; it saves its own registers. */
+        ret = wc_AesEcbEncrypt(aes, out, tmp, WC_AES_BLOCK_SIZE);
+#else
+        VECTOR_REGISTERS_PUSH;
+        ret = wc_AesEncryptDirect(aes, out, tmp);
+        VECTOR_REGISTERS_POP;
+#endif
+        /* tmp held AIV | plaintext key material */
+        ForceZero(tmp, sizeof(tmp));
+    }
+    else {
+        /* run the RFC 3394 loop with the AIV as the initial value */
+        ret = AesKeyWrapRaw(aes, padSz, out, aiv);
+    }
+    if (ret != 0) {
+        /* wipe the plaintext staged at out+8 (and any partial cipher state)
+         * so it is not leaked to the caller on failure */
+        ForceZero(out + KEYWRAP_BLOCK_SIZE, padSz);
+        return ret;
+    }
+
+    return (int)(padSz + KEYWRAP_BLOCK_SIZE);
+}
+
+int wc_AesKeyWrap_Pad(const byte* key, word32 keySz, const byte* in,
+        word32 inSz, byte* out, word32 outSz, const byte* iv)
+{
+    WC_DECLARE_VAR(aes, Aes, 1, NULL);
+    int ret;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_AES, return MEMORY_E);
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
+    if (ret != 0) {
+        wc_AesFree(aes);
+        goto out;
+    }
+
+    ret = wc_AesKeyWrap_Pad_ex(aes, in, inSz, out, outSz, iv);
+
+    wc_AesFree(aes);
+
+  out:
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+
+    return ret;
+}
+
+int wc_AesKeyUnWrap_Pad_ex(Aes* aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    int ret;
+    word32 n;
+    word32 mli;
+    byte a[KEYWRAP_BLOCK_SIZE];
+    byte expConst[sizeof(kwpAivConst)];
+
+    /* (n+1) >= 2 blocks on a 64-bit boundary; inSz capped at INT_MAX so the
+     * returned MLI stays a non-negative int; too-small output -> BAD_FUNC_ARG. */
+    if (aes == NULL || in == NULL || out == NULL ||
+        inSz < 2 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0 ||
+        inSz > 0x7FFFFFFFU || outSz < inSz - KEYWRAP_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_AesKeyUnWrap(aes, in, inSz, out, outSz, iv, 1);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software when unavailable */
+    }
+#endif
+
+    /* number of padded 64-bit plaintext blocks */
+    n = (inSz / KEYWRAP_BLOCK_SIZE) - 1;
+
+    if (n == 1) {
+        /* single block: AIV|P[1] = DEC(K, C[0]|C[1]) */
+        byte tmp[WC_AES_BLOCK_SIZE];
+#ifdef HAVE_AES_ECB
+        /* Route through wc_AesEcbDecrypt so an ECB crypto callback can service
+         * the block; it saves its own registers. */
+        ret = wc_AesEcbDecrypt(aes, tmp, in, WC_AES_BLOCK_SIZE);
+#else
+        VECTOR_REGISTERS_PUSH;
+        ret = wc_AesDecryptDirect(aes, tmp, in);
+        VECTOR_REGISTERS_POP;
+#endif
+        if (ret == 0) {
+            XMEMCPY(a, tmp, KEYWRAP_BLOCK_SIZE);
+            XMEMCPY(out, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
+        }
+        /* tmp held AIV | plaintext key material */
+        ForceZero(tmp, sizeof(tmp));
+    }
+    else {
+        /* recover A and padded plaintext via the RFC 3394 loop (no check) */
+        ret = AesKeyUnWrapRaw(aes, in, inSz, out, a);
+    }
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* expected high-half constant (iv override or default) */
+    if (iv == NULL) {
+        XMEMCPY(expConst, kwpAivConst, sizeof(kwpAivConst));
+    }
+    else {
+        XMEMCPY(expConst, iv, sizeof(kwpAivConst));
+    }
+
+    /* MLI = LSB(32,A) in network order */
+    mli = ((word32)a[4] << 24) | ((word32)a[5] << 16) |
+          ((word32)a[6] <<  8) |  (word32)a[7];
+
+    /* Validate the three RFC 5649 checks in constant time: fold failures into
+     * one mask and branch once, so timing does not reveal which check failed. */
+    {
+        word32 dataSz  = inSz - KEYWRAP_BLOCK_SIZE;    /* 8*n plaintext octets  */
+        word32 lastBlk = dataSz - KEYWRAP_BLOCK_SIZE;  /* offset 8*(n-1)         */
+        word32 fail;
+        word32 j;
+
+        /* check 1: MSB(32,A) == constant */
+        fail = (word32)ctMaskNotEq(ConstantCompare(a, expConst,
+                                           (int)sizeof(kwpAivConst)), 0);
+
+#ifdef WORD64_AVAILABLE
+        /* check 2: 8*(n-1) < MLI <= 8*n */
+        fail |= ~(ctMaskWord32GTE(mli, lastBlk + 1)   /* MLI >= 8*(n-1)+1 */
+                & ctMaskWord32GTE(dataSz, mli));       /* 8*n >= MLI       */
+
+        /* check 3: octets in [MLI, 8*n) are zero.  A valid MLI is in the final
+         * block, so scan it at fixed offsets, requiring zero where off >= MLI. */
+        for (j = 0; j < KEYWRAP_BLOCK_SIZE; j++) {
+            word32 off = lastBlk + j;
+            fail |= ctMaskWord32GTE(off, mli)          /* off >= MLI */
+                    & (word32)ctMaskNotEq((int)out[off], 0);
+        }
+#else
+        /* No word64: compare in int range.  MLI with its high bit set (>= 2^31
+         * > 8*n) is forced to fail so the int compares see valid values. */
+        {
+            byte lowMask = (byte)~(byte)(0u - ((mli >> 31) & 1u));
+            int  mliInt  = (int)(mli & 0x7FFFFFFFu);
+
+            /* check 2: 8*(n-1) < MLI <= 8*n */
+            fail |= (word32)(byte)~(byte)(ctMaskGT(mliInt, (int)lastBlk)
+                                        & ctMaskLTE(mliInt, (int)dataSz)
+                                        & lowMask);
+
+            /* check 3: octets in [MLI, 8*n) are zero (see note above). */
+            for (j = 0; j < KEYWRAP_BLOCK_SIZE; j++) {
+                int  off   = (int)(lastBlk + j);
+                byte isPad = (byte)(ctMaskGTE(off, mliInt) & lowMask);
+                fail |= (word32)(byte)(isPad &
+                                       ctMaskNotEq((int)out[lastBlk + j], 0));
+            }
+        }
+#endif
+
+        if (fail != 0) {
+            goto badIv;
+        }
+    }
+
+    return (int)mli;
+
+badIv:
+    /* integrity check failed: wipe the recovered plaintext in out so it is
+     * not leaked to the caller */
+    ForceZero(out, inSz - KEYWRAP_BLOCK_SIZE);
+    return BAD_KEYWRAP_IV_E;
+}
+
+int wc_AesKeyUnWrap_Pad(const byte* key, word32 keySz, const byte* in,
+        word32 inSz, byte* out, word32 outSz, const byte* iv)
+{
+    WC_DECLARE_VAR(aes, Aes, 1, NULL);
+    int ret;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_AES, return MEMORY_E);
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_DECRYPTION);
+    if (ret != 0) {
+        wc_AesFree(aes);
+        goto out;
+    }
+
+    ret = wc_AesKeyUnWrap_Pad_ex(aes, in, inSz, out, outSz, iv);
+
+    wc_AesFree(aes);
+
+  out:
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_AES_KEYWRAP_PADDING */
 
 #endif /* HAVE_AES_KEYWRAP */
 
