@@ -2132,10 +2132,8 @@ int test_DecodeAltNames_length_underflow(void)
 int test_DecodeOtherName_bundleEID(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DTN) && \
-    (defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)) && \
-    defined(HAVE_ECC) && !defined(NO_CERTS) && !defined(NO_ASN) && \
-    !defined(NO_FILESYSTEM)
+#if defined(WOLFSSL_DTN) && defined(HAVE_ECC) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_FILESYSTEM)
     const char* bundleEidCert = "./certs/bundle-eid-cert.der";
     XFILE f = XBADFILE;
     byte buf[2048];
@@ -2181,8 +2179,8 @@ int test_DecodeOtherName_bundleEID(void)
 
         wc_FreeDecodedCert(&cert);
     }
-#endif /* WOLFSSL_DTN && (WOLFSSL_SEP || WOLFSSL_FPKI) && HAVE_ECC &&
-        * !NO_CERTS && !NO_ASN && !NO_FILESYSTEM */
+#endif /* WOLFSSL_DTN && HAVE_ECC && !NO_CERTS && !NO_ASN &&
+        * !NO_FILESYSTEM */
     return EXPECT_RESULT();
 }
 
