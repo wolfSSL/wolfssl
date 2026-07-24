@@ -693,10 +693,12 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
    with zeros. It ensures compiler optimization doesn't skip it. */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
-    byte *zb = (byte *)mem;
-    unsigned long *zl;
+    /* Volatile pointers prevent dead-store elimination.
+     * WC_BARRIER() prevents compiler reordering. */
+    volatile byte *zb = (volatile byte *)mem;
+    volatile unsigned long *zl;
 
-    XFENCE();
+    WC_BARRIER();
 
     while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
         if (len == 0)
@@ -705,21 +707,21 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
         --len;
     }
 
-    zl = (unsigned long *)zb;
+    zl = (volatile unsigned long *)zb;
 
     while (len >= sizeof(unsigned long)) {
         *zl++ = 0;
         len -= sizeof(unsigned long);
     }
 
-    zb = (byte *)zl;
+    zb = (volatile byte *)zl;
 
     while (len) {
         *zb++ = 0;
         --len;
     }
 
-    XFENCE();
+    WC_BARRIER();
 }
 #endif
 

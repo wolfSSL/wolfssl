@@ -1919,14 +1919,17 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #ifdef WOLF_C99
-    /* use alternate keyword for compatibility with -std=c99 */
-    #define XASM_VOLATILE(a) __asm__ volatile(a)
+    /* -std=c99 compat; "memory" clobber creates a compiler barrier. */
+    #define XASM_VOLATILE(a) __asm__ volatile(a ::: "memory") /* NOLINT(bugprone-macro-parentheses) */
 #elif defined(__IAR_SYSTEMS_ICC__)
-    #define XASM_VOLATILE(a) asm volatile(a)
+    #define XASM_VOLATILE(a) asm volatile(a) /* NOLINT(bugprone-macro-parentheses) */
 #elif defined(__KEIL__)
-    #define XASM_VOLATILE(a) __asm volatile(a)
+    /* No "memory" clobber: ARM Compiler 5 inline asm rejects GCC clobber
+     * syntax. */
+    #define XASM_VOLATILE(a) __asm volatile(a) /* NOLINT(bugprone-macro-parentheses) */
 #else
-    #define XASM_VOLATILE(a) __asm__ __volatile__(a)
+    /* "memory" clobber strengthens XFENCE() into a full compiler barrier. */
+    #define XASM_VOLATILE(a) __asm__ __volatile__(a ::: "memory") /* NOLINT(bugprone-macro-parentheses) */
 #endif
 
 #ifndef WOLFSSL_NO_FENCE

@@ -115,6 +115,11 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 #endif
 
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
+/* Under NO_INLINE, ForceZero() is WOLFSSL_LOCAL (hidden visibility) inside
+ * libwolfssl and unreachable from this separate test binary. */
+#if !defined(WOLFSSL_NO_FORCE_ZERO) && !defined(NO_INLINE)
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  forcezero_test(void);
+#endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);

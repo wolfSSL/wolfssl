@@ -28002,6 +28002,7 @@ static int test_wolfSSL_dup_CA_list(void)
     return res;
 }
 
+#ifndef WOLFSSL_NO_FORCE_ZERO
 static int test_ForceZero(void)
 {
     EXPECT_DECLS;
@@ -28032,6 +28033,7 @@ static int test_ForceZero(void)
 
     return EXPECT_RESULT();
 }
+#endif /* !WOLFSSL_NO_FORCE_ZERO */
 
 #ifndef NO_BIO
 
@@ -37561,7 +37563,9 @@ TEST_CASE testCases[] = {
      * wolfcrypt
      *********************************/
 
+#ifndef WOLFSSL_NO_FORCE_ZERO
     TEST_DECL(test_ForceZero),
+#endif
 
     TEST_DECL(test_wolfCrypt_Init),
 

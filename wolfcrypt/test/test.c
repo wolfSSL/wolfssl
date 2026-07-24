@@ -780,6 +780,11 @@ typedef struct testVector {
 #ifndef WC_TEST_EXPORT_SUBTESTS
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
+/* Under NO_INLINE, ForceZero() is WOLFSSL_LOCAL (hidden visibility) inside
+ * libwolfssl and unreachable from this separate test binary. */
+#if !defined(WOLFSSL_NO_FORCE_ZERO) && !defined(NO_INLINE)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  forcezero_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
@@ -2436,6 +2441,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("macro    test failed!\n", ret);
     else
         TEST_PASS("macro    test passed!\n");
+
+#if !defined(WOLFSSL_NO_FORCE_ZERO) && !defined(NO_INLINE)
+    if ( (ret = forcezero_test()) != 0)
+        TEST_FAIL("forcezero test failed!\n", ret);
+    else
+        TEST_PASS("forcezero test passed!\n");
+#endif
 
     if ( (ret = error_test()) != 0)
         TEST_FAIL("error    test failed!\n", ret);
@@ -4169,6 +4181,47 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t macro_test(void)
 
     return ret;
 }
+
+/* Under NO_INLINE, ForceZero() is WOLFSSL_LOCAL (hidden visibility) inside
+ * libwolfssl and unreachable from this separate test binary. */
+#if !defined(WOLFSSL_NO_FORCE_ZERO) && !defined(NO_INLINE)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t forcezero_test(void)
+{
+    /* Test unaligned offsets and lengths. Oversized buffer prevents OOB writes. */
+    byte buf[64];
+    static const size_t offsets[] = { 0, 1, 2, 3, 7 };
+    static const size_t lens[] = { 0, 1, 3, 7, 8, 9, 16, 31 };
+    size_t oi, li;
+    ForceZero(NULL, 0);
+
+    for (oi = 0; oi < XELEM_CNT(offsets); oi++) {
+        for (li = 0; li < XELEM_CNT(lens); li++) {
+            size_t off = offsets[oi];
+            size_t len = lens[li];
+            size_t i;
+
+            XMEMSET(buf, 0xA5, sizeof(buf));
+            ForceZero(buf + off, len);
+
+            for (i = 0; i < len; i++) {
+                if (buf[off + i] != 0x00)
+                    return WC_TEST_RET_ENC_NC;
+            }
+            /* bytes outside [off, off+len) must be untouched */
+            for (i = 0; i < off; i++) {
+                if (buf[i] != (byte)0xA5)
+                    return WC_TEST_RET_ENC_NC;
+            }
+            for (i = off + len; i < sizeof(buf); i++) {
+                if (buf[i] != (byte)0xA5)
+                    return WC_TEST_RET_ENC_NC;
+            }
+        }
+    }
+
+    return 0;
+}
+#endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 {
