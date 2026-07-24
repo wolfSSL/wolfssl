@@ -15039,6 +15039,9 @@ static int ech_find_extension(byte* buf, word16* idx_p, word16 extType)
     if (seekRet < 0) {
         return seekRet;
     }
+    if (extLen > MAX_RECORD_SIZE) {
+        return BAD_FUNC_ARG;
+    }
     idx = extIdx = ((word16)seekRet + *idx_p);
 
     while (idx - extIdx < extLen) {

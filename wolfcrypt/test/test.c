@@ -77647,7 +77647,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                                                    use SW */
     myCryptoDevCtx* myCtx = (myCryptoDevCtx*)ctx;
 
-    if (info == NULL)
+    if (info == NULL || myCtx == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef DEBUG_WOLFSSL
@@ -77940,7 +77940,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
             else {
                 ret = 0;
-                if (myCtx != NULL && myCtx->eccCheckPubExpectZeroPoint) {
+                if (myCtx->eccCheckPubExpectZeroPoint) {
                     const byte* pub = info->pk.ecc_check_pub.pubKey;
                     word32 curveSz = (word32)k->dp->size;
                     word32 ptSz = 1 + 2 * curveSz;
