@@ -4969,6 +4969,24 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WOLFSSL_BASE64_DECODE
 #endif
 
+/* Reference count the DER buffers a context shares with its sessions, so the
+ * certificate or key can be replaced while older sessions still use the one
+ * they started with. Servers that reload certificates at runtime need this.
+ *
+ * It costs a counter in every DerBuffer, so it is left out of minimal builds.
+ * It is turned on for the builds whose applications reload certificates on a
+ * live context: the OpenSSL compatibility layer and memcached. An application
+ * that does the same in another build should define WOLFSSL_DER_REFCOUNT
+ * itself. It is not needed when each session gets its own copy of the
+ * certificate and key (WOLFSSL_COPY_CERT/WOLFSSL_COPY_KEY above), which is
+ * already safe. Define WOLFSSL_NO_DER_REFCOUNT to force it off. */
+#if !defined(WOLFSSL_DER_REFCOUNT) && !defined(WOLFSSL_NO_DER_REFCOUNT)
+    #if (defined(OPENSSL_EXTRA) || defined(HAVE_MEMCACHED)) && \
+        (!defined(WOLFSSL_COPY_CERT) || !defined(WOLFSSL_COPY_KEY))
+        #define WOLFSSL_DER_REFCOUNT
+    #endif
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER) || defined(HAVE_FIPS) || \
     defined(HAVE_ECC_CDH) || defined(HAVE_SELFTEST) || \

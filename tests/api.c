@@ -4016,6 +4016,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA) && \
     (!defined(NO_FILESYSTEM) || defined(USE_CERT_BUFFERS_2048))
     WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* ctx2 = NULL;
     WOLFSSL* ssl = NULL;
 #ifndef NO_FILESYSTEM
     const char* cert = svrCertFile;
@@ -4026,7 +4027,10 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 #endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* The session goes on its own context so the one under test stays free of
+     * sessions and its loaders behave normally. */
+    ExpectNotNull(ctx2 = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx2));
 
     /* Invalid parameters. */
 #ifndef NO_FILESYSTEM
@@ -4080,6 +4084,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx2);
 #ifndef NO_FILESYSTEM
     if (buf != NULL) {
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5102,14 +5107,23 @@ static int test_wolfSSL_SetTmpDH_file(void)
                 CERT_FILETYPE));
 #if defined(WOLFSSL_WPAS) && !defined(NO_DSA)
     if (EXPECT_SUCCESS()) {
-        if (ctx->minDhKeySz <= 128 /* bytes */) {
-            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
-                        CERT_FILETYPE));
+        /* DH parameters are aliased by the active session, so they are set on
+         * a context with no session; the one above is refused. */
+        WOLFSSL_CTX* ctxDh = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        ExpectNotNull(ctxDh);
+        ExpectIntEQ(CTX_BUSY_E, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
+                    CERT_FILETYPE));
+        if (ctxDh != NULL) {
+            if (ctxDh->minDhKeySz <= 128 /* bytes */) {
+                ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctxDh,
+                            dsaParamFile, CERT_FILETYPE));
+            }
+            else {
+                ExpectIntEQ(DH_KEY_SIZE_E, wolfSSL_CTX_SetTmpDH_file(ctxDh,
+                            dsaParamFile, CERT_FILETYPE));
+            }
         }
-        else {
-            ExpectIntEQ(DH_KEY_SIZE_E, wolfSSL_CTX_SetTmpDH_file(ctx, dsaParamFile,
-                       CERT_FILETYPE));
-        }
+        wolfSSL_CTX_free(ctxDh);
     }
 #endif
 
@@ -13073,6 +13087,7 @@ static int test_wolfSSL_tmp_dh(void)
     BIO*     bio = NULL;
     SSL*     ssl = NULL;
     SSL_CTX* ctx = NULL;
+    SSL_CTX* ctxDh = NULL;
 #ifndef NO_WOLFSSL_CLIENT
     SSL*     ssl_c = NULL;
     SSL_CTX* ctx_c = NULL;
@@ -13131,13 +13146,20 @@ static int test_wolfSSL_tmp_dh(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(NULL, p   , 0, g   , 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx , p   , 1, g   , 1),
+    /* The parameters are only looked at on a context with no sessions; one
+     * that has them refuses the change outright (checked further down). */
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctxDh = SSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctxDh = SSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, p   , 1, g   , 1),
         WC_NO_ERR_TRACE(DH_KEY_SIZE_E));
-    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx , buff, 6000, g   , 1),
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, buff, 6000, g   , 1),
         WC_NO_ERR_TRACE(DH_KEY_SIZE_E));
 #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
-    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx, bad_p, pSz, g, gSz),
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, bad_p, pSz, g, gSz),
         WC_NO_ERR_TRACE(DH_CHECK_PUB_E));
 #endif
     ExpectIntEQ((int)wolfSSL_SetTmpDH(NULL, NULL, 0, NULL, 0),
@@ -13183,9 +13205,13 @@ static int test_wolfSSL_tmp_dh(void)
     DH_free(dh2);
     dh2 = NULL;
 
+    /* DH parameters are shared with the sessions and are not reference
+     * counted, so a context with sessions refuses to change them. */
     ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz),
+        WC_NO_ERR_TRACE(CTX_BUSY_E));
+    ExpectIntEQ((int)wolfSSL_CTX_SetTmpDH(ctxDh, p, pSz, g, gSz),
         WOLFSSL_SUCCESS);
-    ExpectIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)SSL_CTX_set_tmp_dh(ctxDh, dh), WOLFSSL_SUCCESS);
 #ifndef NO_WOLFSSL_SERVER
     ExpectIntEQ((int)SSL_set_tmp_dh(ssl, dh), WOLFSSL_SUCCESS);
 #else
@@ -13207,6 +13233,7 @@ static int test_wolfSSL_tmp_dh(void)
     }
 #endif
     SSL_CTX_free(ctx);
+    SSL_CTX_free(ctxDh);
 #endif
     return EXPECT_RESULT();
 }

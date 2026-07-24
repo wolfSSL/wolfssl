@@ -30,6 +30,10 @@ int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_rpk_handshake_no_negotiation(void);
 int test_tls13_pha(void);
+int test_tls13_ctx_cert_rotation(void);
+int test_tls13_ctx_cert_rotation_refused(void);
+int test_tls13_sni_cb_cert_change_refused(void);
+int test_tls13_ctx_dh_change_refused(void);
 int test_tls13_rpk_untrusted(void);
 int test_tls13_rpk_trust(void);
 int test_tls13_pq_groups(void);
@@ -112,6 +116,10 @@ int test_tls13_pqc_hybrid_async_server(void);
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake_no_negotiation), \
     TEST_DECL_GROUP("tls13", test_tls13_pha),                   \
+    TEST_DECL_GROUP("tls13", test_tls13_ctx_cert_rotation),     \
+    TEST_DECL_GROUP("tls13", test_tls13_ctx_cert_rotation_refused), \
+    TEST_DECL_GROUP("tls13", test_tls13_sni_cb_cert_change_refused), \
+    TEST_DECL_GROUP("tls13", test_tls13_ctx_dh_change_refused), \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_untrusted),         \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_trust),             \
     TEST_DECL_GROUP("tls13", test_tls13_pq_groups),             \

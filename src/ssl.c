@@ -8071,30 +8071,14 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     if (ssl == NULL)
         return;
 
-    /* ctx still owns certificate, certChain, key, dh, and cm */
-    if (ssl->buffers.weOwnCert) {
-        FreeDer(&ssl->buffers.certificate);
-        ssl->buffers.weOwnCert = 0;
-    }
-    ssl->buffers.certificate = NULL;
-    if (ssl->buffers.weOwnCertChain) {
-        FreeDer(&ssl->buffers.certChain);
-        ssl->buffers.weOwnCertChain = 0;
-    }
-    ssl->buffers.certChain = NULL;
+    FreeSslDer(&ssl->buffers.certificate, ssl->buffers.weOwnCert);
+    FreeSslDer(&ssl->buffers.certChain, ssl->buffers.weOwnCertChain);
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = 0;
 #endif
-    if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.keyMask);
-    #endif
-        ssl->buffers.weOwnKey = 0;
-    }
-    ssl->buffers.key      = NULL;
+    FreeSslDer(&ssl->buffers.key, ssl->buffers.weOwnKey);
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    ssl->buffers.keyMask  = NULL;
+    FreeDer(&ssl->buffers.keyMask);
 #endif
     ssl->buffers.keyType  = 0;
     ssl->buffers.keyId    = 0;
@@ -8102,16 +8086,9 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     ssl->buffers.keySz    = 0;
     ssl->buffers.keyDevId = 0;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    if (ssl->buffers.weOwnAltKey) {
-        FreeDer(&ssl->buffers.altKey);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.altKeyMask);
-    #endif
-        ssl->buffers.weOwnAltKey = 0;
-    }
-    ssl->buffers.altKey     = NULL;
+    FreeSslDer(&ssl->buffers.altKey, ssl->buffers.weOwnAltKey);
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    ssl->buffers.altKeyMask = NULL;
+    FreeDer(&ssl->buffers.altKeyMask);
 #endif
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 }
@@ -8172,6 +8149,10 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         int i;
         if (opt != 0 && opt != 1) {
             ret = WOLFSSL_FAILURE;
+            break;
+        }
+        if (wolfssl_ctx_certs_locked(ctx)) {
+            ret = CTX_BUSY_E;
             break;
         }
         /* Clear certificate chain */

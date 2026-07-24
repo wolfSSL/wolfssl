@@ -3691,6 +3691,181 @@ int test_tls13_pha(void)
     return EXPECT_RESULT();
 }
 
+
+/* A server whose certificate has been renewed on disk reloads it on the
+ * context while it is still serving. Sessions already running keep the
+ * certificate they started with; sessions made afterwards get the new one. */
+int test_tls13_ctx_cert_rotation(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_RSA) && defined(WOLFSSL_DER_REFCOUNT) && \
+    !defined(WOLFSSL_COPY_CERT)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_s2 = NULL;
+    struct test_memio_ctx test_ctx;
+    DerBuffer* startCert = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    if (ssl_s != NULL) {
+        startCert = ssl_s->buffers.certificate;
+    }
+    ExpectNotNull(startCert);
+
+    /* This is only interesting when the session shares the context's buffer.
+     * Builds that copy it (WOLFSSL_COPY_CERT) are safe with no reference
+     * count, so there is nothing to check. */
+    if (ssl_s != NULL && ssl_s->buffers.certificate == ctx_s->certificate) {
+        /* Reload it on the context. This is what a server does once the
+         * renewed certificate lands on disk, and it has to work while
+         * sessions run. */
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+        /* The context holds a new buffer now. The running session still points
+         * at the one it started with, which its reference keeps alive. */
+        ExpectPtrNE(ctx_s->certificate, startCert);
+        ExpectPtrEq(ssl_s->buffers.certificate, startCert);
+        ExpectNotNull(ssl_s->buffers.certificate->buffer);
+
+        /* It finishes its handshake with that certificate. */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* A session made after the reload picks up the new certificate. */
+        ExpectNotNull(ssl_s2 = wolfSSL_new(ctx_s));
+        ExpectPtrEq(ssl_s2->buffers.certificate, ctx_s->certificate);
+        ExpectPtrNE(ssl_s2->buffers.certificate, startCert);
+    }
+
+    wolfSSL_free(ssl_s2);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Without reference counting the old buffer would be freed while running
+ * sessions still point at it, so the reload is refused instead. */
+int test_tls13_ctx_cert_rotation_refused(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_DER_REFCOUNT) && \
+    !defined(WOLFSSL_COPY_CERT)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), CTX_BUSY_E);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), CTX_BUSY_E);
+
+    /* Allowed again once the session is gone. */
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_RSA) && defined(HAVE_SNI)
+/* Change the context certificate from the SNI callback. The session that is
+ * handshaking took its certificate pointer when it was created, so this can
+ * never reach it and is refused. */
+static int test_sni_cert_change_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
+    int* cbRet = (int*)arg;
+    (void)ad;
+    /* Report the result back to the parent function below. */
+    *cbRet = wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, CERT_FILETYPE);
+    /* 0 means ack the servername and continue the handshake. */
+    return 0;
+}
+#endif
+
+int test_tls13_sni_cb_cert_change_refused(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_RSA) && defined(HAVE_SNI)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* host = "example.com";
+    int cbRet = WOLFSSL_FATAL_ERROR;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_set_servername_callback(ctx_s, test_sni_cert_change_cb);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, &cbRet), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+        (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+
+    /* Refused, so nothing changes and the handshake runs to completion. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(cbRet, CTX_BUSY_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* DH parameters are not reference counted, so they may not be replaced while
+ * sessions created from the context still point at them. */
+int test_tls13_ctx_dh_change_refused(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_RSA) && !defined(NO_DH)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Refused before the parameters are looked at, so any non-NULL will do. */
+    static const unsigned char p[] = { 0x01 };
+    static const unsigned char g[] = { 0x02 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH(ctx_s, p, (int)sizeof(p), g,
+        (int)sizeof(g)), CTX_BUSY_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_SHA256)

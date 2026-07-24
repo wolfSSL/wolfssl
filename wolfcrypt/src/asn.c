@@ -25131,11 +25131,43 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
         der->heap = heap;
         der->buffer = (byte*)der + sizeof(DerBuffer);
         der->length = length;
+#ifdef WOLFSSL_DER_REFCOUNT
+        /* Buffer starts with a single holder. */
+        wolfSSL_RefInit(&der->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
+            XFREE(der, heap, dynType);
+            *pDer = NULL;
+            return ret;
+        }
+    #endif
+#endif
         ret = 0; /* Success */
     } else {
         ret = BAD_FUNC_ARG;
     }
     return ret;
+}
+
+/* Inc refcount on a DER buffer.
+ *
+ * Without WOLFSSL_DER_REFCOUNT this is a no-op.
+ *
+ * @param [in, out] der  DER buffer. May be NULL.
+ * @return  1 on success.
+ * @return  0 when the reference could not be taken.
+ */
+int RefDer(DerBuffer* der)
+{
+    int err = 0;
+#ifdef WOLFSSL_DER_REFCOUNT
+    if (der != NULL) {
+        wolfSSL_RefInc(&der->ref, &err);
+    }
+#else
+    (void)der;
+#endif
+    return !err;
 }
 
 int AllocCopyDer(DerBuffer** pDer, const unsigned char* buff, word32 length,
@@ -25153,15 +25185,29 @@ void FreeDer(DerBuffer** pDer)
 {
     if (pDer && *pDer) {
         DerBuffer* der = (DerBuffer*)*pDer;
-
-        /* ForceZero private keys */
-        if (((der->type == PRIVATEKEY_TYPE) ||
-             (der->type == ALT_PRIVATEKEY_TYPE)) && der->buffer != NULL) {
-            ForceZero(der->buffer, der->length);
+        int isZero = 1;
+#ifdef WOLFSSL_DER_REFCOUNT
+        int ref_err = 0;
+        wolfSSL_RefDec(&der->ref, &isZero, &ref_err);
+        /* If error, don't free. Leak is better than UAF. */
+        if (ref_err != 0) {
+            isZero = 0;
         }
-        der->buffer = NULL;
-        der->length = 0;
-        XFREE(der, der->heap, der->dynType);
+#endif
+
+        if (isZero) {
+            /* ForceZero private keys */
+            if (((der->type == PRIVATEKEY_TYPE) ||
+                 (der->type == ALT_PRIVATEKEY_TYPE)) && der->buffer != NULL) {
+                ForceZero(der->buffer, der->length);
+            }
+            der->buffer = NULL;
+            der->length = 0;
+#ifdef WOLFSSL_DER_REFCOUNT
+            wolfSSL_RefFree(&der->ref);
+#endif
+            XFREE(der, der->heap, der->dynType);
+        }
 
         *pDer = NULL;
     }
