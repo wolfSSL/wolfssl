@@ -2781,3 +2781,63 @@ int test_wc_AsnFeatureCoverage(void)
 #endif /* !NO_ASN && HAVE_ECC && USE_CERT_BUFFERS_256 && !HAVE_FIPS */
     return EXPECT_RESULT();
 }
+
+/* wc_EccPrivateKeyDecode should derive and cache the public point (best
+ * effort) when it decodes a SEC1 private key whose optional public point
+ * was omitted, so the key comes out fully usable. */
+int test_wc_EccPrivateKeyDecode_derive_pub(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_ECC) && !defined(NO_ECC_MAKE_PUB) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_IMXRT1170_CAAM)
+    ecc_key fullKey;
+    ecc_key privOnlyKey;
+    word32  idx;
+    byte    privOnlyDer[256];
+    int     privOnlyDerSz;
+    byte    fullPub[256];
+    word32  fullPubSz = sizeof(fullPub);
+    byte    derivedPub[256];
+    word32  derivedPubSz = sizeof(derivedPub);
+
+    XMEMSET(&fullKey, 0, sizeof(fullKey));
+    XMEMSET(&privOnlyKey, 0, sizeof(privOnlyKey));
+
+    ExpectIntEQ(wc_ecc_init(&fullKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &fullKey,
+        sizeof_ecc_clikey_der_256), 0);
+    ExpectIntEQ(fullKey.type, ECC_PRIVATEKEY);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&fullKey, fullPub, &fullPubSz), 0);
+    PRIVATE_KEY_LOCK();
+
+    /* Re-encode as a private-key-only SEC1 DER (no public point). */
+    ExpectIntGT(privOnlyDerSz = wc_EccPrivateKeyToDer(&fullKey, privOnlyDer,
+        sizeof(privOnlyDer)), 0);
+
+    ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+        (word32)privOnlyDerSz), 0);
+
+    /* The public point should have been derived automatically, making the
+     * key fully usable rather than left as ECC_PRIVATEKEY_ONLY. */
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(derivedPubSz, fullPubSz);
+    ExpectBufEQ(derivedPub, fullPub, fullPubSz);
+
+    wc_ecc_free(&privOnlyKey);
+    wc_ecc_free(&fullKey);
+#endif /* !NO_ASN && HAVE_ECC && !NO_ECC_MAKE_PUB && USE_CERT_BUFFERS_256 &&
+        * !HAVE_FIPS */
+    return EXPECT_RESULT();
+}

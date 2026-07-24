@@ -10289,6 +10289,389 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 
     return ret;
 }
+
+#if !defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+/* Derive and cache the public key (t1) from an already-imported private
+ * key with no public key of its own, eg one decoded from a private-key-only
+ * DER/PEM. Recomputes t1 from rho/s1/s2 the same way keygen does. No-op if
+ * the public key is already set.
+ *
+ * Respects the same memory-optimisation macros as mldsa_make_key_from_seed:
+ *   WC_MLDSA_CACHE_MATRIX_A   - reuse key->a
+ *   WC_MLDSA_CACHE_PRIV_VECTORS - reuse key->s1/s2/t0
+ *   WC_MLDSA_FIXED_ARRAY      - all buffers live in the key struct
+ *   WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM - stream matrix A one poly at a time
+ *
+ * @param [in, out] key  ML-DSA key with prvKeySet already true.
+ * @return  0 on success, or if the public key was already set.
+ * @return  BAD_FUNC_ARG when key, key->params is NULL, or prvKeySet is
+ *          false.
+ * @return  MEMORY_E on allocation failure.
+ * @return  Other negative when an error occurs.
+ */
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key)
+{
+    int ret = 0;
+    const wc_MlDsaParams* params = NULL;
+    sword32* s1 = NULL;
+    sword32* s2 = NULL;
+    sword32* t  = NULL;
+    sword32* a  = NULL;
+    byte* t0Scratch = NULL;
+    unsigned int allocSz = 0;
+    unsigned int t0ScratchSz = 0;
+#ifdef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+    byte* h = NULL;
+#ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+    sword64* t64 = NULL;
+#endif
+#endif
+    int didAlloc = 0;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (key->params == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if ((ret == 0) && (!key->pubKeySet)) {
+        params = key->params;
+
+    #if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+        ret = mldsa_alloc_pub_buf(key);
+    #endif
+
+        /* --- Allocate / reuse matrix A --------------------------------- */
+    #ifdef WC_MLDSA_CACHE_MATRIX_A
+    #ifndef WC_MLDSA_FIXED_ARRAY
+        if ((ret == 0) && (key->a == NULL)) {
+            key->a = (sword32*)XMALLOC(params->aSz, key->heap,
+                DYNAMIC_TYPE_MLDSA);
+            if (key->a == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+    #endif
+        if (ret == 0) {
+            a = key->a;
+        }
+    #endif /* WC_MLDSA_CACHE_MATRIX_A */
+
+        /* --- Allocate / reuse private vectors s1, s2, t ---------------- */
+    #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    #ifndef WC_MLDSA_FIXED_ARRAY
+        if ((ret == 0) && (key->s1 == NULL)) {
+            key->s1 = (sword32*)XMALLOC(params->aSz, key->heap,
+                DYNAMIC_TYPE_MLDSA);
+            if (key->s1 == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                key->s2 = key->s1 + params->s1Sz / sizeof(*s1);
+                key->t0 = key->s2 + params->s2Sz / sizeof(*s2);
+            }
+        }
+    #endif
+        if (ret == 0) {
+            s1 = key->s1;
+            s2 = key->s2;
+            t  = key->t0;
+        }
+    #endif /* WC_MLDSA_CACHE_PRIV_VECTORS */
+
+        /* --- Compute dynamic allocation size for remaining buffers ----- */
+        if (ret == 0) {
+            /* t0 encoding is D bits per coefficient for each of the k
+             * polynomials in the vector, regardless of security level. */
+            t0ScratchSz = (unsigned int)params->k *
+                (MLDSA_D * MLDSA_N / 8);
+
+    #ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+        #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
+            allocSz = (unsigned int)params->s1Sz + params->s2Sz +
+                params->s2Sz;
+        #endif
+        #ifndef WC_MLDSA_CACHE_MATRIX_A
+            allocSz += params->aSz;
+        #endif
+    #else /* WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
+            /* s1-l, s2-k, t-k, h, a-1 (one poly for streaming) */
+            allocSz = (unsigned int)params->s1Sz + params->s2Sz +
+                params->s2Sz +
+                (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
+                (unsigned int)MLDSA_POLY_SIZE;
+        #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+            allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
+        #endif
+    #endif /* WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
+        }
+
+        /* --- Allocate the dynamic portion ------------------------------ */
+    #ifdef WC_MLDSA_FIXED_ARRAY
+        /* Everything lives in the key struct; no dynamic allocation. */
+        if (ret == 0) {
+            s1 = key->s1;
+            s2 = key->s2;
+            t  = key->t0;
+            a  = key->a;
+        }
+    #else
+        if ((ret == 0) && (allocSz > 0)) {
+            s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
+            if (s1 == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                didAlloc = 1;
+        #ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+            #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
+                s2 = s1 + params->s1Sz / sizeof(*s1);
+                t  = s2 + params->s2Sz / sizeof(*s2);
+            #endif
+            #ifndef WC_MLDSA_CACHE_MATRIX_A
+                {
+                    /* Matrix A is appended at the end of the block. */
+                    sword32* base = s1;
+                #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
+                    base = t + params->s2Sz / sizeof(*t);
+                #endif
+                    a = base;
+                }
+            #endif
+        #else /* WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
+                s2 = s1 + params->s1Sz / sizeof(*s1);
+                t  = s2 + params->s2Sz / sizeof(*s2);
+                h  = (byte*)(t + params->s2Sz / sizeof(*t));
+                a  = (sword32*)(h + MLDSA_REJ_NTT_POLY_H_SIZE);
+            #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+                t64 = (sword64*)(a + MLDSA_N);
+            #endif
+        #endif /* WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
+            }
+        }
+    #endif /* WC_MLDSA_FIXED_ARRAY */
+
+        if ((ret == 0) && (t0Scratch != NULL || t0ScratchSz == 0)) {
+            /* t0Scratch already set (shouldn't happen, but guard). */
+        }
+        else if (ret == 0) {
+            t0Scratch = (byte*)XMALLOC(t0ScratchSz, key->heap,
+                DYNAMIC_TYPE_MLDSA);
+            if (t0Scratch == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+
+        if (ret == 0) {
+            const byte* rho = key->k;
+            const byte* s1p = key->k + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ +
+                MLDSA_TR_SZ;
+            const byte* s2p = s1p + params->s1EncSz;
+            byte* t1 = key->p + MLDSA_PUB_SEED_SZ;
+
+            mldsa_vec_decode_eta_bits(s1p, params->eta, s1, params->l);
+            mldsa_vec_decode_eta_bits(s2p, params->eta, s2, params->k);
+
+    #ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+            /* Standard path: expand full matrix A, then multiply. */
+            ret = mldsa_expand_a(&key->shake, rho, params->k, params->l, a,
+                key->heap);
+            if (ret == 0) {
+                XMEMCPY(key->p, rho, MLDSA_PUB_SEED_SZ);
+
+                mldsa_vec_ntt_small_full(s1, params->l);
+                mldsa_matrix_mul(t, a, s1, params->k, params->l);
+            #ifdef WOLFSSL_MLDSA_SMALL
+                mldsa_vec_red(t, params->k);
+            #endif
+                mldsa_vec_invntt_full(t, params->k);
+                mldsa_vec_add(t, s2, params->k);
+                mldsa_vec_make_pos(t, params->k);
+                mldsa_vec_encode_t0_t1(t, params->k, t0Scratch, t1);
+
+                key->pubKeySet = 1;
+            }
+    #else /* WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
+            /* Small-mem path: stream matrix A one polynomial at a time. */
+            XMEMCPY(key->p, rho, MLDSA_PUB_SEED_SZ);
+
+            mldsa_vec_ntt_small_full(s1, params->l);
+            {
+                byte aseed[MLDSA_GEN_A_SEED_SZ];
+                sword32* s2t = s2;
+                sword32* tt = t;
+                unsigned int r;
+                unsigned int s;
+
+                XMEMCPY(aseed, rho, MLDSA_PUB_SEED_SZ);
+                for (r = 0; (ret == 0) && (r < params->k); r++) {
+                    sword32* s1t = s1;
+                    unsigned int e;
+
+                    aseed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
+                    for (s = 0; (ret == 0) && (s < params->l); s++) {
+                        aseed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
+                        ret = mldsa_rej_ntt_poly_ex(&key->shake, aseed, a, h);
+                        if (ret != 0) {
+                            break;
+                        }
+                    #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+                        if (s == 0) {
+                        #ifdef WOLFSSL_MLDSA_SMALL
+                            for (e = 0; e < MLDSA_N; e++) {
+                                tt[e] = mldsa_mont_red(
+                                    (sword64)a[e] * s1t[e]);
+                            }
+                        #else
+                            for (e = 0; e < MLDSA_N; e += 8) {
+                                tt[e+0] = mldsa_mont_red(
+                                    (sword64)a[e+0] * s1t[e+0]);
+                                tt[e+1] = mldsa_mont_red(
+                                    (sword64)a[e+1] * s1t[e+1]);
+                                tt[e+2] = mldsa_mont_red(
+                                    (sword64)a[e+2] * s1t[e+2]);
+                                tt[e+3] = mldsa_mont_red(
+                                    (sword64)a[e+3] * s1t[e+3]);
+                                tt[e+4] = mldsa_mont_red(
+                                    (sword64)a[e+4] * s1t[e+4]);
+                                tt[e+5] = mldsa_mont_red(
+                                    (sword64)a[e+5] * s1t[e+5]);
+                                tt[e+6] = mldsa_mont_red(
+                                    (sword64)a[e+6] * s1t[e+6]);
+                                tt[e+7] = mldsa_mont_red(
+                                    (sword64)a[e+7] * s1t[e+7]);
+                            }
+                        #endif
+                        }
+                        else {
+                        #ifdef WOLFSSL_MLDSA_SMALL
+                            for (e = 0; e < MLDSA_N; e++) {
+                                tt[e] += mldsa_mont_red(
+                                    (sword64)a[e] * s1t[e]);
+                            }
+                        #else
+                            for (e = 0; e < MLDSA_N; e += 8) {
+                                tt[e+0] += mldsa_mont_red(
+                                    (sword64)a[e+0] * s1t[e+0]);
+                                tt[e+1] += mldsa_mont_red(
+                                    (sword64)a[e+1] * s1t[e+1]);
+                                tt[e+2] += mldsa_mont_red(
+                                    (sword64)a[e+2] * s1t[e+2]);
+                                tt[e+3] += mldsa_mont_red(
+                                    (sword64)a[e+3] * s1t[e+3]);
+                                tt[e+4] += mldsa_mont_red(
+                                    (sword64)a[e+4] * s1t[e+4]);
+                                tt[e+5] += mldsa_mont_red(
+                                    (sword64)a[e+5] * s1t[e+5]);
+                                tt[e+6] += mldsa_mont_red(
+                                    (sword64)a[e+6] * s1t[e+6]);
+                                tt[e+7] += mldsa_mont_red(
+                                    (sword64)a[e+7] * s1t[e+7]);
+                            }
+                        #endif
+                        }
+                    #else /* WOLFSSL_MLDSA_SMALL_MEM_POLY64 */
+                        if (s == 0) {
+                        #ifdef WOLFSSL_MLDSA_SMALL
+                            for (e = 0; e < MLDSA_N; e++) {
+                                t64[e] = (sword64)a[e] * s1t[e];
+                            }
+                        #else
+                            for (e = 0; e < MLDSA_N; e += 8) {
+                                t64[e+0] = (sword64)a[e+0] * s1t[e+0];
+                                t64[e+1] = (sword64)a[e+1] * s1t[e+1];
+                                t64[e+2] = (sword64)a[e+2] * s1t[e+2];
+                                t64[e+3] = (sword64)a[e+3] * s1t[e+3];
+                                t64[e+4] = (sword64)a[e+4] * s1t[e+4];
+                                t64[e+5] = (sword64)a[e+5] * s1t[e+5];
+                                t64[e+6] = (sword64)a[e+6] * s1t[e+6];
+                                t64[e+7] = (sword64)a[e+7] * s1t[e+7];
+                            }
+                        #endif
+                        }
+                        else {
+                        #ifdef WOLFSSL_MLDSA_SMALL
+                            for (e = 0; e < MLDSA_N; e++) {
+                                t64[e] += (sword64)a[e] * s1t[e];
+                            }
+                        #else
+                            for (e = 0; e < MLDSA_N; e += 8) {
+                                t64[e+0] += (sword64)a[e+0] * s1t[e+0];
+                                t64[e+1] += (sword64)a[e+1] * s1t[e+1];
+                                t64[e+2] += (sword64)a[e+2] * s1t[e+2];
+                                t64[e+3] += (sword64)a[e+3] * s1t[e+3];
+                                t64[e+4] += (sword64)a[e+4] * s1t[e+4];
+                                t64[e+5] += (sword64)a[e+5] * s1t[e+5];
+                                t64[e+6] += (sword64)a[e+6] * s1t[e+6];
+                                t64[e+7] += (sword64)a[e+7] * s1t[e+7];
+                            }
+                        #endif
+                        }
+                    #endif /* WOLFSSL_MLDSA_SMALL_MEM_POLY64 */
+                        s1t += MLDSA_N;
+                    }
+                #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+                    for (e = 0; e < MLDSA_N; e++) {
+                        tt[e] = mldsa_mont_red(t64[e]);
+                    }
+                #endif
+                    mldsa_invntt_full(tt);
+                    mldsa_add(tt, s2t);
+                    mldsa_make_pos(tt);
+
+                    tt += MLDSA_N;
+                    s2t += MLDSA_N;
+                }
+            }
+            if (ret == 0) {
+                mldsa_vec_encode_t0_t1(t, params->k, t0Scratch, t1);
+
+                key->pubKeySet = 1;
+            }
+    #endif /* WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM */
+
+    #ifdef WC_MLDSA_CACHE_MATRIX_A
+            if (ret == 0) {
+                key->aSet = 1;
+            }
+    #endif
+        }
+
+        /* --- Cleanup --------------------------------------------------- */
+    #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
+        if (didAlloc && s1 != NULL) {
+        #ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
+            /* Only s1/s2/t are secret; trailing matrix A is public. */
+            ForceZero(s1, (unsigned int)params->s1Sz + 2U * params->s2Sz);
+        #else
+            /* In small-mem mode the t64 accumulator follows the public
+             * rejection-sampling / A region and holds A o NTT(s1), from
+             * which s1 is recoverable.  Zeroize the entire allocation. */
+            ForceZero(s1, allocSz);
+        #endif
+        }
+        if (didAlloc) {
+            XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
+        }
+    #endif /* !WC_MLDSA_CACHE_PRIV_VECTORS */
+    #if !defined(WC_MLDSA_CACHE_PRIV_VECTORS) && \
+        !defined(WC_MLDSA_CACHE_MATRIX_A) && \
+        !defined(WC_MLDSA_FIXED_ARRAY)
+        (void)didAlloc;
+    #endif
+        if (t0Scratch != NULL) {
+            ForceZero(t0Scratch, t0ScratchSz);
+        }
+        XFREE(t0Scratch, key->heap, DYNAMIC_TYPE_MLDSA);
+    }
+
+    return ret;
+}
+#endif /* !WOLFSSL_MLDSA_ASSIGN_KEY */
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_SIGN
@@ -10634,6 +11017,9 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (msg == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
@@ -10691,6 +11077,9 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (msg == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
@@ -10741,6 +11130,9 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 
     /* Validate parameters. */
     if ((key == NULL) || (sig == NULL) || (hash == NULL) || (res == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
@@ -10795,6 +11187,9 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     /* Validate parameters. */
     if ((key == NULL) || (key->params == NULL) || (sig == NULL) ||
             (mu == NULL) || (res == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
@@ -12315,6 +12710,18 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
         {
             /* No public key data, only import private key data. */
             ret = wc_MlDsaKey_ImportPrivRaw(key, privKey, privKeyLen);
+#if !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+            if (ret == 0) {
+                /* Derive t1 so the key is fully usable. Best-effort:
+                 * failure must not fail decoding of an otherwise valid
+                 * key. */
+                int pubRet = wc_MlDsaKey_MakePublicKey(key);
+                if (pubRet != 0) {
+                    WOLFSSL_MSG("Best-effort ML-DSA public key derivation "
+                        "failed");
+                }
+            }
+#endif
         }
         else {
             /* Not a problem of ASN.1 structure, but the contents is invalid */
@@ -12870,16 +13277,16 @@ int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_44k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, NULL, 0,
+                output, len, ML_DSA_44k);
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_65k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, NULL, 0,
+                output, len, ML_DSA_65k);
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_87k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, NULL, 0,
+                output, len, ML_DSA_87k);
         }
     }
 

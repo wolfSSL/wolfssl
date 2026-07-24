@@ -7718,6 +7718,31 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             (word32)pubSz, key, curve_id);
     }
 
+    /* Based on ecc.c's HAVE_ECC_MAKE_PUB condition, which is local to
+     * that file.  This guard is intentionally a superset: QNX_CAAM and
+     * IMXRT1170_CAAM are added because those ports store the private
+     * scalar as an opaque hardware "black key" where a software point
+     * multiply would be meaningless or unsafe. */
+#if !defined(NO_ECC_MAKE_PUB) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_QNX_CAAM) && \
+    !defined(WOLFSSL_IMXRT1170_CAAM)
+    if ((ret == 0) && (key->type == ECC_PRIVATEKEY_ONLY)) {
+        /* SEC1 allows omitting the public point; derive it. Best-effort:
+         * failure must not fail decoding of an otherwise valid key. */
+        int pubRet;
+#ifdef ECC_TIMING_RESISTANT
+        pubRet = wc_ecc_make_pub_ex(key, NULL, key->rng);
+#else
+        pubRet = wc_ecc_make_pub_ex(key, NULL, NULL);
+#endif
+        if (pubRet != 0) {
+            WOLFSSL_MSG("Best-effort ECC public key derivation failed");
+        }
+    }
+#endif
+
     WC_FREE_VAR_EX(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 

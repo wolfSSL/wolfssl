@@ -38,6 +38,8 @@ int test_mldsa_public_der_decode(void);
 int test_mldsa_der(void);
 int test_mldsa_oneasymkey_version(void);
 int test_mldsa_make_key_from_seed(void);
+int test_mldsa_make_public_key(void);
+int test_mldsa_private_key_decode_derives_public_key(void);
 int test_mldsa_sig_kats(void);
 int test_mldsa_sign_ctx_kats(void);
 int test_mldsa_verify_ctx_kats(void);
@@ -81,6 +83,8 @@ int test_wc_MldsaDerDecisionCoverage(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_der),                                  \
     TEST_DECL_GROUP("mldsa", test_mldsa_oneasymkey_version),                   \
     TEST_DECL_GROUP("mldsa", test_mldsa_make_key_from_seed),                   \
+    TEST_DECL_GROUP("mldsa", test_mldsa_make_public_key),                      \
+    TEST_DECL_GROUP("mldsa", test_mldsa_private_key_decode_derives_public_key), \
     TEST_DECL_GROUP("mldsa", test_mldsa_sig_kats),                             \
     TEST_DECL_GROUP("mldsa", test_mldsa_sign_ctx_kats),                        \
     TEST_DECL_GROUP("mldsa", test_mldsa_verify_ctx_kats),                      \
