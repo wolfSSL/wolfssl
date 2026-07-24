@@ -394,6 +394,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set_cipher_list         wolfSSL_CTX_set_cipher_list
 #define SSL_CTX_set_ciphersuites        wolfSSL_CTX_set_cipher_list
 #define SSL_set_cipher_list             wolfSSL_set_cipher_list
+#define SSL_set_ciphersuites            wolfSSL_set_cipher_list
 /* wolfSSL does not support security levels */
 #define SSL_CTX_set_security_level      wolfSSL_CTX_set_security_level
 #define SSL_CTX_get_security_level      wolfSSL_CTX_get_security_level
@@ -617,6 +618,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_check_issued               wolfSSL_X509_check_issued
 #define X509_dup                        wolfSSL_X509_dup
 #define X509_add_ext                    wolfSSL_X509_add_ext
+#define X509_add1_ext_i2d               wolfSSL_X509_add1_ext_i2d
 #define X509_delete_ext                 wolfSSL_X509_delete_ext
 #define X509_get0_subject_key_id        wolfSSL_X509_get0_subject_key_id
 
@@ -1601,6 +1603,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_SESSION_print               wolfSSL_SESSION_print
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
 #define sk_GENERAL_NAME_new             wolfSSL_sk_GENERAL_NAME_new
+#define sk_GENERAL_NAME_new_null()      wolfSSL_sk_GENERAL_NAME_new(NULL)
 #define sk_GENERAL_NAME_free            wolfSSL_sk_GENERAL_NAME_free
 #define sk_ASN1_OBJECT_pop_free         wolfSSL_sk_ASN1_OBJECT_pop_free
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
