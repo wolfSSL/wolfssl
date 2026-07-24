@@ -4956,6 +4956,12 @@ WOLFSSL_API int wolfSSL_NoKeyShares(WOLFSSL* ssl);
 #define WOLFSSL_CKS_SIGSPEC_BOTH        0x0003
 #define WOLFSSL_CKS_SIGSPEC_EXTERNAL    0x0004
 
+/* Maximum length in bytes of a CKS signature specifier list. Only NATIVE,
+ * ALTERNATIVE, and BOTH are valid specifiers (EXTERNAL is rejected), so a
+ * well-formed preference list is never longer than this. Used to bound the
+ * peer allocation in TLSX_CKS_Parse(). */
+#define WOLFSSL_MAX_CKS_SIGSPEC_SZ      3
+
 WOLFSSL_API int wolfSSL_UseCKS(WOLFSSL* ssl, byte *sigSpec, word16 sigSpecSz);
 WOLFSSL_API int wolfSSL_CTX_UseCKS(WOLFSSL_CTX* ctx, byte *sigSpec,
                                    word16 sigSpecSz);

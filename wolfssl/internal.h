@@ -3809,7 +3809,7 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
 WOLFSSL_LOCAL int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         KeyShareEntry* keyShareEntry, byte* data, word16 len);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-WOLFSSL_LOCAL int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input,
+WOLFSSL_TEST_VIS int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input,
                                  word16 length, TLSX** extensions);
 WOLFSSL_LOCAL int TLSX_CKS_Set(WOLFSSL* ssl, TLSX** extensions);
 #endif

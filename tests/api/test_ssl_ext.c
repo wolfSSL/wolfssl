@@ -811,3 +811,56 @@ int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_wolfSSL_dual_alg_cks_parse_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    byte         oversized[WOLFSSL_MAX_CKS_SIGSPEC_SZ + 1];
+    byte         huge[64];
+    byte         maxValid[WOLFSSL_MAX_CKS_SIGSPEC_SZ];
+    byte         value;
+
+    /* An oversized list made entirely of valid specifiers still needs to be
+     * rejected, so fill the buffers with a valid value. */
+    XMEMSET(oversized, WOLFSSL_CKS_SIGSPEC_NATIVE, sizeof(oversized));
+    XMEMSET(huge, WOLFSSL_CKS_SIGSPEC_NATIVE, sizeof(huge));
+    maxValid[0] = WOLFSSL_CKS_SIGSPEC_BOTH;
+    maxValid[1] = WOLFSSL_CKS_SIGSPEC_ALTERNATIVE;
+    maxValid[2] = WOLFSSL_CKS_SIGSPEC_NATIVE;
+
+    /* A client reaches the allocation path without needing an alt key. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* A zero length list is rejected. */
+    value = WOLFSSL_CKS_SIGSPEC_NATIVE;
+    ExpectIntEQ(TLSX_CKS_Parse(ssl, &value, 0, &ssl->extensions),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    /* A list of all-valid bytes longer than the semantic maximum is rejected
+     * before any allocation. This is the denial-of-service regression:
+     * previously any length up to 65535 was copied into a fresh heap buffer. */
+    ExpectIntEQ(TLSX_CKS_Parse(ssl, oversized, (word16)sizeof(oversized),
+        &ssl->extensions), WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(TLSX_CKS_Parse(ssl, huge, (word16)sizeof(huge),
+        &ssl->extensions), WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    /* An invalid specifier value is still rejected. */
+    value = WOLFSSL_CKS_SIGSPEC_EXTERNAL;
+    ExpectIntEQ(TLSX_CKS_Parse(ssl, &value, 1, &ssl->extensions),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* A well-formed list at the maximum length is accepted, so the cap does not
+     * break legitimate peers (the example client sends all three specifiers). */
+    ExpectIntEQ(TLSX_CKS_Parse(ssl, maxValid, (word16)sizeof(maxValid),
+        &ssl->extensions), 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

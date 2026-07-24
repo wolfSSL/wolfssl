@@ -11815,8 +11815,10 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
     (void) extensions;
 
-    /* Validating the input. */
-    if (length == 0)
+    /* Validating the input. A well-formed CKS list carries at most one of each
+     * valid specifier, so reject anything longer than WOLFSSL_MAX_CKS_SIGSPEC_SZ
+     * to bound the peerSigSpec allocation below. */
+    if (length == 0 || length > WOLFSSL_MAX_CKS_SIGSPEC_SZ)
         return BUFFER_ERROR;
     for (i = 0; i < length; i++) {
         switch (input[i])
