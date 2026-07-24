@@ -60,6 +60,10 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
     byte* key = (byte*)aes->key;
 #endif
 
+    if (aes->keyInstalled == 0) {
+        return BAD_FUNC_ARG;
+    }
+
     if (aes->alFd == WC_SOCK_NOTSET) {
         aes->alFd = wc_Afalg_Socket();
         if (aes->alFd < 0) {
