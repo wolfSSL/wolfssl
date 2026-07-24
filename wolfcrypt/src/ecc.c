@@ -15080,13 +15080,20 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
         #else
             ctx->encAlgo  = ecAES_128_CTR;
         #endif
-    #elif !defined(NO_AES) && defined(HAVE_AESGCM)
+    #elif !defined(NO_AES) && defined(HAVE_AESGCM) && \
+        (defined(WOLFSSL_ECIES_OLD) || defined(WOLFSSL_ECIES_GEN_IV) || \
+         defined(WOLFSSL_ECIES_STATIC_GCM_NONCE))
+        /* Only default to GCM when the configured IV mode permits it, so a
+         * GCM-only build cannot default to an algorithm that encrypt/decrypt
+         * would reject with NOT_COMPILED_IN. */
         #ifdef WOLFSSL_AES_128
             ctx->encAlgo  = ecAES_128_GCM;
         #else
             ctx->encAlgo  = ecAES_256_GCM;
         #endif
     #else
+        /* In a GCM-only build using the default IV mode, define
+         * WOLFSSL_ECIES_STATIC_GCM_NONCE to opt in to the fixed-nonce DEM. */
         #error "No valid encryption algorithm for ECIES configured."
     #endif
         ctx->kdfAlgo  = ecHKDF_SHA256;
@@ -15199,12 +15206,12 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
         #if !defined(NO_AES) && defined(HAVE_AESGCM)
             case ecAES_128_GCM:
                 *encKeySz = KEY_SIZE_128;
-                *ivSz     = AES_GCM_NONCE_SZ;
+                *ivSz     = GCM_NONCE_MID_SZ;
                 *blockSz  = 1;
                 break;
             case ecAES_256_GCM:
                 *encKeySz = KEY_SIZE_256;
-                *ivSz     = AES_GCM_NONCE_SZ;
+                *ivSz     = GCM_NONCE_MID_SZ;
                 *blockSz  = 1;
                 break;
         #endif
@@ -15213,9 +15220,9 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
         }
 
         if (ecc_is_gcm(ctx->encAlgo)) {
-            /* GCM is AEAD: the 16-byte tag replaces the HMAC digest, and no
-             * separate MAC algorithm/key is used. */
-            *digestSz = AES_GCM_TAG_SZ;
+            /* GCM is AEAD: the full block-sized tag replaces the HMAC digest,
+             * and no separate MAC algorithm/key is used. */
+            *digestSz = WC_AES_BLOCK_SIZE;
         }
         else {
             switch (ctx->macAlgo) {
@@ -15248,6 +15255,27 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
     }
 
     return 0;
+}
+
+/* Total ECIES output size for msgSz bytes of message: the ephemeral public
+ * key (not embedded in the OLD format), the IV/nonce when it is carried in
+ * the message (GEN_IV mode only), the ciphertext (same length as the padded
+ * plaintext), and the trailing HMAC digest or GCM tag.  Used both to
+ * bound-check the caller's output buffer and to report the final output
+ * size. */
+static word32 ecc_ecies_total_size(word32 pubKeySz, int ivSz, word32 msgSz,
+                                   word32 digestSz)
+{
+#ifdef WOLFSSL_ECIES_OLD
+    (void)pubKeySz;
+    (void)ivSz;
+    return msgSz + digestSz;
+#elif defined(WOLFSSL_ECIES_GEN_IV)
+    return pubKeySz + (word32)ivSz + msgSz + digestSz;
+#else
+    (void)ivSz;
+    return pubKeySz + msgSz + digestSz;
+#endif
 }
 
 /* Validate and advance the single-use REQ/RESP protocol state for an encrypt.
@@ -15302,8 +15330,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #ifndef WOLFSSL_ECIES_GEN_IV
     byte         iv[ECC_MAX_IV_SIZE];
 #endif
-    word32       pubKeySz = 0;
 #endif
+    /* Not in the output in OLD mode; kept 0 for ecc_ecies_total_size(). */
+    word32       pubKeySz = 0;
     word32       digestSz = 0;
     ecEncCtx     localCtx;
 #ifdef WOLFSSL_SMALL_STACK
@@ -15414,32 +15443,10 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if ((msgSz % blockSz) != 0)
         return BAD_PADDING_E;
 
-    if (ecc_is_gcm(ctx->encAlgo)) {
-        /* Nonce is embedded in the output only in GEN_IV mode; OLD derives it
-         * from the KDF and default uses a fixed nonce (neither is sent). */
-#ifdef WOLFSSL_ECIES_OLD
-        if (*outSz < (msgSz + digestSz))
-            return BUFFER_E;
-#elif defined(WOLFSSL_ECIES_GEN_IV)
-        if (*outSz < (pubKeySz + (word32)ivSz + msgSz + digestSz))
-            return BUFFER_E;
-#else
-        if (*outSz < (pubKeySz + msgSz + digestSz))
-            return BUFFER_E;
-#endif
-    }
-    else {
-#ifdef WOLFSSL_ECIES_OLD
-        if (*outSz < (msgSz + digestSz))
-            return BUFFER_E;
-#elif defined(WOLFSSL_ECIES_GEN_IV)
-        if (*outSz < (pubKeySz + ivSz + msgSz + digestSz))
-            return BUFFER_E;
-#else
-        if (*outSz < (pubKeySz + msgSz + digestSz))
-            return BUFFER_E;
-#endif
-    }
+    /* The nonce/IV is embedded in the output only in GEN_IV mode; OLD derives
+     * it from the KDF and default uses a fixed nonce (neither is sent). */
+    if (*outSz < ecc_ecies_total_size(pubKeySz, ivSz, msgSz, digestSz))
+        return BUFFER_E;
 
 #ifdef ECC_TIMING_RESISTANT
     if (ctx->rng != NULL && privKey->rng == NULL)
@@ -15742,27 +15749,8 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         }
     }
 
-    if (ret == 0) {
-        if (ecc_is_gcm(ctx->encAlgo)) {
-            /* Nonce is only in the output in GEN_IV mode. */
-#ifdef WOLFSSL_ECIES_OLD
-            *outSz = msgSz + digestSz;
-#elif defined(WOLFSSL_ECIES_GEN_IV)
-            *outSz = pubKeySz + (word32)ivSz + msgSz + digestSz;
-#else
-            *outSz = pubKeySz + msgSz + digestSz;
-#endif
-        }
-        else {
-#ifdef WOLFSSL_ECIES_OLD
-            *outSz = msgSz + digestSz;
-#elif defined(WOLFSSL_ECIES_GEN_IV)
-            *outSz = pubKeySz + ivSz + msgSz + digestSz;
-#else
-            *outSz = pubKeySz + msgSz + digestSz;
-#endif
-        }
-    }
+    if (ret == 0)
+        *outSz = ecc_ecies_total_size(pubKeySz, ivSz, msgSz, digestSz);
 
     ForceZero(sharedSecret, sharedSz);
     ForceZero(keys, (word32)keysLen);

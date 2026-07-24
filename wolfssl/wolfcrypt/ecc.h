@@ -1061,8 +1061,6 @@ enum {
     IV_SIZE_64       =  8,
     IV_SIZE_128      = 16,
     ECC_MAX_IV_SIZE  = 16,
-    AES_GCM_NONCE_SZ = 12,   /* GCM IV/nonce length for ECIES DEM */
-    AES_GCM_TAG_SZ   = 16,   /* GCM authentication tag length     */
     EXCHANGE_SALT_SZ = 16,
     EXCHANGE_INFO_SZ = 23
 };

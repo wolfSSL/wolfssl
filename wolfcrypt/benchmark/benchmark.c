@@ -13487,6 +13487,11 @@ exit:
  * "ECC   [%15s]" and "ECDHE [%15s]" and "ECDSA [%15s]" */
 #define BENCH_ECC_NAME_SZ (ECC_MAXNAME + 8)
 
+/* Room for an ECIES op description: the longest bench_desc_words
+ * encrypt/decrypt word, "-", a cipher label such as "AES256GCM", and the null
+ * terminator, e.g. "decrypt-AES256GCM". */
+#define BENCH_ECIES_DESC_SZ 32
+
 /* run all benchmarks on a curve */
 void bench_ecc_curve(int curveId)
 {
@@ -14066,8 +14071,8 @@ void bench_eccEncrypt(int curveId)
         };
         ecEncCtx* cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &gRng);
         ecEncCtx* srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &gRng);
-        char      encDesc[32];
-        char      decDesc[32];
+        char      encDesc[BENCH_ECIES_DESC_SZ];
+        char      decDesc[BENCH_ECIES_DESC_SZ];
         size_t    c;
     #ifdef WOLFSSL_ECIES_OLD
         /* OLD format carries no ephemeral point, so decrypt needs the sender's
