@@ -533,9 +533,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_ntt_loop_123_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_mlkem_thumb2_ntt_loop_123\n\t"
+        "BNE.W	L_mlkem_thumb2_ntt_loop_123\n\t"
 #else
-        "BNE.N	L_mlkem_thumb2_ntt_loop_123_%=\n\t"
+        "BNE.W	L_mlkem_thumb2_ntt_loop_123_%=\n\t"
 #endif
         "SUB	%[r], %[r], #0x40\n\t"
         "MOV	r3, #0\n\t"
@@ -1358,9 +1358,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
 #if defined(__GNUC__)
         "BNE	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_mlkem_thumb2_ntt_loop_567\n\t"
+        "BNE.W	L_mlkem_thumb2_ntt_loop_567\n\t"
 #else
-        "BNE.N	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
+        "BNE.W	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
 #endif
         "ADD	sp, sp, #8\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2018,9 +2018,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #if defined(__GNUC__)
         "BNE	L_mlkem_invntt_loop_765_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_mlkem_invntt_loop_765\n\t"
+        "BNE.W	L_mlkem_invntt_loop_765\n\t"
 #else
-        "BNE.N	L_mlkem_invntt_loop_765_%=\n\t"
+        "BNE.W	L_mlkem_invntt_loop_765_%=\n\t"
 #endif
         "SUB	%[r], %[r], #0x200\n\t"
         "MOV	r3, #0\n\t"
@@ -3052,9 +3052,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #if defined(__GNUC__)
         "BNE	L_mlkem_invntt_loop_321_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_mlkem_invntt_loop_321\n\t"
+        "BNE.W	L_mlkem_invntt_loop_321\n\t"
 #else
-        "BNE.N	L_mlkem_invntt_loop_321_%=\n\t"
+        "BNE.W	L_mlkem_invntt_loop_321_%=\n\t"
 #endif
         "ADD	sp, sp, #8\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

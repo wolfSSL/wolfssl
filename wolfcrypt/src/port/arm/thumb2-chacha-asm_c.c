@@ -327,9 +327,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #if defined(__GNUC__)
         "BGT	L_chacha_thumb2_crypt_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGT.N	L_chacha_thumb2_crypt_loop\n\t"
+        "BGT.W	L_chacha_thumb2_crypt_loop\n\t"
 #else
-        "BGT.N	L_chacha_thumb2_crypt_loop_%=\n\t"
+        "BGT.W	L_chacha_thumb2_crypt_loop_%=\n\t"
 #endif
         "STM	sp, {r8, r9, r10, r11, r12}\n\t"
         "LDR	lr, [sp, #32]\n\t"
@@ -372,9 +372,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #if defined(__GNUC__)
         "BLT	L_chacha_thumb2_crypt_lt_block_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BLT.N	L_chacha_thumb2_crypt_lt_block\n\t"
+        "BLT.W	L_chacha_thumb2_crypt_lt_block\n\t"
 #else
-        "BLT.N	L_chacha_thumb2_crypt_lt_block_%=\n\t"
+        "BLT.W	L_chacha_thumb2_crypt_lt_block_%=\n\t"
 #endif
         "LDR	r12, [sp, #40]\n\t"
         "LDR	lr, [sp, #36]\n\t"
@@ -446,9 +446,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #if defined(__GNUC__)
         "BNE	L_chacha_thumb2_crypt_block_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_chacha_thumb2_crypt_block\n\t"
+        "BNE.W	L_chacha_thumb2_crypt_block\n\t"
 #else
-        "BNE.N	L_chacha_thumb2_crypt_block_%=\n\t"
+        "BNE.W	L_chacha_thumb2_crypt_block_%=\n\t"
 #endif
 #if defined(__GNUC__)
         "B	L_chacha_thumb2_crypt_done_%=\n\t"

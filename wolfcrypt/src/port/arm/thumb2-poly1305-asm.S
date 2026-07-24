@@ -44,7 +44,7 @@ poly1305_blocks_thumb2_16:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_poly1305_thumb2_16_done
 #else
-	BEQ.N	L_poly1305_thumb2_16_done
+	BEQ.W	L_poly1305_thumb2_16_done
 #endif
 	ADD	lr, sp, #12
 	STM	lr, {r0, r1, r2, r3}

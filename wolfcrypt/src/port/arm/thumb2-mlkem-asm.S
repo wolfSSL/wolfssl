@@ -512,7 +512,7 @@ L_mlkem_thumb2_ntt_loop_123:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_mlkem_thumb2_ntt_loop_123
 #else
-	BNE.N	L_mlkem_thumb2_ntt_loop_123
+	BNE.W	L_mlkem_thumb2_ntt_loop_123
 #endif
 	SUB	r0, r0, #0x40
 	MOV	r3, #0
@@ -1316,7 +1316,7 @@ L_mlkem_thumb2_ntt_loop_567:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_mlkem_thumb2_ntt_loop_567
 #else
-	BNE.N	L_mlkem_thumb2_ntt_loop_567
+	BNE.W	L_mlkem_thumb2_ntt_loop_567
 #endif
 	ADD	sp, sp, #8
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
@@ -1959,7 +1959,7 @@ L_mlkem_invntt_loop_765:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_mlkem_invntt_loop_765
 #else
-	BNE.N	L_mlkem_invntt_loop_765
+	BNE.W	L_mlkem_invntt_loop_765
 #endif
 	SUB	r0, r0, #0x200
 	MOV	r3, #0
@@ -2972,7 +2972,7 @@ L_mlkem_invntt_loop_321:
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_mlkem_invntt_loop_321
 #else
-	BNE.N	L_mlkem_invntt_loop_321
+	BNE.W	L_mlkem_invntt_loop_321
 #endif
 	ADD	sp, sp, #8
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
