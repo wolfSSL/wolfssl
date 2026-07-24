@@ -86,10 +86,13 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
-#if (!defined(WOLFSSL_CURVE25519_USE_ED25519) && \
+/* base point is only referenced by the software scalar-mult paths, which are
+ * compiled out under WOLF_CRYPTO_CB_ONLY_CURVE25519 */
+#if !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && \
+    ((!defined(WOLFSSL_CURVE25519_USE_ED25519) && \
      !(defined(CURVED25519_X64) || (defined(WOLFSSL_ARMASM) && \
      defined(__aarch64__)))) || defined(WOLFSSL_CURVE25519_BLINDING) || \
-     defined(WC_X25519_NONBLOCK)
+     defined(WC_X25519_NONBLOCK))
 static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {
 #ifdef BIG_ENDIAN_ORDER
     0x09000000
@@ -165,6 +168,16 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
     if (ret != 0)
         return ret;
 
+#ifdef WOLF_CRYPTO_CB
+    ret = wc_CryptoCb_Curve25519MakePub(public_size, pub, private_size, priv);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall-through when unavailable */
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+    return NO_VALID_DEVID;
+#else
 #ifdef FREESCALE_LTC_ECC
     /* input basepoint on Weierstrass curve */
     ret = nxp_ltc_curve25519(&wc_pub, priv, basepoint, kLTC_Weierstrass);
@@ -229,6 +242,7 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 #endif
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 }
 
 #ifdef WOLFSSL_CURVE25519_BLINDING
@@ -236,6 +250,7 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 #ifndef WOLFSSL_CURVE25519_BLINDING_RAND_CNT
     #define WOLFSSL_CURVE25519_BLINDING_RAND_CNT    10
 #endif
+#ifndef WOLF_CRYPTO_CB_ONLY_CURVE25519
 static int curve25519_smul_blind(byte* rp, const byte* n, const byte* p,
     WC_RNG* rng)
 {
@@ -293,6 +308,7 @@ cleanup:
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 #endif
 
 int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
@@ -322,6 +338,16 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
     if (ret != 0)
         return ret;
 
+#ifdef WOLF_CRYPTO_CB
+    ret = wc_CryptoCb_Curve25519MakePub(public_size, pub, private_size, priv);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall-through when unavailable */
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+    return NO_VALID_DEVID;
+#else
 #ifdef FREESCALE_LTC_ECC
     /* input basepoint on Weierstrass curve */
     ret = nxp_ltc_curve25519(&wc_pub, priv, basepoint, kLTC_Weierstrass);
@@ -341,6 +367,7 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
     }
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 }
 #endif
 
@@ -359,7 +386,6 @@ int wc_curve25519_generic(int public_size, byte* pub,
      * nxp_ltc_curve25519_GetBasePoint() */
     return WC_HW_E;
 #else
-#ifndef WOLFSSL_CURVE25519_BLINDING
     int ret;
 
     if ((public_size != CURVE25519_KEYSIZE) ||
@@ -375,6 +401,17 @@ int wc_curve25519_generic(int public_size, byte* pub,
     if (ret != 0)
         return ret;
 
+#ifdef WOLF_CRYPTO_CB
+    ret = wc_CryptoCb_Curve25519Generic(public_size, pub, private_size, priv,
+        basepoint_size, basepoint);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall-through when unavailable */
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+    return NO_VALID_DEVID;
+#elif !defined(WOLFSSL_CURVE25519_BLINDING)
     fe_init();
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -385,15 +422,16 @@ int wc_curve25519_generic(int public_size, byte* pub,
 
     return ret;
 #else
-    WC_RNG rng;
-    int ret;
+    {
+        WC_RNG rng;
 
-    ret = wc_InitRng(&rng);
-    if (ret == 0) {
-        ret = wc_curve25519_generic_blind(public_size, pub, private_size, priv,
-            basepoint_size, basepoint, &rng);
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_curve25519_generic_blind(public_size, pub, private_size,
+                priv, basepoint_size, basepoint, &rng);
 
-        wc_FreeRng(&rng);
+            wc_FreeRng(&rng);
+        }
     }
 
     return ret;
@@ -436,11 +474,23 @@ int wc_curve25519_generic_blind(int public_size, byte* pub,
     if (ret != 0)
         return ret;
 
+#ifdef WOLF_CRYPTO_CB
+    ret = wc_CryptoCb_Curve25519Generic(public_size, pub, private_size, priv,
+        basepoint_size, basepoint);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall-through when unavailable */
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+    return NO_VALID_DEVID;
+#else
     fe_init();
 
     ret = curve25519_smul_blind(pub, priv, basepoint, rng);
 
     return ret;
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 #endif /* FREESCALE_LTC_ECC */
 }
 #endif
@@ -1208,7 +1258,8 @@ int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId)
     #endif
         (void)heap; /* if needed for XMALLOC/XFREE in future */
 
-    #ifndef FREESCALE_LTC_ECC
+    /* field math is implemented in the callback in crypto cb only */
+    #if !defined(FREESCALE_LTC_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
         fe_init();
     #endif
 

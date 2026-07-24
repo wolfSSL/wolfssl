@@ -23,9 +23,7 @@
 
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
 
-/* under WOLF_CRYPTO_CB_ONLY_ED25519 the callback device does all Ed25519
- * field math, so Ed25519 alone no longer pulls this file in */
-#if defined(HAVE_CURVE25519) || \
+#if (defined(HAVE_CURVE25519) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)) || \
     (defined(HAVE_ED25519) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519))
 #if !defined(CURVE25519_SMALL) && !defined(ED25519_SMALL)
 

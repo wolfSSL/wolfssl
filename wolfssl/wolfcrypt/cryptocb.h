@@ -282,6 +282,20 @@ typedef struct wc_CryptoInfo {
                 word32*  outlen;
                 int      endian;
             } curve25519;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+            } curve25519makepub;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+                const byte*  basepoint;
+                word32       basepointSz;
+            } curve25519generic;
         #endif
         #ifdef HAVE_ED25519
             struct {
@@ -819,6 +833,13 @@ WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
 
 WOLFSSL_LOCAL int wc_CryptoCb_Curve25519(curve25519_key* private_key,
     curve25519_key* public_key, byte* out, word32* outlen, int endian);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519MakePub(int public_size, byte* pub,
+    int private_size, const byte* priv);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Generic(int public_size, byte* pub,
+    int private_size, const byte* priv, int basepoint_size,
+    const byte* basepoint);
 #endif /* HAVE_CURVE25519 */
 
 #ifdef HAVE_ED25519
