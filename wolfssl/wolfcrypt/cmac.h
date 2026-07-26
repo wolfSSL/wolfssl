@@ -99,12 +99,14 @@ struct Cmac {
 
 
 /* Reasonable defaults */
-/* SP800-38b recommends a minimum tag length of 64-bits */
 #ifndef WC_CMAC_TAG_MAX_SZ
     #define WC_CMAC_TAG_MAX_SZ 16
 #endif
-#ifndef WC_CMAC_TAG_MIN_SZ
+/* SP800-38b recommends a minimum tag length of 64-bits */
+#if FIPS_VERSION3_GE(7,0,0)
     #define WC_CMAC_TAG_MIN_SZ 8
+#elif !defined(WC_CMAC_TAG_MIN_SZ)
+    #define WC_CMAC_TAG_MIN_SZ 4
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)
