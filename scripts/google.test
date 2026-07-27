@@ -25,14 +25,30 @@ fi
 RESULT=$?
 [ $RESULT -ne 0 ] && exit 0
 
+# Run the client against the server. The server may answer ping but still drop
+# or throttle TCP connections from this host (Google does this to busy CI
+# egress IPs). Failing to open the TCP connection exercises no wolfSSL code,
+# so treat it like the unreachable-server case above and skip instead of
+# failing.
+run_client() {
+    OUTPUT="$(./examples/client/client "$@" 2>&1)"
+    RESULT=$?
+    echo "$OUTPUT"
+    if [ $RESULT -ne 0 ] && echo "$OUTPUT" | grep -q 'tcp connect failed'; then
+        echo -e "\n\ntcp connect to $server failed, skipping"
+        exit 77
+    fi
+    return $RESULT
+}
+
 # client test against the server
-./examples/client/client -X -C -h $server -p 443 -g -d
+run_client -X -C -h $server -p 443 -g -d
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 if ./examples/client/client -V | grep -q 4; then
     # client test against the server using TLS v1.3
-    ./examples/client/client -v 4 -X -C -h $server -p 443 -g -d
+    run_client -v 4 -X -C -h $server -p 443 -g -d
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nTLSv1.3 Client connection failed" && exit 1
 fi
