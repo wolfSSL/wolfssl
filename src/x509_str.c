@@ -632,37 +632,6 @@ static int X509StoreMoveCert(WOLFSSL_STACK *certs_stack,
     return WOLFSSL_FAILURE;
 }
 
-/* Remove the first node referencing `cert` (by pointer identity) from `stack`.
- * The certificate object itself is not freed - the stack only holds a borrowed
- * reference. Returns WOLFSSL_SUCCESS if a node was removed, WOLFSSL_FAILURE if
- * `cert` was not present, or WOLFSSL_FATAL_ERROR if `stack`/`cert` is NULL.
- * The only caller performs best-effort cleanup and intentionally ignores the
- * return value.
- *
- * Walks the linked list once (O(n)) rather than indexing with
- * wolfSSL_sk_X509_value() per position (which would re-walk from the head each
- * time, O(n^2)). */
-static int X509StoreRemoveCert(WOLFSSL_STACK *stack, WOLFSSL_X509 *cert) {
-    WOLFSSL_STACK* node;
-    int idx;
-    int num;
-
-    if (stack == NULL || cert == NULL)
-        return WOLFSSL_FATAL_ERROR;
-
-    num = wolfSSL_sk_X509_num(stack);
-    for (node = stack, idx = 0; idx < num && node != NULL;
-            node = node->next, idx++) {
-        if (node->data.x509 == cert) {
-            (void)wolfSSL_sk_pop_node(stack, idx);
-            return WOLFSSL_SUCCESS;
-        }
-    }
-
-    return WOLFSSL_FAILURE;
-}
-
-
 /* Push x509 onto the ctx chain with its own reference, like OpenSSL.
  * The chain owns a reference to each of its certs. */
 static int X509StoreChainPush(WOLF_STACK_OF(WOLFSSL_X509)* chain,
@@ -715,12 +684,11 @@ static int X509DerEquals(WOLFSSL_X509* cur, WOLFSSL_X509* x509)
                    x509->derCert->length) == 0;
 }
 
-/* Returns 1 if x509's DER matches an entry in either origTrustedSk (an
- * immutable snapshot of the caller's trusted set captured before any
- * intermediates were injected for this verification call) or in
- * store->trusted.  Returns 0 otherwise.  Used by the
- * X509_V_FLAG_PARTIAL_CHAIN fallback to confirm that a chain actually
- * terminates at a caller-trusted certificate. */
+/* Returns 1 if x509's DER matches an entry in either origTrustedSk (the
+ * caller's trusted stack - store->certs or the set0_trusted_stack override -
+ * which chain building leaves unmodified) or in store->trusted.  Returns 0
+ * otherwise.  Used by the X509_V_FLAG_PARTIAL_CHAIN fallback to confirm that
+ * a chain actually terminates at a caller-trusted certificate. */
 static int X509StoreCertIsTrusted(WOLFSSL_X509_STORE* store,
         WOLFSSL_X509* x509, WOLF_STACK_OF(WOLFSSL_X509)* origTrustedSk)
 {
@@ -859,8 +827,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int done = 0;
     int added = 0;
-    int i = 0;
-    int numFailedCerts = 0;
     int depth = 0;
     int origDepth = 0;
     WOLFSSL_X509 *issuer = NULL;
@@ -876,54 +842,33 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    certs = ctx->store->certs;
-
+    /* Chain building mutates the working stack: caller-supplied intermediates
+     * are appended and X509VerifyCertSetupRetry moves failed certs out of it.
+     * store->certs is shared by every connection using this store and
+     * setTrustedSk is owned by the caller, so build a per-verification
+     * shallow copy and leave both untouched. */
+    origTrustedSk = ctx->store->certs;
     if (ctx->setTrustedSk != NULL) {
-        certs = ctx->setTrustedSk;
+        origTrustedSk = ctx->setTrustedSk;
     }
 
-    if (certs == NULL &&
-        wolfSSL_sk_X509_num(ctx->ctxIntermediates) > 0) {
-        certsToUse = wolfSSL_sk_X509_new_null();
-        if (certsToUse == NULL) {
-            ret = WOLFSSL_FAILURE;
-            goto exit;
-        }
-        ret = addAllButSelfSigned(certsToUse, ctx->ctxIntermediates, NULL);
-        /* certsToUse holds only injected intermediates, none are trusted, so
-         * leave origTrustedSk NULL (empty snapshot). */
-        certs = certsToUse;
+    if (origTrustedSk != NULL) {
+        certsToUse = wolfSSL_shallow_sk_dup(origTrustedSk);
     }
     else {
-        /* Snapshot the caller-trusted entries before injecting the
-         * caller-supplied untrusted intermediates.  Only the entries already
-         * present count as trusted for the partial-chain check below, and
-         * we need a stable reference because X509VerifyCertSetupRetry may
-         * remove nodes from `certs` during chain building. */
-        if (certs != NULL && wolfSSL_sk_X509_num(certs) > 0) {
-            int j;
-            int n = wolfSSL_sk_X509_num(certs);
-            origTrustedSk = wolfSSL_sk_X509_new_null();
-            if (origTrustedSk == NULL) {
-                ret = WOLFSSL_FAILURE;
-                goto exit;
-            }
-            for (j = 0; j < n; j++) {
-                if (wolfSSL_sk_X509_push(origTrustedSk,
-                        wolfSSL_sk_X509_value(certs, j)) <= 0) {
-                    ret = WOLFSSL_FAILURE;
-                    goto exit;
-                }
-            }
-        }
-        /* Add the intermediates provided on init to the list of untrusted
-         * intermediates to be used.  They are removed again from `certs` in the
-         * exit cleanup (by identity, recomputed from ctxIntermediates). */
-        ret = addAllButSelfSigned(certs, ctx->ctxIntermediates, NULL);
+        certsToUse = wolfSSL_sk_X509_new_null();
     }
+    if (certsToUse == NULL) {
+        ret = WOLFSSL_FAILURE;
+        goto exit;
+    }
+    /* Add the intermediates provided on init to the list of untrusted
+     * intermediates to be used. */
+    ret = addAllButSelfSigned(certsToUse, ctx->ctxIntermediates, NULL);
     if (ret != WOLFSSL_SUCCESS) {
         goto exit;
     }
+    certs = certsToUse;
 
     if (ctx->chain != NULL) {
         wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
@@ -1115,40 +1060,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
 exit:
-    /* Copy back failed certs. */
-    numFailedCerts = wolfSSL_sk_X509_num(failedCerts);
-    for (i = 0; i < numFailedCerts; i++)
-    {
-        wolfSSL_sk_X509_push(certs, wolfSSL_sk_X509_pop(failedCerts));
-    }
-    wolfSSL_sk_X509_pop_free(failedCerts, NULL);
+    /* failedCerts and certsToUse hold only borrowed references; free the
+     * stack nodes, not the certs.  origTrustedSk is the caller's own stack
+     * and must not be freed. */
+    wolfSSL_sk_X509_free(failedCerts);
 
-    /* Remove the caller-supplied intermediates that addAllButSelfSigned
-     * appended to `certs` during chain building, restoring it to its original
-     * contents.  Remove them by pointer identity from the same stack they were
-     * added to (store->certs in the common case, or the caller's setTrustedSk
-     * via X509_STORE_CTX_set0_trusted_stack), recomputed from ctxIntermediates
-     * with the same self-signed filter as the add.
-     *
-     * Identity removal - not a saved count + positional pop - is required:
-     * X509VerifyCertSetupRetry reorders `certs` during chain building, so
-     * popping N entries off the top could drop a legitimate trusted entry and
-     * leave an injected intermediate behind, which a later verification reusing
-     * this store/ctx would then snapshot as a trust anchor.  certsToUse is the
-     * throwaway certs==NULL path and is freed wholesale below, so skip it. */
-    if (ctx != NULL && certsToUse == NULL && certs != NULL &&
-            ctx->ctxIntermediates != NULL) {
-        int n = wolfSSL_sk_X509_num(ctx->ctxIntermediates);
-        for (i = 0; i < n; i++) {
-            WOLFSSL_X509* inter =
-                wolfSSL_sk_X509_value(ctx->ctxIntermediates, i);
-            if (inter != NULL &&
-                    wolfSSL_X509_NAME_cmp(&inter->issuer, &inter->subject)
-                        != 0) {
-                X509StoreRemoveCert(certs, inter);
-            }
-        }
-    }
     /* Remove intermediates that were added to CM */
     if (ctx != NULL) {
         if (ctx->store != NULL) {
@@ -1160,13 +1076,7 @@ exit:
             ctx->current_cert = orig;
         }
     }
-    if (certsToUse != NULL) {
-        wolfSSL_sk_X509_free(certsToUse);
-    }
-    if (origTrustedSk != NULL) {
-        /* Shallow free: only the snapshot's stack nodes, not the X509s. */
-        wolfSSL_sk_X509_free(origTrustedSk);
-    }
+    wolfSSL_sk_X509_free(certsToUse);
 
     /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
      * Always check against the leaf (end-entity) certificate, captured in
