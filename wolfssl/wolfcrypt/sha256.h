@@ -58,6 +58,10 @@
     #include "cy_crypto_core.h"
 #endif
 
+#ifndef WC_HAVE_SHA2_NO_SMALL_STACK
+    #define WC_HAVE_SHA2_NO_SMALL_STACK
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -207,7 +211,7 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#ifdef WOLFSSL_SMALL_STACK_CACHE
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WC_SHA2_NO_SMALL_STACK)
     word32* W;
 #endif /* !FREESCALE_LTC_SHA && !STM32_HASH_SHA2 */
 #ifdef WOLFSSL_DEVCRYPTO_HASH

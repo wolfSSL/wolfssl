@@ -180,6 +180,10 @@ extern int wolfcrypt_benchmark_main(int argc, char** argv);
 int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 {
     unsigned long irq_flags;
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
+        return BAD_FUNC_ARG;
+#endif
     /* first, try the cheap way. */
     if (spin_trylock_irqsave(&m->lock, irq_flags)) {
         m->irq_flags = irq_flags;

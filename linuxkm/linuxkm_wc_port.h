@@ -37,23 +37,23 @@
 
     #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
         #if defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-            #define WC_LINUXKM_HAVE_SELFTEST
+            #define WC_LINUX_CONFIG_SELFTESTS
         #endif
-        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
-            #define WC_LINUXKM_HAVE_SELFTEST_FULL
+        #if defined(WC_LINUX_CONFIG_SELFTESTS) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
+            #define WC_LINUX_CONFIG_SELFTESTS_FULL
         #endif
     #else
         /* see Linux 698de822780f */
         #if defined(CONFIG_CRYPTO_MANAGER) && defined(CONFIG_CRYPTO_SELFTESTS)
-            #define WC_LINUXKM_HAVE_SELFTEST
+            #define WC_LINUX_CONFIG_SELFTESTS
         #endif
         /* see Linux ac90aad0e9 */
-        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_SELFTESTS_FULL)
-            #define WC_LINUXKM_HAVE_SELFTEST_FULL
+        #if defined(WC_LINUX_CONFIG_SELFTESTS) && defined(CONFIG_CRYPTO_SELFTESTS_FULL)
+            #define WC_LINUX_CONFIG_SELFTESTS_FULL
         #endif
     #endif
 
-    #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(WC_LINUXKM_HAVE_SELFTEST_FULL)
+    #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(WC_LINUX_CONFIG_SELFTESTS_FULL)
         /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS expects AES-XTS-384 to work, even when CONFIG_CRYPTO_FIPS, but FIPS 140-3 only allows AES-XTS-256 and AES-XTS-512. */
         #error CONFIG_CRYPTO_MANAGER_EXTRA_TESTS is incompatible with FIPS wolfCrypt AES-XTS -- please reconfigure the target kernel to disable CONFIG_CRYPTO_MANAGER_EXTRA_TESTS/CONFIG_CRYPTO_SELFTESTS_FULL.
     #endif
@@ -64,7 +64,7 @@
      * disabled), and kernel module signatures frequently use SHA-1 until quite
      * recently.
      */
-    #if (defined(WC_LINUXKM_HAVE_SELFTEST) || defined(CONFIG_MODULE_SIG_SHA1)) && \
+    #if (defined(WC_LINUX_CONFIG_SELFTESTS) || defined(CONFIG_MODULE_SIG_SHA1)) && \
         (((defined(WC_MIN_DIGEST_SIZE_FOR_VERIFY) && (WC_MIN_DIGEST_SIZE_FOR_VERIFY > 20)) || \
          (defined(NO_SHA) && !defined(WC_MIN_DIGEST_SIZE_FOR_VERIFY)))) && \
         defined(HAVE_ECC) && \
@@ -445,7 +445,7 @@
     #include <linux/fips.h>
 
     /* Kernel non-FIPS self-test ("testmgr") has a KAT with all-zeros keys. */
-    #if defined(WC_LINUXKM_HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #if defined(WC_LINUX_CONFIG_SELFTESTS) && !defined(HAVE_FIPS)
         #define WC_AES_XTS_ALLOW_DUPLICATE_KEYS
     #endif
 
@@ -1962,9 +1962,28 @@
         typedef struct wolfSSL_Mutex {
             spinlock_t lock;
             unsigned long irq_flags;
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            unsigned int magic;
+        #endif
         } wolfSSL_Mutex;
 
-        #define WOLFSSL_MUTEX_INITIALIZER(lockname) { .lock =__SPIN_LOCK_UNLOCKED(lockname), .irq_flags = 0 }
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            #define WC_LINUXKM_SPINLOCK_MAGIC 1702166717U
+
+            #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
+               .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
+               .irq_flags = 0,                            \
+               .magic = WC_LINUXKM_SPINLOCK_MAGIC         \
+            }
+
+        #else
+
+            #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
+               .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
+               .irq_flags = 0                             \
+            }
+
+        #endif
 
         static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
         {
@@ -1975,12 +1994,24 @@
             spin_lock_init(&m->lock);
         #endif
             m->irq_flags = 0;
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            m->magic = WC_LINUXKM_SPINLOCK_MAGIC;
+        #endif
 
             return 0;
         }
 
         static __always_inline int wc_FreeMutex(wolfSSL_Mutex* m)
         {
+        #ifdef CONFIG_DEBUG_SPINLOCK
+            /* clear raw_spinlock.magic, but without drilling through the
+             * abstraction barrier.
+             */
+            memset(&m->lock, 0, sizeof m->lock);
+        #endif
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            m->magic = 0;
+        #endif
             (void)m;
             return 0;
         }
@@ -2005,6 +2036,10 @@
 
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
+                return -1;
+        #endif
             spin_unlock_irqrestore(&m->lock, m->irq_flags);
             return 0;
         }

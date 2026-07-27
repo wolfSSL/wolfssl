@@ -2498,7 +2498,8 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
     /*
      *  test DH public key print
      */
-#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && \
+    defined(USE_CERT_BUFFERS_2048)
 
     ExpectNotNull(rbio = BIO_new_mem_buf( dh_pub_key_der_2048,
         sizeof_dh_pub_key_der_2048));
@@ -2555,7 +2556,7 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
     rbio = NULL;
     wbio = NULL;
 
-#endif /* WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
+#endif /* !NO_DH && WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
 
     /* to prevent "unused variable" warning */
     (void)pkey;

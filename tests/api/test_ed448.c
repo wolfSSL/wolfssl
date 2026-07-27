@@ -253,6 +253,7 @@ int test_wc_ed448_import_public(void)
     ExpectIntEQ(wc_ed448_import_public(in, inlen - 1, &pubKey),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* MC/DC: wc_ed448_import_public_ex()'s tri-state length check
      * (inLen != PUB_KEY_SIZE && inLen != PUB_KEY_SIZE+1 &&
      *  inLen != 2*PUB_KEY_SIZE+1) -- close the third operand's FALSE side
@@ -297,6 +298,7 @@ int test_wc_ed448_import_public(void)
         ExpectIntEQ(wc_ed448_import_public_ex(uncompressed,
             ED448_PUB_KEY_SIZE, &pubKey, 1), 0);
     }
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&pubKey);
@@ -1089,6 +1091,7 @@ int test_wc_Ed448DecisionCoverage(void)
         &key, NULL, 0), 0);
     ExpectIntEQ(verify, 1);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* type == Ed448ph && inLen != ED448_PREHASH_SIZE -> BAD_LENGTH_E
      * (sign_hash forwards hashLen as inLen with type Ed448ph). */
     sigLen = sizeof(sig);
@@ -1103,6 +1106,7 @@ int test_wc_Ed448DecisionCoverage(void)
      * TRUE, msgLen != PREHASH_SIZE FALSE) for the length operand. */
     ExpectIntEQ(wc_ed448ph_verify_hash(sig, sigLen, badhash, sizeof(badhash),
         &verify, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&key);

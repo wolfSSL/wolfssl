@@ -554,7 +554,7 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
     /* 6 ECDSA (struct sig_testvec) test vectors in crypto/testmgr.h use SHA-1
      * (m_size 20).
      */
-#ifdef WC_LINUXKM_HAVE_SELFTEST
+#ifdef WC_LINUX_CONFIG_SELFTESTS
     wc_static_assert2(WC_MIN_DIGEST_SIZE_FOR_VERIFY <= 20,
                       "WC_MIN_DIGEST_SIZE_FOR_VERIFY must allow SHA-1-sized digests when "
                       "native kernel self-test is enabled.");
@@ -676,7 +676,7 @@ static int km_ecdsa_verify(struct akcipher_request *req)
     /* 6 ECDSA (struct sig_testvec) test vectors in crypto/testmgr.h use SHA-1
      * (m_size 20).
      */
-#ifdef WC_LINUXKM_HAVE_SELFTEST
+#ifdef WC_LINUX_CONFIG_SELFTESTS
     wc_static_assert2(WC_MIN_DIGEST_SIZE_FOR_VERIFY <= 20,
                       "WC_MIN_DIGEST_SIZE_FOR_VERIFY must allow SHA-1-sized digests when "
                       "native kernel self-test is enabled.");
@@ -1177,16 +1177,16 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
      */
     tfm = crypto_alloc_akcipher(driver, 0, 0);
     if (IS_ERR(tfm)) {
-        #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&       \
-            defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
-            !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+        #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
+            defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
+            defined(WC_LINUX_CONFIG_SELFTESTS)
         /* ecdsa was not recognized as fips_allowed before linux v6.3
          * in kernel crypto/testmgr.c, and the kernel will block
          * its allocation if fips_enabled is set. */
         if ((PTR_ERR(tfm) == -ENOENT) && fips_enabled) {
             pr_info("info: skipping unsupported akcipher algorithm %s: %d\n",
                     driver, (int)PTR_ERR(tfm));
-            test_rc = NOT_COMPILED_IN;
+            test_rc = FIPS_NOT_ALLOWED_E;
         }
         else
         #endif

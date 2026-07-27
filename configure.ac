@@ -7374,9 +7374,9 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha384" != "yes")],
             [enable_sha384="no"; ENABLED_SHA384="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA384 -UWOLFSSL_SHA384"])
 
-        AS_IF([test "$ENABLED_SHA512" != "no" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha512" != "yes")],
-            [enable_sha512="no"; ENABLED_SHA512="no"; ENABLED_SHA512_DRBG="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA512 -UWOLFSSL_SHA384"])
+        AS_IF([test "$ENABLED_SHA512" = "no" &&
+               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha512" != "no")],
+            [enable_sha512="yes"; ENABLED_SHA512="yes"; ENABLED_SHA512_DRBG="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
 
         # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
@@ -11633,6 +11633,8 @@ then
         'ofb(aes)') test "$ENABLED_AESOFB" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-OFB implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESOFB" ;;
         'ecb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESECB -DHAVE_AES_ECB" ;;
+        'cmac(aes)') test "$ENABLED_CMAC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CMAC implementation not enabled.])
+                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESCMAC -DHAVE_AES_ECB" ;;
         'all-aes') test "$ENABLED_AES" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES is disabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AES_ALL" ;;
         'sha1')     test "$ENABLED_SHA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-1 implementation not enabled.])
@@ -11676,6 +11678,7 @@ then
         '-ctr(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCTR" ;;
         '-ofb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESOFB" ;;
         '-ecb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESECB" ;;
+        '-cmac(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCMAC" ;;
         '-all-aes') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AES_ALL" ;;
         '-sha1')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA1" ;;
         '-sha2')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA2" ;;

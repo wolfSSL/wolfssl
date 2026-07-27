@@ -36,6 +36,10 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
+#ifndef WC_HAVE_SHA2_NO_SMALL_STACK
+    #define WC_HAVE_SHA2_NO_SMALL_STACK
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -165,7 +169,7 @@ struct wc_Sha512 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#ifdef WOLFSSL_SMALL_STACK_CACHE
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WC_SHA2_NO_SMALL_STACK)
     word64* W;
 #endif
 
