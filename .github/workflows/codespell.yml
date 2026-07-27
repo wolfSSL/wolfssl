@@ -27,8 +27,8 @@ jobs:
         check_filenames: true
         check_hidden: true
           # Add comma separated list of words that occur multiple times that should be ignored (sorted alphabetically, case sensitive)
-        ignore_words_list: adin,ameba,aNULL,brunch,carryIn,chainG,ciph,cLen,cliKs,dout,FPR,fpr,haveA,inCreated,inOut,inout,larg,LEAPYEAR,Merget,optionA,parm,parms,repid,rIn,userA,ser,siz,te,Te,HSI,failT,toLen,vor,
+        ignore_words_list: adin,ameba,aNULL,brunch,carryIn,chainG,ciph,cLen,cliKs,cna,dout,FPR,fpr,haveA,inCreated,inOut,inout,larg,LEAPYEAR,Merget,optionA,parm,parms,repid,rIn,userA,ser,siz,te,Te,HSI,failT,toLen,vor,
           # The exclude_file contains lines of code that should be ignored. This is useful for individual lines which have non-words that can safely be ignored.
         exclude_file: '.codespellexcludelines'
           # To skip files entirely from being processed, add it to the following list:
-        skip: '*.cproject,*.csr,*.der,*.mtpj,*.pem,*.vcxproj,.git,*.launch,*.scfg,*.revoked,./examples/asn1/dumpasn1.cfg,./examples/asn1/oid_names.h'
+        skip: '*.cproject,*.csr,*.der,*.mtpj,*.pem,*.vcxproj,.git,*.launch,*.scfg,*.revoked,./examples/asn1/dumpasn1.cfg,./examples/asn1/oid_names.h,./scripts/cwe-names.json'

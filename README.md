@@ -34,6 +34,40 @@ applications which have previously used the OpenSSL package. For a complete
 feature list, see [Chapter 4](https://www.wolfssl.com/docs/wolfssl-manual/ch4/)
 of the wolfSSL manual.
 
+## SBOM / CRA Compliance
+
+wolfSSL provides a Software Bill of Materials (SBOM) for EU Cyber Resilience
+Act (CRA) compliance via two entry points:
+
+- `python3 scripts/gen-sbom …` for embedded / RTOS / IDE-based builds
+  (Keil, IAR, STM32CubeIDE, ESP-IDF, Zephyr, plain CMake, custom Makefile)
+  configured through a hand-edited `user_settings.h`. No autotools required.
+- `make sbom` for Linux server / Debian / RPM / Yocto / FIPS-Ready
+  builds that already use `./configure && make`.
+
+Both produce SPDX 2.3 + CycloneDX 1.6 JSON intended to satisfy the
+NTIA minimum elements. The `make sbom` path additionally runs
+SPDX-spec validation via `pyspdxtools` and gates the build on it;
+the standalone path validates only on demand (see `doc/SBOM.md`
+§ 1.3). Neither path runs an NTIA-minimum-elements checker by
+default. See `doc/SBOM.md` for per-toolchain recipes and the full
+flag reference.
+
+## OmniBOR / Bomsh
+
+wolfSSL supports generating an OmniBOR artifact dependency graph via
+`make bomsh`, providing cryptographic traceability from the installed
+library back to every source file that produced it. See `doc/SBOM.md`
+for details.
+
+## Security advisories (CSAF / VEX)
+
+wolfSSL can generate machine-readable security advisories via
+`make advisory` (requires `python3`), emitting one CSAF 2.0 document
+and one CycloneDX 1.6 VEX document per CVE into `advisories/out/`
+(`*.csaf.json` and `*.cdx.json`) from the git-tracked records under
+`advisories/`. See section 21 of `INSTALL` for details.
+
 ## Notes, Please Read
 
 ### Note 1
