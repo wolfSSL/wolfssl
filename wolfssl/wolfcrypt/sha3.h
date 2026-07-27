@@ -390,6 +390,24 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
         WOLFSSL_LOCAL void sha3_blocksx4_avx2(word64* s);
     #endif
 #elif defined(USE_INTEL_SPEEDUP)
+    /* Choose between the single-instance AVX2 and BMI2 Keccak-f[1600] block
+     * functions.  Measured (Ethereum "Optimizing Keccak"; OpenSSL
+     * keccak1600-x86_64.pl): AVX2 is ~13-17% faster than BMI2 on Intel
+     * Haswell..Skylake, tied on Ice Lake, but ~2x SLOWER on AMD Zen, so AVX2
+     * is Intel-only.  (Single-stream AVX-512 is vpermt2q-bound and slower
+     * than BMI2 everywhere measured, so it is not built.)
+     * Every caller of sha3_block_avx2()/sha3_block_n_avx2() must select with
+     * this and not with IS_INTEL_AVX2() alone.
+     * Overrides: WOLFSSL_SHA3_AVX2 forces AVX2 on any vendor with it;
+     *            WOLFSSL_SHA3_NO_AVX2 never uses AVX2. */
+#if defined(WOLFSSL_SHA3_NO_AVX2)
+    #define SHA3_USE_AVX2(f) 0
+#elif defined(WOLFSSL_SHA3_AVX2)
+    #define SHA3_USE_AVX2(f) IS_INTEL_AVX2(f)
+#else
+    #define SHA3_USE_AVX2(f) (IS_INTEL_AVX2(f) && IS_CPU_INTEL(f))
+#endif
+
     WOLFSSL_LOCAL void sha3_block_n_bmi2(word64* s, const byte* data, word32 n,
         word64 c);
     WOLFSSL_LOCAL void sha3_block_bmi2(word64* s);
@@ -405,6 +423,8 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
     WOLFSSL_LOCAL void sha3_blocksx8_avx512(word64* s);
     WOLFSSL_LOCAL void sha3_128_blocksx8_seed_avx512(word64* s, byte* seed);
     WOLFSSL_LOCAL void sha3_256_blocksx8_seed_avx512(word64* s, byte* seed);
+    /* 64-byte seed variant - absorbs state words 0..7, nonce in word 8. */
+    WOLFSSL_LOCAL void sha3_256_blocksx8_seed_64_avx512(word64* s, byte* seed);
 #endif
 
     WOLFSSL_LOCAL void sha3_128_blocksx4_seed_avx2(word64* s, byte* seed);
