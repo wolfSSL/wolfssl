@@ -8051,7 +8051,7 @@ int SetupClientSecureRenegotiation(WOLFSSL* ssl)
     int ret = WOLFSSL_SUCCESS;
 
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        int useSecureReneg = ssl->ctx->useSecureReneg;
+        int useSecureReneg;
     #ifdef HAVE_SECURE_RENEGOTIATION
         int advertiseOnly = 0;
     #endif
@@ -8068,10 +8068,12 @@ int SetupClientSecureRenegotiation(WOLFSSL* ssl)
         /* Advertising was forced on for the RFC 5746 check, not requested by
          * the application, so do not also grant willingness to perform a
          * peer-initiated renegotiation. */
-        if (!useSecureReneg)
+        if (!ssl->ctx->useSecureReneg)
             advertiseOnly = 1;
     #endif
         useSecureReneg = 1;
+    #else
+        useSecureReneg = ssl->ctx->useSecureReneg;
     #endif
         if (useSecureReneg) {
             ret = wolfSSL_UseSecureRenegotiation(ssl);
