@@ -6573,6 +6573,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             current->sess_free_cb(ssl, current->sess,
                     &current->sess_free_cb_ctx);
             current->sess = NULL;
+            current->sess_free_cb = NULL;
             XMEMSET(&current->sess_free_cb_ctx, 0,
                     sizeof(psk_sess_free_cb_ctx));
         }
@@ -6590,6 +6591,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                     current->sess_free_cb(ssl, current->sess,
                             &current->sess_free_cb_ctx);
                     current->sess = NULL;
+                    current->sess_free_cb = NULL;
                     XMEMSET(&current->sess_free_cb_ctx, 0,
                             sizeof(psk_sess_free_cb_ctx));
                 }
@@ -6636,6 +6638,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                 current->sess_free_cb(ssl, current->sess,
                         &current->sess_free_cb_ctx);
                 current->sess = NULL;
+                current->sess_free_cb = NULL;
                 XMEMSET(&current->sess_free_cb_ctx, 0,
                         sizeof(psk_sess_free_cb_ctx));
             }
