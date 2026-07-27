@@ -40,6 +40,7 @@ int test_wc_Sha384HmacSetKey(void);
 int test_wc_Sha384HmacUpdate(void);
 int test_wc_Sha384HmacFinal(void);
 int test_tls_hmac_size_overflow(void);
+int test_tls_timing_pad_verify_hmac_len(void);
 int test_wc_HmacSizeByType(void);
 int test_wc_HmacCopy(void);
 int test_wc_HmacInit_Id(void);
@@ -64,6 +65,7 @@ int test_wc_HKDF_NullKeyEdgeCases(void);
     TEST_DECL_GROUP("hmac", test_wc_Sha384HmacUpdate),  \
     TEST_DECL_GROUP("hmac", test_wc_Sha384HmacFinal),   \
     TEST_DECL_GROUP("hmac", test_tls_hmac_size_overflow), \
+    TEST_DECL_GROUP("hmac", test_tls_timing_pad_verify_hmac_len), \
     TEST_DECL_GROUP("hmac", test_wc_HmacSizeByType),    \
     TEST_DECL_GROUP("hmac", test_wc_HmacCopy),          \
     TEST_DECL_GROUP("hmac", test_wc_HmacInit_Id),       \

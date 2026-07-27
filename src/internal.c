@@ -22730,11 +22730,13 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
 
     XMEMSET(verify, 0, WC_MAX_DIGEST_SIZE);
     good = MaskPadding(input, pLen, macSz);
-    /* 4th argument has potential to underflow, ssl->hmac function should
-     * either increment the size by (macSz + padLen + 1) before use or check on
-     * the size to make sure is valid. */
-    ret = ssl->hmac(ssl, verify, input, (word32)(pLen - macSz - padLen - 1), padLen,
-                                                        content, 1, PEER_ORDER);
+    /* An out of range padding length byte is already recorded in good, but the
+     * length handed to ssl->hmac must not underflow. Clamp it in constant time
+     * so that the same amount of hashing is done for every value of the
+     * padding length byte. */
+    padLen &= ctMaskIntGTE(pLen - macSz - 1, padLen);
+    ret = ssl->hmac(ssl, verify, input, (word32)(pLen - macSz - padLen - 1),
+                                        padLen, content, 1, PEER_ORDER);
     good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
 
     /* Non-zero on failure. */

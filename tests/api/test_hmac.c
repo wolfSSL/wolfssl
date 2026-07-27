@@ -784,6 +784,91 @@ int test_tls_hmac_size_overflow(void)
     return EXPECT_RESULT();
 } /* END test_tls_hmac_size_overflow */
 
+/* TimingPadVerify is internal to the library, so this only links in a static
+ * build. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_HMAC) && \
+    !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_OLD_TIMINGPADVERIFY) && \
+    !defined(NO_SHA256) && !defined(NO_WOLFSSL_CLIENT)
+
+static int    tpvHmacCalls;
+static word32 tpvHmacSz;
+static int    tpvHmacPadSz;
+
+/* Record the length arguments TimingPadVerify hands to the MAC callback. */
+static int TpvRecordHmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
+                         int padSz, int content, int verify, int epochOrder)
+{
+    (void)ssl;
+    (void)digest;
+    (void)in;
+    (void)content;
+    (void)verify;
+    (void)epochOrder;
+
+    tpvHmacCalls++;
+    tpvHmacSz = sz;
+    tpvHmacPadSz = padSz;
+
+    return 0;
+}
+#endif
+
+/* The constant time CBC verify path must do the same amount of MAC work for
+ * every value of the attacker controlled padding length byte. TimingPadVerify
+ * passes (pLen - macSz - padLen - 1) to the MAC callback, so the padding length
+ * has to be clamped before that subtraction wraps around. A wrapped length
+ * makes TLS_hmac reject the record before hashing anything, which is a Lucky13
+ * style oracle. */
+int test_tls_timing_pad_verify_hmac_len(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_HMAC) && \
+    !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_OLD_TIMINGPADVERIFY) && \
+    !defined(NO_SHA256) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    byte         record[48];
+    int          macSz = WC_SHA256_DIGEST_SIZE;
+    int          pLen = (int)sizeof(record);
+    int          pad;
+
+    XMEMSET(record, 0, sizeof(record));
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    ExpectNotNull(ctx);
+    ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+
+    if (EXPECT_SUCCESS()) {
+        ssl->specs.hash_size = WC_SHA256_DIGEST_SIZE;
+        ssl->hmac = TpvRecordHmac;
+
+        for (pad = 0; (pad < 256) && EXPECT_SUCCESS(); pad++) {
+            record[pLen - 1] = (byte)pad;
+            tpvHmacCalls = 0;
+            tpvHmacSz = 0;
+            tpvHmacPadSz = 0;
+
+            (void)TimingPadVerify(ssl, record, pad, macSz, pLen,
+                                  application_data);
+
+            /* The MAC is always computed, over the whole record. */
+            ExpectIntEQ(tpvHmacCalls, 1);
+            ExpectTrue(tpvHmacSz <= (word32)pLen);
+            ExpectIntEQ((int)tpvHmacSz + macSz + tpvHmacPadSz + 1, pLen);
+        }
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* WOLFSSL_TEST_STATIC_BUILD && !NO_HMAC && !WOLFSSL_AEAD_ONLY &&
+        * !NO_TLS && !WOLFSSL_NO_TLS12 && !WOLFSSL_OLD_TIMINGPADVERIFY &&
+        * !NO_SHA256 && !NO_WOLFSSL_CLIENT */
+    return EXPECT_RESULT();
+} /* END test_tls_timing_pad_verify_hmac_len */
+
 /*
  * MC/DC: wc_HmacSizeByType() has its own physical copy of the "which hash
  * type" compound guard (a second, separately-tracked copy of the same-
