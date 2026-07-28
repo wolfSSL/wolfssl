@@ -51,6 +51,14 @@ int wolfEvent_Poll(WOLF_EVENT* event, WOLF_EVENT_FLAG flags)
 {
     int ret = WC_NO_ERR_TRACE(BAD_COND_E);
 
+    /* event/flags are only consumed by the async hardware poll below, which is
+     * compiled out in non-async builds (the event queue core is
+     * async-independent). */
+#ifndef WOLFSSL_ASYNC_CRYPT
+    (void)event;
+    (void)flags;
+#endif
+
     /* Check hardware */
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (event->type >= WOLF_EVENT_TYPE_ASYNC_FIRST &&
