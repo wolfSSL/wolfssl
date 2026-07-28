@@ -115,7 +115,13 @@ int wolfSSL_dtls_free_peer(void* addr)
 #ifdef WOLFSSL_DTLS
 /* Store a socket address into a socket address holder, resizing as needed.
  *
- * A NULL or zero-length peer frees the holder's buffer.
+ * A NULL or zero-length peer frees the holder's buffer. An address that fits
+ * the buffer already there is copied over it rather than reallocated:
+ * EmbedSendTo reads peer.sa without taking peerLock, so freeing it on every
+ * update would widen that race rather than leave it as it is.
+ *
+ * The record layer promotes a pending peer through this while already holding
+ * peerLock, so it takes no lock of its own.
  *
  * @param [in, out] sockAddr  Socket address holder.
  * @param [in]      peer      Socket address data, may be NULL to free.
@@ -124,8 +130,8 @@ int wolfSSL_dtls_free_peer(void* addr)
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FAILURE on allocation error.
  */
-static int SockAddrSet(WOLFSSL_SOCKADDR* sockAddr, void* peer,
-                       unsigned int peerSz, void* heap)
+int wolfssl_local_SockAddrSet(WOLFSSL_SOCKADDR* sockAddr, void* peer,
+                              unsigned int peerSz, void* heap)
 {
     if (peer == NULL || peerSz == 0) {
         if (sockAddr->sa != NULL)
@@ -174,7 +180,8 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
     if (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) != 0)
         return WOLFSSL_FAILURE;
 #endif
-    ret = SockAddrSet(&ssl->buffers.dtlsCtx.peer, peer, peerSz, ssl->heap);
+    ret = wolfssl_local_SockAddrSet(&ssl->buffers.dtlsCtx.peer, peer, peerSz,
+            ssl->heap);
     if (ret == WOLFSSL_SUCCESS && !(peer == NULL || peerSz == 0))
         ssl->buffers.dtlsCtx.userSet = 1;
     else
@@ -212,7 +219,7 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 #ifdef WOLFSSL_RW_THREADED
-    if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
+    if (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) != 0)
         return WOLFSSL_FAILURE;
 #endif
     if (ssl->buffers.dtlsCtx.peer.sa != NULL &&
@@ -232,8 +239,8 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
         ret = WOLFSSL_SUCCESS;
     }
     else {
-        ret = SockAddrSet(&ssl->buffers.dtlsCtx.pendingPeer, peer, peerSz,
-                ssl->heap);
+        ret = wolfssl_local_SockAddrSet(&ssl->buffers.dtlsCtx.pendingPeer,
+                peer, peerSz, ssl->heap);
     }
     if (ret == WOLFSSL_SUCCESS)
         ssl->buffers.dtlsCtx.processingPendingRecord = 0;
