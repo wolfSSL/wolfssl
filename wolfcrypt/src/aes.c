@@ -7921,11 +7921,17 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
                 /* reset number of blocks and then do encryption */
                 blocks = sz / WC_AES_BLOCK_SIZE;
-                wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
-                xorbuf(out, in, WC_AES_BLOCK_SIZE * blocks);
-                in += WC_AES_BLOCK_SIZE * blocks;
-                out += WC_AES_BLOCK_SIZE * blocks;
-                sz -= blocks * WC_AES_BLOCK_SIZE;
+                ret = wc_AesEcbEncrypt(aes, out, out,
+                                       WC_AES_BLOCK_SIZE * blocks);
+                if (ret == 0) {
+                    xorbuf(out, in, WC_AES_BLOCK_SIZE * blocks);
+                    in += WC_AES_BLOCK_SIZE * blocks;
+                    out += WC_AES_BLOCK_SIZE * blocks;
+                    sz -= blocks * WC_AES_BLOCK_SIZE;
+                }
+                else {
+                    ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+                }
             }
             else
         #endif
@@ -10752,7 +10758,11 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
 
         /* reset number of blocks and then do encryption */
         blocks = sz / WC_AES_BLOCK_SIZE;
-        wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        if (ret != 0) {
+            ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+            return ret;
+        }
         xorbuf(out, p, WC_AES_BLOCK_SIZE * blocks);
         p += WC_AES_BLOCK_SIZE * blocks;
     }
@@ -11572,7 +11582,11 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         /* reset number of blocks and then do encryption */
         blocks = sz / WC_AES_BLOCK_SIZE;
 
-        wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        if (ret != 0) {
+            ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+            return ret;
+        }
         xorbuf(out, c, WC_AES_BLOCK_SIZE * blocks);
         c += WC_AES_BLOCK_SIZE * blocks;
     }
@@ -12081,7 +12095,11 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
         }
 
         /* Encrypt counter blocks. */
-        wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        ret = wc_AesEcbEncrypt(aes, out, out, WC_AES_BLOCK_SIZE * blocks);
+        if (ret != 0) {
+            ForceZero(out, WC_AES_BLOCK_SIZE * blocks);
+            return ret;
+        }
         /* XOR in plaintext. */
         xorbuf(out, in, WC_AES_BLOCK_SIZE * blocks);
         /* Skip over processed data. */

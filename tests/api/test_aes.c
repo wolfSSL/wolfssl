@@ -12321,3 +12321,179 @@ int test_wc_AesOfb_MonteCarlo(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && defined(HAVE_AES_ECB) && \
+    defined(WOLFSSL_AES_128) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    (defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AESGCM))
+
+#define TEST_CRYPTOCB_AESECB_FAIL_DEVID  13
+
+static int cryptoCbAesEcbFailCalled = 0;
+
+static int test_CryptoCb_AesEcbFail_Cb(int devId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER &&
+            info->cipher.type == WC_CIPHER_AES_ECB) {
+        cryptoCbAesEcbFailCalled++;
+        return WC_HW_E;
+    }
+
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+#define TEST_AESECB_FAIL_SZ   (2 * WC_AES_BLOCK_SIZE)
+
+int test_wc_AesEcb_RetCodeChecked(void)
+{
+    EXPECT_DECLS;
+    const byte key[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    byte plain[TEST_AESECB_FAIL_SZ];
+    byte out[TEST_AESECB_FAIL_SZ];
+    byte zeros[TEST_AESECB_FAIL_SZ];
+    int devRegistered = 0;
+    int exercised = 0;
+
+    XMEMSET(plain, 0x5a, sizeof(plain));
+    XMEMSET(zeros, 0, sizeof(zeros));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_AESECB_FAIL_DEVID,
+        test_CryptoCb_AesEcbFail_Cb, NULL), 0);
+    if (EXPECT_SUCCESS())
+        devRegistered = 1;
+
+#ifdef WOLFSSL_AES_COUNTER
+    {
+        Aes aes;
+        int ret = 0;
+        byte iv[WC_AES_BLOCK_SIZE] = {
+            0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+            0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0x00
+        };
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        XMEMSET(out, 0, sizeof(out));
+        cryptoCbAesEcbFailCalled = 0;
+
+        ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AESECB_FAIL_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, key, sizeof(key), iv, AES_ENCRYPTION), 0);
+#ifdef WOLFSSL_AESNI
+        aes.use_aesni = 0;
+#endif
+        if (EXPECT_SUCCESS())
+            ret = wc_AesCtrEncrypt(&aes, out, plain, sizeof(plain));
+
+        if (cryptoCbAesEcbFailCalled != 0) {
+            exercised = 1;
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_HW_E));
+            ExpectBufEQ(out, zeros, sizeof(out));
+        }
+
+        wc_AesFree(&aes);
+    }
+#endif /* WOLFSSL_AES_COUNTER */
+
+#ifdef HAVE_AESGCM
+    {
+        Aes aes;
+        int ret = 0;
+        byte iv[GCM_NONCE_MID_SZ] = {
+            0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5,
+            0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb
+        };
+        byte tag[WC_AES_BLOCK_SIZE];
+
+        XMEMSET(tag, 0, sizeof(tag));
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        XMEMSET(out, 0, sizeof(out));
+        cryptoCbAesEcbFailCalled = 0;
+
+        ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AESECB_FAIL_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+#ifdef WOLFSSL_AESNI
+        aes.use_aesni = 0;
+#endif
+        if (EXPECT_SUCCESS()) {
+            ret = wc_AesGcmEncrypt(&aes, out, plain, sizeof(plain),
+                iv, sizeof(iv), tag, sizeof(tag), NULL, 0);
+        }
+        if (cryptoCbAesEcbFailCalled != 0) {
+            exercised = 1;
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_HW_E));
+            ExpectBufEQ(out, zeros, sizeof(out));
+        }
+        wc_AesFree(&aes);
+
+        XMEMSET(&aes, 0, sizeof(aes));
+        XMEMSET(out, 0, sizeof(out));
+        cryptoCbAesEcbFailCalled = 0;
+
+        ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AESECB_FAIL_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
+#ifdef WOLFSSL_AESNI
+        aes.use_aesni = 0;
+#endif
+        /* the tag is bogus, but the ECB failure is hit before it is checked
+         * unless the build authenticates early */
+        if (EXPECT_SUCCESS()) {
+            ret = wc_AesGcmDecrypt(&aes, out, plain, sizeof(plain),
+                iv, sizeof(iv), tag, sizeof(tag), NULL, 0);
+        }
+        if (cryptoCbAesEcbFailCalled != 0) {
+            exercised = 1;
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_HW_E));
+            ExpectBufEQ(out, zeros, sizeof(out));
+        }
+        wc_AesFree(&aes);
+
+#ifdef WOLFSSL_AESGCM_STREAM
+        XMEMSET(&aes, 0, sizeof(aes));
+        XMEMSET(out, 0, sizeof(out));
+        cryptoCbAesEcbFailCalled = 0;
+
+        ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_AESECB_FAIL_DEVID), 0);
+        ExpectIntEQ(wc_AesGcmEncryptInit(&aes, key, sizeof(key), iv,
+            sizeof(iv)), 0);
+#ifdef WOLFSSL_AESNI
+        aes.use_aesni = 0;
+#endif
+        if (EXPECT_SUCCESS()) {
+            ret = wc_AesGcmEncryptUpdate(&aes, out, plain, sizeof(plain),
+                NULL, 0);
+        }
+        if (cryptoCbAesEcbFailCalled != 0) {
+            exercised = 1;
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_HW_E));
+            ExpectBufEQ(out, zeros, sizeof(out));
+        }
+        wc_AesFree(&aes);
+#endif /* WOLFSSL_AESGCM_STREAM */
+    }
+#endif /* HAVE_AESGCM */
+
+    if (devRegistered)
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_AESECB_FAIL_DEVID);
+
+    /* no mode in this build stages its keystream with wc_AesEcbEncrypt() */
+    if (EXPECT_SUCCESS() && !exercised)
+        return TEST_SKIPPED;
+
+    return EXPECT_RESULT();
+}
+
+#else
+
+int test_wc_AesEcb_RetCodeChecked(void)
+{
+    return TEST_SKIPPED;
+}
+
+#endif /* WOLF_CRYPTO_CB && !NO_AES && HAVE_AES_ECB && WOLFSSL_AES_128 &&
+        * !WOLF_CRYPTO_CB_ONLY_AES && (WOLFSSL_AES_COUNTER || HAVE_AESGCM) */
