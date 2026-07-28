@@ -28256,6 +28256,71 @@ static int test_wolfSSL_X509_print_ext_key_usage(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_print_san_dirname(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && !defined(NO_RSA) && \
+    defined(XSNPRINTF) && !defined(WC_DISABLE_RADIX_ZERO_PAD) && \
+    !defined(NO_SHA)
+    /* RSA cert (CN="pst.quesada.es") whose Subject Alternative Name holds a
+     * directoryName next to a dNSName. A directoryName is raw DER rather than
+     * text, and this one carries an embedded NUL near the start.
+     * X509_print must bound the entry by its stored length and stay inside it,
+     * rather than measuring it as a NUL-terminated string and scanning off the
+     * end of the allocation. */
+    static const char sanDirNameCertPem[] =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIC6DCCAsKgAwIBAgIEPMgubTANBgkqhkiG9w0BAQUFADA2MQswCQYDVQQGEwJF\n"
+        "UzENMAsGA1UEChMERk5NVDEYMBYGA1UECxMPRk5NVCBDbGFzZSAyIENBMB4XDTEx\n"
+        "MDIwMjA5MDMzMVoXDTE1MDIwMjA5MDMzMVowdjELMAkGA1UEBhMCRVMxDTALBgNV\n"
+        "BAoTBEZOTVQxGDAWBgNVBAsTD0ZOTVQgQ2xhc2UgMiBDQTERMA8GA1UECxMIUHVi\n"
+        "bGljb3MxEjAQBgNVBAsTCTUwMDA3MDAxNTEXMBUGA1UEAxMOcHN0LnF1ZXNhZGEu\n"
+        "ZXMwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBANGP1429IWugRmlntpx6oS15\n"
+        "+9mhrSZ+wwnpWlnIi6L2qR4q/NjDSt0dtbnXnsJ2DlYkkt4fz20B97MppRWWqX23\n"
+        "HdoU3W8ikXutRUXLO/Cz7v4RiejtPHzhsPH+j7+JY5VnknBuqgX2t5If3Ti1OqRS\n"
+        "SjSs/F6JHtRKd5GFuC0zAgMBAAGjggEyMIIBLjCBjQYDVR0RBIGFMIGCpHAwbjEY\n"
+        "/wAAACsGAQQBrGYAEAwgWDM5MTExMTFFMDcxMBkgLxkAGwCsZgEOFCRFWENNQS4g\n"
+        "RElQVVRBQ0nTTiBQUk9WSU5DSUFMIERFIEpByU4xHTAbBgkrAIAAAKxmAQgTDnBz\n"
+        "dC5xdWVzYWRhLmVzgg5wc3QucXVlc2FkYS5lczAJBgNVHRMEAjAAMAkGA1UdEAQC\n"
+        "MAAwCwYDVR0PBAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMBMBEGCWCGSAGG+EIB\n"
+        "AQQEAwIGQDAdBgNVHQ4EFgQUjOcPzD3pTI1memRMeTT+hYOlMv4wHwYDVR0jBBgw\n"
+        "FoAUQJp2RJd0B8SsFMsejU86RXww12EwEQYDVR0fBAowCDAGoASgAqQAMA0GCSqG\n"
+        "SIb3DQEBBQUAAxEA6rva+ThRrxATPOG7C0FuXA==\n"
+        "-----END CERTIFICATE-----\n";
+    X509* x509 = NULL;
+    BIO*  bio  = NULL;
+    char* data = NULL;
+    int   len  = 0;
+    int   ret  = 0;
+    char  buf[8192];
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
+        (const unsigned char*)sanDirNameCertPem,
+        (int)XSTRLEN(sanDirNameCertPem), WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+
+    /* This directoryName carries no printable C=/O=/OU=/CN= field, so the
+     * rendered value is empty and the print may legitimately report failure.
+     * What must hold is that the scan stays in bounds and returns a defined
+     * result instead of running off the allocation. */
+    ExpectTrue(((ret = X509_print(bio, x509)) == WOLFSSL_SUCCESS) ||
+               (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)));
+
+    /* Printing must have got as far as emitting the SAN extension. */
+    ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+    ExpectIntLT(len, (int)sizeof(buf));
+    if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
+        ExpectNotNull(XSTRSTR(buf, "X509v3 Subject Alternative Name"));
+    }
+
+    BIO_free(bio);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
@@ -38291,6 +38356,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print),
     TEST_DECL(test_wolfSSL_X509_print_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
+    TEST_DECL(test_wolfSSL_X509_print_san_dirname),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 

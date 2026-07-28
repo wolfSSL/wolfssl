@@ -6859,13 +6859,18 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
     word32       k = 0;
     word32       i = 0;
     const char * src = entry->name;
-    word32       src_len = (word32)XSTRLEN(src);
+    word32       src_len;
     int          total_len = 0;
     int          bytes_left = max_len;
     int          fld_len = 0;
     int          match_found = 0;
 
     XMEMSET(dst, 0, max_len);
+
+    if ((src == NULL) || (entry->len <= 0)) {
+        return 0;
+    }
+    src_len = (word32)entry->len;
 
     /* loop over printable DIR tags. */
     for (k = 0; k < ACERT_NUM_DIR_TAGS; ++k) {
@@ -6874,7 +6879,7 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
         byte         asn_tag;
 
         /* walk through entry looking for matches. */
-        for (i = 0; i < src_len - 5; ++i) {
+        for (i = 0; i + 5 < src_len; ++i) {
             if (XMEMCMP(tag, &src[i], 3) == 0) {
                 if (bytes_left < 5) {
                     /* Not enough space left for name oid + tag + len. */
