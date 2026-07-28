@@ -1567,7 +1567,9 @@
 #endif
 
 #if defined(WOLFSSL_uITRON4)
-    #define XMALLOC_USER
+
+    #define XMALLOC_OVERRIDE
+
     #include <stddef.h>
     #define ITRON_POOL_SIZE 1024*20
     extern int uITRON4_minit(size_t poolsz) ;
