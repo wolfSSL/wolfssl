@@ -20610,7 +20610,7 @@ static int test_wolfSSL_sk_GENERAL_NAME_new_null(void)
     ExpectNotNull(gn = GENERAL_NAME_new());
     if (gn != NULL) {
         ExpectIntEQ(sk_GENERAL_NAME_push(sk, gn), 1);
-        /* On push failure the stack does not own gn; free it to avoid a leak. */
+        /* Stack does not own gn on push failure; free it. */
         if (EXPECT_FAIL()) {
             GENERAL_NAME_free(gn);
             gn = NULL;
