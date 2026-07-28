@@ -5284,11 +5284,11 @@ int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
 
 /* Clear all extra chain certificates set on the SSL object.
  *
- * Mirrors OpenSSL's SSL_clear_chain_certs(): frees any chain certificates
- * previously added via SSL_add0_chain_cert / SSL_add1_chain_cert (or set via
- * SSL_set0_chain / SSL_set1_chain) on this SSL. Does not affect the leaf
- * certificate, the private key, or chain certificates inherited from the
- * WOLFSSL_CTX.
+ * Mirrors OpenSSL's SSL_clear_chain_certs(): drops the chain this SSL will
+ * send, whether it was added via SSL_add0_chain_cert / SSL_add1_chain_cert or
+ * inherited from the WOLFSSL_CTX. A chain still owned by the WOLFSSL_CTX is
+ * only detached, not freed, so the context is left usable. The leaf
+ * certificate and the private key are not affected.
  *
  * @param [in, out] ssl  SSL object.
  * @return  1 on success.

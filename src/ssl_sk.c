@@ -1206,11 +1206,20 @@ void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
     wolfSSL_sk_free(sk);
 }
 
+/* Guard matches wolfSSL_sk_pop_node and wolfSSL_sk_SSL_CIPHER_num/_value. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
 /* Remove the cipher at the given index from the stack.
+ *
+ * Ownership differs from OpenSSL. A cipher stack node stores the cipher by
+ * value, so there is no library-owned object left to hand back once the node
+ * is freed. The returned cipher is therefore a heap copy and THE CALLER MUST
+ * FREE IT with XFREE(ptr, NULL, DYNAMIC_TYPE_OPENSSL). OpenSSL's
+ * sk_SSL_CIPHER_delete() returns a library-owned SSL_CIPHER that must not be
+ * freed, so code shared with OpenSSL needs to account for this.
  *
  * @param [in,out] sk   Stack of ciphers.
  * @param [in]     idx  Index of cipher to remove.
- * @return  Heap copy of removed cipher on success.
+ * @return  Heap copy of removed cipher on success - caller must free.
  * @return  NULL on failure.
  */
 WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
@@ -1243,6 +1252,7 @@ WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
 
     return ret;
 }
+#endif /* OPENSSL_EXTRA && !NO_CERTS */
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 /*******************************************************************************
