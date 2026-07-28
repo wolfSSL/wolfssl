@@ -796,3 +796,242 @@ int test_wc_falcon_error_paths(void)
 #endif /* HAVE_FALCON */
     return EXPECT_RESULT();
 }
+
+/*
+ * MC/DC decision coverage for the public wc_falcon_* wrapper decisions that the
+ * functional tests above leave with an unshown independence pair. Each block
+ * targets one decision and supplies the operand combinations that flip exactly
+ * one condition at a time while the others are held non-determining (the MC/DC
+ * requirement), using cheap negative/edge inputs that stop at the guard under
+ * test -- no key generation is performed here (the positive fall-through half of
+ * each guard is owned by test_wc_falcon_make_key / _sign_vfy above, which run a
+ * real key).
+ *
+ * Documented residuals (operands whose determined half is unreachable in this
+ * software build): the `ret == 0` operands in wc_falcon_sign_msg (8748/8751) and
+ * wc_falcon_verify_msg (8801) are only ever 0 on the software path -- ret is
+ * assigned non-zero solely by a WOLF_CRYPTO_CB callback error, absent here -- so
+ * their FALSE half cannot be demonstrated without a crypto-callback harness
+ * (same residual class as the rsa/mldsa `ret==0`-chain guards).
+ */
+int test_wc_FalconDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_FALCON
+    falcon_key key;
+    byte out[64];
+    word32 outLen;
+    /* Buffers sized for a raw Falcon-512 private/public import so the ret==0
+     * arm of wc_falcon_import_private_key is reachable without keygen. */
+    static byte prv[FALCON_LEVEL1_KEY_SIZE];
+    static byte pub[FALCON_LEVEL1_PUB_KEY_SIZE];
+
+    XMEMSET(prv, 0, sizeof(prv));
+    XMEMSET(pub, 0, sizeof(pub));
+
+    /* ---- (key->level != 1) && (key->level != 5) -------------------------
+     * export_public / export_private_only / export_private / check_key each
+     * open with this AND. Three levels flip each operand independently:
+     *   level 1 -> (F, .)  op0 determines the result false
+     *   level 5 -> (T, F)  op1 determines the result false
+     *   level 2 -> (T, T)  both true -> BAD_FUNC_ARG
+     * level 2 is not settable via wc_falcon_set_level (it rejects non-1/5), so
+     * it is written directly on the public struct. With no key material set,
+     * level 1/5 fall through the AND to the key-not-set guard (which returns
+     * BAD_FUNC_ARG for export, PUBLIC_KEY_E for check_key); no buffer copy
+     * occurs, so the small out[] buffer is never touched. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_public(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));       /* level ok, pubKey unset */
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private_only(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_check_key(&key),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));        /* level ok, halves unset */
+
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL5), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_public(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private_only(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+
+    key.level = 2; /* invalid -> (level!=1)&&(level!=5) both true */
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_public(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private_only(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private(&key, out, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_check_key(&key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_falcon_free(&key);
+
+    /* ---- export NULL-argument independence -----------------------------
+     * (key==NULL) || (out==NULL) || (outLen==NULL): the key==NULL half is
+     * shown by test_wc_falcon_error_paths; here we flip the middle and last
+     * operands with the earlier ones held false (valid key, level set). */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private_only(&key, NULL, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));        /* out==NULL determines */
+    ExpectIntEQ(wc_falcon_export_private_only(&key, out, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));        /* outLen==NULL determines */
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_falcon_export_private(&key, NULL, &outLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_export_private(&key, out, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_falcon_free(&key);
+
+    /* ---- import (priv==NULL) || (key==NULL) ----------------------------
+     * priv==NULL shown by error_paths; here flip key==NULL with priv held
+     * non-NULL. */
+    ExpectIntEQ(wc_falcon_import_private_only(prv, FALCON_LEVEL1_KEY_SIZE, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_falcon_import_private_key(prv, FALCON_LEVEL1_KEY_SIZE,
+        NULL, 0, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* ---- wc_falcon_import_private_key: (ret==0) && (pub != NULL) --------
+     * A correctly sized raw private import returns 0 without keygen, so the
+     * ret==0 operand is genuinely true here. Flip pub between NULL and set:
+     *   valid priv, pub==NULL  -> ret==0, pub!=NULL F -> import stops, 0
+     *   valid priv, pub set    -> ret==0, pub!=NULL T -> public import runs
+     *   bad priv size, pub NULL-> ret!=0 (op0 F) short-circuits the AND */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+    ExpectIntEQ(wc_falcon_import_private_key(prv, FALCON_LEVEL1_KEY_SIZE,
+        NULL, 0, &key), 0);                    /* pub!=NULL F */
+    wc_falcon_free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+    ExpectIntEQ(wc_falcon_import_private_key(prv, FALCON_LEVEL1_KEY_SIZE,
+        pub, FALCON_LEVEL1_PUB_KEY_SIZE, &key), 0); /* pub!=NULL T */
+    wc_falcon_free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+    ExpectIntEQ(wc_falcon_import_private_key(prv, 1 /* bad size */,
+        NULL, 0, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG)); /* ret!=0 (op0 F) */
+    wc_falcon_free(&key);
+
+#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+    /* ---- wc_falcon_sign_msg: (ret==0) && (!prvKeySet), then
+     *      (ret==0) && (rng==NULL) --------------------------------------
+     * All of in/out/outLen/key are non-NULL so the front guard falls through.
+     *   level set, prvKeySet=0        -> 8748 (!prvKeySet) T -> BAD
+     *   prvKeySet forced, rng==NULL   -> 8748 (!prvKeySet) F (falls through),
+     *                                    8751 (rng==NULL) T -> BAD (native
+     *                                    signer never entered, so the unset
+     *                                    key material is never dereferenced).
+     * The (!prvKeySet) F + valid-rng fall-through into the native signer is
+     * owned by test_wc_falcon_sign_vfy (real key). */
+    {
+        WC_RNG rng;
+        byte msg[4];
+        XMEMSET(&rng, 0, sizeof(rng));
+        XMEMSET(msg, 0, sizeof(msg));
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+        outLen = (word32)sizeof(out);
+        ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
+            &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* !prvKeySet T */
+        key.prvKeySet = 1;                                 /* !prvKeySet F */
+        outLen = (word32)sizeof(out);
+        ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), out, &outLen,
+            &key, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));   /* rng==NULL T */
+        wc_falcon_free(&key);
+    }
+#endif /* WC_FALCON_HAVE_NATIVE_SIGN */
+
+#ifndef WOLF_CRYPTO_CB_ONLY_FALCON
+    /* ---- wc_falcon_verify_msg: (ret==0) && (!pubKeySet) ----------------
+     * Valid args, level set, pubKeySet=0 -> (!pubKeySet) T -> BAD. The
+     * (!pubKeySet) F fall-through into the native verifier is owned by
+     * test_wc_falcon_sign_vfy (real key). */
+    {
+        byte msg[4];
+        int res = 0;
+        XMEMSET(msg, 0, sizeof(msg));
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+        ExpectIntEQ(wc_falcon_verify_msg(msg, (word32)sizeof(msg), msg,
+            (word32)sizeof(msg), &res, &key),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));                /* !pubKeySet T */
+        wc_falcon_free(&key);
+    }
+#endif /* !WOLF_CRYPTO_CB_ONLY_FALCON */
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* ---- wc_falcon_init_id: ret==0 && (len<0 || len>FALCON_MAX_ID_LEN),
+     *      then ret==0 && id!=NULL && len!=0 ----------------------------- */
+    {
+        falcon_key idkey;
+        static const byte idbytes[FALCON_MAX_ID_LEN] = { 0 };
+
+        /* key==NULL -> ret!=0 before the length AND -> ret==0 operand F */
+        ExpectIntEQ(wc_falcon_init_id(NULL, idbytes, 4, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* valid len -> length test all-false, then id!=NULL && len!=0 all-true */
+        ExpectIntEQ(wc_falcon_init_id(&idkey, idbytes, 4, NULL, INVALID_DEVID),
+            0);
+        /* len < 0 -> first length operand determines */
+        ExpectIntEQ(wc_falcon_init_id(&idkey, idbytes, -1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        /* len > FALCON_MAX_ID_LEN -> second length operand determines */
+        ExpectIntEQ(wc_falcon_init_id(&idkey, idbytes, FALCON_MAX_ID_LEN + 1,
+            NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        /* id==NULL with valid len -> (id!=NULL) operand F, skips copy */
+        ExpectIntEQ(wc_falcon_init_id(&idkey, NULL, 4, NULL, INVALID_DEVID), 0);
+        /* len==0 with non-NULL id -> (len!=0) operand F, skips copy */
+        ExpectIntEQ(wc_falcon_init_id(&idkey, idbytes, 0, NULL, INVALID_DEVID),
+            0);
+    }
+
+    /* ---- wc_falcon_init_label: (key==NULL)||(label==NULL), then
+     *      (labelLen==0)||(labelLen>FALCON_MAX_LABEL_LEN) ---------------- */
+    {
+        falcon_key lblkey;
+        char toolong[FALCON_MAX_LABEL_LEN + 2];
+        XMEMSET(toolong, 'a', sizeof(toolong));
+        toolong[sizeof(toolong) - 1] = '\0';
+
+        /* key==NULL determines the first OR */
+        ExpectIntEQ(wc_falcon_init_label(NULL, "lbl", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* key ok, label==NULL determines the first OR */
+        ExpectIntEQ(wc_falcon_init_label(&lblkey, NULL, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* both non-NULL -> falls through to the length OR; "" -> len==0 T */
+        ExpectIntEQ(wc_falcon_init_label(&lblkey, "", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        /* valid label -> length OR all-false -> success */
+        ExpectIntEQ(wc_falcon_init_label(&lblkey, "lbl", NULL, INVALID_DEVID),
+            0);
+        /* over-long label -> (labelLen>MAX) operand determines */
+        ExpectIntEQ(wc_falcon_init_label(&lblkey, toolong, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BUFFER_E));
+    }
+#endif /* WOLF_PRIVATE_KEY_ID */
+#endif /* HAVE_FALCON */
+    return EXPECT_RESULT();
+}

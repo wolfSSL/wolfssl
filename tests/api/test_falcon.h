@@ -31,6 +31,7 @@ int test_wc_falcon_import_export(void);
 int test_wc_falcon_check_key(void);
 int test_wc_falcon_der(void);
 int test_wc_falcon_error_paths(void);
+int test_wc_FalconDecisionCoverage(void);
 
 #define TEST_FALCON_DECLS                                                      \
     TEST_DECL_GROUP("falcon", test_wc_falcon_sizes),                          \
@@ -39,6 +40,7 @@ int test_wc_falcon_error_paths(void);
     TEST_DECL_GROUP("falcon", test_wc_falcon_import_export),                  \
     TEST_DECL_GROUP("falcon", test_wc_falcon_check_key),                      \
     TEST_DECL_GROUP("falcon", test_wc_falcon_der),                            \
-    TEST_DECL_GROUP("falcon", test_wc_falcon_error_paths)
+    TEST_DECL_GROUP("falcon", test_wc_falcon_error_paths),                    \
+    TEST_DECL_GROUP("falcon", test_wc_FalconDecisionCoverage)
 
 #endif /* WOLFCRYPT_TEST_FALCON_H */
