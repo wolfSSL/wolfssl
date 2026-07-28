@@ -2733,10 +2733,6 @@ WOLFSSL_API long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX* ctx, long sz);
 WOLFSSL_API long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX* ctx);
 
 WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx);
-WOLFSSL_API int  wolfSSL_get_read_ahead(const WOLFSSL* ssl);
-WOLFSSL_API int  wolfSSL_set_read_ahead(WOLFSSL* ssl, int v);
-WOLFSSL_API int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx);
-WOLFSSL_API int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
         WOLFSSL_CTX* ctx, void* arg);
 WOLFSSL_API int  wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
@@ -2768,6 +2764,23 @@ WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 
 WOLFSSL_API void* wolfSSL_get_app_data( const WOLFSSL *ssl);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+/* Read-ahead control is part of the OpenSSL compatibility layer, and is also
+ * exposed when TLS read-ahead support is built without that layer. Guard must
+ * match the definitions in ssl.c (which use the readAhead/readAheadSz struct
+ * members available only under these macros), so it deliberately excludes
+ * OPENSSL_EXTRA_X509_SMALL. */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_TLS_READ_AHEAD)
+WOLFSSL_API int  wolfSSL_get_read_ahead(const WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_set_read_ahead(WOLFSSL* ssl, int v);
+WOLFSSL_API int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx);
+WOLFSSL_API int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
+WOLFSSL_API int  wolfSSL_CTX_set_default_read_buffer_len(WOLFSSL_CTX* ctx,
+                                                         size_t len);
+WOLFSSL_API int  wolfSSL_set_default_read_buffer_len(WOLFSSL* ssl, size_t len);
+WOLFSSL_API long wolfSSL_CTX_get_default_read_buffer_len(WOLFSSL_CTX* ctx);
+WOLFSSL_API long wolfSSL_get_default_read_buffer_len(const WOLFSSL* ssl);
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)

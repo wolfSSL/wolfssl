@@ -2072,7 +2072,6 @@ int wolfSSL_GetSequenceNumber(WOLFSSL* ssl, word64 *seq)
 #endif
 #endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM && XFPRINTF */
 
-
 #ifndef WOLFSSL_LEANPSK
 /* turn on handshake group messages for context */
 int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx)
@@ -7562,6 +7561,9 @@ long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx)
 }
 #endif
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_TLS_READ_AHEAD)
 int wolfSSL_get_read_ahead(const WOLFSSL* ssl)
 {
     if (ssl == NULL) {
@@ -7605,7 +7607,80 @@ int wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v)
     return WOLFSSL_SUCCESS;
 }
 
+/* Set the read-ahead receive window size. When read-ahead is enabled, a single
+ * recv() pulls in up to this many bytes:
+ *  - 0 (the default) requests one full record.
+ *  - A value larger than one record lets a single recv() coalesce several
+ *    back-to-back records.
+ *  - A value smaller than one record is honoured as-is, capping the receive
+ *    buffer's footprint when the peer's records are known to be small.
+ * 'len' is only a speculative window: a record larger than it is still received
+ * correctly, with the buffer grown on demand. Effective only when the library
+ * is built with read-ahead support (WOLFSSL_TLS_READ_AHEAD). Returns int rather
+ * than OpenSSL's void to match wolfSSL's other read-ahead setters; callers that
+ * ignore the return remain source-compatible. */
+int wolfSSL_CTX_set_default_read_buffer_len(WOLFSSL_CTX* ctx, size_t len)
+{
+    if (ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
 
+    /* 0 selects the default one-record window (matches OpenSSL, where 0 means
+     * "use the built-in default"). Otherwise clamp to a sane maximum so the
+     * stored window cannot overflow the signed arithmetic in the receive path
+     * (see WOLFSSL_MAX_READ_AHEAD_SZ). */
+    if (len == 0) {
+        len = WOLFSSL_READ_AHEAD_SZ;
+    }
+    else if (len > (size_t)WOLFSSL_MAX_READ_AHEAD_SZ) {
+        len = (size_t)WOLFSSL_MAX_READ_AHEAD_SZ;
+    }
+    ctx->readAheadSz = (word32)len;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_set_default_read_buffer_len(WOLFSSL* ssl, size_t len)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* 0 selects the default one-record window (matches OpenSSL, where 0 means
+     * "use the built-in default"). Otherwise clamp to a sane maximum so the
+     * stored window cannot overflow the signed arithmetic in the receive path
+     * (see WOLFSSL_MAX_READ_AHEAD_SZ). */
+    if (len == 0) {
+        len = WOLFSSL_READ_AHEAD_SZ;
+    }
+    else if (len > (size_t)WOLFSSL_MAX_READ_AHEAD_SZ) {
+        len = (size_t)WOLFSSL_MAX_READ_AHEAD_SZ;
+    }
+    ssl->readAheadSz = (word32)len;
+
+    return WOLFSSL_SUCCESS;
+}
+
+long wolfSSL_CTX_get_default_read_buffer_len(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return (long)ctx->readAheadSz;
+}
+
+long wolfSSL_get_default_read_buffer_len(const WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return (long)ssl->readAheadSz;
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_TLS_READ_AHEAD */
+
+#ifdef OPENSSL_EXTRA
 long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(WOLFSSL_CTX* ctx,
         void* arg)
 {

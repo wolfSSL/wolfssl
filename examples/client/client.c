@@ -790,6 +790,15 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     if (ssl == NULL)
         err_sys("unable to get SSL object");
 
+#if defined(WOLFSSL_TLS_READ_AHEAD) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM)
+    /* Optional A/B toggle: enable TLS receive read-ahead for the throughput
+     * benchmark when WOLF_BENCH_READ_AHEAD is set in the environment. Gated on
+     * filesystem support since XGETENV is only defined there. */
+    if (XGETENV("WOLF_BENCH_READ_AHEAD") != NULL)
+        wolfSSL_set_read_ahead(ssl, 1);
+#endif
+
     tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
         err_sys("error in setting fd");
