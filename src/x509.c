@@ -3521,17 +3521,12 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
         /* WOLFSSL_BASIC_CONSTRAINTS */
         WOLFSSL_BASIC_CONSTRAINTS* bc = (WOLFSSL_BASIC_CONSTRAINTS*)data;
 
-        if (!(ext->obj = wolfSSL_ASN1_OBJECT_new())) {
-            WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new failed");
+        /* Build from the NID like the other cases: a bare ASN1_OBJECT has
+         * type 0, which wolfSSL_X509_add_ext() rejects. */
+        if (!(ext->obj = wolfSSL_OBJ_nid2obj(nid))) {
+            WOLFSSL_MSG("wolfSSL_OBJ_nid2obj failed");
             goto err_cleanup;
         }
-
-        /* wolfSSL_X509_add_ext() routes on ext->obj->type; tag the object as
-         * basicConstraints so the extension is consumed instead of being
-         * rejected as type 0. */
-        ext->obj->type = WC_NID_basic_constraints;
-        ext->obj->nid  = WC_NID_basic_constraints;
-        ext->obj->grp  = oidCertExtType;
 
         ext->obj->ca = bc->ca;
         if (bc->pathlen) {
