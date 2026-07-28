@@ -1964,8 +1964,10 @@ static int ALPN_find_match(WOLFSSL *ssl, TLSX **pextension,
     if (sel == NULL) {
         WOLFSSL_MSG("No ALPN protocol match");
 
-        /* do nothing if no protocol match between client and server and option
-         is set to continue (like OpenSSL) */
+        /* The caller explicitly opted out of failing on mismatch by passing
+         * WOLFSSL_ALPN_CONTINUE_ON_MISMATCH, so continue without an agreed
+         * protocol like OpenSSL. This deliberately skips the RFC 7301 section
+         * 3.2 fatal no_application_protocol alert. */
         if (list->options & WOLFSSL_ALPN_CONTINUE_ON_MISMATCH) {
             WOLFSSL_MSG("Continue on mismatch");
         }
@@ -6408,6 +6410,18 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
     return ret;
 }
 
+/* tmp_keys holds a copy of the session cipher and MAC keys, so wipe the
+ * struct before freeing it, matching the ForceZero of ssl->keys on connection
+ * teardown. */
+static void TLSX_SecureRenegotiation_Free(SecureRenegotiation* data, void* heap)
+{
+    if (data != NULL) {
+        ForceZero(data, sizeof(SecureRenegotiation));
+    }
+    XFREE(data, heap, DYNAMIC_TYPE_TLSX);
+    (void)heap;
+}
+
 int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 {
     int ret = 0;
@@ -6453,7 +6467,7 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
 
 
-#define SCR_FREE_ALL(data, heap) XFREE(data, (heap), DYNAMIC_TYPE_TLSX)
+#define SCR_FREE_ALL       TLSX_SecureRenegotiation_Free
 #define SCR_GET_SIZE       TLSX_SecureRenegotiation_GetSize
 #define SCR_WRITE          TLSX_SecureRenegotiation_Write
 #define SCR_PARSE          TLSX_SecureRenegotiation_Parse
@@ -15201,7 +15215,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
             case TLSX_RENEGOTIATION_INFO:
                 WOLFSSL_MSG("Secure Renegotiation extension free");
-                SCR_FREE_ALL(extension->data, heap);
+                SCR_FREE_ALL((SecureRenegotiation*)extension->data, heap);
                 break;
 
             case TLSX_SESSION_TICKET:

@@ -5349,6 +5349,10 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
                 ret = 0;
             }
         }
+        else {
+            WOLFSSL_MSG("i2d_ECDSA_SIG failed");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
     }
 

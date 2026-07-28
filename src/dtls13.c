@@ -1823,6 +1823,13 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
                 }
                 break;
             case end_of_early_data:
+                /* RFC 9147 5.6.1: EndOfEarlyData is not used in DTLS 1.3. Its
+                 * receipt must terminate the connection with an
+                 * unexpected_message alert. */
+                WOLFSSL_MSG("EndOfEarlyData not valid in DTLS 1.3");
+                SendAlert(ssl, alert_fatal, unexpected_message);
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
             case message_hash:
             case no_shake:
             default:
