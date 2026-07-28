@@ -20122,8 +20122,10 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
 static int test_wolfSSL_i2d_PUBKEY_bio(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED)
+/* Guards must match wolfSSL_i2d_PUBKEY_bio() in wolfcrypt/src/evp_pk.c. */
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_CERTS) && !defined(NO_BIO) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED)
     BIO* bio = NULL;
     EVP_PKEY* pkey = NULL;
     EVP_PKEY* pkey2 = NULL;
@@ -30297,10 +30299,9 @@ static int test_wolfSSL_CTX_set_timeout(void)
 static int test_wolfSSL_OpenSSL_version(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     const char* ver;
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_VERSION));
     ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
 
@@ -30330,12 +30331,9 @@ static int test_wolfSSL_OpenSSL_version(void)
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_ENGINES_DIR));
     ExpectStrEQ(ver, "ENGINESDIR: N/A");
 
+    /* Unknown selector returns the OpenSSL fallback string. */
     ExpectNotNull(ver = OpenSSL_version(99));
     ExpectStrEQ(ver, "not available");
-#else
-    ExpectNotNull(ver = OpenSSL_version());
-    ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
-#endif
 #endif
     return EXPECT_RESULT();
 }
