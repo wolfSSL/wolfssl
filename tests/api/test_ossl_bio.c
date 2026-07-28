@@ -1660,6 +1660,16 @@ static long custom_bio_ctrlCb(WOLFSSL_BIO* bio, int cmd, long larg, void* parg)
     }
 }
 
+/* only used to check that a non-NULL callback_ctrl is rejected */
+static long custom_bio_info_cb(WOLFSSL_BIO* bio, int cmd,
+    wolfSSL_BIO_info_cb* cb)
+{
+    (void)bio;
+    (void)cmd;
+    (void)cb;
+    return 0;
+}
+
 #endif /* OPENSSL_EXTRA */
 
 int test_wolfSSL_BIO_custom_method(void)
@@ -1688,6 +1698,20 @@ int test_wolfSSL_BIO_custom_method(void)
             WOLFSSL_SUCCESS);
     ExpectIntEQ(BIO_meth_set_ctrl(method, custom_bio_ctrlCb),
             WOLFSSL_SUCCESS);
+
+    /* Getters return the stored callbacks with their proper types */
+    ExpectTrue(BIO_meth_get_create(method) == custom_bio_createCb);
+    ExpectTrue(BIO_meth_get_destroy(method) == custom_bio_destroyCb);
+    ExpectTrue(BIO_meth_get_puts(method) == custom_bio_putsCb);
+    ExpectTrue(BIO_meth_get_gets(method) == custom_bio_getsCb);
+    ExpectTrue(BIO_meth_get_ctrl(method) == custom_bio_ctrlCb);
+    ExpectTrue(BIO_meth_get_create(NULL) == NULL);
+
+    /* callback_ctrl accepts only NULL and stores nothing */
+    ExpectIntEQ(BIO_meth_set_callback_ctrl(method, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_callback_ctrl(method, custom_bio_info_cb),
+            WOLFSSL_FAILURE);
+    ExpectTrue(BIO_meth_get_callback_ctrl(method) == NULL);
 
     /* Create BIO - should invoke createCb */
     ExpectNotNull(bio = BIO_new(method));

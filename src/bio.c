@@ -2255,6 +2255,86 @@ int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom,
 }
 
 
+wolfSSL_BIO_meth_gets_cb wolfSSL_BIO_meth_get_gets(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_gets");
+    if (biom) {
+        return biom->getsCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_puts_cb wolfSSL_BIO_meth_get_puts(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_puts");
+    if (biom) {
+        return biom->putsCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_ctrl_get_cb wolfSSL_BIO_meth_get_ctrl(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_ctrl");
+    if (biom) {
+        return biom->ctrlCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_create_cb wolfSSL_BIO_meth_get_create(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_create");
+    if (biom) {
+        return biom->createCb;
+    }
+    return NULL;
+}
+
+
+wolfSSL_BIO_meth_destroy_cb wolfSSL_BIO_meth_get_destroy(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_destroy");
+    if (biom) {
+        return biom->freeCb;
+    }
+    return NULL;
+}
+
+
+wolfssl_BIO_meth_ctrl_info_cb wolfSSL_BIO_meth_get_callback_ctrl(
+        const WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_get_callback_ctrl");
+    if (biom) {
+        return biom->ctrlInfoCb;
+    }
+    return NULL;
+}
+
+
+int wolfSSL_BIO_meth_set_callback_ctrl(WOLFSSL_BIO_METHOD *biom,
+        wolfssl_BIO_meth_ctrl_info_cb biom_callback_ctrl)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_set_callback_ctrl");
+    /* wolfSSL BIO processing never invokes an info callback, so storing a
+     * real one would be misleading: succeed only for NULL. */
+    if (biom == NULL || biom_callback_ctrl != NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    biom->ctrlInfoCb = NULL;
+    return WOLFSSL_SUCCESS;
+}
+
+
 /* this compatibility function can be used for multiple BIO types */
 int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
 {

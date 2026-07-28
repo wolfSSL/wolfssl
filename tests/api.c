@@ -30784,8 +30784,6 @@ static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
         0,NULL, NULL, NULL, NULL ), -1);
     ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_UI,
         0,NULL, NULL, NULL, NULL ), -1);
-    ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_BIO,
-        0,NULL, NULL, NULL, NULL ), -1);
     ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_APP,
         0,NULL, NULL, NULL, NULL ), -1);
     ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_UI_METHOD,
@@ -30824,6 +30822,14 @@ static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
     idx1 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION,
         0,NULL, NULL, NULL, NULL );
     idx2 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION,
+        0,NULL, NULL, NULL, NULL );
+    ExpectIntNE(idx1, -1);
+    ExpectIntNE(idx2, -1);
+    ExpectIntNE(idx1, idx2);
+
+    idx1 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_BIO,
+        0,NULL, NULL, NULL, NULL );
+    idx2 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_BIO,
         0,NULL, NULL, NULL, NULL );
     ExpectIntNE(idx1, -1);
     ExpectIntNE(idx2, -1);

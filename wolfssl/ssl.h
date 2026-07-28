@@ -2210,6 +2210,13 @@ WOLFSSL_API int wolfSSL_BIO_meth_set_gets(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_
 WOLFSSL_API int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_ctrl_get_cb biom_ctrl);
 WOLFSSL_API int wolfSSL_BIO_meth_set_create(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_create_cb biom_create);
 WOLFSSL_API int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_destroy_cb biom_destroy);
+WOLFSSL_API wolfSSL_BIO_meth_gets_cb wolfSSL_BIO_meth_get_gets(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_puts_cb wolfSSL_BIO_meth_get_puts(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_ctrl_get_cb wolfSSL_BIO_meth_get_ctrl(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_create_cb wolfSSL_BIO_meth_get_create(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_destroy_cb wolfSSL_BIO_meth_get_destroy(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfssl_BIO_meth_ctrl_info_cb wolfSSL_BIO_meth_get_callback_ctrl(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API int wolfSSL_BIO_meth_set_callback_ctrl(WOLFSSL_BIO_METHOD* biom, wolfssl_BIO_meth_ctrl_info_cb biom_callback_ctrl);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(const void* buf, int len);
 
 WOLFSSL_API long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int flag);
