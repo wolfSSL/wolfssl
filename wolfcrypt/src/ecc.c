@@ -15131,10 +15131,17 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
 WOLFSSL_ABI
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 {
+    void* heap;
+
     if (ctx == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
+    /* ecc_ctx_init clears the whole context, so carry the heap hint over it.
+     * The context has to be freed to the heap it was allocated from. */
+    heap = ctx->heap;
     ecc_ctx_init(ctx, ctx->protocol, rng);
+    ctx->heap = heap;
+
     return ecc_ctx_set_salt(ctx, ctx->protocol);
 }
 

@@ -608,6 +608,54 @@ static int test_wc_LoadStaticMemory_CTX(void)
 }
 
 
+/* An ECIES context allocated from a heap hint must be returned to that same
+ * heap, so the hint has to survive the reset that sets the context defaults. */
+static int test_wc_ecc_ctx_new_ex_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG)
+    byte staticMemory[TEST_LSM_STATIC_SIZE];
+    word32 sizeList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_BUCKETS };
+    word32 distList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_DIST };
+    WOLFSSL_HEAP_HINT* heap = NULL;
+    WOLFSSL_MEM_STATS stats;
+    WC_RNG rng;
+    ecEncCtx* ctx = NULL;
+    int rngInit = 0;
+
+    XMEMSET(&stats, 0, sizeof(stats));
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new_ex(REQ_RESP_CLIENT, &rng, heap));
+    wc_ecc_ctx_free(ctx);
+    ctx = NULL;
+
+    /* The context came out of the static heap, so freeing it must put it
+     * back rather than hand it to the default allocator. */
+    if (EXPECT_SUCCESS() && (heap != NULL)) {
+        ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+        ExpectIntEQ(stats.curAlloc, 0);
+        ExpectIntEQ(stats.totalAlloc, stats.totalFr);
+    }
+
+    if (rngInit) {
+        wc_FreeRng(&rng);
+    }
+    wc_UnloadStaticMemory(heap);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 /*----------------------------------------------------------------------------*
  | Platform dependent function test
  *----------------------------------------------------------------------------*/
@@ -38165,6 +38213,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wc_LoadStaticMemory_ex),
     TEST_DECL(test_wc_LoadStaticMemory_CTX),
+    TEST_DECL(test_wc_ecc_ctx_new_ex_heap),
 
     TEST_DECL(test_wc_FreeCertList),
     /* Locking with Compat Mutex */
