@@ -28256,6 +28256,73 @@ static int test_wolfSSL_X509_print_ext_key_usage(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_print_dir_altname(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && defined(XSNPRINTF) && \
+   !defined(WC_DISABLE_RADIX_ZERO_PAD) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* A directoryName alt name holds raw DER, which routinely contains zero
+     * bytes. The print path must use the stored entry length rather than
+     * treating the DER as a NUL terminated string. */
+    static const char dirName[] = {
+        /* countryName with an empty PrintableString, contributing a zero
+         * byte early in the encoding. */
+        0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x00,
+        /* commonName "Test", which sits after that zero byte. */
+        0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x04, 'T', 'e', 's', 't'
+    };
+    /* Shorter than the five bytes the tag scan needs. */
+    static const char shortDirName[] = { 0x30, 0x00 };
+    X509* x509 = NULL;
+    BIO*  bio  = NULL;
+    char* data = NULL;
+    int   len  = 0;
+    char  buf[8192];
+
+    ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, dirName, (word32)sizeof(
+        dirName), ASN_DIR_TYPE), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    /* Memory BIO data is not NUL-terminated; copy into a bounded buffer. */
+    ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+    ExpectIntLT(len, (int)sizeof(buf));
+    if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
+        ExpectNotNull(XSTRSTR(buf, "CN=Test"));
+    }
+    BIO_free(bio);
+    bio = NULL;
+    X509_free(x509);
+    x509 = NULL;
+
+    /* A directoryName too short to hold a tag must not be scanned past its
+     * end, and having nothing printable in it must not fail the print of the
+     * whole certificate. */
+    ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, shortDirName, (word32)sizeof(
+        shortDirName), ASN_DIR_TYPE), WOLFSSL_SUCCESS);
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+    ExpectIntLT(len, (int)sizeof(buf));
+    if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
+        ExpectNotNull(XSTRSTR(buf, "DirName:<unprintable>"));
+    }
+
+    BIO_free(bio);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
@@ -38291,6 +38358,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print),
     TEST_DECL(test_wolfSSL_X509_print_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
+    TEST_DECL(test_wolfSSL_X509_print_dir_altname),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 
