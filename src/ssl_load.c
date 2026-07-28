@@ -5230,9 +5230,10 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
             ssl->buffers.weOwnCertChain, x509->derCert->buffer,
             x509->derCert->length, ssl->heap);
         if (ret == 1) {
-            ssl->buffers.certChainCnt++;
             /* We now own cert chain. */
             ssl->buffers.weOwnCertChain = 1;
+            /* Account for the certificate just added to the chain. */
+            ssl->buffers.certChainCnt++;
             /* Create a stack to put certificate into. */
             if (ssl->ourCertChain == NULL) {
                 ssl->ourCertChain = wolfSSL_sk_X509_new_null();
