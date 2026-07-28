@@ -778,6 +778,13 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
         ret = BAD_FUNC_ARG;
     }
 
+    /* The handshake arrays are released once the handshake resources are
+     * freed, so a reused object may not have them any more. */
+    if (ret == 0 && ssl->arrays == NULL) {
+        WOLFSSL_MSG("Handshake arrays not available");
+        ret = BAD_FUNC_ARG;
+    }
+
     if (ret == 0 && ssl->arrays->preMasterSecret == NULL) {
         ssl->arrays->preMasterSz = ENCRYPT_LEN;
         ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,

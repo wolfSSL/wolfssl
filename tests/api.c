@@ -9855,6 +9855,142 @@ static int test_wolfSSL_clear_secure_renegotiation(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+/* Returns 1 when every byte of the buffer is zero. */
+static int test_clear_all_zero(const void* buf, size_t len)
+{
+    const byte* p = (const byte*)buf;
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        if (p[i] != 0) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+#endif
+
+/* wolfSSL_clear recycles the object for a new connection, so it must not carry
+ * the previous connection's key material into the reused object. */
+static int test_wolfSSL_clear_zeroizes_secrets(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* Ask to hold on to the handshake arrays, both so the master secret is
+     * still resident when the object is recycled and so the clear is required
+     * to honour that request. */
+    if (ssl_s != NULL) {
+        wolfSSL_KeepArrays(ssl_s);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The completed connection left key material behind. */
+    if (EXPECT_SUCCESS() && (ssl_s != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.client_write_key,
+            sizeof(ssl_s->keys.client_write_key)), 0);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.server_write_key,
+            sizeof(ssl_s->keys.server_write_key)), 0);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->clientSecret,
+            sizeof(ssl_s->clientSecret)), 0);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->serverSecret,
+            sizeof(ssl_s->serverSecret)), 0);
+        ExpectNotNull(ssl_s->arrays);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->masterSecret,
+            SECRET_LEN), 0);
+    }
+
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS() && (ssl_s != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.client_write_key,
+            sizeof(ssl_s->keys.client_write_key)), 1);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.server_write_key,
+            sizeof(ssl_s->keys.server_write_key)), 1);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->clientSecret,
+            sizeof(ssl_s->clientSecret)), 1);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->serverSecret,
+            sizeof(ssl_s->serverSecret)), 1);
+        /* The application asked to keep the handshake arrays, so they must
+         * survive along with the master secret it wants to read back. */
+        ExpectNotNull(ssl_s->arrays);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->masterSecret,
+            SECRET_LEN), 0);
+        /* The pre-master secret is not part of that contract. */
+        ExpectNotNull(ssl_s->arrays->preMasterSecret);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL) &&
+            (ssl_s->arrays->preMasterSecret != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->preMasterSecret,
+            ENCRYPT_LEN), 1);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        /* The key schedule secret is not part of the contract either. */
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->secret, SECRET_LEN), 1);
+    #ifdef HAVE_KEYING_MATERIAL
+        /* The exporter secret is. Exporting keying material needs the arrays
+         * kept, and Tls13_Exporter() reads this one to do it. */
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->exporterSecret,
+            WC_MAX_DIGEST_SIZE), 0);
+    #endif
+    }
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) ||                  \
+     defined(HAVE_SECRET_CALLBACK)) && !defined(NO_WOLFSSL_CLIENT)
+    /* The documented reason to keep the arrays is to read this back. */
+    if (EXPECT_SUCCESS()) {
+        byte cr[RAN_LEN];
+
+        ExpectIntEQ(wolfSSL_get_client_random(ssl_s, cr, sizeof(cr)), RAN_LEN);
+    }
+#endif
+
+    /* Take the request back and clear again. Now the master secret has to go,
+     * but the arrays themselves still must not: the object is being recycled
+     * rather than freed, and wolfSSL_set_secret() along with the accessors
+     * that run after a connection all write into them. Some configurations,
+     * OpenVPN support among them, keep the arrays for every object, so set
+     * this directly rather than relying on the default. */
+    if (EXPECT_SUCCESS() && (ssl_s != NULL)) {
+        ssl_s->options.saveArrays = 0;
+        ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+        ExpectNotNull(ssl_s->arrays);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->masterSecret,
+            SECRET_LEN), 1);
+    #ifdef HAVE_KEYING_MATERIAL
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->exporterSecret,
+            WC_MAX_DIGEST_SIZE), 1);
+    #endif
+        ExpectNotNull(ssl_s->arrays->preMasterSecret);
+        /* The key agreement routines read this as the room they have. */
+        ExpectIntEQ((int)ssl_s->arrays->preMasterSz, ENCRYPT_LEN);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test reconnecting with a different ciphersuite after a renegotiation. */
 static int test_wolfSSL_SCR_Reconnect(void)
 {
@@ -38752,6 +38888,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_custom_ext_add_null),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
     TEST_DECL(test_wolfSSL_clear_secure_renegotiation),
+    TEST_DECL(test_wolfSSL_clear_zeroizes_secrets),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_wolfSSL_SCR_check_enabled),
     TEST_DECL(test_wolfSSL_ticket_keycb_bad_hmac),

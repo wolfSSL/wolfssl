@@ -2033,3 +2033,76 @@ int test_dtls13_5_9_0_compat_empty_echo(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* wolfSSL_clear() wipes the DTLS 1.3 epoch table so a reused object does not
+ * carry the previous connection's traffic keys. Everything that says which
+ * epoch to use lives outside that table and only ever moves up, so it has to
+ * be brought back with it. Run a second handshake over the same objects to
+ * prove they really are reusable: with the table wiped and the numbers left
+ * behind, Dtls13SetEpochKeys() fails the ClientHello with BAD_STATE_E. */
+int test_dtls13_reuse_after_clear(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    char readBuf[16];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The handshake has to have moved off epoch 0, or the reset under test
+     * has nothing to undo. */
+    ExpectIntEQ(w64IsZero(ssl_c->dtls13Epoch), 0);
+    ExpectIntEQ(w64IsZero(ssl_s->dtls13Epoch), 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, "first", 5), 5);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 5);
+    ExpectStrEQ(readBuf, "first");
+
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Only the unprotected epoch 0 survives, and the numbers agree with it. */
+    for (i = 1; i < DTLS13_EPOCH_SIZE; i++) {
+        ExpectIntEQ(ssl_c->dtls13Epochs[i].isValid, 0);
+        ExpectIntEQ(ssl_s->dtls13Epochs[i].isValid, 0);
+    }
+    ExpectIntEQ(ssl_c->dtls13Epochs[0].isValid, 1);
+    ExpectIntEQ(ssl_s->dtls13Epochs[0].isValid, 1);
+    ExpectPtrEq(ssl_c->dtls13EncryptEpoch, &ssl_c->dtls13Epochs[0]);
+    ExpectPtrEq(ssl_c->dtls13DecryptEpoch, &ssl_c->dtls13Epochs[0]);
+    ExpectPtrEq(ssl_s->dtls13EncryptEpoch, &ssl_s->dtls13Epochs[0]);
+    ExpectPtrEq(ssl_s->dtls13DecryptEpoch, &ssl_s->dtls13Epochs[0]);
+    ExpectIntEQ(w64IsZero(ssl_c->dtls13Epoch), 1);
+    ExpectIntEQ(w64IsZero(ssl_c->dtls13PeerEpoch), 1);
+    ExpectIntEQ(w64IsZero(ssl_c->dtls13InvalidateBefore), 1);
+    ExpectIntEQ(w64IsZero(ssl_s->dtls13Epoch), 1);
+    ExpectIntEQ(w64IsZero(ssl_s->dtls13PeerEpoch), 1);
+    ExpectIntEQ(w64IsZero(ssl_s->dtls13InvalidateBefore), 1);
+
+    /* Whatever the first connection left in flight belongs to epochs that no
+     * longer exist, so start the transport over as a new association would. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, "second", 6), 6);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 6);
+    ExpectStrEQ(readBuf, "second");
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

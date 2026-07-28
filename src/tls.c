@@ -804,6 +804,11 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
     int   ret;
     WC_DECLARE_VAR(seed, byte, SEED_LEN, 0);
 
+    /* The randoms and the master secret live in the handshake arrays, which
+     * are gone once the handshake resources have been released. */
+    if (ssl == NULL || ssl->arrays == NULL)
+        return BAD_FUNC_ARG;
+
     WC_ALLOC_VAR_EX(seed, byte, SEED_LEN, ssl->heap, DYNAMIC_TYPE_SEED,
         return MEMORY_E);
 
