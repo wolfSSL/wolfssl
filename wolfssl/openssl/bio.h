@@ -194,31 +194,29 @@
  * by wolfSSL_BIO_get_new_index(), like OpenSSL's BIO_TYPE_START. */
 #define WOLFSSL_BIO_TYPE_START       128
 
-/* wolfSSL does not store these BIO method callbacks: the getters report
- * none, and set_callback_ctrl cannot store one either, so it succeeds
- * only for NULL (the callback would never fire) and rejects a non-NULL
- * callback with 0. */
-static WC_INLINE void *
-wolfSSL_BIO_meth_get_gets(WOLFSSL_BIO_METHOD *m)
-{ (void)m; return NULL; }
-static WC_INLINE void *
-wolfSSL_BIO_meth_get_puts(WOLFSSL_BIO_METHOD *m)
-{ (void)m; return NULL; }
-static WC_INLINE void *
-wolfSSL_BIO_meth_get_ctrl(WOLFSSL_BIO_METHOD *m)
-{ (void)m; return NULL; }
-static WC_INLINE void *
-wolfSSL_BIO_meth_get_create(WOLFSSL_BIO_METHOD *m)
-{ (void)m; return NULL; }
-static WC_INLINE void *
-wolfSSL_BIO_meth_get_destroy(WOLFSSL_BIO_METHOD *m)
-{ (void)m; return NULL; }
-static WC_INLINE void *
-wolfSSL_BIO_meth_get_callback_ctrl(WOLFSSL_BIO_METHOD *m)
-{ (void)m; return NULL; }
-static WC_INLINE int
-wolfSSL_BIO_meth_set_callback_ctrl(WOLFSSL_BIO_METHOD *m, void *cb)
-{ (void)m; return (cb == NULL) ? 1 : 0; }
+#define BIO_TYPE_DESCRIPTOR        WOLFSSL_BIO_TYPE_DESCRIPTOR
+#define BIO_TYPE_SOURCE_SINK       WOLFSSL_BIO_TYPE_SOURCE_SINK
+#define BIO_TYPE_START             WOLFSSL_BIO_TYPE_START
+
+/* Like OpenSSL, back app_data with BIO ex_data slot 0 so it does not share
+ * storage with BIO_get_data()/BIO_set_data(); without HAVE_EX_DATA fall back
+ * to sharing the BIO data pointer. */
+#ifdef HAVE_EX_DATA
+#define BIO_get_app_data(bio)       wolfSSL_BIO_get_ex_data((bio), 0)
+#define BIO_set_app_data(bio, data) wolfSSL_BIO_set_ex_data((bio), 0, (data))
+#else
+#define BIO_get_app_data(bio)       wolfSSL_BIO_get_data(bio)
+#define BIO_set_app_data(bio, data) wolfSSL_BIO_set_data((bio), (data))
+#endif
+
+#define BIO_get_new_index          wolfSSL_BIO_get_new_index
+#define BIO_meth_get_gets          wolfSSL_BIO_meth_get_gets
+#define BIO_meth_get_puts          wolfSSL_BIO_meth_get_puts
+#define BIO_meth_get_ctrl          wolfSSL_BIO_meth_get_ctrl
+#define BIO_meth_get_create        wolfSSL_BIO_meth_get_create
+#define BIO_meth_get_destroy       wolfSSL_BIO_meth_get_destroy
+#define BIO_meth_get_callback_ctrl wolfSSL_BIO_meth_get_callback_ctrl
+#define BIO_meth_set_callback_ctrl wolfSSL_BIO_meth_set_callback_ctrl
 
 #define BIO_snprintf               XSNPRINTF
 
