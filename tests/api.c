@@ -35934,6 +35934,151 @@ static int test_write_dup_oom(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) &&                   \
+    defined(WOLFSSL_SMALL_STACK) &&                                            \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) &&              \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_KERNEL_MODE) &&        \
+    !defined(NO_SHA256)
+/* Allocator that fails the Nth allocation once armed, counting every
+ * allocation rather than matching on size. Blocks handed out before the
+ * failure are filled with a non-zero pattern, since the point of the test is
+ * what the cleanup path does with allocated but not yet initialized memory. */
+static int srp_oom_count = 0;
+static int srp_oom_fail_at = 0;
+static int srp_oom_failed = 0;
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* srp_oom_malloc_cb(size_t size, const char* func, unsigned int line)
+{
+    void* p;
+
+    (void)func;
+    (void)line;
+#else
+static void* srp_oom_malloc_cb(size_t size)
+{
+    void* p;
+#endif
+
+    if (srp_oom_fail_at != 0) {
+        srp_oom_count++;
+        if (srp_oom_count == srp_oom_fail_at) {
+            srp_oom_failed = 1;
+            return NULL;
+        }
+    }
+
+    p = malloc(size);
+    if ((p != NULL) && (srp_oom_fail_at != 0)) {
+        XMEMSET(p, 0xA5, size);
+    }
+
+    return p;
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void srp_oom_free_cb(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void srp_oom_free_cb(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* srp_oom_realloc_cb(void* ptr, size_t size, const char* func,
+        unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* srp_oom_realloc_cb(void* ptr, size_t size)
+{
+#endif
+    return realloc(ptr, size);
+}
+#endif
+
+/* An allocation failure part way through the small stack allocations in
+ * wc_SrpComputeKey must not leave the cleanup path operating on mp_ints that
+ * were allocated but never initialized. */
+static int test_wc_SrpComputeKey_oom(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) &&                   \
+    defined(WOLFSSL_SMALL_STACK) &&                                            \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) &&              \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_KERNEL_MODE) &&        \
+    !defined(NO_SHA256)
+    Srp srp;
+    byte pubKey[8];
+    wolfSSL_Malloc_cb  prev_mc = NULL;
+    wolfSSL_Free_cb    prev_fc = NULL;
+    wolfSSL_Realloc_cb prev_rc = NULL;
+    int allocators_set = 0;
+    int ret;
+    int i;
+    int fired = 0;
+
+    XMEMSET(pubKey, 1, sizeof(pubKey));
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &prev_fc, &prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(srp_oom_malloc_cb, srp_oom_free_cb,
+            srp_oom_realloc_cb), 0);
+    if (EXPECT_SUCCESS()) {
+        allocators_set = 1;
+    }
+
+    /* wc_SrpComputeKey allocates a hash, a digest and four mp_ints before it
+     * initializes any of them, so failing part way through leaves allocated
+     * but uninitialized mp_ints for the cleanup path to deal with. Which
+     * ordinal lands there moves with the math backend and the small stack
+     * settings, so sweep past the six it is known to make rather than pin
+     * one: every failure point has to come back as an error, and none of them
+     * may crash. */
+    for (i = 1; i <= 8 && EXPECT_SUCCESS(); i++) {
+        /* Arm only around the call under test, so that the allocations
+         * wc_SrpInit and wc_SrpTerm make are neither counted nor failed. */
+        ExpectIntEQ(wc_SrpInit(&srp, SRP_TYPE_SHA256, SRP_CLIENT_SIDE), 0);
+        if (!EXPECT_SUCCESS()) {
+            break;
+        }
+
+        srp_oom_count = 0;
+        srp_oom_failed = 0;
+        srp_oom_fail_at = i;
+
+        ret = wc_SrpComputeKey(&srp, pubKey, (word32)sizeof(pubKey),
+                pubKey, (word32)sizeof(pubKey));
+
+        srp_oom_fail_at = 0;
+
+        /* Past the last allocation the call makes there is nothing to
+         * exercise, so only the ordinals that actually landed are judged. */
+        if (srp_oom_failed) {
+            fired++;
+            ExpectIntLT(ret, 0);
+        }
+
+        wc_SrpTerm(&srp);
+    }
+
+    /* A sweep that never injected anything would pass without testing
+     * anything. */
+    ExpectIntGT(fired, 0);
+
+    srp_oom_fail_at = 0;
+
+    if (allocators_set) {
+        (void)wolfSSL_SetAllocators(prev_mc, prev_fc, prev_rc);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_read_write_hs(void)
 {
 
@@ -39090,6 +39235,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_write_dup_want_write),
     TEST_DECL(test_write_dup_want_write_simul),
     TEST_DECL(test_write_dup_oom),
+    TEST_DECL(test_wc_SrpComputeKey_oom),
     TEST_DECL(test_read_write_hs),
     TEST_DECL(test_get_signature_nid),
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
