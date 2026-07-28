@@ -18302,9 +18302,9 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 static int test_wolfSSL_SSL_CIPHER_find(void)
 {
     EXPECT_DECLS;
-/* The wolfSSL_ names are used directly: the SSL_CIPHER_find compatibility
- * macro is only defined for OPENSSL_ALL/WOLFSSL_HAPROXY, but the API itself
- * is built for OPENSSL_EXTRA and WOLFSSL_NGINX too. */
+/* SSL_get_ciphers, sk_SSL_CIPHER_num and sk_SSL_CIPHER_value are only defined
+ * for OPENSSL_ALL/WOLFSSL_HAPROXY, so the wolfSSL_ names are used for those.
+ * SSL_CIPHER_find is defined for every OPENSSL_EXTRA build. */
 #if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST) && \
     !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_RSA) && \
@@ -18338,7 +18338,7 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
             id[0] = first->cipherSuite0;
             id[1] = first->cipherSuite;
 
-            ExpectNotNull(found = wolfSSL_SSL_CIPHER_find(ssl, id));
+            ExpectNotNull(found = SSL_CIPHER_find(ssl, id));
             if (found != NULL) {
                 ExpectIntEQ(found->cipherSuite0, id[0]);
                 ExpectIntEQ(found->cipherSuite,  id[1]);
@@ -18354,8 +18354,8 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
         WOLFSSL* sslLtd = NULL;
         WOLF_STACK_OF(WOLFSSL_CIPHER)* skLtd = NULL;
         const WOLFSSL_CIPHER* keep = wolfSSL_sk_SSL_CIPHER_value(sk, 0);
+        const WOLFSSL_CIPHER* absent = NULL;
         unsigned char absentId[2] = { 0, 0 };
-        int haveAbsent = 0;
         int i;
 
         ExpectNotNull(keep);
@@ -18393,27 +18393,46 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
             if (!inLtd) {
                 absentId[0] = full->cipherSuite0;
                 absentId[1] = full->cipherSuite;
-                haveAbsent = 1;
+                absent = full;
                 break;
             }
         }
-        ExpectIntEQ(haveAbsent, 1);
+        ExpectNotNull(absent);
 
-        ExpectNotNull(found = wolfSSL_SSL_CIPHER_find(sslLtd, absentId));
+        ExpectNotNull(found = SSL_CIPHER_find(sslLtd, absentId));
         if (found != NULL) {
             ExpectIntEQ(found->cipherSuite0, absentId[0]);
             ExpectIntEQ(found->cipherSuite,  absentId[1]);
         }
 
+#ifdef OPENSSL_ALL
+        /* SSL_CIPHER_description(SSL_CIPHER_find(...)) must describe the suite
+         * that was looked up. Nothing has been negotiated, so a description
+         * taken from the session state would be empty. */
+        if ((found != NULL) && (absent != NULL)) {
+            char descFind[MAX_DESCRIPTION_SZ];
+            char descStack[MAX_DESCRIPTION_SZ];
+
+            XMEMSET(descFind, 0, sizeof(descFind));
+            XMEMSET(descStack, 0, sizeof(descStack));
+            ExpectNotNull(SSL_CIPHER_description(absent, descStack,
+                (int)sizeof(descStack)));
+            ExpectNotNull(SSL_CIPHER_description(found, descFind,
+                (int)sizeof(descFind)));
+            ExpectStrEQ(descFind, descStack);
+            ExpectNull(XSTRSTR(descFind, "unknown"));
+        }
+#endif
+
         wolfSSL_free(sslLtd);
     }
 
     /* NULL arg handling. */
-    ExpectNull(wolfSSL_SSL_CIPHER_find(NULL, id));
-    ExpectNull(wolfSSL_SSL_CIPHER_find(ssl, NULL));
+    ExpectNull(SSL_CIPHER_find(NULL, id));
+    ExpectNull(SSL_CIPHER_find(ssl, NULL));
 
     /* Suite unknown to the library returns NULL. */
-    ExpectNull(wolfSSL_SSL_CIPHER_find(ssl, bogus));
+    ExpectNull(SSL_CIPHER_find(ssl, bogus));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

@@ -6256,6 +6256,9 @@ const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
             ssl->cipher.ssl          = ssl;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             ssl->cipher.offset       = (unsigned long)i;
+            /* Describe from cipher_names[offset]: ssl->specs holds the
+             * negotiated suite, not this one. */
+            ssl->cipher.in_stack     = TRUE;
 #endif
             return &ssl->cipher;
         }
