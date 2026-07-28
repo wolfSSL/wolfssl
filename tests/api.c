@@ -21500,14 +21500,24 @@ static int test_wolfSSL_X509_add1_ext_i2d_flags(void)
     ExpectNotNull(gns = test_san_dns_stack("b.example"));
     ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, gns, 0,
                 X509V3_ADD_DEFAULT), WOLFSSL_FAILURE);
-    /* DEFAULT|SILENT suppresses the error and appends. */
+    /* SILENT only suppresses the error report: still a failure, still no
+     * change. */
     ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, gns, 0,
-                X509V3_ADD_DEFAULT | X509V3_ADD_SILENT), WOLFSSL_SUCCESS);
+                X509V3_ADD_DEFAULT | X509V3_ADD_SILENT), WOLFSSL_FAILURE);
     {
         const char* dnsName = NULL;
         int         dnsLen   = 0;
         num = test_san_first_dns(x509, &dnsName, &dnsLen);
-        ExpectIntEQ(num, 2); /* appended: a.example + b.example */
+        ExpectIntEQ(num, 1); /* unchanged: a.example */
+    }
+    /* APPEND adds a second value without checking for an existing one. */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, gns, 0,
+                X509V3_ADD_APPEND), WOLFSSL_SUCCESS);
+    {
+        const char* dnsName = NULL;
+        int         dnsLen   = 0;
+        num = test_san_first_dns(x509, &dnsName, &dnsLen);
+        ExpectIntEQ(num, 2); /* a.example + b.example */
     }
     wolfSSL_sk_GENERAL_NAME_pop_free(gns, wolfSSL_GENERAL_NAME_free);
     gns = NULL;
@@ -21550,6 +21560,22 @@ static int test_wolfSSL_X509_add1_ext_i2d_flags(void)
     wolfSSL_sk_GENERAL_NAME_pop_free(gns, wolfSSL_GENERAL_NAME_free);
     gns = NULL;
 
+    /* A REPLACE that cannot build the new extension must leave the existing
+     * one untouched. */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, NULL, 0,
+                X509V3_ADD_REPLACE), WOLFSSL_FAILURE);
+    {
+        const char* dnsName = NULL;
+        int         dnsLen  = 0;
+        num = test_san_first_dns(x509, &dnsName, &dnsLen);
+        ExpectIntEQ(num, 1);
+        ExpectNotNull(dnsName);
+        if (dnsName != NULL) {
+            ExpectIntEQ(dnsLen, (int)XSTRLEN("e.example"));
+            ExpectIntEQ(XMEMCMP(dnsName, "e.example", XSTRLEN("e.example")), 0);
+        }
+    }
+
     /* DELETE removes the extension; afterward get_ext_d2i finds nothing. */
     ExpectNotNull(gns = test_san_dns_stack("f.example"));
     ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, gns, 0,
@@ -21562,6 +21588,75 @@ static int test_wolfSSL_X509_add1_ext_i2d_flags(void)
     }
     wolfSSL_sk_GENERAL_NAME_pop_free(gns, wolfSSL_GENERAL_NAME_free);
     gns = NULL;
+
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Same operations against a certificate parsed from file: removing an
+ * extension must clear every piece of state the accessors look at and must
+ * not leave pointers into freed memory. */
+static int test_wolfSSL_X509_add1_ext_i2d_parsed_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_X509*          x509    = NULL;
+    WOLFSSL_GENERAL_NAMES* gns     = NULL;
+    WOLFSSL_STACK*         eku     = NULL;
+    const char*            dnsName = NULL;
+    int                    dnsLen  = 0;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+
+    /* The parsed cert has a SAN and the altName iterator is primed with it. */
+    ExpectNotNull(wolfSSL_X509_get_next_altname(x509));
+
+    /* REPLACE frees the parsed altName list. The iterator hint must not be
+     * left pointing into it. */
+    ExpectNotNull(gns = test_san_dns_stack("new.example"));
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, gns, 0,
+                X509V3_ADD_REPLACE), WOLFSSL_SUCCESS);
+    ExpectNull(wolfSSL_X509_get_next_altname(x509));
+    ExpectIntEQ(test_san_first_dns(x509, &dnsName, &dnsLen), 1);
+    ExpectNotNull(dnsName);
+    if (dnsName != NULL) {
+        ExpectIntEQ(dnsLen, (int)XSTRLEN("new.example"));
+        ExpectIntEQ(XMEMCMP(dnsName, "new.example", XSTRLEN("new.example")),
+                    0);
+    }
+    wolfSSL_sk_GENERAL_NAME_pop_free(gns, wolfSSL_GENERAL_NAME_free);
+    gns = NULL;
+
+    /* DELETE of the subject key identifier drops the cached ASN1_STRING. */
+    ExpectNotNull(wolfSSL_X509_get0_subject_key_id(x509));
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_key_identifier,
+                NULL, 0, X509V3_ADD_DELETE), WOLFSSL_SUCCESS);
+    ExpectNull(wolfSSL_X509_get0_subject_key_id(x509));
+    /* Nothing left to delete the second time around. */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_key_identifier,
+                NULL, 0, X509V3_ADD_DELETE), WOLFSSL_FAILURE);
+
+    /* DELETE of extended key usage drops the encoded object list. */
+    ExpectNotNull(eku = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(x509,
+        NID_ext_key_usage, NULL, NULL));
+    wolfSSL_sk_ASN1_OBJECT_pop_free(eku, NULL);
+    eku = NULL;
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_ext_key_usage, NULL, 0,
+                X509V3_ADD_DELETE), WOLFSSL_SUCCESS);
+    ExpectNull(eku = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(x509,
+        NID_ext_key_usage, NULL, NULL));
+    wolfSSL_sk_ASN1_OBJECT_pop_free(eku, NULL);
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_ext_key_usage, NULL, 0,
+                X509V3_ADD_DELETE), WOLFSSL_FAILURE);
+
+    /* DELETE of the authority key identifier is not observable either. */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_authority_key_identifier,
+                NULL, 0, X509V3_ADD_DELETE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_authority_key_identifier,
+                NULL, 0, X509V3_ADD_DELETE), WOLFSSL_FAILURE);
 
     wolfSSL_X509_free(x509);
 #endif
@@ -38674,6 +38769,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_set_extensions),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_flags),
+    TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_parsed_cert),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku_unsupported),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_roundtrip),
