@@ -797,6 +797,7 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     int ret;
 #if defined(ECC_TIMING_RESISTANT) && defined(HAVE_ECC)
     WC_RNG* rng;
+    WC_RNG* prevRng;
 #endif
     word32 dh_len;
     word16 receiverPubKeySz;
@@ -850,13 +851,17 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
                 break;
             }
 
-            wc_ecc_set_rng((ecc_key*)ephemeralKey, rng);
+            prevRng = ((ecc_key*)ephemeralKey)->rng;
+            (void)wc_ecc_set_rng((ecc_key*)ephemeralKey, rng);
 #endif
 
             ret = wc_ecc_shared_secret((ecc_key*)ephemeralKey,
                 (ecc_key*)receiverKey, dh, &dh_len);
 
 #ifdef ECC_TIMING_RESISTANT
+            /* The key belongs to the caller, so put back whatever RNG it had
+             * before this RNG is freed. */
+            (void)wc_ecc_set_rng((ecc_key*)ephemeralKey, prevRng);
             wc_rng_free(rng);
 #endif
             break;
@@ -1053,13 +1058,151 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     return ret;
 }
 
+#if (defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) ||                    \
+    (defined(HAVE_CURVE25519) && !defined(NO_SHA256) &&                       \
+     defined(WOLFSSL_CURVE25519_BLINDING))
+/* Try to make a private-only copy of a receiver key.
+ *
+ * The shared secret computation needs an RNG and the only way to hand it one
+ * is the key's own rng field, so without a copy it would have to write to an
+ * object it does not own. The ECH server passes the key its WOLFSSL_CTX shares
+ * between every connection made from it, where that write races the other
+ * connections: each saves what it finds and restores it afterwards, so one of
+ * them ends up holding an RNG another has already freed.
+ *
+ * Only a plain software key is copied. A key carrying a device id has to keep
+ * reaching that device, and both a copy without the id and an import that
+ * provisions the device would be worse than the write this avoids. Such a key
+ * computes its shared secret on the device, which never reads key->rng, so
+ * leaving it alone costs nothing.
+ *
+ * @param [in]  hpke  HPKE object, for the KEM in use and the heap hint.
+ * @param [in]  key   Receiver key to copy.
+ * @param [out] copy  The copy, to be released with wc_HpkeFreeKey().
+ * @return  1 when copy holds a usable copy of the private key.
+ * @return  0 when no copy could be made and the original has to be used.
+ */
+static int wc_HpkeCopyPrivateKey(Hpke* hpke, void* key, void** copy)
+{
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#if defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)
+    byte eccPriv[ECC_MAXSIZE];
+    word32 eccPrivSz = (word32)sizeof(eccPriv);
+#endif
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256) &&                        \
+    defined(WOLFSSL_CURVE25519_BLINDING)
+    byte x25519Priv[CURVE25519_KEYSIZE];
+    word32 x25519PrivSz = (word32)sizeof(x25519Priv);
+#endif
+
+    *copy = NULL;
+
+    switch (hpke->kem)
+    {
+#if defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            if (((ecc_key*)key)->dp == NULL)
+                break;
+        /* A key only carries a device id where there is a device to dispatch
+         * to. Everywhere else wc_ecc_shared_secret() is software only, so
+         * there is nothing a copy could take away. */
+        #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+            if (((ecc_key*)key)->devId != INVALID_DEVID)
+                break;
+        #endif
+
+            ret = wc_ecc_export_private_only((ecc_key*)key, eccPriv,
+                &eccPrivSz);
+            if (ret == 0) {
+                *copy = wc_ecc_key_new(hpke->heap);
+                if (*copy == NULL)
+                    ret = MEMORY_E;
+            }
+        #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+            /* wc_ecc_key_new() adopts a platform default device id on some
+             * ports. The key being copied has none, so the copy must not gain
+             * one, or the shared secret would move onto a device the caller
+             * never asked for. */
+            if (ret == 0)
+                ((ecc_key*)*copy)->devId = INVALID_DEVID;
+        #endif
+            if (ret == 0) {
+                /* The public part is not needed: the shared secret takes its
+                 * point from the ephemeral key. */
+                ret = wc_ecc_import_private_key_ex(eccPriv, eccPrivSz, NULL, 0,
+                    (ecc_key*)*copy, ((ecc_key*)key)->dp->id);
+            }
+            ForceZero(eccPriv, sizeof(eccPriv));
+            break;
+#endif
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256) &&                        \
+    defined(WOLFSSL_CURVE25519_BLINDING)
+        case DHKEM_X25519_HKDF_SHA256:
+        /* As above, the field only exists where a device can be dispatched
+         * to. */
+        #ifdef WOLF_CRYPTO_CB
+            if (((curve25519_key*)key)->devId != INVALID_DEVID)
+                break;
+        #endif
+
+            ret = wc_curve25519_export_private_raw_ex((curve25519_key*)key,
+                x25519Priv, &x25519PrivSz, EC25519_LITTLE_ENDIAN);
+            if (ret == 0) {
+                *copy = XMALLOC(sizeof(curve25519_key), hpke->heap,
+                    DYNAMIC_TYPE_CURVE25519);
+                if (*copy == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    ret = wc_curve25519_init_ex((curve25519_key*)*copy,
+                        hpke->heap, INVALID_DEVID);
+                    if (ret != 0) {
+                        /* Never initialized, so it must not be freed as a
+                         * key. */
+                        XFREE(*copy, hpke->heap, DYNAMIC_TYPE_CURVE25519);
+                        *copy = NULL;
+                    }
+                }
+            }
+            if (ret == 0) {
+                ret = wc_curve25519_import_private_ex(x25519Priv, x25519PrivSz,
+                    (curve25519_key*)*copy, EC25519_LITTLE_ENDIAN);
+            }
+            ForceZero(x25519Priv, sizeof(x25519Priv));
+            break;
+#endif
+        default:
+            break;
+    }
+
+    if (ret != 0 && *copy != NULL) {
+        wc_HpkeFreeKey(hpke, hpke->kem, *copy, hpke->heap);
+        *copy = NULL;
+    }
+
+    return ret == 0;
+}
+#endif
+
 /* compute the shared secret from the ephemeral and receiver kem keys */
 static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
     word16 pubKeySz, byte* sharedSecret)
 {
     int ret;
-#if defined(ECC_TIMING_RESISTANT) || defined(WOLFSSL_CURVE25519_BLINDING)
+#ifdef HAVE_ECC
+    ecc_key* eccPriv;
+#endif
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
+    curve25519_key* x25519Priv;
+#endif
+#if (defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) ||                    \
+    (defined(HAVE_CURVE25519) && !defined(NO_SHA256) &&                       \
+     defined(WOLFSSL_CURVE25519_BLINDING))
     WC_RNG* rng;
+    WC_RNG* prevRng = NULL;
+    void* privCopy = NULL;
 #endif
     word32 dh_len;
     word16 receiverPubKeySz;
@@ -1107,6 +1250,7 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
             case DHKEM_P256_HKDF_SHA256:
             case DHKEM_P384_HKDF_SHA384:
             case DHKEM_P521_HKDF_SHA512:
+                eccPriv = (ecc_key*)receiverKey;
 #ifdef ECC_TIMING_RESISTANT
                 rng = wc_rng_new(NULL, 0, hpke->heap);
 
@@ -1115,19 +1259,38 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
                     break;
                 }
 
-                wc_ecc_set_rng((ecc_key*)receiverKey, rng);
+                /* Work on a copy so that installing the RNG does not write to
+                 * the caller's key. A key that cannot be copied has its
+                 * private part in a device, and that device computes the
+                 * shared secret without ever reading key->rng, so using it as
+                 * it is costs nothing. */
+                if (wc_HpkeCopyPrivateKey(hpke, receiverKey, &privCopy))
+                    eccPriv = (ecc_key*)privCopy;
+                else
+                    prevRng = eccPriv->rng;
+                (void)wc_ecc_set_rng(eccPriv, rng);
 #endif
 
-                ret = wc_ecc_shared_secret((ecc_key*)receiverKey,
-                    (ecc_key*)ephemeralKey, dh, &dh_len);
+                ret = wc_ecc_shared_secret(eccPriv, (ecc_key*)ephemeralKey, dh,
+                    &dh_len);
 
 #ifdef ECC_TIMING_RESISTANT
+                if (privCopy != NULL) {
+                    wc_HpkeFreeKey(hpke, hpke->kem, privCopy, hpke->heap);
+                    privCopy = NULL;
+                }
+                else {
+                    /* The key belongs to the caller, so put back whatever RNG
+                     * it had before this RNG is freed. */
+                    (void)wc_ecc_set_rng(eccPriv, prevRng);
+                }
                 wc_rng_free(rng);
 #endif
                 break;
 #endif
 #if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
             case DHKEM_X25519_HKDF_SHA256:
+                x25519Priv = (curve25519_key*)receiverKey;
             #ifdef WOLFSSL_CURVE25519_BLINDING
                 rng = wc_rng_new(NULL, 0, hpke->heap);
 
@@ -1136,12 +1299,26 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
                     break;
                 }
 
-                wc_curve25519_set_rng((curve25519_key*)receiverKey, rng);
+                /* As above: prefer a copy so the caller's key is left alone. */
+                if (wc_HpkeCopyPrivateKey(hpke, receiverKey, &privCopy))
+                    x25519Priv = (curve25519_key*)privCopy;
+                else
+                    prevRng = x25519Priv->rng;
+                (void)wc_curve25519_set_rng(x25519Priv, rng);
             #endif
-                ret = wc_curve25519_shared_secret_ex(
-                    (curve25519_key*)receiverKey, (curve25519_key*)ephemeralKey,
-                    dh, &dh_len, EC25519_LITTLE_ENDIAN);
+                ret = wc_curve25519_shared_secret_ex(x25519Priv,
+                    (curve25519_key*)ephemeralKey, dh, &dh_len,
+                    EC25519_LITTLE_ENDIAN);
             #ifdef WOLFSSL_CURVE25519_BLINDING
+                if (privCopy != NULL) {
+                    wc_HpkeFreeKey(hpke, hpke->kem, privCopy, hpke->heap);
+                    privCopy = NULL;
+                }
+                else {
+                    /* The key belongs to the caller, so put back whatever RNG
+                     * it had before this RNG is freed. */
+                    (void)wc_curve25519_set_rng(x25519Priv, prevRng);
+                }
                 wc_rng_free(rng);
             #endif
                 break;
