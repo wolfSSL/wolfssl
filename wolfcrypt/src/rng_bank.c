@@ -115,6 +115,9 @@ WOLFSSL_API int wc_rng_bank_init(
         ctx->n_rngs = n_rngs;
 
         for (i = 0; i < n_rngs; ++i) {
+            /* The nonce is the address of the instance, so it has to be taken
+             * from a pointer to it, not from the instance itself. */
+            struct wc_rng_bank_inst *rng_inst = ctx->rngs + i;
 #ifdef WC_VERBOSE_RNG
             int nretries = 0;
 #endif
@@ -125,8 +128,8 @@ WOLFSSL_API int wc_rng_bank_init(
                 if (flags & WC_RNG_BANK_FLAG_NO_VECTOR_OPS)
                     need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
                 ret = wc_InitRngNonce_ex(
-                    WC_RNG_BANK_INST_TO_RNG(ctx->rngs + i),
-                    (byte *)&ctx->rngs[i], sizeof(byte *), heap, devId);
+                        WC_RNG_BANK_INST_TO_RNG(rng_inst),
+                        (byte *)&rng_inst, sizeof(byte *), heap, devId);
 
                 if (need_reenable_vec)
                     REENABLE_VECTOR_REGISTERS();
