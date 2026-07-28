@@ -2125,32 +2125,22 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 #define WOLFSSL_BIO_TYPE_START 128
 #endif
 
-/* Return a new BIO type index, or WOLFSSL_FATAL_ERROR when exhausted.
- * Thread-safe when atomic operations are available (like OpenSSL's
- * BIO_get_new_index()); otherwise falls back to a plain counter. */
+/* Return a new BIO type index starting after WOLFSSL_BIO_TYPE_START, or
+ * WOLFSSL_FATAL_ERROR when the type index space is exhausted. */
 int wolfSSL_BIO_get_new_index(void)
 {
-#if !defined(SINGLE_THREADED) && defined(WOLFSSL_ATOMIC_OPS) && \
-    defined(WOLFSSL_ATOMIC_INITIALIZER)
-    static wolfSSL_Atomic_Int wolfssl_bio_type_index =
-        WOLFSSL_ATOMIC_INITIALIZER(WOLFSSL_BIO_TYPE_START);
-    int idx = (int)wolfSSL_Atomic_Int_AddFetch(&wolfssl_bio_type_index, 1);
-
-    if (idx > 0xff) {
-        (void)wolfSSL_Atomic_Int_SubFetch(&wolfssl_bio_type_index, 1);
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    return idx;
+    int idx;
+#ifdef HAVE_EX_DATA_CRYPTO
+    idx = wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_BIO, 0, NULL,
+            NULL, NULL, NULL);
 #else
-    static int wolfssl_bio_type_index = WOLFSSL_BIO_TYPE_START;
-
-    if (wolfssl_bio_type_index >= 0xff) {
+    static int wolfssl_bio_type_index = 0;
+    idx = wolfssl_bio_type_index++;
+#endif
+    if (idx < 0 || idx > 0xff - (WOLFSSL_BIO_TYPE_START + 1)) {
         return WOLFSSL_FATAL_ERROR;
     }
-
-    return ++wolfssl_bio_type_index;
-#endif
+    return WOLFSSL_BIO_TYPE_START + 1 + idx;
 }
 
 /* creates a new custom WOLFSSL_BIO_METHOD */
