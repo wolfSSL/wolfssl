@@ -5613,12 +5613,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
     const char* wolfSSLeay_version(int type)
     {
-        (void)type;
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
         return wolfSSL_OpenSSL_version(type);
-#else
-        return wolfSSL_OpenSSL_version();
-#endif
     }
 #endif /* OPENSSL_EXTRA */
 
@@ -6059,7 +6054,10 @@ const char* wolfSSL_lib_version(void)
 }
 
 #ifdef OPENSSL_EXTRA
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+/* Signature deliberately does not depend on OPENSSL_VERSION_NUMBER. That macro
+ * can evaluate differently in the library and in the application (e.g. under
+ * OPENSSL_COEXIST the library also sees the real OpenSSL headers), which would
+ * make the caller and the definition disagree on the argument list. */
 const char* wolfSSL_OpenSSL_version(int type)
 {
     WOLFSSL_ENTER("wolfSSL_OpenSSL_version");
@@ -6084,12 +6082,6 @@ const char* wolfSSL_OpenSSL_version(int type)
             return "not available";
     }
 }
-#else
-const char* wolfSSL_OpenSSL_version(void)
-{
-    return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
-}
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
 #endif /* OPENSSL_EXTRA */
 
 

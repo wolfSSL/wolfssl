@@ -3555,11 +3555,7 @@ WOLFSSL_API void   wolfSSL_set_security_level(WOLFSSL * ssl, int level);
 
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-WOLFSSL_API const char* wolfSSL_OpenSSL_version(int a);
-#else
-WOLFSSL_API const char* wolfSSL_OpenSSL_version(void);
-#endif
+WOLFSSL_API const char* wolfSSL_OpenSSL_version(int type);
 /* which library version do we have in hex */
 WOLFSSL_API word32 wolfSSL_lib_version_hex(void);
 

@@ -1899,11 +1899,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define X509_OBJECT_new                 wolfSSL_X509_OBJECT_new
 #define X509_OBJECT_free                wolfSSL_X509_OBJECT_free
 #define X509_OBJECT_get_type            wolfSSL_X509_OBJECT_get_type
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define OpenSSL_version(x)              wolfSSL_OpenSSL_version(x)
-#else
-#define OpenSSL_version(x)              wolfSSL_OpenSSL_version()
-#endif
 
 #define X509_OBJECT_retrieve_by_subject wolfSSL_X509_OBJECT_retrieve_by_subject
 
