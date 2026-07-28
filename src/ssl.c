@@ -8877,19 +8877,8 @@ void wolfSSL_THREADID_set_numeric(void* id, unsigned long val)
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-/* Map a certificate signature-algorithm NID to its digest and public-key
- * NIDs, like OpenSSL's OBJ_find_sigid_algs() (used by X509_get_signature_nid
- * consumers such as libpq's tls-server-end-point channel binding).
- * For RSA-PSS and EdDSA the digest is reported as WC_NID_undef, matching
- * OpenSSL (the digest is carried in the algorithm parameters or fixed by
- * the algorithm itself).
- *
- * sigid  signature-algorithm NID to look up
- * pdig   optional out: digest NID
- * ppkey  optional out: public-key NID
- *
- * Returns 1 on a supported algorithm, 0 otherwise (outputs untouched).
- */
+/* Map a signature-algorithm NID to its digest and public-key NIDs, like
+ * OpenSSL's OBJ_find_sigid_algs(). */
 int wolfSSL_OBJ_find_sigid_algs(int sigid, int *pdig, int *ppkey)
 {
     int dig  = 0;

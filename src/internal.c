@@ -10282,8 +10282,7 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
  * and AAD seq_num): peek here, then a later WriteSEQ() inside
  * writeAeadAuthData() does the single mandated increment. For DTLS the
  * underlying GetSEQ is already read-only, so this is identical to
- * WriteSEQ() in that path. Guarded to match its only caller in
- * BuildMessage()'s TLS 1.2 AEAD path. */
+ * WriteSEQ() in that path. */
 static WC_INLINE void PeekSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
