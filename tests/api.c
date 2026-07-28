@@ -2549,15 +2549,24 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
 static int test_wolfSSL_SSL_set_ciphersuites(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_AESGCM)
+/* BUILD_TLS_AES_128_GCM_SHA256 is what actually gates the suite; it implies
+ * WOLFSSL_TLS13 and HAVE_AESGCM. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
+    /* cipher_names[] only carries the IANA name when error strings are built
+     * in, so lean builds must ask for the suite by its wolfSSL name. */
+#ifndef NO_ERROR_STRINGS
+    const char*  suite = "TLS_AES_128_GCM_SHA256";
+#else
+    const char*  suite = "TLS13-AES128-GCM-SHA256";
+#endif
 
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    ExpectIntEQ(SSL_set_ciphersuites(ssl, "TLS_AES_128_GCM_SHA256"), 1);
+    ExpectIntEQ(SSL_set_ciphersuites(ssl, suite), 1);
     ExpectIntEQ(SSL_set_ciphersuites(ssl, "BOGUS-SUITE"), 0);
 
     SSL_free(ssl);
