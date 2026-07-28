@@ -10734,6 +10734,9 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
     }
     if (ret == 0 && version == PKCS5v2) {
         ret = GetAlgoV2(encAlgId, &encOid, &encOidSz, &pbeId, &blockSz);
+        if (ret == 0 && encOid == NULL) {
+            ret = ASN_PARSE_E;
+        }
     }
     if (ret == 0) {
         /* CBC block ciphers use PKCS#7 padding: 1..blockSz bytes, a full
@@ -10752,26 +10755,38 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
     if (ret == 0) {
         if (version != PKCS5v2) {
             pbeOidBuf = OidFromId((word32)pbeId, oidPBEType, &pbeOidBufSz);
-            /* pbe = OBJ pbse1 SEQ [ inner ] */
-            pbeLen = 2 + pbeOidBufSz + 2 + innerLen;
+            if (pbeOidBuf == NULL) {
+                ret = ASN_PARSE_E;
+            }
+            else {
+                /* pbe = OBJ pbse1 SEQ [ inner ] */
+                pbeLen = 2 + pbeOidBufSz + 2 + innerLen;
+            }
         }
         else {
             if (hmacOid > 0) {
                 hmacOidBuf = OidFromId((word32)hmacOid, oidHmacType,
                                 &hmacOidBufSz);
-                innerLen += 2 + 2 + hmacOidBufSz;
+                if (hmacOidBuf == NULL) {
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    innerLen += 2 + 2 + hmacOidBufSz;
+                }
             }
-            pbeOidBuf = pbes2;
-            pbeOidBufSz = sizeof(pbes2);
-            /* kdf = OBJ pbkdf2 [ SEQ innerLen ] */
-            kdfLen = 2U + (word32)sizeof(pbkdf2Oid) + 2U + innerLen;
-            /* enc = OBJ enc_alg OCT iv */
-            encLen = 2U + (word32)encOidSz + 2U + (word32)blockSz;
-            /* pbe = OBJ pbse2 SEQ [ SEQ [ kdf ] SEQ [ enc ] ] */
-            pbeLen = 2U + (word32)sizeof(pbes2) + 2U + 2U + kdfLen + 2U +
-                encLen;
+            if (ret == 0) {
+                pbeOidBuf = pbes2;
+                pbeOidBufSz = sizeof(pbes2);
+                /* kdf = OBJ pbkdf2 [ SEQ innerLen ] */
+                kdfLen = 2U + (word32)sizeof(pbkdf2Oid) + 2U + innerLen;
+                /* enc = OBJ enc_alg OCT iv */
+                encLen = 2U + (word32)encOidSz + 2U + (word32)blockSz;
+                /* pbe = OBJ pbse2 SEQ [ SEQ [ kdf ] SEQ [ enc ] ] */
+                pbeLen = 2U + (word32)sizeof(pbes2) + 2U + 2U + kdfLen + 2U +
+                    encLen;
 
-            ret = wc_RNG_GenerateBlock(rng, cbcIv, (word32)blockSz);
+                ret = wc_RNG_GenerateBlock(rng, cbcIv, (word32)blockSz);
+            }
         }
     }
     if (ret == 0) {
