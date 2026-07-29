@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_RTL8735B_HUK
+#if defined(WOLFSSL_RTL8735B_HUK) || defined(WOLFSSL_RTL8735B_AES)
 
 #include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -141,7 +141,9 @@ static void Rtl8735b_BounceFree(byte* alloc, byte* aligned, word32 sz)
 }
 
 /* --- module state: file-scope globals, each touched only with the crypto mutex
- * held (every HW path locks first), so safe across concurrent objects. --- */
+ * held (every HW path locks first), so safe across concurrent objects. These
+ * belong to the HUK device; the plaintext-key AES device keeps no key state. --- */
+#ifdef WOLFSSL_RTL8735B_HUK
 
 /* Derivation cache: the seed whose working key currently resides in the derived
  * slot WC_RTL8735B_DERIVED_WB_IDX. Single slot, so interleaving distinct seeds
@@ -177,16 +179,345 @@ static hal_ecdsa_adapter_t huk_ecdsaAdapter;
 /* Lazily-initialized secure TRNG (a peripheral distinct from the AES/HKDF engine). */
 static int huk_trngInit = 0;
 #endif
+#endif /* WOLFSSL_RTL8735B_HUK (module state) */
 
+/* One-time HW crypto engine bring-up, shared by the HUK and plaintext-key AES
+ * devices. Idempotent on the HAL side. */
 static int Rtl8735bHuk_Init(void* ctx)
 {
     (void)ctx;
-    /* One-time crypto engine bring-up. Idempotent on the HAL side. */
     if (hal_crypto_engine_init() != 0) {
         return WC_HW_E;
     }
     return 0;
 }
+
+#if defined(WOLFSSL_RTL8735B_AES) && !defined(NO_AES)
+/* ------------------------------------------------------------------------- *
+ * Plaintext-key AES device
+ *
+ * Runs a caller-supplied AES key directly on the HW AES engine (raw-key HAL
+ * init, no HUK/HKDF key ladder). Registered at WC_RTL8735B_AES_DEVID, it
+ * coexists with the HUK device (WC_HUK_DEVID): an Aes bound to this devId uses
+ * its key verbatim; one bound to the HUK devId uses the key as a 256-bit
+ * derivation seed. Unlike the HUK device, 128/192/256-bit keys are all handled.
+ * ------------------------------------------------------------------------- */
+
+/* Point *key at the plaintext key the Aes carries in devKey (the raw copy the
+ * key API makes under WOLF_CRYPTO_CB) and return its byte length. A non-AES key
+ * size returns CRYPTOCB_UNAVAILABLE so the caller falls back to software. */
+static int Rtl8735bAes_Key(Aes* aes, const byte** key, word32* keyLen)
+{
+    if (aes == NULL || key == NULL || keyLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (aes->keylen != 16 && aes->keylen != 24 && aes->keylen != 32) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    *key    = (const byte*)aes->devKey;
+    *keyLen = (word32)aes->keylen;
+    return 0;
+}
+
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+/* AES-ECB with a plaintext key. Mirrors Rtl8735bHuk_Ecb but loads the raw key
+ * via hal_crypto_aes_ecb_init instead of a HUK-derived slot. Needed so that
+ * wc_AesGcmSetKey can derive the GHASH subkey H through the ECB callback under
+ * WOLF_CRYPTO_CB_ONLY_AES. Unaligned caller in/out are bounced through
+ * 32-byte-aligned temporaries (the HAL DMAs on cache-line boundaries). */
+static int Rtl8735bAes_Ecb(const byte* key, word32 keyLen, int enc,
+    const byte* in, word32 sz, byte* out)
+{
+    int         ret = 0;
+    const byte* inA  = in;
+    byte*       outA = out;
+    byte* inBounce  = NULL;
+    byte* outBounce = NULL;
+    /* The HAL rejects a key that is not 32-byte aligned (it DMAs it), so stage
+     * the caller's key (in aes->devKey, unaligned) on an aligned buffer. */
+    XALIGNED(32) byte keyA[WC_RTL8735B_KEYLEN];
+
+    if (key == NULL || in == NULL || out == NULL ||
+            sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz > WC_RTL8735B_BOUNCE_MAX) {
+        return BAD_FUNC_ARG;   /* guard the (sz + 31) bounce allocation */
+    }
+    ret = Rtl8735b_BounceIn(in, sz, &inA, &inBounce);
+    if (ret != 0) {
+        return ret;
+    }
+    if (!WC_RTL8735B_IS_ALIGNED32(out)) {
+        ret = Rtl8735b_BounceOut(sz, &outA, &outBounce);
+        if (ret != 0) {
+            goto cleanup;
+        }
+    }
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        goto cleanup;
+    }
+    if (keyLen > sizeof(keyA)) {
+        ret = BAD_FUNC_ARG;
+        goto cleanup;
+    }
+    XMEMCPY(keyA, key, keyLen);
+    if (hal_crypto_aes_ecb_init(keyA, keyLen) != 0) {
+        ret = WC_HW_E;
+        goto unlock;
+    }
+    if (enc) {
+        ret = hal_crypto_aes_ecb_encrypt(inA, sz, NULL, 0, outA);
+    }
+    else {
+        ret = hal_crypto_aes_ecb_decrypt(inA, sz, NULL, 0, outA);
+    }
+    if (ret != 0) {
+        ret = WC_HW_E;
+    }
+    else if (outBounce != NULL) {
+        XMEMCPY(out, outA, sz);
+    }
+
+unlock:
+    wolfSSL_CryptHwMutexUnLock();
+cleanup:
+    ForceZero(keyA, sizeof(keyA));                   /* scrub staged key */
+    Rtl8735b_BounceFree(inBounce, (byte*)inA, sz);   /* scrub + free (plaintext) */
+    Rtl8735b_BounceFree(outBounce, outA, sz);
+    return ret;
+}
+#endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT || WOLF_CRYPTO_CB_ONLY_AES */
+
+#ifdef HAVE_AESGCM
+/* AES-GCM (encrypt or decrypt-verify) with a plaintext key. Mirrors
+ * Rtl8735bHuk_Gcm but loads the raw key via hal_crypto_aes_gcm_init instead of
+ * deriving a HUK slot key. The HAL assumes a 96-bit (12-byte) IV (standard J0);
+ * an unsupported IV length is a hard BAD_FUNC_ARG -- NOT NOT_COMPILED_IN, which
+ * the crypto-cb layer would rewrite to CRYPTOCB_UNAVAILABLE. */
+static int Rtl8735bAes_Gcm(const byte* key, word32 keyLen, int enc,
+    const byte* in, word32 sz, byte* out, const byte* iv, word32 ivSz,
+    const byte* aad, word32 aadSz, byte* tag, word32 tagSz)
+{
+    int   ret;
+    XALIGNED(32) byte ivA[WC_AES_BLOCK_SIZE]   = { 0 };
+    XALIGNED(32) byte hwTag[WC_AES_BLOCK_SIZE] = { 0 };
+    /* The HAL rejects a key that is not 32-byte aligned (it DMAs it), so stage
+     * the caller's key (in aes->devKey, unaligned) on an aligned buffer. */
+    XALIGNED(32) byte keyA[WC_RTL8735B_KEYLEN];
+    const byte* inA  = in;       /* aligned views; bounced below if needed */
+    const byte* aadA = aad;
+    byte*       outA = out;
+    byte* inBounce  = NULL;
+    byte* outBounce = NULL;
+    byte* aadBounce = NULL;
+
+    if (key == NULL || iv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz > 0 && (in == NULL || out == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if (aadSz > 0 && aad == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (ivSz != GCM_NONCE_MID_SZ) {
+        return BAD_FUNC_ARG;   /* 12-byte IV only; hard error (see comment) */
+    }
+    if (tag == NULL || tagSz == 0 || tagSz > WC_AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz > WC_RTL8735B_BOUNCE_MAX || aadSz > WC_RTL8735B_BOUNCE_MAX) {
+        return BAD_FUNC_ARG;   /* guard the (sz/aadSz + 31) bounce allocation */
+    }
+
+    /* Bounce any unaligned DMA buffer through a 32-byte-aligned temporary. */
+    XMEMCPY(ivA, iv, GCM_NONCE_MID_SZ);
+    ret = Rtl8735b_BounceIn(aad, aadSz, &aadA, &aadBounce);
+    if (ret != 0) {
+        goto cleanup;
+    }
+    ret = Rtl8735b_BounceIn(in, sz, &inA, &inBounce);
+    if (ret != 0) {
+        goto cleanup;
+    }
+    if (sz > 0 && !WC_RTL8735B_IS_ALIGNED32(out)) {
+        ret = Rtl8735b_BounceOut(sz, &outA, &outBounce);
+        if (ret != 0) {
+            goto cleanup;
+        }
+    }
+    if (sz == 0) {
+        /* GMAC (empty payload): point the HAL at a valid aligned buffer. */
+        inA  = ivA;
+        outA = ivA;
+    }
+
+    if (keyLen > sizeof(keyA)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        goto cleanup;
+    }
+    XMEMCPY(keyA, key, keyLen);
+    if (hal_crypto_aes_gcm_init(keyA, keyLen) != 0) {
+        ret = WC_HW_E;
+        goto unlock;
+    }
+    if (enc) {
+        if (hal_crypto_aes_gcm_encrypt(inA, sz, ivA, aadA, aadSz, outA, hwTag)
+                != 0) {
+            ret = WC_HW_E;
+            goto unlock;
+        }
+        XMEMCPY(tag, hwTag, tagSz);
+        ret = 0;
+    }
+    else {
+        if (hal_crypto_aes_gcm_decrypt(inA, sz, ivA, aadA, aadSz, outA, hwTag)
+                != 0) {
+            ret = WC_HW_E;
+            goto unlock;
+        }
+        if (ConstantCompare(hwTag, tag, (int)tagSz) != 0) {
+            if (outA != NULL && sz != 0) {
+                ForceZero(outA, sz);
+            }
+            if (outBounce != NULL && sz != 0) {
+                ForceZero(out, sz);
+            }
+            ret = AES_GCM_AUTH_E;
+        }
+        else {
+            ret = 0;
+        }
+    }
+    if (ret == 0 && outBounce != NULL) {
+        XMEMCPY(out, outA, sz);
+    }
+
+unlock:
+    ForceZero(hwTag, sizeof(hwTag));
+    wolfSSL_CryptHwMutexUnLock();
+cleanup:
+    /* Scrub the staged key + each bounce (aligned views hold key/plaintext/AAD). */
+    ForceZero(keyA, sizeof(keyA));
+    Rtl8735b_BounceFree(inBounce, (byte*)inA, sz);
+    Rtl8735b_BounceFree(outBounce, outA, sz);
+    Rtl8735b_BounceFree(aadBounce, (byte*)aadA, aadSz);
+    return ret;
+}
+#endif /* HAVE_AESGCM */
+
+/* Cipher dispatch for the plaintext-key device: AES-ECB and AES-GCM run on the
+ * HW engine with the caller's key. Unsupported modes return CRYPTOCB_UNAVAILABLE
+ * so the caller falls back to software with the same plaintext key (correct
+ * here, unlike the HUK device which must hard-fail to avoid using a seed as a
+ * raw key). */
+static int Rtl8735bAes_Cipher(struct wc_CryptoInfo* info)
+{
+    int         ret = CRYPTOCB_UNAVAILABLE;
+    const byte* key = NULL;
+    word32      keyLen = 0;
+
+    (void)ret;
+    (void)key;
+    (void)keyLen;
+    switch (info->cipher.type) {
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    case WC_CIPHER_AES_ECB:
+        ret = Rtl8735bAes_Key(info->cipher.aesecb.aes, &key, &keyLen);
+        if (ret != 0) {
+            return ret;
+        }
+        return Rtl8735bAes_Ecb(key, keyLen, info->cipher.enc,
+                               info->cipher.aesecb.in, info->cipher.aesecb.sz,
+                               info->cipher.aesecb.out);
+#endif
+#ifdef HAVE_AESGCM
+    case WC_CIPHER_AES_GCM:
+        if (info->cipher.enc) {
+            ret = Rtl8735bAes_Key(info->cipher.aesgcm_enc.aes, &key, &keyLen);
+            if (ret != 0) {
+                return ret;
+            }
+            return Rtl8735bAes_Gcm(key, keyLen, 1,
+                                   info->cipher.aesgcm_enc.in,
+                                   info->cipher.aesgcm_enc.sz,
+                                   info->cipher.aesgcm_enc.out,
+                                   info->cipher.aesgcm_enc.iv,
+                                   info->cipher.aesgcm_enc.ivSz,
+                                   info->cipher.aesgcm_enc.authIn,
+                                   info->cipher.aesgcm_enc.authInSz,
+                                   info->cipher.aesgcm_enc.authTag,
+                                   info->cipher.aesgcm_enc.authTagSz);
+        }
+        else {
+            ret = Rtl8735bAes_Key(info->cipher.aesgcm_dec.aes, &key, &keyLen);
+            if (ret != 0) {
+                return ret;
+            }
+            /* authTag is const (input-only on decrypt); Rtl8735bAes_Gcm reads it
+             * via ConstantCompare and never writes it on the decrypt path, so
+             * dropping const here is safe. */
+            return Rtl8735bAes_Gcm(key, keyLen, 0,
+                                   info->cipher.aesgcm_dec.in,
+                                   info->cipher.aesgcm_dec.sz,
+                                   info->cipher.aesgcm_dec.out,
+                                   info->cipher.aesgcm_dec.iv,
+                                   info->cipher.aesgcm_dec.ivSz,
+                                   info->cipher.aesgcm_dec.authIn,
+                                   info->cipher.aesgcm_dec.authInSz,
+                                   (byte*)info->cipher.aesgcm_dec.authTag,
+                                   info->cipher.aesgcm_dec.authTagSz);
+        }
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+
+/* Crypto-callback entry point for the plaintext-key AES device. */
+static int Rtl8735bAes_CryptoDevCb(int devId, struct wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+    if (info == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+        return Rtl8735bAes_Cipher(info);
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+/* Register the plaintext-key AES device at devId (e.g. WC_RTL8735B_AES_DEVID).
+ * Objects whose devId is set to it at init run AES on the HW engine with their
+ * own key. Independent of the HUK device, so both can be active at once and are
+ * selected per-Aes by devId. */
+int wc_Rtl8735b_AesRegister(int devId)
+{
+    int ret = Rtl8735bHuk_Init(NULL);   /* shared HW engine bring-up */
+    if (ret != 0) {
+        return ret;
+    }
+    return wc_CryptoCb_RegisterDevice(devId, Rtl8735bAes_CryptoDevCb, NULL);
+}
+
+void wc_Rtl8735b_AesUnRegister(int devId)
+{
+    wc_CryptoCb_UnRegisterDevice(devId);
+}
+#endif /* WOLFSSL_RTL8735B_AES && !NO_AES */
+
+#ifdef WOLFSSL_RTL8735B_HUK
 
 /* Run the HUK key-ladder on the per-operation seed (the 32-byte HKDF input the
  * Aes carries in devKey): HUK (secure key slot) -> HKDF-Extract(secure) -> PRK
@@ -1853,6 +2184,8 @@ int wc_Rtl8735b_HukSelfTest(void)
 }
 #endif /* WOLFSSL_RTL8735B_HOST_TEST */
 
+#endif /* WOLFSSL_RTL8735B_HUK (device implementation) */
+
 #endif /* WOLF_CRYPTO_CB */
 
-#endif /* WOLFSSL_RTL8735B_HUK */
+#endif /* WOLFSSL_RTL8735B_HUK || WOLFSSL_RTL8735B_AES */

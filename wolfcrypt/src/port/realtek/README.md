@@ -41,8 +41,11 @@ RTL8735B / AmebaPro2 security blocks used by this port (from the
 
 ```c
 #define WOLFSSL_RTL8735B_HUK   /* enable the AmebaPro2 HUK device */
-#define WOLF_CRYPTO_CB        /* required -- HUK routes through crypto callbacks */
+#define WOLFSSL_RTL8735B_AES   /* optional: also enable the plaintext-key AES device */
+#define WOLF_CRYPTO_CB        /* required -- routes through crypto callbacks */
 ```
+
+`WOLFSSL_RTL8735B_AES` is optional and independent: it adds a second crypto-callback device that runs a caller-supplied AES key directly on the HW engine (no HUK binding). Enable it alongside `WOLFSSL_RTL8735B_HUK` to have both, or on its own for plaintext HW AES without the HUK ladder. `--enable-rtl8735b` enables both for the host compile-test. See [Plaintext-key AES device](#plaintext-key-aes-device) below.
 
 Set these in `user_settings.h`. The application/board CMake must add
 the AmebaPro2 HAL include directory (e.g.
@@ -64,7 +67,8 @@ Configurable (override in `user_settings.h` before including wolfSSL):
 
 | Macro                          | Default | Meaning                              |
 |--------------------------------|---------|--------------------------------------|
-| `WC_HUK_DEVID`                 | 810     | CryptoCb device id (STM32 uses 807-809) |
+| `WC_HUK_DEVID`                 | 810     | HUK-seed CryptoCb device id (STM32 uses 807-809) |
+| `WC_RTL8735B_AES_DEVID`       | 811     | Plaintext-key AES CryptoCb device id (`WOLFSSL_RTL8735B_AES`) |
 | `WC_RTL8735B_HUK_SK_IDX`      | 0xC     | Key-storage slot holding the HUK (KEY_STG_HUK1) |
 | `WC_RTL8735B_HKDF_PRK_IDX`    | 3       | Intermediate HKDF PRK slot           |
 | `WC_RTL8735B_DERIVED_WB_IDX`  | 4       | Derived working-key slot (AES uses it) |
@@ -159,6 +163,30 @@ path, set `hk.useHwEngine = 1` (validated on the RTL8735B); to sign from an
 OTP-resident key (scalar never in software) set `hk.otpPrkSel` to `1`/`2`
 (`ECDSA_OTP_PRK_1/2`) and leave `seed`/`wrapped` unused (that OTP path is
 implemented but unexercised -- it needs an OTP key provisioned).
+
+## Plaintext-key AES device
+
+The HUK device above always treats the AES key bytes as a derivation *seed*, never as a literal key. When you instead need to run an ordinary plaintext AES key on the HW engine -- and still keep HUK binding available for other keys -- enable `WOLFSSL_RTL8735B_AES`. It registers a *second*, independent crypto-callback device (`WC_RTL8735B_AES_DEVID`, default 811) that loads the caller's key directly via the raw-key HAL init (`hal_crypto_aes_gcm_init` / `hal_crypto_aes_ecb_init`) -- no HKDF ladder, no secure key slot. Both devices can be registered at once; an application selects per `Aes` which one to use by the `devId` it passes to `wc_AesInit`. Unlike the HUK device (256-bit seed only), the plaintext device accepts 128/192/256-bit keys.
+
+```c
+#include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
+
+/* Register both devices once. */
+wc_Rtl8735b_HukRegister(WC_HUK_DEVID);            /* 810: key used as HUK seed */
+wc_Rtl8735b_AesRegister(WC_RTL8735B_AES_DEVID);   /* 811: key used verbatim   */
+
+/* Plaintext AES-GCM on the HW engine (key is the real AES key, not a seed). */
+Aes aes;
+byte key[32];
+wc_AesInit(&aes, NULL, WC_RTL8735B_AES_DEVID);
+wc_AesGcmSetKey(&aes, key, sizeof(key));
+wc_AesGcmEncrypt(&aes, ct, pt, ptSz, iv, 12, tag, tagSz, aad, aadSz);
+wc_AesFree(&aes);
+
+wc_Rtl8735b_AesUnRegister(WC_RTL8735B_AES_DEVID);
+```
+
+The device services AES-GCM and AES-ECB (ECB is needed so `wc_AesGcmSetKey` can derive the GHASH subkey H through the callback under `WOLF_CRYPTO_CB_ONLY_AES`); other modes return `CRYPTOCB_UNAVAILABLE` so wolfCrypt falls back to software with the same plaintext key. GCM correctness is validated on RTL8735B hardware; the host compile-test (`--enable-rtl8735b`) exercises the dispatch through HAL stubs only.
 
 ## Notes / limitations
 

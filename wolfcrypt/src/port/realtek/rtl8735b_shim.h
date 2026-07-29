@@ -60,6 +60,8 @@ typedef int hal_status_t;
 static inline int hal_crypto_engine_init(void) { return 0; }
 static inline int hal_crypto_aes_gcm_sk_init(u8 key_num, const u32 keylen)
     { (void)key_num; (void)keylen; return 0; }
+static inline int hal_crypto_aes_gcm_init(const u8* key, const u32 keylen)
+    { (void)key; (void)keylen; return 0; }
 static inline int hal_crypto_aes_gcm_encrypt(const u8* msg, const u32 msglen,
         const u8* iv, const u8* aad, const u32 aadlen, u8* pResult, u8* pTag)
     { (void)msg; (void)msglen; (void)iv; (void)aad; (void)aadlen;
@@ -70,6 +72,8 @@ static inline int hal_crypto_aes_gcm_decrypt(const u8* msg, const u32 msglen,
       (void)pResult; (void)pTag; return 0; }
 static inline int hal_crypto_aes_ecb_sk_init(u8 key_num, const u32 keylen)
     { (void)key_num; (void)keylen; return 0; }
+static inline int hal_crypto_aes_ecb_init(const u8* key, const u32 keylen)
+    { (void)key; (void)keylen; return 0; }
 static inline int hal_crypto_aes_ecb_encrypt(const u8* msg, const u32 msglen,
         const u8* iv, const u32 ivlen, u8* pResult)
     { (void)msg; (void)msglen; (void)iv; (void)ivlen; (void)pResult; return 0; }

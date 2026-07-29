@@ -3617,7 +3617,10 @@ then
     AC_MSG_NOTICE([--enable-rtl8735b also enables AES-ECB build-wide (HAVE_AES_ECB)])
     # WOLF_CRYPTO_CB_COPY/FREE: the HUK HMAC hangs its accumulation buffer on the
     # inner SHA-256 devCtx and relies on the cryptocb copy/free ops (see the port).
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RTL8735B_HUK -DWOLFSSL_RTL8735B_HOST_TEST -DHAVE_AES_ECB -DWOLF_CRYPTO_CB_COPY -DWOLF_CRYPTO_CB_FREE"
+    # WOLFSSL_RTL8735B_AES: the plaintext-key AES device (runs a caller key on the
+    # HW engine, no HUK binding); built alongside the HUK device so the compile
+    # test covers both, selectable at run time by devId.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RTL8735B_HUK -DWOLFSSL_RTL8735B_AES -DWOLFSSL_RTL8735B_HOST_TEST -DHAVE_AES_ECB -DWOLF_CRYPTO_CB_COPY -DWOLF_CRYPTO_CB_FREE"
 fi
 
 
