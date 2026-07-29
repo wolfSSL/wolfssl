@@ -2008,7 +2008,23 @@ int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
     if (ret != 0) goto exit;
     ret = Stm32GcmFinalPhase(aadSz, sz, cr_base, hwTag);
     if (ret != 0) goto exit;
-    XMEMCPY(tag, hwTag, tagSz < 16 ? tagSz : 16);
+    if (isEnc) {
+        XMEMCPY(tag, hwTag, tagSz < 16 ? tagSz : 16);
+        ret = 0;
+    }
+    else {
+        /* Constant-time tag verify; scrub the recovered plaintext on mismatch. */
+        if (ConstantCompare((const byte*)hwTag, tag,
+                            (int)(tagSz < 16 ? tagSz : 16)) == 0) {
+            ret = 0;
+        }
+        else {
+            if (sz > 0 && out != NULL) {
+                ForceZero(out, sz);
+            }
+            ret = AES_GCM_AUTH_E;
+        }
+    }
 
 exit:
     CRYP->CR &= ~CRYP_CR_CRYPEN;
@@ -2350,8 +2366,223 @@ exit:
     return ret;
 }
 
-/* TinyAES HW GCM: deferred. Falls back to software GCM (with HW ECB
- * blocks via wc_AesEncrypt -> wc_Stm32_Aes_Ecb). */
+#if defined(AES_CR_GCMPH_Msk)
+/* ----- TinyAES HW GCM (AES peripheral GCM mode, CHMOD=GCM) -----
+ * Runs the four GCM phases -- init, header (AAD), payload, final (tag) --
+ * selected by AES_CR.GCMPH, mirroring ST's HAL_CRYP GCM sequence
+ * (stm32XXxx_hal_cryp.c): EN stays set across phase transitions, only GCMPH
+ * changes; wait CCF after each block. A partial trailing payload block is
+ * handled in HW via NPBLB (number of padding bytes) so the tag is correct.
+ *
+ * Standard 12-byte IV only (J0 = IV || 0x00000001); other IV lengths need a
+ * software GHASH of the IV, so they return CRYPTOCB_UNAVAILABLE and fall back to
+ * SW. Both encrypt and decrypt run on the HW GCM engine; decrypt verifies the
+ * received tag in constant time and scrubs the output on mismatch
+ * (AES_GCM_AUTH_E). */
+
+#define STM32_AES_GCMPH_INIT     0u
+#define STM32_AES_GCMPH_HEADER   AES_CR_GCMPH_0
+#define STM32_AES_GCMPH_PAYLOAD  AES_CR_GCMPH_1
+#define STM32_AES_GCMPH_FINAL    (AES_CR_GCMPH_0 | AES_CR_GCMPH_1)
+
+/* Select a GCM phase (preserving MODE / CHMOD / KEYSIZE / DATATYPE) and enable
+ * the peripheral. EN is cleared by the HW when a phase's computation completes,
+ * so each new phase must re-assert it (matches ST's HAL, which re-enables per
+ * phase). */
+static void Stm32AesGcmPhase(word32 phase)
+{
+    WC_STM32_AES_INST->CR =
+        (WC_STM32_AES_INST->CR & ~(word32)AES_CR_GCMPH_Msk) | phase;
+    WC_STM32_AES_INST->CR |= AES_CR_EN;
+}
+
+/* Feed one 16-byte AAD/header block (no output read); wait + clear CCF. */
+static int Stm32AesGcmAadBlock(const byte* block)
+{
+    int ret;
+    word32 i;
+    word32 buf[WC_AES_BLOCK_SIZE/sizeof(word32)];
+
+    XMEMCPY(buf, block, WC_AES_BLOCK_SIZE);
+    for (i = 0; i < 4; i++) {
+        WC_STM32_AES_INST->DINR = buf[i];
+    }
+    ret = Stm32AesWaitCCF();
+    STM32_AES_CLEAR_CCF();
+    return ret;
+}
+
+int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
+                     const byte* iv, word32 ivSz,
+                     byte* tag, word32 tagSz,
+                     const byte* aad, word32 aadSz, int isEnc)
+{
+    int    ret;
+    word32 keyLen, cr;
+    word32 blocks, partial, aadBlocks, aadPartial;
+    word32 b, i, npblb, lastWords, aadBits, ptBits;
+    byte   icb[WC_AES_BLOCK_SIZE];
+    byte   pad[WC_AES_BLOCK_SIZE];
+    word32 last[WC_AES_BLOCK_SIZE/sizeof(word32)];
+    word32 hwTag[WC_AES_BLOCK_SIZE/sizeof(word32)];
+
+    if (aes == NULL || iv == NULL || tag == NULL) return BAD_FUNC_ARG;
+    if (sz > 0 && (in == NULL || out == NULL)) return BAD_FUNC_ARG;
+    if (aadSz > 0 && aad == NULL) return BAD_FUNC_ARG;
+    if (tagSz < 4u || tagSz > WC_AES_BLOCK_SIZE) return BAD_FUNC_ARG;
+
+    /* HW path is the standard 12-byte IV. Return CRYPTOCB_UNAVAILABLE (NOT
+     * NOT_COMPILED_IN) so aes.c falls back to SW GCM for a non-12-byte IV. */
+    if (ivSz != GCM_NONCE_MID_SZ) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    ret = wc_AesGetKeySize(aes, &keyLen);
+    if (ret != 0) return ret;
+    if (keyLen != 16 && keyLen != 32) return CRYPTOCB_UNAVAILABLE; /* 192 unsup */
+
+    blocks     = sz / WC_AES_BLOCK_SIZE;
+    partial    = sz % WC_AES_BLOCK_SIZE;
+    aadBlocks  = aadSz / WC_AES_BLOCK_SIZE;
+    aadPartial = aadSz % WC_AES_BLOCK_SIZE;
+
+#ifdef DEBUG_STM32_BARE_GCM
+    printf("[STM32 BARE TinyAES GCM] -> HW %s (sz=%u aadSz=%u)\n",
+           isEnc ? "enc" : "dec", (unsigned)sz, (unsigned)aadSz);
+#endif
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) return ret;
+    WC_STM32_AES_CLK_ENABLE_INST();
+#ifdef WOLFSSL_STM32_USE_SAES
+    ret = Stm32SaesEnsureRng(); if (ret != 0) goto exit;
+    ret = Stm32SaesWaitInit();  if (ret != 0) goto exit;
+#endif
+
+    /* ---- Init phase (GCMPH=00): load key + ICB, compute H and E(J0) ---- */
+    cr = STM32_AES_DATATYPE_BYTE | Stm32AesKeySizeBits(keyLen) |
+         STM32_AES_CHMOD_GCM | STM32_AES_GCMPH_INIT |
+         (isEnc ? STM32_AES_MODE_ENC : STM32_AES_MODE_DEC);
+    WC_STM32_AES_INST->CR = 0;
+#ifdef WOLFSSL_STM32_USE_SAES
+    ret = Stm32SaesWaitInit(); if (ret != 0) goto exit;
+#endif
+    WC_STM32_AES_INST->CR = cr;
+    STM32_AES_CLEAR_CCF();
+
+    ret = Stm32AesLoadKey(aes->key, keyLen);
+    if (ret != 0) goto exit;
+#ifdef WOLFSSL_STM32_USE_SAES
+    ret = Stm32SaesWaitInit(); if (ret != 0) goto exit;
+#endif
+
+    XMEMSET(icb, 0, sizeof(icb));
+    XMEMCPY(icb, iv, GCM_NONCE_MID_SZ);
+    icb[WC_AES_BLOCK_SIZE - 1] = 0x02;   /* payload counter starts at J0+1 = 2 */
+    Stm32AesLoadIV(icb, WC_AES_BLOCK_SIZE);
+
+    WC_STM32_AES_INST->CR |= AES_CR_EN;
+    ret = Stm32AesWaitCCF();
+    if (ret != 0) goto exit;
+    STM32_AES_CLEAR_CCF();
+
+    /* ---- Header phase (GCMPH=01): AAD, partial padded with zeros ---- */
+    if (aadSz > 0) {
+        Stm32AesGcmPhase(STM32_AES_GCMPH_HEADER);
+        for (b = 0; b < aadBlocks; b++) {
+            ret = Stm32AesGcmAadBlock(aad + b * WC_AES_BLOCK_SIZE);
+            if (ret != 0) goto exit;
+        }
+        if (aadPartial > 0) {
+            XMEMSET(pad, 0, sizeof(pad));
+            XMEMCPY(pad, aad + aadBlocks * WC_AES_BLOCK_SIZE, aadPartial);
+            ret = Stm32AesGcmAadBlock(pad);
+            if (ret != 0) goto exit;
+        }
+    }
+
+    /* ---- Payload phase (GCMPH=10) ---- */
+    if (sz > 0) {
+        WC_STM32_AES_INST->CR = (WC_STM32_AES_INST->CR &
+            ~(word32)(AES_CR_GCMPH_Msk | AES_CR_NPBLB_Msk)) |
+            STM32_AES_GCMPH_PAYLOAD;
+        WC_STM32_AES_INST->CR |= AES_CR_EN;
+        for (b = 0; b < blocks; b++) {
+            ret = Stm32AesXferBlock(in + b * WC_AES_BLOCK_SIZE,
+                                    out + b * WC_AES_BLOCK_SIZE);
+            if (ret != 0) goto exit;
+        }
+        if (partial > 0) {
+            npblb = WC_AES_BLOCK_SIZE - partial;
+            lastWords = (partial + 3u) / 4u;
+            /* Encrypt: NPBLB tells the HW how many trailing bytes of the last
+             * block are padding, so the tag (GHASH) excludes them. Decrypt
+             * GHASHes the input ciphertext (zero-padded here), which is already
+             * correct, so no NPBLB is set. */
+            if (isEnc) {
+                WC_STM32_AES_INST->CR = (WC_STM32_AES_INST->CR &
+                    ~(word32)AES_CR_NPBLB_Msk) | (npblb << AES_CR_NPBLB_Pos);
+            }
+            XMEMSET(pad, 0, sizeof(pad));
+            XMEMCPY(pad, in + blocks * WC_AES_BLOCK_SIZE, partial);
+            XMEMCPY(last, pad, WC_AES_BLOCK_SIZE);
+            for (i = 0; i < lastWords; i++) {
+                WC_STM32_AES_INST->DINR = last[i];
+            }
+            for (; i < 4u; i++) {
+                WC_STM32_AES_INST->DINR = 0u;
+            }
+            ret = Stm32AesWaitCCF();
+            if (ret != 0) goto exit;
+            STM32_AES_CLEAR_CCF();
+            for (i = 0; i < 4u; i++) {
+                last[i] = WC_STM32_AES_INST->DOUTR;
+            }
+            XMEMCPY(out + blocks * WC_AES_BLOCK_SIZE, last, partial);
+        }
+    }
+
+    /* ---- Final phase (GCMPH=11): [len(AAD) || len(PT)] in bits -> tag ---- */
+    Stm32AesGcmPhase(STM32_AES_GCMPH_FINAL);
+    aadBits = aadSz * 8u;
+    ptBits  = sz * 8u;
+    WC_STM32_AES_INST->DINR = 0u;
+    WC_STM32_AES_INST->DINR = aadBits;
+    WC_STM32_AES_INST->DINR = 0u;
+    WC_STM32_AES_INST->DINR = ptBits;
+    ret = Stm32AesWaitCCF();
+    if (ret != 0) goto exit;
+    for (b = 0; b < 4u; b++) {
+        hwTag[b] = WC_STM32_AES_INST->DOUTR;
+    }
+    STM32_AES_CLEAR_CCF();
+    if (isEnc) {
+        XMEMCPY(tag, hwTag, tagSz);
+        ret = 0;
+    }
+    else {
+        /* Constant-time tag verify; scrub the recovered plaintext on mismatch. */
+        if (ConstantCompare((const byte*)hwTag, tag, (int)tagSz) == 0) {
+            ret = 0;
+        }
+        else {
+            if (sz > 0 && out != NULL) {
+                ForceZero(out, sz);
+            }
+            ret = AES_GCM_AUTH_E;
+        }
+    }
+
+exit:
+    WC_STM32_AES_INST->CR &= ~AES_CR_EN;
+    ForceZero(hwTag, sizeof(hwTag));
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#else /* AES peripheral without GCM mode (older TinyAES: WB/WL/G0/...) */
+/* No HW GCM on this AES IP variant -- fall back to software GCM (its AES blocks
+ * still run on HW via wc_AesEncrypt -> wc_Stm32_Aes_Ecb). */
 int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* iv, word32 ivSz,
                      byte* tag, word32 tagSz,
@@ -2363,6 +2594,7 @@ int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
     (void)aad; (void)aadSz; (void)isEnc;
     return CRYPTOCB_UNAVAILABLE;
 }
+#endif /* AES_CR_GCMPH_Msk */
 
 #endif /* CRYP IP vs TinyAES IP */
 
@@ -5144,9 +5376,34 @@ static int Stm32Cube_AesEcb(struct Aes* aes, byte* out, const byte* in,
 }
 #endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT || WOLF_CRYPTO_CB_ONLY_AES */
 
-/* Cipher dispatch (shared with the CCB device below). Services AES-ECB; other
- * modes return CRYPTOCB_UNAVAILABLE so the caller falls through to the native
- * HAL path (e.g. wc_AesGcmEncrypt_STM32) or another provider. */
+#if defined(HAVE_AESGCM) && defined(STM32_CRYPTO_AES_GCM)
+/* AES-GCM in-callback on the HAL GCM engine (hardware), keyed from the plaintext
+ * aes->key. Reuses the native HAL GCM implementation (wc_AesGcmEncrypt_STM32 /
+ * wc_AesGcmDecrypt_STM32 in aes.c) so all AAD/partial-block/tag handling is the
+ * tested one -- the bulk cipher and GHASH run on the AES peripheral. */
+static int Stm32Cube_AesGcm(struct wc_CryptoInfo* info)
+{
+    if (info->cipher.enc) {
+        return wc_AesGcmEncrypt_STM32(info->cipher.aesgcm_enc.aes,
+            info->cipher.aesgcm_enc.out, info->cipher.aesgcm_enc.in,
+            info->cipher.aesgcm_enc.sz, info->cipher.aesgcm_enc.iv,
+            info->cipher.aesgcm_enc.ivSz, info->cipher.aesgcm_enc.authTag,
+            info->cipher.aesgcm_enc.authTagSz, info->cipher.aesgcm_enc.authIn,
+            info->cipher.aesgcm_enc.authInSz);
+    }
+    return wc_AesGcmDecrypt_STM32(info->cipher.aesgcm_dec.aes,
+        info->cipher.aesgcm_dec.out, info->cipher.aesgcm_dec.in,
+        info->cipher.aesgcm_dec.sz, info->cipher.aesgcm_dec.iv,
+        info->cipher.aesgcm_dec.ivSz, info->cipher.aesgcm_dec.authTag,
+        info->cipher.aesgcm_dec.authTagSz, info->cipher.aesgcm_dec.authIn,
+        info->cipher.aesgcm_dec.authInSz);
+}
+#endif /* HAVE_AESGCM && STM32_CRYPTO_AES_GCM */
+
+/* Cipher dispatch (shared with the CCB device below). Services AES-ECB and
+ * AES-GCM on the HAL engine with the plaintext key; other modes return
+ * CRYPTOCB_UNAVAILABLE so the caller falls through to the native HAL path or
+ * another provider. */
 static int Stm32Cube_Cipher(struct wc_CryptoInfo* info)
 {
     if (info == NULL) {
@@ -5160,6 +5417,10 @@ static int Stm32Cube_Cipher(struct wc_CryptoInfo* info)
         return Stm32Cube_AesEcb(info->cipher.aesecb.aes,
             info->cipher.aesecb.out, info->cipher.aesecb.in,
             info->cipher.aesecb.sz, info->cipher.enc);
+#endif
+#if defined(HAVE_AESGCM) && defined(STM32_CRYPTO_AES_GCM)
+    case WC_CIPHER_AES_GCM:
+        return Stm32Cube_AesGcm(info);
 #endif
     default:
         return CRYPTOCB_UNAVAILABLE;
@@ -5263,17 +5524,80 @@ static int Stm32Cube_AesCryptoDevCb(int devId, struct wc_CryptoInfo* info,
     return CRYPTOCB_UNAVAILABLE;
 }
 
-int wc_Stm32_CubeAesRegister(int devId)
+int wc_Stm32_AesRegister(int devId)
 {
     return wc_CryptoCb_RegisterDevice(devId, Stm32Cube_AesCryptoDevCb, NULL);
 }
 
-void wc_Stm32_CubeAesUnRegister(int devId)
+void wc_Stm32_AesUnRegister(int devId)
 {
     wc_CryptoCb_UnRegisterDevice(devId);
 }
 
+/* Backwards-compatible CubeMX-specific names. */
+int wc_Stm32_CubeAesRegister(int devId)
+{
+    return wc_Stm32_AesRegister(devId);
+}
+
+void wc_Stm32_CubeAesUnRegister(int devId)
+{
+    wc_Stm32_AesUnRegister(devId);
+}
+
 #endif /* WOLFSSL_STM32_CUBEMX && WOLF_CRYPTO_CB */
+
+/* Bare-metal plaintext-key AES crypto-callback device -- the counterpart to the
+ * bare DHUK device (Stm32_CryptoDevCb at WC_DHUK_DEVID), but keyed from the
+ * Aes's own key (aes->key) on the plain CRYP engine, not SAES/DHUK. Register at
+ * WOLFSSL_STM32_AES_DEVID; it can be registered alongside the DHUK device so an
+ * application selects plaintext vs DHUK-seed per Aes by devId. Reuses the bare
+ * HW AES primitives (wc_Stm32_Aes_Ecb defined above). Services AES-ECB in the
+ * callback -- needed so wc_AesGcmSetKey can derive the GHASH subkey H through
+ * the ECB callback under WOLF_CRYPTO_CB_ONLY_AES; AES-GCM (and other modes)
+ * return CRYPTOCB_UNAVAILABLE so wc_AesGcmEncrypt runs the native bare HW GCM
+ * (wc_Stm32_Aes_Gcm), also keyed off the plaintext key. */
+#if defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO) && \
+    defined(WOLF_CRYPTO_CB) && !defined(NO_AES)
+static int Stm32Aes_Cipher(struct wc_CryptoInfo* info)
+{
+    switch (info->cipher.type) {
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    case WC_CIPHER_AES_ECB:
+        return wc_Stm32_Aes_Ecb(info->cipher.aesecb.aes,
+            info->cipher.aesecb.out, info->cipher.aesecb.in,
+            info->cipher.aesecb.sz, info->cipher.enc);
+#endif
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+
+static int Stm32Aes_CryptoDevCb(int devId, struct wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+    if (info == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+        return Stm32Aes_Cipher(info);
+    }
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+int wc_Stm32_AesRegister(int devId)
+{
+    return wc_CryptoCb_RegisterDevice(devId, Stm32Aes_CryptoDevCb, NULL);
+}
+
+void wc_Stm32_AesUnRegister(int devId)
+{
+    wc_CryptoCb_UnRegisterDevice(devId);
+}
+#endif /* WOLFSSL_STM32_BARE && STM32_CRYPTO && WOLF_CRYPTO_CB && !NO_AES */
 
 /* CubeMX/HAL CCB ECDSA port -- placed after the build-branch structure and
  * guarded on WOLFSSL_STM32_CUBEMX so it compiles only for the HAL build (the

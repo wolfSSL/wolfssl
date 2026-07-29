@@ -814,10 +814,13 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #ifdef WOLFSSL_STM32_BARE
         /* Bare-metal direct-register AES driver. ECB and CBC are HW-native;
          * CTR is provided automatically via the ECB-as-transform path in
-         * aes.c (XTRANSFORM_AESCTRBLOCK); GCM is HW-native for the case
-         * the CRYP IP supports (12-byte IV + whole-block PT) and returns
-         * CRYPTOCB_UNAVAILABLE otherwise so aes.c can fall back to SW
-         * GHASH (which still uses HW ECB for the underlying AES blocks). */
+         * aes.c (XTRANSFORM_AESCTRBLOCK). GCM is HW-native for the standard
+         * 12-byte IV, both encrypt and decrypt-verify: the TinyAES AES
+         * peripheral also handles AAD and a partial trailing block (via NPBLB);
+         * the older CRYP IP handles whole-block payloads. Cases the HW cannot
+         * serve (non-12-byte IV, or a partial block on CRYP) return
+         * CRYPTOCB_UNAVAILABLE so aes.c falls back to SW GHASH (which still uses
+         * HW ECB for the AES blocks). */
         int wc_Stm32_Aes_Ecb(struct Aes* aes, byte* out, const byte* in,
                 word32 sz, int isEnc);
         int wc_Stm32_Aes_Cbc(struct Aes* aes, byte* out, const byte* in,
@@ -831,6 +834,19 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
         int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_HandleTypeDef* hcryp,
                 int useSAES);
         void wc_Stm32_Aes_Cleanup(void);
+        #ifdef STM32_CRYPTO_AES_GCM
+        /* HAL AES-GCM (hardware), exposed so the CubeMX crypto-callback device
+         * services AES-GCM in-callback rather than only via the aes.c
+         * fall-through. Both run the HAL GCM engine; keyed from aes->key. */
+        WOLFSSL_LOCAL int wc_AesGcmEncrypt_STM32(struct Aes* aes, byte* out,
+                const byte* in, word32 sz, const byte* iv, word32 ivSz,
+                byte* authTag, word32 authTagSz, const byte* authIn,
+                word32 authInSz);
+        WOLFSSL_LOCAL int wc_AesGcmDecrypt_STM32(struct Aes* aes, byte* out,
+                const byte* in, word32 sz, const byte* iv, word32 ivSz,
+                const byte* authTag, word32 authTagSz, const byte* authIn,
+                word32 authInSz);
+        #endif /* STM32_CRYPTO_AES_GCM */
     #else /* Standard Peripheral Library */
         int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_InitTypeDef* cryptInit,
             CRYP_KeyInitTypeDef* keyInit);
@@ -1000,14 +1016,33 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
     void wc_Stm32_DhukUnRegister(int devId);
 #endif
 
-/* CubeMX/HAL crypto-callback device. Register at a devId, then init an Aes
- * with it (wc_AesInit) to run AES on the HAL through the crypto callback --
- * this makes WOLF_CRYPTO_CB_ONLY_AES work on the HAL build. When
- * WOLFSSL_STM32_PKA && HAVE_ECC are also enabled it additionally routes ECDSA
- * sign/verify to the HW PKA, so it satisfies WOLF_CRYPTO_CB_ONLY_ECC too (no
- * CCB required). With WOLFSSL_STM32_CCB enabled, wc_Stm32_DhukRegister already
- * covers AES + ECDSA (same devId). */
+/* Crypto-callback device id for the plaintext-key AES device (distinct from the
+ * DHUK/SAES device ids 807/808/809). Registering both lets an application
+ * choose, per Aes, whether its key is used verbatim (this devId) or as a DHUK
+ * derivation seed (WC_DHUK_DEVID) -- selected by the devId passed to wc_AesInit.
+ * Override before include if it collides. */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && \
+    (defined(WOLFSSL_STM32_CUBEMX) || defined(WOLFSSL_STM32_BARE))
+    #ifndef WOLFSSL_STM32_AES_DEVID
+        #define WOLFSSL_STM32_AES_DEVID     806
+    #endif
+#endif
+
+/* CubeMX/HAL and bare-metal plaintext-key AES crypto-callback device. Register
+ * at a devId (e.g. WOLFSSL_STM32_AES_DEVID), then init an Aes with it
+ * (wc_AesInit) to run AES on the HW CRYP engine with the Aes's own key -- this
+ * makes WOLF_CRYPTO_CB_ONLY_AES work on both build paths. On the CubeMX build,
+ * when WOLFSSL_STM32_PKA && HAVE_ECC are also enabled it additionally routes
+ * ECDSA sign/verify to the HW PKA, satisfying WOLF_CRYPTO_CB_ONLY_ECC too (no
+ * CCB required). It is a separate device from the DHUK one (WC_DHUK_DEVID), so
+ * both can be registered at once and are selected per-Aes by devId. */
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && \
+    (defined(WOLFSSL_STM32_CUBEMX) || defined(WOLFSSL_STM32_BARE))
+    int  wc_Stm32_AesRegister(int devId);
+    void wc_Stm32_AesUnRegister(int devId);
+#endif
 #if defined(WOLFSSL_STM32_CUBEMX) && defined(WOLF_CRYPTO_CB)
+    /* Backwards-compatible CubeMX-specific names (call wc_Stm32_AesRegister). */
     int  wc_Stm32_CubeAesRegister(int devId);
     void wc_Stm32_CubeAesUnRegister(int devId);
 #endif

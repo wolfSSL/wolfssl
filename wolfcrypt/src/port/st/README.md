@@ -85,9 +85,9 @@ Some newer families (H5/H7S/U3/U5/WBA/C5/N6, plus the L562 sub-variant) expose a
 
 ### HW crypto via crypto callback (`WOLF_CRYPTO_CB_ONLY_AES` / `_ECC`)
 
-`WOLF_CRYPTO_CB_ONLY_AES` and `WOLF_CRYPTO_CB_ONLY_ECC` strip the software AES / ECC cores (to shrink code) and route those operations through the `WOLF_CRYPTO_CB` framework. On the CubeMX/HAL build the STM32 crypto-callback device services them in hardware:
+`WOLF_CRYPTO_CB_ONLY_AES` and `WOLF_CRYPTO_CB_ONLY_ECC` strip the software AES / ECC cores (to shrink code) and route those operations through the `WOLF_CRYPTO_CB` framework. The STM32 crypto-callback device services them in hardware:
 
-- **AES** (ECB, and GCM via the HAL GCM engine) with the normal plaintext key.
+- **AES** with the normal plaintext key -- the plaintext-key AES device, distinct from the DHUK device below which keys off a HUK seed. AES-ECB and AES-GCM (encrypt and decrypt, including AAD and a partial trailing block) run on the AES hardware: on the CubeMX/HAL build via the HAL GCM engine serviced in-callback; on the bare-metal build via the TinyAES GCM engine directly (AES peripherals without a GCM mode fall back to a software GHASH that still runs its AES blocks on hardware). Only the standard 12-byte GCM IV uses the HW path; other IV lengths fall back to software.
 - **ECDSA sign + verify** on the HW PKA (`WOLFSSL_STM32_PKA`), plus CCB-protected sign (`WOLFSSL_STM32_CCB`) via `HAL_CCB`. This makes `WOLF_CRYPTO_CB_ONLY_ECC` usable on CubeMX -- that macro compiles out the direct `ecc.c` PKA path, so the callback provides HW ECDSA instead.
 
 ```
@@ -101,7 +101,7 @@ Some newer families (H5/H7S/U3/U5/WBA/C5/N6, plus the L562 sub-variant) expose a
 wc_Stm32_DhukRegister(devId);      /* once; serves AES + ECDSA (+ CCB) */
 ```
 
-(For a build without CCB, `wc_Stm32_CubeAesRegister(devId)` registers the same CubeMX device: AES, plus ECDSA sign/verify on the HW PKA when `WOLFSSL_STM32_PKA` is enabled -- so it also satisfies `WOLF_CRYPTO_CB_ONLY_ECC` without CCB. It falls back to cipher-only when the PKA is not built in.) HW PKA on the HAL build requires the application to build/link ST's `stm32XXxx_hal_pka.c` and provide a `PKA_HandleTypeDef hpka;` initialized with `HAL_PKA_Init(&hpka)` (a CubeMX `MX_PKA_Init`); wolfSSL references `hpka` as `extern`. Note: CCB key *provisioning* (`wc_ecc_make_key`) derives the scalar in software, so it needs a build without `WOLF_CRYPTO_CB_ONLY_ECC` -- provision the CCB blob there, after which CCB *sign* runs under the stripped config. Worked examples in [`STM32_Bare_Test`](https://github.com/wolfSSL/wolfssl-examples-stm32): `main_cubeaes.c` (AES) and `main_cubecrypto.c` (ECC + CCB + AES), validated on NUCLEO-U385RG-Q.
+(For a build without CCB, register the plaintext-key AES device with `wc_Stm32_AesRegister(WOLFSSL_STM32_AES_DEVID)` -- `wc_Stm32_CubeAesRegister` is a kept alias. It runs AES on the plain CRYP engine with the `Aes`'s own key (no DHUK/SAES), plus ECDSA sign/verify on the HW PKA when `WOLFSSL_STM32_PKA` is enabled -- so it also satisfies `WOLF_CRYPTO_CB_ONLY_ECC` without CCB. It falls back to cipher-only when the PKA is not built in. The same plaintext-key AES device exists on the bare-metal build (`WOLFSSL_STM32_BARE`), and it is a *separate* device from the DHUK one (`WC_DHUK_DEVID`): register both to run plaintext-key AES and HUK-seed AES side by side in one build, selected per `Aes` by the `devId` passed to `wc_AesInit`.) HW PKA on the HAL build requires the application to build/link ST's `stm32XXxx_hal_pka.c` and provide a `PKA_HandleTypeDef hpka;` initialized with `HAL_PKA_Init(&hpka)` (a CubeMX `MX_PKA_Init`); wolfSSL references `hpka` as `extern`. Note: CCB key *provisioning* (`wc_ecc_make_key`) derives the scalar in software, so it needs a build without `WOLF_CRYPTO_CB_ONLY_ECC` -- provision the CCB blob there, after which CCB *sign* runs under the stripped config. Worked examples in [`STM32_Bare_Test`](https://github.com/wolfSSL/wolfssl-examples-stm32): `main_cubeaes.c` (AES) and `main_cubecrypto.c` (ECC + CCB + AES), validated on NUCLEO-U385RG-Q.
 
 ### Coding
 

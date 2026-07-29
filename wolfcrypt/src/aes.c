@@ -10425,7 +10425,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef STM32_CRYPTO_AES_GCM
 
 /* this function supports inline encrypt */
-static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
+/* Not static: the CubeMX crypto-callback device (port/st/stm32.c) calls this to
+ * service AES-GCM in-callback on the HAL engine. */
+WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
                                   Aes* aes, byte* out, const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
                                   byte* authTag, word32 authTagSz,
@@ -11203,7 +11205,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef STM32_CRYPTO_AES_GCM
 /* this function supports inline decrypt */
-static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
+/* Not static: called by the CubeMX crypto-callback device (see encrypt). */
+WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
                                   Aes* aes, byte* out,
                                   const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
@@ -11836,9 +11839,19 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif
 
-    /* BARE: GCM decrypt always uses SW path (with HW AES blocks via
-     * wc_AesEncrypt). Encrypt is HW-accelerated above; decrypt + tag
-     * verification stays in well-tested SW for now. */
+#if defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO)
+    /* BARE: HW GCM decrypt-verify where the AES IP supports it (TinyAES GCM);
+     * otherwise wc_Stm32_Aes_Gcm returns CRYPTOCB_UNAVAILABLE and the well-tested
+     * SW path runs (its AES blocks still on HW via wc_AesEncrypt). The received
+     * tag is verified inside wc_Stm32_Aes_Gcm (const cast: it compares, never
+     * writes, on the decrypt path). */
+    ret = wc_Stm32_Aes_Gcm(aes, out, in, sz, iv, ivSz,
+                           (byte*)authTag, authTagSz,
+                           authIn, authInSz, 0 /* dec */);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall through to SW GCM decrypt */
+#endif /* WOLFSSL_STM32_BARE && STM32_CRYPTO */
 
 #ifdef STM32_CRYPTO_AES_GCM
     /* The STM standard peripheral library API's doesn't support partial blocks */
