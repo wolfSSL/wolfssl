@@ -1463,6 +1463,11 @@ WOLFSSL_API int  wolfSSL_set_write_fd (WOLFSSL* ssl, int fd);
 WOLFSSL_API int  wolfSSL_set_read_fd (WOLFSSL* ssl, int fd);
 WOLFSSL_API char* wolfSSL_get_cipher_list(int priority);
 WOLFSSL_API char* wolfSSL_get_cipher_list_ex(WOLFSSL* ssl, int priority);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+WOLFSSL_API const char* wolfSSL_get_cipher_list_compat(const WOLFSSL* ssl,
+    int priority);
+#endif
 WOLFSSL_API int  wolfSSL_get_ciphers(char* buf, int len);
 WOLFSSL_API int wolfSSL_get_ciphers_iana(char* buf, int len);
 WOLFSSL_API const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
