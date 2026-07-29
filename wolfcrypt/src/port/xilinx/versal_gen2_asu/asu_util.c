@@ -81,8 +81,12 @@ word32 wc_AsuWaitDone(AsuWait* wait)
  * asu_settings.h) the data cache is off for the whole application, so buffer
  * maintenance is unnecessary and these become no ops. Otherwise the cache is on
  * and the port cleans inputs and invalidates outputs around each ASU access. */
+
 void wc_AsuCacheFlush(const void* addr, word32 len)
 {
+    if (addr == NULL || len == 0) {
+        return;
+    }
 #ifdef WC_ASU_DISABLE_CACHE
     (void)addr;
     (void)len;
@@ -91,8 +95,13 @@ void wc_AsuCacheFlush(const void* addr, word32 len)
 #endif
 }
 
+/* Exact extent: callers flush the buffer before the op, so the edge cache lines
+ * hold nothing stale to write back and neighboring data keeps its new value. */
 void wc_AsuCacheInvalidate(void* addr, word32 len)
 {
+    if (addr == NULL || len == 0) {
+        return;
+    }
 #ifdef WC_ASU_DISABLE_CACHE
     (void)addr;
     (void)len;
