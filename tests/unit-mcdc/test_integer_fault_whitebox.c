@@ -29,16 +29,16 @@
  * white-box (test_integer_whitebox.c) can reach is the FALSE (short-circuit)
  * half of the allocation success-chains inside mp_div's binary long-division:
  *
- *   if (((res = mp_abs(a, &ta))    != MP_OKAY) ||     // 1611:*:0
- *       ((res = mp_abs(b, &tb))    != MP_OKAY) ||     // 1611:*:1
- *       ((res = mp_mul_2d(&tb, n, &tb)) != MP_OKAY) ||// 1611:*:2
- *       ((res = mp_mul_2d(&tq, n, &tq)) != MP_OKAY))  // 1611:*:3
+ *   if (((res = mp_abs(a, &ta))    != MP_OKAY) ||     -- 1611:*:0
+ *       ((res = mp_abs(b, &tb))    != MP_OKAY) ||     -- 1611:*:1
+ *       ((res = mp_mul_2d(&tb, n, &tb)) != MP_OKAY) ||-- 1611:*:2
+ *       ((res = mp_mul_2d(&tq, n, &tq)) != MP_OKAY))  -- 1611:*:3
  *   ...
- *       if (((res = mp_sub(&ta, &tb, &ta)) != MP_OKAY) ||  // 1620:*:0
- *           ((res = mp_add(&q,  &tq, &q))  != MP_OKAY))     // 1620:*:1
+ *       if (((res = mp_sub(&ta, &tb, &ta)) != MP_OKAY) ||  -- 1620:*:0
+ *           ((res = mp_add(&q,  &tq, &q))  != MP_OKAY))     -- 1620:*:1
  *   ...
- *       if (((res = mp_div_2d(&tb, 1, &tb, NULL)) != MP_OKAY) || // 1625:*:0
- *           ((res = mp_div_2d(&tq, 1, &tq, NULL)) != MP_OKAY))   // 1625:*:1
+ *       if (((res = mp_div_2d(&tb, 1, &tb, NULL)) != MP_OKAY) || -- 1625:*:0
+ *           ((res = mp_div_2d(&tq, 1, &tq, NULL)) != MP_OKAY))   -- 1625:*:1
  *
  * In normal execution every allocation succeeds, so `res` stays MP_OKAY and
  * each operand's TRUE (failure) side is never shown; and because these are OR

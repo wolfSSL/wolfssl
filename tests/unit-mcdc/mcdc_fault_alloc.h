@@ -48,15 +48,15 @@
  *
  * INTENDED SWEEP PATTERN
  * ----------------------
- *     mcdc_fa_install();                     // once, up front
- *     ...prepare valid inputs (NOT armed)... // allocations here must succeed
- *     for (n = 1; n <= K; n++) {             // K >= number of alloc sites
- *         mcdc_fa_arm(n);                    // n-th alloc (and later) -> NULL
- *         (void)Target(args...);            // exercise one failure position
- *         mcdc_fa_disarm();                  // let cleanup / next prep alloc
+ *     mcdc_fa_install();                     -- once, up front
+ *     ...prepare valid inputs (NOT armed)... -- allocations here must succeed
+ *     for (n = 1; n <= K; n++) {             -- K >= number of alloc sites
+ *         mcdc_fa_arm(n);                    -- n-th alloc (and later) -> NULL
+ *         (void)Target(args...);            -- exercise one failure position
+ *         mcdc_fa_disarm();                  -- let cleanup / next prep alloc
  *     }
  *     mcdc_fa_disarm();
- *     mcdc_fa_restore();                     // put the originals back
+ *     mcdc_fa_restore();                     -- put the originals back
  *
  * Pick K a few larger than the count of XMALLOC sites reachable in the target
  * (over-sweeping is harmless: once n exceeds the site count the target simply
