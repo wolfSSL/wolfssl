@@ -6279,6 +6279,11 @@ typedef struct Dtls13Epoch {
 #define DTLS13_EPOCH_SIZE 4
 #endif
 
+/* our epoch, peer epoch, peer epoch - 1 and a free slot for a new epoch */
+#if DTLS13_EPOCH_SIZE < 4
+#error "DTLS13_EPOCH_SIZE must be at least 4"
+#endif
+
 #ifndef DTLS13_RETRANS_RN_SIZE
 #define DTLS13_RETRANS_RN_SIZE 3
 #endif
@@ -7694,6 +7699,7 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS13
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define Dtls13GetEpoch wolfSSL_Dtls13GetEpoch
+        #define Dtls13NewEpoch wolfSSL_Dtls13NewEpoch
         #define Dtls13CheckEpoch wolfSSL_Dtls13CheckEpoch
         #define Dtls13HandshakeRecv wolfSSL_Dtls13HandshakeRecv
         #define Dtls13WriteAckMessage wolfSSL_Dtls13WriteAckMessage
@@ -7705,7 +7711,7 @@ WOLFSSL_TEST_VIS struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
     w64wrapper epochNumber);
 WOLFSSL_LOCAL void Dtls13SetOlderEpochSide(WOLFSSL* ssl, w64wrapper epochNumber,
     int side);
-WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
+WOLFSSL_TEST_VIS int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
     int side);
 WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
     enum encrypt_side side);
