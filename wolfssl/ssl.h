@@ -1847,6 +1847,13 @@ WOLFSSL_API int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int timeout);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int timeout);
 WOLFSSL_API int  wolfSSL_dtls_got_timeout(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls_retransmit(WOLFSSL* ssl);
+/* Defined alongside the other DTLS calls, inside the !WOLFSSL_LEANPSK block of
+ * ssl_api_dtls.c, so gate the declaration the same way rather than promising a
+ * symbol that build does not provide. */
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_LEANPSK)
+WOLFSSL_API int  wolfSSL_dtls13_pending_work(WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl);
+#endif
 WOLFSSL_API int  wolfSSL_dtls(WOLFSSL* ssl);
 
 WOLFSSL_API void* wolfSSL_dtls_create_peer(int port, char* ip);

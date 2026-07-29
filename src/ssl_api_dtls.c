@@ -1369,6 +1369,227 @@ int wolfSSL_dtls_retransmit(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef WOLFSSL_DTLS13
+/* Is this object the kind the scheduled-work API operates on?
+ *
+ * A write-dup pair parks the read side's scheduled work in the shared WriteDup
+ * struct, and only wolfSSL_write() reconciles it back onto the write side.
+ * Such applications already have a working drain and are deliberately out of
+ * scope here, on either side of the pair.
+ */
+static int Dtls13ScheduledWorkObject(WOLFSSL* ssl)
+{
+    if (!ssl->options.dtls || !IsAtLeastTLSv1_3(ssl->version))
+        return 0;
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite != NULL)
+        return 0;
+#endif
+
+    return 1;
+}
+
+/* Is there any point running the scheduled work now?
+ *
+ * While the handshake runs, wolfSSL_connect()/wolfSSL_accept() and
+ * wolfSSL_dtls_retransmit() already drive it. Kept separate from the object
+ * check above so the pump can tell a caller error, which it reports, from
+ * simply having nothing to do yet, which it does not.
+ */
+static int Dtls13ScheduledWorkReady(WOLFSSL* ssl)
+{
+    return Dtls13ScheduledWorkObject(ssl) && ssl->options.handShakeDone;
+}
+
+/* Can a key update be sent right now?
+ *
+ * DTLS must not have two in flight, so not while one of ours is still
+ * unacknowledged. This governs both an update we scheduled ourselves and
+ * answering one the peer asked for, because Tls13UpdateKeys() silently drops
+ * the former in that state. Both entry points ask this same question: the
+ * predicate must not report work the pump then declines or discards, or a
+ * drain loop over the pair never terminates and the caller is misled about
+ * what was done.
+ */
+static int Dtls13CanSendKeyUpdate(WOLFSSL* ssl)
+{
+    return !ssl->dtls13WaitKeyUpdateAck;
+}
+
+/* Check whether the object has DTLS 1.3 work waiting to be sent.
+ *
+ * Only meaningful with WOLFSSL_RW_THREADED, where the read path does not
+ * transmit. The answer is advisory: it can change as soon as it is returned,
+ * and wolfSSL_dtls13_do_scheduled_work() is safe to call regardless.
+ *
+ * Reports only work that wolfSSL_dtls13_do_scheduled_work() can carry out, so
+ * that a drain loop over the pair terminates.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when there is work to send, or when it could not be determined.
+ * @return  0 when there is nothing to do, or ssl is not supported here.
+ */
+int wolfSSL_dtls13_pending_work(WOLFSSL* ssl)
+{
+    int pending = 0;
+
+    WOLFSSL_ENTER("wolfSSL_dtls13_pending_work");
+
+    if (ssl == NULL || !Dtls13ScheduledWorkReady(ssl))
+        return 0;
+
+    /* A record this API built but could only write in part. The pump retries
+     * it, so a drain loop has to be told the retry is still owed. */
+    if (ssl->buffers.outputBuffer.length > 0 && ssl->dtls13SendingAckOrRtx)
+        pending = 1;
+
+    /* dtls13WaitKeyUpdateAck deliberately does not count as work: it says we
+     * are waiting on the peer, not that we have anything to send. */
+    if (!pending && (ssl->dtls13DoKeyUpdate || ssl->options.sendKeyUpdate) &&
+            Dtls13CanSendKeyUpdate(ssl)) {
+        pending = 1;
+    }
+
+    if (!pending) {
+    #ifdef WOLFSSL_RW_THREADED
+        if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0) {
+            /* Report work rather than nothing, so a drain loop calls the pump
+             * and surfaces the error instead of stopping silently. */
+            return 1;
+        }
+    #endif
+        pending = ssl->dtls13Rtx.sendAcks || ssl->dtls13Rtx.retransmit;
+    #ifdef WOLFSSL_RW_THREADED
+        (void)wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+    #endif
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_dtls13_pending_work", pending);
+
+    return pending;
+}
+
+/* Send any DTLS 1.3 work that was scheduled while reading.
+ *
+ * Covers pending ACKs, retransmissions and key updates, including the
+ * KeyUpdate response a peer asked for. With WOLFSSL_RW_THREADED the read path
+ * never transmits, because doing so would race the write thread over the
+ * output buffer and the sending key schedule, so this work is only performed
+ * from the write side. An application that reads without writing has to call
+ * this or those messages are never sent, and the peer keeps retransmitting
+ * what it is waiting to have acknowledged.
+ *
+ * Call it from the same thread used for writing. Calling it concurrently with
+ * a write on another thread has the same effect as two concurrent writes.
+ *
+ * Not for write-dup applications: those park the read side's work in the
+ * shared WriteDup struct, which only wolfSSL_write() reconciles, so they
+ * already have a drain and get WOLFSSL_FATAL_ERROR here rather than a call
+ * that quietly does nothing.
+ *
+ * Note that a key update started from our own side still needs the peer's ACK
+ * to be processed before it completes, and that processing rotates the sending
+ * keys, so it cannot run here.
+ *
+ * A send that only wrote part of a record reports WANT_WRITE through
+ * wolfSSL_get_error(). The record is held and the next call sends the rest,
+ * so that is a retry rather than a reason to stop draining.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success, including when there was nothing to do.
+ * @return  WOLFSSL_FATAL_ERROR when ssl is NULL, unsupported, or on error.
+ */
+int wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_dtls13_do_scheduled_work");
+
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    /* Rejecting the object is a usage error, not something that happened to
+     * the connection, so leave ssl->error alone. It is sticky: SendData()
+     * only clears it for WANT_WRITE, WC_PENDING_E and the DTLS MAC/decrypt
+     * cases, and wolfSSL_write() skips the write-dup drain entirely while it
+     * is set, so recording one here would disable the very drain a write-dup
+     * application relies on. */
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite != NULL) {
+        WOLFSSL_MSG("Write dup objects drain through wolfSSL_write");
+        WOLFSSL_LEAVE("wolfSSL_dtls13_do_scheduled_work", WOLFSSL_FATAL_ERROR);
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
+
+    if (!Dtls13ScheduledWorkObject(ssl)) {
+        WOLFSSL_MSG("Not a DTLS 1.3 object this API handles");
+        WOLFSSL_LEAVE("wolfSSL_dtls13_do_scheduled_work", WOLFSSL_FATAL_ERROR);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (!Dtls13ScheduledWorkReady(ssl))
+        return WOLFSSL_SUCCESS;
+
+    /* An earlier call may have left a record only partly written. Retry it
+     * first: the request that produced it has already been consumed, so
+     * nothing else would send it, and every other caller of
+     * Dtls13DoScheduledWork() pairs it with this same flush. Only a record
+     * this API built is retried here, which is what dtls13SendingAckOrRtx
+     * marks, so a partly written application record is left to the
+     * wolfSSL_write() the caller has to repeat anyway. */
+    if (ssl->buffers.outputBuffer.length > 0 && ssl->dtls13SendingAckOrRtx) {
+        ret = SendBuffered(ssl);
+        if (ret != 0) {
+            ssl->error = ret;
+            WOLFSSL_ERROR(ret);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        ssl->dtls13SendingAckOrRtx = 0;
+    }
+
+    ret = Dtls13DoScheduledWork(ssl);
+    if (ret < 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ret);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* Answer a KeyUpdate the peer requested. The read path defers this the
+     * same way, and SendData() is otherwise the only thing that clears it.
+     * Skip it while one of ours is still unacknowledged: DTLS must not have
+     * two KeyUpdates in flight, and Dtls13DoScheduledWork() above may have
+     * just started one. */
+    if (ssl->options.sendKeyUpdate && Dtls13CanSendKeyUpdate(ssl)) {
+        /* Drop the request before sending, as SendData() does. DTLS commits
+         * the record to the retransmit queue and consumes the handshake
+         * number on WANT_WRITE as well, and sets dtls13WaitKeyUpdateAck
+         * unconditionally, so the update is under way from that point on.
+         * Leaving the request set would send a second one once the peer
+         * acknowledges the first. */
+        ssl->options.sendKeyUpdate = 0;
+        /* Mark the record as ours so a short write is retried by the flush
+         * above rather than waiting for a retransmission timer. */
+        ssl->dtls13SendingAckOrRtx = 1;
+        ret = SendTls13KeyUpdate(ssl);
+        if (ret != 0) {
+            /* Keep the mark only while there is something left to send, so a
+             * failure that wrote nothing does not leave it standing. */
+            ssl->dtls13SendingAckOrRtx =
+                (ssl->buffers.outputBuffer.length > 0);
+            ssl->error = ret;
+            WOLFSSL_ERROR(ret);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        ssl->dtls13SendingAckOrRtx = 0;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_dtls13_do_scheduled_work", WOLFSSL_SUCCESS);
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_DTLS13 */
+
 #endif /* DTLS */
 #endif /* LEANPSK */
 
