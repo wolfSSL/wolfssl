@@ -59,7 +59,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(WOLFSSL_HAVE_SP_ECC) && \
-    defined(WOLFSSL_SP_256) && defined(HAVE_ECC)
+    !defined(WOLFSSL_SP_NO_256) && defined(HAVE_ECC)
 
 #include <wolfssl/wolfcrypt/sp.h>
 #include <wolfssl/wolfcrypt/ecc.h>
