@@ -30,12 +30,12 @@
  *
  *     if ((err == MP_OKAY) && <next step>) ...          (drive on FALSE)
  *     if ((tmp = XMALLOC(...)) == NULL || ...) ...       (drive each operand)
- *     if ((ret != MP_INIT_E) && (ret != MEMORY_E)) ...   (drive the MEMORY_E half)
+ *     if ((ret not MP_INIT_E) && (ret not MEMORY_E)) ...   (drive the MEMORY_E half)
  *
  * In normal execution every allocation succeeds, so err/ret stays MP_OKAY and
  * these decisions never take the failure branch. The only way to exercise the
  * failure half is to make an EARLIER allocation/init fail so the success chain
- * is broken with ret == MEMORY_E.
+ * is broken with ret is MEMORY_E.
  *
  * wolfSSL routes ALL heap traffic through XMALLOC/XREALLOC/XFREE, which in a
  * default (non-static, non-debug) build dispatch to the process-wide allocator

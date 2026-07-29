@@ -26,11 +26,11 @@
  * chains that only diverge when an EARLIER heap allocation fails, e.g.
  *
  *   wc_MakeDsaParameters:  if (((tmp=XMALLOC(..))==NULL) || ((tmp2=XMALLOC..)==NULL))
- *                          if ((err != MP_INIT_E) && (err != MEMORY_E)) mp_clear(tmp);
+ *                          if ((err not MP_INIT_E) && (err not MEMORY_E)) mp_clear(tmp);
  *   wc_DsaSign_ex:         if ((k==NULL)||(kInv==NULL)||...||(buffer==NULL))
- *                          if ((ret != MP_INIT_E) && (ret != MEMORY_E)) mp_forcezero(k);
+ *                          if ((ret not MP_INIT_E) && (ret not MEMORY_E)) mp_forcezero(k);
  *   wc_DsaVerify_ex:       if ((w==NULL)||(u1==NULL)||...||(s==NULL))
- *                          if (ret != MP_INIT_E && ret != MEMORY_E) mp_clear(s);
+ *                          if (ret not MP_INIT_E && ret not MEMORY_E) mp_clear(s);
  *
  * In normal execution every XMALLOC succeeds, so these decisions never take the
  * failure branch. This white-box installs the generic heap-fault injector

@@ -145,28 +145,28 @@ static void wb_peek_line_data_ret_or(void)
 #if defined(WOLFSSL_HAVE_ERROR_QUEUE) && !defined(ERROR_QUEUE_PER_THREAD)
     unsigned long uret;
 
-    /* (1) ret == BAD_MUTEX_E -> 1st operand TRUE, decision TRUE, function
+    /* (1) ret is BAD_MUTEX_E -> 1st operand TRUE, decision TRUE, function
      * returns 0 without ever reaching the ignore_err check. */
     wc_ClearErrorNodes();
     WB_CHECK(wc_AddErrorNode(BAD_MUTEX_E, 10, (char*)"bad mutex node",
             (char*)"synthetic.c") == 0, "AddErrorNode(BAD_MUTEX_E)");
     uret = wc_PeekErrorNodeLineData(NULL, NULL, NULL, NULL, NULL);
-    WB_CHECK(uret == 0, ":1504 ret==BAD_MUTEX_E short-circuits to 0");
+    WB_CHECK(uret == 0, ":1504 ret is BAD_MUTEX_E short-circuits to 0");
 
-    /* (2) ret == BAD_FUNC_ARG -> 1st operand FALSE, 2nd operand TRUE,
+    /* (2) ret is BAD_FUNC_ARG -> 1st operand FALSE, 2nd operand TRUE,
      * decision TRUE via the 2nd operand. */
     wc_ClearErrorNodes();
     WB_CHECK(wc_AddErrorNode(BAD_FUNC_ARG, 20, (char*)"bad func arg node",
             (char*)"synthetic.c") == 0, "AddErrorNode(BAD_FUNC_ARG)");
     uret = wc_PeekErrorNodeLineData(NULL, NULL, NULL, NULL, NULL);
-    WB_CHECK(uret == 0, ":1504 ret==BAD_FUNC_ARG short-circuits to 0");
+    WB_CHECK(uret == 0, ":1504 ret is BAD_FUNC_ARG short-circuits to 0");
 
-    /* (3) ret == BAD_STATE_E via the *natural* empty-queue path (1st and
+    /* (3) ret is BAD_STATE_E via the *natural* empty-queue path (1st and
      * 2nd operands FALSE, 3rd operand TRUE): peekErrorNode() returns
      * BAD_STATE_E itself when the queue has no nodes at all. */
     wc_ClearErrorNodes();
     uret = wc_PeekErrorNodeLineData(NULL, NULL, NULL, NULL, NULL);
-    WB_CHECK(uret == 0, ":1504 empty queue -> ret==BAD_STATE_E -> 0");
+    WB_CHECK(uret == 0, ":1504 empty queue -> ret is BAD_STATE_E -> 0");
 
     /* (4) all three operands FALSE: a node whose stored value is a normal,
      * non-sentinel error code. Decision FALSE, execution falls through to
@@ -181,7 +181,7 @@ static void wb_peek_line_data_ret_or(void)
 
     wc_ClearErrorNodes();
 
-    WB_NOTE("wc_PeekErrorNodeLineData ret==BAD_MUTEX_E/BAD_FUNC_ARG/"
+    WB_NOTE("wc_PeekErrorNodeLineData ret is BAD_MUTEX_E/BAD_FUNC_ARG/"
             "BAD_STATE_E OR (:1504) covered -- all 3 operands independently "
             "true, plus all-false");
 #else
@@ -288,7 +288,7 @@ static void wb_get_error_node_current_idx(void)
             == 0, "AddErrorNode #1");
     WB_CHECK(wc_AddErrorNode(BUFFER_E, 61, (char*)"n2", (char*)"f2")
             == 0, "AddErrorNode #2");
-    WB_CHECK(wc_PullErrorNode(NULL, NULL, NULL) == WC_KEY_SIZE_E,
+    WB_CHECK(wc_PullErrorNode(NULL, NULL, NULL) == WC_NO_ERR_TRACE(WC_KEY_SIZE_E),
             ":1340 setup pull #1");
     idx = getErrorNodeCurrentIdx();
     WB_CHECK(idx == 1,

@@ -84,17 +84,17 @@ int main(void)
         XMEMSET(buf, 0, sizeof(buf));
 
         /* I2OSP() (hpke.c:86): w <= 0 || w > 32 || n < 0 */
-        if (I2OSP(0, 0, buf) != MP_VAL)   /* w <= 0 true, short-circuits */
+        if (I2OSP(0, 0, buf) != WC_NO_ERR_TRACE(MP_VAL))   /* w <= 0 true, short-circuits */
             wb_fail = 1;
-        if (I2OSP(0, 33, buf) != MP_VAL)  /* w <= 0 false, w > 32 true */
+        if (I2OSP(0, 33, buf) != WC_NO_ERR_TRACE(MP_VAL))  /* w <= 0 false, w > 32 true */
             wb_fail = 1;
-        if (I2OSP(-1, 4, buf) != MP_VAL)  /* w<=0, w>32 false, n < 0 true */
+        if (I2OSP(-1, 4, buf) != WC_NO_ERR_TRACE(MP_VAL))  /* w<=0, w>32 false, n < 0 true */
             wb_fail = 1;
         if (I2OSP(1, 4, buf) != 0)        /* all three false -> valid path */
             wb_fail = 1;
 
         /* I2OSP() (hpke.c:91): w < 4 && n > ((1 << (w * 8)) - 1) */
-        if (I2OSP(256, 1, buf) != MP_VAL) /* w<4 true, n>max(255) true */
+        if (I2OSP(256, 1, buf) != WC_NO_ERR_TRACE(MP_VAL)) /* w<4 true, n>max(255) true */
             wb_fail = 1;
         if (I2OSP(255, 1, buf) != 0)      /* w<4 true, n>max false */
             wb_fail = 1;
@@ -150,10 +150,10 @@ int main(void)
             /* wc_HpkeContextComputeNonce() (hpke.c:632):
              * hpke == NULL || context == NULL */
             if (wc_HpkeContextComputeNonce(NULL, &context, nonceOut)
-                    != BAD_FUNC_ARG)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             if (wc_HpkeContextComputeNonce(&hpke, NULL, nonceOut)
-                    != BAD_FUNC_ARG)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             context.seq = 0;
             XMEMSET(context.base_nonce, 0, sizeof(context.base_nonce));
@@ -164,16 +164,16 @@ int main(void)
              * ephemeralKey == NULL || receiverKey == NULL ||
              * sharedSecret == NULL */
             if (wc_HpkeEncap(NULL, ephemeralKey, receiverKey, sharedSecretA)
-                    != BAD_FUNC_ARG)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             if (wc_HpkeEncap(&hpke, NULL, receiverKey, sharedSecretA)
-                    != BAD_FUNC_ARG)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             if (wc_HpkeEncap(&hpke, ephemeralKey, NULL, sharedSecretA)
-                    != BAD_FUNC_ARG)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             if (wc_HpkeEncap(&hpke, ephemeralKey, receiverKey, NULL)
-                    != BAD_FUNC_ARG)
+                    != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             /* baseline: all operands valid -> decision false, real DH+KDF */
             if (wc_HpkeEncap(&hpke, ephemeralKey, receiverKey, sharedSecretA)
@@ -183,10 +183,10 @@ int main(void)
             /* wc_HpkeDecap() (hpke.c:1032): hpke == NULL ||
              * receiverKey == NULL */
             if (wc_HpkeDecap(NULL, receiverKey, ephemeralPubKey,
-                    ephemeralPubKeySz, sharedSecretB) != BAD_FUNC_ARG)
+                    ephemeralPubKeySz, sharedSecretB) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             if (wc_HpkeDecap(&hpke, NULL, ephemeralPubKey,
-                    ephemeralPubKeySz, sharedSecretB) != BAD_FUNC_ARG)
+                    ephemeralPubKeySz, sharedSecretB) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 wb_fail = 1;
             /* baseline: both operands valid -> decision false, real
              * receiver-side DH+KDF using the ephemeral's serialized public

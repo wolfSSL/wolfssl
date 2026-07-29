@@ -54,24 +54,24 @@ int main(void)
     XMEMSET(key, 0, sizeof(key));
 
     /* blake2b_init(): !outlen || outlen > BLAKE2B_OUTBYTES */
-    if (blake2b_init(&bs, 0) != BAD_FUNC_ARG) wb_fail = 1;
-    if (blake2b_init(&bs, BLAKE2B_OUTBYTES + 1) != BAD_FUNC_ARG) wb_fail = 1;
+    if (blake2b_init(&bs, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) wb_fail = 1;
+    if (blake2b_init(&bs, BLAKE2B_OUTBYTES + 1) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) wb_fail = 1;
     if (blake2b_init(&bs, BLAKE2B_OUTBYTES) != 0) wb_fail = 1;
 
     /* blake2b_init_key(): outlen bound, key/keylen held valid to isolate it. */
-    if (blake2b_init_key(&bs, 0, key, BLAKE2B_KEYBYTES) != BAD_FUNC_ARG)
+    if (blake2b_init_key(&bs, 0, key, BLAKE2B_KEYBYTES) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         wb_fail = 1;
     if (blake2b_init_key(&bs, BLAKE2B_OUTBYTES + 1, key, BLAKE2B_KEYBYTES)
-            != BAD_FUNC_ARG) wb_fail = 1;
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) wb_fail = 1;
 
     /* blake2b_init_key(): !key || !keylen || keylen > BLAKE2B_KEYBYTES,
      * outlen held valid to isolate this decision. */
     if (blake2b_init_key(&bs, BLAKE2B_OUTBYTES, NULL, BLAKE2B_KEYBYTES)
-            != BAD_FUNC_ARG) wb_fail = 1;
-    if (blake2b_init_key(&bs, BLAKE2B_OUTBYTES, key, 0) != BAD_FUNC_ARG)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) wb_fail = 1;
+    if (blake2b_init_key(&bs, BLAKE2B_OUTBYTES, key, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         wb_fail = 1;
     if (blake2b_init_key(&bs, BLAKE2B_OUTBYTES, key, BLAKE2B_KEYBYTES + 1)
-            != BAD_FUNC_ARG) wb_fail = 1;
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) wb_fail = 1;
     /* Baseline: both decisions false on both lines. */
     if (blake2b_init_key(&bs, BLAKE2B_OUTBYTES, key, BLAKE2B_KEYBYTES) != 0)
         wb_fail = 1;

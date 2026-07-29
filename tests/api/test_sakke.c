@@ -231,13 +231,13 @@ int test_wc_Sakke_DecisionCoverage(void)
     /* data == NULL: length-only query. */
     ExpectIntEQ(wc_ExportSakkeKey(&key, NULL, &sz),
         WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-    ExpectIntEQ(sz, 384u);
+    ExpectIntEQ(sz, 384U);
     sz = 383; /* one byte short of 3*128 */
     ExpectIntEQ(wc_ExportSakkeKey(&key, data, &sz),
         WC_NO_ERR_TRACE(BUFFER_E));
     sz = sizeof(data);
     ExpectIntEQ(wc_ExportSakkeKey(&key, data, &sz), 0);
-    ExpectIntEQ(sz, 384u);
+    ExpectIntEQ(sz, 384U);
 
     /* --- wc_ImportSakkeKey() --- */
     ExpectIntEQ(wc_ImportSakkeKey(NULL, data, sz),
@@ -258,13 +258,13 @@ int test_wc_Sakke_DecisionCoverage(void)
     sz = 0;
     ExpectIntEQ(wc_ExportSakkePrivateKey(&key, NULL, &sz),
         WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-    ExpectIntEQ(sz, 128u);
+    ExpectIntEQ(sz, 128U);
     sz = 127;
     ExpectIntEQ(wc_ExportSakkePrivateKey(&key, data, &sz),
         WC_NO_ERR_TRACE(BUFFER_E));
     sz = sizeof(data);
     ExpectIntEQ(wc_ExportSakkePrivateKey(&key, data, &sz), 0);
-    ExpectIntEQ(sz, 128u);
+    ExpectIntEQ(sz, 128U);
 
     /* --- wc_ImportSakkePrivateKey() --- */
     ExpectIntEQ(wc_ImportSakkePrivateKey(NULL, data, sz),
@@ -284,24 +284,24 @@ int test_wc_Sakke_DecisionCoverage(void)
     /* data == NULL: skips sakke_z_from_mont(), length-only query. */
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, NULL, &sz, 1),
         WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-    ExpectIntEQ(sz, 256u);
+    ExpectIntEQ(sz, 256U);
     sz = 255;
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, data, &sz, 1),
         WC_NO_ERR_TRACE(BUFFER_E));
     sz = sizeof(data);
     /* data != NULL: drives the sakke_z_from_mont() call. */
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, data, &sz, 1), 0);
-    ExpectIntEQ(sz, 256u);
+    ExpectIntEQ(sz, 256U);
     sz = 0;
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, NULL, &sz, 0),
         WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-    ExpectIntEQ(sz, 257u);
+    ExpectIntEQ(sz, 257U);
     sz = 256;
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, data, &sz, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
     sz = sizeof(data);
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, data, &sz, 0), 0);
-    ExpectIntEQ(sz, 257u);
+    ExpectIntEQ(sz, 257U);
 
     /* --- wc_EncodeSakkeRsk() --- */
     sz = sizeof(data);
@@ -312,7 +312,7 @@ int test_wc_Sakke_DecisionCoverage(void)
     ExpectIntEQ(wc_EncodeSakkeRsk(&key, rsk, data, NULL, 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_EncodeSakkeRsk(&key, rsk, data, &sz, 1), 0);
-    ExpectIntEQ(sz, 256u);
+    ExpectIntEQ(sz, 256U);
 
     /* --- wc_DecodeSakkeRsk() --- */
     ExpectIntEQ(wc_DecodeSakkeRsk(NULL, data, sz, rsk),
@@ -427,13 +427,13 @@ int test_wc_Sakke_DecisionCoverage(void)
     sz = 0;
     ExpectIntEQ(wc_GetSakkePointI(&key, NULL, &sz),
         WC_NO_ERR_TRACE(LENGTH_ONLY_E));
-    ExpectIntEQ(sz, 256u);
+    ExpectIntEQ(sz, 256U);
     sz = 255;
     ExpectIntEQ(wc_GetSakkePointI(&key, data, &sz),
         WC_NO_ERR_TRACE(BUFFER_E));
     sz = sizeof(data);
     ExpectIntEQ(wc_GetSakkePointI(&key, data, &sz), 0);
-    ExpectIntEQ(sz, 256u);
+    ExpectIntEQ(sz, 256U);
 
     /* --- wc_SetSakkePointI() --- */
     ExpectIntEQ(wc_SetSakkePointI(NULL, id, 1, data, sz),
@@ -770,7 +770,7 @@ int test_wc_Sakke_FeatureCoverage(void)
      * to the same bytes. */
     pubKeySz = sizeof(pubKeyData);
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, pubKeyData, &pubKeySz, 1), 0);
-    ExpectIntEQ(pubKeySz, 256u);
+    ExpectIntEQ(pubKeySz, 256U);
     ExpectIntEQ(wc_InitSakkeKey_ex(&key2, 128, ECC_SAKKE_1, NULL,
         INVALID_DEVID), 0);
     ExpectIntEQ(wc_ImportSakkePublicKey(&key2, pubKeyData, pubKeySz, 0), 0);
@@ -784,7 +784,7 @@ int test_wc_Sakke_FeatureCoverage(void)
 
     pubKeySz = sizeof(pubKeyData);
     ExpectIntEQ(wc_ExportSakkePublicKey(&key, pubKeyData, &pubKeySz, 0), 0);
-    ExpectIntEQ(pubKeySz, 257u);
+    ExpectIntEQ(pubKeySz, 257U);
     ExpectIntEQ(pubKeyData[0], 0x04);
     ExpectIntEQ(wc_InitSakkeKey_ex(&key2, 128, ECC_SAKKE_1, NULL,
         INVALID_DEVID), 0);

@@ -24,19 +24,19 @@
  *
  * wc_mlkem.c's residual uncovered decisions are the FALSE half of allocation
  * success chains that only diverge when an EARLIER heap allocation fails,
- * leaving ret == MEMORY_E when the guard is reached:
+ * leaving ret is MEMORY_E when the guard is reached:
  *
  *   wc_MlKemKey_Encapsulate (WOLFSSL_MLKEM_CACHE_A arm):
  *       if ((ret == 0) && ((key->flags & MLKEM_FLAG_A_SET) != 0)) { ... }
  *       -- the ret==0 FALSE half (wc_mlkem.c:1226) needs the up-front working
- *          buffer y (XMALLOC, wc_mlkem.c:1198) to fail so ret==MEMORY_E reaches
+ *          buffer y (XMALLOC, wc_mlkem.c:1198) to fail so ret is MEMORY_E reaches
  *          the cached-matrix transpose guard.
  *
  *   wc_mlkemkey_check_h (called by Encapsulate/Decapsulate):
  *       if ((ret == 0) && ((key->flags & MLKEM_FLAG_H_SET) == 0)) ret=BAD_STATE_E;
  *       -- the ret==0 FALSE half (wc_mlkem.c:1373:...:0) needs the encoded-
  *          public-key buffer pubKey (XMALLOC, wc_mlkem.c:1357) to fail so the
- *          re-check sees ret==MEMORY_E. (The SECOND condition, MLKEM_FLAG_H_SET,
+ *          re-check sees ret is MEMORY_E. (The SECOND condition, MLKEM_FLAG_H_SET,
  *          is a defensive/impossible-state check -- reaching it True with ret==0
  *          means EncodePublicKey succeeded yet left the h flag unset, which the
  *          working encode never does -- so 1373:...:1 is NOT alloc-closable and
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
 
         /* --- wc_MlKemKey_Encapsulate: the up-front working buffer y
          * (wc_mlkem.c:1198) is the first allocation, so a low fail-index makes
-         * ret==MEMORY_E before the noise/matrix/maths steps. Under the
+         * ret is MEMORY_E before the noise/matrix/maths steps. Under the
          * WOLFSSL_MLKEM_CACHE_A arm this drives the ret==0 FALSE half of the
          * cached-matrix transpose guard (wc_mlkem.c:1226:...:0); under the other
          * arms it drives encapsulate's own alloc-cleanup halves. Encapsulate
@@ -243,7 +243,7 @@ int main(int argc, char** argv)
         /* --- wc_mlkemkey_check_h standalone: its single XMALLOC is the encoded
          * public-key buffer pubKey (wc_mlkem.c:1357). Clearing MLKEM_FLAG_H_SET
          * each iteration re-enters the encode-and-hash body; faulting pubKey
-         * (n=1) leaves ret==MEMORY_E at the re-check (wc_mlkem.c:1373:...:0
+         * (n=1) leaves ret is MEMORY_E at the re-check (wc_mlkem.c:1373:...:0
          * FALSE half). K=6 covers the one site with margin. --- */
         for (n = 1; n <= 6; n++) {
             key.flags &= ~(int)MLKEM_FLAG_H_SET;
