@@ -302,7 +302,12 @@ int test_wc_Des3_EcbEncrypt(void)
 int test_wc_Des_CbcEncryptDecrypt(void)
 {
     EXPECT_DECLS;
-#ifndef NO_DES3
+/* The frozen FIPS/selftest single-DES module does not NULL-check its arguments
+ * (the open-build guards these tests exercise were added post-freeze), so the
+ * per-operand NULL probes below dereference NULL and crash under HAVE_FIPS /
+ * HAVE_SELFTEST. This single-DES MC/DC coverage is gathered in the open build;
+ * skip it on the frozen modules. */
+#if !defined(NO_DES3) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     Des        des;
     byte       cipher[DES_BLOCK_SIZE];
     byte       plain[DES_BLOCK_SIZE];
