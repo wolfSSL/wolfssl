@@ -5995,10 +5995,23 @@ typedef struct BuildMsgArgs {
     #define WRITE_DUP_SIDE 1
     #define READ_DUP_SIDE 2
 
+    /* The simple TLS write-dup mailbox has no pointer ownership to transfer.
+     * Use wolfSSL's portable atomics when available. Configurations with
+     * additional shared DTLS 1.3 or post-handshake authentication state keep
+     * the mutex path below. */
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED) && \
+    !defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    #define WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX
+#endif
+
     typedef struct WriteDup {
         wolfSSL_Mutex   dupMutex;       /* field access mutex */
         int             dupCount;       /* reference count */
+#ifdef WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX
+        wolfSSL_Atomic_Int dupErr;       /* fatal state for the write side */
+#else
         int             dupErr;         /* under dupMutex, pass to other side */
+#endif
 #ifdef WOLFSSL_DTLS13
         struct Dtls13RecordNumber* sendAckList; /* ownership transferred */
         /* Key update ACK tracking: write side stores the (epoch, seq) of its
@@ -6032,12 +6045,43 @@ typedef struct BuildMsgArgs {
 #ifdef WOLFSSL_TLS13
         /* TLS 1.3 (and DTLS 1.3): read side received a KeyUpdate(update_requested)
          * but cannot send the response; write side handles it. */
+#ifdef WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX
+        wolfSSL_Atomic_Int keyUpdateRespond; /* read-to-write mailbox */
+#else
         WC_BITFIELD keyUpdateRespond:1; /* write side must send a KeyUpdate response */
+#endif
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         WC_BITFIELD postHandshakeAuthPending:1; /* write side must respond */
 #endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
 #endif /* WOLFSSL_TLS13 */
     } WriteDup;
+
+#ifdef WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX
+    static WC_INLINE int WriteDupLoadError(const WriteDup* state)
+    {
+        return WOLFSSL_ATOMIC_LOAD(state->dupErr);
+    }
+
+    static WC_INLINE void WriteDupStoreError(WriteDup* state, int error)
+    {
+        WOLFSSL_ATOMIC_STORE(state->dupErr, error);
+    }
+
+#ifdef WOLFSSL_TLS13
+    static WC_INLINE int WriteDupTakeKeyUpdate(WriteDup* state)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(state->keyUpdateRespond) == 0)
+            return 0;
+
+        return wolfSSL_Atomic_Int_Exchange(&state->keyUpdateRespond, 0);
+    }
+
+    static WC_INLINE void WriteDupPostKeyUpdate(WriteDup* state)
+    {
+        WOLFSSL_ATOMIC_STORE(state->keyUpdateRespond, 1);
+    }
+#endif /* WOLFSSL_TLS13 */
+#endif /* WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX */
 
     WOLFSSL_LOCAL void FreeWriteDup(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  NotifyWriteSide(WOLFSSL* ssl, int err);

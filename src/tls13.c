@@ -12612,10 +12612,14 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #if defined(HAVE_WRITE_DUP) && defined(WOLFSSL_TLS13)
         /* Read side cannot write; delegate the response to the write side. */
         if (ssl->dupWrite != NULL && ssl->dupSide == READ_DUP_SIDE) {
+#ifdef WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX
+            WriteDupPostKeyUpdate(ssl->dupWrite);
+#else
             if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
                 return BAD_MUTEX_E;
             ssl->dupWrite->keyUpdateRespond = 1;
             wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+#endif
             ssl->keys.keyUpdateRespond = 0;
             return 0;
         }

@@ -35677,6 +35677,87 @@ static int test_write_dup_oom(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX) && defined(WOLFSSL_TLS13)
+#define WRITE_DUP_ATOMIC_TEST_ITERATIONS 100000
+
+typedef struct WriteDupAtomicTestCtx {
+    WriteDup mailbox;
+    wolfSSL_Atomic_Int ready;
+    wolfSSL_Atomic_Int start;
+    wolfSSL_Atomic_Int done;
+    int finalError;
+    int sawKeyUpdate;
+} WriteDupAtomicTestCtx;
+
+static THREAD_RETURN WOLFSSL_THREAD write_dup_atomic_producer(void* arg)
+{
+    WriteDupAtomicTestCtx* ctx = (WriteDupAtomicTestCtx*)arg;
+    int i;
+
+    (void)wolfSSL_Atomic_Int_FetchAdd(&ctx->ready, 1);
+    while (WOLFSSL_ATOMIC_LOAD(ctx->start) == 0) {
+    }
+
+    for (i = 1; i <= WRITE_DUP_ATOMIC_TEST_ITERATIONS; i++) {
+        WriteDupStoreError(&ctx->mailbox, i);
+        WriteDupPostKeyUpdate(&ctx->mailbox);
+    }
+    WOLFSSL_ATOMIC_STORE(ctx->done, 1);
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+static THREAD_RETURN WOLFSSL_THREAD write_dup_atomic_consumer(void* arg)
+{
+    WriteDupAtomicTestCtx* ctx = (WriteDupAtomicTestCtx*)arg;
+    int sawKeyUpdate = 0;
+
+    (void)wolfSSL_Atomic_Int_FetchAdd(&ctx->ready, 1);
+    while (WOLFSSL_ATOMIC_LOAD(ctx->start) == 0) {
+    }
+
+    while (WOLFSSL_ATOMIC_LOAD(ctx->done) == 0) {
+        ctx->finalError = WriteDupLoadError(&ctx->mailbox);
+        sawKeyUpdate |= WriteDupTakeKeyUpdate(&ctx->mailbox);
+    }
+    ctx->finalError = WriteDupLoadError(&ctx->mailbox);
+    sawKeyUpdate |= WriteDupTakeKeyUpdate(&ctx->mailbox);
+    ctx->sawKeyUpdate = sawKeyUpdate;
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+static int test_write_dup_atomic_mailbox(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX) && defined(WOLFSSL_TLS13)
+    WriteDupAtomicTestCtx ctx;
+    THREAD_TYPE producer;
+    THREAD_TYPE consumer;
+
+    XMEMSET(&ctx, 0, sizeof(ctx));
+    wolfSSL_Atomic_Int_Init(&ctx.mailbox.dupErr, 0);
+    wolfSSL_Atomic_Int_Init(&ctx.mailbox.keyUpdateRespond, 0);
+    wolfSSL_Atomic_Int_Init(&ctx.ready, 0);
+    wolfSSL_Atomic_Int_Init(&ctx.start, 0);
+    wolfSSL_Atomic_Int_Init(&ctx.done, 0);
+
+    start_thread(write_dup_atomic_producer, (func_args*)&ctx, &producer);
+    start_thread(write_dup_atomic_consumer, (func_args*)&ctx, &consumer);
+    while (WOLFSSL_ATOMIC_LOAD(ctx.ready) != 2) {
+    }
+    WOLFSSL_ATOMIC_STORE(ctx.start, 1);
+
+    join_thread(producer);
+    join_thread(consumer);
+
+    ExpectIntEQ(ctx.finalError, WRITE_DUP_ATOMIC_TEST_ITERATIONS);
+    ExpectIntEQ(ctx.sawKeyUpdate, 1);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_read_write_hs(void)
 {
 
@@ -38823,6 +38904,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_write_dup_want_write),
     TEST_DECL(test_write_dup_want_write_simul),
     TEST_DECL(test_write_dup_oom),
+    TEST_DECL(test_write_dup_atomic_mailbox),
     TEST_DECL(test_read_write_hs),
     TEST_DECL(test_get_signature_nid),
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION

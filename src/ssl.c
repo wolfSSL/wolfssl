@@ -879,6 +879,12 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
         ssl->dupWrite = NULL;
         return BAD_MUTEX_E;
     }
+#ifdef WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX
+    wolfSSL_Atomic_Int_Init(&ssl->dupWrite->dupErr, 0);
+#ifdef WOLFSSL_TLS13
+    wolfSSL_Atomic_Int_Init(&ssl->dupWrite->keyUpdateRespond, 0);
+#endif
+#endif
 
     /* Pre-allocate any objects that can fail BEFORE performing destructive
      * state mutations on ssl, so an allocation failure cannot leave ssl
@@ -1042,6 +1048,12 @@ WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl)
 */
 int NotifyWriteSide(WOLFSSL* ssl, int err)
 {
+#ifdef WOLFSSL_WRITE_DUP_ATOMIC_MAILBOX
+    WOLFSSL_ENTER("NotifyWriteSide");
+
+    WriteDupStoreError(ssl->dupWrite, err);
+    return 0;
+#else
     int ret;
 
     WOLFSSL_ENTER("NotifyWriteSide");
@@ -1053,6 +1065,7 @@ int NotifyWriteSide(WOLFSSL* ssl, int err)
     }
 
     return ret;
+#endif
 }
 
 
