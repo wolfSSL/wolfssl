@@ -4707,6 +4707,67 @@
     #define WOLFSSL_CURVE25519_BLINDING
 #endif
 
+/* curve25519/ed25519 implementation selection.
+ *
+ * These are derived here rather than in fe_operations.h because the generated
+ * assembly is guarded by the same macros as the C sources, and a .S file only
+ * ever sees settings.h (through libwolfssl_sources_asm.h) - never a C header.
+ * Deriving WOLFSSL_CURVE25519_USE_ED25519 in fe_operations.h left the
+ * assembler with a different view of the configuration than the compiler, so
+ * ge_operations.c could call ed25519 group math (e.g. fe_cmov_table) that the
+ * assembly had guarded out.  Must stay after WOLFSSL_CURVE25519_BLINDING
+ * above, which is an input to the selection. */
+#if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
+
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_X86_64_BUILD) && \
+    !defined(NO_CURVED25519_X64)
+    #define CURVED25519_X64
+#elif defined(HAVE___UINT128_T) && !defined(NO_CURVED25519_128BIT)
+    #define CURVED25519_128BIT
+#endif
+
+#if defined(CURVED25519_X64)
+    #define CURVED25519_ASM_64BIT
+    #define CURVED25519_ASM
+#endif
+
+/* The small (reduced-C) curve25519/ed25519 code and the Intel x64 assembly
+ * both provide the same fe_, sc_ and curve25519 symbols, so selecting both
+ * (for example a user_settings.h that keeps CURVE25519_SMALL/ED25519_SMALL
+ * while USE_INTEL_SPEEDUP enables the x64 assembly) produces duplicate-symbol
+ * link errors that are hard to diagnose. Detect the incompatible combination
+ * at compile time with a clear message instead. To keep the small
+ * implementation define NO_CURVED25519_X64; to use the assembly drop
+ * CURVE25519_SMALL / ED25519_SMALL. */
+#if defined(CURVED25519_X64) && \
+    (defined(CURVE25519_SMALL) || defined(ED25519_SMALL))
+    #error "CURVE25519_SMALL/ED25519_SMALL are incompatible with the Intel x64 curve25519/ed25519 assembly (CURVED25519_X64); define NO_CURVED25519_X64 to keep the small implementation, or remove the SMALL settings to use the assembly"
+#endif
+
+#if defined(WOLFSSL_ARMASM)
+    #ifdef __aarch64__
+        #define CURVED25519_ASM_64BIT
+    #else
+        #define CURVED25519_ASM_32BIT
+    #endif
+    #define CURVED25519_ASM
+#endif
+
+/* curve25519 always uses its own field math, but on some builds it borrows
+ * ed25519's group math via WOLFSSL_CURVE25519_USE_ED25519 below. Under
+ * WOLF_CRYPTO_CB_ONLY_ED25519 ed25519's group math is removed. */
+#if (defined(CURVED25519_ASM_64BIT) || defined(HAVE_ED25519)) && \
+        !defined(WOLFSSL_CURVE25519_BLINDING) && \
+        !defined(WOLFSSL_CURVE25519_NOT_USE_ED25519) && \
+        (!defined(WOLF_CRYPTO_CB_ONLY_ED25519) || \
+         (defined(HAVE_CURVE25519) && \
+          !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)))
+    #undef  WOLFSSL_CURVE25519_USE_ED25519
+    #define WOLFSSL_CURVE25519_USE_ED25519
+#endif
+
+#endif /* HAVE_CURVE25519 || HAVE_ED25519 */
+
 /* warning for not using harden build options (default with ./configure) */
 /* do not warn if big integer support is disabled */
 #if !defined(WC_NO_HARDEN) && !defined(NO_BIG_INT)

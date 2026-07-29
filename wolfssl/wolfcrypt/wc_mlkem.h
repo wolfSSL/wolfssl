@@ -425,8 +425,10 @@ struct MlKemKey {
     #define WC_MLKEMKEY_TYPE_DEFINED
 #endif
 
+#ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API MlKemKey* wc_MlKemKey_New(int type, void* heap, int devId);
 WOLFSSL_API int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
+#endif /* !WC_NO_CONSTRUCTORS */
 
 WOLFSSL_API int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap,
     int devId);
