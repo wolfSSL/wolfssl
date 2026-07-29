@@ -452,7 +452,7 @@ int main(int argc, char** argv)
         if (WANT("makekey"))
             wb_makersakey_alloc_guard(&rng);
 
-        WB_NOTE("fault-index sweeps over public/private/check/der + statics done");
+        WB_NOTE("fault-index sweeps over public/private/check/der + helpers done");
     }
 
     mcdc_fa_disarm();

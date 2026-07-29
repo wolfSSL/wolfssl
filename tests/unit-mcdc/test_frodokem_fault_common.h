@@ -25,7 +25,7 @@
  * wolfcrypt/src/wc_frodokem.c and wolfcrypt/src/wc_frodokem_mat.c are compiled
  * as SEPARATE translation units in the library, so each involved file gets its
  * own white-box driver TU that #includes just that one .c (so llvm-cov
- * instruments its file-statics), then #includes THIS header for the common
+ * instruments its file-static helpers), then #includes THIS header for the common
  * main()/sweep. The harness links each driver against libwolfssl.a with only
  * the one instrumented object trimmed, so the other FrodoKEM object is still
  * provided by the archive -- make/encap/decap therefore run end to end in both

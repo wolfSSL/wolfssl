@@ -23,7 +23,7 @@
  * MC/DC fault-injection white-box for wolfcrypt/src/wc_frodokem.c.
  *
  * #includes wc_frodokem.c directly so llvm-cov instruments this file's copy
- * (reaching its file-statics), then #includes the shared driver body which
+ * (reaching its file-static helpers), then #includes the shared driver body which
  * installs the heap-fault injector and sweeps the fail-index across
  * make/encap/decap for every compiled parameter set -- driving the FALSE
  * (ret != 0) halves of wc_frodokem.c's allocation success chains. See

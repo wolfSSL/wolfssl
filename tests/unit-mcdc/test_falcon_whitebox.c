@@ -28,7 +28,7 @@
  * with well-formed, self-consistent operands, so the argument-check and
  * bound-check decisions inside the file-static helpers cannot have both halves of
  * each independence pair demonstrated from tests/api. This TU #includes falcon.c
- * so the statics are in scope, and drives each targeted decision with both halves
+ * so the static helpers are in scope, and drives each targeted decision with both halves
  * of every independence pair in a single binary (MC/DC is computed per binary).
  *
  * Two complementary techniques are used:
