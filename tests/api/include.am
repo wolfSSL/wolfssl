@@ -43,6 +43,7 @@ tests_unit_test_SOURCES += tests/api/test_error.c
 # Random
 tests_unit_test_SOURCES += tests/api/test_random.c
 tests_unit_test_SOURCES += tests/api/test_wolfentropy.c
+tests_unit_test_SOURCES += tests/api/test_wolfevent.c
 # MP
 tests_unit_test_SOURCES += tests/api/test_wolfmath.c
 # Public Key Algorithm
@@ -172,6 +173,7 @@ EXTRA_DIST += tests/api/test_coding.h
 EXTRA_DIST += tests/api/test_error.h
 EXTRA_DIST += tests/api/test_random.h
 EXTRA_DIST += tests/api/test_wolfentropy.h
+EXTRA_DIST += tests/api/test_wolfevent.h
 EXTRA_DIST += tests/api/test_wolfmath.h
 EXTRA_DIST += tests/api/test_rsa.h
 EXTRA_DIST += tests/api/test_dsa.h
