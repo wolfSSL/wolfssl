@@ -36869,6 +36869,19 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                 if (GetOctetString(buff, &valIdx, &valLen, end) < 0) {
                     return ASN_PARSE_E;
                 }
+                /* Validate the OID encoding before decoding it. GetLength()
+                 * returns 0 (not an error) for a zero-length item, and an OID
+                 * whose last content octet has bit 8 set encodes no complete
+                 * sub-identifier. In either case DecodeObjectId() returns 0
+                 * with *outSz == 0, having written nothing to decOid, which
+                 * would hand the callback an uninitialized OID buffer. */
+                if (GetASN_ObjectId(buff, oidContent, oidLen) != 0) {
+                    return ASN_PARSE_E;
+                }
+                /* Redundant given the check above, but it makes "the callback
+                 * never sees uninitialized stack" true by construction rather
+                 * than by reasoning about DecodeObjectId's internals. */
+                XMEMSET(decOid, 0, sizeof(decOid));
                 cbRet = DecodeObjectId(buff + oidContent, (word32)oidLen,
                     decOid, &decOidSz);
                 if (cbRet == 0 && dcrl->unknownExtCallback != NULL) {
