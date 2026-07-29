@@ -1226,6 +1226,10 @@ int test_dtls13_ack_overflow(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Flush the ACK those reads scheduled, so the seen-record list starts
+     * empty and the counts below are exact. */
+    TEST_DTLS13_PUMP(ssl_c);
+    TEST_DTLS13_PUMP(ssl_s);
 
     /* Edge case 1: one below limit - all inserts must succeed */
     for (i = 0; i < DTLS13_ACK_MAX_RECORDS - 1; i++) {

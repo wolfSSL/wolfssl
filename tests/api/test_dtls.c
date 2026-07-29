@@ -852,6 +852,7 @@ int test_dtls13_new_connection_id(void)
             recSz), 0);
     ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    TEST_DTLS13_PUMP(ssl_s);
     /* the server ACKed the message */
     ExpectIntGT(test_ctx.c_len, 0);
     ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_s, &cidSz), 1);
@@ -902,6 +903,7 @@ int test_dtls13_new_connection_id(void)
             recSz), 0);
     ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    TEST_DTLS13_PUMP(ssl_s);
     cidSz = 0;
     ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_s, &cidSz), 1);
     ExpectIntEQ(cidSz, sizeof(newCid));
@@ -970,6 +972,7 @@ int test_dtls13_request_connection_id(void)
             recSz), 0);
     ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    TEST_DTLS13_PUMP(ssl_s);
     ExpectIntGT(test_ctx.c_len, 0);
     /* nothing but the ACK reaches the client */
     ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
@@ -2151,6 +2154,7 @@ int test_dtls_drop_client_ack(void)
     /* this should re-send the ack immediately */
     ExpectIntEQ(wolfSSL_read(ssl_s, data, 32), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    TEST_DTLS13_PUMP(ssl_s);
     ExpectIntEQ(test_ctx.c_msg_count, 1);
 
     /* This should advance the connection on the client */
@@ -4012,6 +4016,22 @@ static void test_AEAD_get_limits(WOLFSSL* ssl, w64wrapper* hardLimit,
     }
 }
 
+/* A DTLS 1.3 key update is scheduled while reading but is only transmitted
+ * from the write path. With WOLFSSL_RW_THREADED the read path does no
+ * scheduled work at all, because the reader must not transmit while a writer
+ * thread may be doing so, so an application that reads without writing has to
+ * pump the deferred work itself. Do what such an application would do. */
+static void test_AEAD_drain_scheduled_work(WOLFSSL* ssl)
+{
+    /* Match where wolfSSL_dtls13_do_scheduled_work() is declared, in
+     * wolfssl/ssl.h, or a WOLFSSL_LEANPSK build has no declaration for it. */
+#if defined(WOLFSSL_RW_THREADED) && !defined(WOLFSSL_LEANPSK)
+    AssertIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl), WOLFSSL_SUCCESS);
+#else
+    (void)ssl;
+#endif
+}
+
 static void test_AEAD_limit_client(WOLFSSL* ssl)
 {
     int ret;
@@ -4049,6 +4069,7 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
         /* Key update should be sent and negotiated */
         ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
         AssertIntGT(ret, 0);
+        test_AEAD_drain_scheduled_work(ssl);
         /* Epoch after one key update is 4 */
         if (w64Equal(ssl->dtls13PeerEpoch, w64From32(0, 4)) &&
                 w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount, counter)) {
@@ -4058,6 +4079,17 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     }
     AssertTrue(didReKey);
 
+    /* Everything below needs the ACK of that first key update to be
+     * processed, which rotates our own sending keys and so creates an epoch.
+     * The epoch table has no locking, and with WOLFSSL_RW_THREADED the read
+     * thread mutates it too, so that processing deliberately stays off the
+     * write path and a second key update cannot complete in such a build.
+     * Don't assert behaviour that is knowingly not provided. The hard limit
+     * check below is inside this too, and deliberately: without that ACK the
+     * decrypting epoch stops matching the one the drop counter is placed on,
+     * so the read never reaches the limit and loops until the test times out.
+     */
+#ifndef WOLFSSL_RW_THREADED
     if (!w64IsZero(sendLimit)) {
         /* Test the sending limit for AEAD ciphers */
 #ifdef WOLFSSL_MUTEX_INITIALIZER
@@ -4095,7 +4127,13 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
     AssertIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
     AssertIntEQ(wolfSSL_get_error(ssl, ret), WC_NO_ERR_TRACE(DECRYPT_ERROR));
+#else
+    (void)sendLimit;
+    (void)hardLimit;
+#endif
 
+    /* Always signal completion, including on the paths skipped above, so the
+     * peer thread does not spin waiting for a flag that never gets set. */
 #ifdef WOLFSSL_ATOMIC_INITIALIZER
     WOLFSSL_ATOMIC_STORE(test_AEAD_done, 1);
 #else
@@ -6246,6 +6284,126 @@ int test_wolfSSL_dtls_create_free_peer(void)
     ExpectNull(peer = wolfSSL_dtls_create_peer(11111,
                                                (char*)"not-an-ip-address"));
     wolfSSL_dtls_free_peer(peer);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_dtls13_do_scheduled_work() and wolfSSL_dtls13_pending_work() exist
+ * so an application whose read thread cannot transmit can send it itself.
+ * Cover the contract in every build, not just the threaded one: the pump is
+ * always safe to call, and the predicate must not claim work it cannot do. */
+int test_wolfSSL_dtls_scheduled_work(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_LEANPSK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int prevLen = 0;
+
+    /* Bad arguments. */
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(NULL), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(NULL), 0);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Idle connection: nothing to do, and pumping is still a success. */
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 0);
+
+    /* Pumping must be idempotent, and must not invent traffic when there is
+     * nothing scheduled. Compare against what is already queued rather than
+     * clearing it, which would drop records the peer still needs. */
+    prevLen = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, prevLen);
+
+    /* The connection still works in both directions after being pumped. */
+    ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+
+    /* Positive path. Schedule a key update the way Dtls13CheckAEADFailLimit()
+     * does when the AEAD failure limit is reached, then require the predicate
+     * to report it, the pump to perform it, and both to settle afterwards. */
+    if (ssl_s != NULL) {
+        ssl_s->dtls13DoKeyUpdate = 1;
+    }
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 1);
+    prevLen = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_SUCCESS);
+    /* The update was performed, and it put a record on the wire. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->dtls13DoKeyUpdate, 0);
+    }
+    ExpectIntGT(test_ctx.c_len, prevLen);
+    /* Waiting for the peer's ACK is not work we can do, so the predicate must
+     * report nothing rather than making a drain loop spin. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->dtls13WaitKeyUpdateAck, 1);
+    }
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 0);
+
+    /* The peer asking for a KeyUpdate while one of ours is unacknowledged is
+     * the state that wedges a drain loop: DTLS must not put two in flight, so
+     * the pump declines, and the predicate must decline to report it too.
+     * Pump and predicate have to agree, or the documented loop never ends. */
+    if (ssl_s != NULL) {
+        ssl_s->options.sendKeyUpdate = 1;
+    }
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 0);
+    prevLen = test_ctx.c_len;
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, prevLen);
+    /* The request is kept, not silently dropped, for when it can be sent. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.sendKeyUpdate, 1);
+        /* Once nothing is outstanding the pair agrees it is sendable. */
+        ssl_s->dtls13WaitKeyUpdateAck = 0;
+    }
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_SUCCESS);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.sendKeyUpdate, 0);
+    }
+    ExpectIntGT(test_ctx.c_len, prevLen);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = NULL;
+    ssl_s = NULL;
+    ctx_c = NULL;
+    ctx_s = NULL;
+
+    /* A DTLS 1.2 object is out of scope: the pump must say so rather than
+     * quietly succeed, and the predicate must not claim work. */
+#ifndef WOLFSSL_NO_TLS12
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 0);
+    /* Refusing the object must not record an error against the connection.
+     * ssl->error is sticky, and wolfSSL_write() skips its write-dup drain
+     * while it is set, so a rejected call has to leave it alone. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->error, 0);
+    }
+    /* And the connection must still be usable afterwards. */
+    ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

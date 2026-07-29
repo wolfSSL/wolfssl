@@ -53,6 +53,7 @@ int test_dtls_mtu_split_messages(void);
 int test_dtls_set_session_min_downgrade(void);
 int test_dtls12_export_import_etm(void);
 int test_wolfSSL_dtls_create_free_peer(void);
+int test_wolfSSL_dtls_scheduled_work(void);
 int test_wolfSSL_dtls_get0_peer(void);
 int test_wolfSSL_dtls_set_timeout_init(void);
 int test_wolfSSL_dtls_retransmit(void);
@@ -177,6 +178,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls13_no_session_id_echo),               \
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_create_free_peer),           \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_scheduled_work),             \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get0_peer),                  \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_timeout_init),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_retransmit),                 \
