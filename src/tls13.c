@@ -7364,6 +7364,9 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
     /* Client random */
     i += RAN_LEN;
     /* Session id - not used in TLS v1.3 */
+    if (i + OPAQUE8_LEN > helloSz) {
+        return BUFFER_ERROR;
+    }
     b = input[i++];
     if (i + b > helloSz) {
         return BUFFER_ERROR;
@@ -7372,6 +7375,9 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         /* legacy_cookie - not used in DTLS v1.3 */
+        if (i + OPAQUE8_LEN > helloSz) {
+            return BUFFER_ERROR;
+        }
         b = input[i++];
         if (i + b > helloSz) {
             return BUFFER_ERROR;
@@ -7745,8 +7751,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS13
     /* legacy_cookie */
     if (ssl->options.dtls) {
+        byte cookieLen;
+        if ((args->idx - args->begin) + OPAQUE8_LEN > helloSz)
+            ERROR_OUT(BUFFER_ERROR, exit_dch);
         /* https://www.rfc-editor.org/rfc/rfc9147.html#section-5.3 */
-        byte cookieLen = input[args->idx++];
+        cookieLen = input[args->idx++];
         if (cookieLen != 0) {
             ERROR_OUT(INVALID_PARAMETER, exit_dch);
         }
