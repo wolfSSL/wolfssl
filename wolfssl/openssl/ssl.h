@@ -1379,8 +1379,13 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define sk_SSL_CIPHER_dup               wolfSSL_shallow_sk_dup
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
 #define sk_SSL_CIPHER_delete            wolfSSL_sk_SSL_CIPHER_delete
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 #define SSL_CIPHER_find                 wolfSSL_SSL_CIPHER_find
+#endif
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
 #define SSL_get0_peername wolfSSL_get0_peername
