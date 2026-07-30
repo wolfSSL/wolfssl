@@ -929,7 +929,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int done = 0;
-    int added = 0;
     int i = 0;
     int numFailedCerts = 0;
     int depth = 0;
@@ -1073,7 +1072,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     &depth, origDepth);
                 continue;
             }
-            added = 1;
             ret = X509StoreVerifyCert(ctx, &cbRejected);
             if (cbRejected) {
                 /* The application vetoed this certificate.  Stop instead of
@@ -1083,8 +1081,17 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 goto exit;
             }
             if (ret != WOLFSSL_SUCCESS) {
-                if ((origDepth - depth) <= 1)
-                    added = 0;
+                /* The issuer just added above did not authenticate this
+                 * certificate, so drop it again here. AddCA() does not verify a
+                 * CA certificate's own signature for CA_TYPE additions, so a
+                 * caller-supplied issuer left behind would sit in the shared
+                 * CertManager as a fully usable WOLFSSL_TEMP_CA anchor -
+                 * GetCA()/GetCAByName() do not inspect signer->type, so every
+                 * other consumer of this CertManager (native TLS peer
+                 * verification, OCSP, CRL, CM_VerifyBuffer_ex) would treat it
+                 * like a configured trust root. X509VerifyCertSetupRetry()
+                 * below only removes ctx->current_cert, the child. */
+                X509StoreRemoveCa(ctx->store, issuer, WOLFSSL_TEMP_CA);
                 X509VerifyCertSetupRetry(ctx, certs, failedCerts,
                     &depth, origDepth);
                 continue;
@@ -1106,13 +1113,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     != WOLFSSL_SUCCESS) {
                 /* Could not guarantee the temporary intermediates were
                  * dropped; fail closed rather than risk verifying the current
-                 * certificate against one.  Leave `added` set: they are still
-                 * loaded, so the exit cleanup makes a final attempt to drop
-                 * them. */
+                 * certificate against one.  The exit cleanup makes a final
+                 * unconditional attempt to drop them. */
                 ret = WOLFSSL_FATAL_ERROR;
                 goto exit;
             }
-            added = 0;
             ret = X509StoreVerifyCert(ctx, &cbRejected);
             if (cbRejected) {
                 /* An application veto is final.  The partial-chain fallback
@@ -1239,12 +1244,19 @@ exit:
             }
         }
     }
-    /* Remove intermediates that were added to CM */
+    /* Remove intermediates that were added to CM.
+     *
+     * Unconditional on purpose: this must hold on every exit path, including
+     * the early `goto exit`s and the chain-building failure paths. A flag
+     * tracking "did we add one" is not a safe guard, because the failure paths
+     * that leave a caller-supplied issuer loaded are exactly the paths that
+     * would clear it - and anything left resident becomes a WOLFSSL_TEMP_CA
+     * trust anchor for every other consumer of this shared CertManager, whose
+     * signer lookups do not check signer->type. Unloading when nothing was
+     * added is harmless. */
     if (ctx != NULL) {
         if (ctx->store != NULL) {
-            if (added == 1) {
-                wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm);
-            }
+            wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm);
         }
         if (orig != NULL) {
             ctx->current_cert = orig;
