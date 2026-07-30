@@ -3793,3 +3793,48 @@ int test_wolfSSL_d2i_PrivateKey_reuse_resets_state(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* wolfSSL_CTX_use_PrivateKey() re-encodes the key already held by the EVP_PKEY
+ * through PopulateRSAEvpPkeyDer(), which sizes its buffer from the unwrapped
+ * PKCS#1 encoding while a PKCS#8 loaded key's cached DER carries the wrapper.
+ * Under WOLFSSL_NO_REALLOC the old contents were copied into that smaller
+ * buffer, so one call on a wrapped key overran it, with no key replacement.
+ *
+ * test_wolfSSL_EVP_PKEY_set1_shrinking_der() covers the same sink through
+ * EVP_PKEY_set1_*; this covers the only other caller. The overrun needs a
+ * sanitizer on a WOLFSSL_NO_REALLOC build to see; the sizes below hold either
+ * way. WOLFSSL_KEY_GEN is required. */
+int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_TO_DER) && \
+    defined(WOLFSSL_KEY_GEN) && defined(HAVE_PKCS8) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX*      ctx = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* in;
+    byte*  buf = NULL;
+    size_t bufSz = 0;
+    int    wrappedSz = 0;
+
+    ExpectIntEQ(load_file("./certs/server-keyPkcs8.der", &buf, &bufSz), 0);
+    in = buf;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &in,
+        (long)bufSz));
+    /* Premise: without the wrapper the re-encode is the same size and the
+     * shrink is never exercised. */
+    ExpectIntGT((int)pkey->pkcs8HeaderSz, 0);
+    ExpectIntGT(wrappedSz = wolfSSL_i2d_PrivateKey(pkey, NULL), 0);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WOLFSSL_SUCCESS);
+    /* Exact: a dropped or stale wrapper shows up as a size mismatch. */
+    ExpectIntEQ(wolfSSL_i2d_PrivateKey(pkey, NULL), wrappedSz);
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
