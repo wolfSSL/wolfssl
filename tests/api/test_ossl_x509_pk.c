@@ -405,6 +405,30 @@ int test_wolfSSL_X509_set_pubkey(void)
             pubkey = NULL;
         }
     #endif
+
+        /* Public-only EVP_PKEY holding an SPKI: the private-key decode
+         * fails and the fallback public decode must work on a reset key. */
+        {
+            WOLFSSL_EVP_PKEY* spki = NULL;
+            unsigned char der[2048];
+            int derSz = 0;
+            const unsigned char* pp = der;
+            XFILE f = XBADFILE;
+
+            ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der",
+                "rb")) != XBADFILE);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+            if (f != XBADFILE)
+                XFCLOSE(f);
+            ExpectNotNull(spki = wolfSSL_d2i_PUBKEY(NULL, &pp, (long)derSz));
+            ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, spki), WOLFSSL_SUCCESS);
+            ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+            ExpectIntEQ(wolfSSL_EVP_PKEY_id(pubkey), WC_EVP_PKEY_DILITHIUM);
+            wolfSSL_EVP_PKEY_free(pubkey);
+            pubkey = NULL;
+            wolfSSL_EVP_PKEY_free(spki);
+        }
+
         wolfSSL_EVP_PKEY_free(pkey);
         pkey = NULL;
     }

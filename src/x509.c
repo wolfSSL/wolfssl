@@ -16600,6 +16600,16 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
             PRIVATE_KEY_LOCK();
         #endif
             if (!decodeOk) {
+            #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+                /* A failed PrivateKeyDecode may leave the level pinned;
+                 * reset the key so PublicKeyDecode auto-detects it from
+                 * the SPKI OID. */
+                wc_MlDsaKey_Free(mldsa);
+                if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+                    XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
+                    return WOLFSSL_FAILURE;
+                }
+            #endif
                 idx = 0;
                 if (wc_MlDsaKey_PublicKeyDecode(mldsa,
                         (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
