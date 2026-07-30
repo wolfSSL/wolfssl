@@ -187,6 +187,23 @@
   limit needs roughly 23.7 million early data records on one connection, so no
   practical caller is affected.
 
+* **Behavioral change (certificate policies that cannot be decoded)**: a
+  `certificatePolicies` entry whose OID does not decode is now dropped from
+  `DecodedCert.extCertPolicies` instead of being stored wrapped or silently shortened.
+  The new `wc_GetDecodedCertPoliciesTruncated()` and
+  `wolfSSL_X509_get_certPoliciesTruncated()` functions report if this truncation occurred.
+
+* **Behavioral change (`wolfSSL_OBJ_obj2txt` numeric output)**: a buffer too
+  small for the numeric OID string now fails with `WOLFSSL_FAILURE` and an
+  empty `buf`, rather than writing a shortened OID. Separately, OID arcs
+  2.40-2.47 now render as `"2.40"`-`"2.47"` per X.690 instead of `"3.0"`-`"3.7"`.
+
+* **API (`wc_SetExtKeyUsageOID` and `wc_SetCustomExtension` return codes)**:
+  a malformed OID string is now reported as `ASN_OBJECT_ID_E`, or
+  `ASN_OID_ARC_TOO_BIG_E` for an arc that does not fit a `word32`, rather
+  than being collapsed to `BUFFER_E` (`wc_SetExtKeyUsageOID`) or accepted.
+  Invalid strings are now rejected outright.
+
 ## New Features
 
 * Added Argon2 (RFC 9106) password hashing with all three variants - Argon2d, Argon2i and Argon2id - via `--enable-argon2`. Only version 0x13 is implemented. Provides the one-shot `wc_Argon2()`/`wc_Argon2_ex()` and a reusable context API (`wc_Argon2Init`/`wc_Argon2SetParams`/`wc_Argon2DeriveTag`/`wc_Argon2Free`, plus `wc_Argon2New`/`wc_Argon2Delete` unless `WC_NO_CONSTRUCTORS`) that allocates the memory block array once for applications deriving many tags. `--enable-argon2-threads` fills the segments of a slice in parallel, which does not change the derived tag: the one-shot functions use a thread per lane, and the context API takes a count from `wc_Argon2SetThreads()`. by @SparkiDev
@@ -323,6 +340,11 @@
   `psk_key_exchange_modes`, `early_data`, `cookie`, `post_handshake_auth` and
   the certificate type extensions, and more generally any malformed handshake
   message reported with `BUFFER_E`.
+
+* **Fix (OID strings whose first two arcs combine to 128 or more)**: the
+  encoder now correctly base-128 encodes the X.690 combined first identifier
+  (`40*X+Y`) instead of writing it as a single byte. The decoder now reads
+  it the same way, and is stricter about following arcs.
 
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 

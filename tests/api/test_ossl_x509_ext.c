@@ -520,6 +520,38 @@ static int test_x509_add_subj_key_id(WOLFSSL_X509* x509)
 
     return EXPECT_RESULT();
 }
+
+#ifdef WOLFSSL_CUSTOM_OID
+/* { 0x80, 0x01, 0x01 }: non-minimal first arc. Passes GetASNHeader() (only
+ * the last byte's continuation bit is checked), so d2i_ASN1_OBJECT()
+ * succeeds; OBJ_obj2txt()/wc_DecodePolicyOID() must then reject it. */
+static int test_x509_add_custom_ext_invalid_oid(WOLFSSL_X509* x509)
+{
+    EXPECT_DECLS;
+    const byte objData[] = { 0x06, 0x03, 0x80, 0x01, 0x01 };
+    const byte data[] = { 0x04, 0x01, 0x2a };
+    const byte* p;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    WOLFSSL_ASN1_STRING* str = NULL;
+
+    p = objData;
+    ExpectNotNull(obj = wolfSSL_d2i_ASN1_OBJECT(NULL, &p, sizeof(objData)));
+    p = data;
+    ExpectNotNull(str = d2i_ASN1_OCTET_STRING(NULL, &p, (long)sizeof(data)));
+    ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_object(ext, obj), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, str), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_add_ext(x509, ext, -1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    wolfSSL_ASN1_STRING_free(str);
+    wolfSSL_ASN1_OBJECT_free(obj);
+    wolfSSL_X509_EXTENSION_free(ext);
+
+    return EXPECT_RESULT();
+}
+#endif
 #endif
 
 int test_wolfSSL_X509_add_ext(void)
@@ -588,6 +620,9 @@ int test_wolfSSL_X509_add_ext(void)
     EXPECT_TEST(test_X509_add_ext_key_usage(x509));
     EXPECT_TEST(test_x509_add_auth_key_id(x509));
     EXPECT_TEST(test_x509_add_subj_key_id(x509));
+#ifdef WOLFSSL_CUSTOM_OID
+    EXPECT_TEST(test_x509_add_custom_ext_invalid_oid(x509));
+#endif
 
     wolfSSL_X509_free(x509);
 #endif

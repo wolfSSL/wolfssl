@@ -15650,6 +15650,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
                 XMEMCPY(x509->certPolicies[i], dCert->extCertPolicies[i],
                                                                 MAX_CERTPOL_SZ);
             x509->certPoliciesNb = dCert->extCertPoliciesNb;
+            x509->certPoliciesTruncated = dCert->extCertPoliciesTruncated;
         }
     #endif /* WOLFSSL_CERT_EXT */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */

@@ -54,25 +54,25 @@
  *  13. DecodeExtKeyUsage() .............................. :20815,:20861
  *  14. DecodeSubtree() .................................. :21075-:21124
  *  15. DecodeNameConstraints() hasUnsupported ................. :21217
- *  16. DecodePolicyOID() ................................ :21240,:21272
- *  17. DecodeCertPolicy() ............................... :21346-:21401
- *  18. DecodeSubjDirAttr() .............................. :21473-:21495
- *  19. DecodeSubjInfoAcc() ..................................... :21570
- *  20. DecodeExtensionType() dispatch .......... :21834,:21871,:21903
- *  21. DecodeCertExtensions() bad-args ......................... :22164
- *  22. CheckDate() ...................................... :22428-:22440
- *  23. DecodeCertInternal() ............................. :22578-:22812
- *  24. DecodeCertReqAttributes() loop ........................... :23064
- *  25. DecodeCertReq() version check ........................... :23186
- *  26. ParseCert() RSA public key store ................ :23263 (best-effort)
- *  27. wc_GetDecodedCertSubject/Issuer/Serial ... :23291,:23314,:23335
+ *  16. wc_DecodePolicyOID() ................................ :22029,:22048
+ *  17. DecodeCertPolicy() ............................... :22097-:22226
+ *  18. DecodeSubjDirAttr() .............................. :21600-:21622
+ *  19. DecodeSubjInfoAcc() ..................................... :21697
+ *  20. DecodeExtensionType() dispatch .......... :21961,:21998,:22030
+ *  21. DecodeCertExtensions() bad-args ......................... :22291
+ *  22. CheckDate() ...................................... :22555-:22567
+ *  23. DecodeCertInternal() ............................. :22705-:22866
+ *  24. DecodeCertReqAttributes() loop ........................... :23191
+ *  25. DecodeCertReq() version check ........................... :23313
+ *  26. ParseCert() RSA public key store ................ :23390 (best-effort)
+ *  27. wc_GetDecodedCertSubject/Issuer/Serial ... :23400,:23423,:23444
  *
  * RESIDUALS (documented inline near each, and summarized at EOF):
  *   - DecodeBasicCaConstraint() :20020 (pathLength > WOLFSSL_MAX_PATH_LEN)
  *     is unreachable once :20016 rejects pathLength >= 128: with
  *     WOLFSSL_MAX_PATH_LEN==127 every value that survives :20016 is <= 127,
  *     so the ">" can never be true in this configuration.
- *   - CheckDate() :22440 / DecodeCertInternal() :22609,:22621 "!
+ *   - CheckDate() :22567 / DecodeCertInternal() :22736,:22748 "!
  *     AsnSkipDateCheck" operand: AsnSkipDateCheck is the compile-time
  *     `#define AsnSkipDateCheck 0` unless WC_ASN_RUNTIME_DATE_CHECK_CONTROL
  *     is defined; none of this module's variants (asn_default, small_stack,
@@ -83,7 +83,7 @@
  *     a few lines earlier in the same `if (ret == 0)` block with no
  *     intervening path that leaves them NULL while ret is later reset to 0;
  *     best-effort true side only exercised below.
- *   - DecodeCertInternal() :22704-:22705 (WC_RSA_PSS tbs/sig param match):
+ *   - DecodeCertInternal() :22795-:22796 (WC_RSA_PSS tbs/sig param match):
  *     needs a real RSA-PSS-signed certificate; exercised opportunistically
  *     with certs/rsapss/server-rsapss.der but the mismatched-parameters
  *     (false) arm would need byte-level PSS parameter surgery not attempted
@@ -1412,9 +1412,16 @@ static void wb_decode_name_constraints(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS;
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Section 16: DecodePolicyOID() (global function).
- *   :21240  out==NULL || in==NULL || outSz<4 || inSz<2
- *   :21272  w<0 || (word32)w>outSz-outIdx     (output-buffer overflow guard)
+ * Section 16: wc_DecodePolicyOID() (global function) and the DecodeOidArc()
+ * helper it calls for every arc.
+ *   :22029  out==NULL || in==NULL || outSz<4 || inSz==0
+ *   :22048  w<0 || (word32)w>=outSz            (first-identifier overflow)
+ *   :22061  w<0 || (word32)w>=outSz-outIdx     (later-arc overflow)
+ *   :21997  DecodeOidArc(): cnt==0 && byte==0x80        (non-minimal)
+ *   :21999  DecodeOidArc(): cnt==WC_OID_ARC_MAX_BYTES-1 (over-long, >5 bytes)
+ *   :22002  DecodeOidArc(): v > 0xFFFFFFFF>>7            (shift overflow)
+ *   :22017  DecodeOidArc(): loop exhausts inSz without a terminating byte
+ *           (truncated, mid-continuation)
  * ------------------------------------------------------------------------- */
 static void wb_decode_policy_oid(void)
 {
@@ -1423,30 +1430,37 @@ static void wb_decode_policy_oid(void)
     /* 2.5.29.32.0 (anyPolicy): 55 1D 20 00. */
     static const byte oidBytes[] = { 0x55, 0x1D, 0x20, 0x00 };
 
-    WB_NOTE("DecodePolicyOID(): bad-args OR [:21240]");
-    WB_CHECK(DecodePolicyOID(NULL, sizeof(out), oidBytes, sizeof(oidBytes))
+    WB_NOTE("wc_DecodePolicyOID(): bad-args OR [:22029]");
+    WB_CHECK(wc_DecodePolicyOID(NULL, sizeof(out), oidBytes, sizeof(oidBytes))
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "out==NULL");
-    WB_CHECK(DecodePolicyOID(out, sizeof(out), NULL, sizeof(oidBytes))
+    WB_CHECK(wc_DecodePolicyOID(out, sizeof(out), NULL, sizeof(oidBytes))
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "in==NULL");
-    WB_CHECK(DecodePolicyOID(out, 3, oidBytes, sizeof(oidBytes))
+    WB_CHECK(wc_DecodePolicyOID(out, 3, oidBytes, sizeof(oidBytes))
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "outSz<4");
-    WB_CHECK(DecodePolicyOID(out, sizeof(out), oidBytes, 1)
-                == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<2");
-    ret = DecodePolicyOID(out, sizeof(out), oidBytes, sizeof(oidBytes));
+    WB_CHECK(wc_DecodePolicyOID(out, sizeof(out), oidBytes, 0)
+                == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz==0");
+    /* One content byte is legal ("1.2"), not a bad argument. */
+    WB_CHECK(wc_DecodePolicyOID(out, sizeof(out), oidBytes, 1) > 0,
+                "inSz==1 accepted");
+    ret = wc_DecodePolicyOID(out, sizeof(out), oidBytes, sizeof(oidBytes));
     WB_CHECK(ret > 0 && strcmp(out, "2.5.29.32.0") == 0,
             "all args valid (all 4 operands false)");
 
-    WB_NOTE("DecodePolicyOID(): output buffer overflow guard [:21272]");
-    /* A tiny output buffer forces the ".%u" snprintf to not fit after the
-     * first "b.b" segment is written. */
+    WB_NOTE("wc_DecodePolicyOID(): first-identifier overflow guard [:22048]");
+    /* First arc alone ("2.47", 4 chars) doesn't fit outSz==4. */
     {
         /* outSz must be >= 4 to get past the argument guard. With outSz == 6
-         * the ".29" segment fits exactly (XSNPRINTF returns 3, remaining is
-         * 3) and outIdx then equals outSz, so the loop exits on its own
-         * condition and the overflow guard is never true -- that row only
-         * supplies the guard's FALSE side.
+         * the first identifier ("2.5", 3 chars) fits comfortably within
+         * outSz == 6 (w == 3 < outSz), so the first-identifier guard
+         * [:22048] takes its FALSE side and decoding moves into the arc
+         * loop. There the ".29" segment also needs 3 chars, but only 3
+         * bytes remain (outSz - outIdx == 6 - 3 == 3) -- that is exactly
+         * enough for the 3 characters and no room for the terminating NUL,
+         * so the loop's guard (w >= outSz - outIdx, i.e. 3 >= 3) is true
+         * and the call returns BUFFER_E. This row exercises the first
+         * guard's FALSE side; it does not claim the overall call succeeds.
          *
-         * outSz == 5 is the size that trips it: "2.5" leaves 2 bytes, the
+         * outSz == 5 is one byte tighter still: "2.5" leaves 2 bytes, the
          * ".29" segment needs 3, XSNPRINTF returns 3 > 2 and the guard's
          * 2nd operand is true.
          *
@@ -1455,27 +1469,80 @@ static void wb_decode_policy_oid(void)
          * never a negative value for these arguments. */
         char tiny6[6];
         char tiny5[5];
+        char tiny4[4];
+        static const byte firstIdBig[] = { 0x7F, 0x01 };
 
-        ret = DecodePolicyOID(tiny6, sizeof(tiny6), oidBytes,
-                sizeof(oidBytes));
-        WB_CHECK(ret > 0, ":21326 2nd operand false (segment fits exactly)");
-
-        ret = DecodePolicyOID(tiny5, sizeof(tiny5), oidBytes,
+        ret = wc_DecodePolicyOID(tiny6, sizeof(tiny6), oidBytes,
                 sizeof(oidBytes));
         WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
-                ":21326 2nd operand true (segment does not fit)");
+                ":22048 2nd operand false (first identifier fits), "
+                "then [:22061] catches the next arc with no room for NUL");
+
+        ret = wc_DecodePolicyOID(tiny5, sizeof(tiny5), oidBytes,
+                sizeof(oidBytes));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                ":22061 2nd operand true (segment does not fit)");
+
+        ret = wc_DecodePolicyOID(tiny4, sizeof(tiny4), firstIdBig,
+                sizeof(firstIdBig));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "first identifier alone overflows outSz "
+                "(w<0 or overflow true)");
     }
-    ret = DecodePolicyOID(out, sizeof(out), oidBytes, sizeof(oidBytes));
-    WB_CHECK(ret > 0, "ample output buffer (overflow guard false)");
+    ret = wc_DecodePolicyOID(out, sizeof(out), oidBytes, sizeof(oidBytes));
+    WB_CHECK(ret > 0, "ample output buffer (both overflow guards false)");
+
+    WB_NOTE("DecodeOidArc(): non-minimal leading continuation byte [:21997]");
+    {
+        static const byte nonMinimal[] = { 0x80, 0x2A };
+        ret = wc_DecodePolicyOID(out, sizeof(out), nonMinimal,
+                sizeof(nonMinimal));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E),
+                "cnt==0 && byte==0x80 (non-minimal true)");
+    }
+
+    WB_NOTE("DecodeOidArc(): over-long arc, more than 5 continuation "
+            "bytes [:21999]");
+    {
+        static const byte overlong[] =
+            { 0x81, 0x81, 0x81, 0x81, 0x81, 0x00 };
+        ret = wc_DecodePolicyOID(out, sizeof(out), overlong,
+                sizeof(overlong));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E),
+                "cnt==WC_OID_ARC_MAX_BYTES-1 (over-long true)");
+    }
+
+    WB_NOTE("DecodeOidArc(): accumulator shift would overflow word32 [:22002]");
+    {
+        static const byte shiftOverflow[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+        ret = wc_DecodePolicyOID(out, sizeof(out), shiftOverflow,
+                sizeof(shiftOverflow));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E),
+                "v > 0xFFFFFFFF>>7 (shift overflow true)");
+    }
+
+    WB_NOTE("DecodeOidArc(): truncated, mid-continuation with no "
+            "terminator [:22017]");
+    {
+        static const byte truncatedArc[] = { 0x81, 0x81 };
+        ret = wc_DecodePolicyOID(out, sizeof(out), truncatedArc,
+                sizeof(truncatedArc));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E),
+                "loop exhausts inSz without a terminating byte "
+                "(truncated true)");
+    }
 }
 
 /* ------------------------------------------------------------------------- *
  * Section 17: DecodeCertPolicy() (static, called directly).
  * Gated on WOLFSSL_SEP || WOLFSSL_CERT_EXT, same as the source.
- *   :21346  while ((ret==0) && (idx<seqEnd) && (extCertPoliciesNb<MAX_CERTPOL_NB))
- *           total_length==0 empty-SEQUENCE check, reached before that loop
- *   :21369  ret==0 && cert->deviceType==NULL          (WOLFSSL_SEP)
- *   :21401  duplicate-OID scan loop (WOLFSSL_CERT_EXT, !WOLFSSL_DUP_CERTPOL)
+ *   :22135  while ((ret==0) && (idx<seqEnd) &&
+ *           (extCertPoliciesNb<MAX_CERTPOL_NB))
+ *   :22168  wc_DecodePolicyOID(...) <= 0             (skip this policy)
+ *   :22180  ret==0 && !skipPolicy && deviceType==NULL       (WOLFSSL_SEP)
+ *   :22202  duplicate-OID scan loop (WOLFSSL_CERT_EXT, !WOLFSSL_DUP_CERTPOL)
+ *   :22224  ret==0 && idx<total_length && extCertPoliciesNb>=MAX_CERTPOL_NB
+ *           (loop stopped on the cap, so the rest were dropped)
  * MAX_CERTPOL_NB is 2, so three policies exercise the count limit.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
@@ -1490,25 +1557,23 @@ static void wb_decode_cert_policy(void)
         0x30,0x08, 0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00
     };
     /* Two distinct policies: the second iteration finds deviceType already
-     * set (:21369 2nd operand false) and runs the duplicate scan with a
-     * non-empty list (:21401 2nd operand true). */
+     * set (:22180 2nd operand false) and runs the duplicate scan with a
+     * non-empty list (:22202 2nd operand true). */
     static const byte twoPolicies[] = {
         0x30,0x10,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x01,
     };
     /* Three distinct policies -- exercises the MAX_CERTPOL_NB==2 cap (3rd
-     * operand of :21346 goes false while idx<total_length is still true). */
+     * operand of :22135 -- line :22137 -- goes false while idx<seqEnd is
+     * still true). */
     static const byte threePolicies[] = {
         0x30,0x18,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x01,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x02,
     };
-    /* Two IDENTICAL policy OIDs -- 2nd occurrence is a duplicate, hits
-     * :21401's XMEMCMP==0 true arm and then re-tests the loop condition
-     * with ret != 0 (1st operand false). Only compiled without
-     * WOLFSSL_DUP_CERTPOL. */
+    /* Two IDENTICAL policy OIDs -- 2nd occurrence is a duplicate. */
     static const byte dupPolicies[] = {
         0x30,0x10,
           0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
@@ -1516,9 +1581,31 @@ static void wb_decode_cert_policy(void)
     };
     /* PolicyInformation holding an INTEGER instead of an OBJECT_ID: the
      * template parse fails inside the loop, so the deviceType step at
-     * :21369 runs with ret != 0 (1st operand false). */
-    static const byte badPolicy[] = {
+     * :22180 runs with ret != 0 (1st operand false). */
+    static const byte badPolicyInt[] = {
         0x30,0x05, 0x30,0x03, 0x02,0x01,0x00
+    };
+    /* One policy whose OID content is { 0x80, 0x01, 0x01 }: a non-minimal
+     * first arc. GetASNObjectId() only checks the last byte's continuation
+     * bit, so the generic parser accepts it and wc_DecodePolicyOID() is the
+     * one that rejects it -- the skip-this-policy path. */
+    static const byte badPolicyOid[] = {
+        0x30,0x07,
+          0x30,0x05, 0x06,0x03,0x80,0x01,0x01,
+    };
+    /* One policy OID "1.2.100.100...100" (50 trailing arcs of value 100)
+     * that decodes to a 203-char dotted string -- past MAX_CERTPOL_SZ==200
+     * -- so wc_DecodePolicyOID() returns BUFFER_E rather than
+     * ASN_OID_ARC_TOO_BIG_E, exercising the skip-this-policy path via its
+     * other error return. */
+    static const byte oversizedPolicy[] = {
+        0x30,0x37, 0x30,0x35, 0x06,0x33,
+          0x2A,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
+          0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,0x64,
     };
     /* Zero policies. */
     static const byte noPolicies[] = { 0x30, 0x00 };
@@ -1529,7 +1616,8 @@ static void wb_decode_cert_policy(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             "empty SEQUENCE rejected: RFC 5280 4.2.1.4 requires SIZE (1..MAX)");
 
-    WB_NOTE("DecodeCertPolicy(): one policy (loop true then false) [:21346,:21369]");
+    WB_NOTE("DecodeCertPolicy(): one policy (loop true then false) "
+            "[:22135,:22180]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(onePolicy, sizeof(onePolicy), &cert);
 #if defined(WOLFSSL_CERT_EXT)
@@ -1540,36 +1628,43 @@ static void wb_decode_cert_policy(void)
 #endif
 #ifdef WOLFSSL_SEP
     WB_CHECK(cert.deviceType != NULL,
-            "deviceType populated from first policy OID (:21369 both true)");
+            "deviceType populated from first policy OID (:22180 both true)");
     if (cert.deviceType != NULL) {
         XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
     }
 #endif
 
-    WB_NOTE("DecodeCertPolicy(): second policy, deviceType already set [:21369]");
+    WB_NOTE("DecodeCertPolicy(): second policy, deviceType already "
+            "set [:22180]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert);
-    WB_CHECK(ret == 0, "two policies accepted (:21369 2nd operand false on "
-            "the second, :21401 2nd operand true)");
+    WB_CHECK(ret == 0, "two policies accepted (:22180 2nd operand false on "
+            "the second, :22202 2nd operand true)");
 #ifdef WOLFSSL_SEP
     if (cert.deviceType != NULL) {
         XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
     }
 #endif
 
-    WB_NOTE("DecodeCertPolicy(): malformed PolicyInformation [:21369 1st operand]");
+    WB_NOTE("DecodeCertPolicy(): malformed PolicyInformation "
+            "[:22180 1st operand]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(badPolicy, sizeof(badPolicy), &cert);
+    ret = DecodeCertPolicy(badPolicyInt, sizeof(badPolicyInt), &cert);
     WB_CHECK(ret != 0 && cert.deviceType == NULL,
-            "INTEGER in place of the policy OID (:21369 1st operand false)");
+            "INTEGER in place of the policy OID (:22180 1st operand false)");
 
 #if defined(WOLFSSL_CERT_EXT)
-    WB_NOTE("DecodeCertPolicy(): MAX_CERTPOL_NB cap with 3 policies [:21346 3rd operand]");
+    WB_NOTE("DecodeCertPolicy(): MAX_CERTPOL_NB cap with 3 policies "
+            "[:22137 3rd operand]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert);
     WB_CHECK(ret == 0 && cert.extCertPoliciesNb == MAX_CERTPOL_NB,
             "loop stops at MAX_CERTPOL_NB even though bytes remain "
             "(3rd operand false while 1st/2nd stay true)");
+    WB_NOTE("DecodeCertPolicy(): cap hit with bytes left -> truncated "
+            "[:22226]");
+    WB_CHECK(cert.extCertPoliciesTruncated == 1,
+            "policies past the cap were dropped (all three operands true)");
 #ifdef WOLFSSL_SEP
     if (cert.deviceType != NULL) {
         XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
@@ -1577,7 +1672,7 @@ static void wb_decode_cert_policy(void)
 #endif
 
 #ifndef WOLFSSL_DUP_CERTPOL
-    WB_NOTE("DecodeCertPolicy(): duplicate-OID rejection [:21401]");
+    WB_NOTE("DecodeCertPolicy(): duplicate-OID rejection [:22202]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(dupPolicies, sizeof(dupPolicies), &cert);
     WB_CHECK(ret == WC_NO_ERR_TRACE(CERTPOLICIES_E),
@@ -1588,6 +1683,38 @@ static void wb_decode_cert_policy(void)
     }
 #endif
 #endif /* !WOLFSSL_DUP_CERTPOL */
+
+    WB_NOTE("DecodeCertPolicy(): undecodable policy OID is skipped [:22168]");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(badPolicyOid, sizeof(badPolicyOid), &cert);
+    WB_CHECK(ret == 0 && cert.extCertPoliciesNb == 0 &&
+             cert.extCertPoliciesTruncated == 1,
+            "policy dropped and flagged, rest of the certificate still parses");
+#ifdef WOLFSSL_SEP
+    /* :22180 second operand false: skipPolicy suppresses deviceType too. */
+    WB_CHECK(cert.deviceType == NULL,
+            "skipped policy not recorded as deviceType (skipPolicy true)");
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
+
+    WB_NOTE("DecodeCertPolicy(): oversized policy OID skipped via "
+            "BUFFER_E [:22168]");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(oversizedPolicy, sizeof(oversizedPolicy), &cert);
+    WB_CHECK(ret == 0 && cert.extCertPoliciesNb == 0 &&
+             cert.extCertPoliciesTruncated == 1,
+            "policy whose decoded string overflows MAX_CERTPOL_SZ is "
+            "dropped and flagged via wc_DecodePolicyOID's BUFFER_E return, "
+            "rest of the certificate still parses");
+#ifdef WOLFSSL_SEP
+    WB_CHECK(cert.deviceType == NULL,
+            "oversized policy not recorded as deviceType (skipPolicy true)");
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
 #endif /* WOLFSSL_CERT_EXT */
 }
 #else
@@ -1597,10 +1724,10 @@ static void wb_decode_cert_policy(void) { WB_NOTE("WOLFSSL_SEP/WOLFSSL_CERT_EXT 
 /* ------------------------------------------------------------------------- *
  * Section 18: DecodeSubjDirAttr() (static, called directly).
  * Gated on WOLFSSL_SUBJ_DIR_ATTR, same as the source.
- *   :21473  GetSequence(input,...) < 0
- *   :21477  while ((ret==0) && (idx<sz))
- *   :21483-:21484  ret==0 && OID.sum==SDA_COC_OID
- *   :21495  ret==0 && cuLen!=COUNTRY_CODE_LEN
+ *   :21600  GetSequence(input,...) < 0
+ *   :21604  while ((ret==0) && (idx<sz))
+ *   :21610-:21611  ret==0 && OID.sum==SDA_COC_OID
+ *   :21622  ret==0 && cuLen!=COUNTRY_CODE_LEN
  * ------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SUBJ_DIR_ATTR
 static void wb_decode_subj_dir_attr(void)
@@ -1634,23 +1761,23 @@ static void wb_decode_subj_dir_attr(void)
     /* Zero attributes. */
     static const byte sdaEmpty[] = { 0x30, 0x00 };
 
-    WB_NOTE("DecodeSubjDirAttr(): outer GetSequence failure [:21473]");
+    WB_NOTE("DecodeSubjDirAttr(): outer GetSequence failure [:21600]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeSubjDirAttr(sdaBadTag, sizeof(sdaBadTag), &cert);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "wrong outer tag (true)");
 
-    WB_NOTE("DecodeSubjDirAttr(): empty attribute list (loop false) [:21477]");
+    WB_NOTE("DecodeSubjDirAttr(): empty attribute list (loop false) [:21604]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeSubjDirAttr(sdaEmpty, sizeof(sdaEmpty), &cert);
     WB_CHECK(ret == 0, "zero attributes (loop false immediately)");
 
-    WB_NOTE("DecodeSubjDirAttr(): countryOfCitizenship match [:21483,:21484,:21495]");
+    WB_NOTE("DecodeSubjDirAttr(): countryOfCitizenship match [:21610,:21611,:21622]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeSubjDirAttr(sdaCoc, sizeof(sdaCoc), &cert);
     WB_CHECK(ret == 0 && XMEMCMP(cert.countryOfCitizenship, "US", 2) == 0,
             "countryOfCitizenship OID + valid length (all true, false)");
 
-    WB_NOTE("DecodeSubjDirAttr(): OID outside oidSubjDirAttrType [:21483]");
+    WB_NOTE("DecodeSubjDirAttr(): OID outside oidSubjDirAttrType [:21610]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeSubjDirAttr(sdaOther, sizeof(sdaOther), &cert);
     /* rsaEncryption is not in oidSubjDirAttrType, so GetASN_Items() rejects
@@ -1660,7 +1787,7 @@ static void wb_decode_subj_dir_attr(void)
      * reaches the comparison with a recognized non-COC OID. */
     WB_CHECK(ret != 0, "OID not in oidSubjDirAttrType (attribute rejected)");
 
-    WB_NOTE("DecodeSubjDirAttr(): countryOfCitizenship wrong length [:21495]");
+    WB_NOTE("DecodeSubjDirAttr(): countryOfCitizenship wrong length [:21622]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeSubjDirAttr(sdaBadLen, sizeof(sdaBadLen), &cert);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
@@ -1673,7 +1800,7 @@ static void wb_decode_subj_dir_attr(void) { WB_NOTE("WOLFSSL_SUBJ_DIR_ATTR off; 
 /* ------------------------------------------------------------------------- *
  * Section 19: DecodeSubjInfoAcc() (static, called directly).
  * Gated on WOLFSSL_SUBJ_INFO_ACC, same as the source.
- *   :21570  b==GENERALNAME_URI && oid==AIA_CA_REPO_OID
+ *   :21697  b==GENERALNAME_URI && oid==AIA_CA_REPO_OID
  * ------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SUBJ_INFO_ACC
 static void wb_decode_subj_info_acc(void)
@@ -1697,7 +1824,7 @@ static void wb_decode_subj_info_acc(void)
             0x86,0x08, 'h','t','t','p',':','/','/','c',
     };
 
-    WB_NOTE("DecodeSubjInfoAcc(): caRepository AND uri-tag [:21570]");
+    WB_NOTE("DecodeSubjInfoAcc(): caRepository AND uri-tag [:21697]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeSubjInfoAcc(sia, sizeof(sia), &cert);
     WB_CHECK(ret == 0 && cert.extSubjInfoAccCaRepo != NULL &&
@@ -1712,9 +1839,9 @@ static void wb_decode_subj_info_acc(void) { WB_NOTE("WOLFSSL_SUBJ_INFO_ACC off; 
  * Section 20: DecodeExtensionType() dispatch (WOLFSSL_TEST_VIS, called
  * directly with hand-picked OID sums so each sub-decoder's error path is
  * reached without needing the surrounding DecodeCertExtensions() wrapper).
- *   :21834  ret==0 && (DecodeAuthInfo(...) < 0)
- *   :21871-:21872  ret==0 && (DecodeAuthKeyIdInternal(...) < 0)
- *   :21903-:21904  ret==0 && (DecodeSubjKeyIdInternal(...) < 0)
+ *   :21961  ret==0 && (DecodeAuthInfo(...) < 0)
+ *   :21998-:21999  ret==0 && (DecodeAuthKeyIdInternal(...) < 0)
+ *   :22030-:22031  ret==0 && (DecodeSubjKeyIdInternal(...) < 0)
  * ------------------------------------------------------------------------- */
 static void wb_decode_extension_type_dispatch(void)
 {
@@ -1725,7 +1852,7 @@ static void wb_decode_extension_type_dispatch(void)
     static const byte badSkid[] = { 0xFF };
     static const byte okSkid[] = { 0x04,0x02, 0xAA,0xBB }; /* OCTET STRING */
 
-    WB_NOTE("DecodeExtensionType(): AUTH_INFO_OID failure propagation [:21834]");
+    WB_NOTE("DecodeExtensionType(): AUTH_INFO_OID failure propagation [:21961]");
     XMEMSET(&cert, 0, sizeof(cert));
     isUnknown = 0;
     ret = DecodeExtensionType(badAia, sizeof(badAia), AUTH_INFO_OID, 0,
@@ -1733,7 +1860,7 @@ static void wb_decode_extension_type_dispatch(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             "malformed AuthorityInfoAccess (ret==0 true, DecodeAuthInfo<0 true)");
 
-    WB_NOTE("DecodeExtensionType(): AUTH_KEY_OID failure propagation [:21871,:21872]");
+    WB_NOTE("DecodeExtensionType(): AUTH_KEY_OID failure propagation [:21998,:21999]");
     XMEMSET(&cert, 0, sizeof(cert));
     isUnknown = 0;
     ret = DecodeExtensionType(badAkid, sizeof(badAkid), AUTH_KEY_OID, 0,
@@ -1748,7 +1875,7 @@ static void wb_decode_extension_type_dispatch(void)
     ret = DecodeExtensionType(badAkid, sizeof(badAkid), AUTH_KEY_OID, 1,
             &cert, &isUnknown);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E),
-            "critical AKID rejected before reaching :21871 (1st operand false)");
+            "critical AKID rejected before reaching :21998 (1st operand false)");
 #endif
 
     /* A well-formed AIA makes DecodeAuthInfo() succeed, so the 2nd operand
@@ -1776,7 +1903,7 @@ static void wb_decode_extension_type_dispatch(void)
             "critical AIA rejected before the decode step (1st operand false)");
 #endif
 
-    WB_NOTE("DecodeExtensionType(): SUBJ_KEY_OID failure propagation [:21903,:21904]");
+    WB_NOTE("DecodeExtensionType(): SUBJ_KEY_OID failure propagation [:22030,:22031]");
     XMEMSET(&cert, 0, sizeof(cert));
     isUnknown = 0;
     ret = DecodeExtensionType(badSkid, sizeof(badSkid), SUBJ_KEY_OID, 0,
@@ -1915,7 +2042,7 @@ static void wb_ext_alloc_faults(void)
 }
 
 /* ------------------------------------------------------------------------- *
- * Section 21: DecodeCertExtensions() bad-args [:22164].
+ * Section 21: DecodeCertExtensions() bad-args [:22291].
  * ------------------------------------------------------------------------- */
 static void wb_decode_cert_extensions_badargs(void)
 {
@@ -1932,7 +2059,7 @@ static void wb_decode_cert_extensions_badargs(void)
               0x04,0x04, 0x03,0x02,0x05,0xA0 /* OCTET STRING wrapping BIT STRING */
     };
 
-    WB_NOTE("DecodeCertExtensions(): input==NULL || sz==0 [:22164]");
+    WB_NOTE("DecodeCertExtensions(): input==NULL || sz==0 [:22291]");
     XMEMSET(&cert, 0, sizeof(cert));
     cert.extensions = NULL;
     cert.extensionsSz = 10;
@@ -1979,9 +2106,9 @@ static void wb_decode_cert_extensions_badargs(void)
  * Section 22: CheckDate() (static, called directly with a hand-built
  * ASNGetData so the tag/length/date-string checks are isolated from any
  * surrounding certificate parse).
- *   :22428-:22429  tag != UTC_TIME && tag != GENERALIZED_TIME
- *   :22433-:22434  length > MAX_DATE_SIZE || length < MIN_DATE_SIZE
- *   :22440  ret==0 && !AsnSkipDateCheck  -- see file-header RESIDUAL note.
+ *   :22555-:22556  tag != UTC_TIME && tag != GENERALIZED_TIME
+ *   :22560-:22561  length > MAX_DATE_SIZE || length < MIN_DATE_SIZE
+ *   :22567  ret==0 && !AsnSkipDateCheck  -- see file-header RESIDUAL note.
  * ------------------------------------------------------------------------- */
 static void wb_check_date(void)
 {
@@ -1991,7 +2118,7 @@ static void wb_check_date(void)
      * ASN_BEFORE (not yet valid) while remaining syntactically fine. */
     static const byte futureDate[] = "490101000000Z"; /* 2049 */
 
-    WB_NOTE("CheckDate(): tag validity OR [:22428,:22429]");
+    WB_NOTE("CheckDate(): tag validity OR [:22555,:22556]");
     XMEMSET(&d, 0, sizeof(d));
     d.tag = ASN_OCTET_STRING; /* neither UTC nor GENERALIZED */
     d.length = 13;
@@ -2007,7 +2134,7 @@ static void wb_check_date(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) || ret == 0,
             "GENERALIZED_TIME tag (1st false, 2nd doesn't matter for tag check)");
 
-    WB_NOTE("CheckDate(): length range check [:22433,:22434]");
+    WB_NOTE("CheckDate(): length range check [:22560,:22561]");
     XMEMSET(&d, 0, sizeof(d));
     d.tag = ASN_UTC_TIME;
     d.length = MAX_DATE_SIZE + 1;
@@ -2030,7 +2157,7 @@ static void wb_check_date(void)
             "length within range (both length operands false)");
 
 #ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
-    WB_NOTE("CheckDate(): runtime AsnSkipDateCheck toggle [:22440]");
+    WB_NOTE("CheckDate(): runtime AsnSkipDateCheck toggle [:22567]");
     (void)wc_AsnSetSkipDateCheck(1);
     XMEMSET(&d, 0, sizeof(d));
     d.tag = ASN_UTC_TIME;
@@ -2044,7 +2171,7 @@ static void wb_check_date(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
             "AsnSkipDateCheck cleared (2nd operand true, date validated and rejected)");
 #else
-    WB_NOTE("WC_ASN_RUNTIME_DATE_CHECK_CONTROL off; :22440 residual (see file header)");
+    WB_NOTE("WC_ASN_RUNTIME_DATE_CHECK_CONTROL off; :22567 residual (see file header)");
 #endif
 }
 
@@ -2053,19 +2180,19 @@ static void wb_check_date(void)
  * certificate buffer -- certs/server-cert.der -- with targeted byte
  * patches so each decision is isolated without needing a from-scratch
  * X.509 encoder).
- *   :22578  ret==0 && version > MAX_X509_VERSION
- *   :22608-:22609  CheckDate(BEFORE)<0 && verify!=NO_VERIFY &&
+ *   :22705  ret==0 && version > MAX_X509_VERSION
+ *   :22735-:22736  CheckDate(BEFORE)<0 && verify!=NO_VERIFY &&
  *                  verify!=VERIFY_SKIP_DATE && !AsnSkipDateCheck
- *   :22620-:22621  same shape for ASN_AFTER
- *   :22639  ret==0 && stopAtPubKey
- *   :22649  ret==0 && !done
- *   :22704-:22705  WC_RSA_PSS tbs/sig param mismatch (best-effort)
- *   :22726  ret==0 && !done            (stopAfterPubKey branch)
- *   :22738-:22739  ret==0 && !done && TBS_EXT_SEQ.data.ref.data!=NULL
+ *   :22747-:22748  same shape for ASN_AFTER
+ *   :22766  ret==0 && stopAtPubKey
+ *   :22776  ret==0 && !done
+ *   :22795-:22796  WC_RSA_PSS tbs/sig param mismatch (best-effort)
+ *   :22853  ret==0 && !done            (stopAfterPubKey branch)
+ *   :22865-:22866  ret==0 && !done && TBS_EXT_SEQ.data.ref.data!=NULL
  *   :22761/:22767  issuer/subject != NULL -- residual (see file header)
  *   :22790  ret==0 && !stopAtPubKey
  *   :22795-:22796  !stopAtPubKey && !stopAfterPubKey && extensions!=NULL
- *   :22812  ret==0 && !done && badDate!=0
+ *   :22866  ret==0 && !done && badDate!=0
  * ------------------------------------------------------------------------- */
 static int wb_load_file(const char* path, byte* buf, size_t bufCap, size_t* outSz)
 {
@@ -2092,7 +2219,7 @@ static void wb_decode_cert_internal(void)
         return;
     }
 
-    /* --- version check [:22578] --------------------------------------- */
+    /* --- version check [:22705] --------------------------------------- */
     {
         DecodedCert cert;
         byte buf[4096];
@@ -2187,8 +2314,8 @@ static void wb_decode_cert_internal(void)
     }
 #endif /* !WOLFSSL_NO_ASN_STRICT */
 
-    /* --- BEFORE/AFTER date propagation [:22608,:22609,:22620,:22621,
-     *     :22812] ------------------------------------------------------- */
+    /* --- BEFORE/AFTER date propagation [:22735,:22736,:22747,:22748,
+     *     :22866] ------------------------------------------------------- */
     {
         DecodedCert cert;
         byte beforeBad[4096], afterBad[4096];
@@ -2215,7 +2342,7 @@ static void wb_decode_cert_internal(void)
         /* badDateRet is only written on the stopAfterPubKey path
          * (:22786); on a full parse the date error surfaces as the return
          * value instead, so that is what the rows below assert. */
-        WB_NOTE("DecodeCertInternal(): BEFORE-date bad, verify variants [:22608,:22609]");
+        WB_NOTE("DecodeCertInternal(): BEFORE-date bad, verify variants [:22735,:22736]");
         wc_InitDecodedCert(&cert, beforeBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
@@ -2224,7 +2351,7 @@ static void wb_decode_cert_internal(void)
 #ifndef NO_ASN_TIME
         WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
                 "verify=VERIFY (all 4 operands true, badDate set); "
-                ":22812 true side (ret==0 && !done && badDate!=0)");
+                ":22866 true side (ret==0 && !done && badDate!=0)");
 #else
         WB_CHECK(ret == 0, "verify=VERIFY, no clock (1st operand false)");
 #endif
@@ -2246,7 +2373,7 @@ static void wb_decode_cert_internal(void)
         badDate = 0;
         ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, &badDate, 0, 0);
         WB_CHECK(ret == 0,
-                "verify=NO_VERIFY (2nd operand false); :22812 false via "
+                "verify=NO_VERIFY (2nd operand false); :22866 false via "
                 "badDate==0");
         FreeDecodedCert(&cert);
 
@@ -2264,7 +2391,7 @@ static void wb_decode_cert_internal(void)
                 "CheckDate>=0)");
         FreeDecodedCert(&cert);
 
-        WB_NOTE("DecodeCertInternal(): AFTER-date bad, verify variants [:22620,:22621]");
+        WB_NOTE("DecodeCertInternal(): AFTER-date bad, verify variants [:22747,:22748]");
         wc_InitDecodedCert(&cert, afterBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
@@ -2364,37 +2491,37 @@ static void wb_decode_cert_internal(void)
         }
     }
 
-    /* --- stopAtPubKey / stopAfterPubKey / done combinations [:22639,
-     *     :22649,:22726,:22790,:22795,:22796,:22812] --------------------- */
+    /* --- stopAtPubKey / stopAfterPubKey / done combinations [:22766,
+     *     :22776,:22853,:22790,:22795,:22796,:22866] --------------------- */
     {
         DecodedCert cert;
         int ret, crit, badDate;
 
-        WB_NOTE("DecodeCertInternal(): stopAtPubKey=1 [:22639 true,:22649 false,:22790 false]");
+        WB_NOTE("DecodeCertInternal(): stopAtPubKey=1 [:22766 true,:22776 false,:22790 false]");
         wc_InitDecodedCert(&cert, orig, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, &badDate, 1, 0);
         WB_CHECK(ret >= 0, "stopAtPubKey returns pubKeyOffset (done set early)");
         FreeDecodedCert(&cert);
 
-        WB_NOTE("DecodeCertInternal(): stopAfterPubKey=1 [:22639 false,:22726 true->done,:22790 true,:22795 false]");
+        WB_NOTE("DecodeCertInternal(): stopAfterPubKey=1 [:22766 false,:22853 true->done,:22790 true,:22795 false]");
         wc_InitDecodedCert(&cert, orig, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, &badDate, 0, 1);
         WB_CHECK(ret == 0, "stopAfterPubKey completes key parse, skips extensions");
         FreeDecodedCert(&cert);
 
-        WB_NOTE("DecodeCertInternal(): full parse [:22639 false,:22649 true,:22726 true,:22790 true,:22795-:22796 all true]");
+        WB_NOTE("DecodeCertInternal(): full parse [:22766 false,:22776 true,:22853 true,:22790 true,:22795-:22796 all true]");
         wc_InitDecodedCert(&cert, orig, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, &badDate, 0, 0);
         WB_CHECK(ret == 0, "full parse succeeds (extensions decoded)");
         WB_CHECK(cert.extensions != NULL,
-                "extensions present -> :22738-:22739 true side (real cert has extensions)");
+                "extensions present -> :22865-:22866 true side (real cert has extensions)");
         FreeDecodedCert(&cert);
     }
 
-    /* --- extensions absent [:22738,:22739 false side] ------------------
+    /* --- extensions absent [:22865,:22866 false side] ------------------
      * Splice the [3] extensions wrapper (DER offset 657, length 330 per
      * asn1parse: "657: ... hl=4 l=326 cons: cont [ 3 ]") out of the
      * buffer entirely and patch the two enclosing SEQUENCE length fields
@@ -2427,7 +2554,7 @@ static void wb_decode_cert_internal(void)
             noext[7] = (byte)newTbsLen;
         }
 
-        WB_NOTE("DecodeCertInternal(): extensions field absent [:22738,:22739 false]");
+        WB_NOTE("DecodeCertInternal(): extensions field absent [:22865,:22866 false]");
         wc_InitDecodedCert(&cert, noext, (word32)newSz, NULL);
         crit = 0;
         ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 0);
@@ -2450,7 +2577,7 @@ static void wb_decode_cert_internal(void)
         FreeDecodedCert(&cert);
     }
 
-    /* --- WC_RSA_PSS tbs/sig parameter match [:22758,:22759] -------------
+    /* --- WC_RSA_PSS tbs/sig parameter match [:22795,:22796] -------------
      * A conforming PSS certificate repeats the same RSASSA-PSS-params in the
      * TBSCertificate's signature field and in the outer signatureAlgorithm,
      * so the equality test is all-false on the corpus certificate. Two edited
@@ -2470,9 +2597,8 @@ static void wb_decode_cert_internal(void)
             word32 outerParams = 0;
             word32 i;
             int ret, crit;
-
             WB_NOTE("DecodeCertInternal(): RSA-PSS tbs/sig parameter match "
-                    "[:22758]");
+                    "[:22795]");
             wc_InitDecodedCert(&cert, pssBuf, (word32)pssSz, NULL);
             ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 0);
             WB_CHECK(ret == 0, "unedited PSS certificate (both operands false)");
@@ -2563,10 +2689,10 @@ static void wb_decode_cert_internal(void)
 }
 
 /* ------------------------------------------------------------------------- *
- * Section 24: DecodeCertReqAttributes() loop [:23064] (static, called
+ * Section 24: DecodeCertReqAttributes() loop [:23191] (static, called
  * directly on a hand-built attribute list -- no full CSR needed since the
  * function only walks cert->source[idx..maxIdx)).
- *   :23064  while ((ret==0) && (idx<maxIdx))
+ *   :23191  while ((ret==0) && (idx<maxIdx))
  * ------------------------------------------------------------------------- */
 #ifdef WOLFSSL_CERT_REQ
 static void wb_decode_cert_req_attributes(void)
@@ -2587,7 +2713,7 @@ static void wb_decode_cert_req_attributes(void)
           0x31,0x04, 0x16,0x02,'h','i'
     };
 
-    WB_NOTE("DecodeCertReqAttributes(): zero attributes (loop false) [:23064]");
+    WB_NOTE("DecodeCertReqAttributes(): zero attributes (loop false) [:23191]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertReqAttributes(&cert, &crit, 0, 0);
     WB_CHECK(ret == 0, "maxIdx==0 (2nd operand false immediately)");
@@ -2610,7 +2736,7 @@ static void wb_decode_cert_req_attributes(void) { WB_NOTE("WOLFSSL_CERT_REQ off;
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Section 25: DecodeCertReq() version check [:23186] (static, called
+ * Section 25: DecodeCertReq() version check [:23313] (static, called
  * directly on a minimal hand-built CertificationRequest DER; the rest of
  * the function may fail afterward on the deliberately-minimal key/subject
  * content, which does not matter -- only the version-check line itself
@@ -2642,7 +2768,7 @@ static void wb_decode_cert_req_version(void)
     };
     byte csrBadVer[sizeof(csr)];
 
-    WB_NOTE("DecodeCertReq(): version > MAX_X509_VERSION [:23186]");
+    WB_NOTE("DecodeCertReq(): version > MAX_X509_VERSION [:23313]");
     WB_CHECK(csr[6] == 0x00, "sanity: version byte at expected offset");
 
     XMEMCPY(csrBadVer, csr, sizeof(csr));
@@ -2734,7 +2860,7 @@ static void wb_decode_cert_req_version(void) { WB_NOTE("WOLFSSL_CERT_REQ off; sk
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Section 26: ParseCert() RSA public key store [:23263-:23267]
+ * Section 26: ParseCert() RSA public key store [:23390-:23394]
  * (best-effort -- see file-header RESIDUAL note for operands 2/3).
  * ------------------------------------------------------------------------- */
 #if (!defined(WOLFSSL_NO_MALLOC) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
@@ -2746,7 +2872,7 @@ static void wb_parse_cert_rsa_pubkey(void)
     DecodedCert cert;
     int ret;
 
-    WB_NOTE("ParseCert(): RSA public key stored on success (best-effort) [:23263-:23267]");
+    WB_NOTE("ParseCert(): RSA public key stored on success (best-effort) [:23390-:23394]");
     if (wb_load_file("./certs/server-cert.der", buf, sizeof(buf), &sz) != 0) {
         WB_NOTE("certs/server-cert.der not found; section skipped");
         return;
@@ -2766,7 +2892,7 @@ static void wb_parse_cert_rsa_pubkey(void) { WB_NOTE("WOLFSSL_NO_MALLOC build; P
 
 /* ------------------------------------------------------------------------- *
  * Section 27: wc_GetDecodedCertSubject/Issuer/Serial() bad-args OR
- * [:23291,:23314,:23335].
+ * [:23400,:23423,:23444].
  * ------------------------------------------------------------------------- */
 static void wb_get_decoded_cert_accessors(void)
 {
@@ -2780,7 +2906,7 @@ static void wb_get_decoded_cert_accessors(void)
     cert.subject[0] = '\0';
     cert.serialSz = 0;
 
-    WB_NOTE("wc_GetDecodedCertSubject(): bad-args OR [:23291]");
+    WB_NOTE("wc_GetDecodedCertSubject(): bad-args OR [:23400]");
     bufSz = sizeof(buf);
     WB_CHECK(wc_GetDecodedCertSubject(NULL, buf, &bufSz)
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "cert==NULL");
@@ -2790,7 +2916,7 @@ static void wb_get_decoded_cert_accessors(void)
     WB_CHECK(wc_GetDecodedCertSubject(&cert, buf, &bufSz) == 0,
             "both valid (both operands false)");
 
-    WB_NOTE("wc_GetDecodedCertIssuer(): bad-args OR [:23314]");
+    WB_NOTE("wc_GetDecodedCertIssuer(): bad-args OR [:23423]");
     bufSz = sizeof(buf);
     WB_CHECK(wc_GetDecodedCertIssuer(NULL, buf, &bufSz)
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "cert==NULL");
@@ -2800,7 +2926,7 @@ static void wb_get_decoded_cert_accessors(void)
     WB_CHECK(wc_GetDecodedCertIssuer(&cert, buf, &bufSz) == 0,
             "both valid (both operands false)");
 
-    WB_NOTE("wc_GetDecodedCertSerial(): bad-args OR [:23335]");
+    WB_NOTE("wc_GetDecodedCertSerial(): bad-args OR [:23444]");
     bufSz = sizeof(sbuf);
     WB_CHECK(wc_GetDecodedCertSerial(NULL, sbuf, &bufSz)
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "cert==NULL");

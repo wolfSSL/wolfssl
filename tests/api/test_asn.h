@@ -42,6 +42,8 @@ int test_DecodeCertExtensions_empty_certpol_trailing(void);
 int test_ParseCert_SM3wSM2_short_pubkey(void);
 int test_ParseCert_dnBufferBoundary(void);
 int test_wc_DecodeObjectId(void);
+int test_wc_EncodePolicyOID(void);
+int test_wc_EncodePolicyOID_certgen(void);
 int test_ToTraditional_ex_handcrafted(void);
 int test_ToTraditional_ex_roundtrip(void);
 int test_ToTraditional_ex_negative(void);
@@ -70,6 +72,8 @@ int test_wc_AsnFeatureCoverage(void);
     TEST_DECL_GROUP("asn", test_ParseCert_SM3wSM2_short_pubkey),    \
     TEST_DECL_GROUP("asn", test_ParseCert_dnBufferBoundary),        \
     TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_wc_EncodePolicyOID),                \
+    TEST_DECL_GROUP("asn", test_wc_EncodePolicyOID_certgen),        \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_negative),         \

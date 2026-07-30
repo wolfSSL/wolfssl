@@ -5382,6 +5382,34 @@ int  wolfSSL_X509_get_isCA(WOLFSSL_X509* x509);
 /*!
     \ingroup CertsKeys
 
+    \brief Reports whether a certificatePolicies entry was dropped while
+    parsing this WOLFSSL_X509 - either an entry whose OID did not decode,
+    or one past the MAX_CERTPOL_NB limit. When this returns 1, the count
+    from the certificate policies extension undercounts what the
+    certificate actually carried. Only available in builds with
+    WOLFSSL_CERT_EXT.
+
+    \return 1 if a certificate policy was dropped.
+    \return 0 if no policy was dropped, or x509 is NULL.
+
+    \param x509 a pointer to a WOLFSSL_X509 structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509;
+    ...
+    if (wolfSSL_X509_get_certPoliciesTruncated(x509)) {
+        // some certificatePolicies entries were dropped
+    }
+    \endcode
+
+    \sa wc_GetDecodedCertPoliciesTruncated
+*/
+int wolfSSL_X509_get_certPoliciesTruncated(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
     \brief This function gets the text related to the passed in NID value.
 
     \return int returns the size of the text buffer.

@@ -5906,6 +5906,7 @@ struct WOLFSSL_X509 {
 #ifdef WOLFSSL_CERT_EXT
     char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int              certPoliciesNb;
+    int              certPoliciesTruncated; /* cert policies dropped flag */
 #endif /* WOLFSSL_CERT_EXT */
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
     wolfSSL_Ref      ref;
