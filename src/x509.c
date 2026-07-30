@@ -12225,6 +12225,14 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 }
 
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+    /* ML-DSA X.509 signing needs private key decode and sign support; keep
+     * every gate that decides "can we sign with ML-DSA" identical so that
+     * verify-only builds reject the key type up front. */
+    #define WOLFSSL_MLDSA_X509_SIGN
+#endif
+
     /* returns the sig type to use on success i.e CTC_SHAwRSA and WOLFSSL_FALURE
      * on fail case */
     static int wolfSSL_sigTypeFromPKEY(WOLFSSL_EVP_MD* md,
@@ -12234,7 +12242,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
 
-    #ifdef WOLFSSL_HAVE_MLDSA
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
         if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
             /* ML-DSA does not use a separate hash; md (may be NULL, as in
              * OpenSSL's X509_sign(x, pkey, NULL)) is ignored. */
@@ -12264,7 +12272,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             }
             return sigType;
         }
-    #endif /* WOLFSSL_HAVE_MLDSA */
+    #endif /* WOLFSSL_MLDSA_X509_SIGN */
 
         /* Convert key type and hash algorithm to a signature algorithm */
         if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL)
@@ -12824,8 +12832,7 @@ cleanup:
         int type = -1;
         int sigType;
         WC_RNG rng;
-    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
-        !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
         MlDsaKey* mldsa = NULL;
     #endif
 
@@ -12852,8 +12859,7 @@ cleanup:
             key = pkey->ecc->internal;
         }
     #endif
-    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
-        !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
         if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
             /* Decode the ML-DSA private key held as DER in pkey.ptr. */
             word32 idx = 0;
@@ -12907,15 +12913,12 @@ cleanup:
             }
             key = mldsa;
         }
-    #endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PRIVATE_KEY &&
-            * !WOLFSSL_MLDSA_NO_ASN1 && !WOLFSSL_MLDSA_NO_SIGN */
+    #endif /* WOLFSSL_MLDSA_X509_SIGN */
 
         /* Sign the certificate (request) body. */
         ret = wc_InitRng(&rng);
         if (ret != 0) {
-        #if defined(WOLFSSL_HAVE_MLDSA) && \
-            defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
-            !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+        #ifdef WOLFSSL_MLDSA_X509_SIGN
             if (mldsa != NULL) {
                 wc_MlDsaKey_Free(mldsa);
                 XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
@@ -12926,8 +12929,7 @@ cleanup:
         ret = wc_SignCert_ex(certBodySz, sigType, der, (word32)derSz, type, key,
             &rng);
         wc_FreeRng(&rng);
-    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
-        !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_MLDSA_NO_SIGN)
+    #ifdef WOLFSSL_MLDSA_X509_SIGN
         if (mldsa != NULL) {
             wc_MlDsaKey_Free(mldsa);
             XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
@@ -13037,7 +13039,7 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
     /* md may be NULL for hash-free algorithms (ML-DSA), as in OpenSSL's
      * X509_sign(x, pkey, NULL). */
     if (md == NULL
-#ifdef WOLFSSL_HAVE_MLDSA
+#ifdef WOLFSSL_MLDSA_X509_SIGN
         && pkey->type != WC_EVP_PKEY_DILITHIUM
 #endif
         ) {
@@ -13054,6 +13056,11 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
     }
 
     x509->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    if (x509->sigOID == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+        WOLFSSL_MSG("Unsupported key/md combination for signing");
+        ret = WOLFSSL_FAILURE;
+        goto out;
+    }
     if ((ret = wolfssl_x509_make_der(x509, 0, der, &derSz, 0)) !=
             WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Unable to make DER for X509");
@@ -17007,7 +17014,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
     /* md may be NULL for hash-free algorithms (ML-DSA), as in OpenSSL's
      * X509_REQ_sign(req, pkey, NULL). */
     if (req == NULL || pkey == NULL || (md == NULL
-#ifdef WOLFSSL_HAVE_MLDSA
+#ifdef WOLFSSL_MLDSA_X509_SIGN
         && pkey->type != WC_EVP_PKEY_DILITHIUM
 #endif
         )) {
@@ -17024,6 +17031,11 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
 
     /* Create a Cert that has the certificate request fields. */
     req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    if (req->sigOID == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+        WOLFSSL_MSG("Unsupported key/md combination for signing");
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
     ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0);
     if (ret != WOLFSSL_SUCCESS) {
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
