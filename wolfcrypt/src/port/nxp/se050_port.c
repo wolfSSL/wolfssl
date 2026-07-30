@@ -2850,16 +2850,23 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
             kSSS_CipherType_HMAC,
+    #else
+            /* The applet denies ReadObject on a symmetric key object
+             * created without a read policy, and pre-7.2 middleware has
+             * no way to grant one, so keep the Binary derive target
+             * which ReadObject allows by default */
+            kSSS_CipherType_Binary,
+    #endif
             keySize,
             kKeyObject_Mode_Transient);
     }
+#if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
     if (status == kStatus_SSS_Success) {
         byte keyBuf[MAX_ECC_BYTES];
-    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
         sss_policy_u commonPol;
         sss_policy_t derivePolicy;
-    #endif
 
         /* Try to delete existing key first, ignore return since will
          * fail if no key exists yet */
@@ -2870,8 +2877,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
          * secret exactly, so the object must be created before the
          * derive (returns SW 0x6985 otherwise) */
         XMEMSET(keyBuf, 0, sizeof(keyBuf));
-    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
-        /* Applet 7.2 denies ReadObject on a symmetric key object created
+        /* The applet denies ReadObject on a symmetric key object created
          * with no policy attached (SW 0x6986), so the derived secret
          * could not be exported. Attach a policy allowing the host to
          * read the secret back, overwrite the object and delete it; an
@@ -2889,28 +2895,34 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         status = sss_key_store_set_key(&host_keystore, &deriveKey,
             keyBuf, keySize, keySize * 8, &derivePolicy,
             sizeof(derivePolicy));
-    #else
-        status = sss_key_store_set_key(&host_keystore, &deriveKey,
-            keyBuf, keySize, keySize * 8, NULL, 0);
-    #endif
         if (status == kStatus_SSS_Success) {
             deriveKeyCreated = 1;
         }
     }
+#endif
     if (status == kStatus_SSS_Success) {
         status = sss_derive_key_context_init(&ctx_derive_key, cfg_se050_i2c_pi,
                                     &ref_private_key, kAlgorithm_SSS_ECDH,
                                     kMode_SSS_ComputeSharedSecret);
         if (status == kStatus_SSS_Success) {
+    #if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
+            /* Try to delete existing key first, ignore return since will
+             * fail if no key exists yet */
+            sss_key_store_erase_key(&host_keystore, &deriveKey);
+    #endif
             status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key,
                 &deriveKey);
         }
         if (status == kStatus_SSS_Success) {
             size_t outlenSz = (size_t)*outlen;
             size_t outlenSzBits = outlenSz * 8;
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
             /* sss_key_store_get_key has no HMAC read case, so read the
              * object back as AES type (both are a plain ReadObject) */
             deriveKey.cipherType = kSSS_CipherType_AES;
+    #else
+            deriveKeyCreated = 1;
+    #endif
             /* derived key export */
             status = sss_key_store_get_key(&host_keystore, &deriveKey,
                 out, &outlenSz, &outlenSzBits);
@@ -3486,16 +3498,23 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
             kSSS_CipherType_HMAC,
+    #else
+            /* The applet denies ReadObject on a symmetric key object
+             * created without a read policy, and pre-7.2 middleware has
+             * no way to grant one, so keep the Binary derive target
+             * which ReadObject allows by default */
+            kSSS_CipherType_Binary,
+    #endif
             keySize,
             kKeyObject_Mode_Transient);
     }
+#if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
     if (status == kStatus_SSS_Success) {
         byte keyBuf[CURVE25519_KEYSIZE];
-    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
         sss_policy_u commonPol;
         sss_policy_t derivePolicy;
-    #endif
 
         /* Try to delete existing key first, ignore return since will
          * fail if no key exists yet */
@@ -3506,8 +3525,7 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
          * secret exactly, so the object must be created before the
          * derive (returns SW 0x6985 otherwise) */
         XMEMSET(keyBuf, 0, sizeof(keyBuf));
-    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
-        /* Applet 7.2 denies ReadObject on a symmetric key object created
+        /* The applet denies ReadObject on a symmetric key object created
          * with no policy attached (SW 0x6986), so the derived secret
          * could not be exported. Attach a policy allowing the host to
          * read the secret back, overwrite the object and delete it; an
@@ -3525,28 +3543,34 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         status = sss_key_store_set_key(&host_keystore, &deriveKey,
             keyBuf, keySize, keySize * 8, &derivePolicy,
             sizeof(derivePolicy));
-    #else
-        status = sss_key_store_set_key(&host_keystore, &deriveKey,
-            keyBuf, keySize, keySize * 8, NULL, 0);
-    #endif
         if (status == kStatus_SSS_Success) {
             deriveKeyCreated = 1;
         }
     }
+#endif
     if (status == kStatus_SSS_Success) {
         status = sss_derive_key_context_init(&ctx_derive_key, cfg_se050_i2c_pi,
                                     &ref_private_key, kAlgorithm_SSS_ECDH,
                                     kMode_SSS_ComputeSharedSecret);
         if (status == kStatus_SSS_Success) {
+    #if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
+            /* Try to delete existing key first, ignore return since will
+             * fail if no key exists yet */
+            sss_key_store_erase_key(&host_keystore, &deriveKey);
+    #endif
             status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key,
                 &deriveKey);
         }
         if (status == kStatus_SSS_Success) {
             size_t outlenSz = sizeof(out->point);
             size_t outlenSzBits = outlenSz * 8;
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
             /* sss_key_store_get_key has no HMAC read case, so read the
              * object back as AES type (both are a plain ReadObject) */
             deriveKey.cipherType = kSSS_CipherType_AES;
+    #else
+            deriveKeyCreated = 1;
+    #endif
             /* derived key export */
             status = sss_key_store_get_key(&host_keystore, &deriveKey,
                 out->point, &outlenSz, &outlenSzBits);
