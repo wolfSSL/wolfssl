@@ -10735,7 +10735,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
     if (ret == 0 && version == PKCS5v2) {
         ret = GetAlgoV2(encAlgId, &encOid, &encOidSz, &pbeId, &blockSz);
         if (ret == 0 && encOid == NULL) {
-            ret = ASN_PARSE_E;
+            ret = ALGO_ID_E;
         }
     }
     if (ret == 0) {
@@ -10756,7 +10756,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         if (version != PKCS5v2) {
             pbeOidBuf = OidFromId((word32)pbeId, oidPBEType, &pbeOidBufSz);
             if (pbeOidBuf == NULL) {
-                ret = ASN_PARSE_E;
+                ret = ALGO_ID_E;
             }
             else {
                 /* pbe = OBJ pbse1 SEQ [ inner ] */
@@ -10768,7 +10768,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
                 hmacOidBuf = OidFromId((word32)hmacOid, oidHmacType,
                                 &hmacOidBufSz);
                 if (hmacOidBuf == NULL) {
-                    ret = ASN_PARSE_E;
+                    ret = ALGO_ID_E;
                 }
                 else {
                     innerLen += 2 + 2 + hmacOidBufSz;

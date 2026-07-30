@@ -101,7 +101,7 @@ Some newer families (H5/H7S/U3/U5/WBA/C5/N6, plus the L562 sub-variant) expose a
 wc_Stm32_DhukRegister(devId);      /* once; serves AES + ECDSA (+ CCB) */
 ```
 
-(For a build without CCB, register the plaintext-key AES device with `wc_Stm32_AesRegister(WOLFSSL_STM32_AES_DEVID)` -- `wc_Stm32_CubeAesRegister` is a kept alias. It runs AES on the plain CRYP engine with the `Aes`'s own key (no DHUK/SAES), plus ECDSA sign/verify on the HW PKA when `WOLFSSL_STM32_PKA` is enabled -- so it also satisfies `WOLF_CRYPTO_CB_ONLY_ECC` without CCB. It falls back to cipher-only when the PKA is not built in. The same plaintext-key AES device exists on the bare-metal build (`WOLFSSL_STM32_BARE`), and it is a *separate* device from the DHUK one (`WC_DHUK_DEVID`): register both to run plaintext-key AES and HUK-seed AES side by side in one build, selected per `Aes` by the `devId` passed to `wc_AesInit`.) HW PKA on the HAL build requires the application to build/link ST's `stm32XXxx_hal_pka.c` and provide a `PKA_HandleTypeDef hpka;` initialized with `HAL_PKA_Init(&hpka)` (a CubeMX `MX_PKA_Init`); wolfSSL references `hpka` as `extern`. Note: CCB key *provisioning* (`wc_ecc_make_key`) derives the scalar in software, so it needs a build without `WOLF_CRYPTO_CB_ONLY_ECC` -- provision the CCB blob there, after which CCB *sign* runs under the stripped config. Worked examples in [`STM32_Bare_Test`](https://github.com/wolfSSL/wolfssl-examples-stm32): `main_cubeaes.c` (AES) and `main_cubecrypto.c` (ECC + CCB + AES), validated on NUCLEO-U385RG-Q.
+(For a build without CCB, register the plaintext-key AES device with `wc_Stm32_AesRegister(WOLFSSL_STM32_AES_DEVID)`. It runs AES on the plain CRYP engine with the `Aes`'s own key (no DHUK/SAES), plus ECDSA sign/verify on the HW PKA when `WOLFSSL_STM32_PKA` is enabled -- so it also satisfies `WOLF_CRYPTO_CB_ONLY_ECC` without CCB. It falls back to cipher-only when the PKA is not built in. The same plaintext-key AES device exists on the bare-metal build (`WOLFSSL_STM32_BARE`), and it is a *separate* device from the DHUK one (`WC_DHUK_DEVID`): register both to run plaintext-key AES and HUK-seed AES side by side in one build, selected per `Aes` by the `devId` passed to `wc_AesInit`.) HW PKA on the HAL build requires the application to build/link ST's `stm32XXxx_hal_pka.c` and provide a `PKA_HandleTypeDef hpka;` initialized with `HAL_PKA_Init(&hpka)` (a CubeMX `MX_PKA_Init`); wolfSSL references `hpka` as `extern`. Note: CCB key *provisioning* (`wc_ecc_make_key`) derives the scalar in software, so it needs a build without `WOLF_CRYPTO_CB_ONLY_ECC` -- provision the CCB blob there, after which CCB *sign* runs under the stripped config. Worked examples in [`STM32_Bare_Test`](https://github.com/wolfSSL/wolfssl-examples-stm32): `main_cubeaes.c` (AES) and `main_cubecrypto.c` (ECC + CCB + AES), validated on NUCLEO-U385RG-Q.
 
 ### Coding
 
@@ -176,6 +176,28 @@ wc_Stm32_DhukUnRegister(WC_DHUK_DEVID);
 ECDSA mirrors this: init the key with `wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID)`, import the wrapped private scalar plus its derivation seed with `wc_ecc_import_wrapped_private(&key, seed, seedSz, wrapped, wrappedLen, plainLen)`, then call the normal `wc_ecc_sign_hash()`; verification uses the in-clear public key unchanged. The seed reaches the device as the AES key bytes (`aes->devKey`, set by the normal `wc_AesSetKey` / `wc_AesGcmSetKey`) or, for ECC, on the `ecc_key`; the STM32 callback reads it and derives the working key inside SAES.
 
 Worked example: [`STM32_Bare_Test/src/main_dhuk.c`](https://github.com/wolfSSL/wolfssl-examples-stm32/blob/master/STM32_Bare_Test/src/main_dhuk.c) drives `wc_Stm32_DhukRegister` through transparent GMAC, AES-ECB, and ECDSA, and exercises the `wc_ecc_import_wrapped_private` argument validation in its `test_ecc_dhuk_setter()` block.
+
+### Plaintext-key AES device (vs DHUK seed key)
+
+The DHUK device above always treats the AES key bytes as a 256-bit *seed*: the SAES derives a device-bound key from (seed, DHUK), so those bytes never run as a literal AES key. When you instead need to run an ordinary AES key on the hardware -- while keeping the DHUK path available for other keys -- register the separate plaintext-key AES device and select between the two per `Aes` by `devId`.
+
+Enable it with `wc_Stm32_AesRegister(WOLFSSL_STM32_AES_DEVID)` (default devId 806, overridable in `user_settings.h`). It runs the `Aes`'s own key (`aes->key`) directly on the plain CRYP / TinyAES engine -- no DHUK/SAES -- and accepts 128/192/256-bit keys (the DHUK device is 256-bit-seed only). It services AES-ECB and AES-GCM (encrypt and decrypt-verify, with AAD and a partial trailing block; the standard 12-byte IV uses the HW path) on both the CubeMX/HAL and bare-metal builds. It needs only `WOLF_CRYPTO_CB`.
+
+Both devices coexist in one build -- register each once, then choose per key by the `devId` passed to `wc_AesInit`:
+
+```c
+wc_Stm32_DhukRegister(WC_DHUK_DEVID);           /* 808: key used as a DHUK seed */
+wc_Stm32_AesRegister(WOLFSSL_STM32_AES_DEVID);  /* 806: key used verbatim       */
+
+Aes aes;
+wc_AesInit(&aes, NULL, WOLFSSL_STM32_AES_DEVID); /* plaintext key, on the HW AES */
+wc_AesGcmSetKey(&aes, key, keySz);
+wc_AesGcmEncrypt(&aes, ct, pt, ptSz, iv, 12, tag, tagSz, aad, aadSz);
+wc_AesGcmDecrypt(&aes, pt, ct, ptSz, iv, 12, tag, tagSz, aad, aadSz);
+wc_AesFree(&aes);
+```
+
+So the same key bytes give a standard AES-GCM result on `WOLFSSL_STM32_AES_DEVID` but a device-bound (non-portable) result on `WC_DHUK_DEVID`. Worked examples: [`STM32_Bare_Test`](https://github.com/wolfSSL/wolfssl-examples-stm32) targets `aesplain` (plaintext vs DHUK, selected by devId) and `plaingcm` (direct HW AES-GCM encrypt + decrypt KAT).
 
 ### Provisioning helper
 

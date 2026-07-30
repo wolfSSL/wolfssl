@@ -59,13 +59,18 @@
 #ifdef WOLFSSL_RTL8735B_HOST_TEST
     #include "rtl8735b_shim.h"
 #else
-    #include "hal_crypto.h"
-    #include "hal_hkdf.h"
-    #ifndef WC_NO_RNG
-        #include "hal_trng_sec.h"
-    #endif
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-        #include "hal_ecdsa.h"
+    #include "hal_crypto.h"          /* AES engine -- used by both devices */
+    #ifdef WOLFSSL_RTL8735B_HUK
+        /* HKDF key-ladder, secure TRNG and HW ECDSA are HUK-device only, so an
+         * AES-only build (WOLFSSL_RTL8735B_AES without _HUK) need not supply
+         * these HAL headers. */
+        #include "hal_hkdf.h"
+        #ifndef WC_NO_RNG
+            #include "hal_trng_sec.h"
+        #endif
+        #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+            #include "hal_ecdsa.h"
+        #endif
     #endif
 #endif
 
@@ -235,12 +240,16 @@ static int Rtl8735bAes_Ecb(const byte* key, word32 keyLen, int enc,
     byte* inBounce  = NULL;
     byte* outBounce = NULL;
     /* The HAL rejects a key that is not 32-byte aligned (it DMAs it), so stage
-     * the caller's key (in aes->devKey, unaligned) on an aligned buffer. */
-    XALIGNED(32) byte keyA[WC_RTL8735B_KEYLEN];
+     * the caller's key (in aes->devKey, unaligned) on an aligned buffer.
+     * Zero-initialized so a short (128/192-bit) key leaves no stack residue. */
+    XALIGNED(32) byte keyA[WC_RTL8735B_KEYLEN] = { 0 };
 
     if (key == NULL || in == NULL || out == NULL ||
             sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
+    }
+    if (keyLen > sizeof(keyA)) {
+        return BAD_FUNC_ARG;   /* checked before the HW lock (needs nothing) */
     }
     if (sz > WC_RTL8735B_BOUNCE_MAX) {
         return BAD_FUNC_ARG;   /* guard the (sz + 31) bounce allocation */
@@ -258,10 +267,6 @@ static int Rtl8735bAes_Ecb(const byte* key, word32 keyLen, int enc,
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
-        goto cleanup;
-    }
-    if (keyLen > sizeof(keyA)) {
-        ret = BAD_FUNC_ARG;
         goto cleanup;
     }
     XMEMCPY(keyA, key, keyLen);
@@ -306,8 +311,9 @@ static int Rtl8735bAes_Gcm(const byte* key, word32 keyLen, int enc,
     XALIGNED(32) byte ivA[WC_AES_BLOCK_SIZE]   = { 0 };
     XALIGNED(32) byte hwTag[WC_AES_BLOCK_SIZE] = { 0 };
     /* The HAL rejects a key that is not 32-byte aligned (it DMAs it), so stage
-     * the caller's key (in aes->devKey, unaligned) on an aligned buffer. */
-    XALIGNED(32) byte keyA[WC_RTL8735B_KEYLEN];
+     * the caller's key (in aes->devKey, unaligned) on an aligned buffer.
+     * Zero-initialized so a short (128/192-bit) key leaves no stack residue. */
+    XALIGNED(32) byte keyA[WC_RTL8735B_KEYLEN] = { 0 };
     const byte* inA  = in;       /* aligned views; bounced below if needed */
     const byte* aadA = aad;
     byte*       outA = out;
@@ -357,7 +363,8 @@ static int Rtl8735bAes_Gcm(const byte* key, word32 keyLen, int enc,
     }
 
     if (keyLen > sizeof(keyA)) {
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
+        goto cleanup;   /* frees the in/out/aad bounces already allocated */
     }
 
     ret = wolfSSL_CryptHwMutexLock();
@@ -421,10 +428,12 @@ cleanup:
  * raw key). */
 static int Rtl8735bAes_Cipher(struct wc_CryptoInfo* info)
 {
-    int         ret = CRYPTOCB_UNAVAILABLE;
+    int         ret;
     const byte* key = NULL;
     word32      keyLen = 0;
 
+    /* Unused only in the build where neither the ECB nor the GCM case below is
+     * compiled in (no cipher modes enabled). */
     (void)ret;
     (void)key;
     (void)keyLen;
@@ -511,10 +520,86 @@ int wc_Rtl8735b_AesRegister(int devId)
     return wc_CryptoCb_RegisterDevice(devId, Rtl8735bAes_CryptoDevCb, NULL);
 }
 
-void wc_Rtl8735b_AesUnRegister(int devId)
+int wc_Rtl8735b_AesUnRegister(int devId)
 {
     wc_CryptoCb_UnRegisterDevice(devId);
+    return 0;
 }
+
+#ifdef WOLFSSL_RTL8735B_HOST_TEST
+/* Host self-test of the plaintext-key AES device. The stub HAL performs no real
+ * crypto, so this cannot check ciphertext -- it validates that each supported
+ * operation reaches the device and returns cleanly, that the unaligned bounce
+ * path runs, and that the sz==0 GMAC path is handled. Returns 0 on success or a
+ * negative code identifying the first failing check. */
+int wc_Rtl8735b_AesSelfTest(void)
+{
+    Aes  aes;
+    int  ret;
+    byte key[WC_RTL8735B_KEYLEN];
+    byte iv[GCM_NONCE_MID_SZ];
+    byte in[WC_AES_BLOCK_SIZE];
+    byte out[WC_AES_BLOCK_SIZE];
+    byte tag[WC_AES_BLOCK_SIZE];
+    byte aad[WC_AES_BLOCK_SIZE];
+    byte inU[WC_AES_BLOCK_SIZE + 4];
+    byte outU[WC_AES_BLOCK_SIZE + 4];
+
+    XMEMSET(key, 0x11, sizeof(key));
+    XMEMSET(iv,  0x22, sizeof(iv));
+    XMEMSET(in,  0x33, sizeof(in));
+    XMEMSET(aad, 0x44, sizeof(aad));
+    XMEMSET(inU, 0x55, sizeof(inU));
+
+    ret = wc_Rtl8735b_AesRegister(WC_RTL8735B_AES_DEVID);
+    if (ret != 0) {
+        return -1;
+    }
+
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    /* AES-ECB (256-bit) dispatch. */
+    ret = wc_AesInit(&aes, NULL, WC_RTL8735B_AES_DEVID);
+    if (ret == 0) {
+        ret = wc_AesSetKey(&aes, key, WC_RTL8735B_KEYLEN, NULL, AES_ENCRYPTION);
+    }
+    if (ret == 0) {
+        ret = wc_AesEcbEncrypt(&aes, out, in, WC_AES_BLOCK_SIZE);
+    }
+    wc_AesFree(&aes);
+    if (ret != 0) {
+        wc_Rtl8735b_AesUnRegister(WC_RTL8735B_AES_DEVID);
+        return -2;
+    }
+#endif
+
+    /* AES-GCM: aligned whole block, then sz==0 GMAC, then an unaligned view. */
+    ret = wc_AesInit(&aes, NULL, WC_RTL8735B_AES_DEVID);
+    if (ret == 0) {
+        ret = wc_AesGcmSetKey(&aes, key, WC_RTL8735B_KEYLEN);
+    }
+    if (ret == 0) {
+        ret = wc_AesGcmEncrypt(&aes, out, in, WC_AES_BLOCK_SIZE,
+                               iv, sizeof(iv), tag, sizeof(tag), NULL, 0);
+    }
+    if (ret == 0) {
+        ret = wc_AesGcmEncrypt(&aes, NULL, NULL, 0, iv, sizeof(iv),
+                               tag, sizeof(tag), aad, sizeof(aad));
+    }
+    if (ret == 0) {
+        /* inU+1 / outU+1 are not 32-byte aligned -> exercise the bounce path. */
+        ret = wc_AesGcmEncrypt(&aes, outU + 1, inU + 1, WC_AES_BLOCK_SIZE,
+                               iv, sizeof(iv), tag, sizeof(tag), NULL, 0);
+    }
+    wc_AesFree(&aes);
+
+    wc_Rtl8735b_AesUnRegister(WC_RTL8735B_AES_DEVID);
+    if (ret != 0) {
+        return -3;
+    }
+    return 0;
+}
+#endif /* WOLFSSL_RTL8735B_HOST_TEST */
 #endif /* WOLFSSL_RTL8735B_AES && !NO_AES */
 
 #ifdef WOLFSSL_RTL8735B_HUK

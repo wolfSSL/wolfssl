@@ -741,13 +741,13 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
-    /* Under WOLFSSL_STM32_BARE on the CRYP IP (F2/F4/F7/H7/MP13), the GCM
-     * HW phase machine (init/header/payload/final) is engaged for whole-
-     * block PT with a 12-byte IV; partial blocks and non-12B IVs return
-     * CRYPTOCB_UNAVAILABLE so aes.c falls back to SW GHASH + HW ECB. On
-     * the TinyAES IP the BARE driver always returns CRYPTOCB_UNAVAILABLE
-     * for GCM (no HW phase machine) and the SW GHASH + HW ECB path is
-     * used. GCM decrypt is always SW + HW ECB on both IPs in v1. */
+    /* Under WOLFSSL_STM32_BARE the GCM HW phase machine (init/header/payload/
+     * final) runs for a 12-byte IV, both encrypt and decrypt-verify: the CRYP IP
+     * (F2/F4/F7/H7/MP13) handles whole-block payloads; the TinyAES IP additionally
+     * handles AAD and a partial trailing block via NPBLB. Cases the HW cannot
+     * serve (non-12-byte IV, or a partial block on CRYP) return CRYPTOCB_UNAVAILABLE
+     * so aes.c falls back to SW GHASH + HW ECB. See the wc_Stm32_Aes_* block below
+     * for the authoritative description. */
 
     #if defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32WL) || \
         defined(WOLFSSL_STM32WBA)
@@ -1021,8 +1021,12 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
  * choose, per Aes, whether its key is used verbatim (this devId) or as a DHUK
  * derivation seed (WC_DHUK_DEVID) -- selected by the devId passed to wc_AesInit.
  * Override before include if it collides. */
-#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && \
-    (defined(WOLFSSL_STM32_CUBEMX) || defined(WOLFSSL_STM32_BARE))
+/* Guard is the exact union of the two device definitions in stm32.c: the CubeMX
+ * device (WOLFSSL_STM32_CUBEMX && WOLF_CRYPTO_CB -- also provides HW ECDSA, so it
+ * is valid under NO_AES) and the bare device (WOLFSSL_STM32_BARE && STM32_CRYPTO
+ * && WOLF_CRYPTO_CB && !NO_AES). */
+#if defined(WOLF_CRYPTO_CB) && (defined(WOLFSSL_STM32_CUBEMX) || \
+    (defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO) && !defined(NO_AES)))
     #ifndef WOLFSSL_STM32_AES_DEVID
         #define WOLFSSL_STM32_AES_DEVID     806
     #endif
@@ -1036,15 +1040,10 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
  * ECDSA sign/verify to the HW PKA, satisfying WOLF_CRYPTO_CB_ONLY_ECC too (no
  * CCB required). It is a separate device from the DHUK one (WC_DHUK_DEVID), so
  * both can be registered at once and are selected per-Aes by devId. */
-#if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && \
-    (defined(WOLFSSL_STM32_CUBEMX) || defined(WOLFSSL_STM32_BARE))
-    int  wc_Stm32_AesRegister(int devId);
-    void wc_Stm32_AesUnRegister(int devId);
-#endif
-#if defined(WOLFSSL_STM32_CUBEMX) && defined(WOLF_CRYPTO_CB)
-    /* Backwards-compatible CubeMX-specific names (call wc_Stm32_AesRegister). */
-    int  wc_Stm32_CubeAesRegister(int devId);
-    void wc_Stm32_CubeAesUnRegister(int devId);
+#if defined(WOLF_CRYPTO_CB) && (defined(WOLFSSL_STM32_CUBEMX) || \
+    (defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO) && !defined(NO_AES)))
+    int wc_Stm32_AesRegister(int devId);
+    int wc_Stm32_AesUnRegister(int devId);
 #endif
 
 /* CCB (Coupling and Chaining Bridge) HW-protected DHUK->PKA ECDSA -- STM32U3
