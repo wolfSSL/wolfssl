@@ -13004,13 +13004,16 @@ cleanup:
          * 2592 byte public key, 4627 byte signature). */
         #define WC_MAX_X509_GEN_MLDSA 20480
     #endif
-    /* DER buffer size for certificate/CSR signing, chosen from the signing
-     * key type so that only ML-DSA keys pay for the large buffer. */
-    #define X509_GEN_BUF_SZ(pkey) \
-        (((pkey) != NULL && (pkey)->type == WC_EVP_PKEY_DILITHIUM) ? \
-            WC_MAX_X509_GEN_MLDSA : WC_MAX_X509_GEN)
+    /* DER buffer size for certificate/CSR signing: chosen from the signing
+     * key type, plus the subject public key held in the x509 so that a
+     * large (e.g. ML-DSA) SPKI fits under a classic signing key too. */
+    #define X509_GEN_BUF_SZ(x509, pkey) \
+        ((((pkey) != NULL && (pkey)->type == WC_EVP_PKEY_DILITHIUM) ? \
+            WC_MAX_X509_GEN_MLDSA : WC_MAX_X509_GEN) + \
+            (int)(x509)->pubKey.length)
 #else
-    #define X509_GEN_BUF_SZ(pkey) WC_MAX_X509_GEN
+    #define X509_GEN_BUF_SZ(x509, pkey) \
+        (WC_MAX_X509_GEN + (int)(x509)->pubKey.length)
 #endif
 
 /* returns the size of signature on success */
@@ -13029,7 +13032,7 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         goto out;
     }
 
-    bufSz = X509_GEN_BUF_SZ(pkey);
+    bufSz = X509_GEN_BUF_SZ(x509, pkey);
     derSz = bufSz;
     der = (byte *)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -16993,7 +16996,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         return WOLFSSL_FAILURE;
     }
 
-    bufSz = X509_GEN_BUF_SZ(pkey);
+    bufSz = X509_GEN_BUF_SZ(req, pkey);
     derSz = bufSz;
     der = (byte*)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {

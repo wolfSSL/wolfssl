@@ -403,6 +403,66 @@ int test_wolfSSL_X509_set_pubkey(void)
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
 
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && !defined(WOLFSSL_NO_ML_DSA_87) && \
+    !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_PWDBASED)
+    {
+        /* Classic-signed certificate carrying a large ML-DSA-87 subject
+         * public key: the DER buffer must be sized for the subject SPKI
+         * even though the signing key is RSA. */
+        WOLFSSL_X509* cx = NULL;
+        WOLFSSL_EVP_PKEY* mldsaKey = NULL;
+        WOLFSSL_EVP_PKEY* rsaKey = NULL;
+        WOLFSSL_EVP_PKEY* pub = NULL;
+        WOLFSSL_X509_NAME* name = NULL;
+        WOLFSSL_BIO* bio = NULL;
+        const unsigned char* p = client_key_der_2048;
+
+        ExpectNotNull(bio = wolfSSL_BIO_new_file(
+            "./certs/mldsa/mldsa87-key.pem", "rb"));
+        ExpectNotNull(mldsaKey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL,
+            NULL, NULL));
+        wolfSSL_BIO_free(bio);
+        bio = NULL;
+        ExpectNotNull(rsaKey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &p,
+            (long)sizeof_client_key_der_2048));
+
+        ExpectNotNull(cx = wolfSSL_X509_new());
+        ExpectNotNull(name = wolfSSL_X509_NAME_new());
+        ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "CN",
+            MBSTRING_UTF8, (const byte*)"mldsa87-subject", -1, -1, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_set_subject_name(cx, name), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_set_issuer_name(cx, name), WOLFSSL_SUCCESS);
+        wolfSSL_X509_NAME_free(name);
+        ExpectIntEQ(wolfSSL_X509_set_pubkey(cx, mldsaKey), WOLFSSL_SUCCESS);
+
+        ExpectIntGT(wolfSSL_X509_sign(cx, rsaKey, wolfSSL_EVP_sha256()), 0);
+
+        /* Subject public key kept its type; signature checks out with the
+         * RSA issuer key. */
+        ExpectNotNull(pub = wolfSSL_X509_get_pubkey(cx));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pub), WC_EVP_PKEY_DILITHIUM);
+        wolfSSL_EVP_PKEY_free(pub);
+        pub = NULL;
+        {
+            const unsigned char* pp = client_keypub_der_2048;
+            ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &pp,
+                (long)sizeof_client_keypub_der_2048));
+            ExpectIntEQ(wolfSSL_X509_verify(cx, pub), WOLFSSL_SUCCESS);
+            wolfSSL_EVP_PKEY_free(pub);
+            pub = NULL;
+        }
+
+        wolfSSL_EVP_PKEY_free(rsaKey);
+        wolfSSL_EVP_PKEY_free(mldsaKey);
+        wolfSSL_X509_free(cx);
+    }
+#endif /* classic-signed cert with ML-DSA-87 subject key */
+
     wolfSSL_X509_free(x509);
 #endif
     return EXPECT_RESULT();
