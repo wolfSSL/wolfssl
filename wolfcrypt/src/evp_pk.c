@@ -1032,13 +1032,15 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in]      priv   1 means private key, 0 means public key.
  * @param [in]      prePopulated  1 means *out already holds the input bytes
  *                         so the d2i_make_pkey allocate/copy is skipped.
+ * @param [in]      allowRaw  1 means size-keyed raw key bytes are accepted
+ *                         in addition to DER (auto-detect path only).
  * @return  1 on success.
  * @return  0 when input was recognized as this key type but
  *            object creation/import failed.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
 static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
-    long memSz, int priv, int prePopulated)
+    long memSz, int priv, int prePopulated, int allowRaw)
 {
     static const byte levels[] = { WC_ML_DSA_44, WC_ML_DSA_65, WC_ML_DSA_87 };
     word32 inSz = (word32)memSz;
@@ -1063,8 +1065,9 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return 0;
     }
 
-    /* Raw key bytes are size-keyed, try each level */
-    numLevels = (int)(sizeof(levels) / sizeof(levels[0]));
+    /* Raw key bytes are size-keyed, try each level. Only the auto-detect
+     * path accepts raw bytes; the typed d2i entry points are DER APIs. */
+    numLevels = allowRaw ? (int)(sizeof(levels) / sizeof(levels[0])) : 0;
     for (i = 0; i < numLevels && !isMlDsa; i++) {
         if (wc_MlDsaKey_SetParams(mldsa, levels[i]) != 0) {
             continue;
@@ -1226,7 +1229,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
     else
 #endif /* HAVE_FALCON */
 #ifdef WOLFSSL_HAVE_MLDSA
-    if (d2iTryMlDsaKey(&pkey, *in, inSz, priv, 0) >= 0) {
+    if (d2iTryMlDsaKey(&pkey, *in, inSz, priv, 0, 1) >= 0) {
         found = 1;
     }
     else
@@ -1464,6 +1467,17 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             #ifdef HAVE_ED448
                 || (type == WC_EVP_PKEY_ED448 && algId != ED448k)
             #endif
+            #ifdef WOLFSSL_HAVE_MLDSA
+                || (type == WC_EVP_PKEY_DILITHIUM &&
+                    algId != ML_DSA_44k && algId != ML_DSA_65k &&
+                    algId != ML_DSA_87k
+                #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                    && algId != DILITHIUM_LEVEL2k
+                    && algId != DILITHIUM_LEVEL3k
+                    && algId != DILITHIUM_LEVEL5k
+                #endif
+                   )
+            #endif
                 ) {
                 WOLFSSL_MSG("PKCS8 does not match EVP key type");
                 return NULL;
@@ -1592,7 +1606,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
 #if defined(WOLFSSL_HAVE_MLDSA)
         case WC_EVP_PKEY_DILITHIUM:
             /* local already holds the input bytes: prePopulated=1. */
-            if (d2iTryMlDsaKey(&local, p, local->pkey_sz, priv, 1) != 1) {
+            if (d2iTryMlDsaKey(&local, p, local->pkey_sz, priv, 1, 0) != 1) {
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }

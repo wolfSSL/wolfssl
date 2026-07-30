@@ -30,6 +30,9 @@
 
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/kdf.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_evp_pkey.h>
 
@@ -3123,6 +3126,75 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
     }
 
     wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Typed d2i entry points for ML-DSA: a PKCS#8 key of another algorithm
+ * and raw (non-DER) bytes must both be rejected; a matching PKCS#8
+ * ML-DSA key must decode. */
+int test_wolfSSL_d2i_PrivateKey_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+    unsigned char mldsaDer[4096];
+    unsigned char rsaDer[2048];
+    unsigned char rawBlob[2560]; /* ML-DSA-44 raw private key size */
+    int mldsaSz = 0;
+    int rsaSz = 0;
+    XFILE f = XBADFILE;
+
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44-key.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(mldsaSz = (int)XFREAD(mldsaDer, 1, sizeof(mldsaDer), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/server-keyPkcs8.der", "rb")) != XBADFILE);
+    ExpectIntGT(rsaSz = (int)XFREAD(rsaDer, 1, sizeof(rsaDer), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+    }
+
+    /* PKCS#8 ML-DSA private key decodes with the matching type. */
+    p = mldsaDer;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL,
+        &p, (long)mldsaSz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* PKCS#8 RSA key requested as ML-DSA is rejected by the algId check. */
+    p = rsaDer;
+    ExpectNull(wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)rsaSz));
+
+    /* Raw (non-DER) private key bytes are rejected: d2i is a DER API, the
+     * size-keyed raw import is for the auto-detect path only. Use genuine
+     * raw bytes so the rejection is due to the format, not the contents. */
+    {
+        MlDsaKey mldsa;
+        word32 idx = 0;
+        word32 rawSz = (word32)sizeof(rawBlob);
+
+        ExpectIntEQ(wc_MlDsaKey_Init(&mldsa, NULL, INVALID_DEVID), 0);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&mldsa, mldsaDer,
+            (word32)mldsaSz, &idx), 0);
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&mldsa, rawBlob, &rawSz), 0);
+        PRIVATE_KEY_LOCK();
+        wc_MlDsaKey_Free(&mldsa);
+
+        p = rawBlob;
+        ExpectNull(wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL, &p,
+            (long)rawSz));
+    }
 #endif
     return EXPECT_RESULT();
 }
