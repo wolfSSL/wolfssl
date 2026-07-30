@@ -1,3 +1,181 @@
+# wolfSSL Release (unreleased)
+
+## Behavioral Changes
+
+* **Behavioral change (`wolfSSL_shutdown` when no close_notify can be sent)**:
+  when the connection is already closed or reset and no close_notify was ever
+  sent, the shutdown exchange can never complete.  That case now returns
+  `WOLFSSL_FATAL_ERROR` and records `SOCKET_PEER_CLOSED_E`, so the caller has
+  a reason to query with `wolfSSL_get_error()`.  Previously it returned 0,
+  which is `WOLFSSL_SHUTDOWN_NOT_DONE` under `WOLFSSL_ERROR_CODE_OPENSSL`, so
+  an application looping while the result is 0 never left the loop; such a
+  loop now terminates.  `SOCKET_PEER_CLOSED_E` is used whatever closed the
+  connection, including this side sending a fatal alert, and only when no
+  more specific error has already been recorded.  Under `OPENSSL_EXTRA`,
+  `wolfSSL_get_error()` reports it as `WOLFSSL_ERROR_SYSCALL`, so a locally
+  aborted connection can surface as a syscall error.  Recording the error
+  also appends to the OpenSSL error queue where one is built in
+  (`WOLFSSL_HAVE_ERROR_QUEUE`, which `OPENSSL_ALL`, `OPENSSL_EXTRA`,
+  `WOLFSSL_NGINX` and `WOLFSSL_HAPROXY` all enable).  Tearing down a
+  connection that was already aborted therefore leaves an entry on the queue
+  where it previously left none, which an application that checks the queue
+  after shutdown - or fails on a non-empty one - will see; call
+  `wolfSSL_ERR_clear_error()` if that matters.  One case is unchanged
+  and records no error: calling `wolfSSL_shutdown()` again once the exchange
+  has completed still returns `WOLFSSL_FATAL_ERROR` with nothing to query,
+  which is only reachable in builds without `OPENSSL_EXTRA` or
+  `WOLFSSL_WPAS_SMALL`, where the state is not reset after a success.
+
+* **Behavioral change (`wolfSSL_X509_STORE_up_ref` on a store owned by another
+  object)**: the reference count is now only taken for a store allocated with
+  `wolfSSL_X509_STORE_new()`.  A store that is part of another object, such as
+  the one returned by `wolfSSL_CTX_get_cert_store()` when no store has been
+  set on the context, has no reference count to take - its lifetime is that of
+  the object holding it.  Such a call now returns 1 without touching the
+  count, matching `wolfSSL_X509_STORE_free()`, which already did nothing for
+  such a store.  Previously the count was incremented although it had never
+  been initialized, which on a build using mutexes rather than atomics for
+  reference counting meant locking a mutex that was never set up.  A NULL
+  store still returns 0.
+
+* **Behavioral change (`wolfSSL_OCSP_parse_url` rewritten to follow OpenSSL)**:
+  the parser now follows OpenSSL's `OCSP_parse_url()`, which is
+  `OSSL_HTTP_parse_url()` with the userinfo, port number, query and fragment
+  outputs discarded.  Applications reach this through the OpenSSL
+  compatibility name `OCSP_parse_url`, so a responder URL taken from a
+  certificate may now parse differently.  What changed:
+
+  * The scheme may be omitted - `example.com/ocsp` parses as http with the
+    default port - and is matched case sensitively, so `HTTP://host/p` is
+    refused.  An unknown scheme is still refused.  A scheme written without
+    its colon is no longer refused either: with no `://` to find there is no
+    scheme at all, so `http//localhost` parses as a host of `"http"` with a
+    path of `"//localhost"`.
+  * An IPv6 literal keeps its brackets, so `http://[::1]/p` reports a host of
+    `"[::1]"`.  Previously it reported `"::1"`, and before the rewrite `"["`
+    with a port of `":1]"`.  Note `wolfIO_DecodeUrl()` strips the brackets;
+    the two are not interchangeable here.
+  * Userinfo runs to the first `@` of the authority and is discarded, so
+    `http://user@host/p` reports a host of `"host"` rather than
+    `"user@host"`.  The scan is bounded by the authority, so an `@` in the
+    path stays in the path - OpenSSL 3.5 and earlier scanned the whole URL
+    and took the text after any `@` as the host, which upstream has fixed.
+  * The port is reported as written rather than canonicalized, so
+    `http://host:00080/p` reports `"00080"`.  Only the value is checked, not
+    the number of digits, so `http://host:065535/p` is accepted.  An explicit
+    `:0` is reported as the scheme's default port.  An empty port, a
+    non-numeric port and a port above 65535 are refused.
+  * The query stays with the path and the fragment is dropped, so
+    `http://host?q=1` reports a path of `"/?q=1"` and `http://host/p#f`
+    reports `"/p"`.  A `:` in the path is kept rather than refused.
+  * On failure the flag reported through the `ssl` argument is now cleared; a
+    failed `https` URL previously left it set.
+
+  Two checks are kept that OpenSSL does not make, both cases where it is
+  silent rather than deliberately permissive: a CR or LF anywhere in the URL
+  is refused, as it would split a request built from these parts into extra
+  header lines, and an empty host is refused rather than reported as `""`.
+
+  Note that the host is not the name that reads first in the URL:
+  `http://ocsp.example.com@attacker.example/` is a request to
+  `attacker.example`.  Responder URLs come from a certificate's AIA
+  extension, so whoever issued the certificate chooses that text.  Any
+  application that logs, pins or allow-lists a responder must use the host
+  this function returns rather than the URL it was given.  No credentials are
+  ever sent - the userinfo is only discarded.
+
+* **Behavioral change (NULL store passed to the verify cert store setters)**:
+  `wolfSSL_set0_verify_cert_store()` and `wolfSSL_set1_verify_cert_store()`
+  now treat a NULL store as a request to clear any store set on the SSL
+  object, releasing the reference held on it and reverting to the context's
+  store.  They return 1, and clearing when no store is set is a successful
+  no-op.  Previously a NULL store was rejected with a 0 return and no other
+  effect.  This matches OpenSSL, where `SSL_set0_verify_cert_store()` clears
+  the verify store when passed NULL.
+
+  `wolfSSL_CTX_set1_verify_cert_store()` is unchanged and still refuses a NULL
+  store with a 0 return.  This deviates from OpenSSL, where
+  `SSL_CTX_set1_verify_cert_store(ctx, NULL)` returns 1 and releases the
+  verify store.  OpenSSL keeps two stores on a context - the one set by
+  `SSL_CTX_set_cert_store()` and the verify store - and clearing the verify
+  store leaves the other in place.  wolfSSL holds both in one field, so
+  releasing it would discard the store given to `wolfSSL_CTX_set_cert_store()`
+  and leave the context on its own store, which is not set up for certificate
+  lookup by issuer.  The request cannot be honoured until the two are held
+  separately, and refusing it is what keeps that visible to the caller -
+  returning success without clearing would leave an application verifying
+  against the store it asked to be rid of.
+
+  The object being set is still required: a NULL `ssl` or `ctx` returns 0 as
+  before.
+
+* **Behavioral change (object handed the store its context is already
+  using)**: `wolfSSL_set0_verify_cert_store()` and
+  `wolfSSL_set1_verify_cert_store()` now treat being handed the store the
+  context is using as a request to follow the context, rather than pinning
+  that store on the object.  Previously only a store set on the context with
+  `wolfSSL_CTX_set_cert_store()` was recognised that way; a context's own
+  store - what `wolfSSL_CTX_get_cert_store()` returns when no other has been
+  set - was stored on the object instead.  The visible difference is that a
+  later `wolfSSL_CTX_set1_verify_cert_store()` now changes what such an
+  object verifies against, where before the object kept the store it was
+  given.  OpenSSL's `SSL_set1_verify_cert_store()` pins, so this is a
+  deliberate deviation: a store that is part of another object has no
+  reference count, so pinning it keeps a pointer with nothing holding the
+  store alive.  An application that wants the store pinned must pass one
+  allocated with `wolfSSL_X509_STORE_new()`.
+
+* **Behavioral change (`wolfSSL_read_ex` with a NULL object)**: the NULL check
+  is now made in every build rather than only under `OPENSSL_EXTRA`, so
+  `wolfSSL_read_ex(NULL, ...)` returns `BAD_FUNC_ARG` consistently.  Builds
+  without `OPENSSL_EXTRA` previously returned 0, the same value used for "no
+  application data was read", so a caller testing for 0 could not tell the
+  two apart.  Callers that treat any non-1 result as failure are unaffected.
+
+* **Behavioral change (`wolfSSL_write_ex` with a NULL object)**: a NULL object
+  is now rejected with `BAD_FUNC_ARG` rather than reported as 0, matching
+  `wolfSSL_read_ex()` and the rest of the read/write API.  0 is also the value
+  used for "no application data was written", so a caller testing for 0 could
+  not tell the two apart.  Callers that treat any non-1 result as failure are
+  unaffected.
+
+* **API (`wolfSSL_CTX_set_client_cert_cb` and `client_cert_cb` availability)**:
+  both are now declared under `WOLFSSL_CERT_SETUP_CB` with `OPENSSL_EXTRA`,
+  rather than with `OPENSSL_EXTRA` or `OPENSSL_EXTRA_X509_SMALL`.  The setter
+  assigns `ctx->CBClientCert`, a `WOLFSSL_CTX` member that exists only under
+  `OPENSSL_EXTRA`, so a build defining `WOLFSSL_CERT_SETUP_CB` with only
+  `OPENSSL_EXTRA_X509_SMALL` could never compile the setter.  That
+  configuration now sees neither the prototype nor the `client_cert_cb`
+  typedef instead of failing to build; no other configuration changes.
+
+## Fixes
+
+* **Fix (certificate manager left pointing at a released store)**:
+  `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
+  context's certificate manager, which keeps a pointer back to that store.
+  Releasing the store - by setting another one with
+  `wolfSSL_CTX_set_cert_store()` or `wolfSSL_CTX_set1_verify_cert_store()` -
+  freed it while leaving that pointer in place.  The pointer is used without a
+  further check when looking up a certificate by issuer, so a build reaching
+  that path (`OPENSSL_ALL` with CRL and hash directory support) could read
+  freed memory.  `wolfSSL_X509_STORE_free()` now clears the manager's pointer
+  when it releases the store it names, and the context setters re-pair the
+  manager with the store the context owns.  Only affects applications calling
+  `wolfSSL_CTX_set_cert_store()`.
+
+* **Fix (`wolfSSL_set_accept_state` with `WOLFSSL_BLIND_PRIVATE_KEY`)**: the
+  static-ECC check decoded `ssl->buffers.key` directly.  Under
+  `WOLFSSL_BLIND_PRIVATE_KEY` that buffer is masked, so the decode always
+  failed and the server silently dropped `haveECDSAsig`, `haveECC` and
+  `haveStaticECC`, losing the static ECC cipher suites for a key that was
+  valid.  A masked key is now unmasked into a plain copy for the check, and
+  a key stored without a mask - after `wolfSSL_use_PrivateKey_Id()` or
+  `wolfSSL_use_PrivateKey_Label()`, for example - is checked directly, so
+  that the result no longer depends on whether key blinding is compiled in.
+  An allocation failure while unmasking leaves the capabilities alone rather
+  than withdrawing them, matching what a failure to allocate the `ecc_key`
+  already did.  Only affects builds with `WOLFSSL_BLIND_PRIVATE_KEY`.
+
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 
 Release 5.9.2 has been developed according to wolfSSL's development and QA

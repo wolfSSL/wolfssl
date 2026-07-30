@@ -3088,6 +3088,17 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         }
     #endif /* KEEP_OUR_CERT */
     FreeDer(&ctx->certChain);
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+        /* The manager may point back at the store embedded in this context,
+         * which is freed along with it below. That store is not reference
+         * counted, so wolfSSL_X509_STORE_free() cannot break the link the way
+         * it does for an allocated one - do it here. A manager shared with
+         * something else outlives the context, and the pointer is used with
+         * only a NULL check when looking up a certificate by issuer. */
+        if ((ctx->cm != NULL) && (ctx->cm->x509_store_p == &ctx->x509_store)) {
+            ctx->cm->x509_store_p = NULL;
+        }
+    #endif
     wolfSSL_CertManagerFree(ctx->cm);
     ctx->cm = NULL;
     #ifdef OPENSSL_ALL

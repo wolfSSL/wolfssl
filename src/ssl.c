@@ -417,6 +417,18 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
 #define WOLFSSL_SSL_SESS_INCLUDED
 #include "src/ssl_sess.c"
 
+/* Forward declarations for static functions that are defined in a file
+ * included later in this amalgamation but used by one included earlier. Keep
+ * them here, next to the includes, rather than inside the files that need
+ * them.
+ *
+ * x509GetIssuerFromCM() is defined in src/x509_str.c, which also requires
+ * NO_CERTS to be undefined. */
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
+        WOLFSSL_X509 *x);
+#endif
+
 #define WOLFSSL_SSL_API_CERT_INCLUDED
 #include "src/ssl_api_cert.c"
 

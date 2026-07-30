@@ -1810,6 +1810,16 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
             wolfSSL_CRYPTO_cleanup_ex_data(&store->ex_data);
 #endif
             if (store->cm != NULL) {
+                /* The manager may point back at this store, and can outlive
+                 * it when something else holds a reference to it. Break the
+                 * link before the store goes away so nothing is left
+                 * pointing at freed memory. The back-pointer is only a field
+                 * of the manager in the builds that can set it. */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+                if (store->cm->x509_store_p == store) {
+                    store->cm->x509_store_p = NULL;
+                }
+#endif
                 wolfSSL_CertManagerFree(store->cm);
                 store->cm = NULL;
             }
@@ -1874,9 +1884,33 @@ void* wolfSSL_X509_STORE_get_ex_data(WOLFSSL_X509_STORE* store, int idx)
     return NULL;
 }
 
+/* Take a reference to a certificate store.
+ *
+ * Only a store allocated by wolfSSL_X509_STORE_new() is reference counted. A
+ * store that is part of another object - the one a context returns from
+ * wolfSSL_CTX_get_cert_store() when none has been set on it, for example -
+ * has no count to take, and its lifetime is that of the object holding it.
+ * Success is still reported for such a store, so unlike OpenSSL's
+ * X509_STORE_up_ref() a successful return does not by itself mean the caller
+ * now owns something that keeps the store alive. A caller that intends to
+ * outlive the object the store belongs to cannot rely on this call and must
+ * use a store of its own.
+ *
+ * @param [in, out] store  Certificate store.
+ * @return  1 on success, including for a store that has no reference count.
+ * @return  0 when store is NULL, or when the count could not be taken.
+ */
 int wolfSSL_X509_STORE_up_ref(WOLFSSL_X509_STORE* store)
 {
-    if (store) {
+    if (store == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* A store that is part of another object, such as the one in a context,
+     * is not reference counted - its reference count was never initialized
+     * and its lifetime is that of the object holding it. Nothing to do, as
+     * in wolfSSL_X509_STORE_free(). */
+    if (store->isDynamic) {
         int ret;
         wolfSSL_RefInc(&store->ref, &ret);
     #ifdef WOLFSSL_REFCNT_ERROR_RETURN
@@ -1887,11 +1921,9 @@ int wolfSSL_X509_STORE_up_ref(WOLFSSL_X509_STORE* store)
     #else
         (void)ret;
     #endif
-
-        return WOLFSSL_SUCCESS;
     }
 
-    return WOLFSSL_FAILURE;
+    return WOLFSSL_SUCCESS;
 }
 
 /**

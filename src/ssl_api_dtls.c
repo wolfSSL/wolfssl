@@ -752,15 +752,17 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
  *
  * Used with multicast to install externally derived keys.
  *
- * @param [in] ssl              SSL/TLS object.
- * @param [in] epoch            DTLS epoch to use.
- * @param [in] preMasterSecret  Pre-master secret data.
- * @param [in] preMasterSz      Length of pre-master secret in bytes.
- * @param [in] clientRandom     Client random data (RAN_LEN bytes).
- * @param [in] serverRandom     Server random data (RAN_LEN bytes).
- * @param [in] suite            Cipher suite bytes (2).
+ * @param [in, out] ssl              SSL/TLS object.
+ * @param [in]      epoch            DTLS epoch to use.
+ * @param [in]      preMasterSecret  Pre-master secret data.
+ * @param [in]      preMasterSz      Length of pre-master secret in bytes.
+ * @param [in]      clientRandom     Client random data (RAN_LEN bytes).
+ * @param [in]      serverRandom     Server random data (RAN_LEN bytes).
+ * @param [in]      suite            Cipher suite bytes (2).
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments.
+ * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments and a
+ *          failure to allocate the pre-master secret. The specific code is
+ *          recorded in ssl->error and can be read with wolfSSL_get_error().
  */
 int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
                        const byte* preMasterSecret, word32 preMasterSz,

@@ -1953,7 +1953,8 @@ WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX*
 /* -------- EXTRAS BEGIN -------- */
 
 #ifdef WOLFSSL_CERT_SETUP_CB
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+/* CBClientCert is only in WOLFSSL_CTX under OPENSSL_EXTRA. */
+#ifdef OPENSSL_EXTRA
 typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
                               WOLFSSL_EVP_PKEY **pkey);
 WOLFSSL_API void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb);

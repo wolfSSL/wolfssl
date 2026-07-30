@@ -51,6 +51,11 @@ int test_wolfSSL_SessionTicket_inval_ext(void);
 int test_wolfSSL_CTX_set_servername_arg_inval_ext(void);
 int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void);
 int test_wolfSSL_dual_alg_cks_parse_ext(void);
+int test_wolfSSL_ALPN_FreePeerProtocol_inval_ext(void);
+int test_wolfSSL_ALPN_GetPeerProtocol_badlen_ext(void);
+int test_wolfSSL_get_secure_renegotiation_support_ext(void);
+int test_wolfSSL_set_alpn_protos_badlen_ext(void);
+int test_wolfSSL_ticket_key_cb_renew_ext(void);
 
 #define TEST_SSL_EXT_DECLS                                                     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_NoTicketTLSv12_ext),           \
@@ -59,40 +64,48 @@ int test_wolfSSL_dual_alg_cks_parse_ext(void);
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set1_groups_ext),              \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set1_groups_list_ext),         \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_CTX_set_TicketHint_ext),       \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_CTX_set_TicketHint_default_cb_limit),                \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_tlsext_max_fragment_length_ext),                     \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_DisableExtendedMasterSecret_ext),                    \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_CTX_set_TicketHint_default_cb_limit),                 \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_tlsext_max_fragment_length_ext),                      \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_DisableExtendedMasterSecret_ext),                     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set_tlsext_host_name_ext),     \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_CTX_set_tlsext_servername_callback_ext),             \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_CTX_set_tlsext_servername_callback_ext),              \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set_tlsext_debug_arg_ext),     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set_SessionTicket_cb_ext),     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set1_curves_list_ext),         \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_SecureResume_ext),             \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_CTX_UseSecureRenegotiation_ext),                     \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_CTX_UseSecureRenegotiation_ext),                      \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_next_proto_cb_ext),            \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_tlsext_status_exts_ids_ext),                         \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_SNI_GetFromBuffer_inval_ext),                        \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_tlsext_status_exts_ids_ext),                          \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_SNI_GetFromBuffer_inval_ext),                         \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_UseTrustedCA_inval_ext),       \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_UseMaxFragment_inval_ext),     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set1_groups_inval_ext),        \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_UseALPN_inval_ext),            \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_ALPN_GetPeerProtocol_inval_ext),                     \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_CTX_set_TicketEncCb_inval_ext),                      \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_ALPN_GetPeerProtocol_inval_ext),                      \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_CTX_set_TicketEncCb_inval_ext),                       \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_SessionTicket_inval_ext),      \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_CTX_set_servername_arg_inval_ext),                   \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_CTX_set_alpn_protos_inval_ext),                      \
-        TEST_DECL_GROUP("ssl_ext",                                            \
-            test_wolfSSL_dual_alg_cks_parse_ext)
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_CTX_set_servername_arg_inval_ext),                    \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_CTX_set_alpn_protos_inval_ext),                       \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_dual_alg_cks_parse_ext),                              \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_ALPN_FreePeerProtocol_inval_ext),                     \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_ALPN_GetPeerProtocol_badlen_ext),                     \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_get_secure_renegotiation_support_ext),                \
+        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set_alpn_protos_badlen_ext),   \
+        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_ticket_key_cb_renew_ext)
 
 #endif /* TESTS_API_SSL_EXT_H */

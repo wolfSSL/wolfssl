@@ -30,6 +30,11 @@
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
+/* For the EVP_* and HMAC_* compatibility names the ticket key callback below
+ * uses. They reach this file through wolfssl/openssl/asn1.h already, but name
+ * the headers that define them rather than rely on that. */
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/hmac.h>
 
 #include <tests/utils.h>
 #include <tests/api/test_ssl_ext.h>
@@ -37,6 +42,12 @@
 /* Tests for the TLS extension APIs in src/ssl_api_ext.c (moved from ssl.c).
  * These cover functions not already exercised elsewhere in api.c. */
 
+/* Test turning off session tickets for TLS 1.2 and below.
+ *
+ * TLS 1.3 tickets are unaffected, so only the pre-1.3 path is disabled.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_NoTicketTLSv12_ext(void)
 {
     EXPECT_DECLS;
@@ -68,6 +79,12 @@ int test_wolfSSL_NoTicketTLSv12_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test setting the maximum fragment length on a context.
+ *
+ * Each defined length code is accepted and out-of-range codes are refused.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_UseMaxFragment_ext(void)
 {
     EXPECT_DECLS;
@@ -89,6 +106,10 @@ int test_wolfSSL_CTX_UseMaxFragment_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test setting and reading back the number of session tickets to send.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_num_tickets_ext(void)
 {
     EXPECT_DECLS;
@@ -109,6 +130,16 @@ int test_wolfSSL_CTX_num_tickets_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test setting the supported groups from an array of identifiers.
+ *
+ * Covers both the context and object forms: the list and count argument
+ * checks, and the named-group branch of the translation - a group value may
+ * be either a wolfSSL named group or, when ECC is available, a curve NID.
+ * The unrecognized-group check is covered by
+ * test_wolfSSL_set1_groups_inval_ext().
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_set1_groups_ext(void)
 {
     EXPECT_DECLS;
@@ -117,26 +148,47 @@ int test_wolfSSL_set1_groups_ext(void)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int dummy[1];
-#ifdef HAVE_ECC
-    int groups[1];
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
+    int groups[2];
+    int count = 0;
+
+    /* Only name curves this build accepts. ECC_USER_CURVES trims the set, so
+     * these mirror the checks the library makes on a supported curve. */
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    groups[count++] = WOLFSSL_ECC_SECP256R1;
 #endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    groups[count++] = WOLFSSL_ECC_SECP384R1;
+#endif
+#endif /* HAVE_ECC && !NO_ECC_SECP */
+
+    /* Never read - every count it is passed with is rejected first. */
+    dummy[0] = 0;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    /* A zero or too-large group count is rejected. */
+    /* A NULL list is rejected. */
+    ExpectIntEQ(wolfSSL_CTX_set1_groups(ctx, NULL, 1), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_set1_groups(ssl, NULL, 1), WOLFSSL_FAILURE);
+
+    /* A non-positive or too-large group count is rejected. */
     ExpectIntEQ(wolfSSL_CTX_set1_groups(ctx, dummy, 0), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_set1_groups(ssl, dummy, 0), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_set1_groups(ctx, dummy, -1), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_set1_groups(ssl, dummy, -1), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_CTX_set1_groups(ctx, dummy,
         WOLFSSL_MAX_GROUP_COUNT + 1), WOLFSSL_FAILURE);
-    ExpectIntEQ(wolfSSL_set1_groups(ssl, dummy, 0), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_set1_groups(ssl, dummy,
         WOLFSSL_MAX_GROUP_COUNT + 1), WOLFSSL_FAILURE);
 
-#ifdef HAVE_ECC
-    /* A valid named group succeeds. */
-    groups[0] = WOLFSSL_ECC_SECP256R1;
-    ExpectIntEQ(wolfSSL_CTX_set1_groups(ctx, groups, 1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_set1_groups(ssl, groups, 1), WOLFSSL_SUCCESS);
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
+    /* Named groups are taken as-is rather than looked up as NIDs. */
+    if (count > 0) {
+        ExpectIntEQ(wolfSSL_CTX_set1_groups(ctx, groups, count),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_groups(ssl, groups, count), WOLFSSL_SUCCESS);
+    }
 #endif
 
     wolfSSL_free(ssl);
@@ -145,6 +197,12 @@ int test_wolfSSL_set1_groups_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test setting the supported groups from a colon separated list.
+ *
+ * Covers both the context and object forms, and rejects unknown names.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_set1_groups_list_ext(void)
 {
     EXPECT_DECLS;
@@ -202,6 +260,10 @@ int test_wolfSSL_set1_groups_list_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test setting the session ticket lifetime hint.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_set_TicketHint_ext(void)
 {
     EXPECT_DECLS;
@@ -295,8 +357,8 @@ int test_wolfSSL_CTX_set_TicketHint_default_cb_limit(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) \
-    && defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) \
-    && !defined(NO_WOLFSSL_SERVER)
+    && defined(HAVE_SESSION_TICKET) \
+    && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_WOLFSSL_SERVER)
     /* Default callback, hint below the limit: handshake succeeds, ticket issued. */
     ExpectIntGT(test_TicketHint_client_ticket_len(wolfTLSv1_3_client_method,
         wolfTLSv1_3_server_method, WOLFSSL_TICKET_KEY_LIFETIME / 2 - 1, 0), 0);
@@ -319,6 +381,12 @@ int test_wolfSSL_CTX_set_TicketHint_default_cb_limit(void)
     return EXPECT_RESULT();
 }
 
+/* Test the OpenSSL compatibility maximum fragment length setters.
+ *
+ * Covers both the context and object forms.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_tlsext_max_fragment_length_ext(void)
 {
     EXPECT_DECLS;
@@ -352,6 +420,12 @@ int test_wolfSSL_tlsext_max_fragment_length_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test turning off the extended master secret extension.
+ *
+ * Covers both the context and object forms.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_DisableExtendedMasterSecret_ext(void)
 {
     EXPECT_DECLS;
@@ -376,6 +450,10 @@ int test_wolfSSL_DisableExtendedMasterSecret_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test setting the SNI host name and reading it back.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_set_tlsext_host_name_ext(void)
 {
     EXPECT_DECLS;
@@ -402,6 +480,10 @@ int test_wolfSSL_set_tlsext_host_name_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test installing the server name callback on a context.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_set_tlsext_servername_callback_ext(void)
 {
     EXPECT_DECLS;
@@ -421,6 +503,10 @@ int test_wolfSSL_CTX_set_tlsext_servername_callback_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test storing and retrieving the debug argument on an object.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_set_tlsext_debug_arg_ext(void)
 {
     EXPECT_DECLS;
@@ -442,6 +528,10 @@ int test_wolfSSL_set_tlsext_debug_arg_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test installing the session ticket callback and its context.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_set_SessionTicket_cb_ext(void)
 {
     EXPECT_DECLS;
@@ -463,6 +553,10 @@ int test_wolfSSL_set_SessionTicket_cb_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test setting the supported curves from a colon separated list.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_set1_curves_list_ext(void)
 {
     EXPECT_DECLS;
@@ -488,6 +582,10 @@ int test_wolfSSL_set1_curves_list_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test the secure renegotiation resumption request.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_SecureResume_ext(void)
 {
     EXPECT_DECLS;
@@ -509,6 +607,10 @@ int test_wolfSSL_SecureResume_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test enabling secure renegotiation on a context.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_UseSecureRenegotiation_ext(void)
 {
     EXPECT_DECLS;
@@ -527,6 +629,13 @@ int test_wolfSSL_CTX_UseSecureRenegotiation_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test the NPN advertise and select callbacks.
+ *
+ * Nothing has been negotiated before a handshake, so the negotiated protocol is
+ * empty.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_next_proto_cb_ext(void)
 {
     EXPECT_DECLS;
@@ -554,6 +663,12 @@ int test_wolfSSL_next_proto_cb_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test the certificate status request extension and identifier lists.
+ *
+ * The getters report nothing until a list has been set.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_tlsext_status_exts_ids_ext(void)
 {
     EXPECT_DECLS;
@@ -578,6 +693,12 @@ int test_wolfSSL_tlsext_status_exts_ids_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_SNI_GetFromBuffer() rejects bad arguments.
+ *
+ * Also covers buffers that are too short to hold the extension.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_SNI_GetFromBuffer_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -593,6 +714,10 @@ int test_wolfSSL_SNI_GetFromBuffer_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_UseTrustedCA() rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_UseTrustedCA_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -614,6 +739,10 @@ int test_wolfSSL_UseTrustedCA_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_UseMaxFragment() rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_UseMaxFragment_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -626,6 +755,10 @@ int test_wolfSSL_UseMaxFragment_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that the supported group setters rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_set1_groups_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -650,6 +783,13 @@ int test_wolfSSL_set1_groups_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_UseALPN() rejects bad arguments.
+ *
+ * Covers a NULL object, a NULL list, an over-long list and unsupported option
+ * combinations.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_UseALPN_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -676,6 +816,10 @@ int test_wolfSSL_UseALPN_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that the peer ALPN protocol accessors rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_ALPN_GetPeerProtocol_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -705,6 +849,10 @@ int test_wolfSSL_ALPN_GetPeerProtocol_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_CTX_set_TicketEncCb() rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_set_TicketEncCb_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -717,6 +865,10 @@ int test_wolfSSL_CTX_set_TicketEncCb_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that the session ticket APIs rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_SessionTicket_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -774,6 +926,10 @@ int test_wolfSSL_SessionTicket_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_CTX_set_servername_arg() rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_set_servername_arg_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -784,6 +940,10 @@ int test_wolfSSL_CTX_set_servername_arg_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test that wolfSSL_CTX_set_alpn_protos() rejects bad arguments.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void)
 {
     EXPECT_DECLS;
@@ -812,6 +972,12 @@ int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void)
     return EXPECT_RESULT();
 }
 
+/* Test parsing the dual algorithm certificate key share signature specifiers.
+ *
+ * An over-long list is rejected even when every specifier in it is valid.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
 int test_wolfSSL_dual_alg_cks_parse_ext(void)
 {
     EXPECT_DECLS;
@@ -861,6 +1027,338 @@ int test_wolfSSL_dual_alg_cks_parse_ext(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test wolfSSL_ALPN_FreePeerProtocol() argument checking.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_ALPN_FreePeerProtocol_inval_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    char* list = NULL;
+
+    /* A NULL object is rejected before the list is touched. */
+    ExpectIntEQ(wolfSSL_ALPN_FreePeerProtocol(NULL, &list),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectNull(list);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that wolfSSL_ALPN_GetPeerProtocol() rejects a malformed peer list.
+ *
+ * The peer's list is stored in wire format, so a length byte that runs past
+ * the end of the buffer must be caught rather than copied out of bounds.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_ALPN_GetPeerProtocol_badlen_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    char* list = NULL;
+    word16 listSz = 0;
+    byte* peer = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* No list offered by the peer yet. */
+    ExpectIntEQ(wolfSSL_ALPN_GetPeerProtocol(ssl, &list, &listSz),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    /* Install a list whose first length byte claims more bytes than are
+     * present. wolfSSL_free() releases the buffer with the object, so it must
+     * be allocated with the type the library frees it with. */
+    if (ssl != NULL) {
+        peer = (byte*)XMALLOC(4, ssl->heap, DYNAMIC_TYPE_ALPN);
+        ExpectNotNull(peer);
+        if (peer != NULL) {
+            peer[0] = 8;    /* claims 8 bytes of protocol name */
+            peer[1] = 'h';
+            peer[2] = '2';
+            peer[3] = 0;
+            ssl->alpn_peer_requested = peer;
+            ssl->alpn_peer_requested_length = 4;
+
+            ExpectIntEQ(wolfSSL_ALPN_GetPeerProtocol(ssl, &list, &listSz),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+            ExpectNull(list);
+        }
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test wolfSSL_SSL_get_secure_renegotiation_support().
+ *
+ * Reports 0 before the extension is enabled and non-zero afterwards.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_get_secure_renegotiation_support_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    /* A NULL object reports no support. */
+    ExpectIntEQ(wolfSSL_SSL_get_secure_renegotiation_support(NULL), 0);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* A NULL object is rejected when requesting the extension. */
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Not requested yet. */
+    ExpectIntEQ(wolfSSL_SSL_get_secure_renegotiation_support(ssl), 0);
+
+    /* Requesting the extension is not enough - support is only reported once
+     * the peer has agreed to it during the handshake. */
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SSL_get_secure_renegotiation_support(ssl), 0);
+
+    /* Once negotiated, support is reported. */
+    if ((ssl != NULL) && (ssl->secure_renegotiation != NULL)) {
+        ssl->secure_renegotiation->enabled = 1;
+        ExpectIntEQ(wolfSSL_SSL_get_secure_renegotiation_support(ssl), 1);
+        ssl->secure_renegotiation->enabled = 0;
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test wolfSSL_set_alpn_protos() with a malformed wire-format list.
+ *
+ * A length byte that runs past the end of the buffer must be rejected rather
+ * than producing a truncated protocol list.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_set_alpn_protos_badlen_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ALPN) && !defined(NO_BIO) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* First entry claims 8 bytes but only 3 follow. */
+    const unsigned char bad[] = { 8, 'h', '2', 0 };
+    const unsigned char good[] = { 2, 'h', '2' };
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    const int okRet = 0;
+    const int failRet = 1;
+#else
+    const int okRet = WOLFSSL_SUCCESS;
+    const int failRet = WOLFSSL_FAILURE;
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* A well-formed list is accepted. */
+    ExpectIntEQ(wolfSSL_set_alpn_protos(ssl, good, (unsigned int)sizeof(good)),
+        okRet);
+
+    /* A bad length byte is rejected. */
+    ExpectIntEQ(wolfSSL_set_alpn_protos(ssl, bad, (unsigned int)sizeof(bad)),
+        failRet);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_256) && !defined(NO_SHA256) && !defined(NO_HMAC) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+
+/* Return values of an OpenSSL-style ticket key callback. These mirror the
+ * TICKET_KEY_CB_RET_* values used by wolfSSL_TicketKeyCb() in
+ * src/ssl_api_ext.c, which are private to that file. */
+#define TEST_SSL_EXT_TICKET_CB_OK       1
+#define TEST_SSL_EXT_TICKET_CB_RENEW    2
+
+/* Count the session tickets the client is issued.
+ *
+ * Called for each ticket received, so a count of more than the one from the
+ * first handshake means the server issued a replacement.
+ *
+ * @param [in] ssl       SSL/TLS object. Unused.
+ * @param [in] ticket    Ticket received. Unused.
+ * @param [in] ticketSz  Length of ticket in bytes. Unused.
+ * @param [in] ctx       Count to increment.
+ * @return  0 always - the caller does not use the return value.
+ */
+static int test_ssl_ext_ticket_recv_cb(WOLFSSL* ssl,
+    const unsigned char* ticket, int ticketSz, void* ctx)
+{
+    (void)ssl;
+    (void)ticket;
+    (void)ticketSz;
+
+    if (ctx != NULL) {
+        (*(int*)ctx)++;
+    }
+
+    return 0;
+}
+
+/* OpenSSL-style session ticket key callback that always asks for renewal.
+ *
+ * Uses fixed key material - the ticket never leaves this test.
+ *
+ * @param [in]      ssl   SSL/TLS object. Unused.
+ * @param [in, out] name  Key name; set when encrypting, ignored when not -
+ *                        there is only ever the one key here.
+ * @param [in, out] iv    Initialization vector; set when encrypting.
+ * @param [in, out] ectx  Cipher context to initialize.
+ * @param [in, out] hctx  HMAC context to initialize.
+ * @param [in]      enc   1 when encrypting a ticket, 0 when decrypting.
+ * @return  TEST_SSL_EXT_TICKET_CB_OK when encrypting.
+ * @return  TEST_SSL_EXT_TICKET_CB_RENEW when decrypting, asking the ticket to
+ *          be reissued.
+ * @return  0 when the cipher or HMAC cannot be set up.
+ */
+static int test_ssl_ext_ticket_renew_cb(WOLFSSL* ssl, unsigned char* name,
+    unsigned char* iv, WOLFSSL_EVP_CIPHER_CTX* ectx, WOLFSSL_HMAC_CTX* hctx,
+    int enc)
+{
+    static const unsigned char key[32] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    static const unsigned char hmacKey[32] = {
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f
+    };
+    int ret;
+
+    (void)ssl;
+
+    if (enc) {
+        XMEMSET(name, 'N', WOLFSSL_TICKET_NAME_SZ);
+        XMEMSET(iv, 'I', WOLFSSL_TICKET_IV_SZ);
+    }
+
+    if (HMAC_Init_ex(hctx, hmacKey, (int)sizeof(hmacKey), EVP_sha256(),
+            NULL) != 1) {
+        ret = 0;
+    }
+    else if (enc) {
+        if (EVP_EncryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, key, iv) != 1) {
+            ret = 0;
+        }
+        else {
+            ret = TEST_SSL_EXT_TICKET_CB_OK;
+        }
+    }
+    else if (EVP_DecryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, key, iv) != 1) {
+        ret = 0;
+    }
+    else {
+        /* Ask for the ticket to be reissued after this resumption. */
+        ret = TEST_SSL_EXT_TICKET_CB_RENEW;
+    }
+
+    return ret;
+}
+#endif
+
+/* Test that a TLS 1.2 resumption honours a ticket key callback asking for
+ * renewal.
+ *
+ * When the callback reports renewal while decrypting, wolfSSL_TicketKeyCb()
+ * must report that a new ticket is needed rather than plain success. This only
+ * applies below TLS 1.3, which issues tickets separately.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_ticket_key_cb_renew_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_256) && !defined(NO_SHA256) && !defined(NO_HMAC) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* session = NULL;
+    int newTickets = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx_s,
+        test_ssl_ext_ticket_renew_cb), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+
+    /* First handshake issues a ticket. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+    /* Count the tickets this handshake issues. */
+    ExpectIntEQ(wolfSSL_set_SessionTicket_cb(ssl_c,
+        test_ssl_ext_ticket_recv_cb, &newTickets), WOLFSSL_SUCCESS);
+    /* Make the ticket the only resumption path so the callback is reached. */
+    if (ssl_s != NULL) {
+        ssl_s->options.sessionCacheOff = 1;
+    }
+
+    /* The ticket decrypts and the session resumes. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+    /* And because the key callback asked for renewal, the server issued a
+     * replacement ticket rather than just accepting the one presented. Plain
+     * success would resume just the same but send no ticket, so this is what
+     * separates the two. */
+    ExpectIntGT(newTickets, 0);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }
