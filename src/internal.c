@@ -44,7 +44,12 @@
  * WOLFSSL_STRICT_CIPHER_LIST: Fail wolfSSL_CTX/SSL_set_cipher_list()
  *                  when given a TLS 1.3-only suite list but TLS 1.3
  *                  is not negotiable, instead of leaving the prior
- *                  suites untouched and returning success             default: off
+ *                  suites untouched and returning success. Also
+ *                  applies to wolfSSL_CTX_new()/_ex() when
+ *                  WOLFSSL_SYS_CRYPTO_POLICY is enabled and the
+ *                  system policy is TLS 1.3-only: ctx creation fails
+ *                  instead of succeeding with the policy silently
+ *                  unapplied                                          default: off
  * NO_RESUME_SUITE_CHECK:      Skip cipher suite check on resume       default: off
  * NO_FORCE_SCR_SAME_SUITE:    Allow different suite in renegotiation  default: off
  * CIPHER_NONCE:               Per-record cipher nonce for AEAD        default: off
