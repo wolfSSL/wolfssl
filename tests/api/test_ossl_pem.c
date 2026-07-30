@@ -651,6 +651,37 @@ int test_wolfSSL_PEM_PrivateKey_mldsa(void)
         EVP_PKEY_free(pkey);
         pkey = NULL;
     }
+
+    /* Out-parameter reuse form (documented OpenSSL semantics): a second
+     * read into the same non-NULL EVP_PKEY must re-populate the object. */
+    {
+        word32 last = (word32)(sizeof(fnames) / sizeof(*fnames)) - 1;
+        int firstSz = 0;
+
+        ExpectNotNull(bio = BIO_new_file(fnames[0], "rb"));
+        ExpectNotNull(wolfSSL_PEM_read_bio_PrivateKey(bio, &pkey, NULL,
+            NULL));
+        ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+        if (pkey != NULL) {
+            firstSz = pkey->pkey_sz;
+        }
+        BIO_free(bio);
+        bio = NULL;
+
+        ExpectNotNull(bio = BIO_new_file(fnames[last], "rb"));
+        ExpectNotNull(wolfSSL_PEM_read_bio_PrivateKey(bio, &pkey, NULL,
+            NULL));
+        ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+        if ((last > 0) && (pkey != NULL)) {
+            /* A different level was read: the held key must have been
+             * replaced, not left stale. */
+            ExpectIntNE(pkey->pkey_sz, firstSz);
+        }
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
 #endif
     return EXPECT_RESULT();
 }

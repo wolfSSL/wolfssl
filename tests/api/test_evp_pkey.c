@@ -3137,7 +3137,8 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
-    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     !defined(WOLFSSL_NO_ML_DSA_44) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM)
     WOLFSSL_EVP_PKEY* pkey = NULL;
@@ -3194,6 +3195,25 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
         p = rawBlob;
         ExpectNull(wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL, &p,
             (long)rawSz));
+    }
+
+    /* Typed public-key entry point decodes an ML-DSA SPKI. */
+    {
+        unsigned char spki[2048];
+        int spkiSz = 0;
+
+        ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
+            != XBADFILE);
+        ExpectIntGT(spkiSz = (int)XFREAD(spki, 1, sizeof(spki), f), 0);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+        }
+        p = spki;
+        ExpectNotNull(pkey = wolfSSL_d2i_PublicKey(WC_EVP_PKEY_DILITHIUM,
+            NULL, &p, (long)spkiSz));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
     }
 #endif
     return EXPECT_RESULT();

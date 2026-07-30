@@ -359,52 +359,77 @@ int test_wolfSSL_X509_set_pubkey(void)
         wolfSSL_EVP_PKEY_free(pkey);
         pkey = NULL;
 
-        /* ML-DSA key loaded from file */
-        ExpectNotNull(bio = wolfSSL_BIO_new_file(
-            "./certs/mldsa/mldsa44-key.pem", "rb"));
-        ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL,
-            NULL));
-        wolfSSL_BIO_free(bio);
-        bio = NULL;
-        ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), WOLFSSL_SUCCESS);
-
-        /* public key can be retrieved and has the right type */
-        ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
-        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pubkey), WC_EVP_PKEY_DILITHIUM);
-        wolfSSL_EVP_PKEY_free(pubkey);
-        pubkey = NULL;
-
-    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_PWDBASED) && \
-        !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
-        /* sign and verify round trip with the ML-DSA key */
+        /* ML-DSA keys loaded from file: cover every compiled-in level.
+         * ML-DSA-87 (2592-byte public key, 4627-byte signature) is what
+         * motivates the enlarged DER buffers. */
         {
-            WOLFSSL_X509_NAME* name = NULL;
+            static const char* keyFiles[] = {
+                "./certs/mldsa/mldsa44-key.pem",
+            #ifndef WOLFSSL_NO_ML_DSA_65
+                "./certs/mldsa/mldsa65-key.pem",
+            #endif
+            #ifndef WOLFSSL_NO_ML_DSA_87
+                "./certs/mldsa/mldsa87-key.pem",
+            #endif
+            };
+            size_t ki;
 
-            ExpectNotNull(name = wolfSSL_X509_NAME_new());
-            ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "CN",
-                MBSTRING_UTF8, (const byte*)"mldsa-test", -1, -1, 0),
-                WOLFSSL_SUCCESS);
-            ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name),
-                WOLFSSL_SUCCESS);
-            ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name),
-                WOLFSSL_SUCCESS);
-            wolfSSL_X509_NAME_free(name);
+            for (ki = 0; ki < sizeof(keyFiles) / sizeof(keyFiles[0]); ki++) {
+                ExpectNotNull(bio = wolfSSL_BIO_new_file(keyFiles[ki], "rb"));
+                ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio,
+                    NULL, NULL, NULL));
+                wolfSSL_BIO_free(bio);
+                bio = NULL;
+                ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey),
+                    WOLFSSL_SUCCESS);
 
-            ExpectIntGT(wolfSSL_X509_sign(x509, pkey, wolfSSL_EVP_sha256()),
-                0);
-            ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
-            ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
-            wolfSSL_EVP_PKEY_free(pubkey);
-            pubkey = NULL;
+                /* public key can be retrieved and has the right type */
+                ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+                ExpectIntEQ(wolfSSL_EVP_PKEY_id(pubkey),
+                    WC_EVP_PKEY_DILITHIUM);
+                wolfSSL_EVP_PKEY_free(pubkey);
+                pubkey = NULL;
 
-            /* OpenSSL semantics: NULL md is valid for ML-DSA. */
-            ExpectIntGT(wolfSSL_X509_sign(x509, pkey, NULL), 0);
-            ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
-            ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
-            wolfSSL_EVP_PKEY_free(pubkey);
-            pubkey = NULL;
+            #if defined(WOLFSSL_CERT_GEN) && !defined(NO_PWDBASED) && \
+                !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+                !defined(WOLFSSL_MLDSA_NO_VERIFY)
+                /* sign and verify round trip with the ML-DSA key */
+                {
+                    WOLFSSL_X509_NAME* name = NULL;
+
+                    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+                    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name,
+                        "CN", MBSTRING_UTF8, (const byte*)"mldsa-test", -1,
+                        -1, 0), WOLFSSL_SUCCESS);
+                    ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name),
+                        WOLFSSL_SUCCESS);
+                    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name),
+                        WOLFSSL_SUCCESS);
+                    wolfSSL_X509_NAME_free(name);
+
+                    ExpectIntGT(wolfSSL_X509_sign(x509, pkey,
+                        wolfSSL_EVP_sha256()), 0);
+                    ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+                    ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey),
+                        WOLFSSL_SUCCESS);
+                    wolfSSL_EVP_PKEY_free(pubkey);
+                    pubkey = NULL;
+
+                    /* OpenSSL semantics: NULL md is valid for ML-DSA. */
+                    ExpectIntGT(wolfSSL_X509_sign(x509, pkey, NULL), 0);
+                    ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+                    ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey),
+                        WOLFSSL_SUCCESS);
+                    wolfSSL_EVP_PKEY_free(pubkey);
+                    pubkey = NULL;
+                }
+            #endif
+                if (ki + 1 < sizeof(keyFiles) / sizeof(keyFiles[0])) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    pkey = NULL;
+                }
+            }
         }
-    #endif
 
         /* Public-only EVP_PKEY holding an SPKI: the private-key decode
          * fails and the fallback public decode must work on a reset key. */
