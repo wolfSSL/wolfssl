@@ -2856,6 +2856,10 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     }
     if (status == kStatus_SSS_Success) {
         byte keyBuf[MAX_ECC_BYTES];
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
+        sss_policy_u commonPol;
+        sss_policy_t derivePolicy;
+    #endif
 
         /* Try to delete existing key first, ignore return since will
          * fail if no key exists yet */
@@ -2866,8 +2870,29 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
          * secret exactly, so the object must be created before the
          * derive (returns SW 0x6985 otherwise) */
         XMEMSET(keyBuf, 0, sizeof(keyBuf));
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
+        /* Applet 7.2 denies ReadObject on a symmetric key object created
+         * with no policy attached (SW 0x6986), so the derived secret
+         * could not be exported. Attach a policy allowing the host to
+         * read the secret back, overwrite the object and delete it; an
+         * attached policy replaces the applet default entirely, so write
+         * and delete must be granted explicitly as well */
+        XMEMSET(&commonPol, 0, sizeof(commonPol));
+        XMEMSET(&derivePolicy, 0, sizeof(derivePolicy));
+        commonPol.type = KPolicy_Common;
+        commonPol.auth_obj_id = 0;
+        commonPol.policy.common.can_Read = 1;
+        commonPol.policy.common.can_Write = 1;
+        commonPol.policy.common.can_Delete = 1;
+        derivePolicy.nPolicies = 1;
+        derivePolicy.policies[0] = &commonPol;
+        status = sss_key_store_set_key(&host_keystore, &deriveKey,
+            keyBuf, keySize, keySize * 8, &derivePolicy,
+            sizeof(derivePolicy));
+    #else
         status = sss_key_store_set_key(&host_keystore, &deriveKey,
             keyBuf, keySize, keySize * 8, NULL, 0);
+    #endif
         if (status == kStatus_SSS_Success) {
             deriveKeyCreated = 1;
         }
@@ -3467,6 +3492,10 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     }
     if (status == kStatus_SSS_Success) {
         byte keyBuf[CURVE25519_KEYSIZE];
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
+        sss_policy_u commonPol;
+        sss_policy_t derivePolicy;
+    #endif
 
         /* Try to delete existing key first, ignore return since will
          * fail if no key exists yet */
@@ -3477,8 +3506,29 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
          * secret exactly, so the object must be created before the
          * derive (returns SW 0x6985 otherwise) */
         XMEMSET(keyBuf, 0, sizeof(keyBuf));
+    #if defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02
+        /* Applet 7.2 denies ReadObject on a symmetric key object created
+         * with no policy attached (SW 0x6986), so the derived secret
+         * could not be exported. Attach a policy allowing the host to
+         * read the secret back, overwrite the object and delete it; an
+         * attached policy replaces the applet default entirely, so write
+         * and delete must be granted explicitly as well */
+        XMEMSET(&commonPol, 0, sizeof(commonPol));
+        XMEMSET(&derivePolicy, 0, sizeof(derivePolicy));
+        commonPol.type = KPolicy_Common;
+        commonPol.auth_obj_id = 0;
+        commonPol.policy.common.can_Read = 1;
+        commonPol.policy.common.can_Write = 1;
+        commonPol.policy.common.can_Delete = 1;
+        derivePolicy.nPolicies = 1;
+        derivePolicy.policies[0] = &commonPol;
+        status = sss_key_store_set_key(&host_keystore, &deriveKey,
+            keyBuf, keySize, keySize * 8, &derivePolicy,
+            sizeof(derivePolicy));
+    #else
         status = sss_key_store_set_key(&host_keystore, &deriveKey,
             keyBuf, keySize, keySize * 8, NULL, 0);
+    #endif
         if (status == kStatus_SSS_Success) {
             deriveKeyCreated = 1;
         }
