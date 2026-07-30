@@ -85,8 +85,8 @@ static const word8 ed448_order[56] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x3f,
 };
 
-/* Part of order of ed448 that needs tp be multiplied when reducing */
-static const word8 ed448_order_mul[56] = {
+/* Part of order of ed448 that needs tp be multiplied when reducing. */
+static const word8 ed448_order_mul[28] = {
     0x0d, 0xbb, 0xa7, 0x54, 0x6d, 0x3d, 0x87, 0xdc, 0xaa, 0x70, 0x3a, 0x72,
     0x8d, 0x3d, 0x93, 0xde, 0x6f, 0xc9, 0x29, 0x51, 0xb6, 0x24, 0xb1, 0x3b,
     0x16, 0xdc, 0x35, 0x83,
@@ -110,7 +110,8 @@ void sc448_reduce(byte* b)
     }
     for (i = 0; i < 58; i++) {
         for (j = 0; j < 28; j++)
-            t[i+j] += b[i+56] * ((word32)ed448_order_mul[j] << 2);
+            /* Shift the product; shifting the byte miscompiles on ARM NEON. */
+            t[i+j] += ((word32)b[i+56] * ed448_order_mul[j]) << 2;
         t[i+56] = 0;
     }
     for (i = 54; i < 87; i++) {
@@ -119,7 +120,8 @@ void sc448_reduce(byte* b)
     }
     for (i = 0; i < 31; i++) {
         for (j = 0; j < 28; j++)
-            t[i+j] += t[i+56] * ((word32)ed448_order_mul[j] << 2);
+            /* Shift the product; shifting the byte miscompiles on ARM NEON. */
+            t[i+j] += (t[i+56] * ed448_order_mul[j]) << 2;
         t[i+56] = 0;
     }
     for (i = 54; i < 60; i++) {
@@ -128,7 +130,8 @@ void sc448_reduce(byte* b)
     }
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 28; j++)
-            t[i+j] += t[i+56] * ((word32)ed448_order_mul[j] << 2);
+            /* Shift the product; shifting the byte miscompiles on ARM NEON. */
+            t[i+j] += (t[i+56] * ed448_order_mul[j]) << 2;
         t[i+56] = 0;
     }
     for (i = 0; i < 55; i++) {
@@ -176,7 +179,8 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     }
     for (i = 0; i < 56; i++) {
         for (j = 0; j < 28; j++)
-            t[i+j] += t[i+56] * ((word32)ed448_order_mul[j] << 2);
+            /* Shift the product; shifting the byte miscompiles on ARM NEON. */
+            t[i+j] += (t[i+56] * ed448_order_mul[j]) << 2;
         t[i+56] = 0;
     }
     for (i = 54; i < 85; i++) {
@@ -185,7 +189,8 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     }
     for (i = 0; i < 29; i++) {
         for (j = 0; j < 28; j++)
-            t[i+j] += t[i+56] * ((word32)ed448_order_mul[j] << 2);
+            /* Shift the product; shifting the byte miscompiles on ARM NEON. */
+            t[i+j] += (t[i+56] * ed448_order_mul[j]) << 2;
         t[i+56] = 0;
     }
     for (i = 54; i < 58; i++) {
@@ -194,7 +199,8 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     }
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 28; j++)
-            t[i+j] += t[i+56] * ((word32)ed448_order_mul[j] << 2);
+            /* Shift the product; shifting the byte miscompiles on ARM NEON. */
+            t[i+j] += (t[i+56] * ed448_order_mul[j]) << 2;
         t[i+56] = 0;
     }
     for (i = 0; i < 55; i++) {

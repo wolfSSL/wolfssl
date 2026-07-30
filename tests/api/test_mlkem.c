@@ -4229,7 +4229,9 @@ int test_wc_MlkemDecisionCoverage(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
     MlKemKey* key = NULL;
+#ifndef WC_NO_CONSTRUCTORS
     MlKemKey* newKey = NULL;
+#endif
     WC_RNG rng;
     word32 len = 0;
     byte out[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
@@ -4266,12 +4268,14 @@ int test_wc_MlkemDecisionCoverage(void)
     /* Valid init: the false side of the guards, and the object under test. */
     ExpectIntEQ(wc_MlKemKey_Init(key, t, NULL, INVALID_DEVID), 0);
 
+#ifndef WC_NO_CONSTRUCTORS
     /* --- wc_MlKemKey_New / _Delete. --- */
     ExpectNull(wc_MlKemKey_New(-12345, NULL, INVALID_DEVID));
     ExpectNotNull(newKey = wc_MlKemKey_New(t, NULL, INVALID_DEVID));
     ExpectIntEQ(wc_MlKemKey_Delete(NULL, &newKey),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_Delete(newKey, &newKey), 0);
+#endif /* !WC_NO_CONSTRUCTORS */
 
     /* --- Size queries: (key == NULL) and (len == NULL) independence. --- */
     ExpectIntEQ(wc_MlKemKey_CipherTextSize(NULL, &len),
