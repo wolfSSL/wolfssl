@@ -1,6 +1,6 @@
 /* ppc64-sha3-asm
  *
- * Copyright (C) 2006-2025 wolfSSL Inc.
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,17 +19,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./sha3/sha3.rb ppc64 \
  *       ../wolfssl/wolfcrypt/src/port/ppc64/ppc64-sha3-asm.c
  */
+
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_PPC64_SHA3_ASM_C
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
 #ifdef WOLFSSL_PPC64_ASM
 #include <stdint.h>
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_PPC64_ASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -662,8 +665,8 @@ void BlockSha3_power8(word64* state)
     );
 }
 
-#if (defined(WOLFSSL_HAVE_MLKEM) || \
-        defined(HAVE_DILITHIUM)) && defined(WOLFSSL_SHA3_PPC64_BLOCKS_N)
+#if (defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM)) && \
+        defined(WOLFSSL_SHA3_PPC64_BLOCKS_N)
 static const word64 L_SHA3_blocksx2_power8_rot[] = {
     0x0000000000000001UL, 0x0000000000000001UL,
     0x000000000000002cUL, 0x0000000000000014UL,
@@ -1619,8 +1622,8 @@ void sha3_blocksx3_power8(word64* s01, word64* s2)
     );
 }
 
-#endif /* (WOLFSSL_HAVE_MLKEM ||
-        * HAVE_DILITHIUM) && WOLFSSL_SHA3_PPC64_BLOCKS_N */
+#endif /* (WOLFSSL_HAVE_MLKEM || HAVE_DILITHIUM) &&
+        * WOLFSSL_SHA3_PPC64_BLOCKS_N */
 #endif /* WOLFSSL_PPC64_ASM_POWER8 */
 #endif /* WOLFSSL_SHA3 */
 #endif /* WOLFSSL_PPC64_ASM */

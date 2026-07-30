@@ -19,14 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./poly1305/poly1305.rb arm64 \
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-poly1305-asm.c
  */
+
+#define _WC_BUILDING_ARMV8_POLY1305_ASM_C
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifdef WOLFSSL_ARMASM_INLINE

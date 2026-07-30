@@ -10698,14 +10698,14 @@ mlkem_decapsulate_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_csubq_avx2 PROC
-        sub	rsp, 112
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
+        sub	rsp, 120
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	ymm12, YMMWORD PTR mlkem_q
         vmovdqu	ymm0, YMMWORD PTR [rcx]
         vmovdqu	ymm1, YMMWORD PTR [rcx+32]
@@ -10804,14 +10804,14 @@ mlkem_csubq_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+448], ymm6
         vmovdqu	YMMWORD PTR [rcx+480], ymm7
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        add	rsp, 112
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        add	rsp, 120
         ret
 mlkem_csubq_avx2 ENDP
 _TEXT ENDS
@@ -10982,11 +10982,11 @@ mlkem_rej_uniform_n_avx2 PROC
         push	rsi
         push	rbp
         mov	r10, rcx
-        sub	rsp, 64
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
+        sub	rsp, 72
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
         mov	eax, edx
         vmovdqu	ymm6, YMMWORD PTR L_mlkem_rej_q
         vmovdqu	ymm7, YMMWORD PTR L_mlkem_rej_ones
@@ -11573,11 +11573,11 @@ L_mlkem_rej_uniform_0_avx2_rej_large_3:
 L_mlkem_rej_uniform_n_avx2_done_64:
         vzeroupper
         sub	eax, edx
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        add	rsp, 64
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        add	rsp, 72
         pop	rbp
         pop	rsi
         pop	rdi
@@ -11600,11 +11600,11 @@ mlkem_rej_uniform_avx2 PROC
         push	rsi
         push	rbp
         mov	r10, rcx
-        sub	rsp, 64
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
+        sub	rsp, 72
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
         mov	eax, edx
         cmp	edx, 0
         je	L_mlkem_rej_uniform_avx2_done_64
@@ -11898,11 +11898,11 @@ L_mlkem_rej_uniform_avx2_rej_large_3:
 L_mlkem_rej_uniform_avx2_done_64:
         vzeroupper
         sub	eax, edx
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        add	rsp, 64
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        add	rsp, 72
         pop	rbp
         pop	rsi
         pop	rdi
@@ -11952,15 +11952,15 @@ ptr_L_mlkem_shuff QWORD L_mlkem_shuff
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_cbd_eta3_avx2 PROC
-        sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        sub	rsp, 136
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
         vmovdqu	ymm8, YMMWORD PTR L_mlkem_mask_249
         vmovdqu	ymm9, YMMWORD PTR L_mlkem_mask_6db
         vmovdqu	ymm10, YMMWORD PTR L_mlkem_mask_07
@@ -12208,15 +12208,15 @@ mlkem_cbd_eta3_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+448], ymm1
         vmovdqu	YMMWORD PTR [rcx+480], ymm3
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        add	rsp, 128
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        add	rsp, 136
         ret
 mlkem_cbd_eta3_avx2 ENDP
 _TEXT ENDS
@@ -12246,13 +12246,13 @@ ptr_L_mlkem_mask_0f QWORD L_mlkem_mask_0f
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_cbd_eta2_avx2 PROC
-        sub	rsp, 96
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
+        sub	rsp, 104
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
         vmovdqu	ymm8, YMMWORD PTR L_mlkem_mask_55
         vmovdqu	ymm9, YMMWORD PTR L_mlkem_mask_33
         vmovdqu	ymm10, YMMWORD PTR L_mlkem_mask_03
@@ -12366,13 +12366,13 @@ mlkem_cbd_eta2_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+448], ymm3
         vmovdqu	YMMWORD PTR [rcx+480], ymm7
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        add	rsp, 96
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        add	rsp, 104
         ret
 mlkem_cbd_eta2_avx2 ENDP
 _TEXT ENDS
@@ -12422,15 +12422,15 @@ ptr_L_mlkem_compress_10_avx2_shift12 QWORD L_mlkem_compress_10_avx2_shift12
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_10_avx2 PROC
-        sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        sub	rsp, 136
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
         vmovdqu	ymm0, YMMWORD PTR [rdx]
         vmovdqu	ymm9, YMMWORD PTR L_mlkem_compress_10_avx2_mask
         vmovdqu	ymm8, YMMWORD PTR L_mlkem_compress_10_avx2_shift
@@ -12750,15 +12750,15 @@ L_mlkem_compress_10_avx2_start:
         sub	r8d, 1
         jg	L_mlkem_compress_10_avx2_start
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        add	rsp, 128
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        add	rsp, 136
         ret
 mlkem_compress_10_avx2 ENDP
 _TEXT ENDS
@@ -12790,9 +12790,9 @@ ptr_L_mlkem_decompress_10_avx2_shuf QWORD L_mlkem_decompress_10_avx2_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_10_avx2 PROC
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         vmovdqu	ymm4, YMMWORD PTR L_mlkem_decompress_10_avx2_mask
         vmovdqu	ymm5, YMMWORD PTR L_mlkem_decompress_10_avx2_q
         vmovdqu	ymm6, YMMWORD PTR L_mlkem_decompress_10_avx2_shuf
@@ -12915,9 +12915,9 @@ L_mlkem_decompress_10_avx2_start:
         sub	r8d, 1
         jg	L_mlkem_decompress_10_avx2_start
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 mlkem_decompress_10_avx2 ENDP
 _TEXT ENDS
@@ -12973,16 +12973,16 @@ ptr_L_mlkem_compress_11_avx2_shuf QWORD L_mlkem_compress_11_avx2_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_11_avx2 PROC
-        sub	rsp, 144
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
+        sub	rsp, 152
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
         vmovdqu	ymm0, YMMWORD PTR [rdx]
         vmovdqu	ymm7, YMMWORD PTR L_mlkem_compress_11_avx2_v
         vmovdqu	ymm8, YMMWORD PTR L_mlkem_compress_11_avx2_off
@@ -13351,16 +13351,16 @@ L_mlkem_compress_11_avx2_start:
         sub	r8d, 1
         jg	L_mlkem_compress_11_avx2_start
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        add	rsp, 144
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        add	rsp, 152
         ret
 mlkem_compress_11_avx2 ENDP
 _TEXT ENDS
@@ -13404,11 +13404,11 @@ ptr_L_mlkem_decompress_11_avx2_mask QWORD L_mlkem_decompress_11_avx2_mask
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_11_avx2 PROC
-        sub	rsp, 64
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
+        sub	rsp, 72
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
         vmovdqu	ymm4, YMMWORD PTR L_mlkem_decompress_11_avx2_q
         vmovdqu	ymm5, YMMWORD PTR L_mlkem_decompress_11_avx2_shuf
         vmovdqu	ymm6, YMMWORD PTR L_mlkem_decompress_11_avx2_sllv
@@ -13565,11 +13565,11 @@ L_mlkem_decompress_11_avx2_start:
         sub	r8d, 1
         jg	L_mlkem_decompress_11_avx2_start
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        add	rsp, 64
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        add	rsp, 72
         ret
 mlkem_decompress_11_avx2 ENDP
 _TEXT ENDS
@@ -13605,14 +13605,14 @@ ptr_L_mlkem_compress_4_avx2_shift12 QWORD L_mlkem_compress_4_avx2_shift12
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_4_avx2 PROC
-        sub	rsp, 112
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
+        sub	rsp, 120
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	ymm8, YMMWORD PTR L_mlkem_compress_4_avx2_mask
         vmovdqu	ymm9, YMMWORD PTR L_mlkem_compress_4_avx2_shift
         vmovdqu	ymm10, YMMWORD PTR L_mlkem_compress_4_avx2_perm
@@ -13695,14 +13695,14 @@ mlkem_compress_4_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+64], ymm0
         vmovdqu	YMMWORD PTR [rcx+96], ymm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        add	rsp, 112
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        add	rsp, 120
         ret
 mlkem_compress_4_avx2 ENDP
 _TEXT ENDS
@@ -13734,9 +13734,9 @@ ptr_L_mlkem_decompress_4_avx2_shuf QWORD L_mlkem_decompress_4_avx2_shuf
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_decompress_4_avx2 PROC
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         vmovdqu	ymm4, YMMWORD PTR L_mlkem_decompress_4_avx2_mask
         vmovdqu	ymm5, YMMWORD PTR L_mlkem_decompress_4_avx2_shift
         vmovdqu	ymm6, YMMWORD PTR L_mlkem_decompress_4_avx2_shuf
@@ -13838,9 +13838,9 @@ mlkem_decompress_4_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+448], ymm2
         vmovdqu	YMMWORD PTR [rcx+480], ymm3
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 mlkem_decompress_4_avx2 ENDP
 _TEXT ENDS
@@ -13890,10 +13890,10 @@ ptr_L_mlkem_compress_5_avx2_shuffle QWORD L_mlkem_compress_5_avx2_shuffle
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_compress_5_avx2 PROC
-        sub	rsp, 48
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
+        sub	rsp, 56
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
         vmovdqu	ymm0, YMMWORD PTR [rdx]
         vmovdqu	ymm2, YMMWORD PTR L_mlkem_compress_5_avx2_v
         vmovdqu	ymm3, YMMWORD PTR L_mlkem_compress_5_avx2_shift
@@ -14031,10 +14031,10 @@ mlkem_compress_5_avx2 PROC
         vmovdqu	OWORD PTR [rcx+140], xmm0
         movss	DWORD PTR [rcx+156], xmm1
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        add	rsp, 48
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        add	rsp, 56
         ret
 mlkem_compress_5_avx2 ENDP
 _TEXT ENDS
@@ -14195,13 +14195,13 @@ ptr_L_mlkem_from_msg_avx2_hqs QWORD L_mlkem_from_msg_avx2_hqs
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_from_msg_avx2 PROC
-        sub	rsp, 96
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
+        sub	rsp, 104
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
         vmovdqu	ymm0, YMMWORD PTR [rdx]
         vmovdqu	ymm9, YMMWORD PTR L_mlkem_from_msg_avx2_shift
         vmovdqu	ymm10, YMMWORD PTR L_mlkem_from_msg_avx2_shuf
@@ -14311,13 +14311,13 @@ mlkem_from_msg_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+448], ymm3
         vmovdqu	YMMWORD PTR [rcx+480], ymm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        add	rsp, 96
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        add	rsp, 104
         ret
 mlkem_from_msg_avx2 ENDP
 _TEXT ENDS
@@ -14335,11 +14335,11 @@ ptr_L_mlkem_to_msg_avx2_hhqs QWORD L_mlkem_to_msg_avx2_hhqs
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_to_msg_avx2 PROC
-        sub	rsp, 64
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
+        sub	rsp, 72
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
         vmovdqu	ymm8, YMMWORD PTR L_mlkem_to_msg_avx2_hqs
         vmovdqu	ymm9, YMMWORD PTR L_mlkem_to_msg_avx2_hhqs
         vpsubw	ymm0, ymm8, [rdx]
@@ -14439,11 +14439,11 @@ mlkem_to_msg_avx2 PROC
         mov	DWORD PTR [rcx+24], eax
         mov	DWORD PTR [rcx+28], r8d
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        add	rsp, 64
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        add	rsp, 72
         ret
 mlkem_to_msg_avx2 ENDP
 _TEXT ENDS
@@ -14463,15 +14463,15 @@ ptr_L_mlkem_from_bytes_avx2_mask QWORD L_mlkem_from_bytes_avx2_mask
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_from_bytes_avx2 PROC
-        sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        sub	rsp, 136
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
         vmovdqu	ymm0, YMMWORD PTR [rdx]
         vmovdqu	ymm12, YMMWORD PTR L_mlkem_from_bytes_avx2_shuf
         vmovdqu	ymm13, YMMWORD PTR L_mlkem_from_bytes_avx2_mask
@@ -14616,15 +14616,15 @@ mlkem_from_bytes_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+448], ymm6
         vmovdqu	YMMWORD PTR [rcx+480], ymm7
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        add	rsp, 128
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        add	rsp, 136
         ret
 mlkem_from_bytes_avx2 ENDP
 _TEXT ENDS
@@ -14650,17 +14650,17 @@ ptr_L_mlkem_to_bytes_avx2_perm QWORD L_mlkem_to_bytes_avx2_perm
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 mlkem_to_bytes_avx2 PROC
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         vmovdqu	ymm12, YMMWORD PTR mlkem_q
         vmovdqu	ymm13, YMMWORD PTR L_mlkem_to_bytes_avx2_mask
         vmovdqu	ymm14, YMMWORD PTR L_mlkem_to_bytes_avx2_shuf
@@ -14886,17 +14886,17 @@ mlkem_to_bytes_avx2 PROC
         vmovdqu	YMMWORD PTR [rcx+320], ymm6
         vmovdqu	YMMWORD PTR [rcx+352], ymm7
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         ret
 mlkem_to_bytes_avx2 ENDP
 _TEXT ENDS
@@ -15071,17 +15071,17 @@ mlkem_redistribute_21_rand_avx2 PROC
         push	r12
         push	r13
         mov	rax, QWORD PTR [rsp+56]
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         vmovdqu	ymm0, YMMWORD PTR [rcx]
         vmovdqu	ymm1, YMMWORD PTR [rcx+32]
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
@@ -15171,17 +15171,17 @@ mlkem_redistribute_21_rand_avx2 PROC
         vmovdqu	YMMWORD PTR [rax+128], ymm7
         mov	QWORD PTR [rax+160], r13
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	r13
         pop	r12
         ret
@@ -15192,13 +15192,13 @@ mlkem_redistribute_17_rand_avx2 PROC
         push	r12
         push	r13
         mov	rax, QWORD PTR [rsp+56]
-        sub	rsp, 96
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
+        sub	rsp, 104
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
         vmovdqu	ymm0, YMMWORD PTR [rcx]
         vmovdqu	ymm1, YMMWORD PTR [rcx+32]
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
@@ -15272,13 +15272,13 @@ mlkem_redistribute_17_rand_avx2 PROC
         vmovdqu	YMMWORD PTR [rax+96], ymm7
         mov	QWORD PTR [rax+128], r13
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        add	rsp, 96
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        add	rsp, 104
         pop	r13
         pop	r12
         ret
@@ -15289,13 +15289,13 @@ mlkem_redistribute_16_rand_avx2 PROC
         push	r12
         push	r13
         mov	rax, QWORD PTR [rsp+56]
-        sub	rsp, 96
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
+        sub	rsp, 104
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
         vmovdqu	ymm0, YMMWORD PTR [rcx]
         vmovdqu	ymm1, YMMWORD PTR [rcx+32]
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
@@ -15361,13 +15361,13 @@ mlkem_redistribute_16_rand_avx2 PROC
         vmovdqu	YMMWORD PTR [rax+64], ymm3
         vmovdqu	YMMWORD PTR [rax+96], ymm7
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        add	rsp, 96
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        add	rsp, 104
         pop	r13
         pop	r12
         ret
@@ -15378,13 +15378,13 @@ mlkem_redistribute_8_rand_avx2 PROC
         push	r12
         push	r13
         mov	rax, QWORD PTR [rsp+56]
-        sub	rsp, 96
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
+        sub	rsp, 104
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
         vmovdqu	ymm0, YMMWORD PTR [rcx]
         vmovdqu	ymm1, YMMWORD PTR [rcx+32]
         vmovdqu	ymm2, YMMWORD PTR [rcx+64]
@@ -15418,13 +15418,13 @@ mlkem_redistribute_8_rand_avx2 PROC
         vmovdqu	YMMWORD PTR [rax], ymm3
         vmovdqu	YMMWORD PTR [rax+32], ymm7
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        add	rsp, 96
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        add	rsp, 104
         pop	r13
         pop	r12
         ret

@@ -105,14 +105,14 @@ frodokem_as_accum_avx2 PROC
         push	rbx
         push	rbp
         mov	rax, QWORD PTR [rsp+104]
-        sub	rsp, 112
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
+        sub	rsp, 120
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
         movsxd	r9, r9d
         shl	r9, 4
         add	rcx, r9
@@ -198,14 +198,14 @@ L_frodokem_as_accum_avx2_j:
         sub	rbp, 1
         jnz	L_frodokem_as_accum_avx2_r
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        add	rsp, 112
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        add	rsp, 120
         pop	rbp
         pop	rbx
         pop	rsi
@@ -228,14 +228,14 @@ frodokem_mul_bs_avx2 PROC
         push	rbx
         push	rbp
         mov	rax, QWORD PTR [rsp+104]
-        sub	rsp, 112
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
+        sub	rsp, 120
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
         movsxd	r10, r9d
         shl	r10, 1
         mov	r11, r8
@@ -317,14 +317,14 @@ L_frodokem_mul_bs_avx2_j:
         sub	rbp, 1
         jnz	L_frodokem_mul_bs_avx2_r
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        add	rsp, 112
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        add	rsp, 120
         pop	rbp
         pop	rbx
         pop	rsi
@@ -525,17 +525,17 @@ frodokem_gen_a_rows_aes_avx2 PROC
         mov	rax, QWORD PTR [rsp+88]
         mov	r10, QWORD PTR [rsp+96]
         mov	r11, QWORD PTR [rsp+104]
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         vbroadcasti128	ymm0, OWORD PTR [r8]
         vbroadcasti128	ymm1, OWORD PTR [r8+16]
         vbroadcasti128	ymm2, OWORD PTR [r8+32]
@@ -664,17 +664,17 @@ L_frodokem_gen_a_rows_aes_avx2_next:
         cmp	r14, r13
         jl	L_frodokem_gen_a_rows_aes_avx2_row
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	rsi
         pop	rdi
         pop	r15
@@ -695,10 +695,10 @@ frodokem_gen_a_rows_aes_aesni PROC
         mov	rax, QWORD PTR [rsp+88]
         mov	r10, QWORD PTR [rsp+96]
         mov	r11, QWORD PTR [rsp+104]
-        sub	rsp, 48
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
+        sub	rsp, 56
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
         vmovd	xmm8, r11
         vpbroadcastw	xmm8, xmm8
         movsxd	r12, r10d
@@ -863,10 +863,10 @@ L_frodokem_gen_a_rows_aes_aesni_next:
         cmp	r14, r13
         jl	L_frodokem_gen_a_rows_aes_aesni_row
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        add	rsp, 48
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        add	rsp, 56
         pop	rsi
         pop	rdi
         pop	r15
@@ -891,11 +891,11 @@ frodokem_sa_accum_avx512 PROC
         push	rbx
         push	rbp
         mov	rax, QWORD PTR [rsp+104]
-        sub	rsp, 64
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
+        sub	rsp, 72
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
         movsxd	r9, r9d
         shl	r9, 1
         add	rdx, r9
@@ -976,11 +976,11 @@ L_frodokem_sa_accum_avx512_tail:
         sub	rbp, 1
         jnz	L_frodokem_sa_accum_avx512_i
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        add	rsp, 64
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        add	rsp, 72
         pop	rbp
         pop	rbx
         pop	rsi
@@ -1003,17 +1003,17 @@ frodokem_as_accum_avx512 PROC
         push	rbx
         push	rbp
         mov	rax, QWORD PTR [rsp+104]
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         movsxd	r9, r9d
         shl	r9, 4
         add	rcx, r9
@@ -1145,17 +1145,17 @@ L_frodokem_as_accum_avx512_tail:
         sub	rbp, 1
         jnz	L_frodokem_as_accum_avx512_r
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	rbp
         pop	rbx
         pop	rsi
@@ -1178,17 +1178,17 @@ frodokem_mul_bs_avx512 PROC
         push	rbx
         push	rbp
         mov	rax, QWORD PTR [rsp+104]
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         movsxd	r10, r9d
         shl	r10, 1
         mov	r9, r10
@@ -1316,17 +1316,17 @@ L_frodokem_mul_bs_avx512_tail:
         sub	rbp, 1
         jnz	L_frodokem_mul_bs_avx512_r
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	rbp
         pop	rbx
         pop	rsi
@@ -1477,17 +1477,17 @@ frodokem_gen_a_rows_aes_avx512 PROC
         mov	rax, QWORD PTR [rsp+88]
         mov	r10, QWORD PTR [rsp+96]
         mov	r11, QWORD PTR [rsp+104]
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         vbroadcasti32x4	zmm0, OWORD PTR [r8]
         vbroadcasti32x4	zmm1, OWORD PTR [r8+16]
         vbroadcasti32x4	zmm2, OWORD PTR [r8+32]
@@ -1588,17 +1588,17 @@ L_frodokem_gen_a_rows_aes_avx512_aes:
         cmp	rdi, r13
         jl	L_frodokem_gen_a_rows_aes_avx512_aes
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	rsi
         pop	rdi
         pop	r15

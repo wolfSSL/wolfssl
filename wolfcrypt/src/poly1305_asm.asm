@@ -584,7 +584,9 @@ poly1305_calc_powers_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 poly1305_setkey_avx2 PROC
+        sub	rsp, 8
         call	poly1305_setkey_avx
+        add	rsp, 8
         vpxor	ymm0, ymm0, ymm0
         vmovdqu	YMMWORD PTR [rcx+64], ymm0
         vmovdqu	YMMWORD PTR [rcx+96], ymm0
@@ -619,17 +621,17 @@ poly1305_blocks_avx2 PROC
         mov	rdi, rcx
         mov	rsi, rdx
         mov	rdx, r8
-        sub	rsp, 480
-        vmovdqu	OWORD PTR [rsp+320], xmm6
-        vmovdqu	OWORD PTR [rsp+336], xmm7
-        vmovdqu	OWORD PTR [rsp+352], xmm8
-        vmovdqu	OWORD PTR [rsp+368], xmm9
-        vmovdqu	OWORD PTR [rsp+384], xmm10
-        vmovdqu	OWORD PTR [rsp+400], xmm11
-        vmovdqu	OWORD PTR [rsp+416], xmm12
-        vmovdqu	OWORD PTR [rsp+432], xmm13
-        vmovdqu	OWORD PTR [rsp+448], xmm14
-        vmovdqu	OWORD PTR [rsp+464], xmm15
+        sub	rsp, 488
+        vmovdqu	OWORD PTR [rsp+328], xmm6
+        vmovdqu	OWORD PTR [rsp+344], xmm7
+        vmovdqu	OWORD PTR [rsp+360], xmm8
+        vmovdqu	OWORD PTR [rsp+376], xmm9
+        vmovdqu	OWORD PTR [rsp+392], xmm10
+        vmovdqu	OWORD PTR [rsp+408], xmm11
+        vmovdqu	OWORD PTR [rsp+424], xmm12
+        vmovdqu	OWORD PTR [rsp+440], xmm13
+        vmovdqu	OWORD PTR [rsp+456], xmm14
+        vmovdqu	OWORD PTR [rsp+472], xmm15
         mov	r13, QWORD PTR [ptr_L_poly1305_avx2_blocks_mask]
         mov	r14, QWORD PTR [ptr_L_poly1305_avx2_blocks_hibit]
         mov	rcx, rsp
@@ -971,17 +973,17 @@ L_poly1305_avx2_blocks_end_calc:
 L_poly1305_avx2_blocks_complete:
         mov	BYTE PTR [rdi+617], 1
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+320]
-        vmovdqu	xmm7, OWORD PTR [rsp+336]
-        vmovdqu	xmm8, OWORD PTR [rsp+352]
-        vmovdqu	xmm9, OWORD PTR [rsp+368]
-        vmovdqu	xmm10, OWORD PTR [rsp+384]
-        vmovdqu	xmm11, OWORD PTR [rsp+400]
-        vmovdqu	xmm12, OWORD PTR [rsp+416]
-        vmovdqu	xmm13, OWORD PTR [rsp+432]
-        vmovdqu	xmm14, OWORD PTR [rsp+448]
-        vmovdqu	xmm15, OWORD PTR [rsp+464]
-        add	rsp, 480
+        vmovdqu	xmm6, OWORD PTR [rsp+328]
+        vmovdqu	xmm7, OWORD PTR [rsp+344]
+        vmovdqu	xmm8, OWORD PTR [rsp+360]
+        vmovdqu	xmm9, OWORD PTR [rsp+376]
+        vmovdqu	xmm10, OWORD PTR [rsp+392]
+        vmovdqu	xmm11, OWORD PTR [rsp+408]
+        vmovdqu	xmm12, OWORD PTR [rsp+424]
+        vmovdqu	xmm13, OWORD PTR [rsp+440]
+        vmovdqu	xmm14, OWORD PTR [rsp+456]
+        vmovdqu	xmm15, OWORD PTR [rsp+472]
+        add	rsp, 488
         pop	r14
         pop	r13
         pop	rbx
@@ -1037,7 +1039,9 @@ L_poly1305_avx2_final_cmp_copy:
         jne	L_poly1305_avx2_final_start_copy
         mov	rcx, rdi
         mov	rdx, rsi
+        sub	rsp, 8
         call	poly1305_final_avx
+        add	rsp, 8
         vpxor	ymm0, ymm0, ymm0
         vmovdqu	YMMWORD PTR [rdi+64], ymm0
         vmovdqu	YMMWORD PTR [rdi+96], ymm0

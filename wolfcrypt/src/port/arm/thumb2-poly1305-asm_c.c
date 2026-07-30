@@ -25,6 +25,8 @@
  *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-poly1305-asm.c
  */
 
+#define _WC_BUILDING_THUMB2_POLY1305_ASM_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 

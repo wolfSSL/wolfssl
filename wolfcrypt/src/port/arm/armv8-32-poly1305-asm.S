@@ -25,6 +25,8 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-poly1305-asm.S
  */
 
+#define _WC_BUILDING_ARMV8_32_POLY1305_ASM_S
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM

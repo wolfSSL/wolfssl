@@ -1,6 +1,6 @@
 /* ppc64-aes-asm
  *
- * Copyright (C) 2006-2025 wolfSSL Inc.
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,17 +19,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./aes/aes.rb ppc64 \
  *       ../wolfssl/wolfcrypt/src/port/ppc64/ppc64-aes-asm.c
  */
+
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_PPC64_AES_ASM_C
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
 #ifdef WOLFSSL_PPC64_ASM
 #include <stdint.h>
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_PPC64_ASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__

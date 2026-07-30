@@ -25,6 +25,8 @@
  *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-chacha-asm.S
  */
 
+#define _WC_BUILDING_THUMB2_CHACHA_ASM_S
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM

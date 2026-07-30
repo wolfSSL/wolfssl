@@ -19,13 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
-
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./chacha/chacha.rb riscv64 \
  *       ../wolfssl/wolfcrypt/src/port/riscv64/riscv-64-chacha-asm.S
  */
+
+#define _WC_BUILDING_RISCV_64_CHACHA_ASM_S
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 #ifdef WOLFSSL_RISCV_ASM
 #ifndef WOLFSSL_RISCV_ASM_INLINE
 #ifdef HAVE_CHACHA

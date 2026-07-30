@@ -1,4 +1,4 @@
-/* sp.c
+/* sp_arm32.c
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -20,6 +20,9 @@
  */
 
 /* Implementation by Sean Parkinson. */
+
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_SP_ARM32_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
@@ -12455,6 +12458,36 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a,
 }
 
 #ifdef WOLFSSL_SP_SMALL
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_2048_get_from_table_32(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 32; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 32; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -12472,7 +12505,12 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a,
 static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (16 + 1) * 64);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 16 * 64);
+#endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -12487,12 +12525,19 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (16 + 1) * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 16 * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
             t[i] = td + i * 64;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 16 * 64;
+#endif
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
@@ -12553,7 +12598,11 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_2048_get_from_table_32(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
+#endif
         for (; i>=0 || c>=4; ) {
             if (c == 0) {
                 n = e[i--];
@@ -12580,7 +12629,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_2048_mont_sqr_32(r, r, m, mp);
             sp_2048_mont_sqr_32(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_2048_get_from_table_32(rt, t, y);
+            sp_2048_mont_mul_32(r, r, rt, m, mp);
+#else
             sp_2048_mont_mul_32(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32U);
@@ -12595,6 +12649,36 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 }
 #else
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_2048_get_from_table_32(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 32; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 32; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 32; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -12612,7 +12696,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (32 + 1) * 64);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 32 * 64);
+#endif
     sp_digit* t[32];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -12627,12 +12716,19 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (32 + 1) * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 32 * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<32; i++) {
             t[i] = td + i * 64;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 32 * 64;
+#endif
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
@@ -12709,7 +12805,11 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_2048_get_from_table_32(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
+#endif
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -12737,7 +12837,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_2048_mont_sqr_32(r, r, m, mp);
             sp_2048_mont_sqr_32(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_2048_get_from_table_32(rt, t, y);
+            sp_2048_mont_mul_32(r, r, rt, m, mp);
+#else
             sp_2048_mont_mul_32(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32U);
@@ -17346,6 +17451,36 @@ static WC_INLINE int sp_2048_mod_64(sp_digit* r, const sp_digit* a,
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_2048_get_from_table_64(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 64; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 8; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 64; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -17363,7 +17498,12 @@ static WC_INLINE int sp_2048_mod_64(sp_digit* r, const sp_digit* a,
 static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (8 + 1) * 128);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 8 * 128);
+#endif
     sp_digit* t[8];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -17378,12 +17518,19 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (8 + 1) * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 8 * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<8; i++) {
             t[i] = td + i * 128;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 8 * 128;
+#endif
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
@@ -17436,7 +17583,11 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_2048_get_from_table_64(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
+#endif
         for (; i>=0 || c>=3; ) {
             if (c == 0) {
                 n = e[i--];
@@ -17462,7 +17613,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_2048_mont_sqr_64(r, r, m, mp);
             sp_2048_mont_sqr_64(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_2048_get_from_table_64(rt, t, y);
+            sp_2048_mont_mul_64(r, r, rt, m, mp);
+#else
             sp_2048_mont_mul_64(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[64], 0, sizeof(sp_digit) * 64U);
@@ -17477,6 +17633,36 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 }
 #else
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_2048_get_from_table_64(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 64; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 64; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -17494,7 +17680,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (16 + 1) * 128);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 16 * 128);
+#endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -17509,12 +17700,19 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (16 + 1) * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 16 * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
             t[i] = td + i * 128;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 16 * 128;
+#endif
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
@@ -17575,7 +17773,11 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_2048_get_from_table_64(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
+#endif
         for (; i>=0 || c>=4; ) {
             if (c == 0) {
                 n = e[i--];
@@ -17602,7 +17804,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_2048_mont_sqr_64(r, r, m, mp);
             sp_2048_mont_sqr_64(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_2048_get_from_table_64(rt, t, y);
+            sp_2048_mont_mul_64(r, r, rt, m, mp);
+#else
             sp_2048_mont_mul_64(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[64], 0, sizeof(sp_digit) * 64U);
@@ -38384,6 +38591,36 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a,
 }
 
 #ifdef WOLFSSL_SP_SMALL
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_48(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 48; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 48; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -38401,7 +38638,12 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a,
 static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (16 + 1) * 96);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 16 * 96);
+#endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -38416,12 +38658,19 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (16 + 1) * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 16 * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
             t[i] = td + i * 96;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 16 * 96;
+#endif
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
@@ -38482,7 +38731,11 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_3072_get_from_table_48(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
+#endif
         for (; i>=0 || c>=4; ) {
             if (c == 0) {
                 n = e[i--];
@@ -38509,7 +38762,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_3072_mont_sqr_48(r, r, m, mp);
             sp_3072_mont_sqr_48(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_3072_get_from_table_48(rt, t, y);
+            sp_3072_mont_mul_48(r, r, rt, m, mp);
+#else
             sp_3072_mont_mul_48(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48U);
@@ -38524,6 +38782,36 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 }
 #else
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_48(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 48; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 32; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 48; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -38541,7 +38829,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (32 + 1) * 96);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 32 * 96);
+#endif
     sp_digit* t[32];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -38556,12 +38849,19 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (32 + 1) * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 32 * 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<32; i++) {
             t[i] = td + i * 96;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 32 * 96;
+#endif
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
@@ -38638,7 +38938,11 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_3072_get_from_table_48(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
+#endif
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -38666,7 +38970,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_3072_mont_sqr_48(r, r, m, mp);
             sp_3072_mont_sqr_48(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_3072_get_from_table_48(rt, t, y);
+            sp_3072_mont_mul_48(r, r, rt, m, mp);
+#else
             sp_3072_mont_mul_48(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48U);
@@ -45144,6 +45453,36 @@ static WC_INLINE int sp_3072_mod_96(sp_digit* r, const sp_digit* a,
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_96(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 96; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 8; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 96; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -45161,7 +45500,12 @@ static WC_INLINE int sp_3072_mod_96(sp_digit* r, const sp_digit* a,
 static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (8 + 1) * 192);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 8 * 192);
+#endif
     sp_digit* t[8];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -45176,12 +45520,19 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (8 + 1) * 192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 8 * 192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<8; i++) {
             t[i] = td + i * 192;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 8 * 192;
+#endif
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
@@ -45234,7 +45585,11 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_3072_get_from_table_96(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 96);
+#endif
         for (; i>=0 || c>=3; ) {
             if (c == 0) {
                 n = e[i--];
@@ -45260,7 +45615,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_3072_mont_sqr_96(r, r, m, mp);
             sp_3072_mont_sqr_96(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_3072_get_from_table_96(rt, t, y);
+            sp_3072_mont_mul_96(r, r, rt, m, mp);
+#else
             sp_3072_mont_mul_96(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[96], 0, sizeof(sp_digit) * 96U);
@@ -45275,6 +45635,36 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 }
 #else
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_3072_get_from_table_96(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 96; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 96; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -45292,7 +45682,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (16 + 1) * 192);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 16 * 192);
+#endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -45307,12 +45702,19 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (16 + 1) * 192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 16 * 192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
             t[i] = td + i * 192;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 16 * 192;
+#endif
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
@@ -45373,7 +45775,11 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_3072_get_from_table_96(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 96);
+#endif
         for (; i>=0 || c>=4; ) {
             if (c == 0) {
                 n = e[i--];
@@ -45400,7 +45806,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
             sp_3072_mont_sqr_96(r, r, m, mp);
             sp_3072_mont_sqr_96(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_3072_get_from_table_96(rt, t, y);
+            sp_3072_mont_mul_96(r, r, rt, m, mp);
+#else
             sp_3072_mont_mul_96(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[96], 0, sizeof(sp_digit) * 96U);
@@ -60811,6 +61222,36 @@ static WC_INLINE int sp_4096_mod_128(sp_digit* r, const sp_digit* a,
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_4096_get_from_table_128(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 128; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 8; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 128; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -60828,7 +61269,12 @@ static WC_INLINE int sp_4096_mod_128(sp_digit* r, const sp_digit* a,
 static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (8 + 1) * 256);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 8 * 256);
+#endif
     sp_digit* t[8];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -60843,12 +61289,19 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (8 + 1) * 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 8 * 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<8; i++) {
             t[i] = td + i * 256;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 8 * 256;
+#endif
 
         sp_4096_mont_setup(m, &mp);
         sp_4096_mont_norm_128(norm, m);
@@ -60901,7 +61354,11 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_4096_get_from_table_128(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 128);
+#endif
         for (; i>=0 || c>=3; ) {
             if (c == 0) {
                 n = e[i--];
@@ -60927,7 +61384,12 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
             sp_4096_mont_sqr_128(r, r, m, mp);
             sp_4096_mont_sqr_128(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_4096_get_from_table_128(rt, t, y);
+            sp_4096_mont_mul_128(r, r, rt, m, mp);
+#else
             sp_4096_mont_mul_128(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[128], 0, sizeof(sp_digit) * 128U);
@@ -60942,6 +61404,36 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 }
 #else
+#ifndef WC_NO_CACHE_RESISTANT
+/* Get an entry from the table by index in a cache resistant manner.
+ *
+ * @param [out] r      Entry retrieved from table.
+ * @param [in]  table  Table of entries to choose from.
+ * @param [in]  idx    Index of entry to retrieve.
+ */
+static void sp_4096_get_from_table_128(sp_digit* r,
+        sp_digit** table, int idx)
+{
+    int e, j;
+    sp_digit mask;
+    sp_digit diff;
+
+    for (j = 0; j < 128; j++) {
+        r[j] = 0;
+    }
+
+    for (e = 0; e < 16; e++) {
+        /* mask is all-ones when e == idx and all-zeros otherwise. */
+        diff = (sp_digit)(e ^ idx);
+        diff = (diff | ((sp_digit)0 - diff)) >> (sizeof(sp_digit) * 8 - 1);
+        mask = (sp_digit)0 - ((sp_digit)1 - diff);
+
+        for (j = 0; j < 128; j++) {
+            r[j] |= table[e][j] & mask;
+        }
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * @param [out] r        A single precision number that is the result of the
@@ -60959,7 +61451,12 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_DECL_VAR(sp_digit, td, (16 + 1) * 256);
+    sp_digit* rt = NULL;
+#else
     SP_DECL_VAR(sp_digit, td, 16 * 256);
+#endif
     sp_digit* t[16];
     sp_digit* norm = NULL;
     sp_digit mp = 1;
@@ -60974,12 +61471,19 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         err = MP_VAL;
     }
 
+#ifndef WC_NO_CACHE_RESISTANT
+    SP_ALLOC_VAR(sp_digit, td, (16 + 1) * 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     SP_ALLOC_VAR(sp_digit, td, 16 * 256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
             t[i] = td + i * 256;
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        rt = td + 16 * 256;
+#endif
 
         sp_4096_mont_setup(m, &mp);
         sp_4096_mont_norm_128(norm, m);
@@ -61040,7 +61544,11 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
             y = (byte)(n >> c);
             n = (sp_uint32)n << (32 - c);
         }
+#ifndef WC_NO_CACHE_RESISTANT
+        sp_4096_get_from_table_128(r, t, y);
+#else
         XMEMCPY(r, t[y], sizeof(sp_digit) * 128);
+#endif
         for (; i>=0 || c>=4; ) {
             if (c == 0) {
                 n = e[i--];
@@ -61067,7 +61575,12 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
             sp_4096_mont_sqr_128(r, r, m, mp);
             sp_4096_mont_sqr_128(r, r, m, mp);
 
+#ifndef WC_NO_CACHE_RESISTANT
+            sp_4096_get_from_table_128(rt, t, y);
+            sp_4096_mont_mul_128(r, r, rt, m, mp);
+#else
             sp_4096_mont_mul_128(r, r, t[y], m, mp);
+#endif
         }
 
         XMEMSET(&r[128], 0, sizeof(sp_digit) * 128U);

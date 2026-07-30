@@ -25,6 +25,9 @@
  *       ../wolfssl/wolfcrypt/src/port/ppc32/ppc32-sha256-asm.c
  */
 
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_PPC32_SHA256_ASM_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 

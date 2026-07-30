@@ -25,6 +25,8 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-chacha-asm.c
  */
 
+#define _WC_BUILDING_ARMV8_32_CHACHA_ASM_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 

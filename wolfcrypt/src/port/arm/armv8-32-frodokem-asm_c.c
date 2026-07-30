@@ -25,7 +25,9 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-frodokem-asm.c
  */
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
+#define _WC_BUILDING_ARMV8_32_FRODOKEM_ASM_C
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM

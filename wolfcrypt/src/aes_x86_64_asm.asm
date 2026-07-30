@@ -473,8 +473,8 @@ AES_ECB_encrypt_AESNI PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 16
-        movdqu	OWORD PTR [rsp], xmm6
+        sub	rsp, 24
+        movdqu	OWORD PTR [rsp+8], xmm6
         xor	r10d, r10d
         cmp	r8d, 64
         mov	r11d, r8d
@@ -627,8 +627,8 @@ L_AES_ECB_encrypt_AESNI_16_aes_enc_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_AESNI_enc_16
 L_AES_ECB_encrypt_AESNI_done_enc:
-        movdqu	xmm6, OWORD PTR [rsp]
-        add	rsp, 16
+        movdqu	xmm6, OWORD PTR [rsp+8]
+        add	rsp, 24
         pop	r13
         pop	r12
         ret
@@ -639,8 +639,8 @@ AES_ECB_decrypt_AESNI PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 16
-        movdqu	OWORD PTR [rsp], xmm6
+        sub	rsp, 24
+        movdqu	OWORD PTR [rsp+8], xmm6
         xor	r10d, r10d
         cmp	r8d, 64
         mov	r11d, r8d
@@ -793,8 +793,8 @@ L_AES_ECB_decrypt_AESNI_16_aes_dec_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_AESNI_dec_16
 L_AES_ECB_decrypt_AESNI_done_dec:
-        movdqu	xmm6, OWORD PTR [rsp]
-        add	rsp, 16
+        movdqu	xmm6, OWORD PTR [rsp+8]
+        add	rsp, 24
         pop	r13
         pop	r12
         ret
@@ -1296,8 +1296,8 @@ AES_ECB_encrypt_avx1 PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 16
-        vmovdqu	OWORD PTR [rsp], xmm6
+        sub	rsp, 24
+        vmovdqu	OWORD PTR [rsp+8], xmm6
         xor	r10d, r10d
         cmp	r8d, 64
         mov	r11d, r8d
@@ -1450,8 +1450,8 @@ L_AES_ECB_encrypt_avx1_16_aes_enc_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_avx1_enc_16
 L_AES_ECB_encrypt_avx1_done_enc:
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        add	rsp, 16
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        add	rsp, 24
         pop	r13
         pop	r12
         ret
@@ -1462,8 +1462,8 @@ AES_ECB_decrypt_avx1 PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 16
-        vmovdqu	OWORD PTR [rsp], xmm6
+        sub	rsp, 24
+        vmovdqu	OWORD PTR [rsp+8], xmm6
         xor	r10d, r10d
         cmp	r8d, 64
         mov	r11d, r8d
@@ -1616,8 +1616,8 @@ L_AES_ECB_decrypt_avx1_16_aes_dec_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_avx1_dec_16
 L_AES_ECB_decrypt_avx1_done_dec:
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        add	rsp, 16
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        add	rsp, 24
         pop	r13
         pop	r12
         ret
@@ -2102,9 +2102,9 @@ AES_ECB_encrypt_vaes PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         xor	r10d, r10d
         cmp	r8d, 128
         mov	r11d, r8d
@@ -2373,9 +2373,9 @@ L_AES_ECB_encrypt_vaes_16_aes_enc_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_vaes_enc_16
 L_AES_ECB_encrypt_vaes_done_enc:
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         pop	r13
         pop	r12
         ret
@@ -2386,9 +2386,9 @@ AES_ECB_decrypt_vaes PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         xor	r10d, r10d
         cmp	r8d, 128
         mov	r11d, r8d
@@ -2657,9 +2657,9 @@ L_AES_ECB_decrypt_vaes_16_aes_dec_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_vaes_dec_16
 L_AES_ECB_decrypt_vaes_done_dec:
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         pop	r13
         pop	r12
         ret
@@ -3528,17 +3528,17 @@ AES_ECB_encrypt_avx512 PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         xor	r10d, r10d
         cmp	r8d, 32
         jl	L_AES_ECB_encrypt_avx512_done_32
@@ -3828,17 +3828,17 @@ L_AES_ECB_encrypt_avx512_16_aes_enc_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_avx512_enc_16
 L_AES_ECB_encrypt_avx512_done_enc:
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	r13
         pop	r12
         ret
@@ -3849,17 +3849,17 @@ AES_ECB_decrypt_avx512 PROC
         push	r12
         push	r13
         mov	eax, DWORD PTR [rsp+56]
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm12
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm14
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         xor	r10d, r10d
         cmp	r8d, 32
         jl	L_AES_ECB_decrypt_avx512_done_32
@@ -4149,17 +4149,17 @@ L_AES_ECB_decrypt_avx512_16_aes_dec_block_last:
         cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_avx512_dec_16
 L_AES_ECB_decrypt_avx512_done_dec:
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm12, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm14, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	r13
         pop	r12
         ret
