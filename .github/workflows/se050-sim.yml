@@ -31,7 +31,7 @@ permissions:
 # We patch it to COPY the PR checkout instead so CI reflects the PR's source.
 
 env:
-  SIMULATORS_REF: d8ca6318796c3cde35ca9a8af44250ab85335e21
+  SIMULATORS_REF: 6c12fb15b492e35ce8ca82dc97fbd53f07fbe6fd
 
 jobs:
   se050_sim:
