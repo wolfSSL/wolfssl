@@ -6518,6 +6518,71 @@ int test_wc_PKCS7_VerifySignedData_NoSignerInfosTag(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * SignedData bundle that is well-formed and NOT truncated: digestAlgorithms
+ * SET contains one real AlgorithmIdentifier (so the early heuristic that
+ * flags a bundle as degenerate from an empty digestAlgorithms SET does not
+ * fire), while signerInfos SET is genuinely empty (degenerate, no signer).
+ * With wc_PKCS7_AllowDegenerate(pkcs7, 0) set, this must be rejected once
+ * the accurate signerInfos-based degenerate determination runs, not
+ * silently accepted because the early heuristic missed it.
+ */
+int test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    PKCS7* pkcs7 = NULL;
+
+    WOLFSSL_SMALL_STACK_STATIC byte der[] = {
+        /* outer ContentInfo SEQUENCE (114 bytes content) */
+        0x30, 0x72,
+        /* contentType OID signedData */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02,
+        /* [0] EXPLICIT (101 bytes content) */
+        0xA0, 0x65,
+        /* SignedData SEQUENCE (99 bytes content) */
+        0x30, 0x63,
+        /* version INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* digestAlgorithms SET (15 bytes content) -- one real
+         * AlgorithmIdentifier (sha256), not empty */
+        0x31, 0x0F,
+        0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+        0x05, 0x00,
+        /* encapContentInfo SEQUENCE (75 bytes content) */
+        0x30, 0x4B,
+        /* eContentType OID 1.2.840.113549.1.7.1 (data) */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+        /* eContent [0] EXPLICIT (62 bytes content) */
+        0xA0, 0x3E,
+        /* OCTET STRING (60 bytes content) */
+        0x04, 0x3C,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x3A, 0x3B,
+        /* signerInfos SET (empty -- genuinely degenerate) */
+        0x31, 0x00
+    };
+    word32 derSz = (word32)sizeof(der);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
+        PKCS7_NO_SIGNER_E);
+    wc_PKCS7_Free(pkcs7);
+
+#endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
     defined(USE_CERT_BUFFERS_2048)
 /*

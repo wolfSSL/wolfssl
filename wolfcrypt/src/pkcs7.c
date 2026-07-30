@@ -6391,7 +6391,7 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
     WOLFSSL_ENTER("wc_PKCS7_ParseSignerInfo");
     /* require a signer if degenerate case not allowed */
-    if (inSz == 0 && pkcs7->noDegenerate == 1) {
+    if (pkcs7->noDegenerate == 1 && (inSz == 0 || degenerate == 1)) {
         WOLFSSL_MSG("Set to not allow degenerate cases");
         return PKCS7_NO_SIGNER_E;
     }
