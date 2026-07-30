@@ -1880,13 +1880,22 @@ static void X509StoreFreeObjList(WOLFSSL_X509_STORE* store,
      * the numAdded to the store >= is used when comparing to 0. */
     i = wolfSSL_sk_X509_OBJECT_num(objs) - 1;
     while (cnt > 0 && i >= 0) {
-        /* The inner X509 is owned by somebody else, NULL out the reference */
         obj = (WOLFSSL_X509_OBJECT *)wolfSSL_sk_X509_OBJECT_value(objs, i);
-        if (obj != NULL) {
+        /* Only certificate objects can be borrowed from store->certs, so only
+         * they may consume the numAdded budget. Counting any other object type
+         * would slide this window one slot past the borrowed certificates -
+         * wolfSSL_X509_STORE_get0_objects() appends a CRL object after them
+         * under HAVE_CRL - leaving the first borrowed certificate live for the
+         * pop_free below to release a reference it does not own. Skipping the
+         * CRL object also lets pop_free drop the reference that
+         * get0_objects() took on it, rather than leaking it. */
+        if (obj != NULL && obj->type == WOLFSSL_X509_LU_X509) {
+            /* The inner X509 is owned by somebody else, NULL out the reference
+             */
             obj->type = (WOLFSSL_X509_LOOKUP_TYPE)0;
             obj->data.ptr = NULL;
+            cnt--;
         }
-        cnt--;
         i--;
     }
 
