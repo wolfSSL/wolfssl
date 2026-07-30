@@ -2499,12 +2499,15 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
      * untouched since the TLS 1.3-only list is unusable on this ctx.
      * Confirm the suite count is actually unchanged, not just that the
      * call reported success. */
-    suiteSzBefore = (ctx->suites != NULL) ? ctx->suites->suiteSz : 0;
+    suiteSzBefore = (ctx != NULL && ctx->suites != NULL) ?
+        ctx->suites->suiteSz : 0;
     ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_SUCCESS);
-    ExpectNotNull(ctx->suites);
-    if (ctx->suites != NULL) {
-        ExpectIntEQ(ctx->suites->suiteSz, suiteSzBefore);
+    if (ctx != NULL) {
+        ExpectNotNull(ctx->suites);
+        if (ctx->suites != NULL) {
+            ExpectIntEQ(ctx->suites->suiteSz, suiteSzBefore);
+        }
     }
 #endif
 
@@ -2517,12 +2520,15 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_FAILURE);
 #else
-    suiteSzBefore = (ssl->suites != NULL) ? ssl->suites->suiteSz : 0;
+    suiteSzBefore = (ssl != NULL && ssl->suites != NULL) ?
+        ssl->suites->suiteSz : 0;
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_SUCCESS);
-    ExpectNotNull(ssl->suites);
-    if (ssl->suites != NULL) {
-        ExpectIntEQ(ssl->suites->suiteSz, suiteSzBefore);
+    if (ssl != NULL) {
+        ExpectNotNull(ssl->suites);
+        if (ssl->suites != NULL) {
+            ExpectIntEQ(ssl->suites->suiteSz, suiteSzBefore);
+        }
     }
 #endif
     wolfSSL_free(ssl);
