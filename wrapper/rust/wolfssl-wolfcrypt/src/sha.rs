@@ -635,6 +635,24 @@ impl SHA256 {
         }
         Ok(())
     }
+
+    /// Copy the SHA-256 state into a new instance (O(1) clone via wc_Sha256Copy).
+    ///
+    /// Returns a new `SHA256` context with identical internal state,
+    /// allowing the same computation to be continued independently.
+    ///
+    /// # Returns
+    ///
+    /// Returns either `Ok(sha256)` containing the copied instance or `Err(e)`
+    /// containing the wolfSSL library error code value.
+    pub fn copy(&self) -> Result<Self, i32> {
+        let mut dst: core::mem::MaybeUninit<sys::wc_Sha256> = core::mem::MaybeUninit::uninit();
+        let rc = unsafe { sys::wc_Sha256Copy(&self.wc_sha256 as *const _ as *mut _, dst.as_mut_ptr()) };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(SHA256 { wc_sha256: unsafe { dst.assume_init() } })
+    }
 }
 
 #[cfg(sha256)]
@@ -845,6 +863,24 @@ impl SHA384 {
             return Err(rc);
         }
         Ok(())
+    }
+
+    /// Copy the SHA-384 state into a new instance (O(1) clone via wc_Sha384Copy).
+    ///
+    /// Returns a new `SHA384` context with identical internal state,
+    /// allowing the same computation to be continued independently.
+    ///
+    /// # Returns
+    ///
+    /// Returns either `Ok(sha384)` containing the copied instance or `Err(e)`
+    /// containing the wolfSSL library error code value.
+    pub fn copy(&self) -> Result<Self, i32> {
+        let mut dst: core::mem::MaybeUninit<sys::wc_Sha384> = core::mem::MaybeUninit::uninit();
+        let rc = unsafe { sys::wc_Sha384Copy(&self.wc_sha384 as *const _ as *mut _, dst.as_mut_ptr()) };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(SHA384 { wc_sha384: unsafe { dst.assume_init() } })
     }
 }
 
