@@ -78,6 +78,9 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
 int test_wc_PKCS7_VerifySignedData_TruncEContentTag(void);
 int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void);
+int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void);
+int test_wc_PKCS7_VerifySignedData_TruncSignerInfosTag(void);
+int test_wc_PKCS7_VerifySignedData_NoSignerInfosTag(void);
 int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
 
 
@@ -133,6 +136,9 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_IndefLenOOB), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncEContentTag), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncCertSetTag), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateMinimal), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncSignerInfosTag), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoSignerInfosTag), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoDigestParams)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \

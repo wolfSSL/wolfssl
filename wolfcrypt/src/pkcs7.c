@@ -7506,26 +7506,23 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 pkcs7->content   = pkcs7->contentDynamic;
             }
 
-            /* check if bundle has more elements or footer, if not, set content
-             * to pkcs7->content and hash to pkcs7->hash.
-             *
-             * NOTE: this check returns success whenever fewer than 6 bytes
-             * follow the content within the outer ContentInfo, which also
-             * accepts truncated bundles whose footer was cut short (e.g. a
-             * lone certificates [0] tag with no length). Distinguishing a
-             * legitimate degenerate end (such as an empty signerInfos SET
-             * "31 00") from truncated junk would require peeking at the
-             * remaining bytes or making stage 4's `expected` window smaller.
+            /* expect data length to be enough to check set and seq of certs,
+             * but never request more than the bundle has left. The old code
+             * unconditionally requested this much and silently treated a
+             * short read here as a successful degenerate end, which also
+             * accepted a truncated bundle. Capping the request lets stage
+             * 4/5/6's existing bounds checks and noDegenerate enforcement
+             * run instead: a genuine short degenerate end (empty signerInfos
+             * SET) still parses and succeeds, while anything truncated or
+             * malformed fails there with a real parse error.
              */
-            if (ret == 0 && pkcs7->stream->maxLen > 0 &&
-                    (pkcs7->stream->maxLen - pkcs7->stream->totalRd)
-                                                < ASN_TAG_SZ + MAX_LENGTH_SZ) {
-
-                ret = 0;
-                break;
-            }
-            /* expect data length to be enough to check set and seq of certs */
             pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
+            if (pkcs7->stream->totalRd < pkcs7->stream->maxLen &&
+                    pkcs7->stream->expected >
+                    pkcs7->stream->maxLen - pkcs7->stream->totalRd) {
+                pkcs7->stream->expected =
+                    pkcs7->stream->maxLen - pkcs7->stream->totalRd;
+            }
 
         #else
             /* Break out before content because it can be optional in degenerate
