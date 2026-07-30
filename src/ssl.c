@@ -5720,6 +5720,21 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->earlyData = no_early_data;
         ssl->earlyDataSz = 0;
     #endif
+    #ifdef HAVE_RPK
+        {
+            /* Reset the RPK certificate-type negotiation state. received_* is
+             * peer-supplied and sending_* is derived from it, so leaving either
+             * set would carry one peer's certificate-type choice into the next
+             * handshake on this reused object, where ProcessPeerCertParse()
+             * would read it as the type negotiated with the new peer.
+             * isRPKLoaded describes the locally loaded certificate rather than
+             * the negotiation, so it survives. */
+            int rpkLoaded = ssl->options.rpkState.isRPKLoaded;
+            XMEMSET(&ssl->options.rpkState, 0,
+                    sizeof(ssl->options.rpkState));
+            ssl->options.rpkState.isRPKLoaded = rpkLoaded;
+        }
+    #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);

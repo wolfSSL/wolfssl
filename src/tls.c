@@ -13543,6 +13543,23 @@ static int TLSX_ClientCertificateType_Parse(WOLFSSL* ssl, const byte* input,
     else if (msgType == server_hello || msgType == encrypted_extensions) {
         /* parse it in client side */
         if (length == 1) {
+            /* Same offered-vs-received binding as the server_cert_type twin
+             * above (RFC 7250 4.1, RFC 8446 4.2). An unsolicited value here
+             * would let the peer pick the form this client presents its own
+             * credential in. */
+            if (ssl->options.rpkState.sending_ClientCertTypeCnt == 0) {
+                WOLFSSL_MSG("client_cert_type received but never offered");
+                WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+                return UNSUPPORTED_EXTENSION;
+            }
+            if (!IsCertTypeListed(*input,
+                    ssl->options.rpkState.sending_ClientCertTypeCnt,
+                    ssl->options.rpkState.sending_ClientCertTypes)) {
+                WOLFSSL_MSG("client_cert_type value was not offered");
+                WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+                return UNSUPPORTED_EXTENSION;
+            }
+
             ssl->options.rpkState.received_ClientCertTypeCnt  = 1;
             ssl->options.rpkState.received_ClientCertTypes[0] = *input;
         }
@@ -13742,6 +13759,28 @@ static int TLSX_ServerCertificateType_Parse(WOLFSSL* ssl, const byte* input,
         /* in client side */
         if (length != 1)                     /* length slould be 1 */
             return BUFFER_E;
+
+        /* RFC 7250 4.1 and RFC 8446 4.2: a server may only answer with a
+         * certificate type the client offered, and must not send the extension
+         * at all when the client did not offer it. Enforce that here, because
+         * the value stored below is what ProcessPeerCertParse() later treats as
+         * the negotiated certificate type - accepting an unsolicited value lets
+         * the peer choose it, and a peer-chosen RawPublicKey means
+         * ParseCertRelative() returns before any chain or trust verification.
+         * sending_ServerCertTypes[] holds what this client actually offered;
+         * the count is 0 when no extension was sent. */
+        if (ssl->options.rpkState.sending_ServerCertTypeCnt == 0) {
+            WOLFSSL_MSG("server_cert_type received but never offered");
+            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+            return UNSUPPORTED_EXTENSION;
+        }
+        if (!IsCertTypeListed(*input,
+                ssl->options.rpkState.sending_ServerCertTypeCnt,
+                ssl->options.rpkState.sending_ServerCertTypes)) {
+            WOLFSSL_MSG("server_cert_type value was not offered");
+            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+            return UNSUPPORTED_EXTENSION;
+        }
 
         ssl->options.rpkState.received_ServerCertTypeCnt  = 1;
         ssl->options.rpkState.received_ServerCertTypes[0] = *input;
