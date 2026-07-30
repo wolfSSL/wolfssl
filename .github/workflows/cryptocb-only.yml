@@ -133,6 +133,9 @@ jobs:
           {"name": "all", "minutes": 4.3,
            "comment": "All eight ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_CURVE448"]}
+          {"name": "only",
+           "comment": "Same coverage as the \"all\" entry above, but driven by ./configure --enable-cryptocb=only instead of a hand-written CPPFLAGS list. This is the regression test for the configure option: it must emit exactly the WOLF_CRYPTO_CB_ONLY_* set that \"all\" passes by hand, for the algorithms this base enables. The \"all\" entry deliberately stays on explicit CPPFLAGS so a bug in the configure logic cannot silently weaken both. Note the base already passes --enable-cryptocb; this entry's flags are appended after the base, so --enable-cryptocb=only wins.",
+           "configure": ["--enable-cryptocb=only"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \
