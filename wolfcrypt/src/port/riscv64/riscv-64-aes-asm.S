@@ -19,13 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
-
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./aes/aes.rb riscv64 \
  *       ../wolfssl/wolfcrypt/src/port/riscv64/riscv-64-aes-asm.S
  */
+
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_RISCV_64_AES_ASM_S
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 #ifdef WOLFSSL_RISCV_ASM
 #ifndef WOLFSSL_RISCV_ASM_INLINE
 #ifdef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM

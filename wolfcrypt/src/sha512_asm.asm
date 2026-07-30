@@ -101,16 +101,16 @@ Transform_Sha512_AVX1 PROC
         push	rdi
         push	rsi
         mov	rdi, rcx
-        sub	rsp, 280
-        vmovdqu	OWORD PTR [rsp+136], xmm6
-        vmovdqu	OWORD PTR [rsp+152], xmm7
-        vmovdqu	OWORD PTR [rsp+168], xmm8
-        vmovdqu	OWORD PTR [rsp+184], xmm9
-        vmovdqu	OWORD PTR [rsp+200], xmm10
-        vmovdqu	OWORD PTR [rsp+216], xmm11
-        vmovdqu	OWORD PTR [rsp+232], xmm13
-        vmovdqu	OWORD PTR [rsp+248], xmm12
-        vmovdqu	OWORD PTR [rsp+264], xmm14
+        sub	rsp, 288
+        vmovdqu	OWORD PTR [rsp+144], xmm6
+        vmovdqu	OWORD PTR [rsp+160], xmm7
+        vmovdqu	OWORD PTR [rsp+176], xmm8
+        vmovdqu	OWORD PTR [rsp+192], xmm9
+        vmovdqu	OWORD PTR [rsp+208], xmm10
+        vmovdqu	OWORD PTR [rsp+224], xmm11
+        vmovdqu	OWORD PTR [rsp+240], xmm13
+        vmovdqu	OWORD PTR [rsp+256], xmm12
+        vmovdqu	OWORD PTR [rsp+272], xmm14
         lea	rax, QWORD PTR [rdi+64]
         vmovdqa	xmm14, OWORD PTR L_avx1_sha512_flip_mask
         mov	r8, QWORD PTR [rdi]
@@ -1356,16 +1356,16 @@ L_transform_sha512_avx1_start:
         add	QWORD PTR [rdi+48], r14
         add	QWORD PTR [rdi+56], r15
         xor	rax, rax
-        vmovdqu	xmm6, OWORD PTR [rsp+136]
-        vmovdqu	xmm7, OWORD PTR [rsp+152]
-        vmovdqu	xmm8, OWORD PTR [rsp+168]
-        vmovdqu	xmm9, OWORD PTR [rsp+184]
-        vmovdqu	xmm10, OWORD PTR [rsp+200]
-        vmovdqu	xmm11, OWORD PTR [rsp+216]
-        vmovdqu	xmm13, OWORD PTR [rsp+232]
-        vmovdqu	xmm12, OWORD PTR [rsp+248]
-        vmovdqu	xmm14, OWORD PTR [rsp+264]
-        add	rsp, 280
+        vmovdqu	xmm6, OWORD PTR [rsp+144]
+        vmovdqu	xmm7, OWORD PTR [rsp+160]
+        vmovdqu	xmm8, OWORD PTR [rsp+176]
+        vmovdqu	xmm9, OWORD PTR [rsp+192]
+        vmovdqu	xmm10, OWORD PTR [rsp+208]
+        vmovdqu	xmm11, OWORD PTR [rsp+224]
+        vmovdqu	xmm13, OWORD PTR [rsp+240]
+        vmovdqu	xmm12, OWORD PTR [rsp+256]
+        vmovdqu	xmm14, OWORD PTR [rsp+272]
+        add	rsp, 288
         pop	rsi
         pop	rdi
         pop	r15
@@ -1388,16 +1388,16 @@ Transform_Sha512_AVX1_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rbp, rdx
-        sub	rsp, 288
-        vmovdqu	OWORD PTR [rsp+144], xmm6
-        vmovdqu	OWORD PTR [rsp+160], xmm7
-        vmovdqu	OWORD PTR [rsp+176], xmm8
-        vmovdqu	OWORD PTR [rsp+192], xmm9
-        vmovdqu	OWORD PTR [rsp+208], xmm10
-        vmovdqu	OWORD PTR [rsp+224], xmm11
-        vmovdqu	OWORD PTR [rsp+240], xmm13
-        vmovdqu	OWORD PTR [rsp+256], xmm12
-        vmovdqu	OWORD PTR [rsp+272], xmm14
+        sub	rsp, 296
+        vmovdqu	OWORD PTR [rsp+152], xmm6
+        vmovdqu	OWORD PTR [rsp+168], xmm7
+        vmovdqu	OWORD PTR [rsp+184], xmm8
+        vmovdqu	OWORD PTR [rsp+200], xmm9
+        vmovdqu	OWORD PTR [rsp+216], xmm10
+        vmovdqu	OWORD PTR [rsp+232], xmm11
+        vmovdqu	OWORD PTR [rsp+248], xmm13
+        vmovdqu	OWORD PTR [rsp+264], xmm12
+        vmovdqu	OWORD PTR [rsp+280], xmm14
         mov	rsi, QWORD PTR [rdi+224]
         mov	rdx, QWORD PTR [ptr_L_avx1_sha512_k]
         vmovdqa	xmm14, OWORD PTR L_avx1_sha512_flip_mask
@@ -2659,16 +2659,16 @@ L_sha512_len_avx1_start:
         mov	QWORD PTR [rdi+56], r15
         jnz	L_sha512_len_avx1_begin
         xor	rax, rax
-        vmovdqu	xmm6, OWORD PTR [rsp+144]
-        vmovdqu	xmm7, OWORD PTR [rsp+160]
-        vmovdqu	xmm8, OWORD PTR [rsp+176]
-        vmovdqu	xmm9, OWORD PTR [rsp+192]
-        vmovdqu	xmm10, OWORD PTR [rsp+208]
-        vmovdqu	xmm11, OWORD PTR [rsp+224]
-        vmovdqu	xmm13, OWORD PTR [rsp+240]
-        vmovdqu	xmm12, OWORD PTR [rsp+256]
-        vmovdqu	xmm14, OWORD PTR [rsp+272]
-        add	rsp, 288
+        vmovdqu	xmm6, OWORD PTR [rsp+152]
+        vmovdqu	xmm7, OWORD PTR [rsp+168]
+        vmovdqu	xmm8, OWORD PTR [rsp+184]
+        vmovdqu	xmm9, OWORD PTR [rsp+200]
+        vmovdqu	xmm10, OWORD PTR [rsp+216]
+        vmovdqu	xmm11, OWORD PTR [rsp+232]
+        vmovdqu	xmm13, OWORD PTR [rsp+248]
+        vmovdqu	xmm12, OWORD PTR [rsp+264]
+        vmovdqu	xmm14, OWORD PTR [rsp+280]
+        add	rsp, 296
         pop	rbp
         pop	rsi
         pop	rdi
@@ -2739,16 +2739,16 @@ Transform_Sha512_AVX1_RORX PROC
         push	rdi
         push	rsi
         mov	rdi, rcx
-        sub	rsp, 280
-        vmovdqu	OWORD PTR [rsp+136], xmm6
-        vmovdqu	OWORD PTR [rsp+152], xmm7
-        vmovdqu	OWORD PTR [rsp+168], xmm8
-        vmovdqu	OWORD PTR [rsp+184], xmm9
-        vmovdqu	OWORD PTR [rsp+200], xmm10
-        vmovdqu	OWORD PTR [rsp+216], xmm11
-        vmovdqu	OWORD PTR [rsp+232], xmm13
-        vmovdqu	OWORD PTR [rsp+248], xmm12
-        vmovdqu	OWORD PTR [rsp+264], xmm14
+        sub	rsp, 288
+        vmovdqu	OWORD PTR [rsp+144], xmm6
+        vmovdqu	OWORD PTR [rsp+160], xmm7
+        vmovdqu	OWORD PTR [rsp+176], xmm8
+        vmovdqu	OWORD PTR [rsp+192], xmm9
+        vmovdqu	OWORD PTR [rsp+208], xmm10
+        vmovdqu	OWORD PTR [rsp+224], xmm11
+        vmovdqu	OWORD PTR [rsp+240], xmm13
+        vmovdqu	OWORD PTR [rsp+256], xmm12
+        vmovdqu	OWORD PTR [rsp+272], xmm14
         lea	rax, QWORD PTR [rdi+64]
         vmovdqa	xmm14, OWORD PTR L_avx1_rorx_sha512_flip_mask
         mov	r8, QWORD PTR [rdi]
@@ -3923,16 +3923,16 @@ L_transform_sha512_avx1_rorx_start:
         add	QWORD PTR [rdi+48], r14
         add	QWORD PTR [rdi+56], r15
         xor	rax, rax
-        vmovdqu	xmm6, OWORD PTR [rsp+136]
-        vmovdqu	xmm7, OWORD PTR [rsp+152]
-        vmovdqu	xmm8, OWORD PTR [rsp+168]
-        vmovdqu	xmm9, OWORD PTR [rsp+184]
-        vmovdqu	xmm10, OWORD PTR [rsp+200]
-        vmovdqu	xmm11, OWORD PTR [rsp+216]
-        vmovdqu	xmm13, OWORD PTR [rsp+232]
-        vmovdqu	xmm12, OWORD PTR [rsp+248]
-        vmovdqu	xmm14, OWORD PTR [rsp+264]
-        add	rsp, 280
+        vmovdqu	xmm6, OWORD PTR [rsp+144]
+        vmovdqu	xmm7, OWORD PTR [rsp+160]
+        vmovdqu	xmm8, OWORD PTR [rsp+176]
+        vmovdqu	xmm9, OWORD PTR [rsp+192]
+        vmovdqu	xmm10, OWORD PTR [rsp+208]
+        vmovdqu	xmm11, OWORD PTR [rsp+224]
+        vmovdqu	xmm13, OWORD PTR [rsp+240]
+        vmovdqu	xmm12, OWORD PTR [rsp+256]
+        vmovdqu	xmm14, OWORD PTR [rsp+272]
+        add	rsp, 288
         pop	rsi
         pop	rdi
         pop	r15
@@ -3955,16 +3955,16 @@ Transform_Sha512_AVX1_RORX_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rbp, rdx
-        sub	rsp, 288
-        vmovdqu	OWORD PTR [rsp+144], xmm6
-        vmovdqu	OWORD PTR [rsp+160], xmm7
-        vmovdqu	OWORD PTR [rsp+176], xmm8
-        vmovdqu	OWORD PTR [rsp+192], xmm9
-        vmovdqu	OWORD PTR [rsp+208], xmm10
-        vmovdqu	OWORD PTR [rsp+224], xmm11
-        vmovdqu	OWORD PTR [rsp+240], xmm13
-        vmovdqu	OWORD PTR [rsp+256], xmm12
-        vmovdqu	OWORD PTR [rsp+272], xmm14
+        sub	rsp, 296
+        vmovdqu	OWORD PTR [rsp+152], xmm6
+        vmovdqu	OWORD PTR [rsp+168], xmm7
+        vmovdqu	OWORD PTR [rsp+184], xmm8
+        vmovdqu	OWORD PTR [rsp+200], xmm9
+        vmovdqu	OWORD PTR [rsp+216], xmm10
+        vmovdqu	OWORD PTR [rsp+232], xmm11
+        vmovdqu	OWORD PTR [rsp+248], xmm13
+        vmovdqu	OWORD PTR [rsp+264], xmm12
+        vmovdqu	OWORD PTR [rsp+280], xmm14
         mov	rsi, QWORD PTR [rdi+224]
         mov	rcx, QWORD PTR [ptr_L_avx1_rorx_sha512_k]
         vmovdqa	xmm14, OWORD PTR L_avx1_rorx_sha512_flip_mask
@@ -5171,16 +5171,16 @@ L_sha512_len_avx1_rorx_start:
         mov	QWORD PTR [rdi+56], r15
         jnz	L_sha512_len_avx1_rorx_begin
         xor	rax, rax
-        vmovdqu	xmm6, OWORD PTR [rsp+144]
-        vmovdqu	xmm7, OWORD PTR [rsp+160]
-        vmovdqu	xmm8, OWORD PTR [rsp+176]
-        vmovdqu	xmm9, OWORD PTR [rsp+192]
-        vmovdqu	xmm10, OWORD PTR [rsp+208]
-        vmovdqu	xmm11, OWORD PTR [rsp+224]
-        vmovdqu	xmm13, OWORD PTR [rsp+240]
-        vmovdqu	xmm12, OWORD PTR [rsp+256]
-        vmovdqu	xmm14, OWORD PTR [rsp+272]
-        add	rsp, 288
+        vmovdqu	xmm6, OWORD PTR [rsp+152]
+        vmovdqu	xmm7, OWORD PTR [rsp+168]
+        vmovdqu	xmm8, OWORD PTR [rsp+184]
+        vmovdqu	xmm9, OWORD PTR [rsp+200]
+        vmovdqu	xmm10, OWORD PTR [rsp+216]
+        vmovdqu	xmm11, OWORD PTR [rsp+232]
+        vmovdqu	xmm13, OWORD PTR [rsp+248]
+        vmovdqu	xmm12, OWORD PTR [rsp+264]
+        vmovdqu	xmm14, OWORD PTR [rsp+280]
+        add	rsp, 296
         pop	rbp
         pop	rsi
         pop	rdi
@@ -5343,17 +5343,17 @@ Transform_Sha512_AVX2 PROC
         push	rdi
         push	rsi
         mov	rdi, rcx
-        sub	rsp, 296
-        vmovdqu	OWORD PTR [rsp+136], xmm6
-        vmovdqu	OWORD PTR [rsp+152], xmm7
-        vmovdqu	OWORD PTR [rsp+168], xmm8
-        vmovdqu	OWORD PTR [rsp+184], xmm9
-        vmovdqu	OWORD PTR [rsp+200], xmm10
-        vmovdqu	OWORD PTR [rsp+216], xmm11
-        vmovdqu	OWORD PTR [rsp+232], xmm14
-        vmovdqu	OWORD PTR [rsp+248], xmm13
-        vmovdqu	OWORD PTR [rsp+264], xmm12
-        vmovdqu	OWORD PTR [rsp+280], xmm15
+        sub	rsp, 304
+        vmovdqu	OWORD PTR [rsp+144], xmm6
+        vmovdqu	OWORD PTR [rsp+160], xmm7
+        vmovdqu	OWORD PTR [rsp+176], xmm8
+        vmovdqu	OWORD PTR [rsp+192], xmm9
+        vmovdqu	OWORD PTR [rsp+208], xmm10
+        vmovdqu	OWORD PTR [rsp+224], xmm11
+        vmovdqu	OWORD PTR [rsp+240], xmm14
+        vmovdqu	OWORD PTR [rsp+256], xmm13
+        vmovdqu	OWORD PTR [rsp+272], xmm12
+        vmovdqu	OWORD PTR [rsp+288], xmm15
         lea	rax, QWORD PTR [rdi+64]
         vmovdqu	ymm15, YMMWORD PTR L_avx2_sha512_flip_mask
         mov	r8, QWORD PTR [rdi]
@@ -6388,17 +6388,17 @@ L_sha256_avx2_start:
         add	QWORD PTR [rdi+56], r15
         xor	rax, rax
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+136]
-        vmovdqu	xmm7, OWORD PTR [rsp+152]
-        vmovdqu	xmm8, OWORD PTR [rsp+168]
-        vmovdqu	xmm9, OWORD PTR [rsp+184]
-        vmovdqu	xmm10, OWORD PTR [rsp+200]
-        vmovdqu	xmm11, OWORD PTR [rsp+216]
-        vmovdqu	xmm14, OWORD PTR [rsp+232]
-        vmovdqu	xmm13, OWORD PTR [rsp+248]
-        vmovdqu	xmm12, OWORD PTR [rsp+264]
-        vmovdqu	xmm15, OWORD PTR [rsp+280]
-        add	rsp, 296
+        vmovdqu	xmm6, OWORD PTR [rsp+144]
+        vmovdqu	xmm7, OWORD PTR [rsp+160]
+        vmovdqu	xmm8, OWORD PTR [rsp+176]
+        vmovdqu	xmm9, OWORD PTR [rsp+192]
+        vmovdqu	xmm10, OWORD PTR [rsp+208]
+        vmovdqu	xmm11, OWORD PTR [rsp+224]
+        vmovdqu	xmm14, OWORD PTR [rsp+240]
+        vmovdqu	xmm13, OWORD PTR [rsp+256]
+        vmovdqu	xmm12, OWORD PTR [rsp+272]
+        vmovdqu	xmm15, OWORD PTR [rsp+288]
+        add	rsp, 304
         pop	rsi
         pop	rdi
         pop	r15
@@ -6421,17 +6421,17 @@ Transform_Sha512_AVX2_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rbp, rdx
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm14
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm12
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm14
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm12
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         test	bpl, 128
         je	L_sha512_len_avx2_block
         mov	rbx, QWORD PTR [rdi+224]
@@ -8027,17 +8027,17 @@ L_sha512_len_avx2_tail:
 L_sha512_len_avx2_done:
         xor	rax, rax
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm14, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm12, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm14, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm12, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	rbp
         pop	rdi
         pop	rsi
@@ -8198,17 +8198,17 @@ Transform_Sha512_AVX2_RORX PROC
         push	rdi
         push	rsi
         mov	rdi, rcx
-        sub	rsp, 296
-        vmovdqu	OWORD PTR [rsp+136], xmm6
-        vmovdqu	OWORD PTR [rsp+152], xmm7
-        vmovdqu	OWORD PTR [rsp+168], xmm8
-        vmovdqu	OWORD PTR [rsp+184], xmm9
-        vmovdqu	OWORD PTR [rsp+200], xmm10
-        vmovdqu	OWORD PTR [rsp+216], xmm11
-        vmovdqu	OWORD PTR [rsp+232], xmm14
-        vmovdqu	OWORD PTR [rsp+248], xmm13
-        vmovdqu	OWORD PTR [rsp+264], xmm12
-        vmovdqu	OWORD PTR [rsp+280], xmm15
+        sub	rsp, 304
+        vmovdqu	OWORD PTR [rsp+144], xmm6
+        vmovdqu	OWORD PTR [rsp+160], xmm7
+        vmovdqu	OWORD PTR [rsp+176], xmm8
+        vmovdqu	OWORD PTR [rsp+192], xmm9
+        vmovdqu	OWORD PTR [rsp+208], xmm10
+        vmovdqu	OWORD PTR [rsp+224], xmm11
+        vmovdqu	OWORD PTR [rsp+240], xmm14
+        vmovdqu	OWORD PTR [rsp+256], xmm13
+        vmovdqu	OWORD PTR [rsp+272], xmm12
+        vmovdqu	OWORD PTR [rsp+288], xmm15
         lea	rcx, QWORD PTR [rdi+64]
         vmovdqu	ymm15, YMMWORD PTR L_avx2_rorx_sha512_flip_mask
         mov	r8, QWORD PTR [rdi]
@@ -9185,17 +9185,17 @@ L_sha256_len_avx2_rorx_start:
         add	QWORD PTR [rdi+56], r15
         xor	rax, rax
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+136]
-        vmovdqu	xmm7, OWORD PTR [rsp+152]
-        vmovdqu	xmm8, OWORD PTR [rsp+168]
-        vmovdqu	xmm9, OWORD PTR [rsp+184]
-        vmovdqu	xmm10, OWORD PTR [rsp+200]
-        vmovdqu	xmm11, OWORD PTR [rsp+216]
-        vmovdqu	xmm14, OWORD PTR [rsp+232]
-        vmovdqu	xmm13, OWORD PTR [rsp+248]
-        vmovdqu	xmm12, OWORD PTR [rsp+264]
-        vmovdqu	xmm15, OWORD PTR [rsp+280]
-        add	rsp, 296
+        vmovdqu	xmm6, OWORD PTR [rsp+144]
+        vmovdqu	xmm7, OWORD PTR [rsp+160]
+        vmovdqu	xmm8, OWORD PTR [rsp+176]
+        vmovdqu	xmm9, OWORD PTR [rsp+192]
+        vmovdqu	xmm10, OWORD PTR [rsp+208]
+        vmovdqu	xmm11, OWORD PTR [rsp+224]
+        vmovdqu	xmm14, OWORD PTR [rsp+240]
+        vmovdqu	xmm13, OWORD PTR [rsp+256]
+        vmovdqu	xmm12, OWORD PTR [rsp+272]
+        vmovdqu	xmm15, OWORD PTR [rsp+288]
+        add	rsp, 304
         pop	rsi
         pop	rdi
         pop	r15
@@ -9218,17 +9218,17 @@ Transform_Sha512_AVX2_RORX_Len PROC
         push	rbp
         mov	rdi, rcx
         mov	rsi, rdx
-        sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm14
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm12
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        sub	rsp, 168
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
+        vmovdqu	OWORD PTR [rsp+88], xmm11
+        vmovdqu	OWORD PTR [rsp+104], xmm14
+        vmovdqu	OWORD PTR [rsp+120], xmm13
+        vmovdqu	OWORD PTR [rsp+136], xmm12
+        vmovdqu	OWORD PTR [rsp+152], xmm15
         test	sil, 128
         je	L_sha512_len_avx2_rorx_block
         mov	rax, QWORD PTR [rdi+224]
@@ -9241,7 +9241,9 @@ Transform_Sha512_AVX2_RORX_Len PROC
         vmovups	YMMWORD PTR [rdi+96], ymm1
         vmovups	YMMWORD PTR [rdi+128], ymm2
         vmovups	YMMWORD PTR [rdi+160], ymm3
+        sub	rsp, 8
         call	Transform_Sha512_AVX2_RORX
+        add	rsp, 8
         pop	rsi
         add	QWORD PTR [rdi+224], 128
         sub	esi, 128
@@ -10748,17 +10750,17 @@ L_sha512_len_avx2_rorx_tail:
 L_sha512_len_avx2_rorx_done:
         xor	rax, rax
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm14, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm12, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
-        add	rsp, 160
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        vmovdqu	xmm11, OWORD PTR [rsp+88]
+        vmovdqu	xmm14, OWORD PTR [rsp+104]
+        vmovdqu	xmm13, OWORD PTR [rsp+120]
+        vmovdqu	xmm12, OWORD PTR [rsp+136]
+        vmovdqu	xmm15, OWORD PTR [rsp+152]
+        add	rsp, 168
         pop	rbp
         pop	rsi
         pop	rdi

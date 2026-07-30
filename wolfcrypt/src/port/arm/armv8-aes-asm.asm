@@ -19,7 +19,6 @@
 ;  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 ;  */
 
-
 ; Generated using (from wolfssl):
 ;   cd ../scripts
 ;   ruby ./aes/aes.rb arm64 \

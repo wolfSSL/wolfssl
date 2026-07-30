@@ -25,6 +25,9 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-mlkem-asm.c
  */
 
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_ARMV8_32_MLKEM_ASM_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 

@@ -1255,7 +1255,7 @@ fe_mul121666_x64 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 fe_invert_x64 PROC
-        sub	rsp, 144
+        sub	rsp, 152
         ; Invert
         mov	QWORD PTR [rsp+128], rcx
         mov	QWORD PTR [rsp+136], rdx
@@ -1373,7 +1373,7 @@ fe_invert_x64 PROC
         call	fe_mul_x64
         mov	rdx, QWORD PTR [rsp+136]
         mov	rcx, QWORD PTR [rsp+128]
-        add	rsp, 144
+        add	rsp, 152
         ret
 fe_invert_x64 ENDP
 _TEXT ENDS
@@ -3580,7 +3580,7 @@ curve25519_x64 PROC
         push	rbp
         mov	r9, rcx
         mov	r10, rdx
-        sub	rsp, 176
+        sub	rsp, 184
         xor	rbx, rbx
         mov	QWORD PTR [rsp+168], r9
         ; Set one
@@ -5850,7 +5850,7 @@ L_curve25519_x64_3:
         mov	QWORD PTR [r9+16], r12
         mov	QWORD PTR [r9+24], r13
         xor	rax, rax
-        add	rsp, 176
+        add	rsp, 184
         pop	rbp
         pop	rbx
         pop	rsi
@@ -5864,7 +5864,7 @@ curve25519_x64 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 fe_pow22523_x64 PROC
-        sub	rsp, 112
+        sub	rsp, 120
         ; pow22523
         mov	QWORD PTR [rsp+96], rcx
         mov	QWORD PTR [rsp+104], rdx
@@ -5981,7 +5981,7 @@ fe_pow22523_x64 PROC
         call	fe_mul_x64
         mov	rdx, QWORD PTR [rsp+104]
         mov	rcx, QWORD PTR [rsp+96]
-        add	rsp, 112
+        add	rsp, 120
         ret
 fe_pow22523_x64 ENDP
 _TEXT ENDS
@@ -10734,7 +10734,7 @@ fe_invert_nct_x64 PROC
         push	r15
         push	rdi
         push	rsi
-        sub	rsp, 513
+        sub	rsp, 520
         mov	r9, -19
         mov	r10, -1
         mov	r11, -1
@@ -10933,7 +10933,7 @@ L_fe_invert_nct_store_d:
         mov	QWORD PTR [rcx+16], r15
         mov	QWORD PTR [rcx+24], rdi
 L_fe_invert_nct_store_end:
-        add	rsp, 513
+        add	rsp, 520
         pop	rsi
         pop	rdi
         pop	r15
@@ -11508,7 +11508,7 @@ fe_mul121666_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 fe_invert_avx2 PROC
-        sub	rsp, 144
+        sub	rsp, 152
         ; Invert
         mov	QWORD PTR [rsp+128], rcx
         mov	QWORD PTR [rsp+136], rdx
@@ -11626,7 +11626,7 @@ fe_invert_avx2 PROC
         call	fe_mul_avx2
         mov	rdx, QWORD PTR [rsp+136]
         mov	rcx, QWORD PTR [rsp+128]
-        add	rsp, 144
+        add	rsp, 152
         ret
 fe_invert_avx2 ENDP
 _TEXT ENDS
@@ -11649,7 +11649,7 @@ curve25519_base_avx2 PROC
         push	rbp
         mov	r8, rcx
         mov	r9, rdx
-        sub	rsp, 176
+        sub	rsp, 184
         mov	QWORD PTR [rsp+168], 0
         mov	QWORD PTR [rsp+160], r8
         ; Set base point x
@@ -13418,7 +13418,7 @@ L_curve25519_base_avx2_last_3:
         mov	QWORD PTR [r8+16], r12
         mov	QWORD PTR [r8+24], r13
         xor	rax, rax
-        add	rsp, 176
+        add	rsp, 184
         pop	rbp
         pop	rsi
         pop	rdi
@@ -15321,7 +15321,7 @@ curve25519_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 fe_pow22523_avx2 PROC
-        sub	rsp, 112
+        sub	rsp, 120
         ; pow22523
         mov	QWORD PTR [rsp+96], rcx
         mov	QWORD PTR [rsp+104], rdx
@@ -15438,7 +15438,7 @@ fe_pow22523_avx2 PROC
         call	fe_mul_avx2
         mov	rdx, QWORD PTR [rsp+104]
         mov	rcx, QWORD PTR [rsp+96]
-        add	rsp, 112
+        add	rsp, 120
         ret
 fe_pow22523_avx2 ENDP
 _TEXT ENDS
@@ -15453,7 +15453,7 @@ ge_p1p1_to_p2_avx2 PROC
         push	rbx
         push	rbp
         mov	rax, rdx
-        sub	rsp, 16
+        sub	rsp, 24
         mov	QWORD PTR [rsp], rcx
         mov	QWORD PTR [rsp+8], rax
         lea	r8, QWORD PTR [rax+96]
@@ -15770,7 +15770,7 @@ ge_p1p1_to_p2_avx2 PROC
         mov	QWORD PTR [rcx+8], r13
         mov	QWORD PTR [rcx+16], r14
         mov	QWORD PTR [rcx+24], r15
-        add	rsp, 16
+        add	rsp, 24
         pop	rbp
         pop	rbx
         pop	rsi
@@ -15793,7 +15793,7 @@ ge_p1p1_to_p3_avx2 PROC
         push	rbx
         push	rbp
         mov	rax, rdx
-        sub	rsp, 16
+        sub	rsp, 24
         mov	QWORD PTR [rsp], rcx
         mov	QWORD PTR [rsp+8], rax
         lea	r8, QWORD PTR [rax+96]
@@ -16215,7 +16215,7 @@ ge_p1p1_to_p3_avx2 PROC
         mov	QWORD PTR [rcx+8], r13
         mov	QWORD PTR [rcx+16], r14
         mov	QWORD PTR [rcx+24], r15
-        add	rsp, 16
+        add	rsp, 24
         pop	rbp
         pop	rbx
         pop	rsi
@@ -16238,7 +16238,7 @@ ge_p2_dbl_avx2 PROC
         push	rbx
         push	rbp
         mov	rax, rdx
-        sub	rsp, 16
+        sub	rsp, 24
         mov	QWORD PTR [rsp], rcx
         mov	QWORD PTR [rsp+8], rax
         lea	rcx, QWORD PTR [rcx+64]
@@ -16674,7 +16674,7 @@ ge_p2_dbl_avx2 PROC
         mov	QWORD PTR [rcx+8], r13
         mov	QWORD PTR [rcx+16], r14
         mov	QWORD PTR [rcx+24], r15
-        add	rsp, 16
+        add	rsp, 24
         pop	rbp
         pop	rbx
         pop	rsi

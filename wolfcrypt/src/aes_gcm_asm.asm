@@ -53,12 +53,12 @@ ptr_L_GCM_generate_m0_aesni_mod2_128 QWORD L_GCM_generate_m0_aesni_mod2_128
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 GCM_generate_m0_aesni PROC
-        sub	rsp, 80
-        movdqu	OWORD PTR [rsp], xmm6
-        movdqu	OWORD PTR [rsp+16], xmm7
-        movdqu	OWORD PTR [rsp+32], xmm8
-        movdqu	OWORD PTR [rsp+48], xmm9
-        movdqu	OWORD PTR [rsp+64], xmm10
+        sub	rsp, 88
+        movdqu	OWORD PTR [rsp+8], xmm6
+        movdqu	OWORD PTR [rsp+24], xmm7
+        movdqu	OWORD PTR [rsp+40], xmm8
+        movdqu	OWORD PTR [rsp+56], xmm9
+        movdqu	OWORD PTR [rsp+72], xmm10
         movdqu	xmm9, OWORD PTR L_GCM_generate_m0_aesni_rev8
         movdqu	xmm10, OWORD PTR L_GCM_generate_m0_aesni_mod2_128
         pxor	xmm8, xmm8
@@ -285,12 +285,12 @@ GCM_generate_m0_aesni PROC
         movdqu	OWORD PTR [rdx+464], xmm1
         movdqu	OWORD PTR [rdx+480], xmm2
         movdqu	OWORD PTR [rdx+496], xmm3
-        movdqu	xmm6, OWORD PTR [rsp]
-        movdqu	xmm7, OWORD PTR [rsp+16]
-        movdqu	xmm8, OWORD PTR [rsp+32]
-        movdqu	xmm9, OWORD PTR [rsp+48]
-        movdqu	xmm10, OWORD PTR [rsp+64]
-        add	rsp, 80
+        movdqu	xmm6, OWORD PTR [rsp+8]
+        movdqu	xmm7, OWORD PTR [rsp+24]
+        movdqu	xmm8, OWORD PTR [rsp+40]
+        movdqu	xmm9, OWORD PTR [rsp+56]
+        movdqu	xmm10, OWORD PTR [rsp+72]
+        add	rsp, 88
         ret
 GCM_generate_m0_aesni ENDP
 _TEXT ENDS
@@ -4004,9 +4004,9 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_aad_update_aesni PROC
         mov	rax, rcx
-        sub	rsp, 32
-        movdqu	OWORD PTR [rsp], xmm6
-        movdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        movdqu	OWORD PTR [rsp+8], xmm6
+        movdqu	OWORD PTR [rsp+24], xmm7
         movdqa	xmm5, OWORD PTR [r8]
         movdqa	xmm6, OWORD PTR [r9]
         xor	ecx, ecx
@@ -4072,9 +4072,9 @@ L_AES_GCM_aad_update_aesni_16_loop:
         cmp	ecx, edx
         jl	L_AES_GCM_aad_update_aesni_16_loop
         movdqa	OWORD PTR [r8], xmm5
-        movdqu	xmm6, OWORD PTR [rsp]
-        movdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        movdqu	xmm6, OWORD PTR [rsp+8]
+        movdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 AES_GCM_aad_update_aesni ENDP
 _TEXT ENDS
@@ -4120,9 +4120,9 @@ AES_GCM_encrypt_block_aesni ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_aesni PROC
-        sub	rsp, 32
-        movdqu	OWORD PTR [rsp], xmm6
-        movdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        movdqu	OWORD PTR [rsp+8], xmm6
+        movdqu	OWORD PTR [rsp+24], xmm7
         movdqa	xmm4, OWORD PTR [rdx]
         movdqa	xmm5, OWORD PTR [r8]
         movdqu	xmm7, OWORD PTR [rcx]
@@ -4183,9 +4183,9 @@ AES_GCM_ghash_block_aesni PROC
         pxor	xmm2, xmm6
         pxor	xmm4, xmm2
         movdqa	OWORD PTR [rdx], xmm4
-        movdqu	xmm6, OWORD PTR [rsp]
-        movdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        movdqu	xmm6, OWORD PTR [rsp+8]
+        movdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 AES_GCM_ghash_block_aesni ENDP
 _TEXT ENDS
@@ -7032,12 +7032,12 @@ ptr_L_GCM_generate_m0_avx1_mod2_128 QWORD L_GCM_generate_m0_avx1_mod2_128
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 GCM_generate_m0_avx1 PROC
-        sub	rsp, 80
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
+        sub	rsp, 88
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	xmm9, OWORD PTR L_GCM_generate_m0_avx1_rev8
         vmovdqu	xmm10, OWORD PTR L_GCM_generate_m0_avx1_mod2_128
         vpxor	xmm8, xmm8, xmm8
@@ -7230,12 +7230,12 @@ GCM_generate_m0_avx1 PROC
         vmovdqu	OWORD PTR [rdx+464], xmm1
         vmovdqu	OWORD PTR [rdx+480], xmm2
         vmovdqu	OWORD PTR [rdx+496], xmm3
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        add	rsp, 80
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        add	rsp, 88
         ret
 GCM_generate_m0_avx1 ENDP
 _TEXT ENDS
@@ -10099,11 +10099,11 @@ AES_GCM_init_avx1 PROC
         mov	rax, QWORD PTR [rsp+72]
         mov	r8, QWORD PTR [rsp+80]
         mov	r9, QWORD PTR [rsp+88]
-        sub	rsp, 80
-        vmovdqu	OWORD PTR [rsp+16], xmm6
-        vmovdqu	OWORD PTR [rsp+32], xmm7
-        vmovdqu	OWORD PTR [rsp+48], xmm8
-        vmovdqu	OWORD PTR [rsp+64], xmm15
+        sub	rsp, 88
+        vmovdqu	OWORD PTR [rsp+24], xmm6
+        vmovdqu	OWORD PTR [rsp+40], xmm7
+        vmovdqu	OWORD PTR [rsp+56], xmm8
+        vmovdqu	OWORD PTR [rsp+72], xmm15
         vpxor	xmm4, xmm4, xmm4
         mov	edx, r11d
         cmp	edx, 12
@@ -10396,11 +10396,11 @@ L_AES_GCM_init_avx1_iv_done:
         vpaddd	xmm4, xmm4, OWORD PTR L_avx1_aes_gcm_one
         vmovdqa	OWORD PTR [rax], xmm5
         vmovdqa	OWORD PTR [r8], xmm4
-        vmovdqu	xmm6, OWORD PTR [rsp+16]
-        vmovdqu	xmm7, OWORD PTR [rsp+32]
-        vmovdqu	xmm8, OWORD PTR [rsp+48]
-        vmovdqu	xmm15, OWORD PTR [rsp+64]
-        add	rsp, 80
+        vmovdqu	xmm6, OWORD PTR [rsp+24]
+        vmovdqu	xmm7, OWORD PTR [rsp+40]
+        vmovdqu	xmm8, OWORD PTR [rsp+56]
+        vmovdqu	xmm15, OWORD PTR [rsp+72]
+        add	rsp, 88
         pop	r13
         pop	r12
         pop	rsi
@@ -10411,9 +10411,9 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_aad_update_avx1 PROC
         mov	rax, rcx
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         vmovdqa	xmm5, OWORD PTR [r8]
         vmovdqa	xmm6, OWORD PTR [r9]
         xor	ecx, ecx
@@ -10468,9 +10468,9 @@ L_AES_GCM_aad_update_avx1_16_loop:
         cmp	ecx, edx
         jl	L_AES_GCM_aad_update_avx1_16_loop
         vmovdqa	OWORD PTR [r8], xmm5
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 AES_GCM_aad_update_avx1 ENDP
 _TEXT ENDS
@@ -10516,9 +10516,9 @@ AES_GCM_encrypt_block_avx1 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_avx1 PROC
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         vmovdqa	xmm4, OWORD PTR [rdx]
         vmovdqa	xmm5, OWORD PTR [r8]
         vmovdqu	xmm7, OWORD PTR [rcx]
@@ -10569,9 +10569,9 @@ AES_GCM_ghash_block_avx1 PROC
         vpxor	xmm4, xmm4, xmm2
         vmovdqa	OWORD PTR [rdx], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 AES_GCM_ghash_block_avx1 ENDP
 _TEXT ENDS
@@ -11733,17 +11733,17 @@ AES_GCM_decrypt_update_avx1 PROC
         mov	r12, QWORD PTR [rsp+88]
         mov	r14, QWORD PTR [rsp+96]
         mov	r15, QWORD PTR [rsp+104]
-        sub	rsp, 328
-        vmovdqu	OWORD PTR [rsp+168], xmm6
-        vmovdqu	OWORD PTR [rsp+184], xmm7
-        vmovdqu	OWORD PTR [rsp+200], xmm8
-        vmovdqu	OWORD PTR [rsp+216], xmm9
-        vmovdqu	OWORD PTR [rsp+232], xmm10
-        vmovdqu	OWORD PTR [rsp+248], xmm11
-        vmovdqu	OWORD PTR [rsp+264], xmm12
-        vmovdqu	OWORD PTR [rsp+280], xmm13
-        vmovdqu	OWORD PTR [rsp+296], xmm14
-        vmovdqu	OWORD PTR [rsp+312], xmm15
+        sub	rsp, 336
+        vmovdqu	OWORD PTR [rsp+176], xmm6
+        vmovdqu	OWORD PTR [rsp+192], xmm7
+        vmovdqu	OWORD PTR [rsp+208], xmm8
+        vmovdqu	OWORD PTR [rsp+224], xmm9
+        vmovdqu	OWORD PTR [rsp+240], xmm10
+        vmovdqu	OWORD PTR [rsp+256], xmm11
+        vmovdqu	OWORD PTR [rsp+272], xmm12
+        vmovdqu	OWORD PTR [rsp+288], xmm13
+        vmovdqu	OWORD PTR [rsp+304], xmm14
+        vmovdqu	OWORD PTR [rsp+320], xmm15
         vmovdqa	xmm6, OWORD PTR [r12]
         vmovdqa	xmm5, OWORD PTR [r14]
         vpsrlq	xmm9, xmm5, 63
@@ -12325,17 +12325,17 @@ L_AES_GCM_decrypt_update_avx1_last_block_done:
 L_AES_GCM_decrypt_update_avx1_done_dec:
         vmovdqa	OWORD PTR [r12], xmm6
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+168]
-        vmovdqu	xmm7, OWORD PTR [rsp+184]
-        vmovdqu	xmm8, OWORD PTR [rsp+200]
-        vmovdqu	xmm9, OWORD PTR [rsp+216]
-        vmovdqu	xmm10, OWORD PTR [rsp+232]
-        vmovdqu	xmm11, OWORD PTR [rsp+248]
-        vmovdqu	xmm12, OWORD PTR [rsp+264]
-        vmovdqu	xmm13, OWORD PTR [rsp+280]
-        vmovdqu	xmm14, OWORD PTR [rsp+296]
-        vmovdqu	xmm15, OWORD PTR [rsp+312]
-        add	rsp, 328
+        vmovdqu	xmm6, OWORD PTR [rsp+176]
+        vmovdqu	xmm7, OWORD PTR [rsp+192]
+        vmovdqu	xmm8, OWORD PTR [rsp+208]
+        vmovdqu	xmm9, OWORD PTR [rsp+224]
+        vmovdqu	xmm10, OWORD PTR [rsp+240]
+        vmovdqu	xmm11, OWORD PTR [rsp+256]
+        vmovdqu	xmm12, OWORD PTR [rsp+272]
+        vmovdqu	xmm13, OWORD PTR [rsp+288]
+        vmovdqu	xmm14, OWORD PTR [rsp+304]
+        vmovdqu	xmm15, OWORD PTR [rsp+320]
+        add	rsp, 336
         pop	rdi
         pop	r15
         pop	r14
@@ -12939,12 +12939,12 @@ ptr_L_GCM_generate_m0_avx2_mod2_128 QWORD L_GCM_generate_m0_avx2_mod2_128
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 GCM_generate_m0_avx2 PROC
-        sub	rsp, 80
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
+        sub	rsp, 88
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	xmm9, OWORD PTR L_GCM_generate_m0_avx2_rev8
         vmovdqu	xmm10, OWORD PTR L_GCM_generate_m0_avx2_mod2_128
         vpxor	xmm8, xmm8, xmm8
@@ -13137,12 +13137,12 @@ GCM_generate_m0_avx2 PROC
         vmovdqu	OWORD PTR [rdx+464], xmm1
         vmovdqu	OWORD PTR [rdx+480], xmm2
         vmovdqu	OWORD PTR [rdx+496], xmm3
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        add	rsp, 80
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        add	rsp, 88
         ret
 GCM_generate_m0_avx2 ENDP
 _TEXT ENDS
@@ -13226,17 +13226,17 @@ AES_GCM_encrypt_avx2 PROC
         mov	r14d, DWORD PTR [rsp+128]
         mov	rsi, QWORD PTR [rsp+136]
         mov	r9d, DWORD PTR [rsp+144]
-        sub	rsp, 344
-        vmovdqu	OWORD PTR [rsp+184], xmm6
-        vmovdqu	OWORD PTR [rsp+200], xmm7
-        vmovdqu	OWORD PTR [rsp+216], xmm8
-        vmovdqu	OWORD PTR [rsp+232], xmm9
-        vmovdqu	OWORD PTR [rsp+248], xmm10
-        vmovdqu	OWORD PTR [rsp+264], xmm11
-        vmovdqu	OWORD PTR [rsp+280], xmm12
-        vmovdqu	OWORD PTR [rsp+296], xmm13
-        vmovdqu	OWORD PTR [rsp+312], xmm14
-        vmovdqu	OWORD PTR [rsp+328], xmm15
+        sub	rsp, 352
+        vmovdqu	OWORD PTR [rsp+192], xmm6
+        vmovdqu	OWORD PTR [rsp+208], xmm7
+        vmovdqu	OWORD PTR [rsp+224], xmm8
+        vmovdqu	OWORD PTR [rsp+240], xmm9
+        vmovdqu	OWORD PTR [rsp+256], xmm10
+        vmovdqu	OWORD PTR [rsp+272], xmm11
+        vmovdqu	OWORD PTR [rsp+288], xmm12
+        vmovdqu	OWORD PTR [rsp+304], xmm13
+        vmovdqu	OWORD PTR [rsp+320], xmm14
+        vmovdqu	OWORD PTR [rsp+336], xmm15
         vpxor	xmm4, xmm4, xmm4
         vpxor	xmm6, xmm6, xmm6
         mov	edx, ebx
@@ -14682,17 +14682,17 @@ L_AES_GCM_encrypt_avx2_store_tag_16:
         vmovdqu	OWORD PTR [r15], xmm0
 L_AES_GCM_encrypt_avx2_store_tag_done:
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+184]
-        vmovdqu	xmm7, OWORD PTR [rsp+200]
-        vmovdqu	xmm8, OWORD PTR [rsp+216]
-        vmovdqu	xmm9, OWORD PTR [rsp+232]
-        vmovdqu	xmm10, OWORD PTR [rsp+248]
-        vmovdqu	xmm11, OWORD PTR [rsp+264]
-        vmovdqu	xmm12, OWORD PTR [rsp+280]
-        vmovdqu	xmm13, OWORD PTR [rsp+296]
-        vmovdqu	xmm14, OWORD PTR [rsp+312]
-        vmovdqu	xmm15, OWORD PTR [rsp+328]
-        add	rsp, 344
+        vmovdqu	xmm6, OWORD PTR [rsp+192]
+        vmovdqu	xmm7, OWORD PTR [rsp+208]
+        vmovdqu	xmm8, OWORD PTR [rsp+224]
+        vmovdqu	xmm9, OWORD PTR [rsp+240]
+        vmovdqu	xmm10, OWORD PTR [rsp+256]
+        vmovdqu	xmm11, OWORD PTR [rsp+272]
+        vmovdqu	xmm12, OWORD PTR [rsp+288]
+        vmovdqu	xmm13, OWORD PTR [rsp+304]
+        vmovdqu	xmm14, OWORD PTR [rsp+320]
+        vmovdqu	xmm15, OWORD PTR [rsp+336]
+        add	rsp, 352
         pop	rsi
         pop	r14
         pop	rbx
@@ -15876,9 +15876,9 @@ AES_GCM_init_avx2 PROC
         mov	rax, QWORD PTR [rsp+72]
         mov	r8, QWORD PTR [rsp+80]
         mov	r9, QWORD PTR [rsp+88]
-        sub	rsp, 48
-        vmovdqu	OWORD PTR [rsp+16], xmm6
-        vmovdqu	OWORD PTR [rsp+32], xmm7
+        sub	rsp, 56
+        vmovdqu	OWORD PTR [rsp+24], xmm6
+        vmovdqu	OWORD PTR [rsp+40], xmm7
         vpxor	xmm4, xmm4, xmm4
         mov	edx, r11d
         cmp	edx, 12
@@ -16127,9 +16127,9 @@ L_AES_GCM_init_avx2_iv_done:
         vmovdqu	OWORD PTR [rax], xmm5
         vmovdqu	OWORD PTR [r8], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+16]
-        vmovdqu	xmm7, OWORD PTR [rsp+32]
-        add	rsp, 48
+        vmovdqu	xmm6, OWORD PTR [rsp+24]
+        vmovdqu	xmm7, OWORD PTR [rsp+40]
+        add	rsp, 56
         pop	r12
         pop	rsi
         pop	rdi
@@ -16140,8 +16140,8 @@ _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_aad_update_avx2 PROC
         mov	rax, rcx
-        sub	rsp, 16
-        vmovdqu	OWORD PTR [rsp], xmm6
+        sub	rsp, 24
+        vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	xmm4, OWORD PTR [r8]
         vmovdqu	xmm5, OWORD PTR [r9]
         xor	ecx, ecx
@@ -16184,8 +16184,8 @@ L_AES_GCM_aad_update_avx2_16_loop:
         jl	L_AES_GCM_aad_update_avx2_16_loop
         vmovdqu	OWORD PTR [r8], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        add	rsp, 16
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        add	rsp, 24
         ret
 AES_GCM_aad_update_avx2 ENDP
 _TEXT ENDS
@@ -16246,8 +16246,8 @@ AES_GCM_encrypt_block_avx2 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_avx2 PROC
-        sub	rsp, 16
-        vmovdqu	OWORD PTR [rsp], xmm6
+        sub	rsp, 24
+        vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	xmm4, OWORD PTR [rdx]
         vmovdqu	xmm5, OWORD PTR [r8]
         vmovdqu	xmm0, OWORD PTR [rcx]
@@ -16285,8 +16285,8 @@ AES_GCM_ghash_block_avx2 PROC
         vpxor	xmm4, xmm4, xmm1
         vmovdqu	OWORD PTR [rdx], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        add	rsp, 16
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        add	rsp, 24
         ret
 AES_GCM_ghash_block_avx2 ENDP
 _TEXT ENDS
@@ -16305,17 +16305,17 @@ AES_GCM_encrypt_update_avx2 PROC
         mov	r12, QWORD PTR [rsp+88]
         mov	r13, QWORD PTR [rsp+96]
         mov	r14, QWORD PTR [rsp+104]
-        sub	rsp, 312
-        vmovdqu	OWORD PTR [rsp+152], xmm6
-        vmovdqu	OWORD PTR [rsp+168], xmm7
-        vmovdqu	OWORD PTR [rsp+184], xmm8
-        vmovdqu	OWORD PTR [rsp+200], xmm9
-        vmovdqu	OWORD PTR [rsp+216], xmm10
-        vmovdqu	OWORD PTR [rsp+232], xmm11
-        vmovdqu	OWORD PTR [rsp+248], xmm12
-        vmovdqu	OWORD PTR [rsp+264], xmm13
-        vmovdqu	OWORD PTR [rsp+280], xmm14
-        vmovdqu	OWORD PTR [rsp+296], xmm15
+        sub	rsp, 320
+        vmovdqu	OWORD PTR [rsp+160], xmm6
+        vmovdqu	OWORD PTR [rsp+176], xmm7
+        vmovdqu	OWORD PTR [rsp+192], xmm8
+        vmovdqu	OWORD PTR [rsp+208], xmm9
+        vmovdqu	OWORD PTR [rsp+224], xmm10
+        vmovdqu	OWORD PTR [rsp+240], xmm11
+        vmovdqu	OWORD PTR [rsp+256], xmm12
+        vmovdqu	OWORD PTR [rsp+272], xmm13
+        vmovdqu	OWORD PTR [rsp+288], xmm14
+        vmovdqu	OWORD PTR [rsp+304], xmm15
         vmovdqu	xmm6, OWORD PTR [r12]
         vmovdqu	xmm5, OWORD PTR [r13]
         vmovdqu	xmm4, OWORD PTR [r14]
@@ -17146,17 +17146,17 @@ L_AES_GCM_encrypt_update_avx2_done_enc:
         vmovdqu	OWORD PTR [r12], xmm6
         vmovdqu	OWORD PTR [r14], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+152]
-        vmovdqu	xmm7, OWORD PTR [rsp+168]
-        vmovdqu	xmm8, OWORD PTR [rsp+184]
-        vmovdqu	xmm9, OWORD PTR [rsp+200]
-        vmovdqu	xmm10, OWORD PTR [rsp+216]
-        vmovdqu	xmm11, OWORD PTR [rsp+232]
-        vmovdqu	xmm12, OWORD PTR [rsp+248]
-        vmovdqu	xmm13, OWORD PTR [rsp+264]
-        vmovdqu	xmm14, OWORD PTR [rsp+280]
-        vmovdqu	xmm15, OWORD PTR [rsp+296]
-        add	rsp, 312
+        vmovdqu	xmm6, OWORD PTR [rsp+160]
+        vmovdqu	xmm7, OWORD PTR [rsp+176]
+        vmovdqu	xmm8, OWORD PTR [rsp+192]
+        vmovdqu	xmm9, OWORD PTR [rsp+208]
+        vmovdqu	xmm10, OWORD PTR [rsp+224]
+        vmovdqu	xmm11, OWORD PTR [rsp+240]
+        vmovdqu	xmm12, OWORD PTR [rsp+256]
+        vmovdqu	xmm13, OWORD PTR [rsp+272]
+        vmovdqu	xmm14, OWORD PTR [rsp+288]
+        vmovdqu	xmm15, OWORD PTR [rsp+304]
+        add	rsp, 320
         pop	rdi
         pop	r15
         pop	r14
@@ -17172,9 +17172,9 @@ AES_GCM_encrypt_final_avx2 PROC
         mov	eax, DWORD PTR [rsp+56]
         mov	r10, QWORD PTR [rsp+64]
         mov	r11, QWORD PTR [rsp+72]
-        sub	rsp, 48
-        vmovdqu	OWORD PTR [rsp+16], xmm6
-        vmovdqu	OWORD PTR [rsp+32], xmm7
+        sub	rsp, 56
+        vmovdqu	OWORD PTR [rsp+24], xmm6
+        vmovdqu	OWORD PTR [rsp+40], xmm7
         vmovdqu	xmm4, OWORD PTR [rcx]
         vmovdqu	xmm5, OWORD PTR [r10]
         vmovdqu	xmm6, OWORD PTR [r11]
@@ -17228,9 +17228,9 @@ L_AES_GCM_encrypt_final_avx2_store_tag_16:
         vmovdqu	OWORD PTR [rdx], xmm0
 L_AES_GCM_encrypt_final_avx2_store_tag_done:
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+16]
-        vmovdqu	xmm7, OWORD PTR [rsp+32]
-        add	rsp, 48
+        vmovdqu	xmm6, OWORD PTR [rsp+24]
+        vmovdqu	xmm7, OWORD PTR [rsp+40]
+        add	rsp, 56
         pop	r13
         pop	r12
         ret
@@ -17251,17 +17251,17 @@ AES_GCM_decrypt_update_avx2 PROC
         mov	r12, QWORD PTR [rsp+88]
         mov	r14, QWORD PTR [rsp+96]
         mov	r15, QWORD PTR [rsp+104]
-        sub	rsp, 328
-        vmovdqu	OWORD PTR [rsp+168], xmm6
-        vmovdqu	OWORD PTR [rsp+184], xmm7
-        vmovdqu	OWORD PTR [rsp+200], xmm8
-        vmovdqu	OWORD PTR [rsp+216], xmm9
-        vmovdqu	OWORD PTR [rsp+232], xmm10
-        vmovdqu	OWORD PTR [rsp+248], xmm11
-        vmovdqu	OWORD PTR [rsp+264], xmm12
-        vmovdqu	OWORD PTR [rsp+280], xmm13
-        vmovdqu	OWORD PTR [rsp+296], xmm14
-        vmovdqu	OWORD PTR [rsp+312], xmm15
+        sub	rsp, 336
+        vmovdqu	OWORD PTR [rsp+176], xmm6
+        vmovdqu	OWORD PTR [rsp+192], xmm7
+        vmovdqu	OWORD PTR [rsp+208], xmm8
+        vmovdqu	OWORD PTR [rsp+224], xmm9
+        vmovdqu	OWORD PTR [rsp+240], xmm10
+        vmovdqu	OWORD PTR [rsp+256], xmm11
+        vmovdqu	OWORD PTR [rsp+272], xmm12
+        vmovdqu	OWORD PTR [rsp+288], xmm13
+        vmovdqu	OWORD PTR [rsp+304], xmm14
+        vmovdqu	OWORD PTR [rsp+320], xmm15
         vmovdqu	xmm6, OWORD PTR [r12]
         vmovdqu	xmm5, OWORD PTR [r14]
         vmovdqu	xmm4, OWORD PTR [r15]
@@ -17745,17 +17745,17 @@ L_AES_GCM_decrypt_update_avx2_done_dec:
         vmovdqu	OWORD PTR [r12], xmm6
         vmovdqu	OWORD PTR [r15], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+168]
-        vmovdqu	xmm7, OWORD PTR [rsp+184]
-        vmovdqu	xmm8, OWORD PTR [rsp+200]
-        vmovdqu	xmm9, OWORD PTR [rsp+216]
-        vmovdqu	xmm10, OWORD PTR [rsp+232]
-        vmovdqu	xmm11, OWORD PTR [rsp+248]
-        vmovdqu	xmm12, OWORD PTR [rsp+264]
-        vmovdqu	xmm13, OWORD PTR [rsp+280]
-        vmovdqu	xmm14, OWORD PTR [rsp+296]
-        vmovdqu	xmm15, OWORD PTR [rsp+312]
-        add	rsp, 328
+        vmovdqu	xmm6, OWORD PTR [rsp+176]
+        vmovdqu	xmm7, OWORD PTR [rsp+192]
+        vmovdqu	xmm8, OWORD PTR [rsp+208]
+        vmovdqu	xmm9, OWORD PTR [rsp+224]
+        vmovdqu	xmm10, OWORD PTR [rsp+240]
+        vmovdqu	xmm11, OWORD PTR [rsp+256]
+        vmovdqu	xmm12, OWORD PTR [rsp+272]
+        vmovdqu	xmm13, OWORD PTR [rsp+288]
+        vmovdqu	xmm14, OWORD PTR [rsp+304]
+        vmovdqu	xmm15, OWORD PTR [rsp+320]
+        add	rsp, 336
         pop	rdi
         pop	r15
         pop	r14
@@ -17887,12 +17887,12 @@ ptr_L_GCM_generate_m0_vaes_mod2_128 QWORD L_GCM_generate_m0_vaes_mod2_128
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 GCM_generate_m0_vaes PROC
-        sub	rsp, 80
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
+        sub	rsp, 88
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	xmm9, OWORD PTR L_GCM_generate_m0_vaes_rev8
         vmovdqu	xmm10, OWORD PTR L_GCM_generate_m0_vaes_mod2_128
         vpxor	xmm8, xmm8, xmm8
@@ -18085,12 +18085,12 @@ GCM_generate_m0_vaes PROC
         vmovdqu	OWORD PTR [rdx+464], xmm1
         vmovdqu	OWORD PTR [rdx+480], xmm2
         vmovdqu	OWORD PTR [rdx+496], xmm3
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        add	rsp, 80
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        add	rsp, 88
         ret
 GCM_generate_m0_vaes ENDP
 _TEXT ENDS
@@ -20191,17 +20191,17 @@ AES_GCM_decrypt_vaes PROC
         mov	r15, QWORD PTR [rsp+144]
         mov	r10d, DWORD PTR [rsp+152]
         mov	rbp, QWORD PTR [rsp+160]
-        sub	rsp, 752
-        vmovdqu	OWORD PTR [rsp+592], xmm6
-        vmovdqu	OWORD PTR [rsp+608], xmm7
-        vmovdqu	OWORD PTR [rsp+624], xmm8
-        vmovdqu	OWORD PTR [rsp+640], xmm9
-        vmovdqu	OWORD PTR [rsp+656], xmm10
-        vmovdqu	OWORD PTR [rsp+672], xmm11
-        vmovdqu	OWORD PTR [rsp+688], xmm12
-        vmovdqu	OWORD PTR [rsp+704], xmm13
-        vmovdqu	OWORD PTR [rsp+720], xmm14
-        vmovdqu	OWORD PTR [rsp+736], xmm15
+        sub	rsp, 760
+        vmovdqu	OWORD PTR [rsp+600], xmm6
+        vmovdqu	OWORD PTR [rsp+616], xmm7
+        vmovdqu	OWORD PTR [rsp+632], xmm8
+        vmovdqu	OWORD PTR [rsp+648], xmm9
+        vmovdqu	OWORD PTR [rsp+664], xmm10
+        vmovdqu	OWORD PTR [rsp+680], xmm11
+        vmovdqu	OWORD PTR [rsp+696], xmm12
+        vmovdqu	OWORD PTR [rsp+712], xmm13
+        vmovdqu	OWORD PTR [rsp+728], xmm14
+        vmovdqu	OWORD PTR [rsp+744], xmm15
         vpxor	xmm5, xmm5, xmm5
         vpxor	xmm15, xmm15, xmm15
         cmp	ebx, 12
@@ -22122,17 +22122,17 @@ L_AES_GCM_decrypt_vaes_cmp_tag_16:
 L_AES_GCM_decrypt_vaes_cmp_tag_done:
         mov	DWORD PTR [rbp], ebx
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+592]
-        vmovdqu	xmm7, OWORD PTR [rsp+608]
-        vmovdqu	xmm8, OWORD PTR [rsp+624]
-        vmovdqu	xmm9, OWORD PTR [rsp+640]
-        vmovdqu	xmm10, OWORD PTR [rsp+656]
-        vmovdqu	xmm11, OWORD PTR [rsp+672]
-        vmovdqu	xmm12, OWORD PTR [rsp+688]
-        vmovdqu	xmm13, OWORD PTR [rsp+704]
-        vmovdqu	xmm14, OWORD PTR [rsp+720]
-        vmovdqu	xmm15, OWORD PTR [rsp+736]
-        add	rsp, 752
+        vmovdqu	xmm6, OWORD PTR [rsp+600]
+        vmovdqu	xmm7, OWORD PTR [rsp+616]
+        vmovdqu	xmm8, OWORD PTR [rsp+632]
+        vmovdqu	xmm9, OWORD PTR [rsp+648]
+        vmovdqu	xmm10, OWORD PTR [rsp+664]
+        vmovdqu	xmm11, OWORD PTR [rsp+680]
+        vmovdqu	xmm12, OWORD PTR [rsp+696]
+        vmovdqu	xmm13, OWORD PTR [rsp+712]
+        vmovdqu	xmm14, OWORD PTR [rsp+728]
+        vmovdqu	xmm15, OWORD PTR [rsp+744]
+        add	rsp, 760
         pop	rbp
         pop	r15
         pop	r14
@@ -22157,11 +22157,11 @@ AES_GCM_init_vaes PROC
         mov	rax, QWORD PTR [rsp+72]
         mov	r8, QWORD PTR [rsp+80]
         mov	r9, QWORD PTR [rsp+88]
-        sub	rsp, 80
-        vmovdqu	OWORD PTR [rsp+16], xmm6
-        vmovdqu	OWORD PTR [rsp+32], xmm7
-        vmovdqu	OWORD PTR [rsp+48], xmm8
-        vmovdqu	OWORD PTR [rsp+64], xmm15
+        sub	rsp, 88
+        vmovdqu	OWORD PTR [rsp+24], xmm6
+        vmovdqu	OWORD PTR [rsp+40], xmm7
+        vmovdqu	OWORD PTR [rsp+56], xmm8
+        vmovdqu	OWORD PTR [rsp+72], xmm15
         vpxor	xmm4, xmm4, xmm4
         mov	edx, r11d
         cmp	edx, 12
@@ -22454,11 +22454,11 @@ L_AES_GCM_init_vaes_iv_done:
         vpaddd	xmm4, xmm4, OWORD PTR L_vaes_aes_gcm_one
         vmovdqa	OWORD PTR [rax], xmm5
         vmovdqa	OWORD PTR [r8], xmm4
-        vmovdqu	xmm6, OWORD PTR [rsp+16]
-        vmovdqu	xmm7, OWORD PTR [rsp+32]
-        vmovdqu	xmm8, OWORD PTR [rsp+48]
-        vmovdqu	xmm15, OWORD PTR [rsp+64]
-        add	rsp, 80
+        vmovdqu	xmm6, OWORD PTR [rsp+24]
+        vmovdqu	xmm7, OWORD PTR [rsp+40]
+        vmovdqu	xmm8, OWORD PTR [rsp+56]
+        vmovdqu	xmm15, OWORD PTR [rsp+72]
+        add	rsp, 88
         pop	r13
         pop	r12
         pop	rsi
@@ -22472,17 +22472,17 @@ AES_GCM_aad_update_vaes PROC
         mov	r8, rcx
         mov	r11, r9
         mov	r9d, edx
-        sub	rsp, 672
-        vmovdqu	OWORD PTR [rsp+512], xmm6
-        vmovdqu	OWORD PTR [rsp+528], xmm7
-        vmovdqu	OWORD PTR [rsp+544], xmm8
-        vmovdqu	OWORD PTR [rsp+560], xmm9
-        vmovdqu	OWORD PTR [rsp+576], xmm10
-        vmovdqu	OWORD PTR [rsp+592], xmm11
-        vmovdqu	OWORD PTR [rsp+608], xmm12
-        vmovdqu	OWORD PTR [rsp+624], xmm13
-        vmovdqu	OWORD PTR [rsp+640], xmm14
-        vmovdqu	OWORD PTR [rsp+656], xmm15
+        sub	rsp, 680
+        vmovdqu	OWORD PTR [rsp+520], xmm6
+        vmovdqu	OWORD PTR [rsp+536], xmm7
+        vmovdqu	OWORD PTR [rsp+552], xmm8
+        vmovdqu	OWORD PTR [rsp+568], xmm9
+        vmovdqu	OWORD PTR [rsp+584], xmm10
+        vmovdqu	OWORD PTR [rsp+600], xmm11
+        vmovdqu	OWORD PTR [rsp+616], xmm12
+        vmovdqu	OWORD PTR [rsp+632], xmm13
+        vmovdqu	OWORD PTR [rsp+648], xmm14
+        vmovdqu	OWORD PTR [rsp+664], xmm15
         vmovdqa	xmm15, OWORD PTR [r10]
         vmovdqa	xmm6, OWORD PTR [r11]
         xor	edx, edx
@@ -22996,17 +22996,17 @@ L_AES_GCM_aad_update_vaes_tail:
 L_AES_GCM_aad_update_vaes_done:
         vmovdqa	OWORD PTR [r10], xmm15
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+512]
-        vmovdqu	xmm7, OWORD PTR [rsp+528]
-        vmovdqu	xmm8, OWORD PTR [rsp+544]
-        vmovdqu	xmm9, OWORD PTR [rsp+560]
-        vmovdqu	xmm10, OWORD PTR [rsp+576]
-        vmovdqu	xmm11, OWORD PTR [rsp+592]
-        vmovdqu	xmm12, OWORD PTR [rsp+608]
-        vmovdqu	xmm13, OWORD PTR [rsp+624]
-        vmovdqu	xmm14, OWORD PTR [rsp+640]
-        vmovdqu	xmm15, OWORD PTR [rsp+656]
-        add	rsp, 672
+        vmovdqu	xmm6, OWORD PTR [rsp+520]
+        vmovdqu	xmm7, OWORD PTR [rsp+536]
+        vmovdqu	xmm8, OWORD PTR [rsp+552]
+        vmovdqu	xmm9, OWORD PTR [rsp+568]
+        vmovdqu	xmm10, OWORD PTR [rsp+584]
+        vmovdqu	xmm11, OWORD PTR [rsp+600]
+        vmovdqu	xmm12, OWORD PTR [rsp+616]
+        vmovdqu	xmm13, OWORD PTR [rsp+632]
+        vmovdqu	xmm14, OWORD PTR [rsp+648]
+        vmovdqu	xmm15, OWORD PTR [rsp+664]
+        add	rsp, 680
         ret
 AES_GCM_aad_update_vaes ENDP
 _TEXT ENDS
@@ -23052,9 +23052,9 @@ AES_GCM_encrypt_block_vaes ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_vaes PROC
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         vmovdqa	xmm4, OWORD PTR [rdx]
         vmovdqa	xmm5, OWORD PTR [r8]
         vmovdqu	xmm7, OWORD PTR [rcx]
@@ -23105,9 +23105,9 @@ AES_GCM_ghash_block_vaes PROC
         vpxor	xmm4, xmm4, xmm2
         vmovdqa	OWORD PTR [rdx], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 AES_GCM_ghash_block_vaes ENDP
 _TEXT ENDS
@@ -26060,12 +26060,12 @@ ptr_L_GCM_generate_m0_avx512_mod2_128 QWORD L_GCM_generate_m0_avx512_mod2_128
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 GCM_generate_m0_avx512 PROC
-        sub	rsp, 80
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
+        sub	rsp, 88
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
+        vmovdqu	OWORD PTR [rsp+40], xmm8
+        vmovdqu	OWORD PTR [rsp+56], xmm9
+        vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	xmm9, OWORD PTR L_GCM_generate_m0_avx512_rev8
         vmovdqu	xmm10, OWORD PTR L_GCM_generate_m0_avx512_mod2_128
         vpxor	xmm8, xmm8, xmm8
@@ -26258,12 +26258,12 @@ GCM_generate_m0_avx512 PROC
         vmovdqu	OWORD PTR [rdx+464], xmm1
         vmovdqu	OWORD PTR [rdx+480], xmm2
         vmovdqu	OWORD PTR [rdx+496], xmm3
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        add	rsp, 80
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        vmovdqu	xmm8, OWORD PTR [rsp+40]
+        vmovdqu	xmm9, OWORD PTR [rsp+56]
+        vmovdqu	xmm10, OWORD PTR [rsp+72]
+        add	rsp, 88
         ret
 GCM_generate_m0_avx512 ENDP
 _TEXT ENDS
@@ -29063,17 +29063,17 @@ AES_GCM_decrypt_avx512 PROC
         mov	r15, QWORD PTR [rsp+144]
         mov	r10d, DWORD PTR [rsp+152]
         mov	rbp, QWORD PTR [rsp+160]
-        sub	rsp, 1280
-        vmovdqu	OWORD PTR [rsp+1120], xmm6
-        vmovdqu	OWORD PTR [rsp+1136], xmm7
-        vmovdqu	OWORD PTR [rsp+1152], xmm8
-        vmovdqu	OWORD PTR [rsp+1168], xmm9
-        vmovdqu	OWORD PTR [rsp+1184], xmm10
-        vmovdqu	OWORD PTR [rsp+1200], xmm11
-        vmovdqu	OWORD PTR [rsp+1216], xmm12
-        vmovdqu	OWORD PTR [rsp+1232], xmm13
-        vmovdqu	OWORD PTR [rsp+1248], xmm14
-        vmovdqu	OWORD PTR [rsp+1264], xmm15
+        sub	rsp, 1288
+        vmovdqu	OWORD PTR [rsp+1128], xmm6
+        vmovdqu	OWORD PTR [rsp+1144], xmm7
+        vmovdqu	OWORD PTR [rsp+1160], xmm8
+        vmovdqu	OWORD PTR [rsp+1176], xmm9
+        vmovdqu	OWORD PTR [rsp+1192], xmm10
+        vmovdqu	OWORD PTR [rsp+1208], xmm11
+        vmovdqu	OWORD PTR [rsp+1224], xmm12
+        vmovdqu	OWORD PTR [rsp+1240], xmm13
+        vmovdqu	OWORD PTR [rsp+1256], xmm14
+        vmovdqu	OWORD PTR [rsp+1272], xmm15
         vpxor	xmm4, xmm4, xmm4
         vpxor	xmm6, xmm6, xmm6
         cmp	ebx, 12
@@ -31538,17 +31538,17 @@ L_AES_GCM_decrypt_avx512_cmp_tag_16:
 L_AES_GCM_decrypt_avx512_cmp_tag_done:
         mov	DWORD PTR [rbp], ebx
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+1120]
-        vmovdqu	xmm7, OWORD PTR [rsp+1136]
-        vmovdqu	xmm8, OWORD PTR [rsp+1152]
-        vmovdqu	xmm9, OWORD PTR [rsp+1168]
-        vmovdqu	xmm10, OWORD PTR [rsp+1184]
-        vmovdqu	xmm11, OWORD PTR [rsp+1200]
-        vmovdqu	xmm12, OWORD PTR [rsp+1216]
-        vmovdqu	xmm13, OWORD PTR [rsp+1232]
-        vmovdqu	xmm14, OWORD PTR [rsp+1248]
-        vmovdqu	xmm15, OWORD PTR [rsp+1264]
-        add	rsp, 1280
+        vmovdqu	xmm6, OWORD PTR [rsp+1128]
+        vmovdqu	xmm7, OWORD PTR [rsp+1144]
+        vmovdqu	xmm8, OWORD PTR [rsp+1160]
+        vmovdqu	xmm9, OWORD PTR [rsp+1176]
+        vmovdqu	xmm10, OWORD PTR [rsp+1192]
+        vmovdqu	xmm11, OWORD PTR [rsp+1208]
+        vmovdqu	xmm12, OWORD PTR [rsp+1224]
+        vmovdqu	xmm13, OWORD PTR [rsp+1240]
+        vmovdqu	xmm14, OWORD PTR [rsp+1256]
+        vmovdqu	xmm15, OWORD PTR [rsp+1272]
+        add	rsp, 1288
         pop	rbp
         pop	r15
         pop	r14
@@ -31573,11 +31573,11 @@ AES_GCM_init_avx512 PROC
         mov	rax, QWORD PTR [rsp+72]
         mov	r8, QWORD PTR [rsp+80]
         mov	r9, QWORD PTR [rsp+88]
-        sub	rsp, 80
-        vmovdqu	OWORD PTR [rsp+16], xmm6
-        vmovdqu	OWORD PTR [rsp+32], xmm7
-        vmovdqu	OWORD PTR [rsp+48], xmm8
-        vmovdqu	OWORD PTR [rsp+64], xmm15
+        sub	rsp, 88
+        vmovdqu	OWORD PTR [rsp+24], xmm6
+        vmovdqu	OWORD PTR [rsp+40], xmm7
+        vmovdqu	OWORD PTR [rsp+56], xmm8
+        vmovdqu	OWORD PTR [rsp+72], xmm15
         vpxor	xmm4, xmm4, xmm4
         mov	edx, r11d
         cmp	edx, 12
@@ -31870,11 +31870,11 @@ L_AES_GCM_init_avx512_iv_done:
         vpaddd	xmm4, xmm4, OWORD PTR L_avx512_aes_gcm_one
         vmovdqa	OWORD PTR [rax], xmm5
         vmovdqa	OWORD PTR [r8], xmm4
-        vmovdqu	xmm6, OWORD PTR [rsp+16]
-        vmovdqu	xmm7, OWORD PTR [rsp+32]
-        vmovdqu	xmm8, OWORD PTR [rsp+48]
-        vmovdqu	xmm15, OWORD PTR [rsp+64]
-        add	rsp, 80
+        vmovdqu	xmm6, OWORD PTR [rsp+24]
+        vmovdqu	xmm7, OWORD PTR [rsp+40]
+        vmovdqu	xmm8, OWORD PTR [rsp+56]
+        vmovdqu	xmm15, OWORD PTR [rsp+72]
+        add	rsp, 88
         pop	r13
         pop	r12
         pop	rsi
@@ -31888,17 +31888,17 @@ AES_GCM_aad_update_avx512 PROC
         mov	r8, rcx
         mov	r11, r9
         mov	r9d, edx
-        sub	rsp, 416
-        vmovdqu	OWORD PTR [rsp+256], xmm6
-        vmovdqu	OWORD PTR [rsp+272], xmm7
-        vmovdqu	OWORD PTR [rsp+288], xmm8
-        vmovdqu	OWORD PTR [rsp+304], xmm9
-        vmovdqu	OWORD PTR [rsp+320], xmm10
-        vmovdqu	OWORD PTR [rsp+336], xmm11
-        vmovdqu	OWORD PTR [rsp+352], xmm12
-        vmovdqu	OWORD PTR [rsp+368], xmm13
-        vmovdqu	OWORD PTR [rsp+384], xmm14
-        vmovdqu	OWORD PTR [rsp+400], xmm15
+        sub	rsp, 424
+        vmovdqu	OWORD PTR [rsp+264], xmm6
+        vmovdqu	OWORD PTR [rsp+280], xmm7
+        vmovdqu	OWORD PTR [rsp+296], xmm8
+        vmovdqu	OWORD PTR [rsp+312], xmm9
+        vmovdqu	OWORD PTR [rsp+328], xmm10
+        vmovdqu	OWORD PTR [rsp+344], xmm11
+        vmovdqu	OWORD PTR [rsp+360], xmm12
+        vmovdqu	OWORD PTR [rsp+376], xmm13
+        vmovdqu	OWORD PTR [rsp+392], xmm14
+        vmovdqu	OWORD PTR [rsp+408], xmm15
         vmovdqa	xmm6, OWORD PTR [r10]
         vmovdqa	xmm7, OWORD PTR [r11]
         xor	edx, edx
@@ -32311,17 +32311,17 @@ L_AES_GCM_aad_update_avx512_tail:
 L_AES_GCM_aad_update_avx512_done:
         vmovdqa	OWORD PTR [r10], xmm6
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+256]
-        vmovdqu	xmm7, OWORD PTR [rsp+272]
-        vmovdqu	xmm8, OWORD PTR [rsp+288]
-        vmovdqu	xmm9, OWORD PTR [rsp+304]
-        vmovdqu	xmm10, OWORD PTR [rsp+320]
-        vmovdqu	xmm11, OWORD PTR [rsp+336]
-        vmovdqu	xmm12, OWORD PTR [rsp+352]
-        vmovdqu	xmm13, OWORD PTR [rsp+368]
-        vmovdqu	xmm14, OWORD PTR [rsp+384]
-        vmovdqu	xmm15, OWORD PTR [rsp+400]
-        add	rsp, 416
+        vmovdqu	xmm6, OWORD PTR [rsp+264]
+        vmovdqu	xmm7, OWORD PTR [rsp+280]
+        vmovdqu	xmm8, OWORD PTR [rsp+296]
+        vmovdqu	xmm9, OWORD PTR [rsp+312]
+        vmovdqu	xmm10, OWORD PTR [rsp+328]
+        vmovdqu	xmm11, OWORD PTR [rsp+344]
+        vmovdqu	xmm12, OWORD PTR [rsp+360]
+        vmovdqu	xmm13, OWORD PTR [rsp+376]
+        vmovdqu	xmm14, OWORD PTR [rsp+392]
+        vmovdqu	xmm15, OWORD PTR [rsp+408]
+        add	rsp, 424
         ret
 AES_GCM_aad_update_avx512 ENDP
 _TEXT ENDS
@@ -32367,9 +32367,9 @@ AES_GCM_encrypt_block_avx512 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_avx512 PROC
-        sub	rsp, 32
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
+        sub	rsp, 40
+        vmovdqu	OWORD PTR [rsp+8], xmm6
+        vmovdqu	OWORD PTR [rsp+24], xmm7
         vmovdqa	xmm4, OWORD PTR [rdx]
         vmovdqa	xmm5, OWORD PTR [r8]
         vmovdqu	xmm7, OWORD PTR [rcx]
@@ -32420,9 +32420,9 @@ AES_GCM_ghash_block_avx512 PROC
         vpxor	xmm4, xmm4, xmm2
         vmovdqa	OWORD PTR [rdx], xmm4
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        add	rsp, 32
+        vmovdqu	xmm6, OWORD PTR [rsp+8]
+        vmovdqu	xmm7, OWORD PTR [rsp+24]
+        add	rsp, 40
         ret
 AES_GCM_ghash_block_avx512 ENDP
 _TEXT ENDS
@@ -32444,17 +32444,17 @@ AES_GCM_encrypt_update_avx512 PROC
         mov	r12, QWORD PTR [rsp+112]
         mov	r14, QWORD PTR [rsp+120]
         mov	r15, QWORD PTR [rsp+128]
-        sub	rsp, 1200
-        vmovdqu	OWORD PTR [rsp+1040], xmm6
-        vmovdqu	OWORD PTR [rsp+1056], xmm7
-        vmovdqu	OWORD PTR [rsp+1072], xmm8
-        vmovdqu	OWORD PTR [rsp+1088], xmm9
-        vmovdqu	OWORD PTR [rsp+1104], xmm10
-        vmovdqu	OWORD PTR [rsp+1120], xmm11
-        vmovdqu	OWORD PTR [rsp+1136], xmm12
-        vmovdqu	OWORD PTR [rsp+1152], xmm13
-        vmovdqu	OWORD PTR [rsp+1168], xmm14
-        vmovdqu	OWORD PTR [rsp+1184], xmm15
+        sub	rsp, 1208
+        vmovdqu	OWORD PTR [rsp+1048], xmm6
+        vmovdqu	OWORD PTR [rsp+1064], xmm7
+        vmovdqu	OWORD PTR [rsp+1080], xmm8
+        vmovdqu	OWORD PTR [rsp+1096], xmm9
+        vmovdqu	OWORD PTR [rsp+1112], xmm10
+        vmovdqu	OWORD PTR [rsp+1128], xmm11
+        vmovdqu	OWORD PTR [rsp+1144], xmm12
+        vmovdqu	OWORD PTR [rsp+1160], xmm13
+        vmovdqu	OWORD PTR [rsp+1176], xmm14
+        vmovdqu	OWORD PTR [rsp+1192], xmm15
         vmovdqa	xmm6, OWORD PTR [r12]
         vmovdqa	xmm5, OWORD PTR [r14]
         vpsrlq	xmm9, xmm5, 63
@@ -34174,17 +34174,17 @@ L_AES_GCM_encrypt_update_avx512_last_block_done:
 L_AES_GCM_encrypt_update_avx512_done_enc:
         vmovdqa	OWORD PTR [r12], xmm6
         vzeroupper
-        vmovdqu	xmm6, OWORD PTR [rsp+1040]
-        vmovdqu	xmm7, OWORD PTR [rsp+1056]
-        vmovdqu	xmm8, OWORD PTR [rsp+1072]
-        vmovdqu	xmm9, OWORD PTR [rsp+1088]
-        vmovdqu	xmm10, OWORD PTR [rsp+1104]
-        vmovdqu	xmm11, OWORD PTR [rsp+1120]
-        vmovdqu	xmm12, OWORD PTR [rsp+1136]
-        vmovdqu	xmm13, OWORD PTR [rsp+1152]
-        vmovdqu	xmm14, OWORD PTR [rsp+1168]
-        vmovdqu	xmm15, OWORD PTR [rsp+1184]
-        add	rsp, 1200
+        vmovdqu	xmm6, OWORD PTR [rsp+1048]
+        vmovdqu	xmm7, OWORD PTR [rsp+1064]
+        vmovdqu	xmm8, OWORD PTR [rsp+1080]
+        vmovdqu	xmm9, OWORD PTR [rsp+1096]
+        vmovdqu	xmm10, OWORD PTR [rsp+1112]
+        vmovdqu	xmm11, OWORD PTR [rsp+1128]
+        vmovdqu	xmm12, OWORD PTR [rsp+1144]
+        vmovdqu	xmm13, OWORD PTR [rsp+1160]
+        vmovdqu	xmm14, OWORD PTR [rsp+1176]
+        vmovdqu	xmm15, OWORD PTR [rsp+1192]
+        add	rsp, 1208
         pop	rbp
         pop	rbx
         pop	rsi

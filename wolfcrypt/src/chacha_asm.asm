@@ -49,7 +49,7 @@ chacha_encrypt_x64 PROC
         push	r13
         push	r14
         push	r15
-        sub	rsp, 64
+        sub	rsp, 72
         cmp	r9d, 64
         jl	L_chacha_x64_small
 L_chacha_x64_start:
@@ -449,7 +449,7 @@ L_chacha_x64_partial_end64:
         sub	r9d, ebx
         mov	DWORD PTR [rcx+76], r9d
 L_chacha_x64_done:
-        add	rsp, 64
+        add	rsp, 72
         pop	r15
         pop	r14
         pop	r13
@@ -488,17 +488,17 @@ chacha_encrypt_avx1 PROC
         push	r15
         push	rdi
         push	rsi
-        sub	rsp, 560
-        vmovdqu	OWORD PTR [rsp+400], xmm6
-        vmovdqu	OWORD PTR [rsp+416], xmm7
-        vmovdqu	OWORD PTR [rsp+432], xmm8
-        vmovdqu	OWORD PTR [rsp+448], xmm9
-        vmovdqu	OWORD PTR [rsp+464], xmm10
-        vmovdqu	OWORD PTR [rsp+480], xmm11
-        vmovdqu	OWORD PTR [rsp+496], xmm12
-        vmovdqu	OWORD PTR [rsp+512], xmm13
-        vmovdqu	OWORD PTR [rsp+528], xmm14
-        vmovdqu	OWORD PTR [rsp+544], xmm15
+        sub	rsp, 568
+        vmovdqu	OWORD PTR [rsp+408], xmm6
+        vmovdqu	OWORD PTR [rsp+424], xmm7
+        vmovdqu	OWORD PTR [rsp+440], xmm8
+        vmovdqu	OWORD PTR [rsp+456], xmm9
+        vmovdqu	OWORD PTR [rsp+472], xmm10
+        vmovdqu	OWORD PTR [rsp+488], xmm11
+        vmovdqu	OWORD PTR [rsp+504], xmm12
+        vmovdqu	OWORD PTR [rsp+520], xmm13
+        vmovdqu	OWORD PTR [rsp+536], xmm14
+        vmovdqu	OWORD PTR [rsp+552], xmm15
         mov	r11, rsp
         lea	r12, QWORD PTR [rsp+256]
         mov	r14, QWORD PTR [ptr_L_chacha20_avx1_rotl8]
@@ -991,17 +991,17 @@ L_chacha20_avx1_partial_end64:
         sub	r10d, r13d
         mov	DWORD PTR [rcx+76], r10d
 L_chacha20_avx1_partial_done:
-        vmovdqu	xmm6, OWORD PTR [rsp+400]
-        vmovdqu	xmm7, OWORD PTR [rsp+416]
-        vmovdqu	xmm8, OWORD PTR [rsp+432]
-        vmovdqu	xmm9, OWORD PTR [rsp+448]
-        vmovdqu	xmm10, OWORD PTR [rsp+464]
-        vmovdqu	xmm11, OWORD PTR [rsp+480]
-        vmovdqu	xmm12, OWORD PTR [rsp+496]
-        vmovdqu	xmm13, OWORD PTR [rsp+512]
-        vmovdqu	xmm14, OWORD PTR [rsp+528]
-        vmovdqu	xmm15, OWORD PTR [rsp+544]
-        add	rsp, 560
+        vmovdqu	xmm6, OWORD PTR [rsp+408]
+        vmovdqu	xmm7, OWORD PTR [rsp+424]
+        vmovdqu	xmm8, OWORD PTR [rsp+440]
+        vmovdqu	xmm9, OWORD PTR [rsp+456]
+        vmovdqu	xmm10, OWORD PTR [rsp+472]
+        vmovdqu	xmm11, OWORD PTR [rsp+488]
+        vmovdqu	xmm12, OWORD PTR [rsp+504]
+        vmovdqu	xmm13, OWORD PTR [rsp+520]
+        vmovdqu	xmm14, OWORD PTR [rsp+536]
+        vmovdqu	xmm15, OWORD PTR [rsp+552]
+        add	rsp, 568
         pop	rsi
         pop	rdi
         pop	r15

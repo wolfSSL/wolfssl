@@ -25,6 +25,9 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha512-asm.S
  */
 
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_ARMV8_32_SHA512_ASM_S
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM

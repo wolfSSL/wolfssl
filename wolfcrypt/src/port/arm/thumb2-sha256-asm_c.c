@@ -25,6 +25,9 @@
  *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha256-asm.c
  */
 
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_THUMB2_SHA256_ASM_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 

@@ -25,6 +25,9 @@
  *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-curve25519.S
  */
 
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_THUMB2_CURVE25519_S
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM

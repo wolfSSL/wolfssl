@@ -1,4 +1,4 @@
-/* sp.c
+/* sp_x86_64.c
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -20,6 +20,9 @@
  */
 
 /* Implementation by Sean Parkinson. */
+
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_SP_X86_64_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
