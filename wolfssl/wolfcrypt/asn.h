@@ -2526,10 +2526,10 @@ WOLFSSL_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                                void *ctx);
 #endif
 
-WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,
-                                  word32 inSz);
-WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
-                                  const char *in, void* heap);
+WOLFSSL_TEST_VIS int wc_DecodePolicyOID(char *out, word32 outSz,
+                                         const byte *in, word32 inSz);
+WOLFSSL_TEST_VIS int wc_EncodePolicyOID(byte *out, word32 *outSz,
+                                         const char *in, void* heap);
 WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                                          word32 oid, byte critical,
                                          DecodedCert* cert, int *isUnknownExt);

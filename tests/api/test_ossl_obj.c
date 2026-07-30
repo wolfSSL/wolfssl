@@ -130,6 +130,34 @@ int test_wolfSSL_OBJ(void)
     ExpectIntEQ(OBJ_txt2nid(buf), NID_sha256);
 #endif
     ExpectIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
+    /* Numeric form ("2.16.840.1.101.3.4.2.1", 22 chars) must fail cleanly
+     * rather than truncate when the caller's buffer is too small - unlike
+     * OpenSSL's OBJ_obj2txt(), which would truncate and report the needed
+     * length. */
+    {
+        char smallBuf[4];
+        /* bufLen 4 fails the first-identifier length check inside
+         * wc_DecodePolicyOID: sha256's combined first identifier "2.16"
+         * needs 5 bytes (4 chars + NUL) and doesn't fit in bufSz = 4. */
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
+    /* bufLen 5 lets "2.16" fit exactly (4 chars + NUL), so this instead
+     * exercises the trailing-arc bound: the following ".840" arc doesn't
+     * fit in the 1 byte left in bufSz = 5. */
+    {
+        char smallBuf[5];
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
+    /* bufLen 8 leaves exactly 4 bytes after "2.16", still not enough for
+     * ".840" (4 chars + implicit NUL slot needed by the overflow check),
+     * so this still fails on the same trailing-arc bound as bufLen 5. */
+    {
+        char smallBuf[8];
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
     ExpectNotNull(obj2 = OBJ_dup(obj));
     ExpectIntEQ(OBJ_cmp(obj, obj2), 0);
     ASN1_OBJECT_free(obj);

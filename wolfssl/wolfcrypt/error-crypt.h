@@ -349,8 +349,16 @@ enum wolfCrypt_ErrorCodes {
     FIPS_UNAPPROVED_E   = -1028, /* Requested operation succeeded, but supplied */
                                  /* parameters are unapproved for FIPS */
 
-    WC_SPAN2_LAST_E     = -1028, /* Update to indicate last used error code */
-    WC_LAST_E           = -1028, /* the last code used either here or in
+    ASN_OID_ARC_TOO_BIG_E = -1029, /* Well-formed DER OID arc whose
+                                    * magnitude doesn't fit a word32
+                                    * (e.g. a 2.25 UUID-based arc); distinct
+                                    * from ASN_OBJECT_ID_E's structurally
+                                    * invalid encodings (non-minimal,
+                                    * truncated) so callers can choose to
+                                    * skip just the offending entry */
+
+    WC_SPAN2_LAST_E     = -1029, /* Update to indicate last used error code */
+    WC_LAST_E           = -1029, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
