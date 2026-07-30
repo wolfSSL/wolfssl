@@ -1379,7 +1379,7 @@ static void wb_dsa_key_ints_to_der(void) { WB_NOTE("NO_DSA on; DsaKeyIntsToDer s
 #endif
 
 /* ========================================================================
- * Section B1: EncodePolicyOID() NULL/size guard [:32527].
+ * Section B1: wc_EncodePolicyOID() NULL/size guard [:32867].
  * ===================================================================== */
 #if !defined(NO_CERTS) && (defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA))
 static void wb_encode_policy_oid(void)
@@ -1388,24 +1388,24 @@ static void wb_encode_policy_oid(void)
     word32 outSz;
     int ret;
 
-    WB_NOTE("EncodePolicyOID(): out/outSz/in NULL, *outSz<2 OR [:32527]");
+    WB_NOTE("wc_EncodePolicyOID(): out/outSz/in NULL, *outSz<2 OR [:32867]");
     outSz = sizeof(out);
-    ret = EncodePolicyOID(NULL, &outSz, "1.2.3", NULL);
+    ret = wc_EncodePolicyOID(NULL, &outSz, "1.2.3", NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "out==NULL");
-    ret = EncodePolicyOID(out, NULL, "1.2.3", NULL);
+    ret = wc_EncodePolicyOID(out, NULL, "1.2.3", NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "outSz==NULL");
     outSz = 1;
-    ret = EncodePolicyOID(out, &outSz, "1.2.3", NULL);
+    ret = wc_EncodePolicyOID(out, &outSz, "1.2.3", NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "*outSz<2");
     outSz = sizeof(out);
-    ret = EncodePolicyOID(out, &outSz, NULL, NULL);
+    ret = wc_EncodePolicyOID(out, &outSz, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "in==NULL");
     outSz = sizeof(out);
-    ret = EncodePolicyOID(out, &outSz, "1.2.3.4", NULL);
+    ret = wc_EncodePolicyOID(out, &outSz, "1.2.3.4", NULL);
     WB_CHECK(ret == 0, "all valid");
 }
 #else
-static void wb_encode_policy_oid(void) { WB_NOTE("cert-ext/openssl-extra off; EncodePolicyOID skipped"); }
+static void wb_encode_policy_oid(void) { WB_NOTE("cert-ext/openssl-extra off; wc_EncodePolicyOID skipped"); }
 #endif
 
 /* ========================================================================

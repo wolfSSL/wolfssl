@@ -4174,6 +4174,7 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 
 #if defined(WOLFSSL_CERT_EXT)
         cert->extCertPoliciesNb = 0;
+        cert->extCertPoliciesTruncated = 0;
 #endif
 
     if (GetSequence(input, &idx, &total_length, sz) < 0) {
@@ -4223,10 +4224,30 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     #endif
 
     #ifdef WOLFSSL_CERT_EXT
-            /* decode cert policy */
-            if (DecodePolicyOID(cert->extCertPolicies[
-                                cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
-                                input + idx, length) <= 0) {
+        {
+            int decodeRet;
+            int skipPolicy = 0;
+
+            /* Clear the slot: a skipped/failed decode can leave
+             * unterminated partial bytes, and the duplicate check below
+             * compares the full MAX_CERTPOL_SZ slot, not just the decoded
+             * length. */
+            XMEMSET(cert->extCertPolicies[cert->extCertPoliciesNb], 0,
+                    MAX_CERTPOL_SZ);
+
+            /* Malformed arc fails the whole cert, matching other extensions.
+             * Well-formed but oversized (ASN_OID_ARC_TOO_BIG_E) or too long
+             * for the buffer (BUFFER_E) only skip this policy. */
+            decodeRet = wc_DecodePolicyOID(cert->extCertPolicies[
+                                   cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
+                                   input + idx, length);
+            if ((decodeRet == WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E)) ||
+                    (decodeRet == WC_NO_ERR_TRACE(BUFFER_E))) {
+                WOLFSSL_MSG("\tSkipping policy OID that doesn't fit");
+                skipPolicy = 1;
+                cert->extCertPoliciesTruncated = 1;
+            }
+            else if (decodeRet <= 0) {
                 WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                 WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                 return ASN_PARSE_E;
@@ -4237,7 +4258,7 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
              * extension". This is a sanity check for duplicates.
              * extCertPolicies should only have OID values, additional
              * qualifiers need to be stored in a separate array. */
-            for (i = 0; i < cert->extCertPoliciesNb; i++) {
+            for (i = 0; !skipPolicy && (i < cert->extCertPoliciesNb); i++) {
                 if (XMEMCMP(cert->extCertPolicies[i],
                             cert->extCertPolicies[cert->extCertPoliciesNb],
                             MAX_CERTPOL_SZ) == 0) {
@@ -4248,7 +4269,10 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
                 }
             }
         #endif /* !WOLFSSL_DUP_CERTPOL */
-            cert->extCertPoliciesNb++;
+            if (!skipPolicy) {
+                cert->extCertPoliciesNb++;
+            }
+        }
     #endif
         }
         idx += (word32)policy_length;
@@ -5547,7 +5571,7 @@ static int SetCertificatePolicies(byte *output,
         oidSz = sizeof(oid);
         XMEMSET(oid, 0, oidSz);
 
-        ret = EncodePolicyOID(oid, &oidSz, input[i], heap);
+        ret = wc_EncodePolicyOID(oid, &oidSz, input[i], heap);
         if (ret != 0)
             return ret;
 

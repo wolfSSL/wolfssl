@@ -130,6 +130,32 @@ int test_wolfSSL_OBJ(void)
     ExpectIntEQ(OBJ_txt2nid(buf), NID_sha256);
 #endif
     ExpectIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
+    /* OBJ_obj2txt must fail cleanly instead of truncating a too-small
+     * buffer. */
+    {
+        /* Buffer size 4 is too small for the first identifier "2.16\0". */
+        char smallBuf[4];
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(smallBuf[0], '\0');
+    }
+    /* Buffer size 5 fits "2.16\0" but fails on the subsequent ".840" arc. */
+    {
+        char smallBuf[5];
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(smallBuf[0], '\0');
+    }
+    /* Buffer size 8 is insufficient for "2.16.840\0". */
+    {
+        char smallBuf[8];
+        XMEMSET(smallBuf, 'A', sizeof(smallBuf));
+        ExpectIntEQ(OBJ_obj2txt(smallBuf, (int)sizeof(smallBuf), obj, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(smallBuf[0], '\0');
+    }
     ExpectNotNull(obj2 = OBJ_dup(obj));
     ExpectIntEQ(OBJ_cmp(obj, obj2), 0);
     ASN1_OBJECT_free(obj);

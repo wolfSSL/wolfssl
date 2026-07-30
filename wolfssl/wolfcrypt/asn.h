@@ -2116,6 +2116,11 @@ struct DecodedCert {
 #ifdef WOLFSSL_CERT_EXT
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int     extCertPoliciesNb;
+    /* Set when one or more policyInformation entries were dropped from
+     * extCertPolicies because the OID's arc magnitude didn't fit a word32
+     * (ASN_OID_ARC_TOO_BIG_E). extCertPoliciesNb is then a partial count,
+     * not the full number of policies in the certificate. */
+    int     extCertPoliciesTruncated;
 #endif /* WOLFSSL_CERT_EXT */
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
     byte    nsCertType;
@@ -2526,10 +2531,10 @@ WOLFSSL_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                                void *ctx);
 #endif
 
-WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,
-                                  word32 inSz);
-WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
-                                  const char *in, void* heap);
+WOLFSSL_TEST_VIS int wc_DecodePolicyOID(char *out, word32 outSz,
+                                         const byte *in, word32 inSz);
+WOLFSSL_TEST_VIS int wc_EncodePolicyOID(byte *out, word32 *outSz,
+                                         const char *in, void* heap);
 WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
                                          word32 oid, byte critical,
                                          DecodedCert* cert, int *isUnknownExt);

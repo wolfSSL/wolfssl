@@ -693,6 +693,11 @@ WOLFSSL_API int wc_SetAcmeIdentifierExt(Cert *cert,
 #ifdef WOLFSSL_EKU_OID
 /* Set ExtendedKeyUsage with unique OID
  * oid is expected to be in byte representation
+ *
+ * Returns 0 on success. On failure to parse oid, returns whatever
+ * wc_EncodePolicyOID() reports (BAD_FUNC_ARG, ASN_OBJECT_ID_E,
+ * ASN_OID_ARC_TOO_BIG_E, MEMORY_E, or BUFFER_E), or BAD_FUNC_ARG if idx
+ * or sz is too large.
  */
 WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
                                      byte idx, void* heap);
@@ -1012,6 +1017,10 @@ WOLFSSL_API int wc_GetDecodedCertIssuer(const struct DecodedCert* cert,
                                         char* buf, word32* bufSz);
 WOLFSSL_API int wc_GetDecodedCertSerial(const struct DecodedCert* cert,
                                         byte* buf, word32* bufSz);
+#ifdef WOLFSSL_CERT_EXT
+WOLFSSL_API int wc_CertGetPoliciesTruncated(const struct DecodedCert* cert,
+                                            int* truncated);
+#endif
 
 #ifdef WOLFSSL_FPKI
 WOLFSSL_API int wc_GetUUIDFromCert(struct DecodedCert* cert,
