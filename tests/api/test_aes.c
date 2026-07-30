@@ -59,7 +59,9 @@
  *    (e.g. WOLFSSL_ARMASM on ARMv8 with crypto extensions).
  * In all these cases the corrupted struct is ignored and the op returns 0. */
 #if defined(WOLF_CRYPTO_CB_FIND) || defined(WOLF_CRYPTO_CB_ONLY_AES) || \
-    defined(WOLFSSL_ARMASM) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST) || \
+    defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
+    defined(WOLFSSL_PPC32_ASM) || defined(WOLFSSL_RISCV_ASM) || \
+    defined(HAVE_FIPS) || defined(HAVE_SELFTEST) || \
     defined(WOLFSSL_AFALG)
     /* The aes->rounds=0 corruption trick relies on the pure-C AesEncryptBlocks_C
      * guard (if r==0 return KEYUSAGE_E). When AES is offloaded (crypto-cb / asm)

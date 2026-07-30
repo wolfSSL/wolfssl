@@ -63520,6 +63520,8 @@ L_ualn_ld64_b:
 	or	t3, t3, t0
 L_ualn_ld64_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
+	sd	t2, 32(sp)
+	sd	t3, 40(sp)
 	ld	t4, 0(sp)
 	ld	t5, 8(sp)
 	xor	t2, t2, t4
@@ -63610,110 +63612,111 @@ L_ualn_sd66_b:
 	sb	t0, 15(a1)
 L_ualn_sd66_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
+	addi	s11, sp, 32
 #if !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED)
-	ld	t0, 0(a0)
+	ld	t0, 0(s11)
 #else
-	andi	t4, a0, 7
+	andi	t4, s11, 7
 	bnez	t4, L_ualn_ld67_w
-	ld	t0, 0(a0)
+	ld	t0, 0(s11)
 	j	L_ualn_ld67_e
 L_ualn_ld67_w:
 	andi	t4, t4, 3
 	bnez	t4, L_ualn_ld67_h
-	lwu	t0, 0(a0)
-	lwu	t4, 4(a0)
+	lwu	t0, 0(s11)
+	lwu	t4, 4(s11)
 	slli	t4, t4, 32
 	or	t0, t0, t4
 	j	L_ualn_ld67_e
 L_ualn_ld67_h:
 	andi	t4, t4, 1
 	bnez	t4, L_ualn_ld67_b
-	lhu	t0, 0(a0)
-	lhu	t4, 2(a0)
+	lhu	t0, 0(s11)
+	lhu	t4, 2(s11)
 	slli	t4, t4, 16
 	or	t0, t0, t4
-	lhu	t4, 4(a0)
+	lhu	t4, 4(s11)
 	slli	t4, t4, 32
 	or	t0, t0, t4
-	lhu	t4, 6(a0)
+	lhu	t4, 6(s11)
 	slli	t4, t4, 48
 	or	t0, t0, t4
 	j	L_ualn_ld67_e
 L_ualn_ld67_b:
-	lbu	t0, 0(a0)
-	lbu	t4, 1(a0)
+	lbu	t0, 0(s11)
+	lbu	t4, 1(s11)
 	slli	t4, t4, 8
 	or	t0, t0, t4
-	lbu	t4, 2(a0)
+	lbu	t4, 2(s11)
 	slli	t4, t4, 16
 	or	t0, t0, t4
-	lbu	t4, 3(a0)
+	lbu	t4, 3(s11)
 	slli	t4, t4, 24
 	or	t0, t0, t4
-	lbu	t4, 4(a0)
+	lbu	t4, 4(s11)
 	slli	t4, t4, 32
 	or	t0, t0, t4
-	lbu	t4, 5(a0)
+	lbu	t4, 5(s11)
 	slli	t4, t4, 40
 	or	t0, t0, t4
-	lbu	t4, 6(a0)
+	lbu	t4, 6(s11)
 	slli	t4, t4, 48
 	or	t0, t0, t4
-	lbu	t4, 7(a0)
+	lbu	t4, 7(s11)
 	slli	t4, t4, 56
 	or	t0, t0, t4
 L_ualn_ld67_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
 #if !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED)
-	ld	t1, 8(a0)
+	ld	t1, 8(s11)
 #else
-	andi	t4, a0, 7
+	andi	t4, s11, 7
 	bnez	t4, L_ualn_ld68_w
-	ld	t1, 8(a0)
+	ld	t1, 8(s11)
 	j	L_ualn_ld68_e
 L_ualn_ld68_w:
 	andi	t4, t4, 3
 	bnez	t4, L_ualn_ld68_h
-	lwu	t1, 8(a0)
-	lwu	t4, 12(a0)
+	lwu	t1, 8(s11)
+	lwu	t4, 12(s11)
 	slli	t4, t4, 32
 	or	t1, t1, t4
 	j	L_ualn_ld68_e
 L_ualn_ld68_h:
 	andi	t4, t4, 1
 	bnez	t4, L_ualn_ld68_b
-	lhu	t1, 8(a0)
-	lhu	t4, 10(a0)
+	lhu	t1, 8(s11)
+	lhu	t4, 10(s11)
 	slli	t4, t4, 16
 	or	t1, t1, t4
-	lhu	t4, 12(a0)
+	lhu	t4, 12(s11)
 	slli	t4, t4, 32
 	or	t1, t1, t4
-	lhu	t4, 14(a0)
+	lhu	t4, 14(s11)
 	slli	t4, t4, 48
 	or	t1, t1, t4
 	j	L_ualn_ld68_e
 L_ualn_ld68_b:
-	lbu	t1, 8(a0)
-	lbu	t4, 9(a0)
+	lbu	t1, 8(s11)
+	lbu	t4, 9(s11)
 	slli	t4, t4, 8
 	or	t1, t1, t4
-	lbu	t4, 10(a0)
+	lbu	t4, 10(s11)
 	slli	t4, t4, 16
 	or	t1, t1, t4
-	lbu	t4, 11(a0)
+	lbu	t4, 11(s11)
 	slli	t4, t4, 24
 	or	t1, t1, t4
-	lbu	t4, 12(a0)
+	lbu	t4, 12(s11)
 	slli	t4, t4, 32
 	or	t1, t1, t4
-	lbu	t4, 13(a0)
+	lbu	t4, 13(s11)
 	slli	t4, t4, 40
 	or	t1, t1, t4
-	lbu	t4, 14(a0)
+	lbu	t4, 14(s11)
 	slli	t4, t4, 48
 	or	t1, t1, t4
-	lbu	t4, 15(a0)
+	lbu	t4, 15(s11)
 	slli	t4, t4, 56
 	or	t1, t1, t4
 L_ualn_ld68_e:
@@ -75457,6 +75460,7 @@ L_ualn_ld90_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
 	ld	t2, 16(sp)
 	ld	t3, 24(sp)
+	addi	a1, sp, 16
 	xor	t0, t0, t2
 	xor	t1, t1, t3
 #if !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED)
@@ -75545,7 +75549,6 @@ L_ualn_sd92_b:
 	sb	t4, 15(s5)
 L_ualn_sd92_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
-	addi	a1, sp, 16
 	sd	t0, 0(a1)
 	sd	t1, 8(a1)
 #if !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED)
@@ -78580,6 +78583,9 @@ L_ualn_ld98_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
 	ld	t2, 16(sp)
 	ld	t3, 24(sp)
+	addi	a1, sp, 16
+	sd	t0, 0(a1)
+	sd	t1, 8(a1)
 	xor	t0, t0, t2
 	xor	t1, t1, t3
 #if !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED)
@@ -78669,109 +78675,109 @@ L_ualn_sd100_b:
 L_ualn_sd100_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
 #if !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED)
-	ld	t0, 0(s7)
+	ld	t0, 0(a1)
 #else
-	andi	t4, s7, 7
+	andi	t4, a1, 7
 	bnez	t4, L_ualn_ld101_w
-	ld	t0, 0(s7)
+	ld	t0, 0(a1)
 	j	L_ualn_ld101_e
 L_ualn_ld101_w:
 	andi	t4, t4, 3
 	bnez	t4, L_ualn_ld101_h
-	lwu	t0, 0(s7)
-	lwu	t4, 4(s7)
+	lwu	t0, 0(a1)
+	lwu	t4, 4(a1)
 	slli	t4, t4, 32
 	or	t0, t0, t4
 	j	L_ualn_ld101_e
 L_ualn_ld101_h:
 	andi	t4, t4, 1
 	bnez	t4, L_ualn_ld101_b
-	lhu	t0, 0(s7)
-	lhu	t4, 2(s7)
+	lhu	t0, 0(a1)
+	lhu	t4, 2(a1)
 	slli	t4, t4, 16
 	or	t0, t0, t4
-	lhu	t4, 4(s7)
+	lhu	t4, 4(a1)
 	slli	t4, t4, 32
 	or	t0, t0, t4
-	lhu	t4, 6(s7)
+	lhu	t4, 6(a1)
 	slli	t4, t4, 48
 	or	t0, t0, t4
 	j	L_ualn_ld101_e
 L_ualn_ld101_b:
-	lbu	t0, 0(s7)
-	lbu	t4, 1(s7)
+	lbu	t0, 0(a1)
+	lbu	t4, 1(a1)
 	slli	t4, t4, 8
 	or	t0, t0, t4
-	lbu	t4, 2(s7)
+	lbu	t4, 2(a1)
 	slli	t4, t4, 16
 	or	t0, t0, t4
-	lbu	t4, 3(s7)
+	lbu	t4, 3(a1)
 	slli	t4, t4, 24
 	or	t0, t0, t4
-	lbu	t4, 4(s7)
+	lbu	t4, 4(a1)
 	slli	t4, t4, 32
 	or	t0, t0, t4
-	lbu	t4, 5(s7)
+	lbu	t4, 5(a1)
 	slli	t4, t4, 40
 	or	t0, t0, t4
-	lbu	t4, 6(s7)
+	lbu	t4, 6(a1)
 	slli	t4, t4, 48
 	or	t0, t0, t4
-	lbu	t4, 7(s7)
+	lbu	t4, 7(a1)
 	slli	t4, t4, 56
 	or	t0, t0, t4
 L_ualn_ld101_e:
 #endif /* !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED) */
 #if !defined(WOLFSSL_RISCV_ASM_NO_UNALIGNED)
-	ld	t1, 8(s7)
+	ld	t1, 8(a1)
 #else
-	andi	t4, s7, 7
+	andi	t4, a1, 7
 	bnez	t4, L_ualn_ld102_w
-	ld	t1, 8(s7)
+	ld	t1, 8(a1)
 	j	L_ualn_ld102_e
 L_ualn_ld102_w:
 	andi	t4, t4, 3
 	bnez	t4, L_ualn_ld102_h
-	lwu	t1, 8(s7)
-	lwu	t4, 12(s7)
+	lwu	t1, 8(a1)
+	lwu	t4, 12(a1)
 	slli	t4, t4, 32
 	or	t1, t1, t4
 	j	L_ualn_ld102_e
 L_ualn_ld102_h:
 	andi	t4, t4, 1
 	bnez	t4, L_ualn_ld102_b
-	lhu	t1, 8(s7)
-	lhu	t4, 10(s7)
+	lhu	t1, 8(a1)
+	lhu	t4, 10(a1)
 	slli	t4, t4, 16
 	or	t1, t1, t4
-	lhu	t4, 12(s7)
+	lhu	t4, 12(a1)
 	slli	t4, t4, 32
 	or	t1, t1, t4
-	lhu	t4, 14(s7)
+	lhu	t4, 14(a1)
 	slli	t4, t4, 48
 	or	t1, t1, t4
 	j	L_ualn_ld102_e
 L_ualn_ld102_b:
-	lbu	t1, 8(s7)
-	lbu	t4, 9(s7)
+	lbu	t1, 8(a1)
+	lbu	t4, 9(a1)
 	slli	t4, t4, 8
 	or	t1, t1, t4
-	lbu	t4, 10(s7)
+	lbu	t4, 10(a1)
 	slli	t4, t4, 16
 	or	t1, t1, t4
-	lbu	t4, 11(s7)
+	lbu	t4, 11(a1)
 	slli	t4, t4, 24
 	or	t1, t1, t4
-	lbu	t4, 12(s7)
+	lbu	t4, 12(a1)
 	slli	t4, t4, 32
 	or	t1, t1, t4
-	lbu	t4, 13(s7)
+	lbu	t4, 13(a1)
 	slli	t4, t4, 40
 	or	t1, t1, t4
-	lbu	t4, 14(s7)
+	lbu	t4, 14(a1)
 	slli	t4, t4, 48
 	or	t1, t1, t4
-	lbu	t4, 15(s7)
+	lbu	t4, 15(a1)
 	slli	t4, t4, 56
 	or	t1, t1, t4
 L_ualn_ld102_e:
