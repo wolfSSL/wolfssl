@@ -248,6 +248,18 @@ static int curve25519_smul_blind(byte* rp, const byte* n, const byte* p,
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Register the blinding scalar/value buffers up front (but below the
+     * SAVE_VECTOR_REGISTERS early return) so every path to the cleanup
+     * ForceZero is checked. XMEMSET makes them defined before first use. */
+    XMEMSET(a, 0, sizeof(a));
+    XMEMSET(n_a, 0, sizeof(n_a));
+    XMEMSET(rz, 0, sizeof(rz));
+    wc_MemZero_Add("curve25519_smul_blind a", a, sizeof(a));
+    wc_MemZero_Add("curve25519_smul_blind n_a", n_a, sizeof(n_a));
+    wc_MemZero_Add("curve25519_smul_blind rz", rz, sizeof(rz));
+#endif
+
     /* Generate random z. */
     for (cnt = 0; cnt < WOLFSSL_CURVE25519_BLINDING_RAND_CNT; cnt++) {
         ret = wc_RNG_GenerateBlock(rng, rz, sizeof(rz));
@@ -288,6 +300,11 @@ cleanup:
     ForceZero(a, sizeof(a));
     ForceZero(n_a, sizeof(n_a));
     ForceZero(rz, sizeof(rz));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rz, sizeof(rz));
+    wc_MemZero_Check(n_a, sizeof(n_a));
+    wc_MemZero_Check(a, sizeof(a));
+#endif
 
     RESTORE_VECTOR_REGISTERS();
 
@@ -810,6 +827,11 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 #endif
         }
 #endif /* FREESCALE_LTC_ECC */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Past the SAVE_VECTOR_REGISTERS early-return: o now holds the shared
+         * secret and every remaining path reaches the ForceZero below. */
+        wc_MemZero_Add("wc_curve25519_shared_secret_ex o", &o, sizeof(o));
+#endif
 #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
         if (ret == 0) {
             int i;
@@ -828,6 +850,9 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         }
 
         ForceZero(&o, sizeof(o));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&o, sizeof(o));
+#endif
     }
 
     return ret;

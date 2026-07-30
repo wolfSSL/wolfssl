@@ -83,6 +83,7 @@
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
+#include <wolfssl/wolfcrypt/memory.h>
 
 #ifdef WOLFSSL_HAVE_MLKEM
 
@@ -3107,7 +3108,13 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
     }
 
     /* state holds secret PRF output. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
     return 0;
 #else
     int ret;
@@ -3160,7 +3167,13 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     XMEMCPY(out, state, outLen);
 
     /* state holds secret KDF output. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
     return 0;
 }
 #endif
@@ -3188,7 +3201,13 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     XMEMCPY(out, state, outLen);
 
     /* state holds secret KDF output. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
     return 0;
 }
 #endif
@@ -4050,7 +4069,13 @@ static int mlkem_get_noise_eta1_c(MLKEM_PRF_T* prf, sword16* p,
             mlkem_cbd_eta3(p, rand);
          }
         /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
         ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(rand, sizeof(rand));
+#endif
     }
     else
 #endif
@@ -4064,7 +4089,13 @@ static int mlkem_get_noise_eta1_c(MLKEM_PRF_T* prf, sword16* p,
             mlkem_cbd_eta2(p, rand);
         }
         /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
         ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(rand, sizeof(rand));
+#endif
     }
 
     return ret;
@@ -4098,7 +4129,13 @@ static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
     }
 
     /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
     return ret;
 }
 
@@ -4137,7 +4174,13 @@ static void mlkem_get_noise_x4_eta2_avx2(byte* rand, byte* seed, byte o)
         rand + 3 * ETA2_RAND_SIZE);
 
     /* state is secret-seeded; caller zeroizes rand. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
 }
 #endif
 
@@ -4192,7 +4235,13 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
     mlkem_cbd_eta2_avx2(p, (byte*)state);
 
     /* state holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
     return 0;
 }
 #endif
@@ -4235,7 +4284,13 @@ static void mlkem_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
         rand + i + 3 * PRF_RAND_SZ);
 
     /* state is secret-seeded; caller zeroizes rand. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
@@ -4310,7 +4365,13 @@ static int mlkem_get_noise_k3_avx2(sword16* vec1, sword16* vec2, sword16* poly,
     }
 
     /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
     return 0;
 }
 #endif
@@ -4350,7 +4411,13 @@ static int mlkem_get_noise_k4_avx2(MLKEM_PRF_T* prf, sword16* vec1,
     }
 
     /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
     return ret;
 }
 #endif
@@ -4424,7 +4491,13 @@ static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
         ETA3_RAND_SIZE - SHA3_256_BYTES);
 
     /* state is secret-seeded; caller zeroizes rand. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
 }
 
 /* Get the noise/error by calculating random bytes.
@@ -4455,7 +4528,13 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
     XMEMCPY(rand + SHA3_256_BYTES, state, ETA3_RAND_SIZE - SHA3_256_BYTES);
 
     /* state is secret-seeded; caller zeroizes rand. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly state", state, sizeof(state));
+#endif
     ForceZero(state, sizeof(state));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(state, sizeof(state));
+#endif
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
@@ -4489,7 +4568,13 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
     }
 
     /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
     return ret;
 }
 #endif
@@ -4551,7 +4636,13 @@ static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
     }
 
     /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
     return 0;
 }
 #endif
@@ -4588,7 +4679,13 @@ static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
     }
 
     /* rand holds secret noise. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("mlkem_poly rand", rand, sizeof(rand));
+#endif
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
     return ret;
 }
 #endif

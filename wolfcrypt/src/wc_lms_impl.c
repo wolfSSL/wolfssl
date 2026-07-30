@@ -3179,6 +3179,14 @@ static int wc_hss_next_subtree_inc(LmsState* state, HssPrivKey* priv_key,
     w64wrapper p64_hi;
     w64wrapper q64_hi;
 
+    /* Register tmp_priv up front (no early exit bypasses the scrub); baseline-
+     * zero first so the buffer is defined at registration. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(tmp_priv, 0xff, sizeof(tmp_priv));
+    wc_MemZero_Add("wc_hss_next_subtree_inc tmp_priv", tmp_priv,
+        sizeof(tmp_priv));
+#endif
+
     /* Get previous index. */
     w64Decrement(&p64);
     /* Get index of previous and current parent. */
@@ -3236,6 +3244,9 @@ static int wc_hss_next_subtree_inc(LmsState* state, HssPrivKey* priv_key,
     }
 
     ForceZero(tmp_priv, sizeof(tmp_priv));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(tmp_priv, sizeof(tmp_priv));
+#endif
     return ret;
 }
 

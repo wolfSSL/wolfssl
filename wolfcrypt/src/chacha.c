@@ -503,19 +503,44 @@ int wc_XChacha_SetKey(ChaCha *ctx,
     word32 k[CHACHA_MAX_KEY_SZ];
     byte   iv[CHACHA_IV_BYTES];
 
-    if (nonceSz != XCHACHA_NONCE_BYTES)
-        return BAD_FUNC_ARG;
+    /* k will hold the HChacha-derived subkey and iv the derived IV. Register
+     * from the top with a zero baseline so every exit (including the arg/setup
+     * error returns below, where the buffers are still zero) is covered. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(k, 0, sizeof k);
+    XMEMSET(iv, 0, sizeof iv);
+    wc_MemZero_Add("wc_XChacha_SetKey k", k, sizeof k);
+    wc_MemZero_Add("wc_XChacha_SetKey iv", iv, sizeof iv);
+#endif
 
-    if ((ret = wc_Chacha_SetKey(ctx, key, keySz)) < 0)
+    if (nonceSz != XCHACHA_NONCE_BYTES) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(k, sizeof k);
+        wc_MemZero_Check(iv, sizeof iv);
+    #endif
+        return BAD_FUNC_ARG;
+    }
+
+    if ((ret = wc_Chacha_SetKey(ctx, key, keySz)) < 0) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(k, sizeof k);
+        wc_MemZero_Check(iv, sizeof iv);
+    #endif
         return ret;
+    }
 
     /* form a first chacha IV from the first 16 bytes of the nonce.
      * the first word is supplied in the "counter" arg, and
      * the result is a full 128 bit nonceful IV for the one-time block
      * crypto op that follows.
      */
-    if ((ret = wc_Chacha_SetIV(ctx, nonce + 4, U8TO32_LITTLE(nonce))) < 0)
+    if ((ret = wc_Chacha_SetIV(ctx, nonce + 4, U8TO32_LITTLE(nonce))) < 0) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(k, sizeof k);
+        wc_MemZero_Check(iv, sizeof iv);
+    #endif
         return ret;
+    }
 
     wc_HChacha_block(ctx, k, 20); /* 20 rounds, but keeping half the output. */
 
@@ -528,11 +553,23 @@ int wc_XChacha_SetKey(ChaCha *ctx,
     XMEMSET(iv, 0, 4);
     XMEMCPY(iv + 4, nonce + 16, 8);
 
-    if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0)
+    if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0) {
+        /* k and iv hold derived key material - wipe before erroring out. */
+        ForceZero(k, sizeof k);
+        ForceZero(iv, sizeof iv);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(k, sizeof k);
+        wc_MemZero_Check(iv, sizeof iv);
+    #endif
         return ret;
+    }
 
     ForceZero(k, sizeof k);
     ForceZero(iv, sizeof iv);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(k, sizeof k);
+    wc_MemZero_Check(iv, sizeof iv);
+#endif
 
     return 0;
 }

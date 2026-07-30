@@ -720,6 +720,11 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
 #else
     byte rand[WC_FRODOKEM_1344_MAKEKEY_RAND_SZ];
 #endif
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    /* rand is only conditionally filled below; define it on all paths so the
+     * later registration/Check (and the unconditional ForceZero) are safe. */
+    XMEMSET(rand, 0, sizeof(rand));
+#endif
 
     if ((key == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -759,6 +764,11 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
     if ((ret == 0) && !cbHandled) {
         ret = wc_RNG_GenerateBlock(rng, rand, (word32)randLen);
     }
+    /* rand holds the secret keygen randomness; register it now (non-small-stack
+     * build, where rand is a stack array) so any later exit is covered. */
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Add("frodokem rand", rand, sizeof(rand));
+#endif
     if ((ret == 0) && !cbHandled) {
         ret = wc_FrodoKemKey_MakeKeyWithRandom(key, rand, randLen);
     }
@@ -770,6 +780,9 @@ int wc_FrodoKemKey_MakeKey(FrodoKemKey* key, WC_RNG* rng)
     }
 #else
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
 #endif
 #else
     (void)key;
@@ -933,7 +946,13 @@ int wc_FrodoKemKey_EncapsulateWithRandom(FrodoKemKey* key, unsigned char* ct,
 
 #ifndef WOLFSSL_SMALL_STACK
     ForceZero(pkh, sizeof(pkh));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("frodokem encaps seedSEk", seedSEk, sizeof(seedSEk));
+#endif
     ForceZero(seedSEk, sizeof(seedSEk));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seedSEk, sizeof(seedSEk));
+#endif
 #endif
     /* Encode(u), V/E'' and B' live in mat (as do seedSEk and pkh under small
      * stack), all zeroized on free below. */
@@ -971,6 +990,11 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
     byte* rand = NULL;
 #else
     byte rand[WC_FRODOKEM_1344_ENC_RAND_SZ];
+#endif
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    /* rand is only conditionally filled below; define it on all paths so the
+     * later registration/Check (and the unconditional ForceZero) are safe. */
+    XMEMSET(rand, 0, sizeof(rand));
 #endif
 
     if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rng == NULL)) {
@@ -1011,6 +1035,11 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
     if ((ret == 0) && !cbHandled) {
         ret = wc_RNG_GenerateBlock(rng, rand, (word32)randLen);
     }
+    /* rand holds the secret encaps randomness; register it now (non-small-stack
+     * build, where rand is a stack array) so any later exit is covered. */
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Add("frodokem rand", rand, sizeof(rand));
+#endif
     if ((ret == 0) && !cbHandled) {
         ret = wc_FrodoKemKey_EncapsulateWithRandom(key, ct, ss, rand, randLen);
     }
@@ -1022,6 +1051,9 @@ int wc_FrodoKemKey_Encapsulate(FrodoKemKey* key, unsigned char* ct,
     }
 #else
     ForceZero(rand, sizeof(rand));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rand, sizeof(rand));
+#endif
 #endif
 #else
     (void)key;
@@ -1228,10 +1260,28 @@ int wc_FrodoKemKey_Decapsulate(FrodoKemKey* key, unsigned char* ss,
     }
 
 #ifndef WOLFSSL_SMALL_STACK
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("frodokem decaps uSalt", uSalt, sizeof(uSalt));
+#endif
     ForceZero(uSalt, sizeof(uSalt));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(uSalt, sizeof(uSalt));
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("frodokem decaps seedSEk", seedSEk, sizeof(seedSEk));
+#endif
     ForceZero(seedSEk, sizeof(seedSEk));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(seedSEk, sizeof(seedSEk));
+#endif
     /* Zeroize the secret-derived stack matrices (E'' lives in mat). */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("frodokem decaps v", v, sizeof(v));
+#endif
     ForceZero(v, sizeof(v));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(v, sizeof(v));
+#endif
     ForceZero(cEnc, sizeof(cEnc));
 #endif
     /* Under small stack uSalt, seedSEk, cIn, v and cEnc live in mat, zeroized

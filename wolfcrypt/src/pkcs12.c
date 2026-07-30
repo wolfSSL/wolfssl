@@ -557,6 +557,19 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
                                      DYNAMIC_TYPE_TMP_BUFFER);
                       return MEMORY_E; });
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Register both secret buffers from allocation, poisoned non-zero so a
+     * future path that reaches exit_mac without ForceZero is caught by the
+     * Check. unicodePasswd holds the (unicode-expanded) password; key holds
+     * the PBKDF-derived HMAC key. Every exit below is a 'goto exit_mac'
+     * which ForceZero+Checks both. */
+    XMEMSET(unicodePasswd, 0xff, MAX_UNICODE_SZ);
+    wc_MemZero_Add("wc_PKCS12_create_mac unicodePasswd", unicodePasswd,
+                   MAX_UNICODE_SZ);
+    XMEMSET(key, 0xff, sizeof(key));
+    wc_MemZero_Add("wc_PKCS12_create_mac key", key, sizeof(key));
+#endif
+
     /* unicode set up from asn.c */
     if (pswSz >= MAX_UNICODE_SZ ||
        (pswSz * 2 + 2) > MAX_UNICODE_SZ) {
@@ -611,7 +624,15 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 
 exit_mac:
     ForceZero(key, sizeof(key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key, sizeof(key));
+#endif
     ForceZero(unicodePasswd, MAX_UNICODE_SZ);
+    /* Stack build only: under WOLFSSL_SMALL_STACK unicodePasswd is heap and
+     * WC_FREE_VAR_EX (XFREE) auto-runs wc_MemZero_Check over the block. */
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(unicodePasswd, MAX_UNICODE_SZ);
+#endif
     WC_FREE_VAR_EX(unicodePasswd, pkcs12->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(hmac, pkcs12->heap, DYNAMIC_TYPE_HMAC);
     return ret;

@@ -158,8 +158,20 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     int ret;
     byte authKey[CHACHA20_POLY1305_AEAD_KEYSIZE];
 
+    /* authKey will hold the derived Poly1305 key. Register from the top with a
+     * zero baseline so every exit (including the arg-check return, where it is
+     * still zero) is covered. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(authKey, 0, sizeof(authKey));
+    wc_MemZero_Add("wc_ChaCha20Poly1305_Init authKey", authKey,
+        sizeof(authKey));
+#endif
+
     /* check arguments */
     if (aead == NULL || inKey == NULL || inIV == NULL) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(authKey, sizeof(authKey));
+    #endif
         return BAD_FUNC_ARG;
     }
 
@@ -199,6 +211,9 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     }
 
     ForceZero(authKey, sizeof(authKey));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(authKey, sizeof(authKey));
+#endif
 
     return ret;
 }
@@ -326,19 +341,39 @@ int wc_XChaCha20Poly1305_Init(
     byte authKey[CHACHA20_POLY1305_AEAD_KEYSIZE];
     int ret;
 
+    /* authKey will hold the derived Poly1305 key. Register from the top with a
+     * zero baseline so every exit (including the arg/setup error returns below,
+     * where it is still zero) is covered. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(authKey, 0, sizeof authKey);
+    wc_MemZero_Add("xchacha20poly1305 authKey", authKey, sizeof authKey);
+#endif
+
     if ((aead == NULL) || (ad == NULL && ad_len > 0) || (nonce == NULL) ||
-        (key == NULL))
+        (key == NULL)) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(authKey, sizeof authKey);
+    #endif
         return BAD_FUNC_ARG;
+    }
 
     if ((key_len != CHACHA20_POLY1305_AEAD_KEYSIZE) ||
-        (nonce_len != XCHACHA20_POLY1305_AEAD_NONCE_SIZE))
+        (nonce_len != XCHACHA20_POLY1305_AEAD_NONCE_SIZE)) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(authKey, sizeof authKey);
+    #endif
         return BAD_FUNC_ARG;
+    }
 
     if ((ret = wc_XChacha_SetKey(&aead->chacha,
                                  key, key_len,
                                  nonce, nonce_len,
-                                 0 /* counter */)) < 0)
+                                 0 /* counter */)) < 0) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(authKey, sizeof authKey);
+    #endif
         return ret;
+    }
 
     XMEMSET(authKey, 0, sizeof authKey);
 
@@ -367,6 +402,9 @@ int wc_XChaCha20Poly1305_Init(
 
 out:
     ForceZero(authKey, sizeof(authKey));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(authKey, sizeof(authKey));
+#endif
 
     return ret;
 }

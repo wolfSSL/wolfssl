@@ -261,6 +261,14 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     }
 #endif
 
+#if !(defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    /* cBuf will hold the random value that becomes the private key x.
+     * Register early so any future path that skips the ForceZero is caught. */
+    XMEMSET(cBuf, 0, (size_t)cSz);
+    wc_MemZero_Add("DsaGenerateKeyPair cBuf", cBuf, (size_t)cSz);
+#endif
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), dsa->heap,
             DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
@@ -318,6 +326,10 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     }
 
     ForceZero(cBuf, (word32)cSz);
+#if !(defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)) && \
+    defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(cBuf, (size_t)cSz);
+#endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpQ != NULL) {
@@ -850,6 +862,14 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             break;
         }
 
+#if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
+        /* buffer will hold the secret nonce k and blinding value b. Register
+         * now (past the MP_INIT_E exit) so any later path that skips the
+         * ForceZero is caught. */
+        XMEMSET(buffer, 0, halfSz);
+        wc_MemZero_Add("wc_DsaSign buffer", buffer, halfSz);
+#endif
+
         qMinus1 = kInv;
 
         /* NIST FIPS 186-4: B.2.2
@@ -1089,6 +1109,9 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
 #else /* !WOLFSSL_SMALL_STACK */
     if (ret != WC_NO_ERR_TRACE(MP_INIT_E)) {
         ForceZero(buffer, halfSz);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(buffer, halfSz);
+#endif
         mp_forcezero(kInv);
         mp_forcezero(k);
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME

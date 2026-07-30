@@ -501,6 +501,20 @@ int wc_PufEnroll(wc_PufCtx* ctx)
     if (!(ctx->flags & WC_PUF_FLAG_SRAM_SET))
         return PUF_ENROLL_E;
 
+    /* Register secret stack buffers at the top of scope: no early exit remains
+     * below this point that bypasses the scrub. Poison first so they are
+     * defined at registration. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(msg, 0xff, sizeof(msg));
+    XMEMSET(cw, 0xff, sizeof(cw));
+    XMEMSET(rawCw, 0xff, sizeof(rawCw));
+    XMEMSET(helperCw, 0xff, sizeof(helperCw));
+    wc_MemZero_Add("wc_PufEnroll msg", msg, sizeof(msg));
+    wc_MemZero_Add("wc_PufEnroll cw", cw, sizeof(cw));
+    wc_MemZero_Add("wc_PufEnroll rawCw", rawCw, sizeof(rawCw));
+    wc_MemZero_Add("wc_PufEnroll helperCw", helperCw, sizeof(helperCw));
+#endif
+
     XMEMSET(ctx->helperData, 0, WC_PUF_HELPER_BYTES);
     XMEMSET(ctx->stableBits, 0, WC_PUF_STABLE_BYTES);
 
@@ -536,6 +550,12 @@ int wc_PufEnroll(wc_PufCtx* ctx)
     ForceZero(cw, sizeof(cw));
     ForceZero(rawCw, sizeof(rawCw));
     ForceZero(helperCw, sizeof(helperCw));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(msg, sizeof(msg));
+    wc_MemZero_Check(cw, sizeof(cw));
+    wc_MemZero_Check(rawCw, sizeof(rawCw));
+    wc_MemZero_Check(helperCw, sizeof(helperCw));
+#endif
 
     if (ret != 0)
         return PUF_ENROLL_E;
@@ -560,6 +580,20 @@ int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
         return PUF_RECONSTRUCT_E;
     if (!(ctx->flags & WC_PUF_FLAG_SRAM_SET))
         return PUF_RECONSTRUCT_E;
+
+    /* Register secret stack buffers at the top of scope: no early exit remains
+     * below this point that bypasses the scrub. Poison first so they are
+     * defined at registration. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(rawCw, 0xff, sizeof(rawCw));
+    XMEMSET(helperCw, 0xff, sizeof(helperCw));
+    XMEMSET(noisyCw, 0xff, sizeof(noisyCw));
+    XMEMSET(msg, 0xff, sizeof(msg));
+    wc_MemZero_Add("wc_PufReconstruct rawCw", rawCw, sizeof(rawCw));
+    wc_MemZero_Add("wc_PufReconstruct helperCw", helperCw, sizeof(helperCw));
+    wc_MemZero_Add("wc_PufReconstruct noisyCw", noisyCw, sizeof(noisyCw));
+    wc_MemZero_Add("wc_PufReconstruct msg", msg, sizeof(msg));
+#endif
 
     XMEMSET(ctx->stableBits, 0, WC_PUF_STABLE_BYTES);
 
@@ -589,6 +623,12 @@ int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
             ForceZero(noisyCw, sizeof(noisyCw));
             ForceZero(msg, sizeof(msg));
             ForceZero(ctx->stableBits, WC_PUF_STABLE_BYTES);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(rawCw, sizeof(rawCw));
+            wc_MemZero_Check(helperCw, sizeof(helperCw));
+            wc_MemZero_Check(noisyCw, sizeof(noisyCw));
+            wc_MemZero_Check(msg, sizeof(msg));
+        #endif
             ctx->flags &= (word32)~WC_PUF_FLAG_READY;
             return PUF_RECONSTRUCT_E;
         }
@@ -604,6 +644,12 @@ int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
     ForceZero(helperCw, sizeof(helperCw));
     ForceZero(noisyCw, sizeof(noisyCw));
     ForceZero(msg, sizeof(msg));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(rawCw, sizeof(rawCw));
+    wc_MemZero_Check(helperCw, sizeof(helperCw));
+    wc_MemZero_Check(noisyCw, sizeof(noisyCw));
+    wc_MemZero_Check(msg, sizeof(msg));
+#endif
 
     if (ret != 0)
         return PUF_RECONSTRUCT_E;

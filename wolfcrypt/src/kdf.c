@@ -1412,12 +1412,21 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
     }
 
     if (ret == 0 && outIdx < derivedSecretSz) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* poison so a missed ForceZero on any path is caught by the check */
+        XMEMSET(hashTempBuf, 0xff, (word32) hashOutSz);
+        wc_MemZero_Add("wc_KDA_KDF_onestep hashTempBuf", hashTempBuf,
+            (word32) hashOutSz);
+    #endif
         ret = wc_KDA_KDF_iteration(z, zSz, counter, fixedInfo, fixedInfoSz,
             hashType, hashTempBuf);
         if (ret == 0) {
             XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
         }
         ForceZero(hashTempBuf, (word32) hashOutSz);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(hashTempBuf, (word32) hashOutSz);
+    #endif
     }
 
     if (ret != 0) {
@@ -1510,10 +1519,18 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
     #endif
 
     XMEMSET(Key_kdk, 0, kdk_len);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* register at the 0 baseline; every exit below checks it */
+    wc_MemZero_Add("wc_KDA_KDF_twostep_cmac Key_kdk", Key_kdk,
+        sizeof(Key_kdk));
+#endif
 
     #ifdef WOLFSSL_SMALL_STACK
     cmac = (Cmac*)XMALLOC(sizeof(Cmac), heap, DYNAMIC_TYPE_CMAC);
     if (cmac == NULL) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(Key_kdk, sizeof(Key_kdk));
+    #endif
         return MEMORY_E;
     }
     #endif
@@ -1549,6 +1566,9 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
 
     /* always force zero the intermediate key derivation key. */
     ForceZero(Key_kdk, sizeof(Key_kdk));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(Key_kdk, sizeof(Key_kdk));
+#endif
 
     return ret;
 }
@@ -1653,6 +1673,9 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
         /* cmac the last little bit that wouldn't fit in a block size. */
         byte rem[WC_AES_BLOCK_SIZE];
         XMEMSET(rem, 0, sizeof(rem));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_KDA_KDF_PRF_cmac rem", rem, sizeof(rem));
+    #endif
         c32toa(counter, counterBuf);
 
         #ifdef WOLFSSL_DEBUG_KDF
@@ -1685,6 +1708,9 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
         }
 
         ForceZero(rem, sizeof(rem));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(rem, sizeof(rem));
+    #endif
         (void)wc_CmacFree(cmac);
     }
 

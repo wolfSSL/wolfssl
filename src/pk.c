@@ -4878,6 +4878,15 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
 
     WOLFSSL_ENTER("wolfSSL_DH_compute_key");
 
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    /* Baseline-zero and register the whole stack array before it is filled so
+     * the bn2bin fill and every path to the ForceZero are covered. The written
+     * length is not known here, so the full array is registered and the XMEMSET
+     * keeps the unwritten tail zero. (Small-stack sibling is heap; skipped.) */
+    XMEMSET(priv, 0, sizeof(priv));
+    wc_MemZero_Add("_DH_compute_key priv", priv, sizeof(priv));
+#endif
+
     /* Validate parameters. */
     if ((dh == NULL) || (dh->priv_key == NULL) || (otherPub == NULL)) {
         WOLFSSL_ERROR_MSG("Bad function arguments");
@@ -4998,6 +5007,11 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
             ForceZero(priv, (word32)privSz);
         }
     }
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    /* Whole array is zero here on every path (baseline + ForceZero), so the
+     * check always passes and the up-front registration is always retired. */
+    wc_MemZero_Check(priv, sizeof(priv));
+#endif
     WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     WC_FREE_VAR_EX(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
@@ -7215,6 +7229,16 @@ int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data, long* len,
     char password[NAME_SZ];
     int passwordSz = 0;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Baseline-zero and register the whole buffer up front so the cb() fill and
+     * every path to the ForceZero are covered. The written length is not known
+     * here, so the full buffer is registered; the XMEMSET keeps the unwritten
+     * tail defined-zero so the full-window check never false-fails. */
+    XMEMSET(password, 0, sizeof(password));
+    wc_MemZero_Add("wolfSSL_PEM_do_header password", password,
+        sizeof(password));
+#endif
+
     /* Validate parameters. */
     if ((cipher == NULL) || (data == NULL) || (len == NULL) || (cb == NULL)) {
         ret = 0;
@@ -7241,6 +7265,11 @@ int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data, long* len,
         ForceZero(password, (word32)passwordSz);
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Whole buffer is zero here on every path (baseline + ForceZero), so the
+     * check always passes and the up-front registration is always retired. */
+    wc_MemZero_Check(password, sizeof(password));
+#endif
     return ret;
 }
 
@@ -7470,6 +7499,15 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
         type = PKCS8_ENC_PRIVATEKEY_TYPE;
 
         if (passwd == NULL) {
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            /* Baseline-zero and register the whole buffer before the cb() fill
+             * so the fill and every path to the ForceZero are covered. The
+             * written length is not known here, so the full buffer is
+             * registered and the XMEMSET keeps the unwritten tail zero. */
+            XMEMSET(password, 0, sizeof(password));
+            wc_MemZero_Add("pem_write_mem_pkcs8privatekey password", password,
+                sizeof(password));
+        #endif
             /* Get the password by using callback. */
             passwdSz = cb(password, sizeof(password), 1, ctx);
             if (passwdSz < 0) {
@@ -7490,6 +7528,14 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
         if ((password == passwd) && (passwdSz > 0)) {
             ForceZero(password, (word32)passwdSz);
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Retire the up-front registration on every path that made it: the
+         * local buffer was used iff passwd now aliases it. Buffer is zero here
+         * (baseline + ForceZero), so the full-window check always passes. */
+        if (password == passwd) {
+            wc_MemZero_Check(password, sizeof(password));
+        }
+    #endif
     }
     else if ((res == 1) && (enc == NULL)) {
         /* Set type for PEM. */
