@@ -1202,6 +1202,9 @@ int test_x509_REQ_sign_mldsa(void)
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pubkey), WC_EVP_PKEY_DILITHIUM);
     ExpectIntEQ(wolfSSL_X509_REQ_verify(parsed, pubkey), WOLFSSL_SUCCESS);
 
+    /* OpenSSL semantics: NULL md is valid for ML-DSA. */
+    ExpectIntEQ(wolfSSL_X509_REQ_sign(req, pkey, NULL), WOLFSSL_SUCCESS);
+
     wolfSSL_EVP_PKEY_free(pubkey);
     wolfSSL_X509_free(parsed);
     XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);

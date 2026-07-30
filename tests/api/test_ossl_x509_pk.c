@@ -396,6 +396,13 @@ int test_wolfSSL_X509_set_pubkey(void)
             ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
             wolfSSL_EVP_PKEY_free(pubkey);
             pubkey = NULL;
+
+            /* OpenSSL semantics: NULL md is valid for ML-DSA. */
+            ExpectIntGT(wolfSSL_X509_sign(x509, pkey, NULL), 0);
+            ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
+            ExpectIntEQ(wolfSSL_X509_verify(x509, pubkey), WOLFSSL_SUCCESS);
+            wolfSSL_EVP_PKEY_free(pubkey);
+            pubkey = NULL;
         }
     #endif
         wolfSSL_EVP_PKEY_free(pkey);
@@ -439,6 +446,9 @@ int test_wolfSSL_X509_set_pubkey(void)
         ExpectIntEQ(wolfSSL_X509_set_issuer_name(cx, name), WOLFSSL_SUCCESS);
         wolfSSL_X509_NAME_free(name);
         ExpectIntEQ(wolfSSL_X509_set_pubkey(cx, mldsaKey), WOLFSSL_SUCCESS);
+
+        /* NULL md is still rejected for a hash-based signing key. */
+        ExpectIntEQ(wolfSSL_X509_sign(cx, rsaKey, NULL), WOLFSSL_FAILURE);
 
         ExpectIntGT(wolfSSL_X509_sign(cx, rsaKey, wolfSSL_EVP_sha256()), 0);
 

@@ -12234,6 +12234,38 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
 
+    #ifdef WOLFSSL_HAVE_MLDSA
+        if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
+            /* ML-DSA does not use a separate hash; md (may be NULL, as in
+             * OpenSSL's X509_sign(x, pkey, NULL)) is ignored. */
+            switch (WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
+                case ML_DSA_44k:
+                    sigType = CTC_ML_DSA_LEVEL2;
+                    break;
+                case ML_DSA_65k:
+                    sigType = CTC_ML_DSA_LEVEL3;
+                    break;
+                case ML_DSA_87k:
+                    sigType = CTC_ML_DSA_LEVEL5;
+                    break;
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+                case DILITHIUM_LEVEL2k:
+                    sigType = CTC_DILITHIUM_LEVEL2;
+                    break;
+                case DILITHIUM_LEVEL3k:
+                    sigType = CTC_DILITHIUM_LEVEL3;
+                    break;
+                case DILITHIUM_LEVEL5k:
+                    sigType = CTC_DILITHIUM_LEVEL5;
+                    break;
+            #endif
+                default:
+                    return WOLFSSL_FAILURE;
+            }
+            return sigType;
+        }
+    #endif /* WOLFSSL_HAVE_MLDSA */
+
         /* Convert key type and hash algorithm to a signature algorithm */
         if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL)
             == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
@@ -12311,35 +12343,6 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
                     return WOLFSSL_FAILURE;
             }
         }
-    #ifdef WOLFSSL_HAVE_MLDSA
-        else if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
-            /* ML-DSA does not use a separate hash; ignore md. */
-            switch (WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
-                case ML_DSA_44k:
-                    sigType = CTC_ML_DSA_LEVEL2;
-                    break;
-                case ML_DSA_65k:
-                    sigType = CTC_ML_DSA_LEVEL3;
-                    break;
-                case ML_DSA_87k:
-                    sigType = CTC_ML_DSA_LEVEL5;
-                    break;
-            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
-                case DILITHIUM_LEVEL2k:
-                    sigType = CTC_DILITHIUM_LEVEL2;
-                    break;
-                case DILITHIUM_LEVEL3k:
-                    sigType = CTC_DILITHIUM_LEVEL3;
-                    break;
-                case DILITHIUM_LEVEL5k:
-                    sigType = CTC_DILITHIUM_LEVEL5;
-                    break;
-            #endif
-                default:
-                    return WOLFSSL_FAILURE;
-            }
-        }
-    #endif /* WOLFSSL_HAVE_MLDSA */
         else
             return WOLFSSL_FAILURE;
         return sigType;
@@ -13027,7 +13030,17 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
 
     WOLFSSL_ENTER("wolfSSL_X509_sign");
 
-    if (x509 == NULL || pkey == NULL || md == NULL) {
+    if (x509 == NULL || pkey == NULL) {
+        ret = WOLFSSL_FAILURE;
+        goto out;
+    }
+    /* md may be NULL for hash-free algorithms (ML-DSA), as in OpenSSL's
+     * X509_sign(x, pkey, NULL). */
+    if (md == NULL
+#ifdef WOLFSSL_HAVE_MLDSA
+        && pkey->type != WC_EVP_PKEY_DILITHIUM
+#endif
+        ) {
         ret = WOLFSSL_FAILURE;
         goto out;
     }
@@ -16991,7 +17004,13 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
     int bufSz;
     int derSz;
 
-    if (req == NULL || pkey == NULL || md == NULL) {
+    /* md may be NULL for hash-free algorithms (ML-DSA), as in OpenSSL's
+     * X509_REQ_sign(req, pkey, NULL). */
+    if (req == NULL || pkey == NULL || (md == NULL
+#ifdef WOLFSSL_HAVE_MLDSA
+        && pkey->type != WC_EVP_PKEY_DILITHIUM
+#endif
+        )) {
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", BAD_FUNC_ARG);
         return WOLFSSL_FAILURE;
     }
