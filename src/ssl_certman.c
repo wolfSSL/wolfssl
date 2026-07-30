@@ -748,6 +748,31 @@ void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
     }
 
 }
+
+#ifdef HAVE_CRL
+int wolfSSL_CertManagerSetCRLUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRLUnknownExtCallback");
+    if (cm == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    cm->crlUnknownExtCallback = cb;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallbackEx cb, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRLUnknownExtCallbackEx");
+    if (cm == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    cm->crlUnknownExtCallbackEx = cb;
+    cm->crlUnknownExtCallbackExCtx = ctx;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* HAVE_CRL */
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \

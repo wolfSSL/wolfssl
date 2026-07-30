@@ -3254,6 +3254,11 @@ struct DecodedCRL {
     WC_BITFIELD extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
 #endif
     WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    wc_UnknownExtCallback   unknownExtCallback;
+    wc_UnknownExtCallbackEx unknownExtCallbackEx;
+    void*                   unknownExtCallbackExCtx;
+#endif
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL* dcrl, void* heap);

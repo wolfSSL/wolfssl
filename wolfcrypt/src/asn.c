@@ -22140,6 +22140,7 @@ int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
     cert->unknownExtCallbackExCtx = ctx;
     return 0;
 }
+
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
 /*
@@ -36799,10 +36800,15 @@ static const byte crlReasonOid[] = { 0x55, 0x1d, 0x15 };
 /* Parse CRL entry extensions.
  * Extracts the reason code into *reasonCode if the CRL Reason extension
  * is present. Per RFC 5280 Section 5.3, returns ASN_CRIT_EXT_E if any
- * unknown extension is marked critical. Returns 0 on success. */
+ * unknown extension is marked critical, unless a registered
+ * unknownExtCallback on dcrl accepts it. dcrl may be NULL (no callback
+ * dispatch). Returns 0 on success. */
 static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
-                                    int* reasonCode)
+                                    int* reasonCode, DecodedCRL* dcrl)
 {
+#ifndef WC_ASN_UNKNOWN_EXT_CB
+    (void)dcrl;
+#endif
     while (idx < maxIdx) {
         int len;
         int oidLen;
@@ -36867,11 +36873,59 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                 }
             }
         }
-        else if (critical) {
-            /* RFC 5280 Section 5.3: reject CRL with unknown critical
-             * entry extension. */
-            WOLFSSL_MSG("Unknown critical CRL entry extension");
-            return ASN_CRIT_EXT_E;
+        else {
+            int handled = 0;
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+            if (dcrl != NULL && (dcrl->unknownExtCallback != NULL ||
+                                 dcrl->unknownExtCallbackEx != NULL)) {
+                word16 decOid[MAX_OID_SZ];
+                word32 decOidSz = MAX_OID_SZ;
+                word32 valIdx = idx;
+                int    valLen = 0;
+                int    cbRet;
+
+                if (GetOctetString(buff, &valIdx, &valLen, end) < 0) {
+                    return ASN_PARSE_E;
+                }
+                /* Validate the OID encoding before decoding it. GetLength()
+                 * returns 0 (not an error) for a zero-length item, and an OID
+                 * whose last content octet has bit 8 set encodes no complete
+                 * sub-identifier. In either case DecodeObjectId() returns 0
+                 * with *outSz == 0, having written nothing to decOid, which
+                 * would hand the callback an uninitialized OID buffer. */
+                if (GetASN_ObjectId(buff, oidContent, oidLen) != 0) {
+                    return ASN_PARSE_E;
+                }
+                /* Redundant given the check above, but it makes "the callback
+                 * never sees uninitialized stack" true by construction rather
+                 * than by reasoning about DecodeObjectId's internals. */
+                XMEMSET(decOid, 0, sizeof(decOid));
+                cbRet = DecodeObjectId(buff + oidContent, (word32)oidLen,
+                    decOid, &decOidSz);
+                if (cbRet == 0 && dcrl->unknownExtCallback != NULL) {
+                    cbRet = dcrl->unknownExtCallback(decOid, decOidSz,
+                        critical, buff + valIdx, (word32)valLen);
+                }
+                if (cbRet == 0 && dcrl->unknownExtCallbackEx != NULL) {
+                    cbRet = dcrl->unknownExtCallbackEx(decOid, decOidSz,
+                        critical, buff + valIdx, (word32)valLen,
+                        dcrl->unknownExtCallbackExCtx);
+                }
+                if (cbRet != 0) {
+                    /* Must stay negative: BufferLoadCRL converts its result
+                     * with "ret ? ret : WOLFSSL_SUCCESS", so a positive
+                     * callback return would collide with WOLFSSL_SUCCESS. */
+                    return (cbRet < 0) ? cbRet : ASN_PARSE_E;
+                }
+                handled = 1;
+            }
+#endif
+            if (!handled && critical) {
+                /* RFC 5280 Section 5.3: reject CRL with unknown critical
+                 * entry extension. */
+                WOLFSSL_MSG("Unknown critical CRL entry extension");
+                return ASN_CRIT_EXT_E;
+            }
         }
         idx = end;
     }
@@ -36888,7 +36942,7 @@ WOLFSSL_TEST_VIS int wc_ParseCRLReasonFromExtensions(const byte* ext,
         return BAD_FUNC_ARG;
     }
 
-    return ParseCRL_EntryExtensions(ext, 0, extSz, reasonCode);
+    return ParseCRL_EntryExtensions(ext, 0, extSz, reasonCode, NULL);
 }
 #endif
 
@@ -36977,7 +37031,7 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
 #endif
 
                 ret = ParseCRL_EntryExtensions(buff, extOff, extEnd,
-                    &rc->reasonCode);
+                    &rc->reasonCode, dcrl);
             }
         }
 
@@ -37300,9 +37354,48 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     mp_free(m);
                     FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 }
-                else if (critical) {
-                    WOLFSSL_MSG("Unknown critical CRL extension");
-                    ret = ASN_CRIT_EXT_E;
+                else {
+                    /* Unknown extension OID. Give the caller a chance to
+                     * accept it via the registered callback; otherwise the
+                     * historical strict behavior (reject if critical) is
+                     * preserved. */
+                    int handled = 0;
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+                    if (dcrl->unknownExtCallback != NULL ||
+                        dcrl->unknownExtCallbackEx != NULL) {
+                        word16 decOid[MAX_OID_SZ];
+                        word32 decOidSz = MAX_OID_SZ;
+                        ret = DecodeObjectId(
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.data,
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.length,
+                            decOid, &decOidSz);
+                        if (ret == 0 && dcrl->unknownExtCallback != NULL) {
+                            ret = dcrl->unknownExtCallback(decOid, decOidSz,
+                                critical,
+                                dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                                dataASN[CERTEXTASN_IDX_VAL].length);
+                        }
+                        if (ret == 0 && dcrl->unknownExtCallbackEx != NULL) {
+                            ret = dcrl->unknownExtCallbackEx(decOid, decOidSz,
+                                critical,
+                                dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                                dataASN[CERTEXTASN_IDX_VAL].length,
+                                dcrl->unknownExtCallbackExCtx);
+                        }
+                        if (ret > 0) {
+                            /* Must stay negative: BufferLoadCRL converts its
+                             * result with "ret ? ret : WOLFSSL_SUCCESS", so a
+                             * positive callback return would collide with
+                             * WOLFSSL_SUCCESS. */
+                            ret = ASN_PARSE_E;
+                        }
+                        handled = 1;
+                    }
+#endif
+                    if (!handled && critical) {
+                        WOLFSSL_MSG("Unknown critical CRL extension");
+                        ret = ASN_CRIT_EXT_E;
+                    }
                 }
             }
             /* Move index on to next extension. */

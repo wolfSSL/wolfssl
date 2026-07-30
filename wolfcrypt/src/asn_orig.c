@@ -9192,7 +9192,7 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
 #endif
 
                 ret = ParseCRL_EntryExtensions(buff, seqIdx, extEnd,
-                    &rc->reasonCode);
+                    &rc->reasonCode, NULL);
                 if (ret != 0) {
 #if defined(OPENSSL_EXTRA)
                     XFREE(rc->extensions, dcrl->heap, DYNAMIC_TYPE_REVOKED);
