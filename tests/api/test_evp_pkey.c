@@ -3050,6 +3050,83 @@ int test_wolfSSL_EVP_PKEY_ed448(void)
     return EXPECT_RESULT();
 }
 
+/* Decoding into a caller-supplied EVP_PKEY must re-populate the object
+ * (documented OpenSSL reuse semantics). An ML-DSA decode into a key that
+ * previously held another key must not return success while leaving the
+ * old key data in place. */
+int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_65) && \
+    !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+    unsigned char der44[2048];
+    unsigned char der65[2600];
+    int der44Sz = 0;
+    int der65Sz = 0;
+    XFILE f = XBADFILE;
+
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(der44Sz = (int)XFREAD(der44, 1, sizeof(der44), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa65_pub-spki.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(der65Sz = (int)XFREAD(der65, 1, sizeof(der65), f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+    }
+
+    /* Decode an RSA SPKI first so pkey holds a non-ML-DSA key. */
+    p = client_keypub_der_2048;
+    ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p,
+        (long)sizeof_client_keypub_der_2048));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+
+    /* Reuse the same EVP_PKEY for an ML-DSA SPKI and check the object was
+     * re-populated with the new key. */
+    p = der44;
+    ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, (long)der44Sz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+    if (pkey != NULL) {
+        ExpectIntEQ(pkey->pkey_sz, der44Sz);
+        ExpectNotNull(pkey->pkey.ptr);
+        if (pkey->pkey.ptr != NULL) {
+            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, der44, (size_t)der44Sz), 0);
+        }
+        /* EVP_PKEY_free() releases the per-algorithm object only for the
+         * final type, so drop the RSA object left from the first decode
+         * to keep this test leak-free. */
+        if (pkey->rsa != NULL && pkey->ownRsa == 1) {
+            wolfSSL_RSA_free(pkey->rsa);
+            pkey->rsa = NULL;
+        }
+    }
+
+    /* Reuse again with a different ML-DSA level: same type, new key data. */
+    p = der65;
+    ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, (long)der65Sz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+    if (pkey != NULL) {
+        ExpectIntEQ(pkey->pkey_sz, der65Sz);
+        ExpectNotNull(pkey->pkey.ptr);
+        if (pkey->pkey.ptr != NULL) {
+            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, der65, (size_t)der65Sz), 0);
+        }
+    }
+
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_x25519(void)
 {
     EXPECT_DECLS;

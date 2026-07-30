@@ -90,6 +90,13 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         }
     }
 
+    /* Release key data held from a previous decode when the caller reuses
+     * an EVP PKEY object. */
+    if (pkey->pkey.ptr != NULL) {
+        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        pkey->pkey.ptr = NULL;
+    }
+
     /* Set the size and allocate memory for key data to be copied into. */
     pkey->pkey_sz = (int)memSz;
     if (memSz > 0) {
@@ -1023,13 +1030,15 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in]      mem    Memory containing key data.
  * @param [in]      memSz  Size of key data in bytes.
  * @param [in]      priv   1 means private key, 0 means public key.
+ * @param [in]      prePopulated  1 means *out already holds the input bytes
+ *                         so the d2i_make_pkey allocate/copy is skipped.
  * @return  1 on success.
  * @return  0 when input was recognized as this key type but
  *            object creation/import failed.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
 static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
-    long memSz, int priv)
+    long memSz, int priv, int prePopulated)
 {
     static const byte levels[] = { WC_ML_DSA_44, WC_ML_DSA_65, WC_ML_DSA_87 };
     word32 inSz = (word32)memSz;
@@ -1118,11 +1127,11 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Copy the consumed DER into pkey->pkey.ptr when the input was DER.
-     * If the caller already populated the EVP PKEY with the input bytes
-     * (pkey.ptr set), skip the allocate/copy. */
+    /* Copy the consumed DER into pkey->pkey.ptr, unless the caller
+     * pre-filled the EVP PKEY with the input bytes (d2i_evp_pkey()).
+     * A reused key must be re-populated here. */
     ret = 1;
-    if ((out == NULL) || (*out == NULL) || ((*out)->pkey.ptr == NULL)) {
+    if (!prePopulated) {
         ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
     }
     if ((ret == 1) && (out != NULL) && (*out != NULL) && (oidSum != 0)) {
@@ -1217,7 +1226,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
     else
 #endif /* HAVE_FALCON */
 #ifdef WOLFSSL_HAVE_MLDSA
-    if (d2iTryMlDsaKey(&pkey, *in, inSz, priv) >= 0) {
+    if (d2iTryMlDsaKey(&pkey, *in, inSz, priv, 0) >= 0) {
         found = 1;
     }
     else
@@ -1582,8 +1591,8 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
 #endif /* HAVE_ED448 */
 #if defined(WOLFSSL_HAVE_MLDSA)
         case WC_EVP_PKEY_DILITHIUM:
-            /* See WC_EVP_PKEY_ED25519 case above. */
-            if (d2iTryMlDsaKey(&local, p, local->pkey_sz, priv) != 1) {
+            /* local already holds the input bytes: prePopulated=1. */
+            if (d2iTryMlDsaKey(&local, p, local->pkey_sz, priv, 1) != 1) {
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
