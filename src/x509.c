@@ -12863,7 +12863,7 @@ cleanup:
         if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
             /* Decode the ML-DSA private key held as DER in pkey.ptr. */
             word32 idx = 0;
-            byte level = 0;
+            int oidSum = 0;
             int decRet;
 
             mldsa = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), NULL,
@@ -12879,30 +12879,33 @@ cleanup:
                     (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
                     &idx);
             PRIVATE_KEY_LOCK();
+            /* Map the parameter set to its OID with mldsa_get_oid_sum():
+             * unlike wc_MlDsaKey_GetParams() it distinguishes FIPS204-draft
+             * levels. */
             if (decRet != 0 ||
-                    wc_MlDsaKey_GetParams(mldsa, &level) != 0) {
+                    mldsa_get_oid_sum(mldsa, &oidSum) != 0) {
                 wc_MlDsaKey_Free(mldsa);
                 XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FATAL_ERROR;
             }
-            switch (level) {
-                case WC_ML_DSA_44:
+            switch (oidSum) {
+                case ML_DSA_44k:
                     type = ML_DSA_LEVEL2_TYPE;
                     break;
-                case WC_ML_DSA_65:
+                case ML_DSA_65k:
                     type = ML_DSA_LEVEL3_TYPE;
                     break;
-                case WC_ML_DSA_87:
+                case ML_DSA_87k:
                     type = ML_DSA_LEVEL5_TYPE;
                     break;
             #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
-                case WC_ML_DSA_44_DRAFT:
+                case DILITHIUM_LEVEL2k:
                     type = DILITHIUM_LEVEL2_TYPE;
                     break;
-                case WC_ML_DSA_65_DRAFT:
+                case DILITHIUM_LEVEL3k:
                     type = DILITHIUM_LEVEL3_TYPE;
                     break;
-                case WC_ML_DSA_87_DRAFT:
+                case DILITHIUM_LEVEL5k:
                     type = DILITHIUM_LEVEL5_TYPE;
                     break;
             #endif
@@ -16579,7 +16582,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
             /* Decode key DER (private or public) and export public part. */
             MlDsaKey* mldsa;
             word32 idx = 0;
-            byte level = 0;
+            int oidSum = 0;
             int decodeOk = 0;
 
             mldsa = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), cert->heap,
@@ -16619,7 +16622,11 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                     return WOLFSSL_FAILURE;
                 }
             }
-            if (wc_MlDsaKey_GetParams(mldsa, &level) != 0) {
+            /* Map the parameter set to its OID with mldsa_get_oid_sum():
+             * unlike wc_MlDsaKey_GetParams() it distinguishes FIPS204-draft
+             * levels, keeping pubKeyOID consistent with the SPKI encoded
+             * by wc_MlDsaKey_PublicKeyToDer(). */
+            if (mldsa_get_oid_sum(mldsa, &oidSum) != 0) {
                 wc_MlDsaKey_Free(mldsa);
                 XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FAILURE;
@@ -16639,31 +16646,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                 XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                 return WOLFSSL_FAILURE;
             }
-            switch (level) {
-                case WC_ML_DSA_44:
-                    cert->pubKeyOID = ML_DSA_44k;
-                    break;
-                case WC_ML_DSA_65:
-                    cert->pubKeyOID = ML_DSA_65k;
-                    break;
-                case WC_ML_DSA_87:
-                    cert->pubKeyOID = ML_DSA_87k;
-                    break;
-            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
-                case WC_ML_DSA_44_DRAFT:
-                    cert->pubKeyOID = DILITHIUM_LEVEL2k;
-                    break;
-                case WC_ML_DSA_65_DRAFT:
-                    cert->pubKeyOID = DILITHIUM_LEVEL3k;
-                    break;
-                case WC_ML_DSA_87_DRAFT:
-                    cert->pubKeyOID = DILITHIUM_LEVEL5k;
-                    break;
-            #endif
-                default:
-                    XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    return WOLFSSL_FAILURE;
-            }
+            cert->pubKeyOID = oidSum;
         }
         break;
 #endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY &&
