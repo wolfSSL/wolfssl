@@ -12833,7 +12833,7 @@ cleanup:
         int sigType;
         WC_RNG rng;
     #ifdef WOLFSSL_MLDSA_X509_SIGN
-        MlDsaKey* mldsa = NULL;
+        wc_MlDsaKey* mldsa = NULL;
     #endif
 
         (void)req;
@@ -12866,12 +12866,15 @@ cleanup:
             int oidSum = 0;
             int decRet;
 
-            mldsa = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), NULL,
+            mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), x509->heap,
                     DYNAMIC_TYPE_MLDSA);
-            if (mldsa == NULL)
+            if (mldsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for wc_MlDsaKey");
                 return WOLFSSL_FATAL_ERROR;
-            if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
-                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+            }
+            if (wc_MlDsaKey_Init(mldsa, x509->heap, INVALID_DEVID) != 0) {
+                WOLFSSL_MSG("wc_MlDsaKey_Init error");
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FATAL_ERROR;
             }
             PRIVATE_KEY_UNLOCK();
@@ -12884,8 +12887,9 @@ cleanup:
              * levels. */
             if (decRet != 0 ||
                     mldsa_get_oid_sum(mldsa, &oidSum) != 0) {
+                WOLFSSL_MSG("Error decoding ML-DSA private key");
                 wc_MlDsaKey_Free(mldsa);
-                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FATAL_ERROR;
             }
             switch (oidSum) {
@@ -12910,8 +12914,9 @@ cleanup:
                     break;
             #endif
                 default:
+                    WOLFSSL_MSG("Unsupported ML-DSA parameter set");
                     wc_MlDsaKey_Free(mldsa);
-                    XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+                    XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
                     return WOLFSSL_FATAL_ERROR;
             }
             key = mldsa;
@@ -12924,7 +12929,7 @@ cleanup:
         #ifdef WOLFSSL_MLDSA_X509_SIGN
             if (mldsa != NULL) {
                 wc_MlDsaKey_Free(mldsa);
-                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
             }
         #endif
             return ret;
@@ -12935,7 +12940,7 @@ cleanup:
     #ifdef WOLFSSL_MLDSA_X509_SIGN
         if (mldsa != NULL) {
             wc_MlDsaKey_Free(mldsa);
-            XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+            XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
         }
     #endif
         if (ret < 0) {
@@ -16580,16 +16585,19 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
     case WC_EVP_PKEY_DILITHIUM:
         {
             /* Decode key DER (private or public) and export public part. */
-            MlDsaKey* mldsa;
+            wc_MlDsaKey* mldsa;
             word32 idx = 0;
             int oidSum = 0;
             int decodeOk = 0;
 
-            mldsa = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), cert->heap,
+            mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), cert->heap,
                     DYNAMIC_TYPE_MLDSA);
-            if (mldsa == NULL)
+            if (mldsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for wc_MlDsaKey");
                 return WOLFSSL_FAILURE;
-            if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+            }
+            if (wc_MlDsaKey_Init(mldsa, cert->heap, INVALID_DEVID) != 0) {
+                WOLFSSL_MSG("wc_MlDsaKey_Init error");
                 XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FAILURE;
             }
@@ -16608,7 +16616,8 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                  * reset the key so PublicKeyDecode auto-detects it from
                  * the SPKI OID. */
                 wc_MlDsaKey_Free(mldsa);
-                if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+                if (wc_MlDsaKey_Init(mldsa, cert->heap, INVALID_DEVID) != 0) {
+                    WOLFSSL_MSG("wc_MlDsaKey_Init error");
                     XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
                     return WOLFSSL_FAILURE;
                 }
@@ -16617,6 +16626,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                 if (wc_MlDsaKey_PublicKeyDecode(mldsa,
                         (const byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
                         &idx) != 0) {
+                    WOLFSSL_MSG("Error decoding ML-DSA public key");
                     wc_MlDsaKey_Free(mldsa);
                     XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
                     return WOLFSSL_FAILURE;
@@ -16627,6 +16637,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
              * levels, keeping pubKeyOID consistent with the SPKI encoded
              * by wc_MlDsaKey_PublicKeyToDer(). */
             if (mldsa_get_oid_sum(mldsa, &oidSum) != 0) {
+                WOLFSSL_MSG("Error getting ML-DSA OID");
                 wc_MlDsaKey_Free(mldsa);
                 XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FAILURE;
@@ -16635,6 +16646,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
             derSz = MLDSA_MAX_PUB_KEY_SIZE + MAX_ALGO_SZ + MAX_SEQ_SZ * 2;
             p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             if (p == NULL) {
+                WOLFSSL_MSG("malloc error");
                 wc_MlDsaKey_Free(mldsa);
                 XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FAILURE;
@@ -16643,6 +16655,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
             wc_MlDsaKey_Free(mldsa);
             XFREE(mldsa, cert->heap, DYNAMIC_TYPE_MLDSA);
             if (derSz <= 0) {
+                WOLFSSL_MSG("Error making ML-DSA public key DER");
                 XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                 return WOLFSSL_FAILURE;
             }
