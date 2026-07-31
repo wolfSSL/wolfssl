@@ -6350,6 +6350,10 @@ int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7)
     PKCS7* pkcs7 = NULL;
+#ifndef NO_PKCS7_STREAM
+    int ret;
+    word32 idx;
+#endif
 
     WOLFSSL_SMALL_STACK_STATIC byte der[] = {
         /* outer ContentInfo SEQUENCE (99 bytes content) */
@@ -6399,10 +6403,6 @@ int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void)
 
 #ifndef NO_PKCS7_STREAM
     /* same bundle fed one byte at a time */
-    {
-    int ret;
-    word32 idx;
-
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
@@ -6420,7 +6420,6 @@ int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void)
         ExpectNotNull(pkcs7->content);
     }
     wc_PKCS7_Free(pkcs7);
-    }
 #endif /* !NO_PKCS7_STREAM */
 
 #endif /* HAVE_PKCS7 */
