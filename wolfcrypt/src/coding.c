@@ -278,7 +278,7 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
     }
 
     /* If the output buffer has a room for an extra byte, add a null terminator */
-    if (out && *outLen > i)
+    if (*outLen > i)
         out[i]= '\0';
 
     /* Note, *outLen won't reflect the optional terminating null. */
@@ -392,7 +392,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     }
 
     /* If the output buffer has a room for an extra byte, add a null terminator */
-    if (out && *outLen > i)
+    if (*outLen > i)
         out[i]= '\0';
 
     /* Note, *outLen won't reflect the optional terminating null. */
