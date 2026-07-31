@@ -629,23 +629,11 @@ int test_ascon_decision_coverage(void)
     /* a != NULL, in == NULL, inSz > 0 -> inner && true, BAD_FUNC_ARG */
     ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, ptbuf, NULL,
         sizeof(ctbuf)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* NOTE: unlike wc_AsconHash256_Update/wc_AsconAEAD128_SetAD (which
-     * return early when the size is 0, before the pointer is ever
-     * touched) and wc_AsconAEAD128_EncryptUpdate (whose only copy out of
-     * the 0-length input reads from internal state, not from `in`),
-     * wc_AsconAEAD128_DecryptUpdate falls through on inSz == 0 all the
-     * way to "XMEMCPY(a->state.s64, in, inSz)" (ascon.c:489), which
-     * passes `in` as the memcpy source unconditionally. Confirmed via
-     * -fsanitize=undefined that DecryptUpdate(ctx, out, NULL, 0) raises
-     * "null pointer passed as argument 2, which is declared to never be
-     * null" even though the guard on line 452 explicitly allows this
-     * call. Using a real NULL here would make this test UBSan-unsafe, so
-     * a non-NULL 1-byte placeholder is used instead (same convention as
-     * `dummy` in test_ascon_aead128_edge_cases above). This means the
-     * independent effect of the inSz > 0 operand (holding in == NULL
-     * fixed) cannot be safely demonstrated for DecryptUpdate; this is a
-     * disclosed MC/DC residual tied to the underlying code fragility. */
-    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, ptbuf, dummy, 0), 0);
+    /* in == NULL, inSz == 0: the (in == NULL && inSz != 0) guard's inSz != 0
+     * operand is false, so the call proceeds and returns 0. (Safe now that
+     * ascon.c returns early on inSz == 0; a real NULL previously tripped a
+     * UBSan NULL memcpy.) */
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, ptbuf, NULL, 0), 0);
     /* both operands false -> proceeds, real decrypt */
     ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, ptbuf, ctbuf,
         sizeof(ctbuf)), 0);

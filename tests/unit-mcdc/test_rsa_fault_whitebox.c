@@ -130,30 +130,16 @@ int main(void)
  * WOLFSSL_SMALL_STACK, whose callers always pass valid pointers so the failure
  * halves are white-box + fault-injection only.
  *
- * IMPORTANT -- library double-free-on-partial-OOM defect (DEATHNOTE): in each
- * of wc_CompareDiffPQ / _CheckProbablePrime / wc_CheckProbablePrime_ex the temp
- * mp_ints are XMALLOC'd in a short-circuit "|| " chain and mp_init_multi() is
- * then SKIPPED when any XMALLOC in the chain returned NULL (ret = MEMORY_E).
- * The cleanup nonetheless calls mp_clear()/mp_forcezero() on the *already
- * allocated but never initialized* earlier struct(s); sp_clear() loops
- * `for (i=0; i<a->used; i++)` over a garbage `used` field and ForceZero()s a
- * garbage `size`, writing far past the struct -> heap corruption / abort.
- *
- * Consequently only the FIRST operand of each XMALLOC chain can be faulted
- * crash-safely (fail alloc #1 -> every temp still NULL -> cleanup skips them
- * all), which covers the idx0 operand. Faulting a LATER operand (idx1/idx2)
- * would leave an earlier struct allocated-but-uninitialized and trip the
- * library bug, so those halves stay JUSTIFIED RESIDUALS (blocked by the defect,
- * not by the injector) -- reported to the campaign DEATHNOTE, NOT swept here.
+ * The XMALLOC NULL-guards in wc_CompareDiffPQ / _CheckProbablePrime /
+ * wc_CheckProbablePrime_ex are fault-injection-only (callers always pass valid
+ * pointers). Each operand is swept: idx0 by arm(1), idx1 by arm(2), idx2 by
+ * arm(3). Faulting a later operand is crash-safe since PR 10973 fixed the
+ * partial-OOM cleanup that had freed an allocated-but-uninitialized temp.
  * ------------------------------------------------------------------------- */
 static void wb_static_compare_diff_pq(void)
 {
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    /* wc_CompareDiffPQ line ~5051:
-     *   if (((c=XMALLOC..)==NULL) || ((d=XMALLOC..)==NULL)) ret = MEMORY_E;
-     * arm(1): c==NULL (idx0 true), d untouched(NULL) -> cleanup clean. The
-     * all-false side is produced by the unarmed baseline call. idx1 (d==NULL,
-     * c!=NULL) hits the uninit-cleanup defect above -> residual. */
+    /* if (((c=XMALLOC..)==NULL) || ((d=XMALLOC..)==NULL)) ret = MEMORY_E; */
     mp_int p, q;
     int    valid = 0;
 
@@ -166,11 +152,14 @@ static void wb_static_compare_diff_pq(void)
     mcdc_fa_arm(1);
     (void)wc_CompareDiffPQ(&p, &q, WB_RSA_BITS, &valid);   /* c==NULL: idx0 true */
     mcdc_fa_disarm();
+    mcdc_fa_arm(2);
+    (void)wc_CompareDiffPQ(&p, &q, WB_RSA_BITS, &valid);   /* d==NULL, c!=NULL: idx1 true */
+    mcdc_fa_disarm();
     (void)wc_CompareDiffPQ(&p, &q, WB_RSA_BITS, &valid);   /* all-false */
 
     mp_clear(&p);
     mp_clear(&q);
-    WB_NOTE("wc_CompareDiffPQ XMALLOC guard idx0 done (idx1 = library-bug residual)");
+    WB_NOTE("wc_CompareDiffPQ XMALLOC guard idx0+idx1 done");
 #else
     WB_NOTE("KEY_GEN off / PUBLIC_ONLY; wc_CompareDiffPQ skipped");
 #endif
@@ -179,9 +168,7 @@ static void wb_static_compare_diff_pq(void)
 static void wb_static_check_probable_prime(void)
 {
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    /* _CheckProbablePrime line ~5194:
-     *   if (((tmp1=XMALLOC..)==NULL) || ((tmp2=XMALLOC..)==NULL)) goto notOkay;
-     * arm(1): tmp1==NULL (idx0 true). idx1 = uninit-cleanup residual. */
+    /* if (((tmp1=XMALLOC..)==NULL) || ((tmp2=XMALLOC..)==NULL)) goto notOkay; */
     mp_int p, e;
     int    isPrime = 0;
 
@@ -192,13 +179,16 @@ static void wb_static_check_probable_prime(void)
     (void)mp_set(&e, 65537);
 
     mcdc_fa_arm(1);
-    (void)_CheckProbablePrime(&p, NULL, &e, 2048, &isPrime, NULL); /* idx0 true */
+    (void)_CheckProbablePrime(&p, NULL, &e, 2048, &isPrime, NULL); /* tmp1==NULL: idx0 */
+    mcdc_fa_disarm();
+    mcdc_fa_arm(2);
+    (void)_CheckProbablePrime(&p, NULL, &e, 2048, &isPrime, NULL); /* tmp2==NULL: idx1 */
     mcdc_fa_disarm();
     (void)_CheckProbablePrime(&p, NULL, &e, 2048, &isPrime, NULL); /* all-false */
 
     mp_clear(&p);
     mp_clear(&e);
-    WB_NOTE("_CheckProbablePrime XMALLOC guard idx0 done (idx1 = library-bug residual)");
+    WB_NOTE("_CheckProbablePrime XMALLOC guard idx0+idx1 done");
 #else
     WB_NOTE("KEY_GEN off / PUBLIC_ONLY; _CheckProbablePrime skipped");
 #endif
@@ -207,20 +197,26 @@ static void wb_static_check_probable_prime(void)
 static void wb_static_check_probable_prime_ex(void)
 {
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    /* wc_CheckProbablePrime_ex line ~5298:
-     *   if (((p=..)==NULL)||((q=..)==NULL)||((e=..)==NULL)) ret = MEMORY_E;
-     * arm(1): p==NULL (idx0 true). idx1/idx2 = uninit-cleanup residuals. */
+    /* if (((p=..)==NULL)||((q=..)==NULL)||((e=..)==NULL)) ret = MEMORY_E; */
     byte pRaw[8] = { 0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x65 };
     byte eRaw[3] = { 0x01,0x00,0x01 };
     int  isPrime = 0;
 
     mcdc_fa_arm(1);
     (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), NULL, 0,
-                                   eRaw, sizeof(eRaw), 2048, &isPrime, NULL);
+                                   eRaw, sizeof(eRaw), 2048, &isPrime, NULL); /* p==NULL: idx0 */
+    mcdc_fa_disarm();
+    mcdc_fa_arm(2);
+    (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), NULL, 0,
+                                   eRaw, sizeof(eRaw), 2048, &isPrime, NULL); /* q==NULL: idx1 */
+    mcdc_fa_disarm();
+    mcdc_fa_arm(3);
+    (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), NULL, 0,
+                                   eRaw, sizeof(eRaw), 2048, &isPrime, NULL); /* e==NULL: idx2 */
     mcdc_fa_disarm();
     (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), NULL, 0,
-                                   eRaw, sizeof(eRaw), 2048, &isPrime, NULL);
-    WB_NOTE("wc_CheckProbablePrime_ex XMALLOC guard idx0 done (idx1/2 = library-bug residual)");
+                                   eRaw, sizeof(eRaw), 2048, &isPrime, NULL); /* all-false */
+    WB_NOTE("wc_CheckProbablePrime_ex XMALLOC guard idx0+idx1+idx2 done");
 #else
     WB_NOTE("KEY_GEN off / PUBLIC_ONLY; wc_CheckProbablePrime_ex skipped");
 #endif
