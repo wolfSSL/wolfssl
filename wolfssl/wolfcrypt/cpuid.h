@@ -77,6 +77,9 @@ typedef word32 cpuid_flags_t;
     /* CPU vendor is AuthenticAMD.  Detected and exposed via IS_CPU_AMD() for
      * future vendor-specific dispatch; no current caller relies on it. */
     #define CPUID_AMD    0x2000
+    #define CPUID_SSSE3  0x4000
+    #define CPUID_AVX512VL 0x8000
+    #define CPUID_AVX512_IFMA 0x10000
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -92,6 +95,11 @@ typedef word32 cpuid_flags_t;
     #define IS_INTEL_AVX512(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512)
     #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
     #define IS_CPU_AMD(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AMD)
+    #define IS_INTEL_SSSE3(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SSSE3)
+    #define IS_INTEL_AVX512VL(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512VL)
+    #define IS_INTEL_AVX512_IFMA(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_IFMA)
 
 #elif defined(HAVE_CPUID_AARCH64)
 

@@ -52,6 +52,29 @@
 #if defined(USE_INTEL_SPEEDUP) && !defined(NO_POLY1305_ASM)
     #define USE_INTEL_POLY1305_SPEEDUP
     #define HAVE_INTEL_AVX1
+    /* 8-way AVX-512 path.  Enabling it appends r^5..r^8 to the state (see the
+     * struct below); define WOLFSSL_POLY1305_NO_AVX512 to keep the smaller
+     * state and drop the path. */
+    #if !defined(WOLFSSL_POLY1305_NO_AVX512)
+        #define WOLFSSL_POLY1305_AVX512
+    #endif
+    /* Fused single-pass ChaCha20-Poly1305 (encrypt).  It drives Poly1305 in the
+     * 4-way layout, so the ctx carries a flag forcing that path. */
+    #if !defined(WOLFSSL_NO_CHACHA20_POLY1305_FUSED)
+        #define WOLFSSL_CHACHA20_POLY1305_FUSED
+    #endif
+    /* IFMA stitched single-pass ChaCha20-Poly1305 (AVX-512 + IFMA): a full
+     * 512-bit 16-block ChaCha interleaved with an 8-way IFMA (vpmadd52)
+     * Poly1305 that collapses to the scalar hash.  It BEATS the two-pass by
+     * ~1.3-1.4x (>=16KB) - ChaCha is the bottleneck and Poly hides under it -
+     * so it is ON by default and runtime-gated on the AVX-512 + IFMA flags.
+     * Needs the AVX-512 IFMA state (r^1..r^8, ifma_h), so it follows
+     * WOLFSSL_POLY1305_AVX512.  Define WOLFSSL_NO_CHACHA20_POLY1305_FUSED_IFMA
+     * to drop it; it drives Poly1305 scalar via the forceScalar flag. */
+    #if defined(WOLFSSL_POLY1305_AVX512) && \
+        !defined(WOLFSSL_NO_CHACHA20_POLY1305_FUSED_IFMA)
+        #define WOLFSSL_CHACHA20_POLY1305_FUSED_IFMA
+    #endif
 #endif
 #endif
 
@@ -100,6 +123,31 @@ typedef struct Poly1305 {
     size_t leftover;
     unsigned char finished;
     unsigned char started;
+#ifdef WOLFSSL_POLY1305_AVX512
+    /* r^5..r^8 for the 8-way path, appended so the AVX1/AVX2 field offsets are
+     * unchanged.  ALIGN8 keeps each power 8-byte aligned (26-bit limb packing
+     * matches r1..r4). */
+    ALIGN8 word32 r5[8];
+    word32 r6[8];
+    word32 r7[8];
+    word32 r8[8];
+    /* IFMA path (radix 2^44) keeps r^1..r^8 in the r1..r8 fields above (three
+     * 44-bit limbs each) and its eight-lane running hash here: three limbs x
+     * eight lanes x 64-bit.  hh (32-bit packed) is too small for 44-bit lanes.
+     */
+    ALIGN8 word64 ifma_h[24];
+#endif
+#ifdef WOLFSSL_CHACHA20_POLY1305_FUSED
+    /* When set, wc_Poly1305Update/Final use the 4-way path so the fused
+     * ChaCha20-Poly1305 kernel (also 4-way) stays layout-consistent. */
+    unsigned char forceAvx2;
+#endif
+#ifdef WOLFSSL_CHACHA20_POLY1305_FUSED_IFMA
+    /* When set, wc_Poly1305Update/Final use the scalar path so the fused IFMA
+     * ChaCha20-Poly1305 stitch (which finishes in the scalar hash) stays
+     * layout-consistent. */
+    unsigned char forceScalar;
+#endif
 #elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
     ALIGN8 word64 r64[2];
     ALIGN8 word32 r4[4];

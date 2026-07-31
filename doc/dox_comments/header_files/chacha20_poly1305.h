@@ -125,6 +125,126 @@ int wc_ChaCha20Poly1305_Decrypt(
 
 /*!
     \ingroup ChaCha20Poly1305
+
+    \brief This function performs the same AEAD encryption as
+    wc_ChaCha20Poly1305_Encrypt, but takes a caller-owned ChaCha20 context whose
+    key has already been set (with wc_Chacha_SetKey) plus a Poly1305 context,
+    instead of a raw key. This lets the ChaCha20 key be set once and reused
+    across many records, varying only the per-record nonce - it is intended for
+    protocol record layers such as TLS. A fresh per-record Poly1305 key is
+    derived from the ChaCha20 keystream, so this call re-keys the supplied
+    Poly1305 context; the caller does not key it. The 16 byte authentication tag
+    over the AAD and ciphertext is written to tag.
+
+    \return 0 Returned upon successfully encrypting the message
+    \return BAD_FUNC_ARG Returned if a required pointer argument is NULL (with
+    its matching length nonzero) or otherwise invalid
+
+    \param chacha pointer to a ChaCha20 context already keyed with
+    wc_Chacha_SetKey
+    \param poly pointer to a Poly1305 context used for the per-record MAC; it is
+    re-keyed internally on each call
+    \param out pointer to the buffer in which to store the ciphertext (sz bytes)
+    \param in pointer to the buffer containing the plaintext to encrypt
+    \param sz the length in bytes of the plaintext to encrypt
+    \param nonce pointer to the 12 byte per-record nonce
+    \param tag pointer to a 16 byte buffer in which to store the authentication
+    tag
+    \param aad pointer to the buffer containing arbitrary length additional
+    authenticated data (AAD)
+    \param aadSz length of the input AAD
+
+    _Example_
+    \code
+    ChaCha chacha;
+    Poly1305 poly;
+    byte key[]   = { // initialize 32 byte key };
+    byte nonce[] = { // initialize 12 byte per-record nonce };
+    byte aad[]   = { // initialize AAD };
+    byte plain[] = { // initialize message to encrypt };
+    byte cipher[sizeof(plain)];
+    byte authTag[16];
+
+    wc_Chacha_SetKey(&chacha, key, sizeof(key));   // once, then reuse
+    int ret = wc_ChaCha20Poly1305_Encrypt_ex(&chacha, &poly, cipher, plain,
+        sizeof(plain), nonce, authTag, aad, sizeof(aad));
+    if (ret != 0) {
+        // error running encrypt
+    }
+    \endcode
+
+    \sa wc_ChaCha20Poly1305_Decrypt_ex
+    \sa wc_ChaCha20Poly1305_Encrypt
+    \sa wc_Chacha_SetKey
+*/
+int wc_ChaCha20Poly1305_Encrypt_ex(ChaCha* chacha, Poly1305* poly,
+    byte* out, const byte* in, word32 sz, const byte* nonce, byte* tag,
+    const byte* aad, word32 aadSz);
+
+/*!
+    \ingroup ChaCha20Poly1305
+
+    \brief This function is the decryption counterpart of
+    wc_ChaCha20Poly1305_Encrypt_ex. It takes a caller-owned ChaCha20 context
+    whose key has already been set (with wc_Chacha_SetKey) plus a Poly1305
+    context, decrypts in to out, and verifies the Poly1305 tag over the AAD and
+    ciphertext. On tag mismatch it returns MAC_CMP_FAILED_E and zeroizes the
+    output buffer, so no unauthenticated plaintext is released. The ChaCha20 key
+    is reused across records, varying only the per-record nonce; the Poly1305
+    context is re-keyed internally on each call. out may alias in (in-place
+    decryption is supported).
+
+    \return 0 Returned upon successfully decrypting and authenticating the
+    message
+    \return MAC_CMP_FAILED_E Returned if the computed authentication tag does not
+    match the supplied tag; out is zeroized in this case
+    \return BAD_FUNC_ARG Returned if a required pointer argument is NULL (with
+    its matching length nonzero) or otherwise invalid
+
+    \param chacha pointer to a ChaCha20 context already keyed with
+    wc_Chacha_SetKey
+    \param poly pointer to a Poly1305 context used for the per-record MAC; it is
+    re-keyed internally on each call
+    \param out pointer to the buffer in which to store the plaintext (sz bytes)
+    \param in pointer to the buffer containing the ciphertext to decrypt
+    \param sz the length in bytes of the ciphertext to decrypt
+    \param nonce pointer to the 12 byte per-record nonce
+    \param tag pointer to the 16 byte authentication tag to verify
+    \param aad pointer to the buffer containing arbitrary length additional
+    authenticated data (AAD)
+    \param aadSz length of the input AAD
+
+    _Example_
+    \code
+    ChaCha chacha;
+    Poly1305 poly;
+    byte key[]       = { // initialize 32 byte key };
+    byte nonce[]     = { // initialize 12 byte per-record nonce };
+    byte aad[]       = { // initialize AAD };
+    byte cipher[]    = { // received ciphertext };
+    byte authTag[16] = { // received authentication tag };
+    byte plain[sizeof(cipher)];
+
+    wc_Chacha_SetKey(&chacha, key, sizeof(key));   // once, then reuse
+    int ret = wc_ChaCha20Poly1305_Decrypt_ex(&chacha, &poly, plain, cipher,
+        sizeof(cipher), nonce, authTag, aad, sizeof(aad));
+    if (ret == MAC_CMP_FAILED_E) {
+        // authentication failed; plain has been zeroized
+    } else if (ret != 0) {
+        // error with function arguments
+    }
+    \endcode
+
+    \sa wc_ChaCha20Poly1305_Encrypt_ex
+    \sa wc_ChaCha20Poly1305_Decrypt
+    \sa wc_Chacha_SetKey
+*/
+int wc_ChaCha20Poly1305_Decrypt_ex(
+    ChaCha* chacha, Poly1305* poly, byte* out, const byte* in, word32 sz,
+    const byte* nonce, const byte* tag, const byte* aad, word32 aadSz);
+
+/*!
+    \ingroup ChaCha20Poly1305
     \brief Compares two authentication tags in constant time to prevent
     timing attacks.
 

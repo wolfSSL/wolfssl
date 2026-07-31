@@ -7634,6 +7634,9 @@ void bench_chacha20_poly1305_aead(void)
 {
     double start;
     int    ret = 0, i, count;
+    ChaCha   chacha;   /* keyed once, reused per record: the TLS-record path */
+    Poly1305 poly;
+    byte     nonce[CHACHA20_POLY1305_AEAD_IV_SIZE];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
@@ -7645,7 +7648,9 @@ void bench_chacha20_poly1305_aead(void)
     WC_ALLOC_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
     XMEMSET(authTag, 0, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE);
+    XMEMSET(nonce, 0, sizeof(nonce));
 
+    /* One-shot encrypt (re-keys per call). */
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
@@ -7665,7 +7670,162 @@ void bench_chacha20_poly1305_aead(void)
 #endif
         );
 
-    bench_stats_sym_finish("CHA-POLY", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish("CHA-POLY-enc", 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    RESET_MULTI_VALUE_STATS_VARS();
+
+    /* Produce a valid ciphertext+tag once for the decrypt benchmarks. */
+    ret = wc_ChaCha20Poly1305_Encrypt(bench_key, bench_iv, bench_additional,
+        aesAuthAddSz, bench_plain, bench_size, bench_cipher, authTag);
+    if (ret < 0) {
+        printf("wc_ChaCha20Poly1305_Encrypt error: %d\n", ret);
+        goto exit;
+    }
+
+    /* One-shot verify+decrypt. */
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_ChaCha20Poly1305_Decrypt(bench_key, bench_iv,
+                bench_additional, aesAuthAddSz, bench_cipher, bench_size,
+                authTag, bench_plain);
+            if (ret < 0) {
+                printf("wc_ChaCha20Poly1305_Decrypt error: %d\n", ret);
+                goto exit;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+        || runs < minimum_runs
+#endif
+        );
+
+    bench_stats_sym_finish("CHA-POLY-dec", 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    RESET_MULTI_VALUE_STATS_VARS();
+
+    /* TLS-record path: ChaCha keyed once, only the nonce varies per record;
+     * Encrypt_ex/Decrypt_ex use the single-pass stitch (no per-record
+     * re-key). */
+    ret = wc_Chacha_SetKey(&chacha, bench_key,
+                           CHACHA20_POLY1305_AEAD_KEYSIZE);
+    if (ret != 0) {
+        printf("wc_Chacha_SetKey error: %d\n", ret);
+        goto exit;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_ChaCha20Poly1305_Encrypt_ex(&chacha, &poly, bench_cipher,
+                bench_plain, bench_size, nonce, authTag, bench_additional,
+                aesAuthAddSz);
+            if (ret < 0) {
+                printf("wc_ChaCha20Poly1305_Encrypt_ex error: %d\n", ret);
+                goto exit;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+        || runs < minimum_runs
+#endif
+        );
+
+    bench_stats_sym_finish("CHA-POLY-ex-enc", 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    RESET_MULTI_VALUE_STATS_VARS();
+
+    /* Valid ciphertext+tag for the Decrypt_ex benchmark. */
+    ret = wc_ChaCha20Poly1305_Encrypt_ex(&chacha, &poly, bench_cipher,
+        bench_plain, bench_size, nonce, authTag, bench_additional,
+        aesAuthAddSz);
+    if (ret < 0) {
+        printf("wc_ChaCha20Poly1305_Encrypt_ex error: %d\n", ret);
+        goto exit;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_ChaCha20Poly1305_Decrypt_ex(&chacha, &poly, bench_plain,
+                bench_cipher, bench_size, nonce, authTag, bench_additional,
+                aesAuthAddSz);
+            if (ret < 0) {
+                printf("wc_ChaCha20Poly1305_Decrypt_ex error: %d\n", ret);
+                goto exit;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+        || runs < minimum_runs
+#endif
+        );
+
+    bench_stats_sym_finish("CHA-POLY-ex-dec", 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    RESET_MULTI_VALUE_STATS_VARS();
+
+    /* Streaming AEAD interface over the FUSED stitch, "openssl speed -aead"
+     * methodology: Init once (framing amortized), then loop UpdateData with the
+     * whole buffer and NO per-chunk tag/Final.  wc_ChaCha20Poly1305_UpdateData
+     * dispatches to the single-pass IFMA stitch for each 1024-aligned chunk
+     * (>= CHACHA20_POLY1305_STITCH_MIN), so this is wolfSSL's fused cipher
+     * throughput measured the same bare-loop way OpenSSL's cipher is - unlike a
+     * two-pass Process+Update, and reachable through the public API.  Below the
+     * stitch threshold (or a non-64-aligned bench_size) UpdateData stays
+     * two-pass, which is the interface's real behaviour.  Re-Init before the
+     * running dataLen would overflow CHACHA20_POLY1305_MAX. */
+    {
+    ChaChaPoly_Aead sAead;
+    XMEMSET(&sAead, 0, sizeof(sAead));
+    ret = wc_ChaCha20Poly1305_Init(&sAead, bench_key, nonce, 1);
+    if (ret != 0) {
+        printf("chacha20-poly1305 stream Init error: %d\n", ret);
+        goto exit;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            if (sAead.dataLen > CHACHA20_POLY1305_MAX - bench_size) {
+                XMEMSET(&sAead, 0, sizeof(sAead));
+                ret = wc_ChaCha20Poly1305_Init(&sAead, bench_key, nonce, 1);
+                if (ret != 0) {
+                    printf("chacha20-poly1305 stream Init error: %d\n", ret);
+                    goto exit;
+                }
+            }
+            ret = wc_ChaCha20Poly1305_UpdateData(&sAead, bench_plain,
+                                                 bench_cipher, bench_size);
+            if (ret < 0) {
+                printf("chacha20-poly1305 stream error: %d\n", ret);
+                goto exit;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+        || runs < minimum_runs
+#endif
+        );
+
+    bench_stats_sym_finish("CHA-POLY-stream", 0, count, bench_size, start, ret);
+    }
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
