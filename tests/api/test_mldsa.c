@@ -3293,7 +3293,10 @@ int test_mldsa_oneasymkey_version(void)
 int test_mldsa_make_key_from_seed(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+    /* Uses caller-supplied keygen seeds (known-answer): in the FIPS module
+     * seed-input keygen is a CAVP/POST-only service (FIPS 204 sec 5.4), so this
+     * KAT runs only in non-FIPS or --enable-fipscavpseed builds. */
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     wc_MlDsaKey* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -12577,7 +12580,7 @@ int test_mldsa_sig_kats(void)
 int test_mldsa_sign_ctx_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN)
     wc_MlDsaKey* key;
     word32 sigLen;
@@ -24602,7 +24605,7 @@ int test_mldsa_verify_kats(void)
 int test_mldsa_sign_mu_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     wc_MlDsaKey* key = NULL;
     word32 sigLen;
@@ -30881,9 +30884,9 @@ int test_wc_MldsaDecisionCoverage2(void)
 
         XMEMSET(seed, 0, sizeof(seed));
         ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(NULL, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(&key, NULL),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
     }
 #endif
 
@@ -30938,60 +30941,63 @@ int test_wc_MldsaDecisionCoverage2(void)
         /* wc_MlDsaKey_SignCtxWithSeed: four-way NULL OR + ctx/ctxLen. */
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(NULL, NULL, 0, sig, &sigLen,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, NULL, &sigLen,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, NULL,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
-            NULL, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            NULL, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 1, sig, &sigLen,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
 
         /* wc_MlDsaKey_SignCtxHashWithSeed: five-way NULL OR (incl. seed)
          * + ctx/ctxLen. */
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(NULL, NULL, 0, sig,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, NULL,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
             NULL, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
             &sigLen, NULL, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, NULL),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 1, sig,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
 
         /* wc_MlDsaKey_SignMuWithSeed: five-way NULL OR + muLen!=MU_SZ. */
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(NULL, sig, &sigLen, mu,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, NULL, &sigLen, mu,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, NULL, mu,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, NULL,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
-            sizeof(mu), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), NULL), SEED_ARG_ERR(BAD_FUNC_ARG));
         /* All five non-NULL, muLen != MLDSA_MU_SZ -> BAD_FUNC_ARG. */
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
-            sizeof(mu) - 1, seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu) - 1, seed), SEED_ARG_ERR(BAD_FUNC_ARG));
 
         /* Sign path's too-small sigLen buffer guard (*sigLen <
          * params->sigSz -> BUFFER_E), independent of the muLen guard
          * above (all args otherwise valid). */
         sigLen = 1;
+        /* v7 ML-DSA rejects an unset private key (prvKeySet) before the
+         * output-buffer-size check, so this returns BAD_FUNC_ARG rather than
+         * the BUFFER_E the un-hardened path returned. */
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BUFFER_E));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
 
         if (rngInited) {
             DoExpectIntEQ(wc_FreeRng(&rng), 0);

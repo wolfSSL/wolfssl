@@ -75,7 +75,9 @@ enum FipsCastId {
     FIPS_CAST_RSA_SIGN_PKCS1v15 =  7,
     FIPS_CAST_ECC_CDH           =  8,
     FIPS_CAST_ECC_PRIMITIVE_Z   =  9,
-    FIPS_CAST_DH_PRIMITIVE_Z    = 10,
+    FIPS_CAST_DH_PRIMITIVE_Z    = 10, /* RETIRED (v7+): classic DH left the
+                                       * module boundary.  Kept for ABI; do
+                                       * not reuse this id. */
     FIPS_CAST_ECDSA             = 11,
     FIPS_CAST_KDF_TLS12         = 12,
     FIPS_CAST_KDF_TLS13         = 13,
@@ -93,8 +95,14 @@ enum FipsCastId {
     FIPS_CAST_XMSS              = 23,
     FIPS_CAST_DRBG_SHA512       = 24,
     FIPS_CAST_SLH_DSA           = 25,
-    /* Vendor-elected enhanced self-tests, appended so the ids above keep
-     * their v7.0.0 values. */
+    /* Retired vendor-elected CASTs (v7 lab-prep).  The dedicated AES-CMAC,
+     * SHAKE and AES-KW CASTs were removed because FIPS 140-3 IG 10.3.A covers
+     * them via the more-complex tier: AES-KW (1.d item (ii)) and AES-CMAC by
+     * the AES-GCM CAST (item (i)), and SHAKE by the HMAC-SHA3-256 CAST (item 3
+     * + Note 2, shared Keccak-p).  The ids are KEPT (do not reuse) so code that
+     * still references them compiles; the *services* re-gate onto the covering
+     * CAST (see fips.c), and DoCAST/RunAllCast no longer run these -- the slots
+     * stay at INIT, exactly like the retired FIPS_CAST_DH_PRIMITIVE_Z (= 10). */
     FIPS_CAST_AES_CMAC          = 26,
     FIPS_CAST_SHAKE             = 27,
     FIPS_CAST_AES_KW            = 28,

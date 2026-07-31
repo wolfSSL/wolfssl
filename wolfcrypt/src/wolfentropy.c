@@ -433,6 +433,10 @@ static int Entropy_MemUse(void)
         }
     }
 
+    /* d held SHA3-256 digests of the entropy pool; clear it (ISO/IEC
+     * 19790:2012 7.9). */
+    wc_ForceZero(d, sizeof(d));
+
     return 0;
 }
 
@@ -517,6 +521,49 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
  * same time.
  */
 static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mutex);
+
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+/* One-time initialization state for entropy_mutex on platforms that lack a
+ * static mutex initializer.  A mutex cannot be lazily initialized safely
+ * without a static initializer, so an atomic compare-exchange elects exactly
+ * one thread to run wc_InitMutex(); other callers wait for it to finish.
+ * States: 0 = uninitialized, 1 = initializing, 2 = ready.  When
+ * WOLFSSL_NO_ATOMICS is defined the compare-exchange is not truly atomic (see
+ * wolfssl/wolfcrypt/wc_port.h), so such a platform must complete the first
+ * entropy initialization single-threaded, e.g. via wolfCrypt_Init(). */
+#ifdef WOLFSSL_NO_ATOMICS
+    static int entropy_mutex_state = 0;
+#else
+    static wolfSSL_Atomic_Int entropy_mutex_state = WOLFSSL_ATOMIC_INITIALIZER(0);
+#endif
+
+static int Entropy_InitMutexOnce(void)
+{
+    int ret = 0;
+    int expected = 0;
+
+    if (wolfSSL_Atomic_Int_CompareExchange(&entropy_mutex_state, &expected, 1)) {
+        /* This thread was elected to initialize the mutex. */
+        ret = wc_InitMutex(&entropy_mutex);
+        /* Publish ready (2) on success, or reset to 0 so a later call retries. */
+        WOLFSSL_ATOMIC_STORE(entropy_mutex_state, (ret == 0) ? 2 : 0);
+    }
+    else {
+        /* Another thread is initializing (1) or has finished (2); wait for it
+         * to leave the initializing state before the mutex is used. */
+        int st;
+        while ((st = (int)WOLFSSL_ATOMIC_LOAD(entropy_mutex_state)) == 1) {
+            WC_RELAX_LONG_LOOP();
+        }
+        if (st != 2) {
+            /* The electing thread's wc_InitMutex() failed. */
+            ret = BAD_MUTEX_E;
+        }
+    }
+
+    return ret;
+}
+#endif /* !SINGLE_THREADED && !WOLFSSL_MUTEX_INITIALIZER */
 
 /* Generate raw entropy for performing assessment.
  *
@@ -720,7 +767,7 @@ static int Entropy_HealthTest_Proportion(byte noise)
         /* Check whether first value has too many repetitions in queue. */
         if (prop_cnt[noise] >= PROP_CUTOFF) {
         #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-            fprintf(stderr, "PROPORTION FAILED: %d %d\n", val, prop_cnt[noise]);
+            fprintf(stderr, "PROPORTION FAILED: %d %d\n", noise, prop_cnt[noise]);
         #endif
             Entropy_HealthTest_Proportion_Reset();
             /* Error code returned. */
@@ -879,6 +926,12 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
     if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
         ret = BAD_MUTEX_E;
     }
+    /* Bail if the source was finalized between the pre-lock initialization
+     * check and acquiring the mutex, so a freed entropyHash is never used. */
+    if ((ret == 0) && (!entropy_memuse_initialized)) {
+        wc_UnLockMutex(&entropy_mutex);
+        ret = BAD_MUTEX_E;
+    }
 
 #ifdef ENTROPY_MEMUSE_THREADED
     if (ret == 0) {
@@ -930,6 +983,10 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
         }
     }
 
+    /* Raw pre-conditioning noise is sensitive; do not leave it in the static
+     * buffer after use (ISO/IEC 19790:2012 7.9). */
+    wc_ForceZero(noise, sizeof(noise));
+
 #ifdef ENTROPY_MEMUSE_THREADED
     /* Stop the counter thread to avoid thrashing the system. */
     Entropy_StopThread();
@@ -959,6 +1016,12 @@ int wc_Entropy_OnDemandTest(void)
     if (wc_LockMutex(&entropy_mutex) != 0) {
         ret = BAD_MUTEX_E;
     }
+    /* Bail if the source was finalized concurrently, so the freed entropyHash
+     * and health-test state are not used. */
+    if ((ret == 0) && (!entropy_memuse_initialized)) {
+        wc_UnLockMutex(&entropy_mutex);
+        ret = BAD_MUTEX_E;
+    }
 
     if (ret == 0) {
         /* Perform startup tests. */
@@ -984,7 +1047,8 @@ int Entropy_Init(void)
     /* Check whether initialization has succeeded before. */
     if (!entropy_memuse_initialized) {
     #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-        ret = wc_InitMutex(&entropy_mutex);
+        /* Initialize the mutex exactly once, even under concurrent callers. */
+        ret = Entropy_InitMutexOnce();
     #endif
         if (ret == 0)
             ret = wc_LockMutex(&entropy_mutex);
@@ -1035,15 +1099,35 @@ void Entropy_Final(void)
 {
     /* Only finalize when initialized. */
     if (entropy_memuse_initialized) {
-        /* Dispose of the SHA3-356 hash object. */
+        /* Serialize teardown with Entropy_GetEntropy() and
+         * wc_Entropy_OnDemandTest():  the shared SHA3 conditioning object
+         * (entropyHash) and the health-test state must not be freed while a
+         * collector holds the mutex and is still using them, which would be a
+         * use-after-free of the SP 800-90B entropy source state. */
+        int locked = (wc_LockMutex(&entropy_mutex) == 0);
+        /* Clear the initialized flag first, under the lock, so any collector
+         * that acquires the mutex after this point observes finalization and
+         * bails instead of using the freed hash object. */
+        entropy_memuse_initialized = 0;
+        /* Dispose of the SHA3-256 hash object. */
         wc_Sha3_256_Free(&entropyHash);
-    #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-        wc_FreeMutex(&entropy_mutex);
-    #endif
         /* Clear health test data. */
         Entropy_HealthTest_Reset();
-        /* No longer initialized. */
-        entropy_memuse_initialized = 0;
+        /* Zeroize the accumulated entropy pool on teardown (ISO/IEC
+         * 19790:2012 7.9); it holds pre-conditioning entropy-source state. */
+        wc_ForceZero(entropy_state, sizeof(entropy_state));
+        if (locked) {
+            wc_UnLockMutex(&entropy_mutex);
+        }
+    #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+        /* Free the mutex last, after releasing it.  Entropy_Final() is a
+         * single-threaded shutdown operation; a thread blocked in
+         * wc_LockMutex() during finalization is a caller-contract violation. */
+        wc_FreeMutex(&entropy_mutex);
+        /* Reset the one-time-init state so a later Entropy_Init() re-creates
+         * the mutex. */
+        WOLFSSL_ATOMIC_STORE(entropy_mutex_state, 0);
+    #endif
     }
 }
 

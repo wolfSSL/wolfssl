@@ -812,6 +812,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                 ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
             }
         }
         else {
@@ -857,6 +859,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                     ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key + runningKeySz, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
             }
         }
     }
@@ -960,6 +964,8 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
             /* Copy into key required amount. */
             XMEMCPY(key, enc, keySz);
         }
+        /* enc held a derived SRTP key block (ISO/IEC 19790 7.9). */
+        ForceZero(enc, sizeof(enc));
     }
     /* XOR out label. */
     block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;

@@ -71,6 +71,19 @@
         ((rng_ptr)->drbg == NULL)
 #endif
 
+/* WC_RNG_BANK_SET_RESEED_CTR drives reseedCtr up to WC_RESEED_INTERVAL to force
+ * a reseed.  The SHA-256 DRBG's reseedCtr is 32-bit when WORD64_AVAILABLE is
+ * undefined (random.h), so a reseed interval above 2^32 would truncate to 0 and
+ * silently defeat the forced reseed (SP 800-90A Rev1 sec 9.3).  Fail the build
+ * rather than mis-reseed.  This is a compile-time assert rather than a
+ * preprocessor #if because WC_RESEED_INTERVAL may be defined with a (word64)
+ * cast (settings.h kernel path) that the preprocessor cannot evaluate; the
+ * outer #if uses only defined() so the 64-bit path skips it without expanding
+ * that cast. */
+#if defined(WC_RESEED_INTERVAL) && !defined(WORD64_AVAILABLE)
+    wc_static_assert((WC_RESEED_INTERVAL) <= 0xFFFFFFFFUL);
+#endif
+
 /* To disable retry looping in wc_rng_bank_init(), pass timeout_secs=0, and to
  * retry indefinitely, pass negative timeout_secs -- the flags arg here is only
  * used to initialize the flags in the new bank.
@@ -127,6 +140,10 @@ WOLFSSL_API int wc_rng_bank_init(
 
                 if (flags & WC_RNG_BANK_FLAG_NO_VECTOR_OPS)
                     need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
+                /* Nonce is the instance ADDRESS value (SP 800-90A sec 8.6.7 --
+                 * a non-repeating per-instance value); the instantiation
+                 * entropy_input over-pulled by _InitRng is the primary seed
+                 * material. */
                 ret = wc_InitRngNonce_ex(
                         WC_RNG_BANK_INST_TO_RNG(rng_inst),
                         (byte *)&rng_inst, sizeof(byte *), heap, devId);

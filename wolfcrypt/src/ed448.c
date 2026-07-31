@@ -356,6 +356,10 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         key->pubKeySet = 1;
     }
 
+    /* az holds the clamped secret scalar; zeroize before return
+     * (ISO/IEC 19790:2012 7.9). */
+    ForceZero(az, sizeof(az));
+
     return ret;
 }
 
@@ -834,6 +838,55 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
                     "signature verification");
         return BAD_FUNC_ARG;
     }
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Reject a non-canonical public-key encoding (y-ordinate >= p,
+     * p = 2^448-2^224-1 = 0xff..fe..ff).  FIPS 186-5 sec 7.7 step 1 requires
+     * the decoding to fail for y >= p; the point decoder reduces mod p instead
+     * of rejecting, so enforce the range here (mirrors wc_ed448_check_key). */
+    {
+        int j;
+        int rangeRet = PUBLIC_KEY_E;
+        /* The final byte (index ED448_PUB_KEY_SIZE-1) is not part of y: it
+         * carries the x sign bit in bit 7 and bits 0-6 shall be zero for a
+         * canonical encoding (RFC 8032 sec 5.2.2).  Reject a non-zero pad. */
+        if ((key->p[ED448_PUB_KEY_SIZE - 1] & 0x7f) != 0) {
+            return BAD_FUNC_ARG;
+        }
+        /* Check top part before 0xFE.  y occupies bytes 0..ED448_PUB_KEY_SIZE-2,
+         * so the scan must START at ED448_PUB_KEY_SIZE-2.  Starting at the sign
+         * byte would always match (0x00/0x80 are both < 0xff) and short-circuit
+         * the whole comparison, silently accepting every y >= p. */
+        for (j = ED448_PUB_KEY_SIZE - 2; j > ED448_PUB_KEY_SIZE/2; j--) {
+            if (key->p[j] < 0xff) {
+                rangeRet = 0;
+                break;
+            }
+        }
+        if (rangeRet == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            /* Check against 0xFE. */
+            if (key->p[ED448_PUB_KEY_SIZE/2] < 0xfe) {
+                rangeRet = 0;
+            }
+            else if (key->p[ED448_PUB_KEY_SIZE/2] == 0xfe) {
+                /* Check bottom part before last byte. */
+                for (j = ED448_PUB_KEY_SIZE/2 - 1; j > 0; j--) {
+                    if (key->p[j] != 0xff) {
+                        rangeRet = 0;
+                        break;
+                    }
+                }
+                /* Check last byte. */
+                if ((rangeRet == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) &&
+                    (key->p[0] < 0xff)) {
+                    rangeRet = 0;
+                }
+            }
+        }
+        if (rangeRet != 0)
+            return BAD_FUNC_ARG;
+    }
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
     /* uncompress A (public key), test if valid, and negate it */
     if (ge448_from_bytes_negate_vartime(&A, key->p) != 0)
@@ -1532,11 +1585,23 @@ int wc_ed448_check_key(ed448_key* key)
         int i;
         ret = PUBLIC_KEY_E;
 
-        /* Check top part before 0xFE. */
-        for (i = ED448_PUB_KEY_SIZE - 1; i > ED448_PUB_KEY_SIZE/2; i--) {
-            if (key->p[i] < 0xff) {
-                ret = 0;
-                break;
+        /* The final byte is not part of y: it carries the x sign bit in bit 7
+         * and bits 0-6 shall be zero for a canonical encoding (RFC 8032
+         * sec 5.2.2).  Reject a non-zero pad before comparing y against p. */
+        if ((key->p[ED448_PUB_KEY_SIZE - 1] & 0x7f) != 0) {
+            ret = PUBLIC_KEY_E;
+        }
+        else {
+            /* Check top part before 0xFE.  y occupies bytes
+             * 0..ED448_PUB_KEY_SIZE-2, so the scan must START at
+             * ED448_PUB_KEY_SIZE-2.  Starting at the sign byte would always
+             * match (0x00/0x80 are both < 0xff) and short-circuit the whole
+             * comparison, silently accepting every y >= p. */
+            for (i = ED448_PUB_KEY_SIZE - 2; i > ED448_PUB_KEY_SIZE/2; i--) {
+                if (key->p[i] < 0xff) {
+                    ret = 0;
+                    break;
+                }
             }
         }
         if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {

@@ -67,8 +67,10 @@ typedef struct Gcm {
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
+/* GCM_SMALL form of GMULT; scoped so it does not clash with the static
+ * table-mode (GCM_TABLE/GCM_TABLE_4BIT) GMULT. */
 #if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(GCM_SMALL)
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
 #endif
 WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
