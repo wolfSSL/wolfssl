@@ -12108,11 +12108,6 @@ retry:
 void ShrinkOutputBuffer(WOLFSSL* ssl)
 {
     WOLFSSL_MSG("Shrinking output buffer");
-    /* Only the dynamic buffer is heap allocated. When dynamicFlag is clear the
-     * buffer already is the inline staticBuffer array, and in a
-     * LARGE_STATIC_BUFFERS build a pending flight can live there, so freeing
-     * unconditionally would pass an interior pointer of the WOLFSSL struct to
-     * XFREE. */
     if (ssl->buffers.outputBuffer.dynamicFlag) {
         XFREE(ssl->buffers.outputBuffer.buffer -
                   ssl->buffers.outputBuffer.offset,
@@ -12122,15 +12117,8 @@ void ShrinkOutputBuffer(WOLFSSL* ssl)
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.outputBuffer.dynamicFlag = 0;
     ssl->buffers.outputBuffer.offset      = 0;
-    /* Drop idx/length with the buffer they described. bufferSize shrinks to
-     * STATIC_BUFFER_LEN here, so leaving them set would break the
-     * idx + length <= bufferSize invariant that the rest of the output
-     * accounting relies on: CheckAvailableSize()'s word32 space computation
-     * would underflow instead of growing, and SendBuffered()/GetOutputBuffer()
-     * would address past the end of staticBuffer. Callers reaching this
-     * function with output still queued are abandoning that output. */
-    ssl->buffers.outputBuffer.idx    = 0;
-    ssl->buffers.outputBuffer.length = 0;
+    ssl->buffers.outputBuffer.idx         = 0;
+    ssl->buffers.outputBuffer.length      = 0;
 }
 
 
