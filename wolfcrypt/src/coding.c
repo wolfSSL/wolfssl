@@ -660,7 +660,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (in == NULL || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
-    if (inLen == 1 && *outLen && in) {
+    if (inLen == 1 && *outLen) {
         byte b = (byte)(in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
 
         /* sanity check */
