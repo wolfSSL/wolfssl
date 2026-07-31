@@ -12248,13 +12248,13 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
              * OpenSSL's X509_sign(x, pkey, NULL)) is ignored. */
             switch (WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
                 case ML_DSA_44k:
-                    sigType = CTC_ML_DSA_LEVEL2;
+                    sigType = CTC_ML_DSA_44;
                     break;
                 case ML_DSA_65k:
-                    sigType = CTC_ML_DSA_LEVEL3;
+                    sigType = CTC_ML_DSA_65;
                     break;
                 case ML_DSA_87k:
-                    sigType = CTC_ML_DSA_LEVEL5;
+                    sigType = CTC_ML_DSA_87;
                     break;
             #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
                 case DILITHIUM_LEVEL2k:
@@ -12894,13 +12894,13 @@ cleanup:
             }
             switch (oidSum) {
                 case ML_DSA_44k:
-                    type = ML_DSA_LEVEL2_TYPE;
+                    type = ML_DSA_44_TYPE;
                     break;
                 case ML_DSA_65k:
-                    type = ML_DSA_LEVEL3_TYPE;
+                    type = ML_DSA_65_TYPE;
                     break;
                 case ML_DSA_87k:
-                    type = ML_DSA_LEVEL5_TYPE;
+                    type = ML_DSA_87_TYPE;
                     break;
             #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
                 case DILITHIUM_LEVEL2k:

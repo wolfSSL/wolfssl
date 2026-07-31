@@ -1977,9 +1977,9 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
                 (algId == DILITHIUM_LEVEL3k) ||
                 (algId == DILITHIUM_LEVEL5k) ||
             #endif
-                (algId == ML_DSA_LEVEL2k) ||
-                (algId == ML_DSA_LEVEL3k) ||
-                (algId == ML_DSA_LEVEL5k)) {
+                (algId == ML_DSA_44k) ||
+                (algId == ML_DSA_65k) ||
+                (algId == ML_DSA_87k)) {
 
                 /* Keep full PKCS#8 wrapper for level recovery from
                  * AlgorithmIdentifier parameters */
