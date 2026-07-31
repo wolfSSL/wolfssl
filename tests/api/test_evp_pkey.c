@@ -3085,6 +3085,7 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
     ExpectIntGT(der65Sz = (int)XFREAD(der65, 1, sizeof(der65), f), 0);
     if (f != XBADFILE) {
         XFCLOSE(f);
+        f = XBADFILE;
     }
 
     /* Decode an RSA SPKI first so pkey holds a non-ML-DSA key. */
@@ -3161,6 +3162,7 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
     ExpectIntGT(rsaSz = (int)XFREAD(rsaDer, 1, sizeof(rsaDer), f), 0);
     if (f != XBADFILE) {
         XFCLOSE(f);
+        f = XBADFILE;
     }
 
     /* PKCS#8 ML-DSA private key decodes with the matching type. */
@@ -3213,6 +3215,7 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
         ExpectIntGT(spkiSz = (int)XFREAD(spki, 1, sizeof(spki), f), 0);
         if (f != XBADFILE) {
             XFCLOSE(f);
+            f = XBADFILE;
         }
         p = spki;
         ExpectNotNull(pkey = wolfSSL_d2i_PublicKey(WC_EVP_PKEY_DILITHIUM,

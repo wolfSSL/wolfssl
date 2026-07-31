@@ -446,8 +446,10 @@ int test_wolfSSL_X509_set_pubkey(void)
             ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der",
                 "rb")) != XBADFILE);
             ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
-            if (f != XBADFILE)
+            if (f != XBADFILE) {
                 XFCLOSE(f);
+                f = XBADFILE;
+            }
             ExpectNotNull(spki = wolfSSL_d2i_PUBKEY(NULL, &pp, (long)derSz));
             ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, spki), WOLFSSL_SUCCESS);
             ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
@@ -492,6 +494,7 @@ int test_wolfSSL_X509_set_pubkey(void)
             ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
             if (f != XBADFILE) {
                 XFCLOSE(f);
+                f = XBADFILE;
             }
             {
                 wc_MlDsaKey* rawKey = NULL;
