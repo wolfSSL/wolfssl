@@ -8100,7 +8100,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
             /* Put r/i into buffer to be hashed. */
             aseed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
-            for (s = 0; (ret == 0) && (s < params->l); s++) {
+            for (s = 0; s < params->l; s++) {
                 /* Put s into buffer to be hashed. */
                 aseed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
                 /* Step 3: Expand public seed into a matrix of polynomials. */
@@ -8892,7 +8892,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 /* Put r/i into buffer to be hashed. */
                 aseed[MLDSA_PUB_SEED_SZ + 1] = r;
                 /* Alg 26. Step 2: Loop over second dimension of matrix. */
-                for (s = 0; (ret == 0) && (s < params->l); s++) {
+                for (s = 0; s < params->l; s++) {
                     /* Put s into buffer to be hashed. */
                     aseed[MLDSA_PUB_SEED_SZ + 0] = s;
                     /* Alg 26. Step 3: Create polynomial from hashing seed. */
