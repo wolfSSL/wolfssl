@@ -1633,7 +1633,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     }
     #endif
 
-    while (ret == 0 && len_rem >= WC_AES_BLOCK_SIZE) {
+    while (len_rem >= WC_AES_BLOCK_SIZE) {
         /* cmac in place in block size increments */
         c32toa(counter, counterBuf);
         #ifdef WOLFSSL_DEBUG_KDF
