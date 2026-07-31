@@ -7363,45 +7363,48 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
 
     /* Client random */
     i += RAN_LEN;
+
+    if (i > helloSz)
+        return BUFFER_ERROR;
     /* Session id - not used in TLS v1.3 */
-    if (i + OPAQUE8_LEN > helloSz) {
+    if (helloSz - i < OPAQUE8_LEN) {
         return BUFFER_ERROR;
     }
     b = input[i++];
-    if (i + b > helloSz) {
+    if (b > helloSz - i) {
         return BUFFER_ERROR;
     }
     i += b;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         /* legacy_cookie - not used in DTLS v1.3 */
-        if (i + OPAQUE8_LEN > helloSz) {
+        if (helloSz - i < OPAQUE8_LEN) {
             return BUFFER_ERROR;
         }
         b = input[i++];
-        if (i + b > helloSz) {
+        if (b > helloSz - i) {
             return BUFFER_ERROR;
         }
         i += b;
     }
 #endif /* WOLFSSL_DTLS13 */
     /* Cipher suites */
-    if (i + OPAQUE16_LEN > helloSz)
+    if (helloSz - i < OPAQUE16_LEN)
         return BUFFER_ERROR;
     ato16(input + i, &suiteSz);
     i += OPAQUE16_LEN;
-    if (i + suiteSz + 1 > helloSz)
+    if ((word32)suiteSz + OPAQUE8_LEN > helloSz - i)
         return BUFFER_ERROR;
     i += suiteSz;
     /* Compression */
     b = input[i++];
-    if (i + b > helloSz)
+    if (b > helloSz - i)
         return BUFFER_ERROR;
     i += b;
 
     /* TLS 1.3 must have extensions */
     if (i < helloSz) {
-        if (i + OPAQUE16_LEN > helloSz)
+        if (helloSz - i < OPAQUE16_LEN)
             return BUFFER_ERROR;
         ato16(&input[i], &totalExtSz);
         i += OPAQUE16_LEN;
@@ -7751,8 +7754,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS13
     /* legacy_cookie */
     if (ssl->options.dtls) {
+        word32 rel = args->idx - args->begin;
         byte cookieLen;
-        if ((args->idx - args->begin) + OPAQUE8_LEN > helloSz)
+        if (rel > helloSz || helloSz - rel < OPAQUE8_LEN)
             ERROR_OUT(BUFFER_ERROR, exit_dch);
         /* https://www.rfc-editor.org/rfc/rfc9147.html#section-5.3 */
         cookieLen = input[args->idx++];
