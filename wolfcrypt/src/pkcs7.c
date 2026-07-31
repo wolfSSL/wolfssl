@@ -7517,13 +7517,18 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
              * malformed fails there with a real parse error.
              */
             pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
-            if (pkcs7->stream->totalRd >= pkcs7->stream->maxLen) {
-                /* no bytes left per the outer length: force stage 4's
-                 * bounds check to fail now instead of requesting bytes
-                 * that will never arrive. */
+            if (!pkcs7->stream->indefLen &&
+                    pkcs7->stream->totalRd >= pkcs7->stream->maxLen) {
+                /* definite-length bundle with no bytes left per the outer
+                 * length: force stage 4's bounds check to fail now instead
+                 * of requesting bytes that will never arrive. For
+                 * indefinite-length (BER) bundles maxLen is only a running
+                 * estimate, so totalRd catching up to it does not mean the
+                 * bundle is actually exhausted. */
                 pkcs7->stream->expected = 0;
             }
-            else if (pkcs7->stream->expected >
+            else if (pkcs7->stream->totalRd < pkcs7->stream->maxLen &&
+                    pkcs7->stream->expected >
                     pkcs7->stream->maxLen - pkcs7->stream->totalRd) {
                 pkcs7->stream->expected =
                     pkcs7->stream->maxLen - pkcs7->stream->totalRd;
