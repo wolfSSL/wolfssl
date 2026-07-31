@@ -77,6 +77,8 @@ typedef word32 cpuid_flags_t;
     /* CPU vendor is AuthenticAMD.  Detected and exposed via IS_CPU_AMD() for
      * future vendor-specific dispatch; no current caller relies on it. */
     #define CPUID_AMD    0x2000
+    #define CPUID_AVX512_VBMI 0x4000  /* AVX-512 Vector Byte Manipulation */
+    #define CPUID_AVX512_VBMI2 0x8000 /* AVX-512 VBMI2 (vpcompressw etc.) */
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -90,6 +92,10 @@ typedef word32 cpuid_flags_t;
     #define IS_INTEL_SHA(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA)
     #define IS_INTEL_VAES(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_VAES)
     #define IS_INTEL_AVX512(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512)
+    #define IS_INTEL_AVX512_VBMI(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_VBMI)
+    #define IS_INTEL_AVX512_VBMI2(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_VBMI2)
     #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
     #define IS_CPU_AMD(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AMD)
 
