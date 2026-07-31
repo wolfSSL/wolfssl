@@ -177,6 +177,31 @@ static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
                     }
                     return WOLFSSL_FATAL_ERROR;
                 }
+                /* PHA response fully sent: publish the write side's updated
+                 * transcript to the read side for the next PHA round. */
+                if (ssl->hsHashes != NULL && ssl->dupWrite != NULL) {
+                    int syncRet;
+                    if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+                        return BAD_MUTEX_E;
+                    syncRet = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes,
+                        &ssl->dupWrite->postHandshakeSyncedHashState);
+                    if (syncRet != 0) {
+                        /* On failure the copy may have left a partially
+                         * initialized transcript.  The read side only checks
+                         * for non-NULL before consuming it, so drop it here to
+                         * avoid hashing onto a corrupt transcript, and surface
+                         * the error to the caller. */
+                        Free_HS_Hashes(
+                            ssl->dupWrite->postHandshakeSyncedHashState,
+                            ssl->heap);
+                        ssl->dupWrite->postHandshakeSyncedHashState = NULL;
+                    }
+                    wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+                    if (syncRet != 0) {
+                        ssl->error = syncRet;
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
             }
 #endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
 #ifdef WOLFSSL_DTLS13
