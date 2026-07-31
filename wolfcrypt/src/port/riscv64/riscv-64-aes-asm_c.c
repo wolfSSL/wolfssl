@@ -21551,6 +21551,7 @@ XALIGNED(8) static const word32 L_AES_base_rcon[] = {
     0x1b000000, 0x36000000
 };
 
+#ifdef HAVE_AESGCM
 #ifdef GCM_TABLE
 XALIGNED(4) static const word8 L_AES_base_gcm_r[] = {
     0x00, 0x00, 0x01, 0xc2, 0x03, 0x84, 0x02, 0x46,
@@ -21628,6 +21629,7 @@ XALIGNED(4) static const word8 L_AES_base_gcm_r[] = {
 };
 
 #endif /* GCM_TABLE */
+#endif /* HAVE_AESGCM */
 void AES_set_key_RISCV64(const byte* userKey, int keylen, byte* key, int dir)
 {
     const word32* te = L_AES_base_te;

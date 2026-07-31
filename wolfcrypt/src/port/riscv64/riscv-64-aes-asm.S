@@ -20658,6 +20658,7 @@ L_AES_base_rcon:
 	.long	0x01000000,0x02000000,0x04000000,0x08000000
 	.long	0x10000000,0x20000000,0x40000000,0x80000000
 	.long	0x1b000000,0x36000000
+#ifdef HAVE_AESGCM
 #ifdef GCM_TABLE
 	.section	.rodata
 	.type	L_AES_base_gcm_r, %object
@@ -20741,6 +20742,7 @@ L_AES_base_gcm_r:
 	.byte	0xe1,0x00,0xfd,0x20,0xd9,0x40,0xc5,0x60
 	.byte	0x91,0x80,0x8d,0xa0,0xa9,0xc0,0xb5,0xe0
 #endif /* GCM_TABLE */
+#endif /* HAVE_AESGCM */
 	.text
 	.globl	AES_set_key_RISCV64
 	.type	AES_set_key_RISCV64,@function
