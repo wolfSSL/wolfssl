@@ -4590,6 +4590,13 @@ int mp_cnt_lsb(mp_int *a)
 
     /* scan lower digits until non-zero */
     for (x = 0; x < a->used && a->dp[x] == 0; x++) {}
+    /* All used digits are zero -- a non-normalized zero that mp_iszero() above
+     * did not catch. There is no set bit; return before reading dp[x] past the
+     * used digits (which, if also zero, would spin the scan-for-1 loop below
+     * forever). */
+    if (x == a->used) {
+        return 0;
+    }
     if (a->dp)
         q = a->dp[x];
     x *= DIGIT_BIT;

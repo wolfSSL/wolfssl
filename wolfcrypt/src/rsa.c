@@ -5063,8 +5063,17 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
 
 #ifdef WOLFSSL_SMALL_STACK
     if (((c = (mp_int *)XMALLOC(sizeof(*c), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
-        ((d = (mp_int *)XMALLOC(sizeof(*d), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL))
+        ((d = (mp_int *)XMALLOC(sizeof(*d), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)) {
+        /* mp_init_multi() below is skipped, so nothing was initialized: free
+         * what was allocated here and NULL the pointers. The cleanup at the
+         * end must not see an allocated-but-uninitialized mp_int - clearing
+         * one reads a garbage used/size and corrupts the heap. */
+        XFREE(c, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+        XFREE(d, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+        c = NULL;
+        d = NULL;
         ret = MEMORY_E;
+    }
     else
         ret = 0;
 
@@ -5207,6 +5216,14 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
 #ifdef WOLFSSL_SMALL_STACK
     if (((tmp1 = (mp_int *)XMALLOC(sizeof(*tmp1), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
         ((tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)) {
+        /* mp_init_multi() below is skipped, so nothing was initialized: free
+         * what was allocated here and NULL the pointers. The notOkay cleanup
+         * must not see an allocated-but-uninitialized mp_int - clearing one
+         * reads a garbage used/size and corrupts the heap. */
+        XFREE(tmp1, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+        XFREE(tmp2, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+        tmp1 = NULL;
+        tmp2 = NULL;
         ret = MEMORY_E;
         goto notOkay;
     }
@@ -5311,8 +5328,19 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
 
     if (((p = (mp_int *)XMALLOC(sizeof(*p), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
         ((q = (mp_int *)XMALLOC(sizeof(*q), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
-        ((e = (mp_int *)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL))
+        ((e = (mp_int *)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL)) {
+        /* mp_init_multi() below is skipped, so nothing was initialized: free
+         * what was allocated here and NULL the pointers. The cleanup at the
+         * end must not see an allocated-but-uninitialized mp_int - clearing
+         * one reads a garbage used/size and corrupts the heap. */
+        XFREE(p, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+        XFREE(q, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+        p = NULL;
+        q = NULL;
+        e = NULL;
         ret = MEMORY_E;
+    }
     else
         ret = 0;
     if (ret == 0)
