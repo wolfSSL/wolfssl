@@ -13039,6 +13039,7 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
     byte *der = NULL;
     int  bufSz = 0;
     int  derSz = 0;
+    int  sigType;
 
     WOLFSSL_ENTER("wolfSSL_X509_sign");
 
@@ -13065,12 +13066,15 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         goto out;
     }
 
-    x509->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
-    if (x509->sigOID == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+    /* Only update sigOID on success to keep the object unmodified on a
+     * rejected key/md combination. */
+    sigType = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    if (sigType == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
         WOLFSSL_MSG("Unsupported key/md combination for signing");
         ret = WOLFSSL_FAILURE;
         goto out;
     }
+    x509->sigOID = sigType;
     if ((ret = wolfssl_x509_make_der(x509, 0, der, &derSz, 0)) !=
             WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Unable to make DER for X509");
@@ -17018,6 +17022,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
     byte* der = NULL;
     int bufSz;
     int derSz;
+    int sigType;
 
     /* md may be NULL for hash-free algorithms (ML-DSA), as in OpenSSL's
      * X509_REQ_sign(req, pkey, NULL). */
@@ -17037,13 +17042,16 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         return WOLFSSL_FAILURE;
     }
 
-    /* Create a Cert that has the certificate request fields. */
-    req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
-    if (req->sigOID == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+    /* Create a Cert that has the certificate request fields. Only update
+     * sigOID on success to keep the object unmodified on a rejected
+     * key/md combination. */
+    sigType = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    if (sigType == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
         WOLFSSL_MSG("Unsupported key/md combination for signing");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
+    req->sigOID = sigType;
     ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0);
     if (ret != WOLFSSL_SUCCESS) {
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
