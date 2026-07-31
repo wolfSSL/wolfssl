@@ -6483,6 +6483,10 @@ int test_wc_PKCS7_VerifySignedData_NoSignerInfosTag(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7)
     PKCS7* pkcs7 = NULL;
+#ifndef NO_PKCS7_STREAM
+    int ret;
+    word32 idx;
+#endif
 
     WOLFSSL_SMALL_STACK_STATIC byte der[] = {
         0x30, 0x61,
@@ -6507,11 +6511,35 @@ int test_wc_PKCS7_VerifySignedData_NoSignerInfosTag(void)
     };
     word32 derSz = (word32)sizeof(der);
 
+    /* single-shot: must fail with a real parse error, not WANT_READ_E
+     * (no more bytes will ever arrive per the outer length) */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
+            WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
     wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    /* same bundle fed one byte at a time: must not end stuck on
+     * WANT_READ_E once all available bytes are consumed */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+    for (idx = 0; idx < derSz && ret != 0; idx++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, der + idx, 1);
+        if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+            break;
+        }
+    }
+    ExpectIntNE(ret, 0);
+    ExpectIntNE(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+    wc_PKCS7_Free(pkcs7);
+#endif /* !NO_PKCS7_STREAM */
 
 #endif /* HAVE_PKCS7 */
     return EXPECT_RESULT();
