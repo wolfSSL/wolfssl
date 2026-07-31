@@ -1081,17 +1081,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 goto exit;
             }
             if (ret != WOLFSSL_SUCCESS) {
-                /* The issuer just added above did not authenticate this
-                 * certificate, so drop it again here. AddCA() does not verify a
-                 * CA certificate's own signature for CA_TYPE additions, so a
-                 * caller-supplied issuer left behind would sit in the shared
-                 * CertManager as a fully usable WOLFSSL_TEMP_CA anchor -
-                 * GetCA()/GetCAByName() do not inspect signer->type, so every
-                 * other consumer of this CertManager (native TLS peer
-                 * verification, OCSP, CRL, CM_VerifyBuffer_ex) would treat it
-                 * like a configured trust root. X509VerifyCertSetupRetry()
-                 * below only removes ctx->current_cert, the child. */
-                X509StoreRemoveCa(ctx->store, issuer, WOLFSSL_TEMP_CA);
                 X509VerifyCertSetupRetry(ctx, certs, failedCerts,
                     &depth, origDepth);
                 continue;
@@ -1113,8 +1102,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     != WOLFSSL_SUCCESS) {
                 /* Could not guarantee the temporary intermediates were
                  * dropped; fail closed rather than risk verifying the current
-                 * certificate against one.  The exit cleanup makes a final
-                 * unconditional attempt to drop them. */
+                 * certificate against one. */
                 ret = WOLFSSL_FATAL_ERROR;
                 goto exit;
             }
@@ -1244,16 +1232,8 @@ exit:
             }
         }
     }
-    /* Remove intermediates that were added to CM.
-     *
-     * Unconditional on purpose: this must hold on every exit path, including
-     * the early `goto exit`s and the chain-building failure paths. A flag
-     * tracking "did we add one" is not a safe guard, because the failure paths
-     * that leave a caller-supplied issuer loaded are exactly the paths that
-     * would clear it - and anything left resident becomes a WOLFSSL_TEMP_CA
-     * trust anchor for every other consumer of this shared CertManager, whose
-     * signer lookups do not check signer->type. Unloading when nothing was
-     * added is harmless. */
+    /* Remove intermediates that were added to CM. Unconditional: anything left
+     * resident anchors verification for every other user of this CM. */
     if (ctx != NULL) {
         if (ctx->store != NULL) {
             wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm);
