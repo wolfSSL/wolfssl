@@ -11366,6 +11366,7 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl, CbOCSPIO ioCb, CbOCSPRespFree respFreeCb,
     memory during execution of the function.
     \return SSL_FAILURE returned if the crl member of the
     WOLFSSL_CERT_MANAGER fails to initialize correctly.
+    \return BAD_MUTEX_E returned if locking the certificate manager failed.
     \return NOT_COMPILED_IN wolfSSL was not compiled with the HAVE_CRL option.
 
     \param ctx a pointer to a WOLFSSL_CTX structure, created using
@@ -11495,6 +11496,7 @@ int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb);
 
     \return SSL_SUCCESS is returned upon success.
     \return SSL_FAILURE is returned upon failure.
+    \return BAD_MUTEX_E returned if locking the certificate manager failed.
     \return NOT_COMPILED_IN is returned when this function has been called,
     but OCSP support was not enabled when wolfSSL was compiled.
 
@@ -11617,6 +11619,7 @@ int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX* ctx,
     \return MEMORY_E returned if there was an issue allocating memory.
     \return SSL_FAILURE returned if the initialization of the OCSP
     structure failed.
+    \return BAD_MUTEX_E returned if locking the certificate manager failed.
     \return NOT_COMPILED_IN returned if wolfSSL was not compiled with
     HAVE_CERTIFICATE_STATUS_REQUEST option.
 

@@ -1744,6 +1744,7 @@ int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FAILURE when initializing the CRL object fails.
  * @return  BAD_FUNC_ARG when cm is NULL.
+ * @return  BAD_MUTEX_E when locking the certificate manager fails.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when the CRL feature is disabled.
  */
@@ -1777,30 +1778,75 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
 #else
         /* Create CRL object if not present. */
         if (cm->crl == NULL) {
-            /* Allocate memory for CRL object. */
-            cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
-                                            DYNAMIC_TYPE_CRL);
-            if (cm->crl == NULL) {
-                ret = MEMORY_E;
+            WOLFSSL_CRL* crl;
+            /* Half-built object to dispose of once the lock is released. */
+            WOLFSSL_CRL* crlFree = NULL;
+
+            /* Serialize creation so that concurrent callers cannot both
+             * allocate a CRL object. */
+            if (wc_LockMutex(&cm->caLock) != 0) {
+                WOLFSSL_MSG("wc_LockMutex on caLock failed");
+                ret = BAD_MUTEX_E;
             }
-            if (ret == WOLFSSL_SUCCESS) {
-                /* Reset fields of CRL object. */
-                XMEMSET(cm->crl, 0, sizeof(WOLFSSL_CRL));
-                /* Initialize CRL object. */
-                if (InitCRL(cm->crl, cm) != 0) {
-                    WOLFSSL_MSG("Init CRL failed");
-                    /* Dispose of CRL object - indicating dynamically allocated.
-                     */
-                    FreeCRL(cm->crl, 1);
-                    cm->crl = NULL;
-                    ret = WOLFSSL_FAILURE;
+            else {
+                /* Another thread may have created the object already. */
+                if (cm->crl == NULL) {
+                    /* Allocate memory for CRL object. */
+                    crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
+                                                DYNAMIC_TYPE_CRL);
+                    if (crl == NULL) {
+                        ret = MEMORY_E;
+                    }
+                    else {
+                        /* Reset fields of CRL object. */
+                        XMEMSET(crl, 0, sizeof(WOLFSSL_CRL));
+                        /* Initialize CRL object. */
+                        if (InitCRL(crl, cm) != 0) {
+                            WOLFSSL_MSG("Init CRL failed");
+                            /* Nothing here needs caLock, so dispose of the
+                             * object once it has been released and keep the
+                             * critical section to the publish decision.
+                             *
+                             * This particular free cannot block: InitCRL()
+                             * sets tid to INVALID_THREAD_VAL before any of its
+                             * failure returns, so FreeCRL() skips the monitor
+                             * join and takes no lock. Keep frees out of caLock
+                             * anyway, because FreeCRL() on a published object
+                             * does join the CRL monitor thread, which needs
+                             * crlLock, and the verification path already takes
+                             * crlLock (CheckCertCRLList()) before caLock
+                             * (GetCA()). Holding caLock across a CRL free
+                             * would be the wrong order. */
+                            crlFree = crl;
+                            ret = WOLFSSL_FAILURE;
+                        }
+                        else {
+                        #if defined(HAVE_CRL_IO) && defined(USE_WOLFSSL_IO)
+                            /* Set before publishing: a thread that picks the
+                             * object up must not find it without a lookup
+                             * callback and fall back to CRL_MISSING. */
+                            crl->crlIOCb = EmbedCrlLookup;
+                        #endif
+                            /* Publish only once fully initialized so that
+                             * other threads never see a half-built object. */
+                            cm->crl = crl;
+                        }
+                    }
+                }
+                wc_UnLockMutex(&cm->caLock);
+
+                if (crlFree != NULL) {
+                    /* Indicate dynamically allocated. */
+                    FreeCRL(crlFree, 1);
                 }
             }
         }
 
         if (ret == WOLFSSL_SUCCESS) {
         #if defined(HAVE_CRL_IO) && defined(USE_WOLFSSL_IO)
-            /* Use built-in callback to lookup CRL from URL. */
+            /* Redundant for an object created above, but the CRL object can
+             * also have been published by wolfSSL_X509_STORE_add_crl(), which
+             * does not set the lookup callback. */
             cm->crl->crlIOCb = EmbedCrlLookup;
         #endif
         #if defined(OPENSSL_COMPATIBLE_DEFAULTS)
@@ -2165,8 +2211,9 @@ int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm, const char* file,
  *                        WOLFSSL_OCSP_CHECKALL,
  *                        WOLFSSL_OCSP_FAIL_IF_NOT_SUPPORTED.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  0 when initializing the OCSP object fails.
+ * @return  WOLFSSL_FAILURE when initializing the OCSP object fails.
  * @return  BAD_FUNC_ARG when cm is NULL.
+ * @return  BAD_MUTEX_E when locking the certificate manager fails.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when the OCSP feature is disabled.
  */
@@ -2192,23 +2239,51 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
     if (ret == WOLFSSL_SUCCESS) {
         /* Check whether OCSP object is available. */
         if (cm->ocsp == NULL) {
-            /* Allocate memory for OCSP object. */
-            cm->ocsp = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP), cm->heap,
-                DYNAMIC_TYPE_OCSP);
-            if (cm->ocsp == NULL) {
-                ret = MEMORY_E;
+            WOLFSSL_OCSP* ocsp;
+            /* Half-built object to dispose of once the lock is released. */
+            WOLFSSL_OCSP* ocspFree = NULL;
+
+            /* Serialize creation so that concurrent callers cannot both
+             * allocate an OCSP object. */
+            if (wc_LockMutex(&cm->caLock) != 0) {
+                WOLFSSL_MSG("wc_LockMutex on caLock failed");
+                ret = BAD_MUTEX_E;
             }
-            if (ret == WOLFSSL_SUCCESS) {
-                /* Reset the fields of the OCSP object. */
-                XMEMSET(cm->ocsp, 0, sizeof(WOLFSSL_OCSP));
-                /* Initialize the OCSP object. */
-                if (InitOCSP(cm->ocsp, cm) != 0) {
-                    WOLFSSL_MSG("Init OCSP failed");
-                    /* Dispose of OCSP object - indicating dynamically
-                     * allocated. */
-                    FreeOCSP(cm->ocsp, 1);
-                    cm->ocsp = NULL;
-                    ret = 0;
+            else {
+                /* Another thread may have created the object already. */
+                if (cm->ocsp == NULL) {
+                    /* Allocate memory for OCSP object. */
+                    ocsp = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
+                        cm->heap, DYNAMIC_TYPE_OCSP);
+                    if (ocsp == NULL) {
+                        ret = MEMORY_E;
+                    }
+                    else {
+                        /* Reset the fields of the OCSP object. */
+                        XMEMSET(ocsp, 0, sizeof(WOLFSSL_OCSP));
+                        /* Initialize the OCSP object. */
+                        if (InitOCSP(ocsp, cm) != 0) {
+                            WOLFSSL_MSG("Init OCSP failed");
+                            /* FreeOCSP() takes no lock, so unlike the CRL case
+                             * above this cannot deadlock. Dispose of the object
+                             * after the lock has been released anyway, to keep
+                             * the critical section down to the decision of
+                             * what to publish. */
+                            ocspFree = ocsp;
+                            ret = WOLFSSL_FAILURE;
+                        }
+                        else {
+                            /* Publish only once fully initialized so that
+                             * other threads never see a half-built object. */
+                            cm->ocsp = ocsp;
+                        }
+                    }
+                }
+                wc_UnLockMutex(&cm->caLock);
+
+                if (ocspFree != NULL) {
+                    /* Indicate dynamically allocated. */
+                    FreeOCSP(ocspFree, 1);
                 }
             }
         }
@@ -2274,8 +2349,9 @@ int wolfSSL_CertManagerDisableOCSP(WOLFSSL_CERT_MANAGER* cm)
  *                        WOLFSSL_OCSP_URL_OVERRIDE, WOLFSSL_OCSP_NO_NONCE,
  *                        WOLFSSL_OCSP_CHECKALL.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  0 when initializing the OCSP stapling object fails.
+ * @return  WOLFSSL_FAILURE when initializing the OCSP stapling object fails.
  * @return  BAD_FUNC_ARG when cm is NULL.
+ * @return  BAD_MUTEX_E when locking the certificate manager fails.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when the OCSP stapling feature is disabled.
  */
@@ -2301,23 +2377,52 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
     if (ret == WOLFSSL_SUCCESS) {
         /* Check whether OCSP object is available. */
         if (cm->ocsp_stapling == NULL) {
-            /* Allocate memory for OCSP stapling object. */
-            cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
-                cm->heap, DYNAMIC_TYPE_OCSP);
-            if (cm->ocsp_stapling == NULL) {
-                ret = MEMORY_E;
+            WOLFSSL_OCSP* ocsp;
+            /* Half-built object to dispose of once the lock is released. */
+            WOLFSSL_OCSP* ocspFree = NULL;
+
+            /* Serialize creation so that concurrent callers cannot both
+             * allocate an OCSP stapling object. */
+            if (wc_LockMutex(&cm->caLock) != 0) {
+                WOLFSSL_MSG("wc_LockMutex on caLock failed");
+                ret = BAD_MUTEX_E;
             }
-            if (ret == WOLFSSL_SUCCESS) {
-                /* Reset the fields of the OCSP object. */
-                XMEMSET(cm->ocsp_stapling, 0, sizeof(WOLFSSL_OCSP));
-                /* Initialize the OCSP stapling object. */
-                if (InitOCSP(cm->ocsp_stapling, cm) != 0) {
-                    WOLFSSL_MSG("Init OCSP failed");
-                    /* Dispose of OCSP stapling object - indicating dynamically
-                     * allocated. */
-                    FreeOCSP(cm->ocsp_stapling, 1);
-                    cm->ocsp_stapling = NULL;
-                    ret = 0;
+            else {
+                /* Another thread may have created the object already. */
+                if (cm->ocsp_stapling == NULL) {
+                    /* Allocate memory for OCSP stapling object. */
+                    ocsp = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
+                        cm->heap, DYNAMIC_TYPE_OCSP);
+                    if (ocsp == NULL) {
+                        ret = MEMORY_E;
+                    }
+                    else {
+                        /* Reset the fields of the OCSP object. */
+                        XMEMSET(ocsp, 0, sizeof(WOLFSSL_OCSP));
+                        /* Initialize the OCSP stapling object. */
+                        if (InitOCSP(ocsp, cm) != 0) {
+                            WOLFSSL_MSG("Init OCSP failed");
+                            /* FreeOCSP() takes no lock, so unlike the CRL case
+                             * in wolfSSL_CertManagerEnableCRL() this cannot
+                             * deadlock. Dispose of the object after the lock
+                             * has been released anyway, to keep the critical
+                             * section down to the decision of what to
+                             * publish. */
+                            ocspFree = ocsp;
+                            ret = WOLFSSL_FAILURE;
+                        }
+                        else {
+                            /* Publish only once fully initialized so that
+                             * other threads never see a half-built object. */
+                            cm->ocsp_stapling = ocsp;
+                        }
+                    }
+                }
+                wc_UnLockMutex(&cm->caLock);
+
+                if (ocspFree != NULL) {
+                    /* Indicate dynamically allocated. */
+                    FreeOCSP(ocspFree, 1);
                 }
             }
         }
