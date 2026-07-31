@@ -6774,18 +6774,11 @@ int test_wc_PKCS7_VerifySignedData_TruncEContentTag(void)
  * SignedData bundle truncated at the certificates [0] IMPLICIT tag.
  * Verifies that the parser rejects the malformed input rather than
  * dereferencing past the end of the buffer.
- *
- * TODO: limited to NO_PKCS7_STREAM because the streaming parser's stage 3
- * early-exit check (pkcs7.c near line 6594) accepts any bundle
- * whose remaining footer is < 6 bytes as a successful degenerate end,
- * so the bounds check at line 6765 is unreachable in streaming mode.
- * Drop the NO_PKCS7_STREAM gate if/when the early-exit check becomes
- * more accurate.
  */
 int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PKCS7) && defined(NO_PKCS7_STREAM)
+#if defined(HAVE_PKCS7)
     PKCS7* pkcs7 = NULL;
 
     WOLFSSL_SMALL_STACK_STATIC byte der[] = {
@@ -6825,7 +6818,71 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void)
     ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
     wc_PKCS7_Free(pkcs7);
 
-#endif /* HAVE_PKCS7 && NO_PKCS7_STREAM */
+#endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * SignedData bundle with a non-empty digestAlgorithms SET whose signerInfos
+ * field is absent entirely - the bundle stops right after the eContent.
+ * signerInfos is a required field, so the bundle must be rejected both with
+ * the default settings and with wc_PKCS7_AllowDegenerate() turned off.
+ */
+int test_wc_PKCS7_VerifySignedData_NoSignerInfos(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+
+    WOLFSSL_SMALL_STACK_STATIC byte der[] = {
+        /* outer ContentInfo SEQUENCE (99 bytes content) */
+        0x30, 0x63,
+        /* contentType OID signedData */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02,
+        /* [0] EXPLICIT (86 bytes content) */
+        0xA0, 0x56,
+        /* SignedData SEQUENCE (84 bytes content) */
+        0x30, 0x54,
+        /* version INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* digestAlgorithms SET (15 bytes) { sha256 AlgorithmIdentifier } */
+        0x31, 0x0F,
+        0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+        0x05, 0x00,
+        /* encapContentInfo SEQUENCE (62 bytes content) */
+        0x30, 0x3E,
+        /* eContentType OID 1.2.840.113549.1.7.1 (data) */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+        /* eContent [0] EXPLICIT (49 bytes content) */
+        0xA0, 0x31,
+        /* OCTET STRING (47 bytes content) */
+        0x04, 0x2F,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41
+        /* no certificates, no signerInfos: bundle ends here */
+    };
+    word32 derSz = (word32)sizeof(der);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+#endif /* HAVE_PKCS7 && !NO_SHA256 */
     return EXPECT_RESULT();
 }
 
