@@ -11586,7 +11586,7 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
             x |= key->p[i] ^ key->k[i];
         }
 
-        if ((ret == 0) && (x != 0)) {
+        if (x != 0) {
             ret = PUBLIC_KEY_E;
         }
     }
