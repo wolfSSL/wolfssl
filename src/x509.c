@@ -16008,7 +16008,7 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
             ret = WOLFSSL_FAILURE;
         }
         else {
-            ret = CheckIPAddr(dCert, ipasc);
+            ret = CheckIPAddr(dCert, ipasc, (size_t)XSTRLEN(ipasc));
             if (ret != 0) {
                 ret = WOLFSSL_FAILURE;
             }

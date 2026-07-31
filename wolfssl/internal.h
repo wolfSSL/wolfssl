@@ -2335,7 +2335,8 @@ WOLFSSL_TEST_VIS int  MatchDomainName(const char* pattern, int len,
 WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain,
                                     word32 domainLen, int* checkCN,
                                     unsigned int flags, byte isIP);
-WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
+WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc,
+                               size_t ipascLen);
 WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
 #endif
 WOLFSSL_LOCAL int  SetupTicket(WOLFSSL* ssl);
