@@ -1796,11 +1796,67 @@ static int test_untrusted_inter_trusted_stack_cleanup(X509* leaf, X509* inter,
     /* Chain reaches root in the trusted stack -> verifies. */
     ExpectIntEQ(X509_verify_cert(ctx), 1);
     ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_OK);
-    /* The trusted stack must be restored: the injected intermediate appended
-     * during verification must have been removed, leaving only root. */
+    /* The trusted stack must be left exactly as supplied: verification builds
+     * the chain on a private copy, so nothing is appended to or removed from
+     * the caller's stack - only root remains. */
     ExpectIntEQ(sk_X509_num(trusted), 1);
     ExpectPtrEq(sk_X509_value(trusted, 0), root);
     X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    sk_X509_free(trusted);
+    return EXPECT_RESULT();
+}
+
+/* Trusted-stack counterpart of test_untrusted_inter_store_stack_unchanged: the
+ * caller's set0_trusted_stack must not be mutated - not even reordered - by the
+ * retry path.  Put the tampered candidate ahead of root in the trusted stack so
+ * the verifier hits it first and takes X509VerifyCertSetupRetry (which moves
+ * failed candidates around on the internal copy), supply the genuine int-ca via
+ * the untrusted stack, then assert the trusted stack's exact contents and order
+ * after both a succeeding and a failing verification. */
+static int test_untrusted_inter_trusted_stack_unchanged(X509* leaf, X509* inter,
+    X509* tamperedInter, X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(trusted = sk_X509_new_null());
+    /* Tampered candidate ahead of root forces the retry path over the trusted
+     * stack. */
+    ExpectIntGT(sk_X509_push(trusted, tamperedInter), 0);
+    ExpectIntGT(sk_X509_push(trusted, root), 0);
+
+    /* Succeeding verification: genuine int-ca arrives via the untrusted stack. */
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Trusted stack unchanged in contents and order. */
+    ExpectIntEQ(sk_X509_num(trusted), 2);
+    ExpectPtrEq(sk_X509_value(trusted, 0), tamperedInter);
+    ExpectPtrEq(sk_X509_value(trusted, 1), root);
+
+    /* Failing verification on the same trusted stack: no genuine issuer. */
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    X509_STORE_CTX_free(ctx);
+
+    ExpectIntEQ(sk_X509_num(trusted), 2);
+    ExpectPtrEq(sk_X509_value(trusted, 0), tamperedInter);
+    ExpectPtrEq(sk_X509_value(trusted, 1), root);
+
     X509_STORE_free(store);
     sk_X509_free(untrusted);
     sk_X509_free(trusted);
@@ -2017,6 +2073,7 @@ int test_X509_verify_cert_untrusted_inter(void)
     int noStaleRes = 0;
     int depthExhaustRes = 0;
     int trustedStackCleanupRes = 0;
+    int trustedStackUnchangedRes = 0;
     int retryRes = 0;
     int noTempCaResidueRes = 0;
     int storeStackRes = 0;
@@ -2053,6 +2110,9 @@ int test_X509_verify_cert_untrusted_inter(void)
                             inter, inter2, root);
         trustedStackCleanupRes = test_untrusted_inter_trusted_stack_cleanup(
                             leaf, inter, root);
+        trustedStackUnchangedRes =
+                            test_untrusted_inter_trusted_stack_unchanged(
+                            leaf, inter, tamperedInter, root);
         retryRes = test_untrusted_inter_retry(leaf, inter, tamperedInter, root);
         noTempCaResidueRes = test_untrusted_inter_no_temp_ca_residue(leaf,
                             inter, root);
@@ -2067,6 +2127,7 @@ int test_X509_verify_cert_untrusted_inter(void)
         ExpectIntEQ(noStaleRes, 1);
         ExpectIntEQ(depthExhaustRes, 1);
         ExpectIntEQ(trustedStackCleanupRes, 1);
+        ExpectIntEQ(trustedStackUnchangedRes, 1);
         ExpectIntEQ(retryRes, 1);
         ExpectIntEQ(noTempCaResidueRes, 1);
         ExpectIntEQ(storeStackRes, 1);
