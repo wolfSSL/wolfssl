@@ -9480,6 +9480,12 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
             ret = InitCRL(newcrl, NULL);
             if (ret < 0) {
                 WOLFSSL_MSG("Init tmp CRL failed");
+                /* A failed InitCRL() has already released whatever it took,
+                 * so dispose of the memory here and keep this object away
+                 * from the wolfSSL_X509_CRL_free() below, which would destroy
+                 * the lock and the condition variable a second time. */
+                XFREE(newcrl, NULL, DYNAMIC_TYPE_CRL);
+                newcrl = NULL;
             }
             else {
                 ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1,

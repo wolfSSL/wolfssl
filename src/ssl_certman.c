@@ -1779,8 +1779,6 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
         /* Create CRL object if not present. */
         if (cm->crl == NULL) {
             WOLFSSL_CRL* crl;
-            /* Half-built object to dispose of once the lock is released. */
-            WOLFSSL_CRL* crlFree = NULL;
 
             /* Serialize creation so that concurrent callers cannot both
              * allocate a CRL object. */
@@ -1803,21 +1801,11 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
                         /* Initialize CRL object. */
                         if (InitCRL(crl, cm) != 0) {
                             WOLFSSL_MSG("Init CRL failed");
-                            /* Nothing here needs caLock, so dispose of the
-                             * object once it has been released and keep the
-                             * critical section to the publish decision.
-                             *
-                             * This particular free cannot block: InitCRL()
-                             * sets tid to INVALID_THREAD_VAL before any of its
-                             * failure returns, so FreeCRL() skips the monitor
-                             * join and takes no lock. Keep frees out of caLock
-                             * anyway, because FreeCRL() on a published object
-                             * does join the CRL monitor thread, which needs
-                             * crlLock, and the verification path already takes
-                             * crlLock (CheckCertCRLList()) before caLock
-                             * (GetCA()). Holding caLock across a CRL free
-                             * would be the wrong order. */
-                            crlFree = crl;
+                            /* A failed InitCRL() has already released whatever
+                             * it managed to take, so only the memory is left
+                             * to dispose of. FreeCRL() would free the lock and
+                             * the condition variable a second time. */
+                            XFREE(crl, cm->heap, DYNAMIC_TYPE_CRL);
                             ret = WOLFSSL_FAILURE;
                         }
                         else {
@@ -1834,11 +1822,6 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
                     }
                 }
                 wc_UnLockMutex(&cm->caLock);
-
-                if (crlFree != NULL) {
-                    /* Indicate dynamically allocated. */
-                    FreeCRL(crlFree, 1);
-                }
             }
         }
 
@@ -2240,8 +2223,6 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
         /* Check whether OCSP object is available. */
         if (cm->ocsp == NULL) {
             WOLFSSL_OCSP* ocsp;
-            /* Half-built object to dispose of once the lock is released. */
-            WOLFSSL_OCSP* ocspFree = NULL;
 
             /* Serialize creation so that concurrent callers cannot both
              * allocate an OCSP object. */
@@ -2264,12 +2245,11 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
                         /* Initialize the OCSP object. */
                         if (InitOCSP(ocsp, cm) != 0) {
                             WOLFSSL_MSG("Init OCSP failed");
-                            /* FreeOCSP() takes no lock, so unlike the CRL case
-                             * above this cannot deadlock. Dispose of the object
-                             * after the lock has been released anyway, to keep
-                             * the critical section down to the decision of
-                             * what to publish. */
-                            ocspFree = ocsp;
+                            /* InitOCSP() only fails when it could not create
+                             * the lock, so there is nothing to release but the
+                             * memory. FreeOCSP() would destroy a mutex that was
+                             * never initialized. */
+                            XFREE(ocsp, cm->heap, DYNAMIC_TYPE_OCSP);
                             ret = WOLFSSL_FAILURE;
                         }
                         else {
@@ -2280,11 +2260,6 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
                     }
                 }
                 wc_UnLockMutex(&cm->caLock);
-
-                if (ocspFree != NULL) {
-                    /* Indicate dynamically allocated. */
-                    FreeOCSP(ocspFree, 1);
-                }
             }
         }
     }
@@ -2378,8 +2353,6 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
         /* Check whether OCSP object is available. */
         if (cm->ocsp_stapling == NULL) {
             WOLFSSL_OCSP* ocsp;
-            /* Half-built object to dispose of once the lock is released. */
-            WOLFSSL_OCSP* ocspFree = NULL;
 
             /* Serialize creation so that concurrent callers cannot both
              * allocate an OCSP stapling object. */
@@ -2402,13 +2375,11 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
                         /* Initialize the OCSP stapling object. */
                         if (InitOCSP(ocsp, cm) != 0) {
                             WOLFSSL_MSG("Init OCSP failed");
-                            /* FreeOCSP() takes no lock, so unlike the CRL case
-                             * in wolfSSL_CertManagerEnableCRL() this cannot
-                             * deadlock. Dispose of the object after the lock
-                             * has been released anyway, to keep the critical
-                             * section down to the decision of what to
-                             * publish. */
-                            ocspFree = ocsp;
+                            /* InitOCSP() only fails when it could not create
+                             * the lock, so there is nothing to release but the
+                             * memory. FreeOCSP() would destroy a mutex that was
+                             * never initialized. */
+                            XFREE(ocsp, cm->heap, DYNAMIC_TYPE_OCSP);
                             ret = WOLFSSL_FAILURE;
                         }
                         else {
@@ -2419,11 +2390,6 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
                     }
                 }
                 wc_UnLockMutex(&cm->caLock);
-
-                if (ocspFree != NULL) {
-                    /* Indicate dynamically allocated. */
-                    FreeOCSP(ocspFree, 1);
-                }
             }
         }
     }
