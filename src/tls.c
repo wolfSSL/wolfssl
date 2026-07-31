@@ -3682,7 +3682,6 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
     buffer der;
     int i = 1;
     int ret = 0;
-    byte ctxOwnsRequest = 0;
 
     /* use certChain if available, otherwise use peer certificate */
     chain = ssl->buffers.certChain;
@@ -3722,22 +3721,12 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
             request = &csr->request.ocsp[i];
             if (ret == 0) {
                 ret = CreateOcspRequest(ssl, request, cert,
-                        der.buffer, der.length, &ctxOwnsRequest);
-                if (ctxOwnsRequest) {
-                    wolfSSL_Mutex* ocspLock =
-                        &SSL_CM(ssl)->ocsp_stapling->ocspLock;
-                    if (wc_LockMutex(ocspLock) == 0) {
-                        /* the request is ours */
-                        ssl->ctx->certOcspRequest = NULL;
-                    }
-                    wc_UnLockMutex(ocspLock);
-                }
+                        der.buffer, der.length);
             }
 
             if (ret == 0) {
-                request->ssl = ssl;
                 ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
-                                 request, &csr->responses[i], ssl->heap);
+                                       request, &csr->responses[i], ssl);
                 /* Suppressing soft-fail responder errors. OCSP_CERT_REVOKED
                  * is an explicit positive assertion of revocation and must
                  * not be ignored. OCSP_NO_URL just means there is no
@@ -4020,9 +4009,8 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
             case WOLFSSL_CSR_OCSP:
                 if (SSL_CM(ssl)->ocspEnabled) {
                     int ret;
-                    csr->request.ocsp[0].ssl = ssl;
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                              &csr->request.ocsp[0], NULL, NULL);
+                                           &csr->request.ocsp[0], NULL, ssl);
                     /* This is the client's fallback leaf lookup on the
                      * verification instance, so honor the no-responder policy
                      * just like the non-stapling leaf path. Default stays
@@ -4574,9 +4562,9 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
             case WOLFSSL_CSR2_OCSP_MULTI:
                 if (SSL_CM(ssl)->ocspEnabled && csr2->requests >= 1) {
                     int ret;
-                    csr2->request.ocsp[csr2->requests-1].ssl = ssl;
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                          &csr2->request.ocsp[csr2->requests-1], NULL, NULL);
+                                          &csr2->request.ocsp[csr2->requests-1],
+                                          NULL, ssl);
                     /* This is the client's fallback leaf lookup on the
                      * verification instance, so honor the no-responder policy
                      * just like the non-stapling leaf path. Default stays

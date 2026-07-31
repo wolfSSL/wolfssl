@@ -9634,6 +9634,7 @@ static int SetupOcspResp(WOLFSSL* ssl)
     TLSX* extension = NULL;
     int ret = 0;
     OcspRequest* request = NULL;
+    byte ctxOwnsRequest = 0;
 
     extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
@@ -9711,10 +9712,13 @@ static int SetupOcspResp(WOLFSSL* ssl)
         }
     }
     request = &csr->request.ocsp[0];
-    ret = CreateOcspResponse(ssl, &request, &csr->responses[0]);
-    if (request != &csr->request.ocsp[0] &&
-            ssl->buffers.weOwnCert) {
-        /* request will be allocated in CreateOcspResponse() */
+    ret = CreateOcspResponse(ssl, &request, &csr->responses[0],
+                             &ctxOwnsRequest);
+    /* Only a successful call replaces "request", and only a request the CTX did
+     * not take ownership of is ours to free. Both are checked, matching the
+     * SendCertificateStatus() callers. */
+    if (ret == 0 && request != &csr->request.ocsp[0] && !ctxOwnsRequest) {
+        /* request was allocated in CreateOcspResponse() */
         FreeOcspRequest(request);
         XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     }

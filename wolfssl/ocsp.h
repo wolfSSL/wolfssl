@@ -68,12 +68,12 @@ WOLFSSL_LOCAL int  CheckCertOCSP_ex(WOLFSSL_OCSP* ocsp, DecodedCert* cert,
                                     WOLFSSL* ssl);
 WOLFSSL_LOCAL int  CheckOcspRequest(WOLFSSL_OCSP* ocsp,
                  OcspRequest* ocspRequest, WOLFSSL_BUFFER_INFO* responseBuffer,
-                 void* heap);
+                 WOLFSSL* ssl);
 WOLFSSL_LOCAL int  OcspNoUrlPolicy(WOLFSSL_CERT_MANAGER* cm);
 WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
                                     WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
                                     OcspEntry *entry, OcspRequest *ocspRequest,
-                                    void* heap);
+                                    void* heap, WOLFSSL* ssl);
 
 #ifndef CheckOcspResponder
 WOLFSSL_LOCAL int CheckOcspResponder(OcspResponse *bs, byte* subjectNameHash,

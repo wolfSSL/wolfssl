@@ -2520,7 +2520,7 @@ int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *cm,
     if ((ret == 0) && cm->ocspEnabled) {
         /* Check OCSP response with OCSP object from certificate manager. */
         ret = CheckOcspResponse(cm->ocsp, response, responseSz, responseBuffer,
-            status, entry, ocspRequest, NULL);
+            status, entry, ocspRequest, NULL, NULL);
     }
 
     return (ret == 0) ? WOLFSSL_SUCCESS : ret;

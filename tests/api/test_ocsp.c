@@ -20,6 +20,7 @@
  */
 
 #include <tests/unit.h>
+#include <tests/utils.h>
 
 #include <tests/api/test_ocsp.h>
 #include <tests/api/test_ocsp_test_blobs.h>
@@ -1840,6 +1841,204 @@ int test_tls13_nonblock_ocsp_low_mfl(void)
 
 #else
 int test_tls13_nonblock_ocsp_low_mfl(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+/* WOLFSSL_COPY_CERT (implied by OPENSSL_ALL) gives every WOLFSSL its own copy of
+ * the CTX certificate, which sets ssl->buffers.weOwnCert and takes the CTX
+ * request cache out of play entirely - there is nothing to test in that
+ * configuration. */
+#if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER) &&    \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                  \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_COPY_CERT) &&      \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_SHA)
+
+/* Number of times the server's OCSP IO callback has been called. */
+static int test_ocsp_ctx_request_cache_cb_cnt;
+/* The encoded request seen by the first call, kept to compare later ones
+ * against. 512 bytes is well past the size of an OCSP request for one cert. */
+static byte test_ocsp_ctx_request_cache_first[512];
+static int  test_ocsp_ctx_request_cache_firstSz;
+/* Set when a later call encoded something other than what the first did. */
+static int  test_ocsp_ctx_request_cache_differs;
+
+/* Answers with the canned good response for server1, so that the stapling path
+ * runs to completion and the ownership decision it makes about the request is
+ * actually acted on. The encoded request is kept so the caller can tell which
+ * OcspRequest object produced it.
+ */
+static int test_ocsp_ctx_request_cache_io_cb(void* ioCtx, const char* url,
+    int urlSz, unsigned char* req, int reqSz, unsigned char** respBuf)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+
+    if (test_ocsp_ctx_request_cache_cb_cnt == 0) {
+        if (req != NULL && reqSz > 0 &&
+                reqSz <= (int)sizeof(test_ocsp_ctx_request_cache_first)) {
+            XMEMCPY(test_ocsp_ctx_request_cache_first, req, (size_t)reqSz);
+            test_ocsp_ctx_request_cache_firstSz = reqSz;
+        }
+    }
+    else if (test_ocsp_ctx_request_cache_firstSz > 0) {
+        test_ocsp_ctx_request_cache_differs =
+            (reqSz != test_ocsp_ctx_request_cache_firstSz) ||
+            (XMEMCMP(req, test_ocsp_ctx_request_cache_first,
+                     (size_t)reqSz) != 0);
+    }
+
+    test_ocsp_ctx_request_cache_cb_cnt++;
+
+    /* Static blob - the NULL free callback registered alongside this one keeps
+     * it from being freed. */
+    *respBuf = (unsigned char*)resp_server1_cert;
+    return (int)sizeof(resp_server1_cert);
+}
+
+/* The leaf OCSP request that stapling builds is cached on the WOLFSSL_CTX, and
+ * every later connection on that CTX reuses it. The CTX owns it from that point
+ * on and frees it in wolfSSL_CTX_free(), so no connection may free it.
+ *
+ * Runs three handshakes over one CTX pair:
+ *   pass 0 - builds the request and publishes it on the CTX,
+ *   pass 1 - reuses the published one,
+ *   pass 2 - reuses it again, after it has been marked so that reuse can be
+ *            told apart from a rebuild off the same certificate.
+ *
+ * The responder answers with a good response on every pass, so stapling runs
+ * all the way through and the ownership decision each connection makes about
+ * the request is actually acted on. That is what puts the rules themselves
+ * under test: a connection that frees the cached request shows up as a use
+ * after free on the next pass and a double free at CTX teardown, both of which
+ * the ASan CI job turns into a failure.
+ */
+int test_ocsp_ctx_request_cache(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL*     ssl_c = NULL;
+    WOLFSSL*     ssl_s = NULL;
+    OcspRequest* cached = NULL;
+    int          i;
+    struct test_memio_ctx test_ctx;
+
+    test_ocsp_ctx_request_cache_cb_cnt = 0;
+    test_ocsp_ctx_request_cache_firstSz = 0;
+    test_ocsp_ctx_request_cache_differs = 0;
+
+    /* Build the CTX pair on its own first: the certificate has to be in place
+     * before any WOLFSSL is made from the CTX, since each one latches the
+     * certificate buffer at wolfSSL_new(). */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* server1 is the certificate the canned OCSP response answers for, sent
+     * with its intermediate so the client can build a path to the root. */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/ocsp/server1-chain-noroot.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s,
+        "./certs/ocsp/server1-key.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    /* The server needs the issuing CAs to verify the response it staples. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    /* The client needs the intermediate too: it has to verify the responder
+     * certificate inside the stapled response, and a build whose default verify
+     * mode is NONE (OPENSSL_COMPATIBLE_DEFAULTS) never registers the chain
+     * certificates the handshake carried. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ocsp/root-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+        "./certs/ocsp/intermediate1-ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_s), WOLFSSL_SUCCESS);
+    /* The test certificate carries no AuthInfo, so point the lookup at a dummy
+     * responder to get past the no-URL check. */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx_s, "http://dummy.test"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx_s,
+        WOLFSSL_OCSP_NO_NONCE | WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    /* NULL free callback: the response points at a static array. */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx_s,
+        test_ocsp_ctx_request_cache_io_cb, NULL, NULL), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < 3 && EXPECT_SUCCESS(); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        /* The CTXs already exist, so this only makes the connection pair - all
+         * three handshakes run on the same CTXs, which is what puts the cache
+         * in play. */
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP, 0),
+            WOLFSSL_SUCCESS);
+
+        if (i < 2) {
+            /* A good response is stapled and accepted, so the handshake has to
+             * complete. */
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        }
+        else {
+            /* The marked request no longer matches the response, so this pass
+             * is only about which object got encoded. */
+            (void)test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+        }
+
+        /* Every pass went out to the responder, so every pass really did run
+         * the stapling path. */
+        ExpectIntEQ(test_ocsp_ctx_request_cache_cb_cnt, i + 1);
+
+        if (i == 0) {
+            /* First pass builds the request and publishes it on the CTX. */
+            ExpectNotNull(cached = ctx_s->certOcspRequest);
+        }
+        else {
+            /* Later passes reuse that one instead of publishing another, which
+             * is what leaves the CTX as the single owner. Reaching this with
+             * the object intact is the point: a connection that had freed it
+             * would have left a dangling pointer here. */
+            ExpectPtrEq(ctx_s->certOcspRequest, cached);
+        }
+
+        if (i == 1) {
+            /* Mark the cached request so the next pass can be told apart from
+             * one that rebuilt the request off the same certificate: both would
+             * otherwise encode byte for byte the same. */
+            if (cached != NULL && cached->serial != NULL &&
+                    cached->serialSz > 0) {
+                cached->serial[0] = (byte)(cached->serial[0] ^ 0xFF);
+            }
+        }
+        else if (i == 2) {
+            /* It really was the cached object that went to the responder, not a
+             * fresh request that happens to be cached alongside it. */
+            ExpectIntEQ(test_ocsp_ctx_request_cache_differs, 1);
+        }
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_ctx_request_cache(void)
 {
     return TEST_SKIPPED;
 }
