@@ -5063,7 +5063,7 @@ static int mldsa_vec_check_low_c(const sword32* a, byte l, sword32 hi)
     unsigned int i;
 
     /* For each polynomial of vector. */
-    for (i = 0; (ret == 1) && (i < l); i++) {
+    for (i = 0; i < l; i++) {
         ret = mldsa_check_low(a, hi);
         if (ret == 0) {
             break;
