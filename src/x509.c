@@ -13013,9 +13013,11 @@ cleanup:
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
     #ifndef WC_MAX_X509_GEN_MLDSA
-        /* ML-DSA public keys and signatures are large (ML-DSA-87:
-         * 2592 byte public key, 4627 byte signature). */
-        #define WC_MAX_X509_GEN_MLDSA 20480
+        /* Base size plus the largest compiled-in ML-DSA signature and its
+         * ASN.1 overhead; the subject key is added in X509_GEN_BUF_SZ(). */
+        #define WC_MAX_X509_GEN_MLDSA \
+            (WC_MAX_X509_GEN + MLDSA_MAX_SIG_SIZE + MAX_ALGO_SZ + \
+             MAX_SEQ_SZ * 2)
     #endif
     /* DER buffer size for certificate/CSR signing: chosen from the signing
      * key type, plus the subject public key held in the x509 so that a
