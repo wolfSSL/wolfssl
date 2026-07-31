@@ -15,6 +15,64 @@
     \defgroup ECC アルゴリズム - ECC
     \defgroup ED25519 アルゴリズム - ED25519
     \defgroup ED448 アルゴリズム - ED448
+    \defgroup ML_DSA アルゴリズム - ML-DSA (FIPS 204)
+    ML-DSA(Module-Lattice-based Digital Signature Algorithm)は、NISTが
+    FIPS 204として標準化した耐量子のデジタル署名方式です。標準化前の名称は
+    Dilithiumであり、移行前のコードのために従来のDilithiumの型名および
+    マクロ名がエイリアスとして残されています(<wolfssl/wolfcrypt/dilithium.h>
+    を参照)。
+
+    ML-DSAは、NISTセキュリティカテゴリで識別される3つのパラメータセットを
+    定義しています。ML-DSA-44(レベル2)、ML-DSA-65(レベル3)、ML-DSA-87
+    (レベル5)です。3つはいずれも同一のwc_MlDsaKeyオブジェクトでサポートされ、
+    パラメータセットはwc_MlDsaKey_SetParams()で選択します。
+
+    \defgroup ML_KEM アルゴリズム - ML-KEM (FIPS 203)
+    ML-KEM(Module-Lattice-based Key Encapsulation Mechanism)は、NISTが
+    FIPS 203として標準化した耐量子の鍵カプセル化メカニズムです。標準化前の
+    名称はKyberであり、移行前のコードのために従来のKyberの型名および
+    マクロ名がエイリアスとして残されています。
+
+    ML-KEMは3つのパラメータセットを定義しています。ML-KEM-512(NISTレベル1)、
+    ML-KEM-768(レベル3)、ML-KEM-1024(レベル5)です。バリアントは
+    wc_MlKemKey_Init()またはwc_MlKemKey_New()で鍵を初期化する際に選択します。
+
+    \defgroup SLH_DSA アルゴリズム - SLH-DSA (FIPS 205)
+    SLH-DSA(Stateless Hash-based Digital Signature Algorithm)は、NISTが
+    FIPS 205として標準化した耐量子の署名方式です。SPHINCS+の提案方式を
+    継承しており、状態を持ちません。署名によって秘密鍵が変化しないため、
+    アプリケーションが鍵の状態を同期する負担はありません。
+
+    ハッシュファミリ(SHAKEまたはSHA2)、セキュリティカテゴリ(128/192/256)、
+    速度とサイズのトレードオフ(s = 署名が小さい、f = 署名が高速)の組み合わせ
+    により、12個のパラメータセットがサポートされています。パラメータセットは
+    wc_SlhDsaKey_Init()で鍵を初期化する際に選択します。
+
+    \defgroup LMS アルゴリズム - LMS / HSS (RFC 8554)
+    LMS(Leighton-Micali Signatures)とそのマルチツリー構成であるHSS
+    (Hierarchical Signature System)は、RFC 8554およびNIST SP 800-208で
+    規定された、状態を持つハッシュベースの署名方式です。署名ごとに秘密鍵の
+    ワンタイムコンポーネントが消費されるため、アプリケーションは署名を行う
+    たびに、次の署名までの間に秘密鍵の状態を(wc_LmsKey_SetReadCb()および
+    wc_LmsKey_SetWriteCb()で登録した読み込み/書き込みコールバックを介して)
+    永続化しなければなりません。ワンタイム鍵を再利用すると、この方式の
+    安全性は完全に失われます。
+
+    1つの鍵から利用できる署名の回数はパラメータセットによって上限が定まります。
+    残りの回数はwc_LmsKey_SigsLeft()で問い合わせてください。
+
+    \defgroup XMSS アルゴリズム - XMSS / XMSS^MT (RFC 8391)
+    XMSS(eXtended Merkle Signature Scheme)とそのマルチツリー版である
+    XMSS^MTは、RFC 8391およびNIST SP 800-208で規定された、状態を持つ
+    ハッシュベースの署名方式です。LMSと同様に、署名ごとに秘密鍵のワンタイム
+    コンポーネントが消費されるため、アプリケーションは署名を行うたびに、次の
+    署名までの間にwc_XmssKey_SetReadCb()およびwc_XmssKey_SetWriteCb()で
+    登録したコールバックを介して秘密鍵の状態を永続化しなければなりません。
+    ワンタイム鍵を再利用すると、この方式の安全性は完全に失われます。
+
+    1つの鍵から利用できる署名の回数はパラメータセットによって上限が定まります。
+    残りの回数はwc_XmssKey_SigsLeft()で問い合わせてください。
+
     \defgroup ECCSI_Overview ECC​​SIの概要
     ECCSI(楕円曲線ベースの証明書レス署名によるアイデンティティベース暗号化)は、RFC 6507(https://tools.ietf.org/html/rfc6507)で規定されています。
 
@@ -202,9 +260,11 @@
     \defgroup PKCS11 アルゴリズム - PKCS11
     \defgroup Password アルゴリズム - パスワードベース
     \defgroup Poly1305 アルゴリズム - Poly1305
+    \defgroup PUF アルゴリズム - PUF
     \defgroup RIPEMD アルゴリズム - RIPEMD
     \defgroup RSA アルゴリズム - RSA
     \defgroup SHA アルゴリズム - SHA 128/224/256/384/512
+    \defgroup SHE アルゴリズム - SHE
     \defgroup SipHash アルゴリズム - SipHash
     \defgroup SrtpKdf アルゴリズム - SRTP KDF
     \defgroup SRP アルゴリズム - SRP
