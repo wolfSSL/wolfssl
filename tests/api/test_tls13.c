@@ -4296,6 +4296,51 @@ int test_tls13_rpk_trust(void)
     return EXPECT_RESULT();
 }
 
+int test_tls13_rpk_unoffered_cert_type(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    int isServerType;
+
+    /* round 0: server_cert_type. round 1: the client_cert_type twin. */
+    for (isServerType = 1; isServerType >= 0; isServerType--) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                    &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method), 0);
+
+        /* ClientHello out, then the server's flight carrying the response. */
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+
+        /* Drop the offer, making the response unsolicited. */
+        if (ssl_c != NULL) {
+            if (isServerType)
+                ssl_c->options.rpkState.sending_ServerCertTypeCnt = 0;
+            else
+                ssl_c->options.rpkState.sending_ClientCertTypeCnt = 0;
+        }
+
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), UNSUPPORTED_EXTENSION);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif /* HAVE_RPK && WOLFSSL_TLS13 && client && server */
+    return EXPECT_RESULT();
+}
+
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
