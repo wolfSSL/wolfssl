@@ -9631,6 +9631,11 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
         u1 = u1tmp;
         u2 = u2tmp;
     #endif
+       /* zeroed so the cleanup below no-ops if the init is skipped */
+       if (u1 != NULL)
+           XMEMSET(u1, 0, sizeof(mp_int));
+       if (u2 != NULL)
+           XMEMSET(u2, 0, sizeof(mp_int));
 #else
        u1 = e;
        u2 = w;

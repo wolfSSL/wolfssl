@@ -5086,6 +5086,12 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
     else
         ret = 0;
 
+    /* zeroed so the cleanup below no-ops if the init is skipped */
+    if (c != NULL)
+        XMEMSET(c, 0, sizeof(*c));
+    if (d != NULL)
+        XMEMSET(d, 0, sizeof(*d));
+
     if (ret == 0)
 #endif
         ret = mp_init_multi(c, d, NULL, NULL, NULL, NULL);
@@ -5352,6 +5358,15 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     }
     else
         ret = 0;
+
+    /* zeroed so the cleanup below no-ops if the init is skipped */
+    if (p != NULL)
+        XMEMSET(p, 0, sizeof(*p));
+    if (q != NULL)
+        XMEMSET(q, 0, sizeof(*q));
+    if (e != NULL)
+        XMEMSET(e, 0, sizeof(*e));
+
     if (ret == 0)
 #endif
         ret = mp_init_multi(p, q, e, NULL, NULL, NULL);
