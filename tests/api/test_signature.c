@@ -182,7 +182,7 @@ int test_wc_falcon_sign_verify(void)
     XMEMSET(&key, 0, sizeof(key));
     ExpectIntEQ(wc_falcon_init(&key), 0);
     ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
-    ExpectIntEQ(wc_InitRng(&rng), 0);
+    DoExpectIntEQ(wc_InitRng(&rng), 0);
 
     /* Use the embedded benchmark key rather than generating one: this is a
      * wrapper-level smoke test (the native suite lives in test_falcon.c), so
@@ -304,7 +304,7 @@ int test_wc_SignatureDecisionCoverage(void)
             WC_RNG rng;
 
             XMEMSET(data, 0x5A, sizeof(data));
-            ExpectIntEQ(wc_InitRng(&rng), 0);
+            DoExpectIntEQ(wc_InitRng(&rng), 0);
 
             ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA256, sig_type,
                 NULL, data_len, sig, sig_len, &ecc, key_len),
@@ -401,7 +401,7 @@ int test_wc_SignatureDecisionCoverage(void)
             word32 genSigLen = (word32)eccSigMax;
             WC_RNG rng;
 
-            ExpectIntEQ(wc_InitRng(&rng), 0);
+            DoExpectIntEQ(wc_InitRng(&rng), 0);
 
             ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
                 sig_type, NULL, hash_len, genSig, &genSigLen, &ecc, key_len,
@@ -478,7 +478,7 @@ int test_wc_SignatureDecisionCoverage(void)
             WC_RNG rng;
 
             XMEMSET(data, 0xA5, sizeof(data));
-            ExpectIntEQ(wc_InitRng(&rng), 0);
+            DoExpectIntEQ(wc_InitRng(&rng), 0);
 
             ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA256, sig_type,
                 NULL, data_len, genSig, &genSigLen, &ecc, key_len, &rng),
@@ -639,7 +639,7 @@ int test_wc_SignatureDecisionCoverage(void)
 
             XMEMSET(data, 0x24, sizeof(data));
             XMEMSET(otherData, 0x99, sizeof(otherData));
-            ExpectIntEQ(wc_InitRng(&rng), 0);
+            DoExpectIntEQ(wc_InitRng(&rng), 0);
             ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA256,
                 WC_SIGNATURE_TYPE_RSA, data, data_len, realSig, &realSigLen,
                 &rsa_key, key_len, &rng), 0);
@@ -688,7 +688,7 @@ int test_wc_SignatureFeatureCoverage(void)
 
         ExpectIntEQ(wc_ecc_init(&ecc), 0);
         ExpectIntEQ(wc_ecc_import_raw(&ecc, qx, qy, d, "SECP256R1"), 0);
-        ExpectIntEQ(wc_InitRng(&rng), 0);
+        DoExpectIntEQ(wc_InitRng(&rng), 0);
 
         /* wc_SignatureGetSize(): positive path for ECC */
         ExpectIntGT(wc_SignatureGetSize(sig_type, &ecc, key_len), 0);
@@ -774,7 +774,7 @@ int test_wc_SignatureFeatureCoverage(void)
         ExpectIntEQ(wc_InitRsaKey_ex(&rsa_key, HEAP_HINT, testDevId), 0);
         ExpectIntEQ(wc_RsaPrivateKeyDecode(tmp, &idx, &rsa_key,
             (word32)bytes), 0);
-        ExpectIntEQ(wc_InitRng(&rng), 0);
+        DoExpectIntEQ(wc_InitRng(&rng), 0);
 
         /* wc_SignatureGetSize(): positive path for RSA */
         ExpectIntGT(wc_SignatureGetSize(WC_SIGNATURE_TYPE_RSA, &rsa_key,
