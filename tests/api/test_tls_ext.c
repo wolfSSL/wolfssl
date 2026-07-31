@@ -1806,6 +1806,52 @@ int test_wolfSSL_custom_ext_ticket_fallback(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.4.2.1: status_request_v2 is not used in TLS 1.3. Only a
+ * ClientHello may still carry it, since the peer can negotiate a lower version
+ * where it does apply - every other message type is rejected, so that
+ * TLSX_CSR2_Parse() never gets to set ssl->status_request_v2 on a TLS 1.3
+ * connection. */
+int test_TLSX_CSR2_tls13_msg_type_validation(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* type = TLSX_STATUS_REQUEST_V2 (0x0011), size = 0x0000 */
+    const byte extBytes[] = { 0x00, 0x11, 0x00, 0x00 };
+    Suites suites;
+
+    XMEMSET(&suites, 0, sizeof(suites));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           encrypted_extensions, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+    /* certificate_request is parsed as a request, so it needs a suites list. */
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           certificate_request, &suites),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+    /* In a Certificate message the earlier RFC 8446 4.4.2 gate fires first,
+     * because nothing offered status_request_v2 in the ClientHello. Either way
+     * it never reaches TLSX_CSR2_Parse(). */
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           certificate, NULL),
+                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+
+    /* Nothing was recorded on the way out. */
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->status_request_v2, 0);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* use_srtp is only valid in ClientHello/ServerHello (pre-TLS 1.3) or
  * ClientHello/EncryptedExtensions (TLS 1.3) per RFC 5764. Feeding it in a
  * Finished message must be rejected with EXT_NOT_ALLOWED. */

@@ -16505,6 +16505,32 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
     if (ret != 0) {
         goto exit_req_v2;
     }
+    /* Only a certificate that is actually usable as a CA may enter the pending
+     * signer pool. ParseCertRelative() consults that pool ahead of the
+     * certificate manager and uses the signer as a verification key without
+     * further checks, so admission has to enforce the same capabilities AddCA()
+     * requires of a chain CA.
+     *
+     * A non-CA is skipped rather than reported as an error, because
+     * ProcessPeerCerts() only offers a chain cert to AddCA() when isCA is set:
+     * such a certificate is already left out of the certificate manager without
+     * failing the handshake. */
+    if (!dCertAdd->isCA) {
+        WOLFSSL_MSG("Chain cert is not a CA, not adding as pending CA");
+        goto exit_req_v2;
+    }
+#ifndef ALLOW_INVALID_CERTSIGN
+    /* Per RFC 5280 an absent Key Usage extension implies all usages, so only
+     * enforce certificate signing when the extension is actually present.
+     * AddCA() rejects such a certificate outright, so report the same error
+     * here rather than quietly leaving it out of the pool. */
+    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
+            (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
+        ret = NOT_CA_ERROR;
+        goto exit_req_v2;
+    }
+#endif
     ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
     if (ret != 0 || derBuffer == NULL) {
         goto exit_req_v2;
@@ -16515,7 +16541,11 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
         ret = MEMORY_E;
         goto exit_req_v2;
     }
-    ret = FillSigner(s, dCertAdd, CA_TYPE, derBuffer);
+    /* WOLFSSL_CHAIN_CA, not CA_TYPE: TLSX_CSR2_MergePendingCA() promotes this
+     * signer into the certificate manager, and the unload path
+     * (wolfSSL_CertManagerUnloadIntermediateCerts()) selects entries by that
+     * type. AddCA() records chain CAs the same way. */
+    ret = FillSigner(s, dCertAdd, WOLFSSL_CHAIN_CA, derBuffer);
     if (ret != 0) {
         goto exit_req_v2;
     }
@@ -17746,14 +17776,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-                    if (ret == 0 && addToPendingCAs && !alreadySigner) {
-                        /* skipAddCA is only consulted later on the ret == 0
-                         * continuation path; on helper failure we goto
-                         * exit_ppc, so setting it up-front is safe. */
+                    if (ret == 0 && addToPendingCAs && !alreadySigner &&
+                            !ssl->options.verifyNone && !skipAddCA) {
+                        /* The verifyNone and skipAddCA conditions mirror the
+                         * guards on the AddCA() call below. A certificate the
+                         * surrounding code has already declined to admit as a
+                         * CA must not enter the pending pool either, and must
+                         * not be failed against CA rules. skipAddCA is set here
+                         * so AddCA() is not also run for a certificate that did
+                         * enter the pool; it is only consulted later on the
+                         * ret == 0 continuation path, so setting it up-front is
+                         * safe. */
                         skipAddCA = 1;
                         ret = ProcessPeerCertAddPendingCA(ssl,
                                 &args->certs[args->certIdx]);
-                        if (ret != 0)
+                        /* A certificate turned away for not being a usable CA
+                         * falls through to the shared error handling below so
+                         * that it fails the handshake the same way a rejection
+                         * from AddCA() does. */
+                        if (ret != 0 && ret != WC_NO_ERR_TRACE(NOT_CA_ERROR))
                             goto exit_ppc;
                     }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */

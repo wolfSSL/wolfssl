@@ -4255,8 +4255,19 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
     if (!isRequest) {
 #ifndef NO_WOLFSSL_CLIENT
-        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
-        CertificateStatusRequestItemV2* csr2 = extension ?
+        TLSX* extension;
+        CertificateStatusRequestItemV2* csr2;
+
+        /* RFC 8446 Section 4.4.2.1: a TLS 1.3 client must not act upon the
+         * presence of, or the information in, this extension. Return before any
+         * extension state is touched. TLSX_Parse() already rejects it for every
+         * TLS 1.3 message type that reaches this branch, so this is defence in
+         * depth rather than the load bearing check. */
+        if (IsAtLeastTLSv1_3(ssl->version))
+            return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
+
+        extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
+        csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
 
         if (!csr2) {
@@ -18698,9 +18709,12 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                 if (IsAtLeastTLSv1_3(ssl->version)) {
-                    if (msgType != client_hello &&
-                        msgType != certificate_request &&
-                        msgType != certificate)
+                    /* RFC 8446 Section 4.4.2.1: a TLS 1.3 server must not send
+                     * this extension in EncryptedExtensions, CertificateRequest
+                     * or Certificate. ClientHello stays allowed because the
+                     * peer may still negotiate a lower version, where the
+                     * extension does apply. */
+                    if (msgType != client_hello)
                         return EXT_NOT_ALLOWED;
                 }
                 else
