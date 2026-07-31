@@ -2476,6 +2476,25 @@ int test_tls13_cipher_suites(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    !defined(NO_SHA256) && defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+/* Suites has a bitfield member (setSuites:1) trailed by compiler padding
+ * whose value is indeterminate, so a whole-struct XMEMCMP is unreliable.
+ * Compare the meaningful members individually instead. */
+static int test_tls13_suites_eq(const Suites* a, const Suites* b)
+{
+    return a->suiteSz == b->suiteSz &&
+           a->hashSigAlgoSz == b->hashSigAlgoSz &&
+           a->setSuites == b->setSuites &&
+           XMEMCMP(a->suites, b->suites, sizeof(a->suites)) == 0 &&
+           XMEMCMP(a->hashSigAlgo, b->hashSigAlgo, sizeof(a->hashSigAlgo))
+               == 0;
+}
+#endif
+
 int test_tls13_cipher_list_no_tls13_ctx(void)
 {
     EXPECT_DECLS;
@@ -2509,7 +2528,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
         WOLFSSL_FAILURE);
     /* Rejected call must not mutate the previously configured suites. */
     if (ctx != NULL && ctx->suites != NULL) {
-        ExpectIntEQ(XMEMCMP(ctx->suites, &suitesBefore, sizeof(Suites)), 0);
+        ExpectIntEQ(test_tls13_suites_eq(ctx->suites, &suitesBefore), 1);
     }
 #else
     /* Default OpenSSL-compat behavior: succeed but leave ctx->suites
@@ -2521,8 +2540,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
     if (ctx != NULL) {
         ExpectNotNull(ctx->suites);
         if (ctx->suites != NULL) {
-            ExpectIntEQ(XMEMCMP(ctx->suites, &suitesBefore, sizeof(Suites)),
-                0);
+            ExpectIntEQ(test_tls13_suites_eq(ctx->suites, &suitesBefore), 1);
         }
     }
 #endif
@@ -2543,7 +2561,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_FAILURE);
     if (ssl != NULL && ssl->suites != NULL) {
-        ExpectIntEQ(XMEMCMP(ssl->suites, &suitesBefore, sizeof(Suites)), 0);
+        ExpectIntEQ(test_tls13_suites_eq(ssl->suites, &suitesBefore), 1);
     }
 #else
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
@@ -2551,8 +2569,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
     if (ssl != NULL) {
         ExpectNotNull(ssl->suites);
         if (ssl->suites != NULL) {
-            ExpectIntEQ(XMEMCMP(ssl->suites, &suitesBefore, sizeof(Suites)),
-                0);
+            ExpectIntEQ(test_tls13_suites_eq(ssl->suites, &suitesBefore), 1);
         }
     }
 #endif
