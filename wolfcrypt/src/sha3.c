@@ -1186,8 +1186,8 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
         return BAD_FUNC_ARG;
     }
 
-    if (data == NULL && len == 0) {
-        /* valid, but do nothing */
+    if (data == NULL) {
+        /* len is 0 here: valid, but do nothing */
         return 0;
     }
 
@@ -1865,8 +1865,8 @@ int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
          return BAD_FUNC_ARG;
     }
 
-    if (data == NULL && len == 0) {
-        /* valid, but do nothing */
+    if (data == NULL) {
+        /* len is 0 here: valid, but do nothing */
         return 0;
     }
 
@@ -2163,8 +2163,8 @@ int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
          return BAD_FUNC_ARG;
     }
 
-    if (data == NULL && len == 0) {
-        /* valid, but do nothing */
+    if (data == NULL) {
+        /* len is 0 here: valid, but do nothing */
         return 0;
     }
 
