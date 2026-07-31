@@ -358,8 +358,8 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     if (md5->buffLen >= WC_MD5_BLOCK_SIZE)
         return BUFFER_E;
 
-    if (data == NULL && len == 0) {
-        /* valid, but do nothing */
+    if (data == NULL) {
+        /* len is 0 here: valid, but do nothing */
         return 0;
     }
 
