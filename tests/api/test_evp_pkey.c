@@ -3105,13 +3105,9 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
         if (pkey->pkey.ptr != NULL) {
             ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, der44, (size_t)der44Sz), 0);
         }
-        /* EVP_PKEY_free() releases the per-algorithm object only for the
-         * final type, so drop the RSA object left from the first decode
-         * to keep this test leak-free. */
-        if (pkey->rsa != NULL && pkey->ownRsa == 1) {
-            wolfSSL_RSA_free(pkey->rsa);
-            pkey->rsa = NULL;
-        }
+        /* The RSA object from the first decode must have been released
+         * and detached when the key was repurposed. */
+        ExpectNull(wolfSSL_EVP_PKEY_get0_RSA(pkey));
     }
 
     /* Reuse again with a different ML-DSA level: same type, new key data. */
