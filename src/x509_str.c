@@ -648,6 +648,25 @@ static int X509StoreChainPush(WOLF_STACK_OF(WOLFSSL_X509)* chain,
     return ret;
 }
 
+/* Returns 1 if `cert` (by pointer identity) is present in `stack`, else 0.
+ * Used to keep a candidate that already failed verification off the reported
+ * chain. */
+static int X509StoreCertInStack(WOLF_STACK_OF(WOLFSSL_X509)* stack,
+        WOLFSSL_X509* cert)
+{
+    WOLFSSL_STACK* node;
+
+    if (stack == NULL || cert == NULL)
+        return 0;
+
+    for (node = stack; node != NULL; node = node->next) {
+        if (node->data.x509 == cert)
+            return 1;
+    }
+
+    return 0;
+}
+
 /* Current certificate failed, but it is possible there is an
  * alternative cert with the same subject key which will work.
  * Retry until all possible candidate certs are exhausted. */
@@ -684,9 +703,10 @@ static int X509DerEquals(WOLFSSL_X509* cur, WOLFSSL_X509* x509)
                    x509->derCert->length) == 0;
 }
 
-/* Returns 1 if x509's DER matches an entry in either origTrustedSk (the
- * caller's trusted stack - store->certs or the set0_trusted_stack override -
- * which chain building leaves unmodified) or in store->trusted.  Returns 0
+/* Returns 1 if x509's DER matches an entry in either origTrustedSk (an
+ * immutable snapshot of the caller's trusted set - store->certs or the
+ * set0_trusted_stack override - captured before any intermediates were
+ * injected for this verification call) or in store->trusted.  Returns 0
  * otherwise.  Used by the X509_V_FLAG_PARTIAL_CHAIN fallback to confirm that
  * a chain actually terminates at a caller-trusted certificate. */
 static int X509StoreCertIsTrusted(WOLFSSL_X509_STORE* store,
@@ -831,7 +851,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int origDepth = 0;
     WOLFSSL_X509 *issuer = NULL;
     WOLFSSL_X509 *orig = NULL;
-    WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* callerTrusted = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certsToUse = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* failedCerts = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* origTrustedSk = NULL;
@@ -845,15 +865,29 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     /* Chain building mutates the working stack: caller-supplied intermediates
      * are appended and X509VerifyCertSetupRetry moves failed certs out of it.
      * store->certs is shared by every connection using this store and
-     * setTrustedSk is owned by the caller, so build a per-verification
-     * shallow copy and leave both untouched. */
-    origTrustedSk = ctx->store->certs;
+     * setTrustedSk is owned by the caller, so build a per-verification shallow
+     * copy (certsToUse) and leave both untouched.
+     *
+     * The X509_V_FLAG_PARTIAL_CHAIN fallback needs the set of certs that were
+     * caller-trusted before any intermediates were injected. Take a second,
+     * independent snapshot (origTrustedSk) for that check rather than borrowing
+     * a pointer into store->certs/setTrustedSk: chain building reorders
+     * certsToUse, and another thread may add to or detach store->certs while
+     * this verification is in flight, so a borrowed pointer could be reordered
+     * or freed underneath us. Both dups hold borrowed references and are
+     * shallow-freed at exit. */
+    callerTrusted = ctx->store->certs;
     if (ctx->setTrustedSk != NULL) {
-        origTrustedSk = ctx->setTrustedSk;
+        callerTrusted = ctx->setTrustedSk;
     }
 
-    if (origTrustedSk != NULL) {
-        certsToUse = wolfSSL_shallow_sk_dup(origTrustedSk);
+    if (callerTrusted != NULL) {
+        certsToUse = wolfSSL_shallow_sk_dup(callerTrusted);
+        origTrustedSk = wolfSSL_shallow_sk_dup(callerTrusted);
+        if (origTrustedSk == NULL) {
+            ret = WOLFSSL_FAILURE;
+            goto exit;
+        }
     }
     else {
         certsToUse = wolfSSL_sk_X509_new_null();
@@ -868,7 +902,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     if (ret != WOLFSSL_SUCCESS) {
         goto exit;
     }
-    certs = certsToUse;
 
     if (ctx->chain != NULL) {
         wolfSSL_sk_X509_pop_free(ctx->chain, NULL);
@@ -901,7 +934,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         issuer = NULL;
 
         /* Try to find an untrusted issuer first */
-        ret = X509StoreGetIssuerEx(&issuer, certs,
+        ret = X509StoreGetIssuerEx(&issuer, certsToUse,
                                                ctx->current_cert);
         if (ret == WOLFSSL_SUCCESS) {
             if (ctx->current_cert == issuer) {
@@ -936,9 +969,17 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 }
             }
         #endif
+            /* NOTE: this loads the caller-supplied intermediate into the
+             * shared ctx->store->cm as a WOLFSSL_TEMP_CA, and the unload paths
+             * drop *all* WOLFSSL_TEMP_CA signers in that CertManager, not only
+             * the ones added here.  This copy removes the working-stack race,
+             * but two threads running X509_verify_cert() against the same
+             * X509_STORE still contend on store->cm.  Concurrent verification
+             * on a single shared store therefore remains unsupported; callers
+             * needing it must use a store per thread. */
             ret = X509StoreAddCa(ctx->store, issuer, WOLFSSL_TEMP_CA);
             if (ret != WOLFSSL_SUCCESS) {
-                X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                X509VerifyCertSetupRetry(ctx, certsToUse, failedCerts,
                     &depth, origDepth);
                 continue;
             }
@@ -947,7 +988,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             if (ret != WOLFSSL_SUCCESS) {
                 if ((origDepth - depth) <= 1)
                     added = 0;
-                X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                X509VerifyCertSetupRetry(ctx, certsToUse, failedCerts,
                     &depth, origDepth);
                 continue;
             }
@@ -1003,7 +1044,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                      * above; the depth>0/done==0 success path accepts it. */
                     break;
                 } else {
-                    X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                    X509VerifyCertSetupRetry(ctx, certsToUse, failedCerts,
                         &depth, origDepth);
                     continue;
                 }
@@ -1027,7 +1068,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     ctx->setTrustedSk, ctx->current_cert);
             }
     #endif
-            if (issuer != NULL) {
+            /* A candidate that already failed verification (moved to
+             * failedCerts by the retry path) must not terminate the reported
+             * chain.  setTrustedSk / store->trusted are searched by name+AKID,
+             * not by signature, and setTrustedSk is no longer pruned during
+             * chain building, so X509StoreGetIssuerEx can return a same-subject
+             * cert that was tried and rejected. */
+            if (issuer != NULL && !X509StoreCertInStack(failedCerts, issuer)) {
                 X509StoreChainPush(ctx->chain, issuer);
             }
 
@@ -1060,9 +1107,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
 exit:
-    /* failedCerts and certsToUse hold only borrowed references; free the
-     * stack nodes, not the certs.  origTrustedSk is the caller's own stack
-     * and must not be freed. */
+    /* failedCerts, certsToUse and origTrustedSk hold only borrowed references;
+     * free the stack nodes, not the certs.  All three are per-verification
+     * stacks (certsToUse/origTrustedSk are shallow dups of the caller's set),
+     * so none of the caller's own stacks are touched here. */
     wolfSSL_sk_X509_free(failedCerts);
 
     /* Remove intermediates that were added to CM */
@@ -1077,6 +1125,7 @@ exit:
         }
     }
     wolfSSL_sk_X509_free(certsToUse);
+    wolfSSL_sk_X509_free(origTrustedSk);
 
     /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
      * Always check against the leaf (end-entity) certificate, captured in
