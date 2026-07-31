@@ -1521,40 +1521,38 @@ int wc_ed448_check_key(ed448_key* key)
         }
     }
     /* No private key, check Y is valid. */
-    else if ((ret == 0) && (!key->privKeySet)) {
+    else if (ret == 0) {
         /* Verify that xQ and yQ are integers in the interval [0, p - 1].
          * Only have yQ so check that ordinate.
          * p = 2^448-2^224-1 = 0xff..fe..ff
          */
-        if (ret == 0) {
-            int i;
-            ret = PUBLIC_KEY_E;
+        int i;
+        ret = PUBLIC_KEY_E;
 
-            /* Check top part before 0xFE. */
-            for (i = ED448_PUB_KEY_SIZE - 1; i > ED448_PUB_KEY_SIZE/2; i--) {
-                if (key->p[i] < 0xff) {
-                    ret = 0;
-                    break;
-                }
+        /* Check top part before 0xFE. */
+        for (i = ED448_PUB_KEY_SIZE - 1; i > ED448_PUB_KEY_SIZE/2; i--) {
+            if (key->p[i] < 0xff) {
+                ret = 0;
+                break;
             }
-            if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
-                /* Check against 0xFE. */
-                if (key->p[ED448_PUB_KEY_SIZE/2] < 0xfe) {
-                    ret = 0;
-                }
-                else if (key->p[ED448_PUB_KEY_SIZE/2] == 0xfe) {
-                    /* Check bottom part before last byte. */
-                    for (i = ED448_PUB_KEY_SIZE/2 - 1; i > 0; i--) {
-                        if (key->p[i] != 0xff) {
-                            ret = 0;
-                            break;
-                        }
-                    }
-                    /* Check last byte. */
-                    if ((ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) &&
-                        (key->p[0] < 0xff)) {
+        }
+        if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            /* Check against 0xFE. */
+            if (key->p[ED448_PUB_KEY_SIZE/2] < 0xfe) {
+                ret = 0;
+            }
+            else if (key->p[ED448_PUB_KEY_SIZE/2] == 0xfe) {
+                /* Check bottom part before last byte. */
+                for (i = ED448_PUB_KEY_SIZE/2 - 1; i > 0; i--) {
+                    if (key->p[i] != 0xff) {
                         ret = 0;
+                        break;
                     }
+                }
+                /* Check last byte. */
+                if ((ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) &&
+                    (key->p[0] < 0xff)) {
+                    ret = 0;
                 }
             }
         }
