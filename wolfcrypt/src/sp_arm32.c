@@ -122,6 +122,31 @@
         } while (0)
 #endif
 
+/* Variables too large to place on the stack of a constrained environment.
+ * The Linux kernel stack is only a few pages and the ECC window tables are
+ * many kilobytes, so allocate those from the heap there as well. */
+#if defined(WOLFSSL_SP_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK) || \
+    defined(WOLFSSL_LINUXKM)
+    #define SP_DECL_VAR_LARGE(TYPE, NAME, CNT)                          \
+        TYPE* NAME = NULL
+    #define SP_ALLOC_VAR_LARGE(TYPE, NAME, CNT, HEAP, DT)               \
+        if (err == MP_OKAY) {                                           \
+            (NAME) = (TYPE*)XMALLOC(sizeof(TYPE) * (CNT), (HEAP), DT);  \
+            if ((NAME) == NULL) {                                       \
+                err = MEMORY_E;                                         \
+            }                                                           \
+        }
+    #define SP_FREE_VAR_LARGE(NAME, HEAP, DT)                           \
+        XFREE(NAME, (HEAP), DT)
+#else
+    #define SP_DECL_VAR_LARGE(TYPE, NAME, CNT)                          \
+        TYPE NAME[CNT]
+    #define SP_ALLOC_VAR_LARGE(TYPE, NAME, CNT, HEAP, DT)               \
+        WC_DO_NOTHING
+    #define SP_FREE_VAR_LARGE(NAME, HEAP, DT)                           \
+        WC_DO_NOTHING
+#endif
+
 #ifdef WOLFSSL_SP_ARM32_ASM
 #define SP_PRINT_NUM(var, name, total, words, bits)         \
     do {                                                    \
@@ -100775,6 +100800,9 @@ typedef struct sp_point_521 {
     sp_digit z[2 * 17];
     /* Indicates point is at infinity. */
     int infinity;
+#ifdef SP_ALIGN_16
+    byte pad[16-sizeof(int)];
+#endif
 } sp_point_521;
 
 /* The modulus (prime) of the curve P521. */

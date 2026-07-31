@@ -126,6 +126,31 @@
         } while (0)
 #endif
 
+/* Variables too large to place on the stack of a constrained environment.
+ * The Linux kernel stack is only a few pages and the ECC window tables are
+ * many kilobytes, so allocate those from the heap there as well. */
+#if defined(WOLFSSL_SP_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK) || \
+    defined(WOLFSSL_LINUXKM)
+    #define SP_DECL_VAR_LARGE(TYPE, NAME, CNT)                          \
+        TYPE* NAME = NULL
+    #define SP_ALLOC_VAR_LARGE(TYPE, NAME, CNT, HEAP, DT)               \
+        if (err == MP_OKAY) {                                           \
+            (NAME) = (TYPE*)XMALLOC(sizeof(TYPE) * (CNT), (HEAP), DT);  \
+            if ((NAME) == NULL) {                                       \
+                err = MEMORY_E;                                         \
+            }                                                           \
+        }
+    #define SP_FREE_VAR_LARGE(NAME, HEAP, DT)                           \
+        XFREE(NAME, (HEAP), DT)
+#else
+    #define SP_DECL_VAR_LARGE(TYPE, NAME, CNT)                          \
+        TYPE NAME[CNT]
+    #define SP_ALLOC_VAR_LARGE(TYPE, NAME, CNT, HEAP, DT)               \
+        WC_DO_NOTHING
+    #define SP_FREE_VAR_LARGE(NAME, HEAP, DT)                           \
+        WC_DO_NOTHING
+#endif
+
 #ifndef WOLFSSL_SP_ASM
 #if SP_WORD_SIZE == 32
 #ifdef SP_NO_MUL_INSTRUCTION
@@ -23601,8 +23626,8 @@ static void sp_256_get_point_33_9(sp_point_256* r, const sp_point_256* table,
 static int sp_256_ecc_mulmod_win_add_sub_9(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
-    SP_DECL_VAR(sp_point_256, t, 33+2);
-    SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
+    SP_DECL_VAR_LARGE(sp_point_256, t, 33+2);
+    SP_DECL_VAR_LARGE(sp_digit, tmp, 2 * 9 * 6);
     sp_point_256* rt = NULL;
     sp_point_256* p = NULL;
     sp_digit* negy;
@@ -23614,8 +23639,8 @@ static int sp_256_ecc_mulmod_win_add_sub_9(sp_point_256* r, const sp_point_256* 
     (void)ct;
     (void)heap;
 
-    SP_ALLOC_VAR(sp_point_256, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ALLOC_VAR(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_point_256, t, 33+2, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         rt = t + 33;
         p  = t + 33+1;
@@ -23699,8 +23724,8 @@ static int sp_256_ecc_mulmod_win_add_sub_9(sp_point_256* r, const sp_point_256* 
         }
     }
 
-    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
-    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -30977,8 +31002,8 @@ static void sp_384_get_point_33_15(sp_point_384* r, const sp_point_384* table,
 static int sp_384_ecc_mulmod_win_add_sub_15(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
-    SP_DECL_VAR(sp_point_384, t, 33+2);
-    SP_DECL_VAR(sp_digit, tmp, 2 * 15 * 6);
+    SP_DECL_VAR_LARGE(sp_point_384, t, 33+2);
+    SP_DECL_VAR_LARGE(sp_digit, tmp, 2 * 15 * 6);
     sp_point_384* rt = NULL;
     sp_point_384* p = NULL;
     sp_digit* negy;
@@ -30990,8 +31015,8 @@ static int sp_384_ecc_mulmod_win_add_sub_15(sp_point_384* r, const sp_point_384*
     (void)ct;
     (void)heap;
 
-    SP_ALLOC_VAR(sp_point_384, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ALLOC_VAR(sp_digit, tmp, 2 * 15 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_point_384, t, 33+2, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_digit, tmp, 2 * 15 * 6, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         rt = t + 33;
         p  = t + 33+1;
@@ -31075,8 +31100,8 @@ static int sp_384_ecc_mulmod_win_add_sub_15(sp_point_384* r, const sp_point_384*
         }
     }
 
-    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
-    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -35894,6 +35919,9 @@ typedef struct sp_point_521 {
     sp_digit z[2 * 21];
     /* Indicates point is at infinity. */
     int infinity;
+#ifdef SP_ALIGN_16
+    byte pad[16-sizeof(int)];
+#endif
 } sp_point_521;
 
 /* The modulus (prime) of the curve P521. */
@@ -38415,8 +38443,8 @@ static void sp_521_get_point_33_21(sp_point_521* r, const sp_point_521* table,
 static int sp_521_ecc_mulmod_win_add_sub_21(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
-    SP_DECL_VAR(sp_point_521, t, 33+2);
-    SP_DECL_VAR(sp_digit, tmp, 2 * 21 * 6);
+    SP_DECL_VAR_LARGE(sp_point_521, t, 33+2);
+    SP_DECL_VAR_LARGE(sp_digit, tmp, 2 * 21 * 6);
     sp_point_521* rt = NULL;
     sp_point_521* p = NULL;
     sp_digit* negy;
@@ -38428,8 +38456,8 @@ static int sp_521_ecc_mulmod_win_add_sub_21(sp_point_521* r, const sp_point_521*
     (void)ct;
     (void)heap;
 
-    SP_ALLOC_VAR(sp_point_521, t, 33+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ALLOC_VAR(sp_digit, tmp, 2 * 21 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_point_521, t, 33+2, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_digit, tmp, 2 * 21 * 6, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         rt = t + 33;
         p  = t + 33+1;
@@ -38513,8 +38541,8 @@ static int sp_521_ecc_mulmod_win_add_sub_21(sp_point_521* r, const sp_point_521*
         }
     }
 
-    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
-    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
@@ -46982,8 +47010,8 @@ static void sp_1024_ecc_recode_7_42(const sp_digit* k, ecc_recode_1024* v)
 static int sp_1024_ecc_mulmod_win_add_sub_42(sp_point_1024* r, const sp_point_1024* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
-    SP_DECL_VAR(sp_point_1024, t, 65+2);
-    SP_DECL_VAR(sp_digit, tmp, 2 * 42 * 37);
+    SP_DECL_VAR_LARGE(sp_point_1024, t, 65+2);
+    SP_DECL_VAR_LARGE(sp_digit, tmp, 2 * 42 * 37);
     sp_point_1024* rt = NULL;
     sp_point_1024* p = NULL;
     sp_digit* negy;
@@ -46995,8 +47023,8 @@ static int sp_1024_ecc_mulmod_win_add_sub_42(sp_point_1024* r, const sp_point_10
     (void)ct;
     (void)heap;
 
-    SP_ALLOC_VAR(sp_point_1024, t, 65+2, heap, DYNAMIC_TYPE_ECC);
-    SP_ALLOC_VAR(sp_digit, tmp, 2 * 42 * 37, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_point_1024, t, 65+2, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR_LARGE(sp_digit, tmp, 2 * 42 * 37, heap, DYNAMIC_TYPE_ECC);
     if (err == MP_OKAY) {
         rt = t + 65;
         p  = t + 65+1;
@@ -47084,8 +47112,8 @@ static int sp_1024_ecc_mulmod_win_add_sub_42(sp_point_1024* r, const sp_point_10
         }
     }
 
-    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
-    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR_LARGE(tmp, heap, DYNAMIC_TYPE_ECC);
 
     return err;
 }
