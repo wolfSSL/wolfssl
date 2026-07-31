@@ -460,6 +460,66 @@ int test_wolfSSL_X509_set_pubkey(void)
         wolfSSL_EVP_PKEY_free(pkey);
         pkey = NULL;
 
+        /* PKCS#8 shapes: a seed-carrying key derives the public half so
+         * set_pubkey succeeds. For a private-only blob the outcome tracks
+         * whether wolfCrypt can derive the public half on demand in
+         * wc_MlDsaKey_PublicKeyToDer() (added by PR #10985). */
+        {
+            unsigned char der[4096];
+            int derSz = 0;
+            const unsigned char* pp;
+            XFILE f = XBADFILE;
+
+        #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+            ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_seed-priv.der",
+                "rb")) != XBADFILE);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+            if (f != XBADFILE) {
+                XFCLOSE(f);
+                f = XBADFILE;
+            }
+            pp = der;
+            ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
+                WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
+            ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey),
+                WOLFSSL_SUCCESS);
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
+        #endif
+
+            ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_priv-only.der",
+                "rb")) != XBADFILE);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+            if (f != XBADFILE) {
+                XFCLOSE(f);
+            }
+            {
+                wc_MlDsaKey rawKey;
+                byte pubDer[MLDSA_MAX_PUB_KEY_SIZE + 64];
+                word32 kidx = 0;
+                int expected = WOLFSSL_FAILURE;
+
+                ExpectIntEQ(wc_MlDsaKey_Init(&rawKey, NULL, INVALID_DEVID),
+                    0);
+                PRIVATE_KEY_UNLOCK();
+                ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&rawKey, der,
+                    (word32)derSz, &kidx), 0);
+                if (wc_MlDsaKey_PublicKeyToDer(&rawKey, pubDer,
+                        (word32)sizeof(pubDer), 1) > 0) {
+                    expected = WOLFSSL_SUCCESS;
+                }
+                PRIVATE_KEY_LOCK();
+                wc_MlDsaKey_Free(&rawKey);
+
+                pp = der;
+                ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
+                    WC_EVP_PKEY_DILITHIUM, NULL, &pp, (long)derSz));
+                ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey), expected);
+                wolfSSL_EVP_PKEY_free(pkey);
+                pkey = NULL;
+            }
+        }
+
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
         !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && defined(WOLFSSL_CERT_GEN) && \
         !defined(NO_PWDBASED) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
