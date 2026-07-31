@@ -8727,7 +8727,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         sizeof(priv_rand_seed));
 #endif
     /* Check the signature buffer isn't too small. */
-    if ((ret == 0) && (*sigLen < params->sigSz)) {
+    if (*sigLen < params->sigSz) {
         ret = BUFFER_E;
     }
     if (ret == 0) {
