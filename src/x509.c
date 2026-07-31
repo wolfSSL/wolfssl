@@ -12244,8 +12244,13 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 
     #ifdef WOLFSSL_MLDSA_X509_SIGN
         if (pkey->type == WC_EVP_PKEY_DILITHIUM) {
-            /* ML-DSA does not use a separate hash; md (may be NULL, as in
-             * OpenSSL's X509_sign(x, pkey, NULL)) is ignored. */
+            /* ML-DSA does not use a separate hash. A NULL md matches
+             * OpenSSL's X509_sign(x, pkey, NULL); unlike OpenSSL, a
+             * non-NULL md is deliberately ignored rather than rejected to
+             * keep hash-passing callers working. */
+            if (md != NULL) {
+                WOLFSSL_MSG("Ignoring md for ML-DSA signing");
+            }
             switch (WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
                 case ML_DSA_44k:
                     sigType = CTC_ML_DSA_44;
