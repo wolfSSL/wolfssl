@@ -134,7 +134,7 @@ int Base64_SkipNewline(const byte* in, word32 *inLen,
         curChar = in[++j];
         len--;
     }
-    if (len && (curChar == '\r' || curChar == '\n')) {
+    if (curChar == '\r' || curChar == '\n') {
         j++;
         len--;
         if (curChar == '\r') {
