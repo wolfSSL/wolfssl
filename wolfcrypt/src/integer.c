@@ -98,12 +98,10 @@ word32 CheckRunTimeSettings(void)
 }
 
 
-/* handle up to 6 inits */
+/* handle up to 6 inits; returns MP_OKAY */
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
                   mp_int* f)
 {
-    int res = MP_OKAY;
-
     if (a) XMEMSET(a, 0, sizeof(mp_int));
     if (b) XMEMSET(b, 0, sizeof(mp_int));
     if (c) XMEMSET(c, 0, sizeof(mp_int));
@@ -111,35 +109,18 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
     if (e) XMEMSET(e, 0, sizeof(mp_int));
     if (f) XMEMSET(f, 0, sizeof(mp_int));
 
-    if (a && ((res = mp_init(a)) != MP_OKAY))
-        return res;
+    /* mp_init() has exactly one failure mode, a NULL argument, and the guard
+     * on each call excludes it, so every one of these returns MP_OKAY and the
+     * result is discarded. Same shape as sp_init_multi() and tfm.c's
+     * mp_init_multi(), which also return MP_OKAY unconditionally. */
+    if (a) (void)mp_init(a);
+    if (b) (void)mp_init(b);
+    if (c) (void)mp_init(c);
+    if (d) (void)mp_init(d);
+    if (e) (void)mp_init(e);
+    if (f) (void)mp_init(f);
 
-    if (b && ((res = mp_init(b)) != MP_OKAY)) {
-        mp_clear(a);
-        return res;
-    }
-
-    if (c && ((res = mp_init(c)) != MP_OKAY)) {
-        mp_clear(a); mp_clear(b);
-        return res;
-    }
-
-    if (d && ((res = mp_init(d)) != MP_OKAY)) {
-        mp_clear(a); mp_clear(b); mp_clear(c);
-        return res;
-    }
-
-    if (e && ((res = mp_init(e)) != MP_OKAY)) {
-        mp_clear(a); mp_clear(b); mp_clear(c); mp_clear(d);
-        return res;
-    }
-
-    if (f && ((res = mp_init(f)) != MP_OKAY)) {
-        mp_clear(a); mp_clear(b); mp_clear(c); mp_clear(d); mp_clear(e);
-        return res;
-    }
-
-    return res;
+    return MP_OKAY;
 }
 
 
