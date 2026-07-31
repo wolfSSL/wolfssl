@@ -16504,7 +16504,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
     }
 
     if (ret == 0) {
-        if (bit >= 0 && bit < 7) {
+        if (bit < 7) {
             out[0] = cur;
         }
     }
