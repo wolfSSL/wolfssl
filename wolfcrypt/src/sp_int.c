@@ -18906,13 +18906,11 @@ int sp_todecimal(const sp_int* a, char* str)
             /* Terminate string. */
             str[i] = '\0';
 
-            if (err == MP_OKAY) {
-                /* Reverse string to big endian. */
-                for (j = 0; j <= (i - 1) / 2; j++) {
-                    int c = (unsigned char)str[j];
-                    str[j] = str[i - 1 - j];
-                    str[i - 1 - j] = (char)c;
-                }
+            /* Reverse string to big endian. */
+            for (j = 0; j <= (i - 1) / 2; j++) {
+                int c = (unsigned char)str[j];
+                str[j] = str[i - 1 - j];
+                str[i - 1 - j] = (char)c;
             }
         }
 
