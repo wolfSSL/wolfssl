@@ -3681,6 +3681,42 @@ int AllocateCtxSuites(WOLFSSL_CTX* ctx)
     return 0;
 }
 
+/* Lazily allocate and derive ctx->suites, holding the CTX mutex so concurrent
+ * users of a shared CTX cannot both allocate and leak one of the Suites. All
+ * lazy-init call sites must use this helper; one that skips the lock re-opens
+ * the race for the others.
+ *
+ * returns 0 on success, otherwise an error code.
+ */
+int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx)
+{
+    int ret;
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wolfSSL_RefWithMutexLock(&ctx->ref);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to lock CTX mutex for suites init");
+        return ret;
+    }
+    if (ctx->suites == NULL) {
+        ret = AllocateCtxSuites(ctx);
+        if (ret == 0)
+            InitSSL_CTX_Suites(ctx);
+    }
+    if (wolfSSL_RefWithMutexUnlock(&ctx->ref) != 0) {
+        WOLFSSL_MSG("Failed to unlock CTX mutex after suites init");
+        /* A stuck lock would deadlock every later use of ctx->ref, so surface
+         * it as an error. Keep any earlier suites-init error, as that is the
+         * more meaningful failure. */
+        if (ret == 0)
+            ret = BAD_MUTEX_E;
+    }
+
+    return ret;
+}
+
 /* Call this when the ssl object needs to have its own ssl->suites object */
 int AllocateSuites(WOLFSSL* ssl)
 {
@@ -8300,13 +8336,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
 #endif
 
-        if (ctx->suites == NULL) {
-            /* suites */
-            ret = AllocateCtxSuites(ctx);
-            if (ret != 0)
-                return ret;
-            InitSSL_CTX_Suites(ctx);
-        }
+        /* suites, allocated and derived under the CTX mutex as the CTX may be
+         * shared with other threads */
+        ret = InitCtxSuitesWithMutex(ctx);
+        if (ret != 0)
+            return ret;
 #ifdef OPENSSL_ALL
         ssl->suitesStack = NULL;
 #endif
@@ -8660,6 +8694,12 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     if (*pKey == NULL) {
         return MEMORY_E;
     }
+
+    /* Zero the allocation before initializing. XMALLOC does not clear memory,
+     * and the key-specific init below may fail before it has zeroed/initialized
+     * the structure's members.  Starting from all-zero makes any partial-init
+     * failure safe to free. */
+    XMEMSET(*pKey, 0, sz);
 
     /* Initialize key */
     switch (type) {

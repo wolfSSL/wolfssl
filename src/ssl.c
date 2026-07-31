@@ -8547,12 +8547,11 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ssl->ctx == ctx)
         return ssl->ctx;
 
-    if (ctx->suites == NULL) {
-        /* suites */
-        if (AllocateCtxSuites(ctx) != 0)
-            return NULL;
-        InitSSL_CTX_Suites(ctx);
-    }
+    /* suites, allocated and derived under the CTX mutex as this CTX may be
+     * shared with other threads. Done before taking a reference below so that
+     * a failure here returns without having changed anything. */
+    if (InitCtxSuitesWithMutex(ctx) != 0)
+        return NULL;
 
     wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
@@ -8564,6 +8563,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #else
     (void)ret;
 #endif
+
     if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);
     ssl->ctx = ctx;
