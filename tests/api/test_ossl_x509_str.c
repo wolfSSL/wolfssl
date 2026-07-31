@@ -2859,6 +2859,48 @@ int test_X509_STORE_get0_objects(void)
     return EXPECT_RESULT();
 }
 
+int test_X509_STORE_get0_objects_borrowed_crl(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_CRL) && \
+    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    int pass;
+
+    /* pass 0: one get0_objects call.  pass 1: a second call, which rebuilds
+     * the list and so tears the first one down while the store is alive. */
+    for (pass = 0; pass < 2 && EXPECT_SUCCESS(); pass++) {
+        X509_STORE* store = NULL;
+        X509* borrowed = NULL;
+        STACK_OF(X509_OBJECT)* objs = NULL;
+
+        /* Not self-signed, so add_cert up_refs it onto store->certs. */
+        ExpectNotNull(borrowed = wolfSSL_X509_load_certificate_file(svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(store = X509_STORE_new());
+        ExpectIntEQ(X509_STORE_add_cert(store, borrowed), 1);
+        /* Arms cm->crl and puts one decoded CA in the CertManager. */
+        ExpectIntEQ(X509_STORE_load_locations(store, caCertFile, NULL),
+            WOLFSSL_SUCCESS);
+
+        ExpectNotNull(objs = X509_STORE_get0_objects(store));
+        /* CM decode + borrowed cert + CRL. */
+        ExpectIntEQ(sk_X509_OBJECT_num(objs), 3);
+        if (pass == 1) {
+            ExpectNotNull(objs = X509_STORE_get0_objects(store));
+            ExpectIntEQ(sk_X509_OBJECT_num(objs), 3);
+        }
+
+        X509_STORE_free(store);
+
+        /* The store is gone but the caller's reference must have survived. */
+        ExpectNotNull(X509_get_subject_name(borrowed));
+        X509_free(borrowed);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_STORE_get1_certs(void)
 {
     EXPECT_DECLS;
