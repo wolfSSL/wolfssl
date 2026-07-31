@@ -1792,8 +1792,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     tmpc = c->dp;
 
     /* sanity-check dp pointers. */
-    if ((min_ab > 0) &&
-        ((tmpa == NULL) || (tmpb == NULL) || (tmpc == NULL)))
+    if ((min_ab > 0) && ((tmpa == NULL) || (tmpb == NULL)))
     {
         return MP_VAL;
     }
