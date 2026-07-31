@@ -251,7 +251,10 @@ static int ed448_is_small_order(const byte p[ED448_PUB_KEY_SIZE])
      * (fe448_from_bytes) reads bytes 0-55 modulo p with no canonical-form
      * check, so y = p decodes to 0 and y = p+1 decodes to 1; both must
      * be rejected here. Only {y, y + p} fits in 56 bytes (2p overflows),
-     * so listing y and y + p exhausts the reachable encodings. */
+     * so listing y and y + p exhausts the reachable encodings.
+     * wc_ed448_check_key() depends on the y = p row: its Y-range test
+     * accepts that encoding, so dropping the row would let a y outside
+     * [0, p - 1] through. */
     static const byte small_order_y[][ED448_PUB_KEY_SIZE] = {
         /* order 1: identity y = 1, x = 0 */
         {0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -1537,23 +1540,13 @@ int wc_ed448_check_key(ed448_key* key)
             }
         }
         if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
-            /* Check against 0xFE. */
-            if (key->p[ED448_PUB_KEY_SIZE/2] < 0xfe) {
+            /* Every byte above this one is 0xff here, so y > p whenever this
+             * byte is 0xff, and y == p is then the only remaining encoding
+             * outside [0, p - 1]. It is already rejected by
+             * ed448_is_small_order() above, whose table carries y == p as a
+             * non-canonical encoding, so the low bytes need no check. */
+            if (key->p[ED448_PUB_KEY_SIZE/2] <= 0xfe) {
                 ret = 0;
-            }
-            else if (key->p[ED448_PUB_KEY_SIZE/2] == 0xfe) {
-                /* Check bottom part before last byte. */
-                for (i = ED448_PUB_KEY_SIZE/2 - 1; i > 0; i--) {
-                    if (key->p[i] != 0xff) {
-                        ret = 0;
-                        break;
-                    }
-                }
-                /* Check last byte. */
-                if ((ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) &&
-                    (key->p[0] < 0xff)) {
-                    ret = 0;
-                }
             }
         }
 
