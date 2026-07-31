@@ -1411,7 +1411,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                 }
             }
 
-            if (pt != NULL && res == NULL) {
+            if (pt != NULL) {
                 word32 prvSz;
 
                 res = pt->buffer;
