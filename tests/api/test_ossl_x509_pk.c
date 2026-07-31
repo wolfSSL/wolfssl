@@ -494,22 +494,29 @@ int test_wolfSSL_X509_set_pubkey(void)
                 XFCLOSE(f);
             }
             {
-                wc_MlDsaKey rawKey;
+                wc_MlDsaKey* rawKey = NULL;
                 byte pubDer[MLDSA_MAX_PUB_KEY_SIZE + 64];
                 word32 kidx = 0;
                 int expected = WOLFSSL_FAILURE;
+                int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
-                ExpectIntEQ(wc_MlDsaKey_Init(&rawKey, NULL, INVALID_DEVID),
-                    0);
+                ExpectNotNull(rawKey = (wc_MlDsaKey*)XMALLOC(sizeof(*rawKey),
+                    NULL, DYNAMIC_TYPE_TMP_BUFFER));
+                ExpectIntEQ(keyRet = wc_MlDsaKey_Init(rawKey, NULL,
+                    INVALID_DEVID), 0);
                 PRIVATE_KEY_UNLOCK();
-                ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&rawKey, der,
+                ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(rawKey, der,
                     (word32)derSz, &kidx), 0);
-                if (wc_MlDsaKey_PublicKeyToDer(&rawKey, pubDer,
-                        (word32)sizeof(pubDer), 1) > 0) {
+                if (EXPECT_SUCCESS() &&
+                        wc_MlDsaKey_PublicKeyToDer(rawKey, pubDer,
+                            (word32)sizeof(pubDer), 1) > 0) {
                     expected = WOLFSSL_SUCCESS;
                 }
                 PRIVATE_KEY_LOCK();
-                wc_MlDsaKey_Free(&rawKey);
+                if (keyRet == 0) {
+                    wc_MlDsaKey_Free(rawKey);
+                }
+                XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
                 pp = der;
                 ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
@@ -528,25 +535,35 @@ int test_wolfSSL_X509_set_pubkey(void)
          * consistent with the draft-OID SPKI emitted by
          * wc_MlDsaKey_PublicKeyToDer(), or the subsequent sign fails. */
         {
-            MlDsaKey draftKey;
+            wc_MlDsaKey* draftKey = NULL;
             WC_RNG rng;
             byte draftDer[4096];
             int draftDerSz = 0;
             const unsigned char* dp = draftDer;
+            int rngRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+            int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
-            ExpectIntEQ(wc_InitRng(&rng), 0);
-            ExpectIntEQ(wc_MlDsaKey_Init(&draftKey, NULL, INVALID_DEVID), 0);
-            ExpectIntEQ(wc_MlDsaKey_SetParams(&draftKey, WC_ML_DSA_44_DRAFT),
+            ExpectNotNull(draftKey = (wc_MlDsaKey*)XMALLOC(sizeof(*draftKey),
+                NULL, DYNAMIC_TYPE_TMP_BUFFER));
+            ExpectIntEQ(rngRet = wc_InitRng(&rng), 0);
+            ExpectIntEQ(keyRet = wc_MlDsaKey_Init(draftKey, NULL,
+                INVALID_DEVID), 0);
+            ExpectIntEQ(wc_MlDsaKey_SetParams(draftKey, WC_ML_DSA_44_DRAFT),
                 0);
-            ExpectIntEQ(wc_MlDsaKey_MakeKey(&draftKey, &rng), 0);
+            ExpectIntEQ(wc_MlDsaKey_MakeKey(draftKey, &rng), 0);
             /* KeyToDer (priv+pub): the decode of a priv-only PKCS#8 does
              * not derive the public part needed by PublicKeyToDer. */
             PRIVATE_KEY_UNLOCK();
-            ExpectIntGT(draftDerSz = wc_MlDsaKey_KeyToDer(&draftKey,
+            ExpectIntGT(draftDerSz = wc_MlDsaKey_KeyToDer(draftKey,
                 draftDer, (word32)sizeof(draftDer)), 0);
             PRIVATE_KEY_LOCK();
-            wc_MlDsaKey_Free(&draftKey);
-            wc_FreeRng(&rng);
+            if (keyRet == 0) {
+                wc_MlDsaKey_Free(draftKey);
+            }
+            XFREE(draftKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (rngRet == 0) {
+                wc_FreeRng(&rng);
+            }
 
             ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
                 WC_EVP_PKEY_DILITHIUM, NULL, &dp, (long)draftDerSz));

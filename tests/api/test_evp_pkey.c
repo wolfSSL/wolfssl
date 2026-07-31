@@ -3180,17 +3180,23 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
      * size-keyed raw import is for the auto-detect path only. Use genuine
      * raw bytes so the rejection is due to the format, not the contents. */
     {
-        MlDsaKey mldsa;
+        wc_MlDsaKey* mldsa = NULL;
         word32 idx = 0;
         word32 rawSz = (word32)sizeof(rawBlob);
+        int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
-        ExpectIntEQ(wc_MlDsaKey_Init(&mldsa, NULL, INVALID_DEVID), 0);
+        ExpectNotNull(mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(*mldsa), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntEQ(keyRet = wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID), 0);
         PRIVATE_KEY_UNLOCK();
-        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&mldsa, mldsaDer,
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(mldsa, mldsaDer,
             (word32)mldsaSz, &idx), 0);
-        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&mldsa, rawBlob, &rawSz), 0);
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(mldsa, rawBlob, &rawSz), 0);
         PRIVATE_KEY_LOCK();
-        wc_MlDsaKey_Free(&mldsa);
+        if (keyRet == 0) {
+            wc_MlDsaKey_Free(mldsa);
+        }
+        XFREE(mldsa, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         p = rawBlob;
         ExpectNull(wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL, &p,
