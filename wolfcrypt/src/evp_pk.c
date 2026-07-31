@@ -91,8 +91,11 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     }
 
     /* Release key data held from a previous decode when the caller reuses
-     * an EVP PKEY object. */
+     * an EVP PKEY object. It may hold private key material. */
     if (pkey->pkey.ptr != NULL) {
+        if (pkey->pkey_sz > 0) {
+            ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+        }
         XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         pkey->pkey.ptr = NULL;
     }
