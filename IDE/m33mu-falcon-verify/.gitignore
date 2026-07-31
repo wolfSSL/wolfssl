@@ -3,3 +3,4 @@ app-falcon.elf
 app-falcon.bin
 app-falcon.sym
 app-falcon.dis
+stm32h563_OTP.bin

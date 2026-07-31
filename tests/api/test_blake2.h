@@ -30,6 +30,7 @@ int test_wc_Blake2bUpdate(void);
 int test_wc_Blake2bFinal(void);
 int test_wc_Blake2b_KATs(void);
 int test_wc_Blake2b_other(void);
+int test_wc_blake2b_decision_coverage(void);
 
 int test_wc_InitBlake2s(void);
 int test_wc_InitBlake2s_WithKey(void);
@@ -37,6 +38,7 @@ int test_wc_Blake2sUpdate(void);
 int test_wc_Blake2sFinal(void);
 int test_wc_Blake2s_KATs(void);
 int test_wc_Blake2s_other(void);
+int test_wc_blake2s_decision_coverage(void);
 
 #define TEST_BLAKE2B_DECLS                                      \
     TEST_DECL_GROUP("blake2b", test_wc_InitBlake2b),            \
@@ -44,7 +46,8 @@ int test_wc_Blake2s_other(void);
     TEST_DECL_GROUP("blake2b", test_wc_Blake2bUpdate),          \
     TEST_DECL_GROUP("blake2b", test_wc_Blake2bFinal),           \
     TEST_DECL_GROUP("blake2b", test_wc_Blake2b_KATs),           \
-    TEST_DECL_GROUP("blake2b", test_wc_Blake2b_other)
+    TEST_DECL_GROUP("blake2b", test_wc_Blake2b_other),          \
+    TEST_DECL_GROUP("blake2b", test_wc_blake2b_decision_coverage)
 
 #define TEST_BLAKE2S_DECLS                                      \
     TEST_DECL_GROUP("blake2s", test_wc_InitBlake2s),            \
@@ -52,6 +55,7 @@ int test_wc_Blake2s_other(void);
     TEST_DECL_GROUP("blake2s", test_wc_Blake2sUpdate),          \
     TEST_DECL_GROUP("blake2s", test_wc_Blake2sFinal),           \
     TEST_DECL_GROUP("blake2s", test_wc_Blake2s_KATs),           \
-    TEST_DECL_GROUP("blake2s", test_wc_Blake2s_other)
+    TEST_DECL_GROUP("blake2s", test_wc_Blake2s_other),          \
+    TEST_DECL_GROUP("blake2s", test_wc_blake2s_decision_coverage)
 
 #endif /* WOLFCRYPT_TEST_BLAKE2_H */

@@ -1,4 +1,4 @@
-/* test_ascon.h
+/* test_wolfevent.h
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -19,20 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef TESTS_API_TEST_ASCON_H
-#define TESTS_API_TEST_ASCON_H
+#ifndef WOLFCRYPT_TEST_WOLFEVENT_H
+#define WOLFCRYPT_TEST_WOLFEVENT_H
 
 #include <tests/api/api_decl.h>
 
-int test_ascon_hash256(void);
-int test_ascon_aead128(void);
-int test_ascon_aead128_edge_cases(void);
-int test_ascon_decision_coverage(void);
+int test_wc_WolfEventDecisionCoverage(void);
 
-#define TEST_ASCON_DECLS                                        \
-    TEST_DECL_GROUP("ascon", test_ascon_hash256),               \
-    TEST_DECL_GROUP("ascon", test_ascon_aead128),               \
-    TEST_DECL_GROUP("ascon", test_ascon_aead128_edge_cases),    \
-    TEST_DECL_GROUP("ascon", test_ascon_decision_coverage)
+#define TEST_WOLFEVENT_DECLS                                                    \
+    TEST_DECL_GROUP("wolfevent", test_wc_WolfEventDecisionCoverage)
 
-#endif /* TESTS_API_TEST_ASCON_H */
+#endif /* WOLFCRYPT_TEST_WOLFEVENT_H */

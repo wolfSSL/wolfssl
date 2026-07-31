@@ -214,6 +214,11 @@
 #include <tests/api/test_hash.h>
 #include <tests/api/test_hmac.h>
 #include <tests/api/test_cmac.h>
+#include <tests/api/test_siphash.h>
+#include <tests/api/test_srp.h>
+#include <tests/api/test_eccsi.h>
+#include <tests/api/test_sakke.h>
+#include <tests/api/test_hpke.h>
 #include <tests/api/test_kdf.h>
 #include <tests/api/test_she.h>
 #include <tests/api/test_des3.h>
@@ -231,6 +236,7 @@
 #include <tests/api/test_error.h>
 #include <tests/api/test_random.h>
 #include <tests/api/test_wolfentropy.h>
+#include <tests/api/test_wolfevent.h>
 #include <tests/api/test_wolfmath.h>
 #include <tests/api/test_rsa.h>
 #include <tests/api/test_dsa.h>
@@ -37998,6 +38004,12 @@ TEST_CASE testCases[] = {
     TEST_HMAC_DECLS,
     /* CMAC */
     TEST_CMAC_DECLS,
+    /* SipHash */
+    TEST_SIPHASH_DECLS,
+    TEST_SRP_DECLS,
+    TEST_ECCSI_DECLS,
+    TEST_SAKKE_DECLS,
+    TEST_HPKE_DECLS,
     /* KDF */
     TEST_KDF_DECLS,
     /* SHE */
@@ -38049,6 +38061,7 @@ TEST_CASE testCases[] = {
     /* RNG tests */
     TEST_RANDOM_DECLS,
     TEST_WOLFENTROPY_DECLS,
+    TEST_WOLFEVENT_DECLS,
 
     /* Public key */
     /* wolfmath MP API tests */
