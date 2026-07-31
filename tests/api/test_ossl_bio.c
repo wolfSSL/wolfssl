@@ -1926,7 +1926,7 @@ int test_wolfSSL_BIO_get_init(void)
 int test_wolfSSL_BIO_get_new_index(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EX_DATA_CRYPTO)
     BIO_METHOD* method = NULL;
     BIO* bio = NULL;
     int idx = 0;

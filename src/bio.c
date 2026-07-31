@@ -2119,6 +2119,7 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef HAVE_EX_DATA_CRYPTO
 #ifndef WOLFSSL_BIO_TYPE_START
 /* Matches WOLFSSL_BIO_TYPE_START in wolfssl/openssl/bio.h (OpenSSL's
  * BIO_TYPE_START), which is only included with OPENSSL_EXTRA. */
@@ -2126,22 +2127,17 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 #endif
 
 /* Return a new BIO type index starting after WOLFSSL_BIO_TYPE_START, or
- * WOLFSSL_FATAL_ERROR when the type index space is exhausted. */
+ * WOLFSSL_FATAL_ERROR when the type index space is exhausted.  */
 int wolfSSL_BIO_get_new_index(void)
 {
-    int idx;
-#ifdef HAVE_EX_DATA_CRYPTO
-    idx = wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_BIO, 0, NULL,
+    int idx = wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_BIO, 0, NULL,
             NULL, NULL, NULL);
-#else
-    static int wolfssl_bio_type_index = 0;
-    idx = wolfssl_bio_type_index++;
-#endif
     if (idx < 0 || idx > 0xff - (WOLFSSL_BIO_TYPE_START + 1)) {
         return WOLFSSL_FATAL_ERROR;
     }
     return WOLFSSL_BIO_TYPE_START + 1 + idx;
 }
+#endif /* HAVE_EX_DATA_CRYPTO */
 
 /* creates a new custom WOLFSSL_BIO_METHOD */
 WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
