@@ -19948,10 +19948,8 @@ static int _sp_lcm(const sp_int* a, const sp_int* b, sp_int* r)
         _sp_init_size(t[0], used);
         _sp_init_size(t[1], used);
 
-        if (err == MP_OKAY) {
-            /* 1. t0 = gcd(a, b) */
-            err = sp_gcd(a, b, t[0]);
-        }
+        /* 1. t0 = gcd(a, b) */
+        err = sp_gcd(a, b, t[0]);
 
         if (err == MP_OKAY) {
             /* Divide the greater by the common divisor and multiply by other
