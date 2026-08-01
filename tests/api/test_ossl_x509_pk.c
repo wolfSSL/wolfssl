@@ -500,7 +500,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                 wc_MlDsaKey* rawKey = NULL;
                 byte pubDer[MLDSA_MAX_PUB_KEY_SIZE + 64];
                 word32 kidx = 0;
-                int expected = WOLFSSL_FAILURE;
+                int expected = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
                 int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
                 ExpectNotNull(rawKey = (wc_MlDsaKey*)XMALLOC(sizeof(*rawKey),
