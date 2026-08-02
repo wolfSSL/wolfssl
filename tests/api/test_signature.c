@@ -41,13 +41,6 @@
 #include <tests/api/api.h>
 #include <tests/api/test_signature.h>
 
-/* Effective hash floor used by wc_SignatureVerify/Generate; mirrors the
- * default in wolfcrypt/src/signature.c. A build may lower it (e.g.
- * --enable-wolfclu defines WC_SIG_MIN_HASH_TYPE=WC_HASH_TYPE_MD5). */
-#ifndef WC_SIG_MIN_HASH_TYPE
-    #define WC_SIG_MIN_HASH_TYPE WC_HASH_TYPE_SHA256
-#endif
-
 /* Testing wc_SignatureGetSize() for signature type ECC */
 int test_wc_SignatureGetSize_ecc(void)
 {
