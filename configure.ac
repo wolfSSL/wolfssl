@@ -3752,6 +3752,72 @@ then
 fi
 
 
+# wolfHAL hardware abstraction layer crypto-callback port.
+# Include-path only: wolfHAL builds no archive (its drivers compile per-board),
+# so the application compiles and links wolfHAL itself.
+# Example:
+#   "./configure --with-wolfhal=../wolfHAL --with-wolfhal-board=stm32wb_nucleo"
+ENABLED_WOLFHAL="no"
+ENABLED_WOLFHAL_BOARD=""
+trywolfhaldir=""
+AC_ARG_WITH([wolfhal],
+    [AS_HELP_STRING([--with-wolfhal=PATH],[PATH to the wolfHAL source tree (default ../wolfHAL)])],
+    [
+        AC_MSG_CHECKING([for wolfHAL])
+        if test "x$withval" != "xno" ; then
+            trywolfhaldir=$withval
+        fi
+        if test "x$withval" = "xyes" ; then
+            trywolfhaldir="../wolfHAL"
+        fi
+        if test -e "$trywolfhaldir/wolfHAL/crypto/crypto.h"
+        then
+            AM_CFLAGS="$AM_CFLAGS -I\"$trywolfhaldir\""
+        else
+            AC_MSG_ERROR([Could not find wolfHAL headers under $trywolfhaldir])
+        fi
+        # wolfHAL objects are compiled by the application, so the library is
+        # left with unresolved whal_* references. A shared object cannot carry
+        # those, and the bundled examples/tests cannot link them either.
+        enable_shared=no
+        enable_static=yes
+        ENABLED_WOLFHAL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFHAL"
+        AC_MSG_RESULT([yes])
+    ]
+)
+
+AC_ARG_WITH([wolfhal-board],
+    [AS_HELP_STRING([--with-wolfhal-board=PATH],
+        [PATH to the directory holding your board.h. Required with
+         --with-wolfhal.])],
+    [
+        if test "x$withval" != "xno" ; then
+            ENABLED_WOLFHAL_BOARD=$withval
+        fi
+    ]
+)
+
+if test "x$ENABLED_WOLFHAL" = "xyes"
+then
+    if test "x$ENABLED_WOLFHAL_BOARD" = "x"
+    then
+        AC_MSG_ERROR([--with-wolfhal requires --with-wolfhal-board=PATH to the directory holding your board.h])
+    fi
+    AC_MSG_CHECKING([for board.h in $ENABLED_WOLFHAL_BOARD])
+    if test -e "$ENABLED_WOLFHAL_BOARD/board.h"
+    then
+        AC_MSG_RESULT([yes])
+    else
+        AC_MSG_ERROR([No board.h in $ENABLED_WOLFHAL_BOARD])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -I\"$ENABLED_WOLFHAL_BOARD\""
+elif test "x$ENABLED_WOLFHAL_BOARD" != "x"
+then
+    AC_MSG_ERROR([--with-wolfhal-board requires --with-wolfhal=PATH])
+fi
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -10615,6 +10681,7 @@ AC_ARG_ENABLE([examples],
 
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_WOLFHAL" = "xyes"], [ENABLED_EXAMPLES="no"])
 
 
 # Enable wolfCrypt test and benchmark
@@ -10629,6 +10696,7 @@ AC_ARG_ENABLE([crypttests],
     [ ENABLED_CRYPT_TESTS=$enableval ],
     [ ENABLED_CRYPT_TESTS=$ENABLED_CRYPT_TESTS_DEFAULT ]
     )
+AS_IF([test "x$ENABLED_WOLFHAL" = "xyes"], [ENABLED_CRYPT_TESTS="no"])
 AC_SUBST([ENABLED_CRYPT_TESTS])
 
 if test "$ENABLED_CRYPT_TESTS" = "no"
@@ -11543,7 +11611,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_WOLFHAL" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -13382,6 +13450,7 @@ AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
+AM_CONDITIONAL([BUILD_WOLFHAL],[test "x$ENABLED_WOLFHAL" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
@@ -13994,6 +14063,7 @@ echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * STMicro STSAFE:             $ENABLED_STSAFE"
 echo "   * RealTek RTL8735B HUK:       $ENABLED_RTL8735B"
 echo "   * TROPIC01:                   $ENABLED_TROPIC01"
+echo "   * wolfHAL:                    $ENABLED_WOLFHAL"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
