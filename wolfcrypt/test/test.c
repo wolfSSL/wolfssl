@@ -15508,8 +15508,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
           ctrPlain, (int)sizeof(oddCipher), ctr128Cipher },
         /* and an additional 9 bytes to reuse tmp left buffer */
         { NULL, 0, NULL, ctrPlain, (int)sizeof(oddCipher), oddCipher },
-        /* NO_AES_CTR_WRAP_TEST disables testing counter wrap on the low 32 bits. */
-    #ifndef NO_AES_CTR_WRAP_TEST
+        /* Counter wrapping */
     #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr128Wrap128Cipher), ctr128Wrap128Cipher },
@@ -15546,7 +15545,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
           ctrPlain, (int)sizeof(ctr128Wrap32_2CipherLong),
           ctr128Wrap32_2CipherLong },
     #endif
-    #endif /* !NO_AES_CTR_WRAP_TEST */
 #endif
 #ifdef WOLFSSL_AES_192
         { ctr192Key, (int)sizeof(ctr192Key), ctrIv,
@@ -15554,8 +15552,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         /* let's try with just 9 bytes, non block size test */
         { ctr192Key, (int)sizeof(ctr192Key), ctrIv,
           ctrPlain, (int)sizeof(oddCipher), ctr192Cipher },
-        /* NO_AES_CTR_WRAP_TEST disables testing counter wrap on the low 32 bits. */
-    #ifndef NO_AES_CTR_WRAP_TEST
+        /* Counter wrapping */
     #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         { ctr192Key, (int)sizeof(ctr192Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr192Wrap128Cipher), ctr192Wrap128Cipher },
@@ -15592,7 +15589,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
           ctrPlain, (int)sizeof(ctr192Wrap32_2CipherLong),
           ctr192Wrap32_2CipherLong },
     #endif
-    #endif /* !NO_AES_CTR_WRAP_TEST */
 #endif
 #ifdef WOLFSSL_AES_256
         { ctr256Key, (int)sizeof(ctr256Key), ctrIv,
@@ -15600,8 +15596,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         /* let's try with just 9 bytes, non block size test */
         { ctr256Key, (int)sizeof(ctr256Key), ctrIv,
           ctrPlain, (int)sizeof(oddCipher), ctr256Cipher },
-        /* NO_AES_CTR_WRAP_TEST disables testing counter wrap on the low 32 bits. */
-    #ifndef NO_AES_CTR_WRAP_TEST
+        /* Counter wrapping */
     #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr256Wrap128Cipher), ctr256Wrap128Cipher },
@@ -15638,7 +15633,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
           ctrPlain, (int)sizeof(ctr256Wrap32_2CipherLong),
           ctr256Wrap32_2CipherLong },
     #endif
-    #endif /* !NO_AES_CTR_WRAP_TEST */
 #endif
     };
     #define AES_CTR_TEST_LEN (int)(sizeof(testVec) / sizeof(*testVec))

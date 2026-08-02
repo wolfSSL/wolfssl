@@ -217,15 +217,26 @@ static int wc_AsuCipherEcb(wc_CryptoInfo* info)
 }
 
 #ifdef WOLFSSL_AES_COUNTER
-/* AES-CTR (counter in aes->reg). The ASU counts differently than wolfSSL once
- * the low 32 counter bits wrap around, so that case runs in software. */
+/* Add n to the 16-byte counter, starting at the last byte and carrying toward
+ * the first, so it matches wolfSSL's software counter. */
+static void wc_AsuCtrAdd(byte* ctr, word32 n)
+{
+    word32 carry = n;
+    int    i;
+    for (i = WC_AES_BLOCK_SIZE - 1; (i >= 0) && (carry != 0); i--) {
+        carry += (word32)ctr[i];
+        ctr[i] = (byte)carry;
+        carry >>= 8;
+    }
+}
+
+/* AES-CTR. The ASU only counts the last 4 bytes of the counter and cannot carry
+ * past them, so we split the work there and add the carry in software. */
 static int wc_AsuCipherCtr(wc_CryptoInfo* info)
 {
     byte*  ctr;
     word32 blocks;
-    word32 carry;
     int    ret;
-    int    i;
 
     if (info == NULL || info->cipher.aesctr.aes == NULL ||
         info->cipher.aesctr.out == NULL || info->cipher.aesctr.in == NULL) {
@@ -234,31 +245,48 @@ static int wc_AsuCipherCtr(wc_CryptoInfo* info)
     /* Partly-used keystream from an earlier call lives in the Aes context and
      * the ASU always starts fresh, so those calls run in software. */
     if (info->cipher.aesctr.aes->left != 0 || info->cipher.aesctr.sz == 0 ||
-        (info->cipher.aesctr.sz % WC_AES_BLOCK_SIZE) != 0) {
+        (info->cipher.aesctr.sz % WC_AES_BLOCK_SIZE) != 0 ||
+        info->cipher.aesctr.sz > XASU_ASU_DMA_MAX_TRANSFER_LENGTH) {
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    /* The ASU counts only the low 32 bits of the counter and wraps them to zero,
-     * while wolfSSL software carries across the full 128 bits. */
     ctr = (byte*)info->cipher.aesctr.aes->reg;
     blocks = info->cipher.aesctr.sz / WC_AES_BLOCK_SIZE;
 
-    /* CTR encrypt and decrypt are the same operation, so always run encrypt. */
+    /* Default: do the split. Define this macro on a firmware that carries the
+     * whole 128-bit counter to skip the split and use one hardware call. */
+#ifndef WOLFSSL_VERSAL_GEN2_ASU_CTR_WRAP_HW_FIXED
+    {
+        word32 off = 0;
+        word32 remaining = blocks;
+        while (remaining != 0) {
+            word32 low   = ((word32)ctr[12] << 24) | ((word32)ctr[13] << 16) |
+                           ((word32)ctr[14] << 8)  |  (word32)ctr[15];
+            /* How many blocks fit before the last 4 bytes roll over. */
+            word64 toWrap = (word64)0x100000000ULL - (word64)low;
+            word32 chunk  = ((word64)remaining < toWrap) ? remaining
+                                                         : (word32)toWrap;
+            /* CTR encrypt and decrypt are the same op, so always run encrypt. */
+            ret = wc_AsuCipherOneShot(info->cipher.aesctr.aes,
+                info->cipher.aesctr.out + off, info->cipher.aesctr.in + off,
+                chunk * WC_AES_BLOCK_SIZE, 1, (u8)XASU_AES_CTR_MODE, ctr);
+            if (ret != 0) {
+                return ret;
+            }
+            wc_AsuCtrAdd(ctr, chunk);
+            off       += chunk * WC_AES_BLOCK_SIZE;
+            remaining -= chunk;
+        }
+    }
+#else
     ret = wc_AsuCipherOneShot(info->cipher.aesctr.aes, info->cipher.aesctr.out,
         info->cipher.aesctr.in, info->cipher.aesctr.sz, 1,
         (u8)XASU_AES_CTR_MODE, ctr);
     if (ret != 0) {
         return ret;
     }
-
-    /* Add the block count to the counter for the next call: start at the last
-     * byte (ctr[15]) and carry toward the first, matching wolfSSL software. */
-    carry = blocks;
-    for (i = WC_AES_BLOCK_SIZE - 1; (i >= 0) && (carry != 0); i--) {
-        carry += (word32)ctr[i];
-        ctr[i] = (byte)carry;
-        carry >>= 8;
-    }
+    wc_AsuCtrAdd(ctr, blocks);
+#endif
 
     return 0;
 }
