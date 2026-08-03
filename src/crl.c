@@ -1411,6 +1411,37 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
         CRL_Entry_free(dupl, heap);
         return NULL;
     }
+#elif defined(OPENSSL_EXTRA)
+    {
+        int i;
+
+        /* certs is an in-struct array living after verifyMutex, so the bulk
+         * copy above aliased every extensions pointer with the original's.
+         * Cleaning the whole array first. */
+        for (i = 0; i < CRL_MAX_REVOKED_CERTS; i++) {
+            dupl->certs[i].extensions = NULL;
+            dupl->certs[i].extensionsSz = 0;
+        }
+
+        /* Deep copy the entry extensions, as DupRevokedCertList() does for the
+         * linked-list build. */
+        for (i = 0; i < ent->totalCerts; i++) {
+            if (ent->certs[i].extensions == NULL ||
+                    ent->certs[i].extensionsSz == 0) {
+                continue;
+            }
+            dupl->certs[i].extensions = (byte*)XMALLOC(
+                    ent->certs[i].extensionsSz, heap, DYNAMIC_TYPE_REVOKED);
+            if (dupl->certs[i].extensions == NULL) {
+                WOLFSSL_MSG("Failed to allocate revoked cert extensions");
+                CRL_Entry_free(dupl, heap);
+                return NULL;
+            }
+            XMEMCPY(dupl->certs[i].extensions, ent->certs[i].extensions,
+                    ent->certs[i].extensionsSz);
+            dupl->certs[i].extensionsSz = ent->certs[i].extensionsSz;
+        }
+    }
 #endif
 #ifdef OPENSSL_EXTRA
     dupl->issuer = wolfSSL_X509_NAME_dup(ent->issuer);
