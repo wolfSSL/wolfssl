@@ -7473,6 +7473,29 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_ECC
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+/* SP only resets the logical length of k, leaving its digits in the backing
+ * store. Clear it the way the software path does. */
+static void ecc_sign_k_forcezero(ecc_key* key)
+{
+#ifndef WOLFSSL_NO_MALLOC
+    if (key->sign_k != NULL) {
+        mp_forcezero(key->sign_k);
+        mp_free(key->sign_k);
+        XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+        key->sign_k = NULL;
+    }
+#else
+    if (key->sign_k_set) {
+        mp_forcezero(key->sign_k);
+        key->sign_k_set = 0;
+    }
+#endif
+}
+#endif
+
 static int ecc_sign_hash_sp(const byte* in, word32 inlen, WC_RNG* rng,
     ecc_key* key, mp_int *r, mp_int *s)
 {
@@ -7702,7 +7725,20 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
 #if defined(WOLFSSL_HAVE_SP_ECC)
    err = ecc_sign_hash_sp(in, inlen, rng, key, r, s);
+   /* WC_KEY_SIZE_E only means SP left this curve to the software path below,
+    * which needs k and clears it itself. Every other result consumed k. */
    if (err != WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) {
+   #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+       defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+       defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+       #ifdef WC_ECC_NONBLOCK
+       /* An incomplete operation still needs k. */
+       if (err != FP_WOULDBLOCK)
+       #endif
+       {
+           ecc_sign_k_forcezero(key);
+       }
+   #endif
        return err;
    }
 #else
