@@ -105,6 +105,14 @@ static void wb_sha3_dispatch(void)
     wb_init_with(CPUID_BMI1,              NULL);   /* [T,F] */
     wb_init_with(0,                       NULL);   /* [F,-] -> C block */
 
+    /* SHA3_USE_AVX2(f) = IS_INTEL_AVX2(f) && IS_CPU_INTEL(f).
+     *   The [T,T] row cannot come from real cpuid on a non-Intel host, so
+     *   neither operand's pair completes without forcing the vendor bit:
+     *   AVX2-capable AMD reports [T,F], the same row as the AVX2-only call
+     *   above. Supply [T,T]; it pairs with CPUID_AVX2 ([T,F]) for operand 1
+     *   and with the BMI rows ([F,-]) for operand 0. */
+    wb_init_with(CPUID_AVX2 | CPUID_INTEL, NULL);
+
     /* 874: (sha3_block_n != NULL) && (blocks > 0), in Sha3Update. MC/DC needs
      *   cond0's independence pair -- both the NULL and non-NULL multi-block
      *   rows -- demonstrated in THIS binary (the variant sees only the AVX2
@@ -222,6 +230,89 @@ static void wb_sha3_dispatch_aarch64(void)
 
 #endif
 
+#ifdef WOLFSSL_SHA3
+
+/* Sha3Update (841) and Sha3Final (999) both open with
+ *
+ *     if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
+ *         return BAD_STATE_E;
+ *
+ * p is the block count, supplied internally: every public wrapper passes one
+ * of the four WC_SHA3_*_COUNT constants and SHAKE passes the 128/256 ones, so
+ * neither operand is ever true through the API. Both statics are in scope
+ * here, so call them with p outside the range and pair each against the count
+ * the wrappers actually use.
+ */
+static void wb_sha3_rate_guard(void)
+{
+    wc_Sha3 s;
+    byte    data[8];
+    byte    hash[WC_SHA3_256_DIGEST_SIZE];
+    int     ret;
+
+    XMEMSET(data, 0x5a, sizeof(data));
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (wc_InitSha3_256(&s, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_InitSha3_256 failed (rate guards skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    /* operand 0 true: below the smallest rate (largest digest). */
+    ret = Sha3Update(&s, data, (word32)sizeof(data),
+                     (word32)WC_SHA3_512_COUNT - 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        WB_NOTE("Sha3Update(p too small) did not return BAD_STATE_E");
+        wb_fail = 1;
+    }
+
+    /* operand 1 true, operand 0 false: above the largest rate. */
+    ret = Sha3Update(&s, data, (word32)sizeof(data),
+                     (word32)WC_SHA3_128_COUNT + 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        WB_NOTE("Sha3Update(p too large) did not return BAD_STATE_E");
+        wb_fail = 1;
+    }
+
+    /* all-false: the count wc_Sha3_256_Update passes. */
+    ret = Sha3Update(&s, data, (word32)sizeof(data),
+                     (word32)WC_SHA3_256_COUNT);
+    if (ret != 0) {
+        WB_NOTE("Sha3Update(valid p) unexpected error");
+        wb_fail = 1;
+    }
+
+    /* Same three rows for Sha3Final. padChar 0x06 is what wc_Sha3Final uses;
+     * the two rejected calls return before touching the state, so the valid
+     * one still finalizes a well-formed digest. */
+    ret = Sha3Final(&s, 0x06, hash, (word32)WC_SHA3_512_COUNT - 1,
+                    WC_SHA3_256_DIGEST_SIZE);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        WB_NOTE("Sha3Final(p too small) did not return BAD_STATE_E");
+        wb_fail = 1;
+    }
+
+    ret = Sha3Final(&s, 0x06, hash, (word32)WC_SHA3_128_COUNT + 1,
+                    WC_SHA3_256_DIGEST_SIZE);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        WB_NOTE("Sha3Final(p too large) did not return BAD_STATE_E");
+        wb_fail = 1;
+    }
+
+    ret = Sha3Final(&s, 0x06, hash, (word32)WC_SHA3_256_COUNT,
+                    WC_SHA3_256_DIGEST_SIZE);
+    if (ret != 0) {
+        WB_NOTE("Sha3Final(valid p) unexpected error");
+        wb_fail = 1;
+    }
+
+    wc_Sha3_256_Free(&s);
+    WB_NOTE("Sha3Update/Sha3Final block-count guards exercised");
+}
+
+#endif /* WOLFSSL_SHA3 */
+
 int main(void)
 {
     printf("sha3.c white-box MC/DC supplement\n");
@@ -231,6 +322,7 @@ int main(void)
 #else
     wb_sha3_dispatch();
     wb_sha3_dispatch_aarch64();
+    wb_sha3_rate_guard();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     return 0;
 #endif
