@@ -21775,6 +21775,141 @@ static wc_test_ret_t aesccm_128_large_test(Aes* enc)
     return ret;
 }
 
+/* Exercise message lengths that are exact multiples of the AES block size.
+ * These leave no partial block after the CTR loop, a case the other AES-CCM
+ * vectors here (23 and 73 bytes) never reach.  Vectors generated with
+ * pyca/cryptography AESCCM. */
+static wc_test_ret_t aesccm_128_aligned_test(Aes* enc)
+{
+    wc_test_ret_t ret;
+    WOLFSSL_SMALL_STACK_STATIC const byte k[] =
+    {
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+        0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[] =
+    {
+        0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0xa0,
+        0xa1, 0xa2, 0xa3, 0xa4, 0xa5
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte a[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    /* plaintext - one block */
+    WOLFSSL_SMALL_STACK_STATIC const byte p1[] =
+    {
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
+    };
+    /* ciphertext - one block */
+    WOLFSSL_SMALL_STACK_STATIC const byte c1[] =
+    {
+        0x58, 0x8c, 0x97, 0x9a, 0x61, 0xc6, 0x63, 0xd2,
+        0xf0, 0x66, 0xd0, 0xc2, 0xc0, 0xf9, 0x89, 0x80
+    };
+    /* tag - authentication - one block */
+    WOLFSSL_SMALL_STACK_STATIC const byte t1[] =
+    {
+        0x6e, 0xcb, 0xa5, 0x36, 0xf1, 0x67, 0x5d, 0x6f
+    };
+    /* plaintext - four blocks */
+    WOLFSSL_SMALL_STACK_STATIC const byte p4[] =
+    {
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47
+    };
+    /* ciphertext - four blocks */
+    WOLFSSL_SMALL_STACK_STATIC const byte c4[] =
+    {
+        0x58, 0x8c, 0x97, 0x9a, 0x61, 0xc6, 0x63, 0xd2,
+        0xf0, 0x66, 0xd0, 0xc2, 0xc0, 0xf9, 0x89, 0x80,
+        0x6d, 0x5f, 0x6b, 0x61, 0xda, 0xc3, 0x84, 0xe0,
+        0x44, 0x2d, 0xbe, 0x25, 0xfa, 0x48, 0x2b, 0xa8,
+        0x36, 0x0b, 0xbf, 0x01, 0xc0, 0x12, 0x45, 0xa4,
+        0x82, 0x9f, 0x20, 0x6c, 0xc3, 0xd6, 0xae, 0x5b,
+        0x54, 0x8d, 0xd0, 0xb1, 0x69, 0x2c, 0xec, 0x5e,
+        0x95, 0xa5, 0x6b, 0x48, 0xc3, 0xc6, 0xc8, 0x9e
+    };
+    /* tag - authentication - four blocks */
+    WOLFSSL_SMALL_STACK_STATIC const byte t4[] =
+    {
+        0x22, 0xb4, 0x3d, 0x0e, 0x5b, 0x2f, 0x01, 0xdc
+    };
+#ifdef HAVE_AES_DECRYPT
+    byte p2[sizeof(p4)];
+#endif
+    byte c2[sizeof(c4)];
+    byte t2[sizeof(t4)];
+
+    ret = wc_AesCcmSetKey(enc, k, sizeof(k));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* one block - the CTR loop runs once and consumes the whole message */
+    XMEMSET(c2, 0, sizeof(c2));
+    XMEMSET(t2, 0, sizeof(t2));
+    ret = wc_AesCcmEncrypt(enc, c2, p1, sizeof(p1), iv, sizeof(iv),
+                                                  t2, sizeof(t2), a, sizeof(a));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(c1, c2, sizeof(c1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (XMEMCMP(t1, t2, sizeof(t1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef HAVE_AES_DECRYPT
+    XMEMSET(p2, 0, sizeof(p2));
+    ret = wc_AesCcmDecrypt(enc, p2, c1, sizeof(c1), iv, sizeof(iv),
+                                                  t1, sizeof(t1), a, sizeof(a));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(p1, p2, sizeof(p1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* four blocks - also covers the AES-NI four-block path consuming the
+     * whole message */
+    XMEMSET(c2, 0, sizeof(c2));
+    XMEMSET(t2, 0, sizeof(t2));
+    ret = wc_AesCcmEncrypt(enc, c2, p4, sizeof(p4), iv, sizeof(iv),
+                                                  t2, sizeof(t2), a, sizeof(a));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(c4, c2, sizeof(c4)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (XMEMCMP(t4, t2, sizeof(t4)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef HAVE_AES_DECRYPT
+    XMEMSET(p2, 0, sizeof(p2));
+    ret = wc_AesCcmDecrypt(enc, p2, c4, sizeof(c4), iv, sizeof(iv),
+                                                  t4, sizeof(t4), a, sizeof(a));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(p4, p2, sizeof(p4)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* a corrupted tag must still be rejected on a block-aligned message */
+    XMEMCPY(t2, t4, sizeof(t4));
+    t2[0] ^= 0x01;
+    ret = wc_AesCcmDecrypt(enc, p2, c4, sizeof(c4), iv, sizeof(iv),
+                                                  t2, sizeof(t2), a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_AUTH_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    ret = 0;
+  out:
+    return ret;
+}
+
 static wc_test_ret_t aesccm_128_badarg_test(Aes* enc)
 {
     wc_test_ret_t ret;
@@ -21987,6 +22122,10 @@ static wc_test_ret_t aesccm_128_test(Aes* enc)
 #endif
 
     ret = aesccm_128_large_test(enc);
+    if (ret != 0)
+        return ret;
+
+    ret = aesccm_128_aligned_test(enc);
     if (ret != 0)
         return ret;
 

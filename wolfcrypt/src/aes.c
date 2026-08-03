@@ -15210,15 +15210,14 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         o += WC_AES_BLOCK_SIZE;
     }
 
-    if ((ret == 0) && (inSz > 0))
+    /* oSz, not inSz, is the count of bytes left after the block loop above --
+     * inSz is kept pristine here for the CBC-MAC phase below. */
+    if ((ret == 0) && (oSz > 0))
         ret = AesEncrypt_preFetchOpt(aes, B, A, &did_prefetches);
 
-    if ((ret == 0) && (inSz > 0)) {
+    if ((ret == 0) && (oSz > 0)) {
         xorbuf(A, in, oSz);
         XMEMCPY(o, A, oSz);
-        for (i = 0; i < lenSz; i++)
-            B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
-        ret = AesEncrypt_preFetchOpt(aes, B, A, &did_prefetches);
     }
 
     if (ret == 0) {
