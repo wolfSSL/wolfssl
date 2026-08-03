@@ -717,6 +717,8 @@ static void wb_ocsp_check_cert(void) { WB_NOTE("WOLFCRYPT_ONLY; OcspCheckCert sk
 static void wb_decode_basic_ocsp_response(void)
 {
     OcspResponse r;
+    OcspEntry    entry;
+    CertStatus   status;
     int ret;
 
     WB_NOTE("OcspResponseDecode()/DecodeBasicOcspResponse(): certs/sig-chain "
@@ -727,7 +729,9 @@ static void wb_decode_basic_ocsp_response(void)
      * "resp" carries an embedded responder cert (certSz > 0), exercising
      * :35831/:35839 true. */
     XMEMSET(&r, 0, sizeof(r));
-    InitOcspResponse(&r, NULL, NULL, resp, (word32)sizeof(resp), NULL);
+    XMEMSET(&entry, 0, sizeof(entry));
+    XMEMSET(&status, 0, sizeof(status));
+    InitOcspResponse(&r, &entry, &status, resp, (word32)sizeof(resp), NULL);
     ret = OcspResponseDecode(&r, NULL, NULL, 1 /* noVerifyCert */,
             1 /* noVerifySignature */);
     WB_CHECK(ret == 0,
@@ -741,7 +745,9 @@ static void wb_decode_basic_ocsp_response(void)
      * cm==NULL, OcspFindSigner() returns NULL -> ASN_NO_SIGNER_E, so
      * :35856 short-circuits false via its own ret==0 operand. */
     XMEMSET(&r, 0, sizeof(r));
-    InitOcspResponse(&r, NULL, NULL, resp_nocert, (word32)sizeof(resp_nocert),
+    XMEMSET(&entry, 0, sizeof(entry));
+    XMEMSET(&status, 0, sizeof(status));
+    InitOcspResponse(&r, &entry, &status, resp_nocert, (word32)sizeof(resp_nocert),
             NULL);
     ret = OcspResponseDecode(&r, NULL, NULL, 1, 0 /* noVerifySignature=0 */);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E),
@@ -761,7 +767,9 @@ static void wb_decode_basic_ocsp_response(void)
             (void)wolfSSL_CertManagerLoadCABuffer(cm, root_ca_cert_pem,
                     (word32)sizeof(root_ca_cert_pem), WOLFSSL_FILETYPE_ASN1);
             XMEMSET(&r, 0, sizeof(r));
-            InitOcspResponse(&r, NULL, NULL, resp_nocert,
+            XMEMSET(&entry, 0, sizeof(entry));
+            XMEMSET(&status, 0, sizeof(status));
+            InitOcspResponse(&r, &entry, &status, resp_nocert,
                     (word32)sizeof(resp_nocert), NULL);
             ret = OcspResponseDecode(&r, cm, NULL, 1, 0);
             WB_NOTE("\"resp_nocert\" with root CA loaded in a CertManager "
