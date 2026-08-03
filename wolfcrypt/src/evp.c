@@ -9292,18 +9292,45 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
     }
 
 #ifdef WOLFSSL_NO_REALLOC
+    /* The new buffer can be smaller than the old encoding, and the encoding
+     * below fills it completely, so nothing is carried over. Allocate before
+     * the old buffer is touched, so that a failure here leaves the encoding
+     * held so far in place. */
     derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap, DYNAMIC_TYPE_DER);
     if (derBuf != NULL) {
-        XMEMCPY(derBuf, pkey->pkey.ptr, (size_t)pkey->pkey_sz);
+        /* On a private key the outgoing buffer holds a full RSA DER, so wipe
+         * it before it is returned to the allocator. The size is dropped with
+         * the contents so a failure below cannot leave pkey_sz describing a
+         * buffer that no longer holds an encoding. */
+        if (pkey->pkey.ptr != NULL && pkey->pkey_sz > 0) {
+            ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+        }
         XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_DER);
         pkey->pkey.ptr = NULL;
+        pkey->pkey_sz = 0;
     }
 #else
+    /* XREALLOC consumes the old pointer, so the buffer has to be wiped before
+     * the call: on a private key it holds a full RSA DER. Nothing is carried
+     * over, as the encoding below fills the new buffer completely. The size is
+     * dropped with the contents so a failure below cannot leave pkey_sz
+     * describing a buffer that no longer holds an encoding. */
+    if (pkey->pkey.ptr != NULL && pkey->pkey_sz > 0) {
+        ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+        pkey->pkey_sz = 0;
+    }
+
     derBuf = (byte*)XREALLOC(pkey->pkey.ptr, (size_t)derSz,
             pkey->heap, DYNAMIC_TYPE_DER);
 #endif
     if (derBuf == NULL) {
         WOLFSSL_MSG("PopulateRSAEvpPkeyDer malloc failed");
+        if (pkey->pkey_sz == 0) {
+            /* No encoding is described any more, so the header size has to go
+             * as well or the export paths subtract it from zero and
+             * underflow. */
+            pkey->pkcs8HeaderSz = 0;
+        }
         return WOLFSSL_FAILURE;
     }
 
@@ -9329,10 +9356,15 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
                 if (derBuf != NULL) {
                     ret = wc_CreatePKCS8Key(derBuf, &sz, keyBuf, (word32)keySz,
                         RSAk, NULL, 0);
+                    /* keyBuf holds the unwrapped private key. */
+                    ForceZero(keyBuf, (word32)keySz);
                     XFREE(keyBuf, pkey->heap, DYNAMIC_TYPE_DER);
                     pkey->pkey.ptr = (char*)derBuf;
                 }
                 else {
+                    /* The encoding is abandoned but keyBuf stays on the pkey,
+                     * so do not leave the key material behind in it. */
+                    ForceZero(keyBuf, (word32)keySz);
                     ret = MEMORY_E;
                 }
                 derSz = (int)sz;
@@ -9349,8 +9381,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
 
     if (ret < 0) {
         WOLFSSL_MSG("PopulateRSAEvpPkeyDer failed");
-        /* pkey_sz is zero here, so the header size cannot stay behind or the
-         * export paths subtract it from zero and underflow. */
+        /* As above: pkey_sz is zero here, so the header size cannot stay. */
         pkey->pkcs8HeaderSz = 0;
         return WOLFSSL_FAILURE;
     }
@@ -9803,6 +9834,13 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 if (derBuf) {
                     if (wc_EccKeyToPKCS8(ecc, derBuf, (word32*)&derSz) >= 0) {
                         if (pkey->pkey.ptr) {
+                            /* The outgoing buffer can hold a private key
+                             * encoding, so wipe it before it is returned to
+                             * the allocator. */
+                            if (pkey->pkey_sz > 0) {
+                                ForceZero(pkey->pkey.ptr,
+                                    (word32)pkey->pkey_sz);
+                            }
                             XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         }
                         pkey->pkey_sz = (int)derSz;
@@ -9842,10 +9880,21 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 if (derBuf) {
                     if (wc_EccKeyToDer(ecc, derBuf, (word32)derSz) >= 0) {
                         if (pkey->pkey.ptr) {
+                            /* As above, the outgoing buffer can hold a
+                             * private key encoding. */
+                            if (pkey->pkey_sz > 0) {
+                                ForceZero(pkey->pkey.ptr,
+                                    (word32)pkey->pkey_sz);
+                            }
                             XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         }
                         pkey->pkey_sz = (int)derSz;
                         pkey->pkey.ptr = (char*)derBuf;
+                        /* The encoding carries no PKCS#8 wrapper, so a header
+                         * size left from a wrapped predecessor has to go with
+                         * it, or the export paths start inside the new
+                         * encoding. */
+                        pkey->pkcs8HeaderSz = 0;
                         return WOLFSSL_SUCCESS;
                     }
                     else {
@@ -9859,13 +9908,44 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
     else if (ecc->type == ECC_PUBLICKEY) {
         if ((derSz = wc_EccPublicKeyDerSize(ecc, 1)) > 0) {
         #ifdef WOLFSSL_NO_REALLOC
-            derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+            /* The encoding below fills the new buffer, so nothing is carried
+             * over from the old one. It can be smaller than the old encoding.
+             * Allocate before the old buffer is touched, so that a failure
+             * here leaves the encoding held so far in place. */
+            derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
+                    DYNAMIC_TYPE_OPENSSL);
             if (derBuf != NULL) {
-                XMEMCPY(derBuf, pkey->pkey.ptr, (size_t)pkey->pkey_sz);
+                /* The buffer being released can hold a private key encoding,
+                 * so wipe it first. The size is dropped with the contents so
+                 * a failure below cannot leave pkey_sz describing a buffer
+                 * that no longer holds an encoding. A SubjectPublicKeyInfo
+                 * carries no PKCS#8 wrapper, so the header size has to go
+                 * with it as well, or a header size left from a wrapped
+                 * predecessor would make the export paths start inside the
+                 * new encoding. */
+                if (pkey->pkey.ptr != NULL && pkey->pkey_sz > 0) {
+                    ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+                }
                 XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                 pkey->pkey.ptr = NULL;
+                pkey->pkey_sz = 0;
+                pkey->pkcs8HeaderSz = 0;
             }
         #else
+            /* XREALLOC consumes the old pointer, so the buffer has to be
+             * wiped before the call: it can hold a private key encoding. The
+             * size is dropped with the contents so a failure below cannot
+             * leave pkey_sz describing a buffer that no longer holds an
+             * encoding. A SubjectPublicKeyInfo carries no PKCS#8 wrapper, so
+             * the header size has to go with it as well, or a header size
+             * left from a wrapped predecessor would make the export paths
+             * start inside the new encoding. */
+            if (pkey->pkey.ptr != NULL && pkey->pkey_sz > 0) {
+                ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+            }
+            pkey->pkey_sz = 0;
+            pkey->pkcs8HeaderSz = 0;
+
             derBuf = (byte*)XREALLOC(pkey->pkey.ptr, (size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
         #endif
@@ -9876,7 +9956,6 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                     XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
                     pkey->pkey.ptr = NULL;
-                    pkey->pkey_sz = 0;
                 }
             }
         }
@@ -12281,8 +12360,12 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
             wc_FreeRng(&key->rng);
 
             if (key->pkey.ptr != NULL) {
+                /* Holds the private key DER for a private pkey. */
+                if (key->pkey_sz > 0)
+                    ForceZero(key->pkey.ptr, (word32)key->pkey_sz);
                 XFREE(key->pkey.ptr, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                 key->pkey.ptr = NULL;
+                key->pkey_sz = 0;
             }
             switch(key->type)
             {

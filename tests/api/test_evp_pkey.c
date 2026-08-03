@@ -1524,6 +1524,163 @@ int test_wolfSSL_EVP_PKEY_keygen_reuse(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Replacing a PKCS#8 wrapped key on an EVP_PKEY with an EC key that carries no
+ * wrapper has to drop pkcs8HeaderSz along with the encoding it described.
+ *
+ * ECC_populate_EVP_PKEY() writes a bare SEC1 ECPrivateKey when the EC key has
+ * no header size of its own. Everything that exports the key, from
+ * wolfSSL_EVP_PKEY_get_der() to the PKCS#8 encryption in
+ * wolfSSL_PEM_write_bio_PKCS8PrivateKey(), skips pkcs8HeaderSz bytes of the
+ * stored buffer, so a size left from the previous key makes them start inside
+ * the new encoding and hand out a truncated one.
+ */
+int test_wolfSSL_EVP_PKEY_set1_EC_KEY_no_pkcs8(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+    WOLFSSL_EVP_PKEY* wrapped = NULL;
+    WOLFSSL_EVP_PKEY* fresh = NULL;
+    WOLFSSL_EC_KEY*   ec = NULL;
+    const unsigned char* in;
+    unsigned char*    wrappedDer = NULL;
+    unsigned char*    freshDer = NULL;
+    int               wrappedSz = 0;
+    int               freshSz = 0;
+    byte*             buf = NULL;
+    size_t            bufSz = 0;
+
+    /* Seed a pkey from a PKCS#8 wrapped key so that pkcs8HeaderSz starts out
+     * non-zero. */
+    ExpectIntEQ(load_file("./certs/ecc-keyPkcs8.der", &buf, &bufSz), 0);
+    in = buf;
+    ExpectNotNull(wrapped = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &in,
+        (long)bufSz));
+
+    /* A generated key carries no PKCS#8 header, so setting it takes the
+     * traditional branch of ECC_populate_EVP_PKEY(). */
+    ExpectNotNull(ec = wolfSSL_EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectIntEQ(wolfSSL_EC_KEY_generate_key(ec), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(wrapped, ec), WOLFSSL_SUCCESS);
+
+    /* The same key on a pkey that never held a wrapped one is the reference:
+     * both have to export the identical encoding. */
+    ExpectNotNull(fresh = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(fresh, ec), WOLFSSL_SUCCESS);
+
+    ExpectIntGT(freshSz = wolfSSL_i2d_PrivateKey(fresh, &freshDer), 0);
+    ExpectIntGT(wrappedSz = wolfSSL_i2d_PrivateKey(wrapped, &wrappedDer), 0);
+    ExpectIntEQ(wrappedSz, freshSz);
+    ExpectNotNull(wrappedDer);
+    ExpectNotNull(freshDer);
+    ExpectBufEQ(wrappedDer, freshDer, (size_t)freshSz);
+
+    XFREE(wrappedDer, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(freshDer, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_EC_KEY_free(ec);
+    wolfSSL_EVP_PKEY_free(fresh);
+    wolfSSL_EVP_PKEY_free(wrapped);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Replacing the key on an EVP_PKEY with one whose DER is SHORTER has to shrink
+ * the stored encoding without writing past the new buffer.
+ *
+ * Under WOLFSSL_NO_REALLOC, PopulateRSAEvpPkeyDer() and ECC_populate_EVP_PKEY()
+ * emulate XREALLOC by allocating a buffer sized for the new encoding and
+ * copying pkey_sz bytes, the size of the OLD one, into it. The CI job
+ * opensslextra-norealloc-asan builds exactly that configuration under ASan, so
+ * this test is where such an over-copy gets caught.
+ */
+int test_wolfSSL_EVP_PKEY_set1_shrinking_der(void)
+{
+    EXPECT_DECLS;
+/* settings.h defines WOLFSSL_KEY_TO_DER only when RSA is enabled, so gating the
+ * whole test on it would compile the ECC half out of an RSA-less build, and
+ * that half is the only coverage for the ECC_populate_EVP_PKEY() over-copy.
+ * Gate on the union and keep the per-algorithm guards inside. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED) && \
+    ((!defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)) || defined(HAVE_ECC))
+    const unsigned char* in;
+    byte*             buf = NULL;
+    size_t            bufSz = 0;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
+    WOLFSSL_EVP_PKEY* rsaPkey = NULL;
+    WOLFSSL_RSA*      rsaPub = NULL;
+    int               rsaPrivSz = 0;
+#endif
+#ifdef HAVE_ECC
+    WOLFSSL_EVP_PKEY* ecPkey = NULL;
+    WOLFSSL_EC_KEY*   ecPriv = NULL;
+    WOLFSSL_EC_KEY*   ecPub = NULL;
+    int               ecPrivSz = 0;
+#endif
+
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
+    /* Private key DER first, then a public-only key whose DER is about a
+     * quarter of the size. */
+    ExpectIntEQ(load_file("./certs/client-key.der", &buf, &bufSz), 0);
+    in = buf;
+    ExpectNotNull(rsaPkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &in,
+        (long)bufSz));
+    ExpectIntGT(rsaPrivSz = wolfSSL_i2d_PrivateKey(rsaPkey, NULL), 0);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+
+    ExpectIntEQ(load_file("./certs/client-keyPub.der", &buf, &bufSz), 0);
+    in = buf;
+    ExpectNotNull(rsaPub = wolfSSL_d2i_RSAPublicKey(NULL, &in, (long)bufSz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_RSA(rsaPkey, rsaPub), WOLFSSL_SUCCESS);
+    /* Confirm the stored encoding really did shrink, so the test keeps
+     * exercising the direction that overruns. */
+    ExpectIntLT(wolfSSL_i2d_PrivateKey(rsaPkey, NULL), rsaPrivSz);
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+    wolfSSL_RSA_free(rsaPub);
+    wolfSSL_EVP_PKEY_free(rsaPkey);
+#endif
+
+#ifdef HAVE_ECC
+    /* Same shape for ECC: the private key encoding is longer than the public
+     * one for the same curve. The seed is PKCS#8 wrapped rather than a bare
+     * SEC1 key, so pkcs8HeaderSz starts non-zero and the exact size assertion
+     * below catches a header size carried over onto the public encoding. */
+    ExpectIntEQ(load_file("./certs/ecc-keyPkcs8.der", &buf, &bufSz), 0);
+    in = buf;
+    ExpectNotNull(ecPkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &in,
+        (long)bufSz));
+    ExpectIntGT(ecPrivSz = wolfSSL_i2d_PrivateKey(ecPkey, NULL), 0);
+    ExpectNotNull(ecPriv = wolfSSL_EVP_PKEY_get1_EC_KEY(ecPkey));
+
+    /* A key holding only the public point takes ECC_populate_EVP_PKEY's
+     * public branch. */
+    ExpectNotNull(ecPub = wolfSSL_EC_KEY_new_by_curve_name(
+        NID_X9_62_prime256v1));
+    ExpectIntEQ(wolfSSL_EC_KEY_set_public_key(ecPub,
+        wolfSSL_EC_KEY_get0_public_key(ecPriv)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(ecPkey, ecPub), WOLFSSL_SUCCESS);
+    ExpectIntLT(wolfSSL_i2d_PrivateKey(ecPkey, NULL), ecPrivSz);
+    /* Exact rather than "smaller", so that an export starting at a stale
+     * pkcs8HeaderSz shows up as a size mismatch instead of passing. */
+    ExpectIntEQ(wolfSSL_i2d_PrivateKey(ecPkey, NULL),
+        wc_EccPublicKeyDerSize((ecc_key*)ecPub->internal, 1));
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+    wolfSSL_EC_KEY_free(ecPub);
+    wolfSSL_EC_KEY_free(ecPriv);
+    wolfSSL_EVP_PKEY_free(ecPkey);
+#endif
+#endif /* OPENSSL_EXTRA && WOLFSSL_KEY_TO_DER && !NO_FILESYSTEM */
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_SignInit_ex(void)
 {
     EXPECT_DECLS;
