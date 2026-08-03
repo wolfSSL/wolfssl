@@ -337,10 +337,14 @@ int test_wc_SignatureDecisionCoverage(void)
 
 #ifndef NO_SHA
             /* Hash weaker than WC_SIG_MIN_HASH_TYPE (default SHA-256)
-             * rejected by wc_SignatureCheckHashStrength() */
-            ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA, sig_type,
-                data, data_len, sig, sig_len, &ecc, key_len),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+             * rejected by wc_SignatureCheckHashStrength(). Only assert
+             * when SHA-1 is below the effective floor of this build. */
+            if (wc_HashGetDigestSize(WC_SIG_MIN_HASH_TYPE) >
+                    wc_HashGetDigestSize(WC_HASH_TYPE_SHA)) {
+                ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA, sig_type,
+                    data, data_len, sig, sig_len, &ecc, key_len),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            }
 #endif
 
             /* Real signature that fails verification: SIG_VERIFY_E.
@@ -518,8 +522,11 @@ int test_wc_SignatureDecisionCoverage(void)
             }
 
 #ifndef NO_SHA
-            /* Weak hash rejected before any hashing/signing occurs */
-            {
+            /* Weak hash rejected before any hashing/signing occurs. Only
+             * assert when SHA-1 is below the effective floor of this
+             * build. */
+            if (wc_HashGetDigestSize(WC_SIG_MIN_HASH_TYPE) >
+                    wc_HashGetDigestSize(WC_HASH_TYPE_SHA)) {
                 word32 lenCopy = (word32)eccSigMax;
                 ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA, sig_type,
                     data, data_len, genSig, &lenCopy, &ecc, key_len, &rng),
