@@ -19,10 +19,31 @@ on:
   # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs restore: the
   # linux and macOS jobs re-run --build-only (compile only, no tests) on the
   # default branch, where their ccache writes are visible to every PR. Only
-  # Windows is skipped on schedule (see its job `if`) - seeding the linux and
-  # macOS shards is where the cold-cache cost lives.
+  # Windows is skipped on a seed run (see its job `if`) - seeding the linux
+  # and macOS shards is where the cold-cache cost lives.
+  #
+  # The two platforms do not seed identically, so do not read "the seed" as
+  # one mechanism. Linux sets CCACHE_RECACHE on a seed run and saves only on
+  # one, so its cache is rebuilt from scratch by seed runs alone. macOS does
+  # neither: it never sets CCACHE_RECACHE, so a macOS seed only accumulates
+  # deltas, and its ccache-setup step is read-only purely on pull_request, so
+  # any non-PR run writes it. Left as-is deliberately; the note is here so
+  # the difference is not rediscovered from a surprising cache.
   schedule:
     - cron: '0 10 * * 1-5'
+  # Runs the same seed on demand. Needed whenever the cache is empty and
+  # waiting up to a day for the next cron is not acceptable - after a
+  # stretch where this workflow was not running, for instance, since a
+  # cache untouched for 7 days is evicted and only the seed refills it.
+  # Every PR run stays cold until it is refilled.
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: >
+          Seed the ccache: compile only, no tests, and save the result.
+          Untick to run the full checks instead.
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -57,11 +78,14 @@ jobs:
         shard: [1, 2, 3, 4]
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # The full set measures ~272 thread-minutes cold (~90 warm), i.e. about
-    # 68 thread-minutes per shard / 4 worker threads: ~20 min of wall per
-    # shard cold and well under 10 warm, plus ~2-3 min of
-    # checkout/deps/autogen overhead.
-    timeout-minutes: 30
+    # Measured cold on a completely empty cache (2026-08-03): ~102
+    # thread-minutes per shard / 4 worker threads, i.e. 24-27 min of wall
+    # per shard including checkout/deps/autogen; warm is well under 10.
+    # The timeout is set well above the cold figure on purpose - a cold
+    # run is normal whenever the seed has not run recently, and a shard
+    # dying on the timeout would look like a test failure rather than a
+    # cold cache.
+    timeout-minutes: 40
     env:
       CCACHE_MAXSIZE: 500M
     steps:
@@ -92,9 +116,9 @@ jobs:
       - name: Pin ccache directory
         run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
 
-      # PRs restore the cache the weekday seed writes but never save it, so
-      # PR runs add no per-shard ccache entries to the Actions cache. The
-      # seed (schedule) saves below.
+      # PRs restore the cache a seed run writes but never save it, so PR
+      # runs add no per-shard ccache entries to the Actions cache. Only a
+      # seed run (the cron, or a manual dispatch) saves, below.
       - name: Restore ccache
         uses: actions/cache/restore@v5
         with:
@@ -108,11 +132,11 @@ jobs:
             os-check-linux-ccache-${{ matrix.shard }}-
             os-check-linux-ccache-
 
-      # On the weekday seed, force clean recompiles (CCACHE_RECACHE) so the
-      # saved master ccache is reseeded from scratch rather than only
-      # accumulating deltas. PR/push runs leave it unset and keep their warm hits.
-      - name: Force fresh compiles on scheduled reseed
-        if: github.event_name == 'schedule'
+      # On a seed run, force clean recompiles (CCACHE_RECACHE) so the saved
+      # master ccache is reseeded from scratch rather than only accumulating
+      # deltas. PR/push runs leave it unset and keep their warm hits.
+      - name: Force fresh compiles on a reseed
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
         run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
       - name: autogen
@@ -140,15 +164,16 @@ jobs:
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
-            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs .github/configs/os-check-linux.json
 
-      # Seed runs (schedule) refresh the master-scoped ccache that PR runs
-      # restore above; PR/push runs never save, so PRs add nothing.
+      # Seed runs (the cron, or a manual dispatch with `seed` ticked) refresh
+      # the master-scoped ccache that PR runs restore above; PR/push runs
+      # never save, so PRs add nothing.
       - name: Save ccache (seed only)
-        if: github.event_name == 'schedule'
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false') }}
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
@@ -184,9 +209,9 @@ jobs:
   # macos-apple-native-cert-validation.yml workflow.
   make_check_macos:
     name: make check macos
-    # Runs on PRs/pushes and on the weekday ccache-seed cron, where it
-    # --build-only-seeds the macOS ccache (like the linux shards). Only
-    # Windows is skipped on schedule (no ccache to seed).
+    # Runs on PRs/pushes and on a seed run (the cron or a manual dispatch),
+    # where it --build-only-seeds the macOS ccache like the linux shards.
+    # Windows is the only job skipped on a seed run (no ccache to seed).
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     # Serial checks: roughly the sum of the per-config minutes plus
@@ -216,7 +241,11 @@ jobs:
         with:
           workflow-id: os-check-macos
           max-size: 500M
-          # PRs read the weekday-seeded macOS ccache; only the seed saves.
+          # PRs read the seeded macOS ccache and never write it. Note this
+          # is not the linux rule: there, saving is gated to seed runs, so
+          # a push writes nothing. Here every non-PR run writes, seed or
+          # not, so a release/** push and a dispatch with `seed` unticked
+          # both land in the shared macOS cache.
           read-only: ${{ github.event_name == 'pull_request' }}
 
       # Same JSON config format as make_check_linux above, in
@@ -225,7 +254,7 @@ jobs:
       - name: Build and make check all configs (serial checks, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
-            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --threads 1 --cc= \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs .github/configs/os-check-macos.json
@@ -248,8 +277,9 @@ jobs:
 
   windows_build:
     name: Windows Build Test
-    # Skipped on the weekday ccache-seed cron: no ccache to seed here.
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'schedule') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # Skipped on any seed run - the cron, or a manual dispatch that left
+    # `seed` ticked: there is no ccache to seed here.
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'schedule') && (github.event_name != 'workflow_dispatch' || github.event.inputs.seed == 'false') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
     strategy:
       fail-fast: false
