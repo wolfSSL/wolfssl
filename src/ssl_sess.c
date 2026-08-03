@@ -2271,8 +2271,18 @@ int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session)
     cacheSession = &sessRow->Sessions[col];
 #endif
     if (cacheSession) {
-        XMEMCPY(session, cacheSession, sizeof(WOLFSSL_SESSION));
-        result = WOLFSSL_SUCCESS;
+#ifdef HAVE_EX_DATA
+        /* The copy keeps its own ex_data. The struct copy below carries over
+         * the cache's pointers, which the cache frees when the entry goes. */
+        WOLFSSL_CRYPTO_EX_DATA exData;
+        XMEMCPY(&exData, &session->ex_data, sizeof(exData));
+#endif
+        /* Must not alias the ticket, peer cert and ex_data the cache owns and
+         * frees on overwrite or eviction. */
+        result = wolfSSL_DupSession(cacheSession, session, 0);
+#ifdef HAVE_EX_DATA
+        XMEMCPY(&session->ex_data, &exData, sizeof(exData));
+#endif
     }
     else {
         result = WOLFSSL_FAILURE;
