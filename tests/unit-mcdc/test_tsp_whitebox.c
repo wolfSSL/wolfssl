@@ -286,7 +286,6 @@ static void wb_check_tsa_name(void)
 {
     DecodedCert dCert;
     byte tsa[64];
-    word32 tsaSz;
     DNS_entry entry;
     DNS_entry entry2;
     int ret;
