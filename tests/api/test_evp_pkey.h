@@ -51,6 +51,7 @@ int test_wolfSSL_EVP_PKEY_paramgen(void);
 int test_wolfSSL_EVP_PKEY_param_check(void);
 int test_wolfSSL_EVP_PKEY_keygen_init(void);
 int test_wolfSSL_EVP_PKEY_keygen(void);
+int test_wolfSSL_EVP_PKEY_keygen_reuse(void);
 int test_wolfSSL_EVP_SignInit_ex(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_rsa(void);
 int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void);
@@ -99,6 +100,7 @@ int test_wolfSSL_EVP_PKEY_encoded_public_key(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_param_check),            \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_keygen_init),            \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_keygen),                 \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_keygen_reuse),           \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_SignInit_ex),                 \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_rsa),        \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_sign_verify_dsa),        \

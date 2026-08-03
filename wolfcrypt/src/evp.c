@@ -3803,6 +3803,9 @@ int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 #ifdef HAVE_ECC
 static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key);
 #endif
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
+static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey);
+#endif
 
 int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
   WOLFSSL_EVP_PKEY **ppkey)
@@ -3810,6 +3813,9 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int ownPkey = 0;
     WOLFSSL_EVP_PKEY* pkey;
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+    WOLFSSL_RSA* rsaTmp;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_keygen");
 
@@ -3843,13 +3849,19 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch (pkey->type) {
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
         case WC_EVP_PKEY_RSA:
-            pkey->rsa = wolfSSL_RSA_generate_key(ctx->nbits, WC_RSA_EXPONENT,
+            rsaTmp = wolfSSL_RSA_generate_key(ctx->nbits, WC_RSA_EXPONENT,
                 NULL, NULL);
-            if (pkey->rsa) {
+            if (rsaTmp != NULL) {
+                if (pkey->rsa != NULL && pkey->ownRsa == 1)
+                    wolfSSL_RSA_free(pkey->rsa);
+                pkey->rsa = rsaTmp;
                 pkey->ownRsa = 1;
-                pkey->pkey_sz = wolfSSL_i2d_RSAPrivateKey(pkey->rsa,
-                        (unsigned char**)&pkey->pkey.ptr);
-                ret = WOLFSSL_SUCCESS;
+                /* PopulateRSAEvpPkeyDer() wraps the encoding in PKCS#8 only
+                 * when the RSA key carries a header size, so take the new
+                 * key's value. A size left over from a wrapped predecessor
+                 * would make the export paths slice bytes off the encoding. */
+                pkey->pkcs8HeaderSz = rsaTmp->pkcs8HeaderSz;
+                ret = PopulateRSAEvpPkeyDer(pkey);
             }
             break;
 #endif

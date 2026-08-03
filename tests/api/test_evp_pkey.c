@@ -1428,6 +1428,102 @@ int test_wolfSSL_EVP_PKEY_keygen(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * wolfSSL_EVP_PKEY_keygen() has to replace whatever the caller supplied
+ * EVP_PKEY already holds.
+ *
+ * The RSA branch used to pass &pkey->pkey.ptr straight to
+ * wolfSSL_i2d_RSAPrivateKey(). A non-NULL pointer there means "caller supplied
+ * buffer" to i2d, so the freshly generated key DER was written into the DER
+ * already on the pkey without a size check, and the pointer was left pointing
+ * past the encoding.
+ */
+int test_wolfSSL_EVP_PKEY_keygen_reuse(void)
+{
+    EXPECT_DECLS;
+/* wolfSSL_i2d_PrivateKey() needs OPENSSL_EXTRA plus !NO_ASN and !NO_PWDBASED,
+ * and nothing here is OPENSSL_ALL only. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_SELFTEST) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EVP_PKEY* decoded = NULL;
+    EVP_PKEY_CTX*     ctx = NULL;
+    const unsigned char* in;
+    unsigned char*    der = NULL;
+    int               derSz = 0;
+/* load_file() is compiled only when certificates are available. */
+#if defined(HAVE_PKCS8) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    byte*             p8 = NULL;
+    size_t            p8Sz = 0;
+#endif
+
+    /* Populate the pkey with a public key DER much smaller than the private
+     * key DER that keygen will produce. */
+    in = client_keypub_der_2048;
+    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &in,
+        (long)sizeof_client_keypub_der_2048));
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(ctx, &pkey), WOLFSSL_SUCCESS);
+
+    /* The DER on the pkey has to be the generated private key, held in a
+     * buffer that starts where pkey.ptr points. */
+    ExpectIntGT(derSz = wolfSSL_i2d_PrivateKey(pkey, &der), 0);
+    in = der;
+    ExpectNotNull(decoded = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &in,
+        (long)derSz));
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, decoded), 1);
+#else
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, decoded), 0);
+#endif
+
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+    EVP_PKEY_free(decoded);
+    decoded = NULL;
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+#if defined(HAVE_PKCS8) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    /* Same again, seeded from a PKCS#8 wrapped key. That gives the pkey a
+     * non-zero pkcs8HeaderSz, which does not describe the bare PKCS#1
+     * encoding keygen installs, so it has to be cleared. */
+    ExpectIntEQ(load_file("./certs/server-keyPkcs8.der", &p8, &p8Sz), 0);
+    in = p8;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &in,
+        (long)p8Sz));
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(ctx, &pkey), WOLFSSL_SUCCESS);
+
+    ExpectIntGT(derSz = wolfSSL_i2d_PrivateKey(pkey, &der), 0);
+    in = der;
+    ExpectNotNull(decoded = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &in,
+        (long)derSz));
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, decoded), 1);
+#else
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, decoded), 0);
+#endif
+
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(p8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    EVP_PKEY_free(decoded);
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+#endif /* HAVE_PKCS8 && !NO_FILESYSTEM && !NO_CERTS */
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_SignInit_ex(void)
 {
     EXPECT_DECLS;
