@@ -133,6 +133,42 @@ static WC_INLINE byte gf_inv(byte a)
     return gf_exp[GF_MASK - gf_log[a]];
 }
 
+/* ---- Bit helpers (MSB-first bit ordering within a byte array) ---- */
+
+/* Get a single bit from byte array (MSB-first bit ordering) */
+static WC_INLINE byte getBit(const byte* data, int bitPos)
+{
+    return (data[bitPos / 8] >> (7 - (bitPos % 8))) & 1;
+}
+
+/* Set a single bit in byte array (MSB-first bit ordering) */
+static WC_INLINE void setBit(byte* data, int bitPos, byte val)
+{
+    int byteIdx = bitPos / 8;
+    int bitIdx  = 7 - (bitPos % 8);
+    if (val)
+        data[byteIdx] |= (byte)(1 << bitIdx);
+    else
+        data[byteIdx] &= (byte)~(1 << bitIdx);
+}
+
+/* Copy nbits (MSB-first) from the front of src into dst. Copies the whole-byte
+ * prefix with a single memcpy and bit-loops only the < 8 trailing bits, so a
+ * byte-aligned length (e.g. t=10 k=64) is byte-for-byte a plain memcpy. */
+static void copyBits(byte* dst, const byte* src, int nbits)
+{
+    int full = nbits / 8;
+    int i;
+
+    if (full > 0)
+        XMEMCPY(dst, src, (word32)full);
+    if ((nbits & 7) != 0) {
+        dst[full] = 0;
+        for (i = full * 8; i < nbits; i++)
+            setBit(dst, i, getBit(src, i));
+    }
+}
+
 /* ---- BCH syndrome computation ---- */
 
 /* Evaluate syndrome: S_root = c(alpha^root) where codeword bits are packed
@@ -156,12 +192,24 @@ static byte bch_syndrome_eval(const byte* codeword, int root)
     return s;
 }
 
-/* Compute 2t syndromes S[1..2t] */
+/* Compute 2t syndromes S[1..2t]. The codeword has GF(2) coefficients, so
+ * c(x)^2 = c(x^2) and therefore S_2i = S_i^2: only the t odd-index syndromes
+ * need a full evaluation pass, each even one is a single squaring. Syndromes
+ * dominate reconstruct and are computed twice per codeword (the second time
+ * for the post-correction recheck), so this roughly halves that cost. */
 static void bch_syndromes(const byte* codeword, byte* syndromes)
 {
+    byte s;
     int i;
-    for (i = 1; i <= 2 * WC_PUF_BCH_T; i++) {
+
+    for (i = 1; i <= 2 * WC_PUF_BCH_T; i += 2) {
         syndromes[i] = bch_syndrome_eval(codeword, i);
+    }
+    /* ascending, so S[i/2] is always already computed when S[i] is filled */
+    for (i = 2; i <= 2 * WC_PUF_BCH_T; i += 2) {
+        s = syndromes[i / 2];
+        syndromes[i] = (s == 0) ? (byte)0 :
+                       gf_exp[(2 * (int)gf_log[s]) % GF_MASK];
     }
 }
 
@@ -266,92 +314,116 @@ static int bch_chien_search(const byte* sigma, int deg, int* errPos)
     return count;
 }
 
-/* ---- BCH encode: compute parity for 64-bit message ---- */
+/* ---- BCH encode: compute parity for a k-bit message ---- */
 
-/* Generator polynomial for BCH(127,64,t=10) over GF(2).
- * This is the product of minimal polynomials of alpha^1..alpha^(2t).
- * Degree = n - k = 63. Stored as 64-bit value (coefficients mod 2).
- * g(x) = GCD of min polys of consecutive roots. Precomputed. */
+/* Generator polynomial for the selected BCH(127,k,t) profile over GF(2).
+ * g(x) is the product (lcm) of the minimal polynomials of alpha^1..alpha^(2t);
+ * its degree is n - k. The bytes below are generated and validated by
+ * scripts/puf_bch_genpoly.py (which reproduces the t=10 constant exactly as
+ * an oracle before emitting the others). Do NOT hand-edit: a single wrong
+ * bit silently corrupts every derived key.
+ *
+ * Storage layout: a big-endian integer of WC_PUF_PARITY_BYTES bytes whose
+ * bit i (LSB = 0) is coefficient g_i for i in [0, deg). The leading
+ * coefficient g_deg (== 1) is implicit; any bits above deg are zero. */
+#if   WC_PUF_BCH_T == 7
+    static const byte bch_genpoly[WC_PUF_PARITY_BYTES] = {
+        0x00, 0xC9, 0x80, 0x11, 0xD8, 0xB0, 0x4D
+    };
+    #define BCH_GENPOLY_DEG 49
+#elif WC_PUF_BCH_T == 10
+    static const byte bch_genpoly[WC_PUF_PARITY_BYTES] = {
+        0x21, 0xAB, 0x81, 0x5B, 0xC7, 0xEC, 0x80, 0x25
+    };
+    #define BCH_GENPOLY_DEG 63
+#elif WC_PUF_BCH_T == 13
+    static const byte bch_genpoly[WC_PUF_PARITY_BYTES] = {
+        0x0C, 0x93, 0x52, 0xAA, 0x6C, 0xC0, 0x54, 0x46, 0x83, 0x11
+    };
+    #define BCH_GENPOLY_DEG 77
+#elif WC_PUF_BCH_T == 15
+    static const byte bch_genpoly[WC_PUF_PARITY_BYTES] = {
+        0x04, 0xCC, 0x3C, 0xDB, 0x54, 0x87, 0xA2, 0x4F, 0xA5, 0xF3, 0xA3, 0xDD
+    };
+    #define BCH_GENPOLY_DEG 91
+#else
+    #error "No generator polynomial for the selected WC_PUF_BCH_T"
+#endif
 
-/* We store g(x) as 8 bytes, MSB first, degree-63 coefficient in bit 63.
- * The leading coefficient (x^63) is implicit. */
-static const byte bch_genpoly[8] = {
-    0x21, 0xAB, 0x81, 0x5B, 0xC7, 0xEC, 0x80, 0x25
-};
+/* Cross-check the shipped polynomial degree against the derived n - k. */
+#if BCH_GENPOLY_DEG != WC_PUF_BCH_DEG
+    #error "bch_genpoly degree does not match WC_PUF_BCH_DEG (n - k)"
+#endif
 
-/* Encode 64-bit message into 127-bit codeword.
- * msg: 8 bytes (64 bits), output: 16 bytes (127 bits, MSB aligned).
- * Systematic encoding: codeword = [msg(64) | parity(63)]. */
+/* Mask keeping only the used bits of the most-significant parity byte
+ * (the register holds exactly WC_PUF_BCH_DEG bits; higher bits are unused). */
+#define BCH_REG_MSB_MASK \
+    ((byte)((1 << (((WC_PUF_BCH_DEG - 1) & 7) + 1)) - 1))
+
+/* Read big-endian bit b (LSB = 0) from a parity-register byte array. */
+static WC_INLINE byte regGetBit(const byte* reg, int b)
+{
+    return (reg[WC_PUF_PARITY_BYTES - 1 - (b / 8)] >> (b % 8)) & 1;
+}
+
+/* Encode a k-bit message into a 127-bit codeword.
+ * msg: WC_PUF_MSG_BYTES bytes (k bits, MSB-first), output: WC_PUF_CW_BYTES
+ * bytes (127 bits, MSB aligned). Systematic: codeword = [msg(k) | parity(deg)].
+ *
+ * The parity register is a big-endian integer of WC_PUF_PARITY_BYTES bytes
+ * holding WC_PUF_BCH_DEG bits; this generalizes the fixed degree-63 LFSR and
+ * reproduces the t=10 output byte-for-byte. */
 static void bch_encode(const byte* msg, byte* codeword)
 {
-    byte shift_reg[8]; /* 63-bit shift register for parity */
+    byte shift_reg[WC_PUF_PARITY_BYTES];
     int i, j;
 
     XMEMSET(shift_reg, 0, sizeof(shift_reg));
 
-    /* Process each of the 64 message bits */
+    /* Process each of the k message bits (MSB-first) */
     for (i = 0; i < WC_PUF_BCH_K; i++) {
-        int byteIdx = i / 8;
-        int bitIdx  = 7 - (i % 8);
-        byte msgBit = (msg[byteIdx] >> bitIdx) & 1;
+        byte msgBit = getBit(msg, i);
 
-        /* feedback = msgBit XOR MSB of shift register */
-        byte fb = msgBit ^ ((shift_reg[0] >> 6) & 1);
+        /* feedback = msgBit XOR MSB of shift register (bit deg-1) */
+        byte fb = msgBit ^ regGetBit(shift_reg, WC_PUF_BCH_DEG - 1);
 
-        /* shift register left by 1 */
-        for (j = 0; j < 7; j++) {
+        /* shift register left by 1 (big-endian, byte 0 most significant) */
+        for (j = 0; j < WC_PUF_PARITY_BYTES - 1; j++) {
             shift_reg[j] = (byte)((shift_reg[j] << 1) |
                                   (shift_reg[j + 1] >> 7));
         }
-        shift_reg[7] = (byte)(shift_reg[7] << 1);
-        /* keep the register at exactly 63 bits - bit 7 of byte 0 is unused */
-        shift_reg[0] &= 0x7F;
+        shift_reg[WC_PUF_PARITY_BYTES - 1] =
+            (byte)(shift_reg[WC_PUF_PARITY_BYTES - 1] << 1);
+        /* keep the register at exactly WC_PUF_BCH_DEG bits */
+        shift_reg[0] &= BCH_REG_MSB_MASK;
 
         /* XOR with generator if feedback is 1 */
         if (fb) {
-            for (j = 0; j < 8; j++) {
+            for (j = 0; j < WC_PUF_PARITY_BYTES; j++) {
                 shift_reg[j] ^= bch_genpoly[j];
             }
-            /* generator polynomial bit 7 is 0; mask defensively in case it
-             * ever changes so the unused slot can never affect parity */
-            shift_reg[0] &= 0x7F;
+            /* unused high bits of g are zero; mask defensively */
+            shift_reg[0] &= BCH_REG_MSB_MASK;
         }
     }
 
-    /* Build codeword: [msg(64 bits) | parity(63 bits)] = 127 bits */
-    XMEMSET(codeword, 0, 16);
-    XMEMCPY(codeword, msg, 8);  /* message in first 64 bits */
+    /* Build codeword: [msg(k bits) | parity(deg bits)] = 127 bits */
+    XMEMSET(codeword, 0, WC_PUF_CW_BYTES);
+    for (i = 0; i < WC_PUF_BCH_K; i++) {
+        setBit(codeword, i, getBit(msg, i));
+    }
 
-    /* parity: bits 64..126 from shift_reg bits 0..62 */
-    /* shift_reg holds 63 bits in bits [6..0] of byte 0, then bytes 1..7 */
-    /* We need to place these starting at bit position 64 in codeword */
-    for (i = 0; i < 63; i++) {
-        int srcByte;
-        int srcBit;
-
-        /* shift_reg MSB is bit 6 of byte 0 */
-        if (i < 7) {
-            srcByte = 0;
-            srcBit = 6 - i;
-        }
-        else {
-            srcByte = (i - 7) / 8 + 1;
-            srcBit = 7 - ((i - 7) % 8);
-        }
-
-        if (shift_reg[srcByte] & (1 << srcBit)) {
-            int dstPos = 64 + i;
-            int dstByte = dstPos / 8;
-            int dstBit  = 7 - (dstPos % 8);
-            codeword[dstByte] |= (byte)(1 << dstBit);
-        }
+    /* parity: register MSB (bit deg-1) first, into codeword positions k..n-1 */
+    for (i = 0; i < WC_PUF_BCH_DEG; i++) {
+        setBit(codeword, WC_PUF_BCH_K + i,
+               regGetBit(shift_reg, WC_PUF_BCH_DEG - 1 - i));
     }
 }
 
 /* ---- BCH decode ---- */
 
-/* Decode 127-bit codeword, correct up to t=10 errors.
- * Extracts 64-bit message into msg (8 bytes).
+/* Decode 127-bit codeword, correct up to WC_PUF_BCH_T errors.
+ * Extracts the k-bit message into msg (WC_PUF_MSG_BYTES bytes).
  * Returns 0 on success, negative on uncorrectable error. */
 static int bch_decode(byte* codeword, byte* msg)
 {
@@ -374,7 +446,7 @@ static int bch_decode(byte* codeword, byte* msg)
 
     if (allZero) {
         /* no errors, extract message directly */
-        XMEMCPY(msg, codeword, 8);
+        copyBits(msg, codeword, WC_PUF_BCH_K);
         return 0;
     }
 
@@ -406,8 +478,8 @@ static int bch_decode(byte* codeword, byte* msg)
             return PUF_RECONSTRUCT_E;
     }
 
-    /* extract message (first 64 bits) */
-    XMEMCPY(msg, codeword, 8);
+    /* extract message (first k bits) */
+    copyBits(msg, codeword, WC_PUF_BCH_K);
     return 0;
 }
 
@@ -415,39 +487,25 @@ static int bch_decode(byte* codeword, byte* msg)
 /* PUF API                                                                    */
 /* ========================================================================== */
 
-/* Get a single bit from byte array (MSB-first bit ordering) */
-static WC_INLINE byte getBit(const byte* data, int bitPos)
-{
-    return (data[bitPos / 8] >> (7 - (bitPos % 8))) & 1;
-}
-
-/* Set a single bit in byte array (MSB-first bit ordering) */
-static WC_INLINE void setBit(byte* data, int bitPos, byte val)
-{
-    int byteIdx = bitPos / 8;
-    int bitIdx  = 7 - (bitPos % 8);
-    if (val)
-        data[byteIdx] |= (byte)(1 << bitIdx);
-    else
-        data[byteIdx] &= (byte)~(1 << bitIdx);
-}
-
 /* Extract 127 bits from raw SRAM starting at given bit offset */
 static void extractCodeword(const byte* sram, int bitOffset, byte* cw)
 {
     int i;
-    XMEMSET(cw, 0, 16);
+    XMEMSET(cw, 0, WC_PUF_CW_BYTES);
     for (i = 0; i < WC_PUF_BCH_N; i++) {
         setBit(cw, i, getBit(sram, bitOffset + i));
     }
 }
 
-/* Store 127 bits into helper data at given bit offset */
+/* Store the retained region of a helper codeword into helper data at the
+ * given bit offset. With WC_PUF_HELPER_COMPACT only the (n-k) parity bits are
+ * kept (the leading k bits are identically zero); otherwise the full n bits
+ * are stored, matching the layout shipped in 5.9.2. */
 static void storeCodeword(byte* helper, int bitOffset, const byte* cw)
 {
     int i;
-    for (i = 0; i < WC_PUF_BCH_N; i++) {
-        setBit(helper, bitOffset + i, getBit(cw, i));
+    for (i = 0; i < WC_PUF_HELPER_LEN; i++) {
+        setBit(helper, bitOffset + i, getBit(cw, WC_PUF_HELPER_OFF + i));
     }
 }
 
@@ -489,10 +547,10 @@ int wc_PufReadSram(wc_PufCtx* ctx, const byte* sramAddr, word32 sramSz)
 int wc_PufEnroll(wc_PufCtx* ctx)
 {
     int i, ret;
-    byte msg[8];    /* 64-bit message */
-    byte cw[16];    /* 127-bit codeword */
-    byte rawCw[16];
-    byte helperCw[16];
+    byte msg[WC_PUF_MSG_BYTES];   /* k-bit message */
+    byte cw[WC_PUF_CW_BYTES];     /* 127-bit codeword */
+    byte rawCw[WC_PUF_CW_BYTES];
+    byte helperCw[WC_PUF_CW_BYTES];
 
     WOLFSSL_ENTER("wc_PufEnroll");
 
@@ -519,30 +577,32 @@ int wc_PufEnroll(wc_PufCtx* ctx)
     XMEMSET(ctx->stableBits, 0, WC_PUF_STABLE_BYTES);
 
     for (i = 0; i < WC_PUF_NUM_CODEWORDS; i++) {
-        /* extract 64 message bits from raw SRAM */
-        int bitOff = i * 128;  /* 128-bit stride for alignment */
+        /* extract k message bits from raw SRAM */
+        int bitOff = i * 128;  /* 128-bit stride per codeword (n=127 fits) */
         int j;
         XMEMSET(msg, 0, sizeof(msg));
         for (j = 0; j < WC_PUF_BCH_K; j++) {
             setBit(msg, j, getBit(ctx->rawSram, bitOff + j));
         }
 
-        /* save stable bits */
-        XMEMCPY(ctx->stableBits + i * 8, msg, 8);
+        /* save stable bits: k bits per codeword, bit-packed */
+        for (j = 0; j < WC_PUF_BCH_K; j++) {
+            setBit(ctx->stableBits, i * WC_PUF_BCH_K + j, getBit(msg, j));
+        }
 
         /* encode message into BCH codeword */
         bch_encode(msg, cw);
 
         /* helper = raw XOR codeword (mask) */
         extractCodeword(ctx->rawSram, bitOff, rawCw);
-        XMEMSET(helperCw, 0, 16);
-        for (j = 0; j < 16; j++) {
+        XMEMSET(helperCw, 0, WC_PUF_CW_BYTES);
+        for (j = 0; j < WC_PUF_CW_BYTES; j++) {
             helperCw[j] = rawCw[j] ^ cw[j];
         }
-        storeCodeword(ctx->helperData, i * WC_PUF_BCH_N, helperCw);
+        storeCodeword(ctx->helperData, i * WC_PUF_HELPER_LEN, helperCw);
     }
 
-    /* compute identity = SHA-256(stableBits) */
+    /* compute identity = hash(stableBits) */
     ret = wc_PufHashDirect(ctx->stableBits, WC_PUF_STABLE_BYTES, ctx->identity);
 
     /* zeroize sensitive stack buffers */
@@ -564,17 +624,24 @@ int wc_PufEnroll(wc_PufCtx* ctx)
     return 0;
 }
 
-int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
+int wc_PufReconstructEx(wc_PufCtx* ctx, const byte* helperData,
+                        word32 helperSz, word32 profileId)
 {
     int i, ret;
-    byte rawCw[16];
-    byte helperCw[16];
-    byte noisyCw[16];
-    byte msg[8];
+    byte rawCw[WC_PUF_CW_BYTES];
+    byte helperCw[WC_PUF_CW_BYTES];
+    byte noisyCw[WC_PUF_CW_BYTES];
+    byte msg[WC_PUF_MSG_BYTES];
 
-    WOLFSSL_ENTER("wc_PufReconstruct");
+    WOLFSSL_ENTER("wc_PufReconstructEx");
 
     if (ctx == NULL || helperData == NULL)
+        return BAD_FUNC_ARG;
+    /* Reject helper data from a different build before touching it: the
+     * length guard cannot catch this on its own, because helper size does not
+     * depend on t in the default layout. A mismatch would otherwise decode to
+     * a silently wrong key. */
+    if (profileId != (word32)WC_PUF_PROFILE_ID)
         return BAD_FUNC_ARG;
     if (helperSz < WC_PUF_HELPER_BYTES)
         return PUF_RECONSTRUCT_E;
@@ -605,13 +672,14 @@ int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
         extractCodeword(ctx->rawSram, bitOff, rawCw);
 
         /* get helper data for this codeword */
-        XMEMSET(helperCw, 0, 16);
-        for (j = 0; j < WC_PUF_BCH_N; j++) {
-            setBit(helperCw, j, getBit(helperData, i * WC_PUF_BCH_N + j));
+        XMEMSET(helperCw, 0, WC_PUF_CW_BYTES);
+        for (j = 0; j < WC_PUF_HELPER_LEN; j++) {
+            setBit(helperCw, WC_PUF_HELPER_OFF + j,
+                   getBit(helperData, i * WC_PUF_HELPER_LEN + j));
         }
 
         /* noisy codeword = raw XOR helper */
-        for (j = 0; j < 16; j++) {
+        for (j = 0; j < WC_PUF_CW_BYTES; j++) {
             noisyCw[j] = rawCw[j] ^ helperCw[j];
         }
 
@@ -633,7 +701,10 @@ int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
             return PUF_RECONSTRUCT_E;
         }
 
-        XMEMCPY(ctx->stableBits + i * 8, msg, 8);
+        /* store k stable bits per codeword, bit-packed */
+        for (j = 0; j < WC_PUF_BCH_K; j++) {
+            setBit(ctx->stableBits, i * WC_PUF_BCH_K + j, getBit(msg, j));
+        }
     }
 
     /* compute identity */
@@ -656,6 +727,14 @@ int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
 
     ctx->flags |= WC_PUF_FLAG_READY;
     return 0;
+}
+
+int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData, word32 helperSz)
+{
+    /* the profile id passed is the library's own, so the check inside the Ex
+     * variant is trivially satisfied and behaviour matches prior releases */
+    return wc_PufReconstructEx(ctx, helperData, helperSz,
+                               (word32)WC_PUF_PROFILE_ID);
 }
 
 int wc_PufDeriveKey(wc_PufCtx* ctx, const byte* info, word32 infoSz,
@@ -712,6 +791,63 @@ int wc_PufGetIdentity(wc_PufCtx* ctx, byte* id, word32 idSz)
     return 0;
 }
 
+/* Report the compile-time PUF profile parameters. Each output pointer is
+ * optional (may be NULL). Enrollment and reconstruction firmware must agree
+ * on all of these; persist them (or WC_PUF_PROFILE_ID) with the helper data
+ * and compare before reconstruction to detect a build mismatch. */
+int wc_PufGetParams(int* m, int* n, int* k, int* t, int* numCodewords)
+{
+    WOLFSSL_ENTER("wc_PufGetParams");
+
+    /* every output is optional, but an all-NULL call is a programming error;
+     * reject it to match the argument-validation convention of the module */
+    if (m == NULL && n == NULL && k == NULL && t == NULL &&
+            numCodewords == NULL)
+        return BAD_FUNC_ARG;
+
+    if (m != NULL)
+        *m = WC_PUF_BCH_M;
+    if (n != NULL)
+        *n = WC_PUF_BCH_N;
+    if (k != NULL)
+        *k = WC_PUF_BCH_K;
+    if (t != NULL)
+        *t = WC_PUF_BCH_T;
+    if (numCodewords != NULL)
+        *numCodewords = WC_PUF_NUM_CODEWORDS;
+
+    return 0;
+}
+
+/* Report the profile fingerprint the LIBRARY was compiled with. The
+ * WC_PUF_PROFILE_ID macro necessarily reflects the calling application's own
+ * build, so comparing the two detects a library/application mismatch that no
+ * length check can see. */
+word32 wc_PufGetProfileId(void)
+{
+    WOLFSSL_ENTER("wc_PufGetProfileId");
+
+    return (word32)WC_PUF_PROFILE_ID;
+}
+
+/* Copy out the enrollment helper data. Applications should use this rather
+ * than reading wc_PufCtx.helperData directly: the size varies with the
+ * selected profile. */
+int wc_PufGetHelperData(wc_PufCtx* ctx, byte* helper, word32 helperSz)
+{
+    WOLFSSL_ENTER("wc_PufGetHelperData");
+
+    if (ctx == NULL || helper == NULL)
+        return BAD_FUNC_ARG;
+    if (!(ctx->flags & WC_PUF_FLAG_ENROLLED))
+        return PUF_ENROLL_E;
+    if (helperSz < WC_PUF_HELPER_BYTES)
+        return PUF_ENROLL_E;
+
+    XMEMCPY(helper, ctx->helperData, WC_PUF_HELPER_BYTES);
+    return 0;
+}
+
 int wc_PufZeroize(wc_PufCtx* ctx)
 {
     WOLFSSL_ENTER("wc_PufZeroize");
@@ -740,5 +876,9 @@ int wc_PufSetTestData(wc_PufCtx* ctx, const byte* data, word32 sz)
     return 0;
 }
 #endif /* WOLFSSL_PUF_TEST */
+
+/* implementation-private macros - not part of the public WC_PUF_ namespace */
+#undef BCH_GENPOLY_DEG
+#undef BCH_REG_MSB_MASK
 
 #endif /* WOLFSSL_PUF */
