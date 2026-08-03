@@ -1085,10 +1085,13 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     status = cpaCySymPerformOp(dev->handle, dev, opData,
             bufferList, bufferList, &verifyResult);
 
-    if (symOperation == CPA_CY_SYM_OP_ALGORITHM_CHAINING &&
-        cipherAlgorithm == CPA_CY_SYM_CIPHER_AES_GCM &&
-        cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT &&
-        hashAlgorithm == CPA_CY_SYM_HASH_AES_GCM) {
+    if (status != CPA_STATUS_SUCCESS) {
+        ret = ASYNC_OP_E;
+    }
+    else if (symOperation == CPA_CY_SYM_OP_ALGORITHM_CHAINING &&
+             cipherAlgorithm == CPA_CY_SYM_CIPHER_AES_GCM &&
+             cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT &&
+             hashAlgorithm == CPA_CY_SYM_HASH_AES_GCM) {
         if (verifyResult == CPA_FALSE) {
             ret = AES_GCM_AUTH_E;
         }

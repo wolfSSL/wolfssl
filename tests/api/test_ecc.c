@@ -296,6 +296,67 @@ int test_wc_ecc_check_key(void)
 } /* END test_wc_ecc_check_key */
 
 /*
+ * Negative coverage for the public-key checks in wc_ecc_check_key. A point off
+ * the curve must be rejected with IS_POINT_E, and a coordinate outside
+ * [0, p-1] with ECC_OUT_OF_RANGE_E. Uses secp224r1, which is not single
+ * precision accelerated, so the software validation path runs even in SP
+ * builds that offload P-256.
+ */
+int test_wc_ecc_check_key_invalid_pubkey(void)
+{
+    EXPECT_DECLS;
+    /* Older FIPS-certified modules ship a frozen source tree where these
+     * imports and checks behave differently, so restrict to non-FIPS or
+     * FIPS v7 and later, and skip the CAVP selftest build. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && \
+    defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(NO_ECC_CHECK_PUBKEY_ORDER) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 224) && \
+    !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_KCAPI_ECC)
+    ecc_key key;
+    const char* qx =
+        "b70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21";
+    const char* qy =
+        "bd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34";
+    /* Qy with its low bit flipped: still less than p, but not on the curve. */
+    const char* qyOffCurve =
+        "bd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e35";
+    /* p, the SECP224R1 field prime, used as an out-of-range coordinate. */
+    const char* pModulus =
+        "ffffffffffffffffffffffffffffffff000000000000000000000001";
+
+    /* Point not on the curve: rejected by the on-curve check. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qyOffCurve, NULL, "SECP224R1"), 0);
+    ExpectIntEQ(wc_ecc_check_key(&key), WC_NO_ERR_TRACE(IS_POINT_E));
+    wc_ecc_free(&key);
+
+    /* Qx == p: rejected by the coordinate-range check. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_raw(&key, pModulus, qy, NULL, "SECP224R1"), 0);
+    ExpectIntEQ(wc_ecc_check_key(&key), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    wc_ecc_free(&key);
+
+    /* Qy == p: rejected by the coordinate-range check. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, pModulus, NULL, "SECP224R1"), 0);
+    ExpectIntEQ(wc_ecc_check_key(&key), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    wc_ecc_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_check_key_invalid_pubkey */
+
+/*
  * Testing wc_ecc_get_generator()
  */
 int test_wc_ecc_get_generator(void)
@@ -577,6 +638,108 @@ int test_wc_ecc_shared_secret(void)
 #endif
     return EXPECT_RESULT();
 } /* END tests_wc_ecc_shared_secret */
+
+/* ECC_INF_E rejection is not present in the frozen ecc.c of older
+ * FIPS-certified modules, so restrict to non-FIPS or FIPS v7 and later, and
+ * skip the CAVP selftest build. The hardware ports listed here either do not
+ * compile wc_ecc_shared_secret_gen_sync at all or offload agreement to a
+ * secure element, so the software rejection never runs. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && \
+    defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
+    defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+#define TEST_ECC_SHARED_SECRET_AT_INFINITY
+
+/* Agree with a private scalar equal to the curve order n. Every point on these
+ * curves has order n, so n times the peer point is the identity for any peer
+ * point, and wc_ecc_shared_secret() must fail instead of handing back an
+ * all-zero secret. */
+static int ecc_shared_secret_inf_case(const char* qx, const char* qy,
+    const char* order, const char* curveName)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    ecc_key pubKey;
+    WC_RNG  rng;
+    byte    out[MAX_ECC_BYTES];
+    word32  outlen = (word32)sizeof(out);
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    PRIVATE_KEY_UNLOCK();
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, order, curveName), 0);
+    ExpectIntEQ(wc_ecc_import_raw(&pubKey, qx, qy, NULL, curveName), 0);
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
+#endif
+
+    ExpectIntEQ(wc_ecc_shared_secret(&key, &pubKey, out, &outlen),
+        WC_NO_ERR_TRACE(ECC_INF_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&pubKey);
+    wc_ecc_free(&key);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+    PRIVATE_KEY_LOCK();
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/*
+ * A shared secret that computes to the point at infinity must be rejected
+ * (SP 800-56Ar3 5.7.1.2), not returned as an all-zero secret. Both math
+ * backends are covered because they detect the identity differently: the
+ * software path checks the mapped point, while the single precision
+ * generators report success and serialize the identity as an all-zero
+ * x-coordinate, so it has to be caught from the output.
+ */
+int test_wc_ecc_shared_secret_at_infinity(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_SHARED_SECRET_AT_INFINITY
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 224) && !defined(WOLFSSL_SP_MATH)
+    /* secp224r1 is not single precision accelerated, so this drives the
+     * software ECDH path even in SP builds that offload P-256. */
+    ExpectIntEQ(ecc_shared_secret_inf_case(
+        "b70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21",
+        "bd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34",
+        "ffffffffffffffffffffffffffff16a2e0b8f03e13dd29455c5c2a3d",
+        "SECP224R1"), 1);
+#endif
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 256) && \
+    (!defined(WOLFSSL_SP_MATH) || \
+     (defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256)))
+    /* secp256r1 covers the single precision path in --enable-sp builds, the
+     * common TLS configuration. Uses the curve generator as the peer point. */
+    ExpectIntEQ(ecc_shared_secret_inf_case(
+        "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+        "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
+        "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
+        "SECP256R1"), 1);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_shared_secret_at_infinity */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     (defined(HAVE_ECC384) || defined(HAVE_ECC521) || \

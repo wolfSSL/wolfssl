@@ -2670,10 +2670,37 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
         else
         #endif
         {
-            if (rng != NULL)
-                ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
-            else
+#ifndef WC_NO_RNG
+            WC_RNG* checkRng = rng;
+            WC_RNG* tmpRng = NULL;
+
+            /* A fixed-base Miller-Rabin test can be fooled by a crafted
+             * composite, so use random witnesses when an RNG is available.
+             * Create a temporary RNG when the caller did not supply one. */
+            if (checkRng == NULL) {
+                if (wc_rng_new_ex(&tmpRng, NULL, 0, key->heap,
+                        INVALID_DEVID) == 0) {
+                    checkRng = tmpRng;
+                }
+            }
+
+            if (checkRng != NULL) {
+                ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, checkRng);
+            }
+            else {
+                /* Fall back to the deterministic test rather than failing the
+                 * parameter load. This is the weaker check: a composite
+                 * crafted against the fixed bases is accepted as prime. */
+                WOLFSSL_MSG("DH: no RNG, primality test uses fixed bases");
                 ret = mp_prime_is_prime(keyP, 8, &isPrime);
+            }
+
+            /* Safe on NULL and zeroizes the RNG state before freeing. */
+            wc_rng_free(tmpRng);
+#else
+            (void)rng;
+            ret = mp_prime_is_prime(keyP, 8, &isPrime);
+#endif
         }
 
         if (ret == 0 && isPrime == 0)

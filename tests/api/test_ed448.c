@@ -178,6 +178,115 @@ int test_wc_ed448_sign_msg(void)
 } /* END test_wc_ed448_sign_msg */
 
 /*
+ * RFC 8032 requires the Ed448 signature scalar S to be canonical (S < L).
+ * Because L times the base point is the identity, a malleated signature with
+ * S' = S + L recomputes the same R, so the S-range check is the only guard
+ * against it. Confirm a signature with S >= L (including the malleability case
+ * S + L) is rejected with BAD_FUNC_ARG, while an in-range but wrong S fails
+ * verification with SIG_VERIFY_E.
+ */
+int test_wc_ed448_verify_sig_S_range(void)
+{
+    EXPECT_DECLS;
+    /* The S-range rejection may be absent in the frozen ed448.c of older
+     * FIPS-certified modules, so restrict to non-FIPS or FIPS v7 and later. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
+    defined(HAVE_ED448_VERIFY)
+    ed448_key key;
+    WC_RNG    rng;
+    byte      msg[] = "Everybody gets Friday off.\n";
+    byte      sig[ED448_SIG_SIZE];
+    byte      badSig[ED448_SIG_SIZE];
+    word32    msglen = sizeof(msg);
+    word32    siglen = sizeof(sig);
+    int       verify_ok = 0;
+    int       i;
+    int       carry;
+    int       sum;
+    /* Ed448 group order L, little-endian, 57 bytes. */
+    static const byte order[] = {
+        0xf3, 0x44, 0x58, 0xab, 0x92, 0xc2, 0x78, 0x23,
+        0x55, 0x8f, 0xc5, 0x8d, 0x72, 0xc2, 0x6c, 0x21,
+        0x90, 0x36, 0xd6, 0xae, 0x49, 0xdb, 0x4e, 0xc4,
+        0xe9, 0x23, 0xca, 0x7c, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x3f,
+        0x00
+    };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    /* Produce a valid signature and confirm it verifies. */
+    ExpectIntEQ(wc_ed448_sign_msg(msg, msglen, sig, &siglen, &key, NULL, 0), 0);
+    ExpectIntEQ(siglen, ED448_SIG_SIZE);
+    ExpectIntEQ(wc_ed448_verify_msg(sig, siglen, msg, msglen, &verify_ok, &key,
+        NULL, 0), 0);
+    ExpectIntEQ(verify_ok, 1);
+
+    /* Malleability: S' = S + L. The same R is recomputed, so only the S-range
+     * check can reject it. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    carry = 0;
+    for (i = 0; i < (int)sizeof(order); i++) {
+        sum = (int)badSig[ED448_SIG_SIZE / 2 + i] + (int)order[i] + carry;
+        badSig[ED448_SIG_SIZE / 2 + i] = (byte)(sum & 0xff);
+        carry = sum >> 8;
+    }
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S exactly equal to L. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S greater than L in a high byte. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    badSig[ED448_SIG_SIZE / 2 + 55] = 0x40;
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S greater than L in a low byte. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    badSig[ED448_SIG_SIZE / 2 + 0] = 0xf4;
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify_ok, 0);
+
+    /* S below L: passes the range check, fails verification instead. */
+    XMEMCPY(badSig, sig, ED448_SIG_SIZE);
+    XMEMCPY(badSig + ED448_SIG_SIZE / 2, order, sizeof(order));
+    badSig[ED448_SIG_SIZE / 2 + 0] = 0xf2;
+    verify_ok = 1;
+    ExpectIntEQ(wc_ed448_verify_msg(badSig, ED448_SIG_SIZE, msg, msglen,
+        &verify_ok, &key, NULL, 0), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntEQ(verify_ok, 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_verify_sig_S_range */
+
+/*
  * Test that wc_ed448_sign_msg() rejects a public-key-only key object.
  * A key with pubKeySet=1 but privKeySet=0 must not silently sign.
  */

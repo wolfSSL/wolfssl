@@ -4869,6 +4869,14 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 {
     int err = MP_OKAY;
     mp_int* k = ecc_get_k(private_key);
+#ifdef WOLFSSL_SE050
+    /* A key-id handle holds no software private scalar - ECDH for such a key
+     * runs on the SE050 - so the identity this function computes from the
+     * all-zero scalar is not a shared secret and must not be rejected here. */
+    int checkInf = !private_key->keyIdSet;
+#else
+    int checkInf = 1;
+#endif
 #ifdef HAVE_ECC_CDH
     WC_DECLARE_VAR(k_lcl, mp_int, 1, 0);
 #endif
@@ -4997,6 +5005,7 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 #endif
 #if defined(WOLFSSL_SP_MATH)
     {
+        (void)checkInf;
         err = WC_KEY_SIZE_E;
         goto errout;
     }
@@ -5065,6 +5074,14 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             err = ecc_map_ex(result, curve->prime, mp, 1);
         }
         if (err == MP_OKAY) {
+            /* SP 800-56Ar3 5.7.1.2: the shared secret must not be the point at
+             * infinity. ecc_map_ex reports that case as x, y of zero with a
+             * success code, so check the point explicitly. */
+            if (checkInf && wc_ecc_point_is_at_infinity(result)) {
+                err = ECC_INF_E;
+            }
+        }
+        if (err == MP_OKAY) {
             x = mp_unsigned_bin_size(curve->prime);
             if (*outlen < (word32)x || x < mp_unsigned_bin_size(result->x)) {
                 err = BUFFER_E;
@@ -5084,6 +5101,25 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 
         wc_ecc_curve_free(curve);
         FREE_CURVE_SPECS();
+    }
+#endif
+
+#ifdef WOLFSSL_HAVE_SP_ECC
+    if ((err == MP_OKAY) && checkInf) {
+        /* The single precision implementations above serialize the point at
+         * infinity as an all-zero x-coordinate and report success, so the
+         * identity has to be recognized from the output. SP 800-56Ar3 5.7.1.2
+         * requires an error and stop in that case. Accumulate over the whole
+         * buffer so the scan does not branch on the secret. */
+        word32 i;
+        byte   acc = 0;
+
+        for (i = 0; i < *outlen; i++) {
+            acc |= out[i];
+        }
+        if (acc == 0) {
+            err = ECC_INF_E;
+        }
     }
 #endif
 
