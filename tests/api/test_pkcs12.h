@@ -40,6 +40,7 @@ int test_wc_PKCS12_PBKDF_ex_sha224(void);
 int test_wc_PKCS12_PBKDF_ex_sha384(void);
 int test_wc_PKCS12_PBKDF_ex_sha512_224(void);
 int test_wc_PKCS12_PBKDF_ex_sha512_256(void);
+int test_wc_PKCS12DecisionCoverage(void);
 
 #define TEST_PKCS12_DECLS                                               \
     TEST_DECL_GROUP("pkcs12", test_wc_i2d_PKCS12),                     \
@@ -57,6 +58,7 @@ int test_wc_PKCS12_PBKDF_ex_sha512_256(void);
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_PBKDF_ex_sha224),         \
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_PBKDF_ex_sha384),         \
     TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_PBKDF_ex_sha512_224),     \
-    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_PBKDF_ex_sha512_256)
+    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_PBKDF_ex_sha512_256),     \
+    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12DecisionCoverage)
 
 #endif /* WOLFCRYPT_TEST_PKCS12_H */
