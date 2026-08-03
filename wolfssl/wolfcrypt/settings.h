@@ -407,6 +407,17 @@
     #define WOLF_CRYPT_FIPS_H
 #endif
 
+/* A configure-generated options.h is sometimes copied in as user_settings.h to
+ * seed a Windows build, bringing the POSIX host's header probes with it. Drop
+ * them where the target has no such header; MinGW has <sys/time.h> but not
+ * <sys/un.h>. */
+#ifdef _MSC_VER
+    #undef HAVE_SYS_TIME_H
+#endif
+#ifdef _WIN32
+    #undef HAVE_SYS_UN_H
+#endif
+
 /* Microsoft's ARM64 compiler defines _M_ARM64 but not __aarch64__.  The wolfSSL
  * ARMv8 assembly (WOLFSSL_ARMASM) and all of its C callers are gated on
  * __aarch64__, so map _M_ARM64 across when building that assembly with MSVC and
