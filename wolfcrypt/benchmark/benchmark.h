@@ -104,6 +104,7 @@ void bench_rsaKeyGen(int useDeviceID);
 void bench_rsaKeyGen_size(int useDeviceID, word32 keySz);
 void bench_rsa(int useDeviceID);
 void bench_rsa_key(int useDeviceID, word32 keySz);
+void bench_rsa_pad(void);
 void bench_dh(int useDeviceID);
 void bench_mlkem(int type);
 void bench_frodokem(int type);
