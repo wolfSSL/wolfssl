@@ -5393,6 +5393,11 @@ typedef struct Dsh13Args {
 #endif
 } Dsh13Args;
 
+/* sessIdSz below bounds both the copy into arrays->sessionID and the comparison
+ * against arrays->clientRandom, so one check only covers both while these
+ * match. */
+wc_static_assert(ID_LEN == RAN_LEN);
+
 int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        word32 helloSz, byte* extMsgType)
 {
@@ -5554,7 +5559,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     /* Session id */
     args->sessIdSz = input[args->idx++];
-    if (args->sessIdSz > ID_LEN || args->sessIdSz > RAN_LEN ||
+    if (args->sessIdSz > ID_LEN ||
         ((args->idx - args->begin) + args->sessIdSz > helloSz))
         return BUFFER_ERROR;
     args->sessId = input + args->idx;
