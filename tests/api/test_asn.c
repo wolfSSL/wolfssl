@@ -2518,6 +2518,276 @@ int test_ToTraditional_ex_mldsa_bad_params(void)
     return EXPECT_RESULT();
 }
 
+/* What wc_SignCert() bounds testing needs regardless of the signing algorithm.
+ * Each algorithm then gates on its own key type and certificate buffers, so an
+ * RSA-less build still gets the ECDSA sweep and vice versa. */
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    !defined(NO_ASN_TIME) && !defined(NO_ASN_CRYPT)
+    #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+        #define TEST_SIGN_CERT_BOUNDS_RSA
+    #endif
+    #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+        #define TEST_SIGN_CERT_BOUNDS_ECC
+    #endif
+#endif
+
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) || defined(TEST_SIGN_CERT_BOUNDS_ECC)
+
+#define SIGN_CERT_SCRATCH_SZ 4096
+/* Number of capacities below the exact encoding size to try. Has to be wider
+ * than the AlgorithmIdentifier plus BIT STRING header that a sequence-headers
+ * only estimate leaves out. */
+#define SIGN_CERT_BAND_SZ    24
+/* Bytes kept past the advertised capacity to catch a write past the end. */
+#define SIGN_CERT_GUARD_SZ   32
+#define SIGN_CERT_GUARD_BYTE 0xA5
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+/* Build the certificate body used by test_wc_SignCert_buffer_bounds().
+ * wc_SignCert() rewrites the buffer in place, so it has to be rebuilt for
+ * every capacity tried. Returns the body size or a negative error.
+ *
+ * The serial is fixed rather than left for wc_MakeCert() to generate. A
+ * generated serial is random, and GenerateInteger() does not shrink its length
+ * after dropping leading zero bytes, so the promoted byte can carry the MSB and
+ * make the encoder pad the INTEGER with an extra 0x00. That changes the body
+ * size for about one certificate in 250, which would make the swept capacities
+ * below disagree with the reference size. */
+static int test_wc_SignCert_makeBody(Cert* cert, RsaKey* key, WC_RNG* rng,
+    byte* out, word32 outSz)
+{
+    static const byte serial[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08 };
+    int ret;
+
+    ret = wc_InitCert(cert);
+    if (ret != 0)
+        return ret;
+
+    cert->sigType = CTC_SHA256wRSA;
+    cert->isCA = 0;
+    XMEMCPY(cert->serial, serial, sizeof(serial));
+    cert->serialSz = (int)sizeof(serial);
+    XSTRNCPY(cert->subject.country, "US", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.state, "MT", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.org, "wolfSSL", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.commonName, "signcert-bounds", CTC_NAME_SIZE);
+
+    return wc_MakeCert(cert, out, outSz, key, NULL, rng);
+}
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+/* ECDSA r and s are DER INTEGERs whose length changes with the leading zero
+ * bytes of each new signature, so an ECDSA encoding size measured once does not
+ * repeat. The sweep copes with that by asserting an invariant that holds for
+ * either outcome rather than a fixed return, so only the accept case needs a
+ * capacity clear of anything the jitter can reach. */
+#define SIGN_CERT_ECC_SLACK 8
+
+/* ECDSA counterpart of test_wc_SignCert_makeBody(). */
+static int test_wc_SignCert_makeBodyEcc(Cert* cert, ecc_key* key, WC_RNG* rng,
+    byte* out, word32 outSz)
+{
+    static const byte serial[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08 };
+    int ret;
+
+    ret = wc_InitCert(cert);
+    if (ret != 0)
+        return ret;
+
+    cert->sigType = CTC_SHA256wECDSA;
+    cert->isCA = 0;
+    XMEMCPY(cert->serial, serial, sizeof(serial));
+    cert->serialSz = (int)sizeof(serial);
+    XSTRNCPY(cert->subject.country, "US", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.state, "MT", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.org, "wolfSSL", CTC_NAME_SIZE);
+    XSTRNCPY(cert->subject.commonName, "signcert-bounds-ecc", CTC_NAME_SIZE);
+
+    return wc_MakeCert(cert, out, outSz, NULL, key, rng);
+}
+#endif /* TEST_SIGN_CERT_BOUNDS_ECC */
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA || TEST_SIGN_CERT_BOUNDS_ECC */
+
+/*
+ * wc_SignCert() must never write past the capacity it was given.
+ *
+ * SignCert() hands the buffer to AddSignature(), which appends the
+ * signatureAlgorithm AlgorithmIdentifier and the signatureValue BIT STRING as
+ * well as wrapping everything in the outer SEQUENCE. A size check that only
+ * accounts for sequence headers under-counts by the algorithm identifier and
+ * bit string header, so capacities in a narrow band just below the exact
+ * encoding size get accepted and overrun.
+ */
+int test_wc_SignCert_buffer_bounds(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) || defined(TEST_SIGN_CERT_BOUNDS_ECC)
+    WC_RNG rng;
+    Cert   cert;
+    byte*  scratch = NULL;
+    byte*  buf = NULL;
+    int    rngInit = 0;
+    int    bodySz = 0;
+    int    cap;
+    int    i;
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    RsaKey key;
+    word32 idx = 0;
+    int    keyInit = 0;
+    int    exactSz = 0;
+#endif
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+    ecc_key eccKey;
+    word32 eccIdx = 0;
+    int    eccInit = 0;
+    int    eccExactSz = 0;
+    int    eccSignedSz = 0;
+    int    k;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cert, 0, sizeof(cert));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(scratch = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(buf = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    /* Sign into a roomy buffer once to learn the exact encoding size. */
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBody(&cert, &key, &rng, scratch,
+        SIGN_CERT_SCRATCH_SZ), 0);
+    ExpectIntGT(exactSz = wc_SignCert(bodySz, cert.sigType, scratch,
+        SIGN_CERT_SCRATCH_SZ, &key, NULL, &rng), 0);
+    ExpectIntLT(exactSz + SIGN_CERT_GUARD_SZ, SIGN_CERT_SCRATCH_SZ);
+
+    /* Every capacity below the exact size has to be rejected, and rejected
+     * without touching a byte beyond it. */
+    for (cap = exactSz - SIGN_CERT_BAND_SZ; cap < exactSz; cap++) {
+        if (!EXPECT_SUCCESS()) break;
+
+        ExpectIntGT(bodySz = test_wc_SignCert_makeBody(&cert, &key, &rng,
+            scratch, SIGN_CERT_SCRATCH_SZ), 0);
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + cap, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+
+        ExpectIntEQ(wc_SignCert(bodySz, cert.sigType, buf, (word32)cap, &key,
+            NULL, &rng), WC_NO_ERR_TRACE(BUFFER_E));
+
+        for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+            ExpectIntEQ(buf[cap + i], SIGN_CERT_GUARD_BYTE);
+        }
+    }
+
+    /* The exact size still has to be accepted - the check must not be made
+     * conservative instead of correct. */
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBody(&cert, &key, &rng, scratch,
+        SIGN_CERT_SCRATCH_SZ), 0);
+    if (EXPECT_SUCCESS() && (buf != NULL)) {
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + exactSz, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+    }
+    ExpectIntEQ(wc_SignCert(bodySz, cert.sigType, buf, (word32)exactSz, &key,
+        NULL, &rng), exactSz);
+    for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+        ExpectIntEQ(buf[exactSz + i], SIGN_CERT_GUARD_BYTE);
+    }
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA */
+
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+    /* Same sweep for ECDSA. IsSigAlgoNoParams() drops the NULL parameters from
+     * the AlgorithmIdentifier, so the under-count an estimate makes has a
+     * different width here than it does for RSA. */
+    XMEMSET(&eccKey, 0, sizeof(eccKey));
+    ExpectIntEQ(wc_ecc_init_ex(&eccKey, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) eccInit = 1;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_key_der_256, &eccIdx, &eccKey,
+        sizeof_ecc_key_der_256), 0);
+
+    for (k = 1; k < SIGN_CERT_BAND_SZ; k++) {
+        if (!EXPECT_SUCCESS()) break;
+
+        /* Measured fresh every iteration: the previous signature's length
+         * says nothing about the next one's. */
+        ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+            scratch, SIGN_CERT_SCRATCH_SZ), 0);
+        ExpectIntGT(eccExactSz = wc_SignCert(bodySz, cert.sigType, scratch,
+            SIGN_CERT_SCRATCH_SZ, NULL, &eccKey, &rng), 0);
+        if (!EXPECT_SUCCESS()) break;
+
+        cap = eccExactSz - k;
+        ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+            scratch, SIGN_CERT_SCRATCH_SZ), 0);
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + cap, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+
+        eccSignedSz = wc_SignCert(bodySz, cert.sigType, buf, (word32)cap, NULL,
+            &eccKey, &rng);
+        /* The signature this call produces is not the one the capacity was
+         * derived from, so a capacity below the measured size is not always
+         * too small. Both outcomes are legitimate; what must hold either way
+         * is that nothing was written past the capacity. */
+        ExpectTrue((eccSignedSz == WC_NO_ERR_TRACE(BUFFER_E)) ||
+                   ((eccSignedSz > 0) && (eccSignedSz <= cap)));
+
+        for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+            ExpectIntEQ(buf[cap + i], SIGN_CERT_GUARD_BYTE);
+        }
+    }
+
+    /* A capacity above anything the signature length can reach still has to be
+     * accepted, so the check is not merely conservative. */
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+        scratch, SIGN_CERT_SCRATCH_SZ), 0);
+    ExpectIntGT(eccExactSz = wc_SignCert(bodySz, cert.sigType, scratch,
+        SIGN_CERT_SCRATCH_SZ, NULL, &eccKey, &rng), 0);
+    cap = eccExactSz + SIGN_CERT_ECC_SLACK;
+    ExpectIntGT(bodySz = test_wc_SignCert_makeBodyEcc(&cert, &eccKey, &rng,
+        scratch, SIGN_CERT_SCRATCH_SZ), 0);
+    if (EXPECT_SUCCESS() && (buf != NULL)) {
+        XMEMCPY(buf, scratch, (size_t)bodySz);
+        XMEMSET(buf + cap, SIGN_CERT_GUARD_BYTE, SIGN_CERT_GUARD_SZ);
+    }
+    ExpectIntGT(eccSignedSz = wc_SignCert(bodySz, cert.sigType, buf,
+        (word32)cap, NULL, &eccKey, &rng), 0);
+    ExpectIntLE(eccSignedSz, cap);
+    for (i = 0; i < SIGN_CERT_GUARD_SZ; i++) {
+        ExpectIntEQ(buf[cap + i], SIGN_CERT_GUARD_BYTE);
+    }
+#endif /* TEST_SIGN_CERT_BOUNDS_ECC */
+
+    XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(scratch, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef TEST_SIGN_CERT_BOUNDS_ECC
+    if (eccInit)
+        wc_ecc_free(&eccKey);
+#endif
+#ifdef TEST_SIGN_CERT_BOUNDS_RSA
+    if (keyInit)
+        wc_FreeRsaKey(&key);
+#endif
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif /* TEST_SIGN_CERT_BOUNDS_RSA || TEST_SIGN_CERT_BOUNDS_ECC */
+    return EXPECT_RESULT();
+}
+
 /*
  * MC/DC wave 2 - decision-targeted negative paths for PKCS#8 wrap/parse
  * and RSA key decode. Targets argument-check, short-buffer, and

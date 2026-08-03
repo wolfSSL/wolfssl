@@ -25740,11 +25740,14 @@ static int mockSignCbError(const byte* in, word32 inLen, byte* out,
 }
 #endif
 
-#ifdef WOLFSSL_CERT_SIGN_CB
+/* Bytes kept past the advertised capacity to catch a write past the end. */
+#define SIGN_CERT_CB_GUARD_SZ 16
+
 static int test_wc_SignCert_cb(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_CERT_SIGN_CB) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_ASN_TIME)
 
 #ifdef HAVE_ECC
     /* Test with ECC key */
@@ -25851,6 +25854,10 @@ static int test_wc_SignCert_cb(void)
         MockSignCtx signCtx;
         DecodedCert decodedCert;
         int ret;
+        int bodySz = 0;
+        int exactSz = 0;
+        int i;
+        static const byte fixedSerial[] = { 0x01, 0x02, 0x03, 0x04 };
 
         XMEMSET(&rng, 0, sizeof(WC_RNG));
         XMEMSET(&key, 0, sizeof(RsaKey));
@@ -25913,6 +25920,45 @@ static int test_wc_SignCert_cb(void)
         /* Callback returning error */
         ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
             FOURK_BUF, RSA_TYPE, mockSignCbError, &signCtx, &rng), BAD_STATE_E);
+
+        /* Buffer bounds. wc_SignCert_cb() appends the signatureAlgorithm and
+         * signatureValue as well as the outer SEQUENCE, so a capacity below
+         * the exact encoding size has to be rejected rather than overrun. The
+         * serial is fixed so both rebuilt bodies encode identically. */
+        XMEMCPY(cert.serial, fixedSerial, sizeof(fixedSerial));
+        cert.serialSz = (int)sizeof(fixedSerial);
+        ExpectIntGT(bodySz = wc_MakeCert(&cert, der, FOURK_BUF, &key, NULL,
+            &rng), 0);
+        ExpectIntGT(exactSz = wc_SignCert_cb(bodySz, cert.sigType, der,
+            FOURK_BUF, RSA_TYPE, mockSignCb, &signCtx, &rng), 0);
+        /* The guard region below is written past the advertised capacity, so
+         * it has to stay inside der. */
+        ExpectIntLT(exactSz + SIGN_CERT_CB_GUARD_SZ, FOURK_BUF);
+
+        ExpectIntGT(bodySz = wc_MakeCert(&cert, der, FOURK_BUF, &key, NULL,
+            &rng), 0);
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(der + exactSz - 1, 0xA5, SIGN_CERT_CB_GUARD_SZ);
+        }
+        ExpectIntEQ(wc_SignCert_cb(bodySz, cert.sigType, der,
+            (word32)(exactSz - 1), RSA_TYPE, mockSignCb, &signCtx, &rng),
+            WC_NO_ERR_TRACE(BUFFER_E));
+        for (i = 0; i < SIGN_CERT_CB_GUARD_SZ; i++) {
+            ExpectIntEQ(der[exactSz - 1 + i], 0xA5);
+        }
+
+        /* The check must not be over-conservative either, so require the exact
+         * size to be accepted and the bytes above it left alone. */
+        ExpectIntGT(bodySz = wc_MakeCert(&cert, der, FOURK_BUF, &key, NULL,
+            &rng), 0);
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(der + exactSz, 0xA5, SIGN_CERT_CB_GUARD_SZ);
+        }
+        ExpectIntEQ(wc_SignCert_cb(bodySz, cert.sigType, der,
+            (word32)exactSz, RSA_TYPE, mockSignCb, &signCtx, &rng), exactSz);
+        for (i = 0; i < SIGN_CERT_CB_GUARD_SZ; i++) {
+            ExpectIntEQ(der[exactSz + i], 0xA5);
+        }
     #ifdef HAVE_ECC
         /* Invalid keyType */
         ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
@@ -25931,10 +25977,11 @@ static int test_wc_SignCert_cb(void)
     }
 #endif /* !NO_RSA && WOLFSSL_KEY_GEN */
 
-#endif /* WOLFSSL_CERT_GEN && !NO_ASN_TIME */
+#endif /* WOLFSSL_CERT_SIGN_CB && WOLFSSL_CERT_GEN && !NO_ASN_TIME */
     return EXPECT_RESULT();
 }
-#endif /* WOLFSSL_CERT_SIGN_CB */
+
+#undef SIGN_CERT_CB_GUARD_SZ
 
 static int test_ERR_load_crypto_strings(void)
 {
@@ -38766,9 +38813,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_NameConstraints_SubtreeMinMax),
     TEST_DECL(test_ParseSerial0FixtureMatrix),
     TEST_DECL(test_MakeCertWithCaFalse),
-#ifdef WOLFSSL_CERT_SIGN_CB
     TEST_DECL(test_wc_SignCert_cb),
-#endif
     TEST_DECL(test_wc_SetAcmeIdentifierExt),
     TEST_DECL(test_wc_SetKeyUsage),
     TEST_DECL(test_wc_SetAuthKeyIdFromPublicKey_ex),
