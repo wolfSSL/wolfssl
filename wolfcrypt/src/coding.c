@@ -134,7 +134,7 @@ int Base64_SkipNewline(const byte* in, word32 *inLen,
         curChar = in[++j];
         len--;
     }
-    if (len && (curChar == '\r' || curChar == '\n')) {
+    if (curChar == '\r' || curChar == '\n') {
         j++;
         len--;
         if (curChar == '\r') {
@@ -278,7 +278,7 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
     }
 
     /* If the output buffer has a room for an extra byte, add a null terminator */
-    if (out && *outLen > i)
+    if (*outLen > i)
         out[i]= '\0';
 
     /* Note, *outLen won't reflect the optional terminating null. */
@@ -392,7 +392,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     }
 
     /* If the output buffer has a room for an extra byte, add a null terminator */
-    if (out && *outLen > i)
+    if (*outLen > i)
         out[i]= '\0';
 
     /* Note, *outLen won't reflect the optional terminating null. */
@@ -660,7 +660,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (in == NULL || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
-    if (inLen == 1 && *outLen && in) {
+    if (inLen == 1 && *outLen) {
         byte b = (byte)(in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
 
         /* sanity check */

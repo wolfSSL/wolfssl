@@ -5063,7 +5063,7 @@ static int mldsa_vec_check_low_c(const sword32* a, byte l, sword32 hi)
     unsigned int i;
 
     /* For each polynomial of vector. */
-    for (i = 0; (ret == 1) && (i < l); i++) {
+    for (i = 0; i < l; i++) {
         ret = mldsa_check_low(a, hi);
         if (ret == 0) {
             break;
@@ -8100,7 +8100,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
             /* Put r/i into buffer to be hashed. */
             aseed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
-            for (s = 0; (ret == 0) && (s < params->l); s++) {
+            for (s = 0; s < params->l; s++) {
                 /* Put s into buffer to be hashed. */
                 aseed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
                 /* Step 3: Expand public seed into a matrix of polynomials. */
@@ -8727,7 +8727,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         sizeof(priv_rand_seed));
 #endif
     /* Check the signature buffer isn't too small. */
-    if ((ret == 0) && (*sigLen < params->sigSz)) {
+    if (*sigLen < params->sigSz) {
         ret = BUFFER_E;
     }
     if (ret == 0) {
@@ -8892,7 +8892,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 /* Put r/i into buffer to be hashed. */
                 aseed[MLDSA_PUB_SEED_SZ + 1] = r;
                 /* Alg 26. Step 2: Loop over second dimension of matrix. */
-                for (s = 0; (ret == 0) && (s < params->l); s++) {
+                for (s = 0; s < params->l; s++) {
                     /* Put s into buffer to be hashed. */
                     aseed[MLDSA_PUB_SEED_SZ + 0] = s;
                     /* Alg 26. Step 3: Create polynomial from hashing seed. */
@@ -11586,7 +11586,7 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
             x |= key->p[i] ^ key->k[i];
         }
 
-        if ((ret == 0) && (x != 0)) {
+        if (x != 0) {
             ret = PUBLIC_KEY_E;
         }
     }

@@ -1425,10 +1425,6 @@ static int wc_mlkemkey_check_h(MlKemKey* key)
         XFREE(pubKey, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     }
-    if ((ret == 0) && ((key->flags & MLKEM_FLAG_H_SET) == 0)) {
-        /* Implementation issue if h not cached and flag not set. */
-        ret = BAD_STATE_E;
-    }
 
     return ret;
 }
@@ -2794,7 +2790,9 @@ int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out, word32 len)
         }
     }
     if (ret == 0) {
-        /* Public hash is set. */
+        /* Public hash is set. wc_mlkemkey_check_h() relies on this happening on
+         * every successful path: it calls this function to establish the flag
+         * and does not test it again afterwards. */
         key->flags |= MLKEM_FLAG_H_SET;
     }
 

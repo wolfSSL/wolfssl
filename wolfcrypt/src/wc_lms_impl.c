@@ -3589,9 +3589,6 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
 #endif
 
     wc_hss_priv_data_load(state->params, priv_key, priv_data);
-#ifndef WOLFSSL_WC_LMS_SMALL
-    priv_key->inited = 0;
-#endif
 
 #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
     if (pub_root != NULL)
@@ -3600,7 +3597,7 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
         /* Expand the raw private key into the private key data. */
         ret = wc_hss_expand_private_key(state, priv_key->priv, priv_raw, 0);
     #ifndef WOLFSSL_WC_LMS_SMALL
-        if ((ret == 0) && (!priv_key->inited)) {
+        if (ret == 0) {
             /* Initialize the authentication paths and caches for all trees. */
             ret = wc_hss_init_auth_path(state, priv_key, pub_root);
         #ifndef WOLFSSL_LMS_NO_SIGN_SMOOTHING

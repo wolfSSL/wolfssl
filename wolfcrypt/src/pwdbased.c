@@ -365,17 +365,15 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 
 #ifdef HAVE_PKCS12
 
-/* helper for PKCS12_PBKDF(), does hash operation */
+/* helper for PKCS12_PBKDF(), does hash operation.
+ * buffer and Ai are guaranteed non-NULL by the caller: each is either a stack
+ * array or an XMALLOC result whose failure returns MEMORY_E before the call. */
 static int DoPKCS12Hash(enum wc_HashType hashT, byte* buffer, word32 totalLen,
     byte* Ai, word32 u, int iterations)
 {
     int i;
     int ret = 0;
     WC_DECLARE_VAR(hash, wc_HashAlg, 1, 0);
-
-    if ((buffer == NULL) || (Ai == NULL)) {
-        return BAD_FUNC_ARG;
-    }
 
     /* initialize hash */
     WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, NULL, DYNAMIC_TYPE_HASHCTX,

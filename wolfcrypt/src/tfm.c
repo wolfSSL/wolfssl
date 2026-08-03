@@ -5519,20 +5519,12 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    }
 
    /* either zero than gcd is the largest */
-   if (fp_iszero (a) == FP_YES && fp_iszero (b) == FP_NO) {
+   if (fp_iszero (a) == FP_YES) {
      fp_abs (b, c);
      return FP_OKAY;
    }
-   if (fp_iszero (a) == FP_NO && fp_iszero (b) == FP_YES) {
+   if (fp_iszero (b) == FP_YES) {
      fp_abs (a, c);
-     return FP_OKAY;
-   }
-
-   /* optimized.  At this point if a == 0 then
-    * b must equal zero too
-    */
-   if (fp_iszero (a) == FP_YES) {
-     fp_zero(c);
      return FP_OKAY;
    }
 
