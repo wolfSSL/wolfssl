@@ -4314,6 +4314,15 @@ int test_tls13_rpk_unoffered_cert_type(void)
                     &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
                     wolfTLSv1_3_server_method), 0);
 
+        /* Both ends must authenticate the peer. Under
+         * OPENSSL_COMPATIBLE_DEFAULTS (--enable-all) the CTX defaults to
+         * WOLFSSL_VERIFY_NONE, and a non-verifying server omits the
+         * client_certificate_type response entirely, leaving nothing for the
+         * second round to reject. Set it explicitly so both rounds behave the
+         * same across build configs. */
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+
         /* ClientHello out, then the server's flight carrying the response. */
         ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_get_error(ssl_c,
