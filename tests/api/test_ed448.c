@@ -1286,7 +1286,8 @@ int test_wc_ed448_import_private_only(void)
  * (the is_small_order VALUE operand's independence is already shown by
  * test_wc_ed448_reject_small_order_keys()), the (ret == 0 &&
  * XMEMCMP(...) != 0) recomputed-vs-stored public key mismatch check in the
- * have-private-key branch, and the deep Y-range check's final byte compare.
+ * have-private-key branch, and both decisions of the Y-range walk: the
+ * top-byte loop and the 0xFE compare that follows it.
  */
 int test_wc_ed448_check_key_decisions(void)
 {
@@ -1336,15 +1337,15 @@ int test_wc_ed448_check_key_decisions(void)
     key.p[0] = (byte)(key.p[0] ^ 0xff);
 
     /* Deep Y-range check: a Y value that is not one of
-     * ed448_is_small_order()'s tabulated points but still forces both
-     * range-check loops all the way down to the final byte compare (every
-     * byte except p[0] matches the encoded field prime p). Only reachable
-     * via a trusted import, which skips wc_ed448_check_key() at import
-     * time so the crafted (curve-invalid) point can be handed to a
-     * *direct* wc_ed448_check_key() call below -- same technique as
-     * test_wc_ed448_reject_small_order_keys(). Whatever the later
-     * curve-decode step decides is fine; the range-check decision itself
-     * is what's targeted here. */
+     * ed448_is_small_order()'s tabulated points but still runs the top-byte
+     * loop to exhaustion (every byte above the 0xFE position is 0xff), so
+     * the loop's index operand goes false and the 0xFE compare below it is
+     * reached and taken. Only reachable via a trusted import, which skips
+     * wc_ed448_check_key() at import time so the crafted (curve-invalid)
+     * point can be handed to a *direct* wc_ed448_check_key() call below --
+     * same technique as test_wc_ed448_reject_small_order_keys(). Whatever
+     * the later curve-decode step decides is fine; the range-check decision
+     * itself is what's targeted here. */
     XMEMSET(near_p, 0xff, sizeof(near_p));
     near_p[28] = 0xfe;
     near_p[0]  = 0x00;
@@ -1355,16 +1356,28 @@ int test_wc_ed448_check_key_decisions(void)
     ExpectTrue((rc == 0) || (rc == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
     wc_ed448_free(&freshKey);
 
-    /* Same construction but with an extra byte (p[1]) perturbed so the
-     * second range-check loop exits early with ret == 0 before the final
-     * byte compare runs -- closes that compare's PUBLIC_KEY_E
-     * guard operand's FALSE side. */
-    near_p[1] = 0x00;
+    /* Same construction with a byte inside the walked range cleared, so the
+     * loop breaks with ret == 0 instead of running out: closes the byte
+     * compare's TRUE side and the following (ret == PUBLIC_KEY_E) guard's
+     * FALSE side. */
+    near_p[29] = 0x00;
     ExpectIntEQ(wc_ed448_init(&freshKey), 0);
     ExpectIntEQ(wc_ed448_import_public_ex(near_p, ED448_PUB_KEY_SIZE,
         &freshKey, 1), 0);
     rc = wc_ed448_check_key(&freshKey);
     ExpectTrue((rc == 0) || (rc == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
+    wc_ed448_free(&freshKey);
+
+    /* Every byte 0xff, including the 0xFE position: not a tabulated
+     * small-order encoding, the walk finds no byte below 0xff and the 0xFE
+     * compare is false, so the Y value is out of range. Closes that
+     * compare's FALSE side. */
+    XMEMSET(near_p, 0xff, sizeof(near_p));
+    ExpectIntEQ(wc_ed448_init(&freshKey), 0);
+    ExpectIntEQ(wc_ed448_import_public_ex(near_p, ED448_PUB_KEY_SIZE,
+        &freshKey, 1), 0);
+    ExpectIntEQ(wc_ed448_check_key(&freshKey),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
     wc_ed448_free(&freshKey);
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
