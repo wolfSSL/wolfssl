@@ -766,3 +766,100 @@ int test_wc_SHE_LoadKey_Verify(void)
 #endif /* !NO_WC_SHE_LOADKEY */
 
 #endif /* WOLF_CRYPTO_CB && WOLFSSL_SHE && !NO_AES */
+
+/*
+ * MC/DC decision coverage for the wc_SHE_GenerateM1M2M3 and
+ * wc_SHE_GenerateM4M5 parameter blocks (wolfcrypt/src/wc_she.c). Those are a
+ * 12-operand and an 8-operand OR respectively, and account for 20 of the file's
+ * uncovered conditions; the she group's other tests only ever pass fully valid
+ * arguments, so every operand stays false. One call per operand, that operand
+ * alone made invalid.
+ */
+int test_wc_SHE_DecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_SHE
+    wc_SHE she;
+    byte uid[WC_SHE_UID_SZ];
+    byte key[WC_SHE_KEY_SZ];
+    byte m1[WC_SHE_M1_SZ], m2[WC_SHE_M2_SZ], m3[WC_SHE_M3_SZ];
+    byte m4[WC_SHE_M4_SZ], m5[WC_SHE_M5_SZ];
+    int  inited = 0;
+
+    XMEMSET(uid, 1, sizeof(uid));
+    XMEMSET(key, 2, sizeof(key));
+    XMEMSET(m1, 0, sizeof(m1));  XMEMSET(m2, 0, sizeof(m2));
+    XMEMSET(m3, 0, sizeof(m3));  XMEMSET(m4, 0, sizeof(m4));
+    XMEMSET(m5, 0, sizeof(m5));
+
+    ExpectIntEQ(wc_SHE_Init(&she, NULL, INVALID_DEVID), 0);
+    if (EXPECT_SUCCESS()) inited = 1;
+
+    /* wc_SHE_GenerateM1M2M3: 12 operands, one invalid per call. */
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, NULL, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ - 1, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, NULL,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ - 1, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, NULL, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ - 1, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, NULL, sizeof(m1), m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, WC_SHE_M1_SZ - 1, m2,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), NULL,
+        sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        WC_SHE_M2_SZ - 1, m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), NULL, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+        WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+        sizeof(m2), m3, WC_SHE_M3_SZ - 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* wc_SHE_GenerateM4M5: 8 operands, one invalid per call. */
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, NULL, WC_SHE_UID_SZ, 1, 2, key,
+        WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, sizeof(m5)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ - 1, 1, 2, key,
+        WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, sizeof(m5)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, NULL,
+        WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, sizeof(m5)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, key,
+        WC_SHE_KEY_SZ - 1, 1, m4, sizeof(m4), m5, sizeof(m5)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, key,
+        WC_SHE_KEY_SZ, 1, NULL, sizeof(m4), m5, sizeof(m5)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, key,
+        WC_SHE_KEY_SZ, 1, m4, WC_SHE_M4_SZ - 1, m5, sizeof(m5)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, key,
+        WC_SHE_KEY_SZ, 1, m4, sizeof(m4), NULL, sizeof(m5)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, key,
+        WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, WC_SHE_M5_SZ - 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    if (inited) wc_SHE_Free(&she);
+#endif /* WOLFSSL_SHE */
+    return EXPECT_RESULT();
+}
