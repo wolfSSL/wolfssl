@@ -19,7 +19,8 @@ information, visit the [wolfCrypt FIPS FAQ](https://www.wolfssl.com/license/fips
 or contact fips@wolfssl.com.
 
 wolfCrypt also includes support for deriving device-unique keys from hardware entropy
-(`--enable-puf`). An example exists at
+(`--enable-puf[=small|balanced|strong|strongest]`, selecting the BCH error-correction
+strength). An example exists at
 [SRAM PUF](https://github.com/wolfSSL/wolfssl-examples/tree/master/puf).
 
 ## Why Choose wolfSSL?

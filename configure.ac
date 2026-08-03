@@ -8425,16 +8425,31 @@ fi
 
 # PUF
 AC_ARG_ENABLE([puf],
-    [AS_HELP_STRING([--enable-puf],[Enable SRAM PUF support (default: disabled)])],
+    [AS_HELP_STRING([--enable-puf],[Enable SRAM PUF: profiles small/balanced/strong/strongest = t 7/10/13/15 (default: disabled)])],
     [ ENABLED_PUF=$enableval ],
     [ ENABLED_PUF=no ]
     )
 
-if test "$ENABLED_PUF" = "yes"
+if test "$ENABLED_PUF" != "no"
 then
+    # Map the profile keyword to a BCH error-correction strength (t). An
+    # empty PUF_BCH_T keeps the puf.h default of t=10.
+    PUF_BCH_T=""
+    PUF_PROFILE="balanced (t=10)"
+    case "$ENABLED_PUF" in
+        yes|balanced) PUF_BCH_T=""   ; PUF_PROFILE="balanced (t=10)" ;;
+        small)        PUF_BCH_T="7"  ; PUF_PROFILE="small (t=7)" ;;
+        strong)       PUF_BCH_T="13" ; PUF_PROFILE="strong (t=13)" ;;
+        strongest)    PUF_BCH_T="15" ; PUF_PROFILE="strongest (t=15)" ;;
+        *) AC_MSG_ERROR([unknown --enable-puf value "$ENABLED_PUF"; use yes, small, balanced, strong, or strongest]) ;;
+    esac
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUF -DWOLFSSL_PUF_SRAM"
+    AS_IF([test "x$PUF_BCH_T" != "x"],
+          [AM_CFLAGS="$AM_CFLAGS -DWC_PUF_BCH_T=$PUF_BCH_T"])
     AS_IF([test "$ENABLED_HKDF" != "yes"],
           [ENABLED_HKDF="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+    # normalize so downstream conditionals/summary see a plain yes
+    ENABLED_PUF="yes"
 fi
 
 # PUF test mode
@@ -13771,7 +13786,11 @@ echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
 echo "   * ML-KEM  standalone:         $ENABLED_MLKEM_STANDALONE"
 echo "   * PQ/T hybrids:               $ENABLED_PQC_HYBRIDS"
 echo "   * Extra PQ/T hybrids:         $ENABLED_EXTRA_PQC_HYBRIDS"
+if test "$ENABLED_PUF" = "yes"; then
+echo "   * PUF:                        $ENABLED_PUF, profile $PUF_PROFILE"
+else
 echo "   * PUF:                        $ENABLED_PUF"
+fi
 echo ""
 echo "---"
 
