@@ -25,8 +25,8 @@
  * the curve operation. The ASU works in raw fixed-width r||s and raw keys, while
  * wolfSSL passes a DER signature, so sign converts the ASU's raw r||s to DER with
  * wc_ecc_rs_raw_to_sig and verify converts the DER signature to raw with
- * wc_ecc_sig_to_rs (right-aligned to the curve width). Keys are marshalled
- * big-endian, fixed-width with mp_to_unsigned_bin_len. Verify returns its verdict
+ * wc_ecc_sig_to_rs (right-aligned to the curve width). Keys are written as
+ * fixed-width byte arrays with mp_to_unsigned_bin_len. Verify returns pass or fail
  * in the ASU additional status (fail-closed). NIST P-192/256/384/521 and
  * Brainpool P-256/320/384/512 prime curves.
  *
@@ -55,6 +55,13 @@
 #endif
 #ifdef HAVE_ED448
 #include <wolfssl/wolfcrypt/ed448.h>
+#endif
+
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 #include "xasu_ecc.h"
@@ -130,11 +137,8 @@ static int wc_AsuEccCurve(ecc_key* key, u32* curveType, u32* keyLen)
             len  = (u32)XASU_ECC_P384_SIZE_IN_BYTES;
             break;
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_ECC_P521
-        /* P-521 offload is gated off by default: the stock firmware left-pads a
-         * short digest, and the client caps DigestLen at 64 < the 66-byte curve
-         * width, so HW P-521 signatures are non-standard. The front-pad firmware
-         * fix was verified on hardware (see ECC_P521_DIGEST_ISSUE.md); enable this
-         * macro only when running firmware that carries that fix. */
+        /* Off by default: stock firmware mis-pads the digest and the client caps it
+         * at 64 < P-521's 66-byte width. Enable only with firmware that front-pads. */
         case ECC_SECP521R1:
             type = (u32)XASU_ECC_NIST_P521;
             len  = (u32)XASU_ECC_P521_SIZE_IN_BYTES;
@@ -171,13 +175,8 @@ static int wc_AsuEccCurve(ecc_key* key, u32* curveType, u32* keyLen)
     return 0;
 }
 
-/* Normalize the caller's digest into a fixed-width big-endian value matching the
- * standard ECDSA hash-to-integer, so the ASU computes the same e as software. The
- * ASU firmware reads the digest as a curve-width integer and zero-pads a short
- * digest in the LOW bytes (left-aligning the hash), so a digest narrower than the
- * width must be right-aligned here instead; a digest at least the width keeps its
- * leftmost width bytes (the supported curves have byte-aligned order lengths).
- * The width is the curve length, capped at the ASU's 64-byte digest maximum. */
+/* Right-align a short digest to the curve width (capped at 64) so the ASU reads the
+ * same integer as software; a digest at least the width keeps its leftmost bytes. */
 static void wc_AsuEccDigest(const byte* hash, word32 hashLen, byte* out, u32 width)
 {
     XMEMSET(out, 0, width);
@@ -270,6 +269,7 @@ static int wc_AsuEccSign(wc_CryptoInfo* info)
 
     wc_AsuCacheFlush(req->key, keyLen);
     wc_AsuCacheFlush(req->digest, digLen);
+    wc_AsuCacheFlush(req->sign, 2U * keyLen);
 
     status = wc_AsuTransact(wc_AsuEccSubmit, req, &addl);
 
@@ -284,19 +284,19 @@ static int wc_AsuEccSign(wc_CryptoInfo* info)
         ret = CRYPTOCB_UNAVAILABLE;
         goto out;
     }
-    /* Encode the ASU's raw r||s (each keyLen, big-endian) as a DER signature. */
+    /* Encode the ASU's raw r||s (each keyLen bytes) as a DER signature. */
     ret = wc_ecc_rs_raw_to_sig(req->sign, keyLen, req->sign + keyLen, keyLen,
         info->pk.eccsign.out, info->pk.eccsign.outlen);
 
 out:
+    /* Scrub the private key copied into req->key before freeing. */
+    ForceZero(req, sizeof(*req));
     WC_FREE_VAR_EX(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
-/* Full-hardware ECDSA verify. wolfSSL passes the DER signature and the digest;
- * the signature is converted to raw r||s and the ASU does the public-key verify,
- * returning its verdict in the additional status. *res is set to 1 only on a
- * verified result (fail-closed otherwise). */
+/* Full-hardware ECDSA verify. The DER signature is converted to raw r||s and the
+ * ASU checks it; *res is set to 1 only on a verified result (fail-closed). */
 static int wc_AsuEccVerify(wc_CryptoInfo* info)
 {
     WC_DECLARE_VAR(req, AsuEccReq, 1, NULL);
@@ -392,10 +392,8 @@ static int wc_AsuEccVerify(wc_CryptoInfo* info)
     WC_ASU_PRINTF("[ASU] ecc verify st=%u addl=0x%x\r\n",
         (unsigned int)status, (unsigned int)addl);
 
-    /* A clean VERIFIED status confirms the signature. Anything else (mismatch or
-     * an input the ASU rejected) defers to software, which is authoritative: it
-     * confirms a valid signature the ASU could not process and rejects a truly
-     * bad one, so the result is always correct and never a false rejection. */
+    /* Only a clean VERIFIED status confirms; anything else defers to software,
+     * which is authoritative and never gives a false rejection. */
     if (status == XST_SUCCESS &&
         addl == (word32)XASU_ECC_SIGNATURE_VERIFIED) {
         *info->pk.eccverify.res = 1;
@@ -412,11 +410,8 @@ out:
 
 #ifdef HAVE_ED25519
 
-/* Full-hardware Ed25519 sign. The ASU hashes the raw message internally (SHA-512),
- * so wolfSSL's message goes through the digest parameter and the 32-byte private
- * seed (the first half of key->k) through the key parameter; the ASU returns the
- * standard 64-byte R||S signature. Only plain Ed25519 (no context, no prehash) maps
- * to the ASU; anything else declines to software. */
+/* Full-hardware Ed25519 sign. The ASU hashes the message itself: message in the
+ * digest field, 32-byte seed in the key field; plain Ed25519 only. */
 static int wc_AsuEd25519Sign(wc_CryptoInfo* info)
 {
     WC_DECLARE_VAR(req, AsuEccReq, 1, NULL);
@@ -437,10 +432,8 @@ static int wc_AsuEd25519Sign(wc_CryptoInfo* info)
         info->pk.ed25519sign.contextLen != 0) {
         return CRYPTOCB_UNAVAILABLE;
     }
-    /* Match software's precondition: signing needs both the private seed and the
-     * public key set. wolfSSL rejects a private-only key with BAD_FUNC_ARG, so
-     * decline rather than sign it on hardware (the ASU would derive the public key
-     * and succeed, diverging from software). */
+    /* Like software, signing needs both the seed and the public key set; software
+     * rejects a private-only key, so decline instead of signing on hardware. */
     if (key->privKeySet == 0 || key->pubKeySet == 0) {
         return CRYPTOCB_UNAVAILABLE;
     }
@@ -486,6 +479,7 @@ static int wc_AsuEd25519Sign(wc_CryptoInfo* info)
     WC_ASU_PRINTF("[ASU] ed25519 sign msgLen=%u\r\n", (unsigned int)msgLen);
 
     wc_AsuCacheFlush(req->key, ED25519_KEY_SIZE);
+    wc_AsuCacheFlush(req->sign, ED25519_SIG_SIZE);
     if (msgLen != 0) {
         wc_AsuCacheFlush(msg, msgLen);
     }
@@ -509,15 +503,14 @@ out:
     if (msgLen != 0 && msg != NULL) {
         XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
+    /* Scrub the private seed copied into req->key before freeing. */
+    ForceZero(req, sizeof(*req));
     WC_FREE_VAR_EX(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
-/* Full-hardware Ed25519 verify. wolfSSL passes the 64-byte signature, the message,
- * and the 32-byte compressed public key (key->p). The ASU public-key buffer is the
- * curve point as 32 zero bytes (unused Qx) followed by the compressed key (Qy); the
- * ASU hashes the message internally and returns its verdict in the additional
- * status. *res is set to 1 only on a verified result (fail-closed otherwise). */
+/* Full-hardware Ed25519 verify. The key buffer is 32 zero bytes then the compressed
+ * public key; *res is set to 1 only on a verified result (fail-closed). */
 static int wc_AsuEd25519Verify(wc_CryptoInfo* info)
 {
     WC_DECLARE_VAR(req, AsuEccReq, 1, NULL);
@@ -618,11 +611,8 @@ out:
 
 #ifdef HAVE_ED448
 
-/* Full-hardware Ed448 sign. Mirrors the Ed25519 handler: the ASU hashes the raw
- * message internally (SHAKE256), so wolfSSL's message goes through the digest
- * parameter and the 57-byte private seed (the first half of key->k) through the key
- * parameter; the ASU returns the standard 114-byte signature. Only plain Ed448 (no
- * context, no prehash) maps to the ASU; anything else declines to software. */
+/* Full-hardware Ed448 sign. Like Ed25519: message in the digest field, 57-byte
+ * seed in the key field; plain Ed448 only (context/prehash decline to software). */
 static int wc_AsuEd448Sign(wc_CryptoInfo* info)
 {
     WC_DECLARE_VAR(req, AsuEccReq, 1, NULL);
@@ -689,6 +679,7 @@ static int wc_AsuEd448Sign(wc_CryptoInfo* info)
     WC_ASU_PRINTF("[ASU] ed448 sign msgLen=%u\r\n", (unsigned int)msgLen);
 
     wc_AsuCacheFlush(req->key, ED448_KEY_SIZE);
+    wc_AsuCacheFlush(req->sign, ED448_SIG_SIZE);
     if (msgLen != 0) {
         wc_AsuCacheFlush(msg, msgLen);
     }
@@ -711,15 +702,14 @@ out:
     if (msgLen != 0 && msg != NULL) {
         XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
+    /* Scrub the private seed copied into req->key before freeing. */
+    ForceZero(req, sizeof(*req));
     WC_FREE_VAR_EX(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
-/* Full-hardware Ed448 verify. wolfSSL passes the 114-byte signature, the message,
- * and the 57-byte compressed public key (key->p). The ASU public-key buffer is the
- * curve point as 57 zero bytes (unused Qx) followed by the compressed key (Qy); the
- * ASU hashes the message internally and returns its verdict in the additional
- * status. *res is set to 1 only on a verified result (fail-closed otherwise). */
+/* Full-hardware Ed448 verify. The key buffer is 57 zero bytes then the compressed
+ * public key; *res is set to 1 only on a verified result (fail-closed). */
 static int wc_AsuEd448Verify(wc_CryptoInfo* info)
 {
     WC_DECLARE_VAR(req, AsuEccReq, 1, NULL);
