@@ -238,6 +238,7 @@
 #include <tests/api/test_wolfentropy.h>
 #include <tests/api/test_wolfevent.h>
 #include <tests/api/test_port.h>
+#include <tests/api/test_compress.h>
 #include <tests/api/test_wolfmath.h>
 #include <tests/api/test_rsa.h>
 #include <tests/api/test_dsa.h>
@@ -38683,6 +38684,7 @@ TEST_CASE testCases[] = {
     TEST_WOLFENTROPY_DECLS,
     TEST_WOLFEVENT_DECLS,
     TEST_PORT_DECLS,
+    TEST_COMPRESS_DECLS,
 
     /* Public key */
     /* wolfmath MP API tests */

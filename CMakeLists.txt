@@ -4407,6 +4407,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_wolfentropy.c
         tests/api/test_wolfevent.c
         tests/api/test_port.c
+        tests/api/test_compress.c
         tests/api/test_wolfmath.c
         tests/api/test_rsa.c
         tests/api/test_dsa.c
