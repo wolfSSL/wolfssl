@@ -5679,7 +5679,94 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                 ssl->buffers.inputBuffer.bufferSize);
         #endif
         }
-        ssl->keys.encryptionOn = 0;
+        /* Recycling the object for a new connection must not carry the
+         * previous connection's key material along with it. A freshly
+         * created object has all of this zeroed. */
+        ForceZero(&ssl->keys, sizeof(Keys));
+    #ifdef WOLFSSL_MULTICAST
+        if (ssl->options.haveMcast) {
+            int i;
+
+            for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++)
+                ssl->keys.peerSeq[i].peerId = INVALID_PEER_ID;
+        }
+    #endif
+    #ifdef WOLFSSL_TLS13
+        ForceZero(ssl->clientSecret, sizeof(ssl->clientSecret));
+        ForceZero(ssl->serverSecret, sizeof(ssl->serverSecret));
+        /* A key update the previous connection asked for has nothing to say
+         * about the next one, and the keys it would rotate are gone. */
+        ssl->options.sendKeyUpdate = 0;
+    #endif
+    #ifdef WOLFSSL_HAVE_TLS_UNIQUE
+        /* The channel binding of the connection that just ended. Leaving it
+         * in place would let the next caller bind to the wrong session. */
+        ForceZero(ssl->clientFinished, TLS_FINISHED_SZ_MAX);
+        ForceZero(ssl->serverFinished, TLS_FINISHED_SZ_MAX);
+        ssl->clientFinished_len = 0;
+        ssl->serverFinished_len = 0;
+    #endif
+    #ifdef WOLFSSL_DTLS13
+        /* Per-epoch traffic keys, IVs and sequence number keys. */
+        ForceZero(ssl->dtls13Epochs, sizeof(ssl->dtls13Epochs));
+        /* Only InitSSL() sets up the unprotected epoch 0 and aims the epoch
+         * pointers at it, and this object is being reused rather than freed,
+         * so put it back or the next handshake has no valid epoch. */
+        ssl->dtls13Epochs[0].isValid = 1;
+        ssl->dtls13Epochs[0].side = ENCRYPT_AND_DECRYPT_SIDE;
+        ssl->dtls13EncryptEpoch = &ssl->dtls13Epochs[0];
+        ssl->dtls13DecryptEpoch = &ssl->dtls13Epochs[0];
+        /* The numbers that say which epoch to use sit outside the table and
+         * only ever move up, so wiping the table has to be matched here by
+         * hand. InitSSL() gets this for free from clearing the whole object.
+         * Left behind, they ask the next handshake to send under an epoch the
+         * table no longer holds, and Dtls13SetEpochKeys() fails the connection
+         * with BAD_STATE_E. */
+        w64Zero(&ssl->dtls13Epoch);
+        w64Zero(&ssl->dtls13PeerEpoch);
+        w64Zero(&ssl->dtls13InvalidateBefore);
+        ssl->dtls13WaitKeyUpdateAck = 0;
+        ssl->dtls13DoKeyUpdate = 0;
+        ssl->dtls13SendingAckOrRtx = 0;
+        /* Anything still queued for retransmission or acknowledgement is
+         * tagged with an epoch that no longer exists, so it can never be sent
+         * and would only be released when the object is freed. */
+        Dtls13FreeFsmResources(ssl);
+        ssl->dtls13Rtx.sendAcks = 0;
+        ssl->dtls13Rtx.retransmit = 0;
+    #endif
+        /* The handshake arrays hold the master and pre-master secrets. Wipe
+         * those in place rather than releasing the arrays, so that the
+         * allocation stays valid for wolfSSL_set_secret(), the exporter and
+         * the other accessors that read from it once a connection has ended.
+         * An application that asked to keep the arrays still gets back
+         * everything the API can hand it, so only the rest goes. */
+        if (ssl->arrays != NULL) {
+            if (ssl->arrays->preMasterSecret != NULL) {
+                ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+                /* The key agreement routines take this as the size of the
+                 * buffer they may write, so put back what a freshly
+                 * allocated Arrays would carry. */
+                ssl->arrays->preMasterSz = ENCRYPT_LEN;
+            }
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            ForceZero(ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+            ssl->arrays->psk_keySz = 0;
+        #endif
+        #ifdef WOLFSSL_TLS13
+            /* The key schedule secret. No API hands this one back. */
+            ForceZero(ssl->arrays->secret, SECRET_LEN);
+        #endif
+            if (!ssl->options.saveArrays) {
+                ForceZero(ssl->arrays->masterSecret, SECRET_LEN);
+            #ifdef HAVE_KEYING_MATERIAL
+                /* Tls13_Exporter() reads this one, and exporting keying
+                 * material requires the arrays to be kept, so it only goes
+                 * when the application did not ask for that. */
+                ForceZero(ssl->arrays->exporterSecret, WC_MAX_DIGEST_SIZE);
+            #endif
+            }
+        }
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
         /* Discard any partial handshake-message reassembly on reuse. */

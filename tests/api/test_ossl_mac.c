@@ -157,6 +157,55 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest,
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_HMAC) */
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC) && !defined(NO_SHA256)
+/* Returns 1 when every byte of the buffer is zero. */
+static int test_mac_all_zero(const void* buf, size_t len)
+{
+    const byte* p = (const byte*)buf;
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        if (p[i] != 0) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+#endif
+
+int test_wolfSSL_HMAC_CTX_cleanup_zeroize(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC) && !defined(NO_SHA256)
+    /* The saved pads are the key combined with the fixed inner and outer
+     * padding, so cleanup has to wipe them along with the HMAC object. */
+    WOLFSSL_HMAC_CTX ctx;
+    unsigned char key[] = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                          "\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+
+    ExpectIntEQ(HMAC_CTX_init(&ctx), 1);
+    ExpectIntEQ(HMAC_Init_ex(&ctx, key, (int)sizeof(key) - 1, EVP_sha256(),
+        NULL), 1);
+
+    /* Keying the context must have filled the saved pads. */
+    ExpectIntEQ(test_mac_all_zero(ctx.save_ipad, sizeof(ctx.save_ipad)), 0);
+    ExpectIntEQ(test_mac_all_zero(ctx.save_opad, sizeof(ctx.save_opad)), 0);
+
+    HMAC_CTX_cleanup(&ctx);
+
+    ExpectIntEQ(test_mac_all_zero(ctx.save_ipad, sizeof(ctx.save_ipad)), 1);
+    ExpectIntEQ(test_mac_all_zero(ctx.save_opad, sizeof(ctx.save_opad)), 1);
+
+    /* Re-initializing without a key must now be rejected. Recovering from
+     * the wiped pads would silently MAC with an all zero key. */
+    ExpectIntEQ(HMAC_Init_ex(&ctx, NULL, 0, NULL, NULL), 0);
+
+    HMAC_CTX_cleanup(&ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_HMAC_CTX(void)
 {
     EXPECT_DECLS;

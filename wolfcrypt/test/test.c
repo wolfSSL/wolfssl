@@ -37594,6 +37594,55 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
         defined(HAVE_CURVE448)) && \
     defined(HAVE_AESGCM)
 
+/* Install rng on an HPKE kem key, for the key types that keep one. */
+static void hpke_test_set_key_rng(int kem, void* key, WC_RNG* rng)
+{
+    switch (kem) {
+#if defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            (void)wc_ecc_set_rng((ecc_key*)key, rng);
+            break;
+#endif
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)
+        case DHKEM_X25519_HKDF_SHA256:
+            (void)wc_curve25519_set_rng((curve25519_key*)key, rng);
+            break;
+#endif
+        default:
+            break;
+    }
+
+    (void)key;
+    (void)rng;
+}
+
+/* Returns 1 when the key still holds rng, or when this key type does not keep
+ * an RNG in this build. */
+static int hpke_test_key_rng_kept(int kem, void* key, WC_RNG* rng)
+{
+    switch (kem) {
+#if defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            return ((ecc_key*)key)->rng == rng;
+#endif
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)
+        case DHKEM_X25519_HKDF_SHA256:
+            return ((curve25519_key*)key)->rng == rng;
+#endif
+        default:
+            break;
+    }
+
+    (void)key;
+    (void)rng;
+
+    return 1;
+}
+
 /* test null/bad arguments for wc_HpkeInit, a one-shot seal/open round-trip
  * with wc_HpkeSealBase/wc_HpkeOpenBase, and auth failure cases (wrong info,
  * wrong AAD, tampered ciphertext, wrong receiver key) */
@@ -37687,6 +37736,14 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke, int kem, int kdf, int aead)
         ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, rng);
         if (ret != 0)
             ret = WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* The keys belong to the caller, so give them an RNG of our own. HPKE
+     * borrows the key to compute the shared secret and must hand it back
+     * unchanged. */
+    if (ret == 0) {
+        hpke_test_set_key_rng(kem, ephemeralKey, rng);
+        hpke_test_set_key_rng(kem, receiverKey, rng);
     }
 
     /* Negative test case with NULL argument */
@@ -37976,6 +38033,13 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke, int kem, int kdf, int aead)
             ret = WC_TEST_RET_ENC_NC;
     }
 
+    /* Seal and open install a temporary RNG on the caller's key and then free
+     * it. Neither key may be left pointing at that freed RNG. */
+    if (ret == 0 && !hpke_test_key_rng_kept(kem, ephemeralKey, rng))
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret == 0 && !hpke_test_key_rng_kept(kem, receiverKey, rng))
+        ret = WC_TEST_RET_ENC_NC;
+
     if (ephemeralKey != NULL)
         wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
     if (receiverKey != NULL)
@@ -38036,6 +38100,13 @@ static wc_test_ret_t hpke_test_multi(Hpke* hpke)
         ret = wc_HpkeGenerateKeyPair(hpke, &ephemeralKey, rng);
     if (ret == 0)
         ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, rng);
+
+    /* The context API reaches the same encap and decap that the one-shot API
+     * does, so give the keys an RNG to watch here too. */
+    if (ret == 0) {
+        hpke_test_set_key_rng(hpke->kem, ephemeralKey, rng);
+        hpke_test_set_key_rng(hpke->kem, receiverKey, rng);
+    }
 
     /* Negative test case with NULL argument */
     if (ret == 0) {
@@ -38394,6 +38465,13 @@ static wc_test_ret_t hpke_test_multi(Hpke* hpke)
         else
             ret = 0;
     }
+
+    /* Seal and open install a temporary RNG on the caller's key and then free
+     * it. Neither key may be left pointing at that freed RNG. */
+    if (ret == 0 && !hpke_test_key_rng_kept(hpke->kem, ephemeralKey, rng))
+        ret = WC_TEST_RET_ENC_NC;
+    if (ret == 0 && !hpke_test_key_rng_kept(hpke->kem, receiverKey, rng))
+        ret = WC_TEST_RET_ENC_NC;
 
     if (ephemeralKey != NULL)
         wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);

@@ -608,6 +608,54 @@ static int test_wc_LoadStaticMemory_CTX(void)
 }
 
 
+/* An ECIES context allocated from a heap hint must be returned to that same
+ * heap, so the hint has to survive the reset that sets the context defaults. */
+static int test_wc_ecc_ctx_new_ex_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN) && \
+    defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG)
+    byte staticMemory[TEST_LSM_STATIC_SIZE];
+    word32 sizeList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_BUCKETS };
+    word32 distList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_DIST };
+    WOLFSSL_HEAP_HINT* heap = NULL;
+    WOLFSSL_MEM_STATS stats;
+    WC_RNG rng;
+    ecEncCtx* ctx = NULL;
+    int rngInit = 0;
+
+    XMEMSET(&stats, 0, sizeof(stats));
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new_ex(REQ_RESP_CLIENT, &rng, heap));
+    wc_ecc_ctx_free(ctx);
+    ctx = NULL;
+
+    /* The context came out of the static heap, so freeing it must put it
+     * back rather than hand it to the default allocator. */
+    if (EXPECT_SUCCESS() && (heap != NULL)) {
+        ExpectIntEQ(wolfSSL_GetMemStats(heap->memory, &stats), 1);
+        ExpectIntEQ(stats.curAlloc, 0);
+        ExpectIntEQ(stats.totalAlloc, stats.totalFr);
+    }
+
+    if (rngInit) {
+        wc_FreeRng(&rng);
+    }
+    wc_UnloadStaticMemory(heap);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 /*----------------------------------------------------------------------------*
  | Platform dependent function test
  *----------------------------------------------------------------------------*/
@@ -9851,6 +9899,142 @@ static int test_wolfSSL_clear_secure_renegotiation(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+/* Returns 1 when every byte of the buffer is zero. */
+static int test_clear_all_zero(const void* buf, size_t len)
+{
+    const byte* p = (const byte*)buf;
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        if (p[i] != 0) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+#endif
+
+/* wolfSSL_clear recycles the object for a new connection, so it must not carry
+ * the previous connection's key material into the reused object. */
+static int test_wolfSSL_clear_zeroizes_secrets(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* Ask to hold on to the handshake arrays, both so the master secret is
+     * still resident when the object is recycled and so the clear is required
+     * to honour that request. */
+    if (ssl_s != NULL) {
+        wolfSSL_KeepArrays(ssl_s);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The completed connection left key material behind. */
+    if (EXPECT_SUCCESS() && (ssl_s != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.client_write_key,
+            sizeof(ssl_s->keys.client_write_key)), 0);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.server_write_key,
+            sizeof(ssl_s->keys.server_write_key)), 0);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->clientSecret,
+            sizeof(ssl_s->clientSecret)), 0);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->serverSecret,
+            sizeof(ssl_s->serverSecret)), 0);
+        ExpectNotNull(ssl_s->arrays);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->masterSecret,
+            SECRET_LEN), 0);
+    }
+
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS() && (ssl_s != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.client_write_key,
+            sizeof(ssl_s->keys.client_write_key)), 1);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->keys.server_write_key,
+            sizeof(ssl_s->keys.server_write_key)), 1);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->clientSecret,
+            sizeof(ssl_s->clientSecret)), 1);
+        ExpectIntEQ(test_clear_all_zero(ssl_s->serverSecret,
+            sizeof(ssl_s->serverSecret)), 1);
+        /* The application asked to keep the handshake arrays, so they must
+         * survive along with the master secret it wants to read back. */
+        ExpectNotNull(ssl_s->arrays);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->masterSecret,
+            SECRET_LEN), 0);
+        /* The pre-master secret is not part of that contract. */
+        ExpectNotNull(ssl_s->arrays->preMasterSecret);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL) &&
+            (ssl_s->arrays->preMasterSecret != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->preMasterSecret,
+            ENCRYPT_LEN), 1);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        /* The key schedule secret is not part of the contract either. */
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->secret, SECRET_LEN), 1);
+    #ifdef HAVE_KEYING_MATERIAL
+        /* The exporter secret is. Exporting keying material needs the arrays
+         * kept, and Tls13_Exporter() reads this one to do it. */
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->exporterSecret,
+            WC_MAX_DIGEST_SIZE), 0);
+    #endif
+    }
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) ||                  \
+     defined(HAVE_SECRET_CALLBACK)) && !defined(NO_WOLFSSL_CLIENT)
+    /* The documented reason to keep the arrays is to read this back. */
+    if (EXPECT_SUCCESS()) {
+        byte cr[RAN_LEN];
+
+        ExpectIntEQ(wolfSSL_get_client_random(ssl_s, cr, sizeof(cr)), RAN_LEN);
+    }
+#endif
+
+    /* Take the request back and clear again. Now the master secret has to go,
+     * but the arrays themselves still must not: the object is being recycled
+     * rather than freed, and wolfSSL_set_secret() along with the accessors
+     * that run after a connection all write into them. Some configurations,
+     * OpenVPN support among them, keep the arrays for every object, so set
+     * this directly rather than relying on the default. */
+    if (EXPECT_SUCCESS() && (ssl_s != NULL)) {
+        ssl_s->options.saveArrays = 0;
+        ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+        ExpectNotNull(ssl_s->arrays);
+    }
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->masterSecret,
+            SECRET_LEN), 1);
+    #ifdef HAVE_KEYING_MATERIAL
+        ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->exporterSecret,
+            WC_MAX_DIGEST_SIZE), 1);
+    #endif
+        ExpectNotNull(ssl_s->arrays->preMasterSecret);
+        /* The key agreement routines read this as the room they have. */
+        ExpectIntEQ((int)ssl_s->arrays->preMasterSz, ENCRYPT_LEN);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }
@@ -28256,6 +28440,73 @@ static int test_wolfSSL_X509_print_ext_key_usage(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_print_dir_altname(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && defined(XSNPRINTF) && \
+   !defined(WC_DISABLE_RADIX_ZERO_PAD) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* A directoryName alt name holds raw DER, which routinely contains zero
+     * bytes. The print path must use the stored entry length rather than
+     * treating the DER as a NUL terminated string. */
+    static const char dirName[] = {
+        /* countryName with an empty PrintableString, contributing a zero
+         * byte early in the encoding. */
+        0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x00,
+        /* commonName "Test", which sits after that zero byte. */
+        0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x04, 'T', 'e', 's', 't'
+    };
+    /* Shorter than the five bytes the tag scan needs. */
+    static const char shortDirName[] = { 0x30, 0x00 };
+    X509* x509 = NULL;
+    BIO*  bio  = NULL;
+    char* data = NULL;
+    int   len  = 0;
+    char  buf[8192];
+
+    ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, dirName, (word32)sizeof(
+        dirName), ASN_DIR_TYPE), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    /* Memory BIO data is not NUL-terminated; copy into a bounded buffer. */
+    ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+    ExpectIntLT(len, (int)sizeof(buf));
+    if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
+        ExpectNotNull(XSTRSTR(buf, "CN=Test"));
+    }
+    BIO_free(bio);
+    bio = NULL;
+    X509_free(x509);
+    x509 = NULL;
+
+    /* A directoryName too short to hold a tag must not be scanned past its
+     * end, and having nothing printable in it must not fail the print of the
+     * whole certificate. */
+    ExpectNotNull(x509 = X509_load_certificate_file(svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, shortDirName, (word32)sizeof(
+        shortDirName), ASN_DIR_TYPE), WOLFSSL_SUCCESS);
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+    ExpectIntLT(len, (int)sizeof(buf));
+    if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
+        ExpectNotNull(XSTRSTR(buf, "DirName:<unprintable>"));
+    }
+
+    BIO_free(bio);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
@@ -35683,6 +35934,151 @@ static int test_write_dup_oom(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) &&                   \
+    defined(WOLFSSL_SMALL_STACK) &&                                            \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) &&              \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_KERNEL_MODE) &&        \
+    !defined(NO_SHA256)
+/* Allocator that fails the Nth allocation once armed, counting every
+ * allocation rather than matching on size. Blocks handed out before the
+ * failure are filled with a non-zero pattern, since the point of the test is
+ * what the cleanup path does with allocated but not yet initialized memory. */
+static int srp_oom_count = 0;
+static int srp_oom_fail_at = 0;
+static int srp_oom_failed = 0;
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* srp_oom_malloc_cb(size_t size, const char* func, unsigned int line)
+{
+    void* p;
+
+    (void)func;
+    (void)line;
+#else
+static void* srp_oom_malloc_cb(size_t size)
+{
+    void* p;
+#endif
+
+    if (srp_oom_fail_at != 0) {
+        srp_oom_count++;
+        if (srp_oom_count == srp_oom_fail_at) {
+            srp_oom_failed = 1;
+            return NULL;
+        }
+    }
+
+    p = malloc(size);
+    if ((p != NULL) && (srp_oom_fail_at != 0)) {
+        XMEMSET(p, 0xA5, size);
+    }
+
+    return p;
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void srp_oom_free_cb(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void srp_oom_free_cb(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* srp_oom_realloc_cb(void* ptr, size_t size, const char* func,
+        unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* srp_oom_realloc_cb(void* ptr, size_t size)
+{
+#endif
+    return realloc(ptr, size);
+}
+#endif
+
+/* An allocation failure part way through the small stack allocations in
+ * wc_SrpComputeKey must not leave the cleanup path operating on mp_ints that
+ * were allocated but never initialized. */
+static int test_wc_SrpComputeKey_oom(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) &&                   \
+    defined(WOLFSSL_SMALL_STACK) &&                                            \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) &&              \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_KERNEL_MODE) &&        \
+    !defined(NO_SHA256)
+    Srp srp;
+    byte pubKey[8];
+    wolfSSL_Malloc_cb  prev_mc = NULL;
+    wolfSSL_Free_cb    prev_fc = NULL;
+    wolfSSL_Realloc_cb prev_rc = NULL;
+    int allocators_set = 0;
+    int ret;
+    int i;
+    int fired = 0;
+
+    XMEMSET(pubKey, 1, sizeof(pubKey));
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &prev_fc, &prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(srp_oom_malloc_cb, srp_oom_free_cb,
+            srp_oom_realloc_cb), 0);
+    if (EXPECT_SUCCESS()) {
+        allocators_set = 1;
+    }
+
+    /* wc_SrpComputeKey allocates a hash, a digest and four mp_ints before it
+     * initializes any of them, so failing part way through leaves allocated
+     * but uninitialized mp_ints for the cleanup path to deal with. Which
+     * ordinal lands there moves with the math backend and the small stack
+     * settings, so sweep past the six it is known to make rather than pin
+     * one: every failure point has to come back as an error, and none of them
+     * may crash. */
+    for (i = 1; i <= 8 && EXPECT_SUCCESS(); i++) {
+        /* Arm only around the call under test, so that the allocations
+         * wc_SrpInit and wc_SrpTerm make are neither counted nor failed. */
+        ExpectIntEQ(wc_SrpInit(&srp, SRP_TYPE_SHA256, SRP_CLIENT_SIDE), 0);
+        if (!EXPECT_SUCCESS()) {
+            break;
+        }
+
+        srp_oom_count = 0;
+        srp_oom_failed = 0;
+        srp_oom_fail_at = i;
+
+        ret = wc_SrpComputeKey(&srp, pubKey, (word32)sizeof(pubKey),
+                pubKey, (word32)sizeof(pubKey));
+
+        srp_oom_fail_at = 0;
+
+        /* Past the last allocation the call makes there is nothing to
+         * exercise, so only the ordinals that actually landed are judged. */
+        if (srp_oom_failed) {
+            fired++;
+            ExpectIntLT(ret, 0);
+        }
+
+        wc_SrpTerm(&srp);
+    }
+
+    /* A sweep that never injected anything would pass without testing
+     * anything. */
+    ExpectIntGT(fired, 0);
+
+    srp_oom_fail_at = 0;
+
+    if (allocators_set) {
+        (void)wolfSSL_SetAllocators(prev_mc, prev_fc, prev_rc);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_read_write_hs(void)
 {
 
@@ -37962,6 +38358,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wc_LoadStaticMemory_ex),
     TEST_DECL(test_wc_LoadStaticMemory_CTX),
+    TEST_DECL(test_wc_ecc_ctx_new_ex_heap),
 
     TEST_DECL(test_wc_FreeCertList),
     /* Locking with Compat Mutex */
@@ -38291,6 +38688,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_print),
     TEST_DECL(test_wolfSSL_X509_print_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
+    TEST_DECL(test_wolfSSL_X509_print_dir_altname),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 
@@ -38684,6 +39082,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_custom_ext_add_null),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
     TEST_DECL(test_wolfSSL_clear_secure_renegotiation),
+    TEST_DECL(test_wolfSSL_clear_zeroizes_secrets),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_wolfSSL_SCR_check_enabled),
     TEST_DECL(test_wolfSSL_ticket_keycb_bad_hmac),
@@ -38836,6 +39235,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_write_dup_want_write),
     TEST_DECL(test_write_dup_want_write_simul),
     TEST_DECL(test_write_dup_oom),
+    TEST_DECL(test_wc_SrpComputeKey_oom),
     TEST_DECL(test_read_write_hs),
     TEST_DECL(test_get_signature_nid),
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION

@@ -1879,7 +1879,7 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
                 }
             }
 
-            (void)wc_HmacFree(&hmacCtx.hmac);
+            wolfSSL_HMAC_CTX_cleanup(&hmacCtx);
         }
         (void)wolfSSL_EVP_CIPHER_CTX_cleanup(evpCtx);
         WC_FREE_VAR_EX(evpCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);

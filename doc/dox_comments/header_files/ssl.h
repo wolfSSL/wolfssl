@@ -3952,6 +3952,87 @@ int  wolfSSL_dtls_got_timeout(WOLFSSL* ssl);
 int wolfSSL_dtls_retransmit(WOLFSSL* ssl);
 
 /*!
+    \ingroup Setup
+
+    \brief Sends the DTLS 1.3 work that was scheduled while reading. With
+    WOLFSSL_RW_THREADED the read path never transmits, because that would race
+    the write thread over the output buffer and the sending key schedule, so
+    ACKs, retransmissions and a KeyUpdate the peer asked for are only sent from
+    the write side. An application that reads without writing must call this,
+    from the same thread it uses for writing, or those messages are never sent
+    and the peer keeps retransmitting what it is waiting to have acknowledged.
+    Not for write-dup applications, which drain through wolfSSL_write().
+
+    A KeyUpdate is only sent while none of ours is still unacknowledged, since
+    DTLS must not have two in flight. Completing one we started needs the
+    peer's acknowledgement processed, which rotates the sending keys and so
+    does not happen here, so in a WOLFSSL_RW_THREADED build a peer request
+    arriving after that point is held rather than answered.
+
+    A send that could only write part of a record returns WOLFSSL_FATAL_ERROR
+    with wolfSSL_get_error() reporting SSL_ERROR_WANT_WRITE. That is not a
+    failure of the connection: the record is held and the next call sends the
+    rest, so wolfSSL_dtls13_pending_work() keeps reporting work until it is
+    out. Treat it as a retry rather than as a reason to stop draining.
+
+    \return WOLFSSL_SUCCESS on success, including when there was nothing to do.
+    \return WOLFSSL_FATAL_ERROR if ssl is NULL, is not a DTLS 1.3 object, is
+    part of a write-dup pair, or the send failed. Call wolfSSL_get_error() to
+    tell a retryable SSL_ERROR_WANT_WRITE from a real failure.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    ...
+    while (wolfSSL_dtls13_pending_work(ssl)) {
+        if (wolfSSL_dtls13_do_scheduled_work(ssl) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_get_error(ssl, 0) == SSL_ERROR_WANT_WRITE) {
+                // the socket is full, wait for it and call again
+                break;
+            }
+            // a real error
+            break;
+        }
+    }
+    \endcode
+
+    \sa wolfSSL_dtls13_pending_work
+    \sa wolfSSL_dtls_retransmit
+*/
+int wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Reports whether the object has DTLS 1.3 work waiting to be sent by
+    wolfSSL_dtls13_do_scheduled_work(). Only meaningful with
+    WOLFSSL_RW_THREADED. The answer is advisory and can change as soon as it is
+    returned. Only work the pump can actually carry out is reported, so a drain
+    loop over the pair terminates; waiting for the peer to acknowledge a key
+    update we sent is not reported, as there is nothing to send for it. A
+    record the pump could only write in part is reported, so that the retry it
+    owes is not lost.
+
+    \return 1 if there is work to send, or if it could not be determined.
+    \return 0 if there is nothing to do, or ssl is not supported here.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    ...
+    if (wolfSSL_dtls13_pending_work(ssl))
+        wolfSSL_dtls13_do_scheduled_work(ssl);
+    \endcode
+
+    \sa wolfSSL_dtls13_do_scheduled_work
+*/
+int wolfSSL_dtls13_pending_work(WOLFSSL* ssl);
+
+/*!
     \brief This function is used to determine if the SSL session has been
     configured to use DTLS.
 

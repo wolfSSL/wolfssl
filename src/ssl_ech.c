@@ -123,6 +123,15 @@ int wolfSSL_CTX_GenerateEchConfigEx(WOLFSSL_CTX* ctx, const char* publicName,
     if (ret == 0)
         ret = wc_HpkeGenerateKeyPair(hpke, &newConfig->receiverPrivkey, rng);
 
+    /* The key outlives this RNG, and key generation may have stored a
+     * pointer to it in the key, so take it back out before freeing it. */
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)
+    if ((ret == 0) && (kemId == DHKEM_X25519_HKDF_SHA256)) {
+        (void)wc_curve25519_set_rng(
+            (curve25519_key*)newConfig->receiverPrivkey, NULL);
+    }
+#endif
+
     /* done with RNG */
     wc_FreeRng(rng);
 

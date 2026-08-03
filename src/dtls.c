@@ -66,6 +66,11 @@
 
 void DtlsResetState(WOLFSSL* ssl)
 {
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
+    defined(WOLFSSL_RW_THREADED)
+    int locked;
+#endif
+
     /* Reset the state so that we can statelessly await the
      * ClientHello that contains the cookie. Don't gate on IsAtLeastTLSv1_3
      * to handle the edge case when the peer wants a lower version. */
@@ -98,6 +103,17 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->options.tls1_1 = 0;
     ssl->options.tls1_3 = 0;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#ifdef WOLFSSL_RW_THREADED
+    /* wolfSSL_dtls_set_pending_peer() may run on another thread, so take the
+     * lock the record layer uses for these two fields before dropping what
+     * that call left behind. Callers must not already hold peerLock:
+     * re-acquiring a write lock is undefined and deadlocks rather than fails,
+     * so the only failure this can report is a broken or uninitialised lock.
+     * Clear the fields anyway in that case, since resetting the state is the
+     * whole point of this call and leaving a pending peer behind is worse than
+     * the race. dtlsProcessPendingPeer() and ProcessReplyEx() do the same. */
+    locked = (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) == 0);
+#endif
     ssl->buffers.dtlsCtx.processingPendingRecord = 0;
     /* Clear the pending peer in case user set */
     XFREE(ssl->buffers.dtlsCtx.pendingPeer.sa, ssl->heap,
@@ -105,6 +121,10 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
     ssl->buffers.dtlsCtx.pendingPeer.sz = 0;
     ssl->buffers.dtlsCtx.pendingPeer.bufSz = 0;
+#ifdef WOLFSSL_RW_THREADED
+    if (locked)
+        (void)wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock);
+#endif
 #endif
 }
 

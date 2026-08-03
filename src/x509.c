@@ -6859,7 +6859,7 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
     word32       k = 0;
     word32       i = 0;
     const char * src = entry->name;
-    word32       src_len = (word32)XSTRLEN(src);
+    word32       src_len = 0;
     int          total_len = 0;
     int          bytes_left = max_len;
     int          fld_len = 0;
@@ -6867,14 +6867,24 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
 
     XMEMSET(dst, 0, max_len);
 
+    /* The entry holds raw DER which may contain zero bytes, and under
+     * WC_ASN_NO_HEAP it is not NUL terminated, so use the stored length. */
+    if (entry->len > 0) {
+        src_len = (word32)entry->len;
+    }
+
     /* loop over printable DIR tags. */
     for (k = 0; k < ACERT_NUM_DIR_TAGS; ++k) {
         const char * pfx = acert_dir_print[k].pfx;
         const byte * tag = acert_dir_print[k].tag;
         byte         asn_tag;
 
-        /* walk through entry looking for matches. */
-        for (i = 0; i < src_len - 5; ++i) {
+        /* Walk through entry looking for matches. A match needs three bytes
+         * of name OID plus a tag and a length, so the last offset worth
+         * testing is the one with exactly five bytes left. Written as an
+         * addition so a short entry simply skips the loop rather than
+         * underflowing the bound. */
+        for (i = 0; i + 5 <= src_len; ++i) {
             if (XMEMCMP(tag, &src[i], 3) == 0) {
                 if (bytes_left < 5) {
                     /* Not enough space left for name oid + tag + len. */
@@ -6994,6 +7004,12 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
         }
         else if (entry->type == ASN_DIR_TYPE) {
             len = X509PrintDirType(scratch, MAX_WIDTH, entry);
+            if (len == 0) {
+                /* Nothing in the encoding was printable. Emit a placeholder,
+                 * as the other unsupported entry types do, rather than
+                 * failing the print of the whole certificate. */
+                len = XSNPRINTF(scratch, MAX_WIDTH, "DirName:<unprintable>");
+            }
         }
         else if (entry->type == ASN_URI_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
@@ -15721,7 +15737,10 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
     }
 
 #ifdef WOLFSSL_IP_ALT_NAME
-    ret = CheckIPAddr(dCert, (char *)chk);
+    /* chk is length delimited and may not be NUL terminated, so check it
+     * against the iPAddress entries directly rather than through the
+     * NUL terminated CheckIPAddr helper. */
+    ret = CheckHostName(dCert, (char *)chk, chklen, 0, 1);
     if (ret == 0) {
         goto out;
     }

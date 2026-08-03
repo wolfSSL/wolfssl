@@ -7285,6 +7285,10 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
                                                 word32 fragOffset);
     WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  wolfssl_local_SockAddrSet(WOLFSSL_SOCKADDR* sockAddr,
+                                                 void* peer,
+                                                 unsigned int peerSz,
+                                                 void* heap);
     WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket);
     WOLFSSL_LOCAL void DtlsMsgDestroyFragBucket(DtlsFragBucket* fragBucket, void* heap);
     WOLFSSL_LOCAL int GetDtlsHandShakeHeader(WOLFSSL *ssl, const byte *input,

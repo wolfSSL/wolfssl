@@ -745,6 +745,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     byte pad = 0;
     int r;
     int hashInited = 0;
+    int mpInited = 0;
 
     /* validating params */
 
@@ -776,6 +777,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         r = MP_INIT_E;
         goto out;
     }
+    mpInited = 1;
 
     if (mp_iszero(&srp->priv) == MP_YES) {
         r = SRP_CALL_ORDER_E;
@@ -943,27 +945,27 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     XFREE(hash, srp->heap, DYNAMIC_TYPE_SRP);
     XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
     if (u) {
-        if (r != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (mpInited)
             mp_forcezero(u);
         XFREE(u, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (s) {
-        if (r != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (mpInited)
             mp_forcezero(s);
         XFREE(s, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (temp1) {
-        if (r != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (mpInited)
             mp_forcezero(temp1);
         XFREE(temp1, srp->heap, DYNAMIC_TYPE_SRP);
     }
     if (temp2) {
-        if (r != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (mpInited)
             mp_forcezero(temp2);
         XFREE(temp2, srp->heap, DYNAMIC_TYPE_SRP);
     }
 #else
-    if (r != WC_NO_ERR_TRACE(MP_INIT_E)) {
+    if (mpInited) {
         mp_forcezero(u);
         mp_forcezero(s);
         mp_forcezero(temp1);
