@@ -245,15 +245,22 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
         XFREE(pkcs7->stream->tag, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->nonce, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(pkcs7->stream->buffer, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        /* stream->bufferPt holds the AuthEnvelopedData encryptedContent
+         * buffer across WANT_READ re-entries. wc_PKCS7_DecodeAuthEnveloped
+         * Data() only frees it on its own error paths; if the stream is torn
+         * down while a decode is still pending (e.g. wc_PKCS7_Free() called
+         * after a WANT_READ), it must be freed here or it leaks. */
+        XFREE(pkcs7->stream->bufferPt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         /* stream->key is always allocated with MAX_ENCRYPTED_KEY_SZ */
         if (pkcs7->stream->key != NULL)
             ForceZero(pkcs7->stream->key, MAX_ENCRYPTED_KEY_SZ);
         XFREE(pkcs7->stream->key, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        pkcs7->stream->aad    = NULL;
-        pkcs7->stream->tag    = NULL;
-        pkcs7->stream->nonce  = NULL;
-        pkcs7->stream->buffer = NULL;
-        pkcs7->stream->key    = NULL;
+        pkcs7->stream->aad      = NULL;
+        pkcs7->stream->tag      = NULL;
+        pkcs7->stream->nonce    = NULL;
+        pkcs7->stream->buffer   = NULL;
+        pkcs7->stream->bufferPt = NULL;
+        pkcs7->stream->key      = NULL;
 
         /* reset values, note that content and tmpCert are saved */
         pkcs7->stream->maxLen   = 0;
@@ -16424,6 +16431,9 @@ authenv_atrbend:
             ForceZero(encryptedContent, (word32)encryptedContentSz);
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             encryptedContent = NULL;
+        #ifndef NO_PKCS7_STREAM
+            pkcs7->stream->bufferPt = NULL;
+        #endif
             ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
             XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             decryptedKey = NULL;
