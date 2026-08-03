@@ -1358,8 +1358,8 @@ int test_wc_ed448_check_key_decisions(void)
 
     /* Same construction with a byte inside the walked range cleared, so the
      * loop breaks with ret == 0 instead of running out: closes the byte
-     * compare's TRUE side and the following (ret == PUBLIC_KEY_E) guard's
-     * FALSE side. */
+     * compare's TRUE side and the FALSE side of the public-key-error guard
+     * that follows it. */
     near_p[29] = 0x00;
     ExpectIntEQ(wc_ed448_init(&freshKey), 0);
     ExpectIntEQ(wc_ed448_import_public_ex(near_p, ED448_PUB_KEY_SIZE,
