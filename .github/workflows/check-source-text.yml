@@ -6,6 +6,9 @@ name: Check Source Text
 #   * check-source-text.sh: trailing whitespace, hard tabs in C/H, CRLF,
 #     BOM / non-ASCII.
 #   * bash -n + shellcheck (warning level) on shell scripts.
+#   * check-workflows.py: every `run:` step against GitHub's 21000
+#     character cap, past which GitHub stops loading the workflow file
+#     altogether and its runs fail in 0s with zero jobs.
 #
 # Scope:
 #   * pull_request: only files changed in the PR (catches new violations
@@ -37,10 +40,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # python3-yaml backs check-workflows.py, which measures run: steps
+      # from the parsed YAML rather than from the raw text.
       - name: Install shellcheck
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: shellcheck
+          packages: shellcheck python3-yaml
           ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Collect files to check
@@ -64,6 +69,13 @@ jobs:
             echo "count=0" >> "$GITHUB_OUTPUT"
             echo "sh_count=$(wc -l < changed-sh.txt)" >> "$GITHUB_OUTPUT"
           fi
+
+      # Always over the whole set, not just PR-changed files: the cap is a
+      # property of each file on its own, the check takes well under a
+      # second for the ~110 of them, and a workflow can be pushed over the
+      # line by a change to a file the PR does not otherwise touch.
+      - name: Lint workflow files
+        run: ./.github/scripts/check-workflows.py
 
       - name: Run check-source-text (PR changed files)
         if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'

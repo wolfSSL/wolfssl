@@ -1,0 +1,16 @@
+[
+  {"name": "sanitize-asan", "configure": ["--enable-all"],
+   "cflags": "-fsanitize=address -fno-omit-frame-pointer -g -O1",
+   "ldflags": "-fsanitize=address"},
+  {"name": "opensslextra-norealloc-asan", "configure": ["--enable-opensslextra"],
+   "cflags": "-DWOLFSSL_NO_REALLOC -fsanitize=address -fno-omit-frame-pointer -g -O1",
+   "ldflags": "-fsanitize=address"},
+  {"name": "enable-all-smallstack", "configure": ["--enable-all", "--enable-smallstack"]},
+  {"name": "enable-all", "configure": ["--enable-all"]},
+  {"name": "integration", "configure": ["--enable-openssh", "--enable-lighty", "--enable-stunnel", "--enable-opensslextra"]},
+  {"name": "dtls-suite", "configure": ["--enable-psk", "--enable-dtls", "--enable-dtls13", "--enable-dtls-mtu", "--enable-aesccm", "--enable-opensslextra"]},
+  {"name": "opensslextra", "configure": ["--enable-opensslextra"]},
+  {"name": "default"},
+  {"name": "cryptonly", "configure": ["--enable-cryptonly"]},
+  {"name": "leantls-extra", "configure": ["--enable-leantls", "--enable-session-ticket", "--enable-sni", "--enable-opensslextra"]}
+]

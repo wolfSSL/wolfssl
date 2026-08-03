@@ -92,6 +92,7 @@ python3-docutils
 python3-impacket
 python3-ldb
 python3-psutil
+python3-yaml
 shellcheck
 uuid-dev
 valgrind
