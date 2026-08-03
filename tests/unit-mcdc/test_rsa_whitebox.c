@@ -28,6 +28,9 @@
  *   Class 3  _RsaFlattenPublicKey NULL-pointer guard ...............  5 conditions
  *   Class 4  wc_CompareDiffPQ p/q NULL guard ......................  2 conditions
  *   Class 5  _RsaPrivateKeyDecodeRaw arg/size guards ............... 15 conditions
+ *   Class 9  wc_RsaCleanup data/type guard ..........................  4 conditions
+ *   Class 10 wc_CheckProbablePrime_ex qRaw/qRawSz cross-check ........ 2 conditions
+ *   Class 11 wc_RsaFunctionNonBlock key/nb NULL guard ................ 2 conditions
  * The RsaMGF1 buffer-size check (line ~1038) is intentionally skipped: its
  * second operand ((word32)hLen > sizeof(tmpA)) is structurally unsatisfiable
  * (hLen <= WC_MAX_DIGEST_SIZE < WC_MAX_DIGEST_SIZE+4 == sizeof(tmpA)), so
@@ -429,6 +432,163 @@ static void wb_check_probable_prime(void)
 static void wb_check_probable_prime(void) { WB_NOTE("KEY_GEN off / PUBLIC_ONLY; _CheckProbablePrime skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Class 9: wc_RsaCleanup() data/type guard (line ~163, 4 conditions).
+ *
+ *   if ((key->data != NULL && key->dataLen > 0) &&
+ *       (key->type == RSA_PRIVATE_DECRYPT || key->type == RSA_PRIVATE_ENCRYPT))
+ *
+ * File-static, called only internally after every RSA op with a key whose
+ * data/dataLen/type are already self-consistent, so the individual operand
+ * flips below (data==NULL, dataLen==0, type neither PRIVATE_DECRYPT nor
+ * PRIVATE_ENCRYPT) are white-box only. data points at a stack buffer with
+ * dataIsAlloc==0 so ForceZero runs but XFREE does not (no allocation here).
+ * ------------------------------------------------------------------------- */
+#if !defined(WOLFSSL_NO_MALLOC) && (defined(WOLFSSL_ASYNC_CRYPT) || \
+    (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
+static void wb_rsa_cleanup(void)
+{
+    RsaKey key;
+    byte   buf[8];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(buf, 0xAA, sizeof(buf));
+
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    /* all-true: data!=NULL, dataLen>0, type==PRIVATE_DECRYPT -> ForceZero */
+    key.data = buf; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
+    key.type = RSA_PRIVATE_DECRYPT;
+    wc_RsaCleanup(&key);
+
+    /* type==PRIVATE_ENCRYPT: other half of the (C||D) type pair */
+    key.data = buf; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
+    key.type = RSA_PRIVATE_ENCRYPT;
+    wc_RsaCleanup(&key);
+
+    /* data==NULL -> first AND-operand false */
+    key.data = NULL; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
+    key.type = RSA_PRIVATE_DECRYPT;
+    wc_RsaCleanup(&key);
+
+    /* dataLen==0 -> first AND-operand false (other leaf) */
+    key.data = buf; key.dataLen = 0; key.dataIsAlloc = 0;
+    key.type = RSA_PRIVATE_DECRYPT;
+    wc_RsaCleanup(&key);
+#endif
+
+    /* type neither PRIVATE_DECRYPT nor PRIVATE_ENCRYPT -> (C||D) false */
+    key.data = buf; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
+    key.type = RSA_PUBLIC_ENCRYPT;
+    wc_RsaCleanup(&key);
+
+    WB_NOTE("wc_RsaCleanup data/type guard pairs exercised");
+}
+#else
+static void wb_rsa_cleanup(void) { WB_NOTE("wc_RsaCleanup body compiled out; nothing to exercise"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 10: wc_CheckProbablePrime_ex() qRaw/qRawSz cross-check
+ * (line ~5324, 2 conditions).
+ *
+ *   if ((qRaw != NULL && qRawSz == 0) || (qRaw == NULL && qRawSz != 0))
+ *       return BAD_FUNC_ARG;
+ *
+ * A public API, but llvm-cov computes MC/DC independence per binary: driving
+ * this decision's 4 leaf values from tests/api split across several distinct
+ * test-case call sites does not by itself guarantee the pair for each operand
+ * lands together in one profile. Exercised here within a single binary so the
+ * independence pairs are unambiguous.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+static void wb_check_probable_prime_ex_qraw(void)
+{
+    byte pRaw[2] = { 0x03, 0x03 };
+    byte eRaw[3] = { 0x01, 0x00, 0x01 };
+    int  isPrime = 0;
+
+    /* qRaw!=NULL, qRawSz==0 -> first term true */
+    (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), pRaw, 0,
+        eRaw, sizeof(eRaw), 1024, &isPrime, NULL);
+    /* qRaw==NULL, qRawSz!=0 -> second term true */
+    (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), NULL, 2,
+        eRaw, sizeof(eRaw), 1024, &isPrime, NULL);
+    /* qRaw==NULL, qRawSz==0 -> all-false (q omitted, valid) */
+    (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), NULL, 0,
+        eRaw, sizeof(eRaw), 1024, &isPrime, NULL);
+    /* qRaw!=NULL, qRawSz!=0 -> all-false (q supplied, valid) */
+    (void)wc_CheckProbablePrime_ex(pRaw, sizeof(pRaw), pRaw, sizeof(pRaw),
+        eRaw, sizeof(eRaw), 1024, &isPrime, NULL);
+
+    WB_NOTE("wc_CheckProbablePrime_ex qRaw/qRawSz cross-check pairs exercised");
+}
+#else
+static void wb_check_probable_prime_ex_qraw(void) { WB_NOTE("KEY_GEN off / PUBLIC_ONLY; wc_CheckProbablePrime_ex skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 11: wc_RsaFunctionNonBlock() key/key->nb NULL guard
+ * (line ~2299, 2 conditions).
+ *
+ *   if (key == NULL || key->nb == NULL) return BAD_FUNC_ARG;
+ *
+ * Only compiled under WC_RSA_NONBLOCK (the "nonblock" variant, fastmath).
+ * Every public entry point attaches an RsaNb via wc_RsaSetNonBlock before
+ * dispatching here, so the nb==NULL true side is white-box only. The
+ * all-false call passes the guard into the SP-nonblock/fastmath state
+ * machine; driving that state machine to completion is out of scope here.
+ * ------------------------------------------------------------------------- */
+#ifdef WC_RSA_NONBLOCK
+static void wb_rsa_function_nonblock(void)
+{
+    RsaKey key;
+    WC_RNG rng;
+    RsaNb  nb;
+    byte   in[4] = { 0x01, 0x02, 0x03, 0x04 };
+    byte   out[256];
+    word32 outLen;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    if (wc_InitRsaKey(&key, NULL) != 0 || wc_InitRng(&rng) != 0) {
+        WB_NOTE("init failed (wc_RsaFunctionNonBlock skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng) != 0) {
+        WB_NOTE("wc_MakeRsaKey failed (wc_RsaFunctionNonBlock skipped)");
+        wc_FreeRng(&rng);
+        wc_FreeRsaKey(&key);
+        wb_fail = 1;
+        return;
+    }
+
+    /* key==NULL -> idx0 true */
+    outLen = sizeof(out);
+    (void)wc_RsaFunctionNonBlock(in, sizeof(in), out, &outLen,
+        RSA_PUBLIC_ENCRYPT, NULL);
+
+    /* key!=NULL but key->nb==NULL (never attached) -> idx1 true */
+    outLen = sizeof(out);
+    (void)wc_RsaFunctionNonBlock(in, sizeof(in), out, &outLen,
+        RSA_PUBLIC_ENCRYPT, &key);
+
+    /* all-false: nb attached, guard passes into the state machine */
+    if (wc_RsaSetNonBlock(&key, &nb) == 0) {
+        outLen = sizeof(out);
+        (void)wc_RsaFunctionNonBlock(in, sizeof(in), out, &outLen,
+            RSA_PUBLIC_ENCRYPT, &key);
+    }
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    WB_NOTE("wc_RsaFunctionNonBlock key/nb NULL guard pairs exercised");
+}
+#else
+static void wb_rsa_function_nonblock(void) { WB_NOTE("WC_RSA_NONBLOCK off; wc_RsaFunctionNonBlock skipped"); }
+#endif
+
 int main(void)
 {
     printf("rsa.c white-box MC/DC supplement\n");
@@ -444,6 +604,9 @@ int main(void)
     wb_rsa_pad();
     wb_rsa_unpad();
     wb_check_probable_prime();
+    wb_rsa_cleanup();
+    wb_check_probable_prime_ex_qraw();
+    wb_rsa_function_nonblock();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */
