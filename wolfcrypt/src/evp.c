@@ -9307,8 +9307,11 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
         return WOLFSSL_FAILURE;
     }
 
-    /* Old pointer is invalid from this point on */
+    /* Old pointer is invalid from this point on. The new buffer holds no
+     * encoding yet and can be smaller than the old one, so drop the old size
+     * rather than let a failure below return with the two out of step. */
     pkey->pkey.ptr = (char*)derBuf;
+    pkey->pkey_sz = 0;
 
     if (rsa->type == RSA_PRIVATE) {
         ret = wc_RsaKeyToDer(rsa, derBuf, (word32)derSz);
@@ -9346,6 +9349,9 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
 
     if (ret < 0) {
         WOLFSSL_MSG("PopulateRSAEvpPkeyDer failed");
+        /* pkey_sz is zero here, so the header size cannot stay behind or the
+         * export paths subtract it from zero and underflow. */
+        pkey->pkcs8HeaderSz = 0;
         return WOLFSSL_FAILURE;
     }
     else {
