@@ -32,6 +32,7 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 
 #include "xil_cache.h"
+#include "xil_util.h"
 #include "xstatus.h"
 
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_RTC
@@ -68,10 +69,24 @@ void wc_AsuWaitPrepare(AsuWait* wait, XAsu_ClientParams* params)
     params->AdditionalStatus = (u32)XST_FAILURE;
 }
 
+#ifndef WC_ASU_WAIT_TIMEOUT_US
+    /* Per poll cycle in microseconds; the loop re-arms until the flag is set, so a
+     * timeout just repeats the wait rather than failing the transaction. */
+    #define WC_ASU_WAIT_TIMEOUT_US 1000000U
+#endif
+
 word32 wc_AsuWaitDone(AsuWait* wait)
 {
     while (wait->Done == 0) {
-        /* busy wait for the single threaded baremetal client */
+    #ifdef XYIELD
+        /* Hand the wait to an RTOS/scheduler when the app defines XYIELD. */
+        XYIELD();
+    #else
+        /* Poll the completion flag with a bounded wait, re-arming until it is set.
+         * Done is one byte, so mask the low byte of the word Xil_WaitForEvent reads. */
+        (void)Xil_WaitForEvent((UINTPTR)&wait->Done, 0xFFU, 1U,
+            WC_ASU_WAIT_TIMEOUT_US);
+    #endif
     }
 
     return wait->Status;
