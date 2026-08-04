@@ -199,9 +199,9 @@ int test_wc_PortDecisionCoverage(void)
         /* strlcat(3) returns the total length it tried to create: the initial
          * length of dst plus the length of src. */
         XMEMSET(lcatDst, 0, sizeof(lcatDst));
-        XMEMCPY(lcatDst, "he", 3);
-        ExpectIntEQ((int)wc_strlcat(lcatDst, " world", sizeof(lcatDst)), 8);
-        ExpectIntEQ(XSTRNCMP(lcatDst, "he worl", 8), 0);
+        XMEMCPY(lcatDst, "ab", 3);
+        ExpectIntEQ((int)wc_strlcat(lcatDst, "cdefghi", sizeof(lcatDst)), 9);
+        ExpectIntEQ(XSTRNCMP(lcatDst, "abcdefg", 8), 0);
 
         /* fits: no truncation, and the result is the concatenation. */
         XMEMSET(lcatDst, 0, sizeof(lcatDst));

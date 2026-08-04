@@ -36,7 +36,7 @@
  * file-static helpers, or operand combinations (malformed hand-built date
  * strings, out-of-range RDN OIDs, buffer-size probes) that no real caller
  * ever supplies with production DER/dates. This file compiles asn.c
- * directly (#include) to reach those statics; independence pairs are
+ * directly (#include) to reach those helpers; independence pairs are
  * completed *within this file* (masking MC/DC is computed per binary,
  * coverage unioned by source line:col with tests/api and the sibling
  * unit-mcdc asn binaries centrally).

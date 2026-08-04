@@ -206,7 +206,7 @@ static void wb_match_base_name(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS; skipped
  *   GetUriHost(): :18736-:18737 (bad args), :18744 ("://" scan),
  *                 :18772 (bracket scan), :18794 (trailing-dot re-check)
  * Driven indirectly through wolfssl_local_MatchUriNameConstraint() (the
- * only external entry point reaching these file-statics) since none of
+ * only external entry point reaching these file-static helpers) since none of
  * them are directly link-visible on their own; MatchUriNameConstraint IS
  * WOLFSSL_LOCAL/global so it is callable directly here.
  * ------------------------------------------------------------------------- */

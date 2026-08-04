@@ -239,7 +239,7 @@ static void wb_sha3_dispatch_aarch64(void)
  *
  * p is the block count, supplied internally: every public wrapper passes one
  * of the four WC_SHA3_*_COUNT constants and SHAKE passes the 128/256 ones, so
- * neither operand is ever true through the API. Both statics are in scope
+ * neither operand is ever true through the API. Both helpers are in scope
  * here, so call them with p outside the range and pair each against the count
  * the wrappers actually use.
  */

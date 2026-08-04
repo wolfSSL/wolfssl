@@ -476,11 +476,11 @@ static void wb_kari_rid_decode_chains(void)
 
 /* ------------------------------------------------------------------------- *
  * Section 7: wc_PKCS7_DecryptKekri() and wc_PKCS7_DecryptPwri() decode-walk
- * chains. Both are file-statics reached only through the full
+ * chains. Both are file-static helpers reached only through the full
  * wc_PKCS7_DecodeEnvelopedData() state machine (they assume pkcs7->state and
  * pkcs7->stream are already primed by the caller), so build a real KEKRI/
  * PWRI EnvelopedData message with the public Encode/AddRecipient API and
- * sweep the top-level decode entry point instead of calling the statics
+ * sweep the top-level decode entry point instead of calling the helpers
  * out of context.
  * ------------------------------------------------------------------------- */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \

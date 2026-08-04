@@ -536,23 +536,23 @@ static void wb_size_set_asn_items(void)
         /* NESTED */  { 1, ASN_SEQUENCE, 1, 1, 0 },
         /* LEAF   */    { 2, ASN_OCTET_STRING, 0, 0, 0 },
         };
-        ASNSetData nd[3];
+        ASNSetData nested[3];
         byte leafBuf[3] = { 1, 2, 3 };
         byte nestedBuf[2] = { 9, 9 };
         word32 sz;
 
         WB_NOTE("SizeASN_CalcDataLength(): headerOnly child, data==NULL/!=NULL [:866,:867]");
 
-        XMEMSET(nd, 0, sizeof(nd));
-        SetASN_Buffer(&nd[2], leafBuf, sizeof(leafBuf));
-        /* nd[1] (NESTED) left all-zero: data==NULL -> :867 2nd operand true */
-        ret = SizeASN_Items(wbNestedASN, nd, 3, &sz);
+        XMEMSET(nested, 0, sizeof(nested));
+        SetASN_Buffer(&nested[2], leafBuf, sizeof(leafBuf));
+        /* nested[1] (NESTED) left all-zero: data==NULL -> :867 2nd operand true */
+        ret = SizeASN_Items(wbNestedASN, nested, 3, &sz);
         WB_CHECK(ret == 0 && sz > 0, "nested headerOnly child, data==NULL (2nd operand true)");
 
-        XMEMSET(nd, 0, sizeof(nd));
-        SetASN_Buffer(&nd[2], leafBuf, sizeof(leafBuf));
-        SetASN_Buffer(&nd[1], nestedBuf, sizeof(nestedBuf)); /* data!=NULL -> 2nd operand false */
-        ret = SizeASN_Items(wbNestedASN, nd, 3, &sz);
+        XMEMSET(nested, 0, sizeof(nested));
+        SetASN_Buffer(&nested[2], leafBuf, sizeof(leafBuf));
+        SetASN_Buffer(&nested[1], nestedBuf, sizeof(nestedBuf)); /* data!=NULL -> 2nd operand false */
+        ret = SizeASN_Items(wbNestedASN, nested, 3, &sz);
         WB_CHECK(ret == 0 && sz > 0, "nested headerOnly child, data!=NULL (2nd operand false)");
     }
 }

@@ -67,7 +67,7 @@ static int wb_fail = 0;
     while (0)
 
 /* ------------------------------------------------------------------------- *
- * Section 1: streaming state machine statics (:215,:287,:320,:372,:381,:424,
+ * Section 1: streaming state machine internals (:215,:287,:320,:372,:381,:424,
  * :462,:482). NO_PKCS7_STREAM compiles these out; the "no_stream" variant
  * exercises the #else stub instead.
  * ------------------------------------------------------------------------- */
@@ -80,7 +80,7 @@ static void wb_stream_helpers(void)
     word32 idx = 0, tmpIdx = 0;
     int ret;
 
-    WB_NOTE("stream statics: Reset/Free NULL pkcs7/stream guards [:215,:287]");
+    WB_NOTE("stream internals: Reset/Free NULL pkcs7/stream guards [:215,:287]");
     wc_PKCS7_ResetStream(NULL);                 /* pkcs7==NULL, both false */
     wc_PKCS7_FreeStream(NULL);
     XMEMSET(&pkcs7, 0, sizeof(pkcs7));
@@ -177,7 +177,7 @@ static void wb_stream_helpers(void)
     wc_PKCS7_FreeStream(&pkcs7);
 }
 #else
-static void wb_stream_helpers(void) { WB_NOTE("NO_PKCS7_STREAM; stream statics skipped"); }
+static void wb_stream_helpers(void) { WB_NOTE("NO_PKCS7_STREAM; stream internals skipped"); }
 #endif
 
 /* ------------------------------------------------------------------------- *
@@ -1190,7 +1190,7 @@ static void wb_kari_guards(void)
     }
 }
 #else
-static void wb_kari_guards(void) { WB_NOTE("HAVE_ECC off; KARI statics skipped"); }
+static void wb_kari_guards(void) { WB_NOTE("HAVE_ECC off; KARI internals skipped"); }
 #endif
 
 /* ------------------------------------------------------------------------- *
