@@ -232,7 +232,8 @@
     enum wc_svr_flags {
         WC_SVR_FLAG_NONE = 0,
         WC_SVR_FLAG_INHIBIT = 1,
-        WC_SVR_FLAG_FUZZ
+        WC_SVR_FLAG_MAYBE_INHIBIT = 2,
+        WC_SVR_FLAG_FUZZ = 4
     };
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
@@ -785,6 +786,17 @@
         #endif
         #ifndef REENABLE_VECTOR_REGISTERS
             #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
+        #endif
+
+        #ifndef SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT
+            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+                #define SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT() wc_save_vector_registers_x86(WC_SVR_FLAG_FUZZ | WC_SVR_FLAG_MAYBE_INHIBIT)
+            #else
+                #define SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT() wc_save_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
+            #endif
+        #endif
+        #ifndef RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED
+            #define RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED() wc_restore_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
         #endif
 
     #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))

@@ -352,6 +352,16 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
     /* allow for nested calls */
     if (pstate && (pstate->fpu_state != 0U)) {
+        if (flags & WC_SVR_FLAG_MAYBE_INHIBIT) {
+            VRG_PR_WARN_X("BUG: wc_save_vector_registers_x86() called by pid %d on CPU %d "
+                          "with _MAYBE_INHIBIT flag at non-outermost depth %u.\n", task_pid_nr(current),
+                          raw_smp_processor_id(),
+                          (pstate->fpu_state & WC_FPU_COUNT_MASK));
+            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            dump_stack();
+            #endif
+            return BAD_STATE_E;
+        }
         if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG) {
             /* don't allow recursive inhibit calls when already inhibited --
              * it would add no functionality and require keeping a separate
@@ -385,6 +395,26 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
     }
 
     WC_RELAX_LONG_LOOP();
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    if (flags & WC_SVR_FLAG_FUZZ) {
+        int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
+        if (ret != 0) {
+            if (flags & WC_SVR_FLAG_MAYBE_INHIBIT)
+                flags |= WC_SVR_FLAG_INHIBIT;
+            else
+                return ret;
+        }
+    }
+#endif
+
+    if ((flags & WC_SVR_FLAG_MAYBE_INHIBIT) &&
+        ((preempt_count() != 0) && !may_use_simd()))
+    {
+        return WC_ACCEL_INHIBIT_E; /* not an error here, just a
+                                    * short-circuit result.
+                                    */
+    }
 
     if (flags & WC_SVR_FLAG_INHIBIT) {
         if ((preempt_count() != 0) && !may_use_simd())
@@ -427,14 +457,6 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
         return 0;
     }
-
-#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    if (flags & WC_SVR_FLAG_FUZZ) {
-        int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
-        if (ret != 0)
-            return ret;
-    }
-#endif
 
     if ((preempt_count() == 0) || may_use_simd()) {
         /* fpregs_lock() calls either local_bh_disable() or preempt_disable()
@@ -508,6 +530,11 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
     }
 
     if ((--pstate->fpu_state & WC_FPU_COUNT_MASK) > 0U) {
+        if (flags & WC_SVR_FLAG_MAYBE_INHIBIT)
+                VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+                              "with _MAYBE_INHIBIT flag at non-outermost depth %u.\n", task_pid_nr(current),
+                              raw_smp_processor_id(),
+                              (pstate->fpu_state & WC_FPU_COUNT_MASK) + 1U);
         if (flags & WC_SVR_FLAG_INHIBIT) {
             if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG)
                 pstate->fpu_state &= ~WC_FPU_INHIBITED_FLAG;
@@ -527,7 +554,7 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
         #endif
         local_bh_enable();
     } else if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG)) {
-        if (unlikely(! (flags & WC_SVR_FLAG_INHIBIT)))
+        if (unlikely(! (flags & (WC_SVR_FLAG_INHIBIT | WC_SVR_FLAG_MAYBE_INHIBIT))))
             VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                           "without _INHIBIT flag but saved state is _INHIBITED_.\n", task_pid_nr(current),
                           raw_smp_processor_id());
