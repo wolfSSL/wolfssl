@@ -35,6 +35,7 @@
  * WOLFSSL_KCAPI_HMAC:       Linux kernel crypto API for HMAC     default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_HMAC_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -42,9 +43,6 @@
 #ifndef NO_HMAC
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$g")
         #pragma const_seg(".fipsB$g")

@@ -22,14 +22,12 @@
 /* Generic STM32 Hashing Function */
 /* Supports CubeMX HAL or Standard Peripheral Library */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_STM32_C
 
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/port/st/stm32.h>
-#include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFSSL_DHUK
     #include <wolfssl/wolfcrypt/cryptocb.h>

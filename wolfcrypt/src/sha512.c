@@ -54,6 +54,7 @@
  * WOLFSSL_RENESAS_RSIP:     Renesas RSIP SHA acceleration        default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_SHA512_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

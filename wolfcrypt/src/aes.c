@@ -114,6 +114,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_HW_METRICS:      Track hardware acceleration usage     default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_AES_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -123,9 +124,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 /* Tip: Locate the software cipher modes by searching for "Software AES" */
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$b")
         #pragma const_seg(".fipsB$b")

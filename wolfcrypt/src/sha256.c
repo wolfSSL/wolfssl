@@ -38,6 +38,7 @@ on the specific device platform.
 
 */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_SHA256_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

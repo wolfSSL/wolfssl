@@ -27,6 +27,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_RSA_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -34,9 +35,6 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifndef NO_RSA
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
        #ifdef USE_WINDOWS_API
                #pragma code_seg(".fipsA$j")
                #pragma const_seg(".fipsB$j")

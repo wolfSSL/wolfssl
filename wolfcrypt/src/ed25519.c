@@ -28,15 +28,13 @@
  *     Check that the private key didn't change during the signing operations.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_ED25519_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED25519
 #if FIPS_VERSION3_GE(6,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
        #ifdef USE_WINDOWS_API
                #pragma code_seg(".fipsA$f")
                #pragma const_seg(".fipsB$f")

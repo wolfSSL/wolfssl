@@ -67,6 +67,7 @@
  *   some platforms and is smaller in code size.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WC_MLKEM_POLY_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

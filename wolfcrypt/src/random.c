@@ -108,6 +108,7 @@ This library contains implementation for the random number generator.
  *                           tuning details.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_RANDOM_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -122,9 +123,6 @@ This library contains implementation for the random number generator.
 
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$i")
