@@ -229,6 +229,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #ifndef NO_PWDBASED
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         (int)info->keySz, hashType)) != 0) {
+        ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -305,6 +306,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #ifndef NO_PWDBASED
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         (int)info->keySz, hashType)) != 0) {
+        ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
