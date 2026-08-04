@@ -38,7 +38,11 @@
      * it's a macro hardcoding it to literal 0).
      */
     #if defined(CONFIG_CRYPTO_FIPS) != defined(HAVE_FIPS)
-        #error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS.
+        #ifdef HAVE_FIPS
+            #error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS (CONFIG_CRYPTO_FIPS unset).
+        #else
+            #error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS (HAVE_FIPS unset).
+        #endif
     #endif
 #endif
 
