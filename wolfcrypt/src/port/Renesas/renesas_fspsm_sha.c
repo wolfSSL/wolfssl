@@ -281,6 +281,11 @@ static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
     }
     wc_fspsm_hw_lock();
     ret = Init(&hash->handle);
+    if (ret != FSP_SUCCESS) {
+        WOLFSSL_MSG("ShaInit operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
     wc_fspsm_hw_unlock();
     return ret;
 #endif
@@ -370,6 +375,11 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
     }
     wc_fspsm_hw_lock();
     ret = Update(&hash->handle, (byte*)data, sz);
+    if (ret != FSP_SUCCESS) {
+        WOLFSSL_MSG("ShaUpdate operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
     wc_fspsm_hw_unlock();
     return ret;
 #endif
@@ -418,24 +428,29 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
  #endif
     wc_fspsm_hw_lock();
 
-    if ((ret = Init(&handle)) == FSP_SUCCESS) {
-        ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
-        if (ret == FSP_SUCCESS) {
-            ret = Final(&handle, out, (uint32_t*)&sz);
-            if (ret != FSP_SUCCESS
-            #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-             || sz != outSz
-            #endif
-            ) {
-                WOLFSSL_MSG("Sha operation failed");
-                WOLFSSL_ERROR(WC_HW_E);
-                ret = WC_HW_E;
-            }
+    if ((ret = Init(&handle)) != FSP_SUCCESS) {
+        WOLFSSL_MSG("Sha init operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
+    else if ((ret = Update(&handle, (uint8_t*)hash->msg, hash->used))
+            != FSP_SUCCESS) {
+        WOLFSSL_MSG("Sha update operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
+    else {
+        ret = Final(&handle, out, (uint32_t*)&sz);
+        if (ret != FSP_SUCCESS
+        #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+         || sz != outSz
+        #endif
+        ) {
+            WOLFSSL_MSG("Sha operation failed");
+            WOLFSSL_ERROR(WC_HW_E);
+            ret = WC_HW_E;
         }
     }
-
-    if (ret != FSP_SUCCESS)
-        ret = WC_HW_E;
 
     wc_fspsm_hw_unlock();
 
@@ -523,19 +538,27 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     if (ret != 0) return ret;
  #endif
     wc_fspsm_hw_lock();
-    if (Init(&handle) == FSP_SUCCESS) {
-        ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
-        if (ret == FSP_SUCCESS) {
-            ret = Final(&handle, out, &sz);
-            if (ret != FSP_SUCCESS
-            #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-             || sz != outSz
-            #endif
-            ) {
-                WOLFSSL_MSG("Sha operation failed");
-                WOLFSSL_ERROR(WC_HW_E);
-                ret = WC_HW_E;
-            }
+    if ((ret = Init(&handle)) != FSP_SUCCESS) {
+        WOLFSSL_MSG("Sha init operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
+    else if ((ret = Update(&handle, (uint8_t*)hash->msg, hash->used))
+            != FSP_SUCCESS) {
+        WOLFSSL_MSG("Sha update operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
+    else {
+        ret = Final(&handle, out, &sz);
+        if (ret != FSP_SUCCESS
+        #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+         || sz != outSz
+        #endif
+        ) {
+            WOLFSSL_MSG("Sha operation failed");
+            WOLFSSL_ERROR(WC_HW_E);
+            ret = WC_HW_E;
         }
     }
     wc_fspsm_hw_unlock();
@@ -571,7 +594,7 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     if(FSPSM_HashCopy(hash, &hashCopy) != 0) {
         WOLFSSL_MSG("ShaCopy operation failed");
         WOLFSSL_ERROR(WC_HW_E);
-        ret = WC_HW_E;
+        return WC_HW_E;
     }
     wc_fspsm_hw_lock();
     ret = Final(&hashCopy.handle, out, (uint32_t*)&sz);

@@ -128,8 +128,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
     aes->left = 0;
 #endif
-    aes->ctx.cfd = -1;
+    /* release any session already held so re-keying does not orphan it */
+    wc_DevCryptoFree(&aes->ctx);
     aes->ctx.inited = 0;
+    aes->ctx.cfd = -1; /* not set when no session was open */
     XMEMCPY(aes->devKey, userKey, keylen);
 
     (void)dir;

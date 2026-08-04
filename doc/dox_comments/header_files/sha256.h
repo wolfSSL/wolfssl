@@ -366,12 +366,16 @@ int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
     \return negative on error
 
     \param src Source SHA256 structure
-    \param dst Destination SHA256 structure; must be zeroed/initialized
+    \param dst Destination SHA256 structure;
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
-    wc_Sha256 src, dst = {0};
-    int ret = wc_Sha256Copy(&src, &dst);
+    wc_Sha256 src, dst;
+    memset(&dst, 0, sizeof(dst));
+    int ret = wc_InitSha256(&src);
+    if (ret == 0)
+        ret = wc_Sha256Copy(&src, &dst);
     \endcode
 
     \sa wc_InitSha256
@@ -534,11 +538,15 @@ int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash);
 
     \param src Source SHA224 structure
     \param dst Destination SHA224 structure
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha224 src, dst;
-    int ret = wc_Sha224Copy(&src, &dst);
+    memset(&dst, 0, sizeof(dst));
+    int ret = wc_InitSha224(&src);
+    if (ret == 0)
+        ret = wc_Sha224Copy(&src, &dst);
     \endcode
 
     \sa wc_InitSha224

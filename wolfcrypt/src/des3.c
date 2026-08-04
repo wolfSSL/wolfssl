@@ -1565,16 +1565,19 @@
             for (i = 0; i < 16; i++) {            /* key chunk for each iteration */
                 XMEMSET(ks, 0, 8);                /* Clear key schedule */
 
-                for (j = 0; j < 56; j++)          /* rotate pc1 the right amount  */
-                    pcr[j] =
-                          pc1m[(l = j + totrot[i]) < (j < 28 ? 28 : 56) ? l : l-28];
-
                 /* rotate left and right halves independently */
+                for (j = 0; j < 28; j++) {   /* rotate pc1 the right amount */
+                    l = (j + totrot[i]) % 28;
+                    pcr[j]      = pc1m[l];
+                    pcr[j + 28] = pc1m[l + 28];
+                }
+
                 for (j = 0; j < 48; j++) { /* select bits individually */
                     byte bit;
                     byte mask;
                     bit =
-                        (byte)(pcr[pc2[j] - 1]); /* all pcr values are either 0 or 1 */
+                        (byte)(pcr[pc2[j] - 1]); /* all pcr values are either 0
+                                                    or 1 */
                     mask = (byte)(0 - bit);   /* mask is either 0xFF or 0x00 */
                     /* only set to bytebit value if bit == 1 */
                     ks[j/6] |=

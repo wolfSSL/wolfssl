@@ -193,11 +193,15 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash);
 
     \param src Source SHA structure
     \param dst Destination SHA structure
+    (must be zeroed or previously initialized)
 
     _Example_
     \code
     wc_Sha src, dst;
-    int ret = wc_ShaCopy(&src, &dst);
+    memset(&dst, 0, sizeof(dst));
+    int ret = wc_InitSha(&src);
+    if (ret == 0)
+        ret = wc_ShaCopy(&src, &dst);
     \endcode
 
     \sa wc_InitSha

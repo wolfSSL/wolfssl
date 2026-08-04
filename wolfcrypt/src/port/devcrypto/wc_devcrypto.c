@@ -77,8 +77,14 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
         return BAD_FUNC_ARG;
     }
 
+    /* Note: ctx is an out parameter and may be uninitialized stack memory, so
+     * it must not be inspected here. Callers that reuse a long lived ctx are
+     * responsible for calling wc_DevCryptoFree() before re-creating it. */
+
     /* sanity check on session type before creating descriptor */
     XMEMSET(ctx, 0, sizeof(WC_CRYPTODEV));
+
+    ctx->cfd = -1;
 
     /* clone the master fd */
     if (ioctl(fd, CRIOGET, &ctx->cfd) != 0) {

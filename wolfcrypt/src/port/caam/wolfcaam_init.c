@@ -806,7 +806,8 @@ int caamWriteToPartition(CAAM_ADDRESS addr, const unsigned char* in, int inSz)
     buf[0].TheAddress = (CAAM_ADDRESS)in;
     buf[0].Length = inSz;
 
-    arg[0] = addr;
+    /* this value will always be word32 or less no risk in cast */
+    arg[0] = (word32)addr;
     arg[1] = inSz;
 
     if ((wc_caamAddAndWait(buf, 1, arg, CAAM_WRITE_PART)) != 0) {
@@ -829,7 +830,7 @@ int caamReadPartition(CAAM_ADDRESS addr, unsigned char* out, int outSz)
     buf[0].TheAddress = (CAAM_ADDRESS)out;
     buf[0].Length = outSz;
 
-    arg[0] = addr;
+    arg[0] = (word32)addr;
     arg[1] = outSz;
 
     if ((wc_caamAddAndWait(buf, 1, arg, CAAM_READ_PART)) != 0) {

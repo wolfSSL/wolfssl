@@ -157,10 +157,15 @@ int wc_Sha256Update(wc_Sha256* sha, const byte* in, word32 sz)
 int wc_Sha256Final(wc_Sha256* sha, byte* hash)
 {
     int ret;
+    void* heap;
 
     if (sha == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    /* Cache the heap hint so the re-init below does not read it back out of a
+     * struct that wc_Sha256Free() has already torn down. */
+    heap = sha->heap;
 
     /* help static analysis tools out */
     XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
@@ -168,6 +173,7 @@ int wc_Sha256Final(wc_Sha256* sha, byte* hash)
     /* keep full message to hash at end instead of incremental updates */
     if ((ret = HashUpdate(sha, CRYPTO_SHA2_256, sha->msg, sha->used)) < 0) {
         wc_Sha256Free(sha);
+        (void)wc_InitSha256_ex(sha, heap, 0);
         return ret;
     }
     XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -176,11 +182,12 @@ int wc_Sha256Final(wc_Sha256* sha, byte* hash)
     ret = GetDigest(sha, CRYPTO_SHA2_256, hash);
     if (ret != 0) {
         wc_Sha256Free(sha);
+        (void)wc_InitSha256_ex(sha, heap, 0);
         return ret;
     }
 
     wc_Sha256Free(sha);
-    return wc_InitSha256_ex(sha, sha->heap, 0);
+    return wc_InitSha256_ex(sha, heap, 0);
 }
 
 
@@ -193,7 +200,8 @@ int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
     {
         int ret;
-        wc_Sha256 cpy = {0};
+        wc_Sha256 cpy;
+        XMEMSET(&cpy, 0, sizeof(cpy));
         ret = wc_Sha256Copy(sha, &cpy);
 
         if (ret == 0 && (ret = HashUpdate(&cpy,
@@ -240,6 +248,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
     return ret;
 #else
+    /* dst is left untouched: nothing is copied or re-initialized here, so
+     * tearing it down would destroy a live caller object on a path that only
+     * reports "not supported". */
     (void)ret;
 
     WOLFSSL_MSG("Compile with WOLFSSL_DEVCRYPTO_HASH_KEEP for this feature");

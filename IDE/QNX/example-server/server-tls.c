@@ -169,8 +169,10 @@ int cover(ecc_key* keyOut, const byte* der, word32 derSz)
         wc_ecc_free(keyOut);
         goto done;
     }
-    printf("blackKeySz = %d, virtual secure address ecc_key.blackKey = 0x%08X\n",
-            blackKeySz, keyOut->blackKey);
+    /* blackKey is CAAM_ADDRESS (uintptr_t), so cast up to a width that holds it
+     * on both armv7le and aarch64le rather than relying on int-sized varargs */
+    printf("blackKeySz = %u, virtual secure address ecc_key.blackKey "
+           "= 0x%08lX\n", blackKeySz, (unsigned long)keyOut->blackKey);
 
     ret = 0;
 done:

@@ -773,31 +773,6 @@
     }
 #endif
 
-/* Yield the CPU to another runnable thread. Used by spin-wait loops that are
- * waiting on another thread to finish a short critical section. Ports may
- * override. */
-#ifndef WOLFSSL_THREAD_YIELD
-    #if defined(SINGLE_THREADED)
-        #define WOLFSSL_THREAD_YIELD() WC_DO_NOTHING
-    #elif defined(WOLFSSL_PTHREADS)
-        #include <sched.h>
-        #define WOLFSSL_THREAD_YIELD() (void)sched_yield()
-    #elif defined(USE_WINDOWS_API) && !defined(WOLFSSL_NOT_WINDOWS_API)
-        #include <windows.h>
-        #define WOLFSSL_THREAD_YIELD() (void)SwitchToThread()
-    #elif defined(FREERTOS)
-        #define WOLFSSL_THREAD_YIELD() taskYIELD()
-    #elif defined(THREADX)
-        #define WOLFSSL_THREAD_YIELD() tx_thread_relinquish()
-    #elif defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x30100
-        #define WOLFSSL_THREAD_YIELD() k_yield()
-    #elif defined(WOLFSSL_VXWORKS)
-        #include <vxWorks.h>
-        #include <taskLib.h>
-        #define WOLFSSL_THREAD_YIELD() (void)taskDelay(0)
-    #endif
-#endif
-
 /* Reference counting. */
 typedef struct wolfSSL_RefWithMutex {
 #if !defined(SINGLE_THREADED)
@@ -1112,7 +1087,25 @@ WOLFSSL_LOCAL int wc_local_InitDown(wc_init_state_t *s);
 /* wc_local_InitDownDone() closes the critical span of a cleanup sequence. */
 WOLFSSL_LOCAL int wc_local_InitDownDone(wc_init_state_t *s);
 
-/* main crypto initialization function */
+/* main crypto initialization function
+ *
+ * THREADING: wolfCrypt_Init() and wolfCrypt_Cleanup() serialize against each
+ * other through the atomic init-state machine above (wc_local_InitUp() et al),
+ * so a thread arriving while another is still running the init or cleanup body
+ * spins until that body completes.  This holds only in builds with working
+ * atomics.  With WOLFSSL_NO_ATOMICS (or any non-SINGLE_THREADED build where
+ * WOLFSSL_ATOMIC_OPS ends up undefined), the atomic primitives degrade to
+ * plain non-atomic fallbacks with thread-unsafe semantics, and the state
+ * machine can no longer serialize anything: two threads racing the first
+ * wolfCrypt_Init() can then both run the init body and double-create internal
+ * resources, such as mutexes on ports where WOLFSSL_MUTEX_INITIALIZER is not
+ * defined and mutexes must be created at run time.
+ *
+ * Regardless of build, the recommended calling convention is to call
+ * wolfCrypt_Init() once during startup before starting the threads that use
+ * the library, and wolfCrypt_Cleanup() once during shutdown after those
+ * threads have been joined.
+ */
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Init(void);
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 

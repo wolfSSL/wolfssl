@@ -35,14 +35,9 @@
 #ifndef WOLF_CRYPT_CAAM_TYPE_H
 #define WOLF_CRYPT_CAAM_TYPE_H
 
+/* unguarded intentionaly as targets should have libc */
 #include <stdint.h>
 
-#ifndef CAAM_ADDRESS
-    #ifdef WOLFSSL_SECO_CAAM
-        #define CAAM_ADDRESS intptr_t
-    #else
-        #define CAAM_ADDRESS uintptr_t
-    #endif
-#endif
+#define CAAM_ADDRESS uintptr_t
 
 #endif /* WOLF_CRYPT_CAAM_TYPE_H */

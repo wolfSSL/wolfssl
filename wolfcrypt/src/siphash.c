@@ -80,7 +80,7 @@
  * @param [in] a  Little-endian byte array.
  * @return 16-bit number.
  */
-#define GET_U16(a)      (*(const word16*)(a))
+#define GET_U16(a)      readUnalignedWord16(a)
 /**
  * Encode 64-bit number to a little-endian byte array.
  *

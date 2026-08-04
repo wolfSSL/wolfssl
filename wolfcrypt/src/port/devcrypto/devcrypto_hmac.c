@@ -50,8 +50,9 @@ int wc_DevCrypto_HmacSetKey(Hmac* hmac, int t, const byte* key, word32 keySz)
 {
     int hType;
 
-    hmac->ctx.inited = 0;
-    hmac->ctx.cfd = -1;
+    /* Re-keying releases any session already held, so it is not orphaned by
+     * the wc_DevCryptoCreate() below. */
+    wc_DevCryptoFree(&hmac->ctx);
     hType = InternalTypeToDevcrypto(t);
     if (hType < 0) {
         return hType;

@@ -5971,8 +5971,13 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
+        /* Release any session already held. The session was created with the
+         * previous key, so re-keying must tear it down rather than just mark
+         * the context uninitialized, which would orphan the descriptor and
+         * leave the stale key in use. */
+        wc_DevCryptoFree(&aes->ctx);
         aes->ctx.inited = 0;
-        aes->ctx.cfd    = -1;
+        aes->ctx.cfd = -1; /* not set when no session was open */
     #endif
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
     #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -15787,7 +15792,6 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
-    aes->ctx.inited = 0;
     aes->ctx.cfd    = -1;
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
