@@ -196,14 +196,15 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
-    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    int ret;
     WC_DECLARE_VAR(key, byte, WC_MAX_SYM_KEY_SIZE, 0);
 
     (void)derSz;
     (void)passwordSz;
     (void)hashType;
 
-    if (der == NULL || password == NULL || info == NULL || info->keySz == 0) {
+    if (der == NULL || password == NULL || info == NULL || info->keySz == 0 ||
+            info->keySz > WC_MAX_SYM_KEY_SIZE) {
         return BAD_FUNC_ARG;
     }
 
@@ -237,17 +238,35 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 #endif
 
+    switch (info->cipherType)
+    {
 #ifndef NO_DES3
-    if (info->cipherType == WC_CIPHER_DES)
+    case WC_CIPHER_DES:
         ret = wc_Des_CbcDecryptWithKey(der, der, derSz, key, info->iv);
-    if (info->cipherType == WC_CIPHER_DES3)
+        break;
+    case WC_CIPHER_DES3:
         ret = wc_Des3_CbcDecryptWithKey(der, der, derSz, key, info->iv);
+        break;
+#else
+    case WC_CIPHER_DES:
+    case WC_CIPHER_DES3:
+        ret = NOT_COMPILED_IN;
+        break;
 #endif /* NO_DES3 */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
-    if (info->cipherType == WC_CIPHER_AES_CBC)
+    case WC_CIPHER_AES_CBC:
         ret = wc_AesCbcDecryptWithKey(der, der, derSz, key, info->keySz,
             info->iv);
+        break;
+#else
+    case WC_CIPHER_AES_CBC:
+        ret = NOT_COMPILED_IN;
+        break;
 #endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
+    default:
+        ret = ALGO_ID_E;
+        break;
+    }
 
     ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
@@ -262,7 +281,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
-    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    int ret;
     WC_DECLARE_VAR(key, byte, WC_MAX_SYM_KEY_SIZE, 0);
 
     (void)derSz;
@@ -270,7 +289,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     (void)hashType;
 
     if (der == NULL || password == NULL || info == NULL || info->keySz == 0 ||
-            info->ivSz < PKCS5_SALT_SZ) {
+            info->keySz > WC_MAX_SYM_KEY_SIZE || info->ivSz < PKCS5_SALT_SZ) {
         return BAD_FUNC_ARG;
     }
 
@@ -278,7 +297,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
         DYNAMIC_TYPE_SYMMETRIC_KEY, return MEMORY_E);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     XMEMSET(key, 0xff, WC_MAX_SYM_KEY_SIZE);
-    wc_MemZero_Add("wc_BufferKeyDecrypt key", key, WC_MAX_SYM_KEY_SIZE);
+    wc_MemZero_Add("wc_BufferKeyEncrypt key", key, WC_MAX_SYM_KEY_SIZE);
 #endif
 
     (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
@@ -295,17 +314,35 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 #endif
 
+    switch (info->cipherType)
+    {
 #ifndef NO_DES3
-    if (info->cipherType == WC_CIPHER_DES)
+    case WC_CIPHER_DES:
         ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
-    if (info->cipherType == WC_CIPHER_DES3)
+        break;
+    case WC_CIPHER_DES3:
         ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
+        break;
+#else
+    case WC_CIPHER_DES:
+    case WC_CIPHER_DES3:
+        ret = NOT_COMPILED_IN;
+        break;
 #endif /* NO_DES3 */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
-    if (info->cipherType == WC_CIPHER_AES_CBC)
+    case WC_CIPHER_AES_CBC:
         ret = wc_AesCbcEncryptWithKey(der, der, derSz, key, info->keySz,
             info->iv);
+        break;
+#else
+    case WC_CIPHER_AES_CBC:
+        ret = NOT_COMPILED_IN;
+        break;
 #endif /* !NO_AES && HAVE_AES_CBC */
+    default:
+        ret = ALGO_ID_E;
+        break;
+    }
 
     ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
