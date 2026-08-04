@@ -4398,6 +4398,15 @@
     #endif
 
     #if defined(HAVE_FIPS)
+        #if FIPS_VERSION3_LT(6, 0, 0) && \
+            (defined(USE_INTEL_SPEEDUP) || \
+             defined(USE_INTEL_SPEEDUP_FOR_AES) || \
+             defined(WOLFSSL_AESNI))
+            #error Configured FIPS version does not support vector acceleration in kernel mode.
+        #endif
+        #if defined(WC_DEBUG_CIPHER_LIFECYCLE) && FIPS_VERSION3_LT(6, 0, 0)
+            #error Configured FIPS version does not support WC_DEBUG_CIPHER_LIFECYCLE.
+        #endif
         #if FIPS_VERSION3_LT(7, 0, 0)
             /* support RFC 4106 IPsec ESP 64 bit tags */
            #undef WOLFSSL_MIN_AUTH_TAG_SZ
@@ -5929,6 +5938,16 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     defined(WC_SHA2_NO_SMALL_STACK)
     #undef WOLFSSL_SMALL_STACK
     #undef WOLFSSL_SMALL_STACK_CACHE
+#endif
+
+#if (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES) || \
+     defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
+     defined(WOLFSSL_SP_ASM)) && !defined(WOLFSSL_NO_ASM)
+    #define WC_HAVE_VECTOR_SPEEDUPS
+#endif
+
+#if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_HAVE_VECTOR_SPEEDUPS)
+    #error WC_C_DYNAMIC_FALLBACK requires WC_HAVE_VECTOR_SPEEDUPS
 #endif
 
 #ifdef __cplusplus

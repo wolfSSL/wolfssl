@@ -2400,12 +2400,6 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
-#if (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES) || \
-     defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
-     defined(WOLFSSL_SP_ASM)) && !defined(WOLFSSL_NO_ASM)
-    #define WC_HAVE_VECTOR_SPEEDUPS
-#endif
-
 /* DISABLE_VECTOR_REGISTERS() and REENABLE_VECTOR_REGISTERS() are currently only
  * used by Linux kernel code.  If WC_HAVE_VECTOR_SPEEDUPS, we default
  * DISABLE_VECTOR_REGISTERS() to NOT_COMPILED_IN, to assure calling code is
