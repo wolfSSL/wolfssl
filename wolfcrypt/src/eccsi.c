@@ -464,6 +464,11 @@ int wc_MakeEccsiKey(EccsiKey* key, WC_RNG* rng)
     if (err == 0) {
         err = wc_ecc_make_key_ex(rng, key->ecc.dp->size, &key->ecc,
                 key->ecc.dp->id);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        /* ECCSI has no asynchronous API, so the caller cannot resume a
+         * pending key generation. Complete it here. */
+        err = wc_AsyncWait(err, &key->ecc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     }
 
     return err;
