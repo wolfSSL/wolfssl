@@ -1826,7 +1826,8 @@ void WOLFSSL_ERROR_MSG(const char* msg)
 
 #endif  /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
-#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) || \
+    defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_SUPPORT)
 
 #ifndef WOLFSSL_DEBUG_TRACE_ERROR_CODES_INIT_STATE
     #define WOLFSSL_DEBUG_TRACE_ERROR_CODES_INIT_STATE 1
@@ -1849,7 +1850,8 @@ int wc_debug_trace_error_codes_set(int state) {
                                        state);
 }
 
-#endif /* WOLFSSL_DEBUG_TRACE_ERROR_CODES */
+#endif /* WOLFSSL_DEBUG_TRACE_ERROR_CODES ||      */
+       /* WOLFSSL_DEBUG_TRACE_ERROR_CODES_SUPPORT */
 
 #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
 
