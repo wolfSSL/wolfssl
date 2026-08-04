@@ -150,7 +150,7 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
                            const byte* priv)
 {
     int ret;
-#ifdef FREESCALE_LTC_ECC
+#if defined(FREESCALE_LTC_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
     const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
     ECPoint wc_pub;
 #endif
@@ -332,7 +332,7 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
                                  const byte* priv, WC_RNG* rng)
 {
     int ret;
-#ifdef FREESCALE_LTC_ECC
+#if defined(FREESCALE_LTC_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
     const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
     ECPoint wc_pub;
 #endif
@@ -363,6 +363,8 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
+    /* the LTC path checks the rng, the callback path has no use for it */
+    (void)rng;
     return NO_VALID_DEVID;
 #else
 #ifdef FREESCALE_LTC_ECC

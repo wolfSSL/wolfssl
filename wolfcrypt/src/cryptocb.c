@@ -160,6 +160,8 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_EC_CHECK_PUB_KEY: return "ECC CheckPubKey";
         case WC_PK_TYPE_ED25519_MAKE_PUB: return "ED25519 MakePub";
         case WC_PK_TYPE_ED25519_CHECK_KEY: return "ED25519 CheckKey";
+        case WC_PK_TYPE_CURVE25519_MAKE_PUB: return "CURVE25519 MakePub";
+        case WC_PK_TYPE_CURVE25519_GENERIC: return "CURVE25519 Generic";
     }
     return NULL;
 }
