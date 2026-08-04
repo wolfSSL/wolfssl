@@ -1446,13 +1446,13 @@ static void wb_encode_crl_serial(void)
 
     /* sn==NULL -> 1st operand true. */
     ret = EncodeCrlSerial(NULL, 1, out, sizeof(out));
-    WB_CHECK(ret == BAD_FUNC_ARG, ":37729 1st operand true (sn==NULL)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":37729 1st operand true (sn==NULL)");
 
     /* snSzInt < 0: cast a huge word32 length to a negative int. */
     {
         byte sn[1] = { 0x05 };
         ret = EncodeCrlSerial(sn, 0x80000000u, out, sizeof(out));
-        WB_CHECK(ret == BAD_FUNC_ARG,
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 ":37729 1st false, 2nd true (snSzInt < 0)");
     }
 
@@ -1479,7 +1479,7 @@ static void wb_encode_crl_serial(void)
         byte sn[1] = { 0x05 };
         byte tiny[1];
         ret = EncodeCrlSerial(sn, 1, tiny, sizeof(tiny));
-        WB_CHECK(ret == BUFFER_E, ":37751 1st operand true (buffer too small)");
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), ":37751 1st operand true (buffer too small)");
     }
 
     /* :37751 both false: normal case, plenty of room. */
@@ -1509,21 +1509,21 @@ static void wb_make_crl_ex(void)
 
     ret = wc_MakeCRL_ex(NULL, 0, lastDate, ASN_GENERALIZED_TIME, NULL, 0,
             NULL, NULL, 0, CTC_SHA256wRSA, 1, NULL, 0);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":37887 issuerDer==NULL (1st operand true)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":37887 issuerDer==NULL (1st operand true)");
 
     ret = wc_MakeCRL_ex(issuer, 0, lastDate, ASN_GENERALIZED_TIME, NULL, 0,
             NULL, NULL, 0, CTC_SHA256wRSA, 1, NULL, 0);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":37887 issuerSz==0 (2nd operand true)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":37887 issuerSz==0 (2nd operand true)");
 
     ret = wc_MakeCRL_ex(issuer, sizeof(issuer), NULL, ASN_GENERALIZED_TIME,
             NULL, 0, NULL, NULL, 0, CTC_SHA256wRSA, 1, NULL, 0);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":37887 lastDate==NULL (3rd operand true)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":37887 lastDate==NULL (3rd operand true)");
 
     /* Invalid sigType -> SetAlgoID() returns 0 -> :37897 1st operand true. */
     ret = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
             ASN_GENERALIZED_TIME, NULL, 0, NULL, NULL, 0, 0 /* bad sigType */,
             1, NULL, 0);
-    WB_CHECK(ret == ALGO_ID_E, ":37897 1st operand true (unrecognized sigType)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E), ":37897 1st operand true (unrecognized sigType)");
 
     /* baseline v1, no nextDate/crlNumber -> :37906/:37924 all false. */
     need = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
@@ -1555,7 +1555,7 @@ static void wb_make_crl_ex(void)
     ret = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
             ASN_GENERALIZED_TIME, NULL, 0, NULL, crlNum, sizeof(crlNum),
             CTC_SHA256wRSA, 2, out, 1 /* too small */);
-    WB_CHECK(ret == BUFFER_E, ":37943 both true (buffer too small)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), ":37943 both true (buffer too small)");
 
     /* output!=NULL, buffer big enough -> :37943 1st true, 2nd false. */
     ret = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
@@ -1600,19 +1600,19 @@ static void wb_sign_crl(void)
     WB_NOTE("wc_SignCRL_ex(): rsaKey!=NULL && eccKey!=NULL [:38031]");
     ret = wc_SignCRL_ex(tbs, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             &rsaKeyStorage, &eccKeyStorage, NULL);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":38031 both true (both keys non-NULL)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38031 both true (both keys non-NULL)");
 
     /* rsaKey!=NULL, eccKey==NULL: proceeds into wc_SignCRL_ex2() with
      * tbsBuf==NULL, which fails there before rsaKeyStorage (uninitialized)
      * is ever touched. */
     ret = wc_SignCRL_ex(NULL, 0, CTC_SHA256wRSA, buf, sizeof(buf),
             &rsaKeyStorage, NULL, NULL);
-    WB_CHECK(ret == BAD_FUNC_ARG,
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             ":38031 1st true, 2nd false (only rsaKey set; fails downstream)");
 
     ret = wc_SignCRL_ex(NULL, 0, CTC_SHA256wECDSA, buf, sizeof(buf), NULL,
             &eccKeyStorage, NULL);
-    WB_CHECK(ret == BAD_FUNC_ARG,
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             ":38031 1st false, 2nd true (only eccKey set; fails downstream)");
 
     WB_NOTE("wc_SignCRL_ex2(): tbsBuf/tbsSz/buf/key/rng NULL-arg OR "
@@ -1624,28 +1624,28 @@ static void wb_sign_crl(void)
      * all-keyType-false baseline for Section 16b below. */
     ret = wc_SignCRL_ex2(tbs, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             999999 /* unrecognized keyType */, &rsaKeyStorage, &rngStorage);
-    WB_CHECK(ret == BAD_FUNC_ARG,
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             ":38083/:38084 all false (valid args, unrecognized keyType)");
 
     ret = wc_SignCRL_ex2(NULL, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             999999, &rsaKeyStorage, &rngStorage);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":38083 tbsBuf==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38083 tbsBuf==NULL");
 
     ret = wc_SignCRL_ex2(tbs, 0, CTC_SHA256wRSA, buf, sizeof(buf), 999999,
             &rsaKeyStorage, &rngStorage);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":38083 tbsSz<=0");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38083 tbsSz<=0");
 
     ret = wc_SignCRL_ex2(tbs, sizeof(tbs), CTC_SHA256wRSA, NULL, sizeof(buf),
             999999, &rsaKeyStorage, &rngStorage);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":38084 buf==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38084 buf==NULL");
 
     ret = wc_SignCRL_ex2(tbs, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             999999, NULL, &rngStorage);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":38084 key==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38084 key==NULL");
 
     ret = wc_SignCRL_ex2(tbs, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             999999, &rsaKeyStorage, NULL);
-    WB_CHECK(ret == BAD_FUNC_ARG, ":38084 rng==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38084 rng==NULL");
 
     WB_NOTE("wc_SignCRL_ex2(): keyType selector chain [:38114-:38128]");
     XMEMSET(&dummySlh, 0, sizeof(dummySlh));
@@ -1664,16 +1664,16 @@ static void wb_sign_crl(void)
 
     ret = wc_SignCRL_ex2(tbs, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             LMS_TYPE, &dummySlh, &rngStorage);
-    WB_CHECK(ret == ALGO_ID_E, ":38127 1st operand true (LMS_TYPE)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E), ":38127 1st operand true (LMS_TYPE)");
 
     ret = wc_SignCRL_ex2(tbs, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             XMSS_TYPE, &dummySlh, &rngStorage);
-    WB_CHECK(ret == ALGO_ID_E,
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E),
             ":38127 1st false, 2nd true (XMSS_TYPE)");
 
     ret = wc_SignCRL_ex2(tbs, sizeof(tbs), CTC_SHA256wRSA, buf, sizeof(buf),
             XMSSMT_TYPE, &dummySlh, &rngStorage);
-    WB_CHECK(ret == ALGO_ID_E,
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E),
             ":38127 1st/2nd false, 3rd true (XMSSMT_TYPE)");
 }
 #else

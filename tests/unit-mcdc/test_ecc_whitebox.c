@@ -676,13 +676,13 @@ static void wb_mulmod_ex2_null_guard(void)
     (void)mp_set(G->z, 1);
 
     ret = wc_ecc_mulmod_ex2(NULL, G, R, &a, &modulus, &order, NULL, 1, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = wc_ecc_mulmod_ex2(&k, NULL, R, &a, &modulus, &order, NULL, 1, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = wc_ecc_mulmod_ex2(&k, G, NULL, &a, &modulus, &order, NULL, 1, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = wc_ecc_mulmod_ex2(&k, G, R, &a, NULL, &order, NULL, 1, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* all-false baseline: real (if not curve-accurate) arithmetic inputs;
      * the generic point-math does not require the operands to satisfy a
@@ -733,9 +733,9 @@ static void wb_ecc_map_ex_null(void)
     (void)mp_set(P->z, 1);
 
     ret = ecc_map_ex(NULL, &modulus, 0, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = ecc_map_ex(P, NULL, 0, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     wc_ecc_del_point(P);
     mp_clear(&modulus);
@@ -777,44 +777,44 @@ static void wb_projective_wrappers(void)
 
     /* ---- ecc_projective_add_point: NULL guard, each operand isolated ---- */
     ret = ecc_projective_add_point(NULL, Q, R, &a, &modulus, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = ecc_projective_add_point(P, NULL, R, &a, &modulus, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = ecc_projective_add_point(P, Q, NULL, &a, &modulus, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = ecc_projective_add_point(P, Q, R, &a, NULL, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* ---- range check: each of the 6 coordinate comparisons isolated,
      * one coordinate at a time set >= modulus, rest in range. ---- */
     (void)mp_set_int(P->x, 1000000007uL); /* == modulus: not MP_LT */
     ret = ecc_projective_add_point(P, Q, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(P->x, 3);
 
     (void)mp_set_int(P->y, 1000000007uL);
     ret = ecc_projective_add_point(P, Q, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(P->y, 5);
 
     (void)mp_set_int(P->z, 1000000007uL);
     ret = ecc_projective_add_point(P, Q, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(P->z, 1);
 
     (void)mp_set_int(Q->x, 1000000007uL);
     ret = ecc_projective_add_point(P, Q, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(Q->x, 11);
 
     (void)mp_set_int(Q->y, 1000000007uL);
     ret = ecc_projective_add_point(P, Q, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(Q->y, 13);
 
     (void)mp_set_int(Q->z, 1000000007uL);
     ret = ecc_projective_add_point(P, Q, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(Q->z, 1);
 
     /* all-in-range baseline (drives the real _ecc_projective_add_point). */
@@ -824,25 +824,25 @@ static void wb_projective_wrappers(void)
     /* ---- ecc_projective_dbl_point: NULL guard + range check, same idea
      * with 3 operands (P/R/modulus; no Q). ---- */
     ret = ecc_projective_dbl_point(NULL, R, &a, &modulus, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = ecc_projective_dbl_point(P, NULL, &a, &modulus, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = ecc_projective_dbl_point(P, R, &a, NULL, 0);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     (void)mp_set_int(P->x, 1000000007uL);
     ret = ecc_projective_dbl_point(P, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(P->x, 3);
 
     (void)mp_set_int(P->y, 1000000007uL);
     ret = ecc_projective_dbl_point(P, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(P->y, 5);
 
     (void)mp_set_int(P->z, 1000000007uL);
     ret = ecc_projective_dbl_point(P, R, &a, &modulus, 0);
-    if (ret != ECC_OUT_OF_RANGE_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) { wb_fail = 1; }
     (void)mp_set(P->z, 1);
 
     ret = ecc_projective_dbl_point(P, R, &a, &modulus, 0);
@@ -942,17 +942,17 @@ static void wb_mul2add_and_bufsize(void)
 
     /* ---- 6-operand NULL guard, each isolated ---- */
     ret = WB_MUL2ADD_FN(NULL, &kA, B, &kB, C, &a, &modulus, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = WB_MUL2ADD_FN(A, NULL, B, &kB, C, &a, &modulus, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = WB_MUL2ADD_FN(A, &kA, NULL, &kB, C, &a, &modulus, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = WB_MUL2ADD_FN(A, &kA, B, NULL, C, &a, &modulus, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = WB_MUL2ADD_FN(A, &kA, B, &kB, NULL, &a, &modulus, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = WB_MUL2ADD_FN(A, &kA, B, &kB, C, &a, NULL, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* ---- ECC_BUFSIZE check: lenA/lenB isolated ---- */
     ret = WB_MUL2ADD_FN(A, &kBig, B, &kB, C, &a, &modulus, NULL);
@@ -1222,10 +1222,10 @@ static void wb_export_point_der(void)
     /* ---- curve_idx guard: both operands isolated ---- */
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der(-1, point, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der(9999, point, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* ---- length-query (point!=NULL && out==NULL && outLen!=NULL): isolate
      * point and outLen operands (out==NULL held true throughout). ---- */
@@ -1233,22 +1233,22 @@ static void wb_export_point_der(void)
     ret = wc_ecc_export_point_der(idx, point, NULL, &outLen);
     if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) { wb_fail = 1; }
     ret = wc_ecc_export_point_der(idx, point, NULL, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der(idx, NULL, NULL, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* ---- coordinate-size check: x/y isolated ---- */
     (void)mp_read_unsigned_bin(point->x, big, (int)sizeof(big));
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der(idx, point, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     (void)mp_set(point->x, 3);
 
     (void)mp_read_unsigned_bin(point->y, big, (int)sizeof(big));
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der(idx, point, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     (void)mp_set(point->y, 5);
 
     /* baseline real export. */
@@ -1259,24 +1259,24 @@ static void wb_export_point_der(void)
 #ifdef HAVE_COMP_KEY
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der_compressed(-1, point, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der_compressed(9999, point, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der_compressed(idx, point, NULL, &outLen);
     if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) { wb_fail = 1; }
     ret = wc_ecc_export_point_der_compressed(idx, point, NULL, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der_compressed(idx, NULL, NULL, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     (void)mp_read_unsigned_bin(point->x, big, (int)sizeof(big));
     outLen = sizeof(out);
     ret = wc_ecc_export_point_der_compressed(idx, point, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     (void)mp_set(point->x, 3);
 
     outLen = sizeof(out);
@@ -1330,16 +1330,16 @@ static void wb_export_x963_internal(void)
     ret = _ecc_export_x963(&key, NULL, &outLen);
     if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) { wb_fail = 1; }
     ret = _ecc_export_x963(&key, NULL, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     outLen = sizeof(out);
     ret = _ecc_export_x963(NULL, NULL, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* ---- NULL guard (key==NULL || out==NULL || outLen==NULL) ---- */
     ret = _ecc_export_x963(NULL, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
     ret = _ecc_export_x963(&key, out, NULL);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* ---- key->type==0 || is_valid_idx==0 || dp==NULL (shallow copies:
      * only .type/.dp differ, never freed, never dereferences pubkey). ---- */
@@ -1347,13 +1347,13 @@ static void wb_export_x963_internal(void)
     k2.type = 0;
     outLen = sizeof(out);
     ret = _ecc_export_x963(&k2, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     k2 = key;
     k2.dp = NULL;
     outLen = sizeof(out);
     ret = _ecc_export_x963(&k2, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     /* ---- pubxlen>numlen || pubylen>numlen: isolated ---- */
     (void)mp_read_unsigned_bin(key.pubkey.x, big, (int)sizeof(big));
@@ -1424,13 +1424,13 @@ static void wb_idx_dp_guard_export_paths(void)
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
         WC_TYPE_UNSIGNED_BIN);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.idx = idx; key.dp = NULL;
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
         WC_TYPE_UNSIGNED_BIN);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.idx = idx; key.dp = cs; /* baseline: real export */
     qxLen = sizeof(qx); qyLen = sizeof(qy);
@@ -1460,17 +1460,17 @@ static void wb_idx_dp_guard_export_paths(void)
     key.idx = idx; key.dp = cs; key.type = 0;
     outLen = sizeof(out);
     ret = wc_ecc_export_x963_compressed(&key, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.type = ECC_PUBLICKEY; key.idx = 9999; key.dp = cs;
     outLen = sizeof(out);
     ret = wc_ecc_export_x963_compressed(&key, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.idx = idx; key.dp = NULL;
     outLen = sizeof(out);
     ret = wc_ecc_export_x963_compressed(&key, out, &outLen);
-    if (ret != ECC_BAD_ARG_E) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.dp = cs; /* baseline: real compressed export */
     outLen = sizeof(out);

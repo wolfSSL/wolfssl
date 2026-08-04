@@ -19,8 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <limits.h>
 #include <tests/unit.h>
+
+/* After <tests/unit.h>: that header establishes wolfSSL's feature-test
+ * macros, and a libc header pulled in ahead of it fixes glibc's exposure
+ * before they are seen -- under -std=c89 that leaves POSIX types the rest of
+ * the suite needs undeclared. Every other file in tests/api/ starts with
+ * <tests/unit.h> for the same reason. INT_MAX is used below. */
+#include <limits.h>
 
 #ifdef HAVE_LIBZ
     #include <wolfssl/wolfcrypt/compress.h>

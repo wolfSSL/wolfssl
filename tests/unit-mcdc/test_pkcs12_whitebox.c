@@ -50,7 +50,7 @@
  *     (non-NULL), so callerAlloc==0 implies *pkcs12!=NULL always in this
  *     function. Structurally unreachable.
  *   - wc_PKCS12_create_key_bag()/PKCS12_create_key_content() ret<0 with
- *     ret!=LENGTH_ONLY_E does not have a companion "false" pairing beyond
+ *     ret!=WC_NO_ERR_TRACE(LENGTH_ONLY_E) does not have a companion "false" pairing beyond
  *     what is covered here (see Class 11 note at point of use).
  *   - GetSafeContent/wc_PKCS12_parse_ex indefinite-length (BER) decisions
  *     (line ~809, ~1470) need a genuinely BER indefinite-length top-level
@@ -545,7 +545,7 @@ static void wb_check_constructed_zero(void) { WB_NOTE("ASN_BER_TO_DER off; PKCS1
  *   if (outSz==NULL || pkcs12==NULL || rng==NULL || key==NULL || pass==NULL)
  * Class 11: wc_PKCS12_create_key_bag()/PKCS12_create_key_content()
  *   LENGTH_ONLY_E passthrough guards (pkcs12.c:2043, 2465):
- *   if (ret != LENGTH_ONLY_E && ret < 0) return ret;
+ *   if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E) && ret < 0) return ret;
  * wc_PKCS12_shroud_key(out==NULL,...) either returns LENGTH_ONLY_E (the
  * normal "just tell me the size" path) or a genuine negative error -- there
  * is no route to a non-negative, non-LENGTH_ONLY_E return, so only the
@@ -612,7 +612,7 @@ static void wb_shroud_and_keybag(void)
     }
 
     /* Class 11 true side: rng==NULL cascades a BAD_FUNC_ARG (non-negative-
-     * impossible, != LENGTH_ONLY_E) out of wc_PKCS12_shroud_key, through
+     * impossible, != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) out of wc_PKCS12_shroud_key, through
      * wc_PKCS12_create_key_bag's own check (2043) and then through
      * PKCS12_create_key_content's check (2465) in the same call. */
     keyBufSz = 0;

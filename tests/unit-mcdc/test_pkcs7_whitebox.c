@@ -798,7 +798,7 @@ static void wb_verify_guards(void)
         WB_CHECK(ret == 0, "SignerInfoNew for RsaVerify sid test");
         pkcs7.signerInfo->sid = NULL; /* :5151 2nd operand false: no sid check */
         ret = wc_PKCS7_RsaVerify(&pkcs7, sig, sizeof(sig), hash, sizeof(hash));
-        WB_CHECK(ret == SIG_VERIFY_E,
+        WB_CHECK(ret == WC_NO_ERR_TRACE(SIG_VERIFY_E),
                 ":5151 sid==NULL (skip match); :5162 keyOID!=RSAk true (ECC cert)");
         wc_PKCS7_SignerInfoFree(&pkcs7);
     }
@@ -822,7 +822,7 @@ static void wb_verify_guards(void)
         WB_CHECK(ret == 0, "SignerInfoNew for RsaPssVerify sid test");
         pkcs7.signerInfo->sid = NULL;
         ret = wc_PKCS7_RsaPssVerify(&pkcs7, sig, sizeof(sig), hash, sizeof(hash));
-        WB_CHECK(ret == SIG_VERIFY_E,
+        WB_CHECK(ret == WC_NO_ERR_TRACE(SIG_VERIFY_E),
                 ":5284 sid==NULL; :5294 keyOID!=RSAk&&!=RSAPSSk true (ECC cert)");
         wc_PKCS7_SignerInfoFree(&pkcs7);
     }
@@ -838,9 +838,9 @@ static void wb_verify_guards(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5396 sig==NULL");
     ret = wc_PKCS7_EcdsaVerify(&pkcs7, sig, sizeof(sig), hash,
             WC_MAX_DIGEST_SIZE + 1);
-    WB_CHECK(ret == BAD_LENGTH_E, ":5400 hashSz>WC_MAX_DIGEST_SIZE true");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_LENGTH_E), ":5400 hashSz>WC_MAX_DIGEST_SIZE true");
     ret = wc_PKCS7_EcdsaVerify(&pkcs7, sig, sizeof(sig), hash, 1);
-    WB_CHECK(ret == BAD_LENGTH_E, ":5400 hashSz<WC_MIN_DIGEST_SIZE_FOR_VERIFY true");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_LENGTH_E), ":5400 hashSz<WC_MIN_DIGEST_SIZE_FOR_VERIFY true");
 
     WB_NOTE("wc_PKCS7_EcdsaVerify(): sid defense-in-depth [:5467], RSA cert"
             " mismatch (no ECC key at all)");
@@ -851,7 +851,7 @@ static void wb_verify_guards(void)
         WB_CHECK(ret == 0, "SignerInfoNew for EcdsaVerify sid test");
         pkcs7.signerInfo->sid = NULL;
         ret = wc_PKCS7_EcdsaVerify(&pkcs7, sig, sizeof(sig), hash, WC_SHA256_DIGEST_SIZE);
-        WB_CHECK(ret == SIG_VERIFY_E,
+        WB_CHECK(ret == WC_NO_ERR_TRACE(SIG_VERIFY_E),
                 ":5467 sid==NULL (skip match); loop exhausts on non-ECC cert");
         wc_PKCS7_SignerInfoFree(&pkcs7);
     }
@@ -963,7 +963,7 @@ static void wb_digest_verify(void)
         ret = wc_PKCS7_ParseAttribs(&pkcs7, attrBuf, (int)idx);
         WB_CHECK(ret == 1, "ParseAttribs found 1 attrib (messageDigest, empty value)");
         ret = wc_PKCS7_VerifyContentMessageDigest(&pkcs7, NULL, 0);
-        WB_CHECK(ret == ASN_PARSE_E, ":5853 attrib->valueSz==0 true");
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":5853 attrib->valueSz==0 true");
     }
     wc_PKCS7_FreeDecodedAttrib(pkcs7.decodedAttrib, NULL);
     pkcs7.decodedAttrib = NULL;
@@ -1020,7 +1020,7 @@ static void wb_digest_verify(void)
         ret = wc_PKCS7_ParseAttribs(&pkcs7, attrBuf, (int)idx);
         WB_CHECK(ret == 1, "ParseAttribs found messageDigest w/ wrong-size hash");
         ret = wc_PKCS7_VerifyContentMessageDigest(&pkcs7, NULL, 0);
-        WB_CHECK(ret == SIG_VERIFY_E, ":5929 1st operand true (size mismatch)");
+        WB_CHECK(ret == WC_NO_ERR_TRACE(SIG_VERIFY_E), ":5929 1st operand true (size mismatch)");
         wc_PKCS7_FreeDecodedAttrib(pkcs7.decodedAttrib, NULL);
         pkcs7.decodedAttrib = NULL;
     }
@@ -1068,7 +1068,7 @@ static void wb_cek_keywrap(void)
     ret = PKCS7_GenerateContentEncryptionKey(&pkcs7, sizeof(cek));
     WB_CHECK(ret == 0, ":8355 both true, matching size -> early return 0");
     ret = PKCS7_GenerateContentEncryptionKey(&pkcs7, sizeof(cek) + 1);
-    WB_CHECK(ret == WC_KEY_SIZE_E, ":8355 both true, size mismatch");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E), ":8355 both true, size mismatch");
     pkcs7.cek = NULL; pkcs7.cekSz = 0;
 
     WB_NOTE("wc_PKCS7_KeyWrap(): NULL guard [:8405]");
@@ -1587,12 +1587,12 @@ static void wb_parse_signer_info(void)
     idx = 0; signedAttrib = NULL; signedAttribSz = 0;
     ret = wc_PKCS7_ParseSignerInfo(&pkcs7, NULL, 0, &idx, 0, &signedAttrib,
             &signedAttribSz);
-    WB_CHECK(ret == PKCS7_NO_SIGNER_E, ":6394 both true (noDegenerate, inSz==0)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E), ":6394 both true (noDegenerate, inSz==0)");
     pkcs7.noDegenerate = 0;
     idx = 0;
     ret = wc_PKCS7_ParseSignerInfo(&pkcs7, NULL, 0, &idx, 0, &signedAttrib,
             &signedAttribSz);
-    WB_CHECK(ret == PKCS7_NO_SIGNER_E, ":6399 both true (inSz==0, degenerate==0)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E), ":6399 both true (inSz==0, degenerate==0)");
     idx = 0;
     ret = wc_PKCS7_ParseSignerInfo(&pkcs7, NULL, 0, &idx, 1, &signedAttrib,
             &signedAttribSz);

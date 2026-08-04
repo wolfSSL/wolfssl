@@ -517,7 +517,7 @@ static void wb_get_pkcs8_traditional_offset(void) { WB_NOTE("HAVE_PKCS8 off; ski
  *   :9428  out==NULL && outSz!=NULL   (idx1)
  *   :9430  key==NULL||out==NULL||outSz==NULL
  *   :9454  curveOID!=NULL && oidSz>0  (idx1)
- *   :9474  ret==0 || ret==LENGTH_ONLY_E  (idx1)
+ *   :9474  ret==0 || ret==WC_NO_ERR_TRACE(LENGTH_ONLY_E)  (idx1)
  * ===================================================================== */
 #if defined(HAVE_PKCS8) && defined(WOLFSSL_ASN_TEMPLATE)
 static void wb_create_pkcs8_key(void)
@@ -552,7 +552,7 @@ static void wb_create_pkcs8_key(void)
             sizeof(curveOid));
     WB_CHECK(ret > 0, "curveOID!=NULL, oidSz>0 (idx1 true)");
 
-    WB_NOTE("wc_CreatePKCS8Key(): ret==0||ret==LENGTH_ONLY_E idx1 [:9474]");
+    WB_NOTE("wc_CreatePKCS8Key(): ret==0||ret==WC_NO_ERR_TRACE(LENGTH_ONLY_E) idx1 [:9474]");
     outSz = 0;
     ret = wc_CreatePKCS8Key(NULL, &outSz, key, 3, RSAk, NULL, 0);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E), "out==NULL (idx1 true path)");
