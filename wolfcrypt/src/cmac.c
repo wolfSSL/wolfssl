@@ -255,6 +255,12 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
             wc_MemZero_Check(l, WC_AES_BLOCK_SIZE);
 #endif
         }
+
+        if (ret != 0) {
+            wc_AesFree(&cmac->aes);
+            cmac->type = WC_CMAC_NONE;
+        }
+
         break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
     default:
@@ -359,6 +365,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
 #endif
     }; break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
+    case WC_CMAC_NONE:
     default:
         ret = BAD_FUNC_ARG;
     }
@@ -381,6 +388,7 @@ int wc_CmacFree(Cmac* cmac)
         wc_AesFree(&cmac->aes);
         break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
+    case WC_CMAC_NONE:
     default:
         /* Nothing to do */
         (void)cmac;
@@ -459,6 +467,7 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
 #endif
         }; break;
     #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
+        case WC_CMAC_NONE:
         default:
             ret = BAD_FUNC_ARG;
         }

@@ -49,6 +49,7 @@
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(2,0,0)
 
 typedef enum CmacType {
+    WC_CMAC_NONE = 0,
     WC_CMAC_AES = 1
 } CmacType;
 
