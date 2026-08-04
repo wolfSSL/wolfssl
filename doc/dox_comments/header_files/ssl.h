@@ -15723,7 +15723,9 @@ int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
     \param [in] sz number of bytes of data to inject.
 
     \return BAD_FUNC_ARG if any pointer parameter is NULL or sz <= 0
-    \return APP_DATA_READY if there is application data left to read
+    \return BUFFER_ERROR if the input buffer lengths are inconsistent
+    \return APP_DATA_READY if the input buffer must be grown while there is
+            application data left to read
     \return MEMORY_E if allocation fails
     \return WOLFSSL_SUCCESS on success
 

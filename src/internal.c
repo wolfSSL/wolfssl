@@ -12556,10 +12556,60 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 }
 
 
+/* Resize the input buffer's storage, leaving retainedLength bytes from
+ * cur->idx at offset zero of *out. A pooled allocator can hand back the block
+ * still in use; a capacity it cannot serve must come back as NULL. */
+static int ResizeInputBufferStorage(void* heap, const bufferStatic* cur,
+                                    word32 retainedLength,
+                                    word32 requestedSize, byte padSz,
+                                    byte frontOffset, int secureClear,
+                                    byte** out)
+{
+    int   ret = 0;
+    byte* tmp;
+
+    tmp = (byte*)XMALLOC((size_t)requestedSize + padSz, heap,
+                         DYNAMIC_TYPE_IN_BUFFER);
+    if (tmp == NULL) {
+        ret = MEMORY_E;
+    }
+
+    if (ret == 0) {
+        tmp += frontOffset;
+
+        /* Source and destination can be the same block, so this is a move. */
+        if (retainedLength > 0) {
+            XMEMMOVE(tmp, cur->buffer + cur->idx, retainedLength);
+        }
+
+        if (tmp == cur->buffer) {
+            /* Storage reused in place: clear only what is left behind the
+             * retained bytes, and do not free the block. */
+            if (secureClear && (cur->length > retainedLength)) {
+                ForceZero(tmp + retainedLength, cur->length - retainedLength);
+            }
+        }
+        else if (cur->dynamicFlag) {
+            if (secureClear) {
+                ForceZero(cur->buffer, cur->length);
+            }
+            XFREE(cur->buffer - cur->offset, heap, DYNAMIC_TYPE_IN_BUFFER);
+        }
+
+        *out = tmp;
+    }
+
+    return ret;
+}
+
+
 /* Grow the input buffer, should only be to read cert or big app data */
 int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 {
-    byte* tmp;
+    bufferStatic* in = &ssl->buffers.inputBuffer;
+    byte* tmp = NULL;
+    byte  frontOffset = 0;
+    int   ret;
 #if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
     byte  align = ssl->options.dtls ? WOLFSSL_GENERAL_ALIGNMENT : 0;
     byte  hdrSz = DTLS_RECORD_HEADER_SZ;
@@ -12576,6 +12626,7 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
     if (align) {
        while (align < hdrSz)
            align *= 2;
+       frontOffset = (byte)(align - hdrSz);
     }
 #endif
 
@@ -12584,53 +12635,20 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
         return BAD_FUNC_ARG;
     }
 
-    tmp = (byte*)XMALLOC((size_t)(size + usedLength + align),
-                             ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     WOLFSSL_MSG("growing input buffer");
 
-    if (tmp == NULL)
-        return MEMORY_E;
+    ret = ResizeInputBufferStorage(ssl->heap, in, (word32)usedLength,
+            (word32)(size + usedLength), align, frontOffset,
+            IsEncryptionOn(ssl, 1), &tmp);
+    if (ret != 0)
+        return ret;
 
-#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
-    if (align)
-        tmp += align - hdrSz;
-#endif
-
-#ifdef WOLFSSL_STATIC_MEMORY
-    /* can be from IO memory pool which does not need copy if same buffer */
-    if (usedLength && tmp == ssl->buffers.inputBuffer.buffer) {
-        ssl->buffers.inputBuffer.bufferSize = size + usedLength;
-        ssl->buffers.inputBuffer.idx    = 0;
-        ssl->buffers.inputBuffer.length = usedLength;
-        return 0;
-    }
-#endif
-
-    if (usedLength)
-        XMEMCPY(tmp, ssl->buffers.inputBuffer.buffer +
-                    ssl->buffers.inputBuffer.idx, (size_t)(usedLength));
-
-    if (ssl->buffers.inputBuffer.dynamicFlag) {
-        if (IsEncryptionOn(ssl, 1)) {
-            ForceZero(ssl->buffers.inputBuffer.buffer,
-                ssl->buffers.inputBuffer.length);
-        }
-        XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
-              ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-    }
-
-    ssl->buffers.inputBuffer.dynamicFlag = 1;
-#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
-    if (align)
-        ssl->buffers.inputBuffer.offset = align - hdrSz;
-    else
-#endif
-        ssl->buffers.inputBuffer.offset = 0;
-
-    ssl->buffers.inputBuffer.buffer = tmp;
-    ssl->buffers.inputBuffer.bufferSize = (word32)(size + usedLength);
-    ssl->buffers.inputBuffer.idx    = 0;
-    ssl->buffers.inputBuffer.length = (word32)usedLength;
+    in->buffer      = tmp;
+    in->bufferSize  = (word32)(size + usedLength);
+    in->offset      = frontOffset;
+    in->dynamicFlag = 1;
+    in->idx         = 0;
+    in->length      = (word32)usedLength;
 
     return 0;
 }
