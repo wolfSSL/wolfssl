@@ -2274,7 +2274,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #endif
     #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
             (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L) && \
-             !defined(__GNUC__)) ||                                        \
+             (!defined(__GNUC__) || defined(__STRICT_ANSI__))) ||          \
             (defined(_MSVC_LANG) && (__cpp_static_assert >= 201411L))
         /* native variadic static_assert() */
         #define wc_static_assert static_assert

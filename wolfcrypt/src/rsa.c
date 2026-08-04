@@ -2176,6 +2176,12 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     return ret;
 }
 
+#if defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_FIPS_READY) && !defined(WOLFSSL_FIPS_DEV)
+PRAGMA_DIAG_PUSH
+PRAGMA("GCC diagnostic ignored \"-Wswitch-enum\"")
+#endif
+
 int wc_hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
@@ -2275,6 +2281,11 @@ int wc_hash2mgf(enum wc_HashType hType)
     WOLFSSL_MSG("Unrecognized or unsupported hash function");
     return WC_MGF1NONE;
 }
+
+#if defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_FIPS_READY) && !defined(WOLFSSL_FIPS_DEV)
+PRAGMA_DIAG_POP
+#endif
 
 #ifdef WC_RSA_NONBLOCK
 static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,

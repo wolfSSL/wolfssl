@@ -7906,7 +7906,7 @@ do
     ENABLED_MLKEM_ENCAPSULATE=yes
     ENABLED_MLKEM_DECAPSULATE=yes
     ENABLED_ML_KEM=yes
-    ENABLED_ORIGINAL=yes
+    ENABLED_ORIGINAL_KYBER=yes
     ;;
   no)
     ;;
@@ -7938,7 +7938,7 @@ do
     ENABLED_MLKEM_DECAPSULATE=yes
     ;;
   original|kyber)
-    ENABLED_ORIGINAL=yes
+    ENABLED_ORIGINAL_KYBER=yes
     ;;
   ml-kem)
     ENABLED_ML_KEM=yes
@@ -8154,7 +8154,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLKEM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_MLKEM"
 
-    if test "$ENABLED_ORIGINAL" = "yes"; then
+    if test "$ENABLED_ORIGINAL_KYBER" = "yes"; then
         # FIPS 203 (ML-KEM) and Kyber use different implicit rejection.
         # Kyber mode must not be used in FIPS v7+ builds.
         AS_IF([test "$HAVE_FIPS_VERSION" -ge 7],
