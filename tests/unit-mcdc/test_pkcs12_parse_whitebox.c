@@ -247,10 +247,10 @@ static void wb_encrypted_ci_oid_case(const byte* orig, word32 sz,
             wb_fail = 1;
         }
         if (pkey != NULL) {
-            XFREE(pkey, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            XFREE(pkey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         }
         if (cert != NULL) {
-            XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+            XFREE(cert, NULL, DYNAMIC_TYPE_PKCS);
         }
         while (ca != NULL) {
             WC_DerCertList* next = ca->next;
@@ -461,10 +461,10 @@ static void wb_parse_one(const byte* der, word32 derSz, const char* label)
         ret = wc_PKCS12_parse(p, "x", &pkey, &pkeySz, &cert, &certSz, &ca);
         (void)ret; /* not expected to succeed past this synthetic skeleton */
         if (pkey != NULL) {
-            XFREE(pkey, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            XFREE(pkey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         }
         if (cert != NULL) {
-            XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+            XFREE(cert, NULL, DYNAMIC_TYPE_PKCS);
         }
         while (ca != NULL) {
             WC_DerCertList* next = ca->next;

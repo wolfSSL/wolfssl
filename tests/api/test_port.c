@@ -161,7 +161,11 @@ int test_wc_PortDecisionCoverage(void)
 
         /* "i < (dstSize - 1) && *src != '\0'": a source longer than the
          * destination ends the loop on the size operand rather than on the
-         * terminator, which is that operand's uncovered half. */
+         * terminator, which is that operand's uncovered half.
+         *
+         * Note wc_strlcpy returns the number of bytes copied, not
+         * XSTRLEN(src) as BSD strlcpy does, so a truncating call reports the
+         * truncated length (2 here, not 6). */
         XMEMSET(lcpyDst, 0, sizeof(lcpyDst));
         ExpectIntEQ((int)wc_strlcpy(lcpyDst, "abcdef", 3), 2);
         ExpectIntEQ(XSTRNCMP(lcpyDst, "ab", 3), 0);
