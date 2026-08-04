@@ -2689,51 +2689,56 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
     #if defined(HAVE_HKDF) && !defined(NO_HMAC)
         PRIVATE_KEY_UNLOCK();
-        if ( (ret = hkdf_test()) != 0)
+        ret = hkdf_test();
+        PRIVATE_KEY_LOCK();
+        if (ret != 0)
             TEST_FAIL("HMAC-KDF    test failed!\n", ret);
         else
             TEST_PASS("HMAC-KDF    test passed!\n");
-        PRIVATE_KEY_LOCK();
     #endif
 #endif /* !NO_HMAC */
 
 #ifdef WOLFSSL_WOLFSSH
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = sshkdf_test()) != 0)
+    ret = sshkdf_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("SSH-KDF     test failed!\n", ret);
     else
         TEST_PASS("SSH-KDF     test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_WOLFSSH */
 
 #if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && \
     defined(WOLFSSL_SHA384) && !defined(WOLFSSL_NO_TLS12)
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = prf_test()) != 0)
+    ret = prf_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("PRF         test failed!\n", ret);
     else
         TEST_PASS("PRF         test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_HAVE_PRF && !NO_HMAC && WOLFSSL_SHA384 && !WOLFSSL_NO_TLS12 */
 
 #if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_HKDF) && !defined(NO_HMAC) && \
     defined(WOLFSSL_BASE16) && !defined(WOLFSSL_NO_TLS12)
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = tls12_kdf_test()) != 0)
+    ret = tls12_kdf_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("TLSv1.2 KDF test failed!\n", ret);
     else
         TEST_PASS("TLSv1.2 KDF test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
        /* WOLFSSL_BASE16 && !WOLFSSL_NO_TLS12 */
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_HMAC)
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = tls13_kdf_test()) != 0)
+    ret = tls13_kdf_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("TLSv1.3 KDF test failed!\n", ret);
     else
         TEST_PASS("TLSv1.3 KDF test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_TLS13 && !NO_HMAC */
 
 #if defined(HAVE_X963_KDF) && defined(HAVE_ECC)
@@ -2748,20 +2753,22 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         defined(HAVE_CURVE448)) && \
     defined(HAVE_AESGCM)
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = hpke_test()) != 0)
+    ret = hpke_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("HPKE     test failed!\n", ret);
     else
         TEST_PASS("HPKE     test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #if defined(WC_SRTP_KDF)
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = srtpkdf_test()) != 0)
+    ret = srtpkdf_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("SRTP KDF test failed!\n", ret);
     else
         TEST_PASS("SRTP KDF test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #if defined(WC_KDF_NIST_SP_800_56C) && \
@@ -3036,11 +3043,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #ifndef NO_DH
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = dh_test()) != 0)
+    ret = dh_test();
+    PRIVATE_KEY_LOCK();
+
+    if (ret != 0)
         TEST_FAIL("DH       test failed!\n", ret);
     else
         TEST_PASS("DH       test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #ifndef NO_DSA
@@ -3059,11 +3068,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #ifndef NO_PWDBASED
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = pwdbased_test()) != 0)
+    ret = pwdbased_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("PWDBASED test failed!\n", ret);
     else
         TEST_PASS("PWDBASED test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #if defined(USE_CERT_BUFFERS_2048) && \
@@ -3108,11 +3118,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #if defined(HAVE_ECC)
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = ecc_test()) != 0)
+    ret = ecc_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("ECC      test failed!\n", ret);
     else
         TEST_PASS("ECC      test passed!\n");
-    PRIVATE_KEY_LOCK();
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
         (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
         if ( (ret = ecc_encrypt_test()) != 0)
@@ -3214,11 +3225,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #if defined(HAVE_ED25519) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ED25519) || defined(WOLFSSL_SWDEV))
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = ed25519_test()) != 0)
+    ret = ed25519_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("ED25519  test failed!\n", ret);
     else
         TEST_PASS("ED25519  test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #ifdef HAVE_CURVE448
@@ -3230,20 +3242,22 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #ifdef HAVE_ED448
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = ed448_test()) != 0)
+    ret = ed448_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("ED448    test failed!\n", ret);
     else
         TEST_PASS("ED448    test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = mlkem_test()) != 0)
+    ret = mlkem_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("MLKEM    test failed!\n", ret);
     else
         TEST_PASS("MLKEM    test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #ifdef WOLFSSL_HAVE_FRODOKEM
@@ -3255,20 +3269,22 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #ifdef WOLFSSL_HAVE_MLDSA
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = mldsa_test()) != 0)
+    ret = mldsa_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("ML-DSA   test failed!\n", ret);
     else
         TEST_PASS("ML-DSA   test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #ifdef HAVE_FALCON
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = falcon_test()) != 0)
+    ret = falcon_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("Falcon   test failed!\n", ret);
     else
         TEST_PASS("Falcon   test passed!\n");
-    PRIVATE_KEY_LOCK();
 #endif
 
 #if defined(WOLFSSL_HAVE_XMSS)
@@ -3371,19 +3387,21 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("PKCS7signed     test passed!\n");
 
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = pkcs7enveloped_test()) != 0)
+    ret = pkcs7enveloped_test();
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
         TEST_FAIL("PKCS7enveloped  test failed!\n", ret);
     else
         TEST_PASS("PKCS7enveloped  test passed!\n");
-    PRIVATE_KEY_LOCK();
 
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         PRIVATE_KEY_UNLOCK();
-        if ( (ret = pkcs7authenveloped_test()) != 0)
+        ret = pkcs7authenveloped_test();
+        PRIVATE_KEY_LOCK();
+        if (ret != 0)
             TEST_FAIL("PKCS7authenveloped  test failed!\n", ret);
         else
             TEST_PASS("PKCS7authenveloped  test passed!\n");
-        PRIVATE_KEY_LOCK();
     #endif
 #endif
 
