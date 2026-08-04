@@ -1818,6 +1818,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WOLFSSL_ALIGN(x) /* null expansion */
 #endif
 
+#ifndef ALIGN4
+    #define ALIGN4   WOLFSSL_ALIGN(4)
+#endif
 #ifndef ALIGN8
     #define ALIGN8   WOLFSSL_ALIGN(8)
 #endif

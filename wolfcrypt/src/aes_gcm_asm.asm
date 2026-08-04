@@ -27778,13 +27778,13 @@ L_AES_GCM_encrypt_avx512_no_ext2:
         lea	rcx, QWORD PTR [rsi+rbx]
         mov	QWORD PTR [rsp+1056], rcx
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -27875,13 +27875,13 @@ L_AES_GCM_encrypt_avx512_p1_avx512_ctr16_last:
         vmovdqu64	[rdx+192], zmm19
         add	ebx, 256
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -27980,13 +27980,13 @@ L_AES_GCM_encrypt_avx512_win_loop:
         vpxorq	zmm21, zmm21, zmm21
         vinserti32x4	zmm21, zmm21, xmm6, 0
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -28114,13 +28114,13 @@ L_AES_GCM_encrypt_avx512_a_il_last:
         vmovdqu64	[rdx+192], zmm19
         add	ebx, 256
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -28373,13 +28373,13 @@ L_AES_GCM_encrypt_avx512_no_windows:
         jge	L_AES_GCM_encrypt_avx512_after_256
         ; 256 bytes of input
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -28474,13 +28474,13 @@ L_AES_GCM_encrypt_avx512_pro_avx512_ctr16_last:
         jge	L_AES_GCM_encrypt_avx512_last_ghash
 L_AES_GCM_encrypt_avx512_ghash_128:
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -28693,9 +28693,9 @@ L_AES_GCM_encrypt_avx512_after_256:
         vbroadcasti32x4	zmm2, OWORD PTR [r15+128]
         vbroadcasti32x4	zmm3, OWORD PTR [r15+144]
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_eight
@@ -30600,13 +30600,13 @@ L_AES_GCM_decrypt_avx512_win_loop:
         vpxorq	zmm21, zmm21, zmm21
         vinserti32x4	zmm21, zmm21, xmm6, 0
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -30734,13 +30734,13 @@ L_AES_GCM_decrypt_avx512_a_il_last:
         vmovdqu64	[rdx+192], zmm19
         add	r12d, 256
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -30883,13 +30883,13 @@ L_AES_GCM_decrypt_avx512_b_il_last:
         jl	L_AES_GCM_decrypt_avx512_win_loop
 L_AES_GCM_decrypt_avx512_last_aes:
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -30980,13 +30980,13 @@ L_AES_GCM_decrypt_avx512_l1_avx512_ctr16_last:
         vmovdqu64	[rdx+192], zmm19
         add	r12d, 256
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -31142,13 +31142,13 @@ L_AES_GCM_decrypt_avx512_no_windows:
         vpxorq	xmm6, xmm29, xmm0
         vpternlogq	xmm6, xmm5, xmm4, 150
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -31293,9 +31293,9 @@ L_AES_GCM_decrypt_avx512_after_256:
         vbroadcasti32x4	zmm2, OWORD PTR [r15+128]
         vbroadcasti32x4	zmm3, OWORD PTR [r15+144]
         vbroadcasti32x4	zmm20, OWORD PTR [rsp+1024]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
         vmovdqu	xmm8, OWORD PTR [rsp+1024]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_eight
@@ -33050,13 +33050,13 @@ L_AES_GCM_encrypt_update_avx512_no_ext2:
         ; 512 bytes of input
         lea	rsi, QWORD PTR [r10+rdi]
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -33147,13 +33147,13 @@ L_AES_GCM_encrypt_update_avx512_p1_avx512_ctr16_last:
         vmovdqu64	[rdx+192], zmm19
         add	edi, 256
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -33250,13 +33250,13 @@ L_AES_GCM_encrypt_update_avx512_win_loop:
         vpxorq	zmm21, zmm21, zmm21
         vinserti32x4	zmm21, zmm21, xmm6, 0
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -33384,13 +33384,13 @@ L_AES_GCM_encrypt_update_avx512_a_il_last:
         vmovdqu64	[rdx+192], zmm19
         add	edi, 256
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -33641,13 +33641,13 @@ L_AES_GCM_encrypt_update_avx512_no_windows:
         jge	L_AES_GCM_encrypt_update_avx512_after_256
         ; 256 bytes of input
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -33742,13 +33742,13 @@ L_AES_GCM_encrypt_update_avx512_pro_avx512_ctr16_last:
         jge	L_AES_GCM_encrypt_update_avx512_last_ghash
 L_AES_GCM_encrypt_update_avx512_ghash_128:
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -33960,9 +33960,9 @@ L_AES_GCM_encrypt_update_avx512_after_256:
         vbroadcasti32x4	zmm3, OWORD PTR [rax+144]
         lea	rsi, QWORD PTR [r10+rdi]
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_eight
@@ -35009,13 +35009,13 @@ L_AES_GCM_decrypt_update_avx512_win_loop:
         vpxorq	zmm21, zmm21, zmm21
         vinserti32x4	zmm21, zmm21, xmm6, 0
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -35143,13 +35143,13 @@ L_AES_GCM_decrypt_update_avx512_a_il_last:
         vmovdqu64	[rdx+192], zmm19
         add	esi, 256
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -35292,13 +35292,13 @@ L_AES_GCM_decrypt_update_avx512_b_il_last:
         jl	L_AES_GCM_decrypt_update_avx512_win_loop
 L_AES_GCM_decrypt_update_avx512_last_aes:
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -35389,13 +35389,13 @@ L_AES_GCM_decrypt_update_avx512_l1_avx512_ctr16_last:
         vmovdqu64	[rdx+192], zmm19
         add	esi, 256
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -35551,13 +35551,13 @@ L_AES_GCM_decrypt_update_avx512_no_windows:
         vpxorq	xmm6, xmm29, xmm0
         vpternlogq	xmm6, xmm5, xmm4, 150
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
-        vpaddd	zmm18, zmm20, ptr_L_avx512_aes_gcm_inc_z2
+        vpaddd	zmm18, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z2
         vpshufb	zmm18, zmm18, zmm22
-        vpaddd	zmm19, zmm20, ptr_L_avx512_aes_gcm_inc_z3
+        vpaddd	zmm19, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z3
         vpshufb	zmm19, zmm19, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_sixteen
@@ -35702,9 +35702,9 @@ L_AES_GCM_decrypt_update_avx512_after_256:
         vbroadcasti32x4	zmm2, OWORD PTR [rax+128]
         vbroadcasti32x4	zmm3, OWORD PTR [rax+144]
         vbroadcasti32x4	zmm20, OWORD PTR [r15]
-        vpaddd	zmm16, zmm20, ptr_L_avx512_aes_gcm_inc_z0
+        vpaddd	zmm16, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z0
         vpshufb	zmm16, zmm16, zmm22
-        vpaddd	zmm17, zmm20, ptr_L_avx512_aes_gcm_inc_z1
+        vpaddd	zmm17, zmm20, ZMMWORD PTR L_avx512_aes_gcm_inc_z1
         vpshufb	zmm17, zmm17, zmm22
         vmovdqu	xmm8, OWORD PTR [r15]
         vpaddd	xmm8, xmm8, OWORD PTR L_avx512_aes_gcm_eight

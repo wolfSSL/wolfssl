@@ -20967,6 +20967,124 @@ out:
 }
 #endif /* WOLFSSL_AESGCM_SIV */
 
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+    !defined(WOLFSSL_XILINX_CRYPT)
+
+/* Number of bytes of data and AAD hashed - a whole number of blocks so the
+ * bulk GHASH path is taken with the misaligned pointer. */
+#define AESGCM_MISALIGNED_SZ    32
+
+/* AES-GCM over buffers that are not word aligned.
+ *
+ * Every KAT vector is a word-aligned static array, so none of them exercise
+ * an implementation that requires the caller's data to be aligned - and a
+ * real TLS 1.2 record puts the ciphertext at record header (5) + explicit IV
+ * (8) = offset 13.  Some assembly (ARM32/Thumb-2 LDM/STM in particular) faults
+ * on an unaligned transfer, so run the same operation at every offset within a
+ * block and require each result to match the aligned one.
+ *
+ * @param [in] enc  AES object to encrypt with.
+ * @param [in] dec  AES object to decrypt with.
+ * @return  0 on success.
+ * @return  Negative on failure.
+ */
+static wc_test_ret_t aesgcm_misaligned_test(Aes* enc, Aes* dec)
+{
+    wc_test_ret_t ret = 0;
+    WOLFSSL_SMALL_STACK_STATIC const byte k[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[] =
+    {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+        0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b
+    };
+    byte input[AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+    byte aad[AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+    byte cipher[AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+#ifdef HAVE_AES_DECRYPT
+    byte plain[AESGCM_MISALIGNED_SZ + WC_AES_BLOCK_SIZE];
+#endif
+    byte tag[WC_AES_BLOCK_SIZE];
+    byte refCipher[AESGCM_MISALIGNED_SZ];
+    byte refTag[WC_AES_BLOCK_SIZE];
+    int off;
+    int i;
+
+    ret = wc_AesGcmSetKey(enc, k, (word32)sizeof(k));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(dec, k, (word32)sizeof(k));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    for (off = 0; off < (int)WC_AES_BLOCK_SIZE; off++) {
+        byte* p = input + off;
+        byte* a = aad + off;
+        byte* c = cipher + off;
+    #ifdef HAVE_AES_DECRYPT
+        byte* d = plain + off;
+    #endif
+
+        XMEMSET(input, 0, sizeof(input));
+        XMEMSET(aad, 0, sizeof(aad));
+        XMEMSET(cipher, 0, sizeof(cipher));
+    #ifdef HAVE_AES_DECRYPT
+        XMEMSET(plain, 0, sizeof(plain));
+    #endif
+        for (i = 0; i < AESGCM_MISALIGNED_SZ; i++) {
+            p[i] = (byte)i;
+            a[i] = (byte)(0x80 + i);
+        }
+
+        ret = wc_AesGcmEncrypt(enc, c, p, AESGCM_MISALIGNED_SZ, iv,
+            (word32)sizeof(iv), tag, WC_AES_BLOCK_SIZE, a,
+            AESGCM_MISALIGNED_SZ);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        /* The aligned pass sets the expected result for every other offset. */
+        if (off == 0) {
+            XMEMCPY(refCipher, c, AESGCM_MISALIGNED_SZ);
+            XMEMCPY(refTag, tag, WC_AES_BLOCK_SIZE);
+        }
+        else if ((XMEMCMP(refCipher, c, AESGCM_MISALIGNED_SZ) != 0) ||
+                 (XMEMCMP(refTag, tag, WC_AES_BLOCK_SIZE) != 0)) {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesGcmDecrypt(dec, d, c, AESGCM_MISALIGNED_SZ, iv,
+            (word32)sizeof(iv), tag, WC_AES_BLOCK_SIZE, a,
+            AESGCM_MISALIGNED_SZ);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (XMEMCMP(p, d, AESGCM_MISALIGNED_SZ) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif /* HAVE_AES_DECRYPT */
+    }
+
+    ret = 0;
+out:
+#ifndef HAVE_AES_DECRYPT
+    (void)dec;
+#endif
+    return ret;
+}
+
+#undef AESGCM_MISALIGNED_SZ
+
+#endif /* WOLFSSL_AES_128 && !WOLFSSL_AFALG_XILINX_AES &&
+        * !WOLFSSL_XILINX_CRYPT */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -21019,6 +21137,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
     ret = aesgcm_offtag_test(enc);
     if (ret != 0)
         ERROR_OUT(ret, out);
+
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+    !defined(WOLFSSL_XILINX_CRYPT)
+    ret = aesgcm_misaligned_test(enc, dec);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+#endif
 
     ret = aesgcm_setiv_test(enc, dec);
     if (ret != 0)
