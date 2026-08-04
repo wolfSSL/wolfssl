@@ -30,6 +30,8 @@ int test_wc_PKCS7_InitWithCert(void);
 int test_wc_PKCS7_InitWithCert_guardrails(void);
 int test_wc_PKCS7_EncodeData(void);
 int test_wc_PKCS7_EncodeSignedData(void);
+int test_wc_PKCS7_EncodeSignedData_SKID(void);
+int test_wc_PKCS7_VerifySignedData_ExplicitSKID(void);
 int test_wc_PKCS7_EncodeSignedData_AttribOverflow(void);
 int test_wc_PKCS7_EncodeAuthEnvelopedData_AttribOverflow(void);
 #if defined(HAVE_PKCS7) && defined(WC_RSA_PSS) && !defined(NO_RSA) && \
@@ -119,6 +121,8 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_InitWithCert_guardrails), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeData),              \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData),        \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_SKID),   \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ExplicitSKID), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_AttribOverflow), \
     TEST_PKCS7_RSA_PSS_SD_DECL                                           \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_ex),     \
