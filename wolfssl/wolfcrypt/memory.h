@@ -433,7 +433,7 @@ WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
             SAVE_VECTOR_REGISTERS2_fuzzer() == 0)
     #endif
 
-    #define SAVE_VECTOR_REGISTERS2(...) ({                          \
+    #define SAVE_VECTOR_REGISTERS2(...) __extension__ ({            \
         int _svr2_val;                                              \
         if (wc_svr_count > 0)                                       \
             _svr2_val = 0;                                          \
@@ -462,7 +462,7 @@ WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
 
 #else
 
-    #define SAVE_VECTOR_REGISTERS2(...) ({                          \
+    #define SAVE_VECTOR_REGISTERS2(...) __extension__ ({            \
         int _svr2_val;                                              \
         if (wc_debug_vector_registers_retval != 0) {                \
             if (wc_svr_count > 0) {                                 \
