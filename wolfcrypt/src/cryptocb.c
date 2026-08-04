@@ -162,6 +162,30 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_ED25519_CHECK_KEY: return "ED25519 CheckKey";
         case WC_PK_TYPE_CURVE25519_MAKE_PUB: return "CURVE25519 MakePub";
         case WC_PK_TYPE_CURVE25519_GENERIC: return "CURVE25519 Generic";
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
+        case WC_PK_TYPE_PQC_KEM_KEYGEN: return "PQC KEM KeyGen";
+        case WC_PK_TYPE_PQC_KEM_ENCAPS: return "PQC KEM Encapsulate";
+        case WC_PK_TYPE_PQC_KEM_DECAPS: return "PQC KEM Decapsulate";
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+        case WC_PK_TYPE_PQC_SIG_KEYGEN: return "PQC Sig KeyGen";
+        case WC_PK_TYPE_PQC_SIG_SIGN: return "PQC Sig Sign";
+        case WC_PK_TYPE_PQC_SIG_VERIFY: return "PQC Sig Verify";
+        case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY: return "PQC Sig CheckPrivKey";
+        case WC_PK_TYPE_PQC_SIG_SIGN_MSG: return "PQC Sig SignMsg";
+        case WC_PK_TYPE_PQC_SIG_VERIFY_MSG: return "PQC Sig VerifyMsg";
+#endif
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
+            return "PQC Stateful Sig KeyGen";
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN:
+            return "PQC Stateful Sig Sign";
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY:
+            return "PQC Stateful Sig Verify";
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT:
+            return "PQC Stateful Sig SigsLeft";
+#endif
     }
     return NULL;
 }
@@ -1662,6 +1686,12 @@ int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
 int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
     void* key)
 {
+    return wc_CryptoCb_MakePqcSignatureKeyEx(rng, type, keySize, NULL, 0, key);
+}
+
+int wc_CryptoCb_MakePqcSignatureKeyEx(WC_RNG* rng, int type, int keySize,
+    const byte* seed, word32 seedSz, void* key)
+{
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
@@ -1669,10 +1699,8 @@ int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
     if (key == NULL)
         return ret;
 
-    /* get devId */
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcSigGetDevId(type, key);
-    if (devId == INVALID_DEVID)
-        return ret;
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -1685,6 +1713,8 @@ int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
         cryptoInfo.pk.pqc_sig_kg.size = keySize;
         cryptoInfo.pk.pqc_sig_kg.key = key;
         cryptoInfo.pk.pqc_sig_kg.type = type;
+        cryptoInfo.pk.pqc_sig_kg.seed = seed;
+        cryptoInfo.pk.pqc_sig_kg.seedSz = seedSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -1696,6 +1726,14 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
     const byte* context, byte contextLen, word32 preHashType, WC_RNG* rng,
     int type, void* key)
 {
+    return wc_CryptoCb_PqcSignEx(in, inlen, out, outlen, context, contextLen,
+        preHashType, rng, NULL, 0, type, key);
+}
+
+int wc_CryptoCb_PqcSignEx(const byte* in, word32 inlen, byte* out,
+    word32 *outlen, const byte* context, byte contextLen, word32 preHashType,
+    WC_RNG* rng, const byte* addRnd, byte addRndSz, int type, void* key)
+{
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
@@ -1703,10 +1741,8 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
     if (key == NULL)
         return ret;
 
-    /* get devId */
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcSigGetDevId(type, key);
-    if (devId == INVALID_DEVID)
-        return ret;
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -1723,6 +1759,46 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
         cryptoInfo.pk.pqc_sign.contextLen = contextLen;
         cryptoInfo.pk.pqc_sign.preHashType = preHashType;
         cryptoInfo.pk.pqc_sign.rng = rng;
+        cryptoInfo.pk.pqc_sign.addRnd = addRnd;
+        cryptoInfo.pk.pqc_sign.addRndSz = addRndSz;
+        cryptoInfo.pk.pqc_sign.key = key;
+        cryptoInfo.pk.pqc_sign.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcSignMsg(const byte* mprime, word32 mprimeSz, byte* out,
+    word32* outlen, WC_RNG* rng, const byte* addRnd, byte addRndSz, int type,
+    void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId; an unbound key still goes through the find callback */
+    devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_SIGN_MSG;
+        cryptoInfo.pk.pqc_sign.in = mprime;
+        cryptoInfo.pk.pqc_sign.inlen = mprimeSz;
+        cryptoInfo.pk.pqc_sign.out = out;
+        cryptoInfo.pk.pqc_sign.outlen = outlen;
+        cryptoInfo.pk.pqc_sign.preHashType = WC_HASH_TYPE_NONE;
+        cryptoInfo.pk.pqc_sign.rng = rng;
+        cryptoInfo.pk.pqc_sign.addRnd = addRnd;
+        cryptoInfo.pk.pqc_sign.addRndSz = addRndSz;
         cryptoInfo.pk.pqc_sign.key = key;
         cryptoInfo.pk.pqc_sign.type = type;
 
@@ -1743,10 +1819,8 @@ int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
     if (key == NULL)
         return ret;
 
-    /* get devId */
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcSigGetDevId(type, key);
-    if (devId == INVALID_DEVID)
-        return ret;
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
@@ -1772,6 +1846,41 @@ int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
+int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen, const byte* mprime,
+    word32 mprimeSz, int* res, int type, void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId; an unbound key still goes through the find callback */
+    devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_VERIFY_MSG;
+        cryptoInfo.pk.pqc_verify.sig = sig;
+        cryptoInfo.pk.pqc_verify.siglen = siglen;
+        cryptoInfo.pk.pqc_verify.msg = mprime;
+        cryptoInfo.pk.pqc_verify.msglen = mprimeSz;
+        cryptoInfo.pk.pqc_verify.preHashType = WC_HASH_TYPE_NONE;
+        cryptoInfo.pk.pqc_verify.res = res;
+        cryptoInfo.pk.pqc_verify.key = key;
+        cryptoInfo.pk.pqc_verify.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
 int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz)
 {
@@ -1782,10 +1891,8 @@ int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     if (key == NULL)
         return ret;
 
-    /* get devId */
+    /* get devId; an unbound key still goes through the find callback */
     devId = wc_CryptoCb_PqcSigGetDevId(type, key);
-    if (devId == INVALID_DEVID)
-        return ret;
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);

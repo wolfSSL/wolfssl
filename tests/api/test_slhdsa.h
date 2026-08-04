@@ -32,6 +32,7 @@ int test_wc_slhdsa_verify(void);
 int test_wc_slhdsa_sign_vfy(void);
 int test_wc_slhdsa_sign_hash(void);
 int test_wc_slhdsa_sign_msg(void);
+int test_wc_slhdsa_sign_addrnd(void);
 int test_wc_slhdsa_export_import(void);
 int test_wc_slhdsa_check_key(void);
 int test_wc_slhdsa_der_roundtrip(void);
@@ -59,6 +60,7 @@ int test_slhdsa_tls13_certverify_bad_signature(void);
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_vfy),                        \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_hash),                       \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_msg),                        \
+    TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_addrnd),                     \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_export_import),                   \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_check_key),                       \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_der_roundtrip),                   \
