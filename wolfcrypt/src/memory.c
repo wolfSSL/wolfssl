@@ -1803,38 +1803,36 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
 
 /* alternate implementation useful for testing in the kernel module build, where
  * glibc and thread-local storage are unavailable.
- *
- * note this is not a well-behaved PRNG, but is adequate for fuzzing purposes.
- * the prn sequence is incompressible according to ent and xz, and does not
- * cycle within 10M iterations with various seeds including zero, but the Chi
- * square distribution is poor, and the unconditioned lsb bit balance is ~54%
- * regardless of seed.
- *
- * deterministic only if access is single-threaded, but never degenerate.
  */
 
 WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
-    static unsigned long prn = WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED;
-    static int balance_bit = 0;
-    unsigned long new_prn = prn ^ 0xba86943da66ee701ul; /* note this magic
-                                                         * random number is
-                                                         * bit-balanced.
-                                                         */
+    /* xorshift64 (Marsaglia 2003): a bijection on the nonzero 64-bit states
+     * with a single cycle of period 2^64 - 1 -- no state-space contraction,
+     * no short cycles, and the seed selects only the phase.  Aligned 64-bit
+     * stores are atomic on supported targets and every stored value is
+     * nonzero, so unsynchronized concurrent access loses updates but can
+     * never degenerate the state.
+     */
+    static word64 prn =
+        (word64)WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED != W64LIT(0) ?
+        (word64)WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED :
+        W64LIT(0x9e3779b97f4a7c15); /* zero is the map's one fixed point --
+                                     * substitute an arbitrary nonzero seed.
+                                     */
+    word64 x;
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS
     if (wc_debug_vector_registers_retval)
         return wc_debug_vector_registers_retval;
 #endif
 
-    /* barrel-roll using the bottom 6 bits. */
-    if (new_prn & 0x3f)
-        new_prn = (new_prn << (new_prn & 0x3f)) |
-            (new_prn >> (0x40 - (new_prn & 0x3f)));
-    prn = new_prn;
+    x = prn;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    prn = x;
 
-    balance_bit = !balance_bit;
-
-    return ((prn & 1) ^ balance_bit) ? WC_NO_ERR_TRACE(IO_FAILED_E) : 0;
+    return ((x >> 32) & 1) ? WC_NO_ERR_TRACE(IO_FAILED_E) : 0;
 }
 
 #endif /* !HAVE_THREAD_LS */
