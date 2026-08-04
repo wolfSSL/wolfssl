@@ -3929,6 +3929,59 @@ static int test_wolfSSL_CTX_load_verify_chain_buffer_format(void)
     return EXPECT_RESULT();
 }
 
+/* PEM buffer holding a CA certificate followed by a CRL. The CRL block fails
+ * ProcessBuffer and falls through to ProcessChainBufferCRL. */
+static int test_wolfSSL_CTX_load_verify_buffer_pem_crl(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_WPAS) && defined(HAVE_CRL) && defined(WOLFSSL_PEM_TO_DER) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX*          ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte*  caBuf = NULL;
+    byte*  crlBuf = NULL;
+    byte*  pemBuf = NULL;
+    byte*  certBuf = NULL;
+    size_t caSz = 0;
+    size_t crlSz = 0;
+    size_t certSz = 0;
+
+    ExpectIntEQ(load_file("./certs/ca-cert.pem", &caBuf, &caSz), 0);
+    ExpectIntEQ(load_file("./certs/crl/crl.pem", &crlBuf, &crlSz), 0);
+    ExpectIntEQ(load_file("./certs/server-cert.der", &certBuf, &certSz), 0);
+    if ((caBuf != NULL) && (crlBuf != NULL)) {
+        ExpectNotNull(pemBuf = (byte*)XMALLOC(caSz + crlSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    if (pemBuf != NULL) {
+        XMEMCPY(pemBuf, caBuf, caSz);
+        XMEMCPY(pemBuf + caSz, crlBuf, crlSz);
+
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, pemBuf,
+            (long)(caSz + crlSz), WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        /* crl.pem is issued by ca-cert and does not revoke server-cert, so
+         * the check only succeeds if the CRL reached the manager. */
+        ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        /* Cast is safe - the test certificate is a fixed, small file. */
+        ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, certBuf, (int)certSz),
+            WOLFSSL_SUCCESS);
+    }
+
+    wolfSSL_CTX_free(ctx);
+    XFREE(pemBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(certBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(crlBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(caBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_add1_chain_cert(void)
 {
     EXPECT_DECLS;
@@ -11879,6 +11932,10 @@ static int test_wc_PemToDer(void)
     size_t cert_sz = 0;
     int eccKey = 0;
     EncryptedInfo info;
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_CRL)
+    byte* crl_buf = NULL;
+    size_t crl_sz = 0;
+#endif
 
     XMEMSET(&info, 0, sizeof(info));
 
@@ -11945,6 +12002,18 @@ static int test_wc_PemToDer(void)
         ExpectIntEQ(wc_PemToDer(stub, -1, CERT_TYPE, &badDer, NULL, &info,
             &eccKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
+
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_CRL)
+    /* A CRL carries no Proc-Type header, so a stale set flag must not make it
+     * look like an encrypted PEM. Returned NO_PASSWORD before the reset. */
+    ExpectIntEQ(load_file("./certs/crl/crl.pem", &crl_buf, &crl_sz), 0);
+    XMEMSET(&info, 0, sizeof(info));
+    info.set = 1;
+    ExpectIntEQ(wc_PemToDer(crl_buf, (long int)crl_sz, CRL_TYPE, &pDer, NULL,
+        &info, NULL), 0);
+    wc_FreeDer(&pDer);
+    XFREE(crl_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -39005,6 +39074,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
+    TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_pem_crl),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),

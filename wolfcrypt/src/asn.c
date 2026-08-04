@@ -25706,6 +25706,9 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, const char** pBuffer,
     if (info == NULL || pBuffer == NULL || bufSz == 0)
         return BAD_FUNC_ARG;
 
+    /* Not encrypted unless a Proc-Type header is found below. */
+    info->set = 0;
+
     bufferStart = *pBuffer;
     bufferEnd = bufferStart + bufSz;
 
