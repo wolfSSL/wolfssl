@@ -151,6 +151,23 @@
  *     from this file's fixed/small-scalar inputs.
  */
 
+/* The richest dispatches here are four operands:
+ *
+ *     IS_INTEL_BMI2(f) && IS_INTEL_ADX(f) && IS_INTEL_AVX2(f) &&
+ *         (SAVE_VECTOR_REGISTERS2() == 0)
+ *
+ * The feature bits are handled by the one-at-a-time masks in main(), but the
+ * save operand cannot be flipped that way: in a userspace build types.h
+ * resolves SAVE_VECTOR_REGISTERS2() to the literal 0, so "(0 == 0)" is
+ * structurally true and has no false side at all. It is real where the save
+ * can be refused (the kernel-module build). WC_CHECK_FOR_INTR_SIGNALS is the
+ * #ifndef extension point types.h offers for that, so defining it here --
+ * before the .c below pulls in any wolfSSL header -- routes every
+ * SAVE_VECTOR_REGISTERS2() site through a variable this file controls. Same
+ * arrangement as test_wc_mlkem_poly_whitebox.c. */
+static int wb_intr_ret = 0;
+#define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
+
 #include <wolfcrypt/src/sp_x86_64.c>
 
 #include <wolfssl/wolfcrypt/cpuid.h>
@@ -1814,6 +1831,26 @@ int main(void)
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
+
+        /* AVX2 is the third operand of the four-operand chains; clearing it
+         * with BMI2 and ADX left on is that operand's own flip. */
+        cpuid_select_flags(real & ~(cpuid_flags_t)CPUID_AVX2);
+        wb_run_ecc();
+        wb_run_rsa_signverify();
+        wb_run_dh();
+        wb_run_dispatch();
+        wb_run_crafted();
+
+        /* Fourth operand: every feature present but the vector-register save
+         * refused, so each chain falls through on its last condition. */
+        cpuid_select_flags(real);
+        wb_intr_ret = 1;
+        wb_run_ecc();
+        wb_run_rsa_signverify();
+        wb_run_dh();
+        wb_run_dispatch();
+        wb_run_crafted();
+        wb_intr_ret = 0;
 
         wb_run_rsa_free();
     }
