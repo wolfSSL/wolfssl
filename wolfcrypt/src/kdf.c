@@ -1641,6 +1641,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #endif
 
     while (len_rem >= WC_AES_BLOCK_SIZE) {
+        int cmac_inited = 0;
         /* cmac in place in block size increments */
         c32toa(counter, counterBuf);
         #ifdef WOLFSSL_DEBUG_KDF
@@ -1651,6 +1652,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
         ret = wc_InitCmac_ex(cmac, Kin, KinSz, WC_CMAC_AES, NULL, heap, devId);
 
         if (ret == 0) {
+            cmac_inited = 1;
             ret = wc_CmacUpdate(cmac, counterBuf, sizeof(counterBuf));
         }
 
@@ -1668,7 +1670,8 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
             }
         }
 
-        (void)wc_CmacFree(cmac);
+        if (cmac_inited)
+            (void)wc_CmacFree(cmac);
 
         if (ret != 0) { break; }
 
@@ -1679,6 +1682,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     if (ret == 0 && len_rem) {
         /* cmac the last little bit that wouldn't fit in a block size. */
         byte rem[WC_AES_BLOCK_SIZE];
+        int cmac_inited = 0;
         XMEMSET(rem, 0, sizeof(rem));
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Add("wc_KDA_KDF_PRF_cmac rem", rem, sizeof(rem));
@@ -1693,6 +1697,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
         ret = wc_InitCmac_ex(cmac, Kin, KinSz, WC_CMAC_AES, NULL, heap, devId);
 
         if (ret == 0) {
+            cmac_inited = 1;
             ret = wc_CmacUpdate(cmac, counterBuf, sizeof(counterBuf));
         }
 
@@ -1718,7 +1723,8 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(rem, sizeof(rem));
     #endif
-        (void)wc_CmacFree(cmac);
+        if (cmac_inited)
+            (void)wc_CmacFree(cmac);
     }
 
     #ifdef WOLFSSL_SMALL_STACK

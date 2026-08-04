@@ -559,6 +559,11 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
         return BAD_FUNC_ARG;
     }
 
+#if !defined(NO_MD5) && defined(HAVE_FIPS)
+    if (type == WC_MD5)
+        return BAD_FUNC_ARG;
+#endif
+
     heap = hmac->heap;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     /* if set key has already been run then make sure and free existing */
@@ -1874,6 +1879,9 @@ int wolfSSL_GetHmacMaxSize(void)
         if (ret < 0) {
             return ret;
         }
+        else if (ret == 0)
+            return BAD_FUNC_ARG;
+
         hashSz = (word32)ret;
 
         /* RFC 5869 states that the length of output keying material in

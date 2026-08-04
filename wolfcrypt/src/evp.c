@@ -4803,7 +4803,7 @@ static int wolfssl_evp_md_to_hash_type(const WOLFSSL_EVP_MD *type,
     }
     else
 #endif
-#ifndef NO_MD5
+#if !defined(NO_MD5) && (!defined(HAVE_FIPS) || FIPS_VERSION3_LT(5,0,0))
     if (XSTRCMP(type, WC_SN_md5) == 0) {
         *hashType = WC_MD5;
     }
