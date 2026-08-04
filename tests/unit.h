@@ -39,6 +39,7 @@
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/test.h>    /* thread and tcp stuff */
+#include <wolfssl/wolfcrypt/fips_test.h>
 
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
 #define XABORT() WC_DO_NOTHING
