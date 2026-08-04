@@ -142,6 +142,13 @@
 #if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
+
+    /* Keep ML-DSA inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name, between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nc")
+        #pragma const_seg(".fipsB$nc")
+    #endif
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
@@ -763,6 +770,90 @@ static int mldsa_hash256_ctx_msg(wc_Shake* shake256, const byte* tr,
     }
 
     return ret;
+}
+
+/* HashML-DSA PH-vs-paramSet enforcement.  FIPS 204 sec. 5.4 (Table 4) restricts
+ * the HashML-DSA pre-hash PH to algorithms whose collision-resistance strength
+ * meets or exceeds the paramSet's security level; enforced for both sigGen and
+ * sigVer.  Returns 0 for an approved (hashAlg, level) pair, else BAD_FUNC_ARG. */
+static int mldsa_check_hash_for_level(int hashAlg, byte level)
+{
+    int strengthBits;  /* collision-resistance strength of the chosen hash */
+    int requiredBits;  /* security level required by the paramSet */
+
+    switch (hashAlg) {
+    #ifndef NO_SHA256
+        case WC_HASH_TYPE_SHA256:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case WC_HASH_TYPE_SHA384:
+            strengthBits = 192;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case WC_HASH_TYPE_SHA512:
+            strengthBits = 256;
+            break;
+        #ifndef WOLFSSL_NOSHA512_256
+        case WC_HASH_TYPE_SHA512_256:
+            /* SHA-512/256 has 128-bit collision resistance (truncated). */
+            strengthBits = 128;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_256
+        case WC_HASH_TYPE_SHA3_256:
+            strengthBits = 128;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        case WC_HASH_TYPE_SHA3_384:
+            strengthBits = 192;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        case WC_HASH_TYPE_SHA3_512:
+            strengthBits = 256;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHAKE128
+        case WC_HASH_TYPE_SHAKE128:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHAKE256
+        case WC_HASH_TYPE_SHAKE256:
+            strengthBits = 256;
+            break;
+    #endif
+        default:
+            /* Hash not on the FIPS 204 Table 4 approved list (e.g. SHA-224,
+             * SHA-512/224, SHA3-224, MD5).  Reject regardless of level. */
+            return BAD_FUNC_ARG;
+    }
+
+    switch (level) {
+        case WC_ML_DSA_44:
+            requiredBits = 128;
+            break;
+        case WC_ML_DSA_65:
+            requiredBits = 192;
+            break;
+        case WC_ML_DSA_87:
+            requiredBits = 256;
+            break;
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    if (strengthBits < requiredBits) {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
 }
 
 /* Get the OID for the digest hash.
@@ -8663,6 +8754,16 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
          * Commit (c) and h already encoded into signature. */
         mldsa_vec_encode_gamma1(z, params->l, params->gamma1_bits, ze);
     }
+    else if (sig != NULL) {
+        /* FIPS 204 sec 6.2 footnote 10: when a valid signature is not
+         * produced, return an error and no other output, destroying the
+         * results of the unsuccessful signing attempts.  Each rejected
+         * iteration wrote its commitment hash and hint into sig. */
+        ForceZero(sig, params->sigSz);
+        if (sigLen != NULL) {
+            *sigLen = 0;
+        }
+    }
 
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -9578,6 +9679,11 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
         ret = BAD_LENGTH_E;
     }
 
+    /* FIPS 204 sec. 5.4 Table 4: enforce hash <-> paramSet matching. */
+    if (ret == 0) {
+        ret = mldsa_check_hash_for_level(hashAlg, key->level);
+    }
+
     if (ret == 0) {
         XMEMCPY(seedMu, seed, MLDSA_RND_SZ);
 
@@ -10262,6 +10368,10 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     {
         ret = BAD_LENGTH_E;
     }
+    /* FIPS 204 sec. 5.4 Table 4: enforce hash <-> paramSet matching. */
+    if (ret == 0) {
+        ret = mldsa_check_hash_for_level(hashAlg, key->level);
+    }
 
     if (ret == 0) {
         /* Step 6: Hash public key. */
@@ -10324,7 +10434,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
         }
     }
 
-#ifdef HAVE_FIPS
+#if FIPS_VERSION3_GE(7,0,0)
     /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
      * Section 7.10.3.3 (TE10.35.02): sign with new sk, verify with pk.
      * Runs on every key generation. */
@@ -10530,6 +10640,9 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
@@ -10578,10 +10691,14 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10658,6 +10775,9 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 
     if (ret == 0) {
         /* Sign message. */
@@ -10696,6 +10816,9 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10744,7 +10867,16 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (msg == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    else {
+        /* Set the result before any further validation so a caller that
+         * inspects only res cannot observe a stale value from a call that
+         * failed before the signature was checked. */
+        *res = 0;
+    }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
     /* Reject msgLen that would cause integer overflow in hash computations */
@@ -10801,6 +10933,15 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (msg == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    else {
+        /* Set the result before any further validation so a caller that
+         * inspects only res cannot observe a stale value from a call that
+         * failed before the signature was checked. */
+        *res = 0;
+    }
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
@@ -10853,7 +10994,16 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (hash == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    else {
+        /* Set the result before any further validation so a caller that
+         * inspects only res cannot observe a stale value from a call that
+         * failed before the signature was checked. */
+        *res = 0;
+    }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10907,7 +11057,16 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
             (mu == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    else {
+        /* Set the result before any further validation so a caller that
+         * inspects only res cannot observe a stale value from a call that
+         * failed before the signature was checked. */
+        *res = 0;
+    }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 

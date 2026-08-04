@@ -38,7 +38,7 @@
 int test_wc_mlkem_make_key_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -1497,7 +1497,7 @@ int test_wc_mlkem_make_key_kats(void)
 int test_wc_mlkem_encapsulate_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -4300,11 +4300,11 @@ int test_wc_MlkemDecisionCoverage(void)
     ExpectIntEQ(wc_MlKemKey_MakeKey(key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(NULL, rndMk, sizeof(rndMk)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, NULL, sizeof(rndMk)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, rndMk, sizeof(rndMk) - 1),
-        WC_NO_ERR_TRACE(BUFFER_E));
+        SEED_ARG_ERR(BUFFER_E));
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
@@ -4319,15 +4319,15 @@ int test_wc_MlkemDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* WithRandom: NULL operands + wrong length -> BUFFER_E. */
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(NULL, ct, ss, rndEnc,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, NULL, ss, rndEnc,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, NULL, rndEnc,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, NULL,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, rndEnc,
-        sizeof(rndEnc) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+        sizeof(rndEnc) - 1), SEED_ARG_ERR(BUFFER_E));
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
@@ -4573,11 +4573,11 @@ int test_wc_mlkem_encapsulate_pubkey_unset_decision(void)
     /* cond0 False: the len check at line 1513 fires first (BUFFER_E),
      * short-circuiting the PUB_SET check away. */
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, randBuf,
-        (int)sizeof(randBuf) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+        (int)sizeof(randBuf) - 1), SEED_ARG_ERR(BUFFER_E));
 
     /* cond0 True, cond1 True -> BAD_STATE_E. */
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, randBuf,
-        (int)sizeof(randBuf)), WC_NO_ERR_TRACE(BAD_STATE_E));
+        (int)sizeof(randBuf)), SEED_ARG_ERR(BAD_STATE_E));
 
     wc_MlKemKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);

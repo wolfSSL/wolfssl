@@ -335,14 +335,16 @@ enum wolfCrypt_ErrorCodes {
                                   * match request */
 
     SLH_DSA_PCT_E       = -1020, /* SLH-DSA Pairwise Consistency Test failure */
-    CMAC_KAT_FIPS_E     = -1021, /* AES-CMAC KAT failure */
-    SHAKE_KAT_FIPS_E    = -1022, /* SHAKE KAT failure */
-    DH_PCT_E            = -1023, /* DH Pairwise Consistency Test failure.
+    CMAC_KAT_FIPS_E     = -1021, /* AES-CMAC KAT failure (vendor-elected) */
+    SHAKE_KAT_FIPS_E    = -1022, /* SHAKE KAT failure (vendor-elected) */
+    DH_PCT_E            = -1023, /* DH Pairwise Consistency Test failure
+                                  * (SP 800-56A r3 sec 5.6.2.1.4, IG 10.3.B).
                                   * Retired in FIPS v7+ (classic DH left the
                                   * module boundary); the code stays allocated
                                   * so fips.c can report it as retired rather
                                   * than unknown. */
-    AES_KW_KAT_FIPS_E   = -1024, /* AES Key Wrap KAT failure */
+    AES_KW_KAT_FIPS_E   = -1024, /* AES Key Wrap KAT failure (vendor-elected,
+                                  * SP 800-38F sec 6.2 / RFC 3394) */
     FIPS_WRONG_API_E    = -1025, /* Requested API is not allowed in FIPS mode */
     KMAC_MIN_KEYLEN_E   = -1026, /* FIPS Mode KMAC Minimum Key Length error */
 

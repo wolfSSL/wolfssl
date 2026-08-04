@@ -57,8 +57,12 @@
     #define DRBG_SEED_LEN (440/8)
 #endif
 
+/* Size of the DRBG seed (SHA-512) */
 #ifdef WOLFSSL_DRBG_SHA512
-    #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A Table 2 */
+    #ifndef DRBG_SHA512_SEED_LEN
+        #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A
+                                               * Table 2 */
+    #endif
 #endif
 
 
@@ -212,12 +216,12 @@ struct OS_Seed {
          */
         #define ENTROPY_SCALE_FACTOR  (512)
     #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
-        /* The value of 2 applies to Intel's RDSEED which provides about
-         * 0.5 bits minimum of entropy per bit. The value of 4 gives a
-         * conservative margin for FIPS. */
+        /* Intel RDSEED provides ~0.5 bits min entropy per bit (cert3389
+         * PUD).  FIPS uses the AMD worst case above so one seeding budget
+         * covers any x86 OE. */
         #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION >= 2)
-            #define ENTROPY_SCALE_FACTOR (2*4)
+            #define ENTROPY_SCALE_FACTOR (512)
         #else
             /* Not FIPS, but Intel RDSEED, only double. */
             #define ENTROPY_SCALE_FACTOR (2)
@@ -233,6 +237,12 @@ struct OS_Seed {
         #define ENTROPY_SCALE_FACTOR (1)
     #endif
 #endif /* !ENTROPY_SCALE_FACTOR */
+
+/* SP 800-90A Rev1: FIPS over-seeds to cover low-entropy NDRNGs; a scale
+ * factor below 4 (256 bits) defeats that margin. */
+#if FIPS_VERSION3_GE(7,0,0) && (ENTROPY_SCALE_FACTOR < 4)
+    #error "FIPS v7 requires ENTROPY_SCALE_FACTOR >= 4 (SP 800-90A over-seeding)"
+#endif
 
 /* SEED_BLOCK_SZ is unprefixed for backward compat. */
 #ifndef SEED_BLOCK_SZ
@@ -480,10 +490,15 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #endif
 
 #ifdef WC_RNG_SEED_CB
+    /* Set the entropy-seed callback ONCE at startup, before any RNG use or
+     * threads; it writes a shared global and must not change per-thread or
+     * concurrently with RNG operations.  Use one entropy source at a time. */
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
 #endif
 
 #ifdef HAVE_HASHDRBG
+    /* Caller-supplied reseed entropy is NOT health-tested by the Module; it
+     * SHALL come from an SP 800-90B compliant source (see random.c). */
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);

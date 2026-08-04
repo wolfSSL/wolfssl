@@ -71,6 +71,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep ML-KEM inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name. */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nb")
+        #pragma const_seg(".fipsB$nb")
+    #endif
+#endif
+
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -5581,7 +5590,10 @@ static int mlkem_cmp_c(const byte* a, const byte* b, int sz)
     for (i = 0; i < sz; i++) {
         r |= a[i] ^ b[i];
     }
-    return (int)(0 - ((-(word32)r) >> 31));
+    /* 0U - x rather than -x: identical modular negation for an unsigned
+     * operand, but avoids MSVC C4018/C4146 on the unary minus.  Kept branch
+     * free so the comparison stays constant time. */
+    return (int)(0U - ((0U - (word32)r) >> 31));
 }
 #endif
 

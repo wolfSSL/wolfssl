@@ -39,6 +39,22 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
+/* PQC known-answer tests drive ML-KEM/ML-DSA/SLH-DSA keygen and signing from
+ * fixed NIST seeds.  FIPS 203 sec 3.3, 204 sec 5.4 and 205 sec 10.2 require the
+ * module to generate that randomness itself, so the public seed-input service
+ * returns WC_FIPS_NOT_APPROVED in a FIPS build; these KATs run in non-FIPS
+ * builds only (module CASTs / optest / CAVP cover them otherwise). */
+#if !defined(HAVE_FIPS)
+    #define WOLFSSL_TEST_PQC_SEED_KAT
+#endif
+
+/* Expected result for an argument-validation call to a *_with_seed /
+ * *_with_random seed-input wrapper: the public service is no longer gated, so
+ * it always reaches its normal argument validation and returns the given code
+ * (the WC_FIPS_NOT_APPROVED indicator applies only to a *successful* external
+ * call). */
+#define SEED_ARG_ERR(e) WC_NO_ERR_TRACE(e)
+
 /* Old FIPS headers don't allow comparisons with WC_MIN_DIGEST_SIZE_FOR_SIGN by
  * the preprocessor, so we catch those builds with one of the first two
  * clauses.

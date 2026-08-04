@@ -390,6 +390,11 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ED25519
+    /* az holds the clamped secret scalar; zeroize before return
+     * (ISO/IEC 19790:2012 7.9). */
+    ForceZero(az, sizeof(az));
+#endif
     return ret;
 }
 

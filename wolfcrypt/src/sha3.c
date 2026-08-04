@@ -144,6 +144,15 @@
     #define SHA3_USE_AVX2(f) (IS_INTEL_AVX2(f) && IS_CPU_INTEL(f))
 #endif
 
+    /* True only when AVX2 was explicitly requested, in which case it is
+     * preferred over BMI2.  Otherwise BMI2 is tried first -- see the selection
+     * order below. */
+#if !defined(WOLFSSL_SHA3_NO_AVX2) && defined(WOLFSSL_SHA3_AVX2)
+    #define SHA3_FORCE_AVX2(f) IS_INTEL_AVX2(f)
+#else
+    #define SHA3_FORCE_AVX2(f) 0
+#endif
+
     /* True when the selected block function uses vector registers and so
      * needs the caller to save/restore them.  BMI2 and the C block use only
      * general registers. */
@@ -766,14 +775,22 @@ static int InitSha3(wc_Sha3* sha3)
         }
         else
 #endif
-        /* See the selection comment above: AVX2 on Intel, otherwise BMI2. */
-        if (SHA3_USE_AVX2(cpuid_flags)) {
+        /* BMI2 before AVX2.  The AVX2-first order above was tuned on
+         * Haswell..Ice Lake; on Arrow Lake single-stream AVX2 is 0.87x vs the C
+         * block while BMI2 is 1.09x.  BMI2 also uses only general registers, so
+         * it skips the SAVE/RESTORE_VECTOR_REGISTERS wrapper in-kernel.
+         * WOLFSSL_SHA3_AVX2 still forces AVX2 ahead of BMI2. */
+        if (SHA3_FORCE_AVX2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
         else if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
+        }
+        else if (SHA3_USE_AVX2(cpuid_flags)) {
+            SHA3_BLOCK = sha3_block_avx2;
+            SHA3_BLOCK_N = sha3_block_n_avx2;
         }
         else {
             SHA3_BLOCK = BlockSha3;
@@ -811,6 +828,20 @@ void BlockSha3(word64* s)
 {
     (*SHA3_BLOCK)(s);
 }
+#endif
+
+/* 32-bit ARM BlockSha3 is NEON asm; a Linux kernel module must enable NEON
+ * around it (SAVE/RESTORE_VECTOR_REGISTERS), else the vpush faults. */
+#if !defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_ARMASM) && \
+    !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2) && \
+    !defined(WOLFSSL_ARMASM_NO_NEON)
+    #define WC_SHA3_NEON_SVR_BEGIN() do { \
+        int _svr_ret = SAVE_VECTOR_REGISTERS2(); \
+        if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA3_NEON_SVR_END()   RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA3_NEON_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA3_NEON_SVR_END()   WC_DO_NOTHING
 #endif
 
 /* Update the SHA-3 hash state with message data.
@@ -907,7 +938,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
         #ifdef SHA3_FUNC_PTR
             (*sha3_block)(sha3->s);
         #else
+            WC_SHA3_NEON_SVR_BEGIN();
             BlockSha3(sha3->s);
+            WC_SHA3_NEON_SVR_END();
         #endif
             sha3->i = 0;
         }
@@ -944,7 +977,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     #ifdef SHA3_FUNC_PTR
         (*sha3_block)(sha3->s);
     #else
+        WC_SHA3_NEON_SVR_BEGIN();
         BlockSha3(sha3->s);
+        WC_SHA3_NEON_SVR_END();
     #endif
         len -= p * 8U;
         data += p * 8U;
@@ -1003,7 +1038,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
 
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
     xorbuf(sha3->s, sha3->t, sha3->i);
-#ifdef WOLFSSL_HASH_FLAGS
+    /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
+     * Keccak-256 0x01 pad is excluded from the FIPS module (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !FIPS_VERSION3_GE(7,0,0)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -1012,7 +1049,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     ((byte*)sha3->s)[rate - 1] ^= 0x80;
 #else
     sha3->t[rate - 1]  = 0x00;
-#ifdef WOLFSSL_HASH_FLAGS
+    /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
+     * Keccak-256 0x01 pad is excluded from the FIPS module (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !FIPS_VERSION3_GE(7,0,0)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -1052,7 +1091,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     #ifdef SHA3_FUNC_PTR
         (*sha3_block)(sha3->s);
     #else
+        WC_SHA3_NEON_SVR_BEGIN();
         BlockSha3(sha3->s);
+        WC_SHA3_NEON_SVR_END();
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)(hash + j), sha3->s, rate);
@@ -1064,7 +1105,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     #ifdef SHA3_FUNC_PTR
         (*sha3_block)(sha3->s);
     #else
+        WC_SHA3_NEON_SVR_BEGIN();
         BlockSha3(sha3->s);
+        WC_SHA3_NEON_SVR_END();
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64(sha3->s, sha3->s, rate);
@@ -2431,6 +2474,18 @@ int wc_Shake256_Copy(wc_Shake* src, wc_Shake* dst)
 
 #if (defined(WOLFSSL_KMAC) || defined(WOLFSSL_CSHAKE)) && \
     defined(WC_SHA3_SW_KECCAK)
+
+#if FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_READY)
+    /* KMAC and cSHAKE (SP 800-185) are not approved services in the validated
+     * module: they have no CAST and no service-layer gate.  Exclude them from
+     * the validated FIPS build so they cannot be linked into it.  The dev and
+     * ready prep builds (WOLFSSL_FIPS_DEV / WOLFSSL_FIPS_READY) deliberately
+     * exercise not-yet-approved algorithms for a future module, so the guard is
+     * lifted there -- e.g. --enable-all with --enable-fips=dev must build. */
+    #error "KMAC/cSHAKE (SP 800-185) are not part of the FIPS module boundary"
+#endif
+
 /* cSHAKE and KMAC - NIST SP 800-185.
  *
  * cSHAKE is a customizable SHAKE; KMAC is cSHAKE keyed with the function name
