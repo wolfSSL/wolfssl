@@ -61,7 +61,6 @@
 
 #if defined(HAVE_WOLFCRYPT_TEST_OPTIONS)
     #include <wolfssl/ssl.h>
-    #define err_sys err_sys_remap /* remap err_sys */
     #include <wolfssl/test.h>
     #undef err_sys
 #endif
@@ -41613,7 +41612,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
 #ifdef WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
     if (ret == 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
     else {
         ret = 0;
@@ -56466,11 +56465,15 @@ static wc_test_ret_t mldsa_param_44_vfy_test(void)
     ret = mldsa_param_vfy_test(WC_ML_DSA_44, ml_dsa_44_pub_key,
         (word32)sizeof(ml_dsa_44_pub_key), ml_dsa_44_sig,
         (word32)sizeof(ml_dsa_44_sig));
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
         ret = mldsa_param_vfy_test(WC_ML_DSA_44_DRAFT,
             ml_dsa_44_draft_pub_key, (word32)sizeof(ml_dsa_44_draft_pub_key),
             ml_dsa_44_draft_sig, (word32)sizeof(ml_dsa_44_draft_sig));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 #endif
 
@@ -57464,11 +57467,15 @@ static wc_test_ret_t mldsa_param_65_vfy_test(void)
     ret = mldsa_param_vfy_test(WC_ML_DSA_65, ml_dsa_65_pub_key,
         (word32)sizeof(ml_dsa_65_pub_key), ml_dsa_65_sig,
         (word32)sizeof(ml_dsa_65_sig));
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
         ret = mldsa_param_vfy_test(WC_ML_DSA_65_DRAFT,
             ml_dsa_65_draft_pub_key, (word32)sizeof(ml_dsa_65_draft_pub_key),
             ml_dsa_65_draft_sig, (word32)sizeof(ml_dsa_65_draft_sig));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 #endif
 
@@ -58821,11 +58828,15 @@ static wc_test_ret_t mldsa_param_87_vfy_test(void)
     ret = mldsa_param_vfy_test(WC_ML_DSA_87, ml_dsa_87_pub_key,
         (word32)sizeof(ml_dsa_87_pub_key), ml_dsa_87_sig,
         (word32)sizeof(ml_dsa_87_sig));
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
         ret = mldsa_param_vfy_test(WC_ML_DSA_87_DRAFT,
             ml_dsa_87_draft_pub_key, (word32)sizeof(ml_dsa_87_draft_pub_key),
             ml_dsa_87_draft_sig, (word32)sizeof(ml_dsa_87_draft_sig));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 #endif
 
@@ -59050,29 +59061,37 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
     key = (wc_MlDsaKey *)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL || key == NULL) {
-        ret = MEMORY_E;
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
     }
 #endif
 
     /* Initialize key */
     if (ret == 0) {
         ret = wc_MlDsaKey_Init(key, NULL, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 
     /* Import raw key, setting the security level */
     if (ret == 0) {
         ret = wc_MlDsaKey_SetParams(key, expectedLevel);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 
     if (ret == 0) {
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
             ret = wc_MlDsaKey_ImportPubRaw(key, rawKey, rawKeySz);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
             ret = wc_MlDsaKey_ImportPrivRaw(key, rawKey, rawKeySz);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
     }
@@ -59084,12 +59103,16 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
         if (isPublicOnlyKey) {
             ret = wc_MlDsaKey_PublicKeyToDer(key, der,
                 MLDSA_MAX_PRV_KEY_DER_SIZE, 1);
+            if (ret < 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
             ret = wc_MlDsaKey_PrivateKeyToDer(key, der,
                 MLDSA_MAX_PRV_KEY_DER_SIZE);
+            if (ret < 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
         if (ret >= 0) {
@@ -59102,11 +59125,15 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
     if (ret == 0) {
         wc_MlDsaKey_Free(key);
         ret = wc_MlDsaKey_Init(key, NULL, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 
     /* First test decoding when security level is set externally */
     if (ret == 0) {
         ret = wc_MlDsaKey_SetParams(key, expectedLevel);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 
     if (ret == 0) {
@@ -59114,11 +59141,15 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
             ret = wc_MlDsaKey_PublicKeyDecode(key, der, derSz, &idx);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
             ret = wc_MlDsaKey_PrivateKeyDecode(key, der, derSz, &idx);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
     }
@@ -59127,6 +59158,8 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
     if (ret == 0) {
         wc_MlDsaKey_Free(key);
         ret = wc_MlDsaKey_Init(key, NULL, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
     }
 
 #ifndef WOLFSSL_MLDSA_FIPS204_DRAFT
@@ -59136,11 +59169,15 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
             ret = wc_MlDsaKey_PublicKeyDecode(key, der, derSz, &idx);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
             ret = wc_MlDsaKey_PrivateKeyDecode(key, der, derSz, &idx);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
 #endif
     }
@@ -59164,6 +59201,8 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
         ret = wc_MlDsaKey_Init(key, NULL, devId);
         if (ret == 0) {
             ret = wc_MlDsaKey_SetParams(key, expectedLevel);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
         }
         if (ret == 0) {
             if (wc_MlDsaKey_ImportPrivRaw(key, der, rawKeySz) !=
@@ -59921,8 +59960,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
     ret = wc_InitRng(&rng);
 #endif
     if (ret != 0) {
-        ret = WC_TEST_RET_ENC_EC(ret);
-        return ret;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
 #ifndef WOLFSSL_NO_ML_DSA_44
