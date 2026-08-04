@@ -33,6 +33,7 @@
 #ifdef HAVE_POLY1305
 	.text
 	.globl	poly1305_set_key_riscv64
+	WC_ASM_ATT_HIDDEN(poly1305_set_key_riscv64)
 	.type	poly1305_set_key_riscv64,@function
 	.align	2
 poly1305_set_key_riscv64:
@@ -290,6 +291,7 @@ L_ualn_ld4_e:
 	.size	poly1305_set_key_riscv64,.-poly1305_set_key_riscv64
 	.text
 	.globl	poly1305_block_16_riscv64
+	WC_ASM_ATT_HIDDEN(poly1305_block_16_riscv64)
 	.type	poly1305_block_16_riscv64,@function
 	.align	2
 poly1305_block_16_riscv64:
@@ -443,6 +445,7 @@ poly1305_block_16_riscv64:
 	.size	poly1305_block_16_riscv64,.-poly1305_block_16_riscv64
 	.text
 	.globl	poly1305_blocks_riscv64
+	WC_ASM_ATT_HIDDEN(poly1305_blocks_riscv64)
 	.type	poly1305_blocks_riscv64,@function
 	.align	2
 poly1305_blocks_riscv64:
@@ -4287,6 +4290,7 @@ L_poly1305_riscv64_blocks_done:
 	.size	poly1305_blocks_riscv64,.-poly1305_blocks_riscv64
 	.text
 	.globl	poly1305_final_riscv64
+	WC_ASM_ATT_HIDDEN(poly1305_final_riscv64)
 	.type	poly1305_final_riscv64,@function
 	.align	2
 poly1305_final_riscv64:

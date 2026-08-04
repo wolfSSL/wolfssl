@@ -68,6 +68,7 @@ L_SHA256_transform_len_k:
 	.text
 	.align	4
 	.globl	Transform_Sha256_Len_base
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_base)
 	.type	Transform_Sha256_Len_base, %function
 Transform_Sha256_Len_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -2567,6 +2568,7 @@ L_SHA256_transform_neon_len_k:
 	.align	4
 	.fpu	neon
 	.globl	Transform_Sha256_Len_neon
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_neon)
 	.type	Transform_Sha256_Len_neon, %function
 Transform_Sha256_Len_neon:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -3628,6 +3630,7 @@ L_SHA256_trans_crypto_len_k:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	Transform_Sha256_Len_crypto
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_crypto)
 	.type	Transform_Sha256_Len_crypto, %function
 Transform_Sha256_Len_crypto:
 	vpush	{d8-d15}

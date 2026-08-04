@@ -494,12 +494,14 @@ L_mlkem_avx2_zetas_inv:
 #ifndef __APPLE__
 .text
 .globl	mlkem_keygen_avx2
+WC_ASM_ATT_HIDDEN(mlkem_keygen_avx2)
 .type	mlkem_keygen_avx2,@function
 .align	16
 mlkem_keygen_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_keygen_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_keygen_avx2)
 .p2align	4
 _mlkem_keygen_avx2:
 #endif /* __APPLE__ */
@@ -3153,12 +3155,14 @@ L_mlkem_keygen_avx2_to_mont_ntt_err:
 #ifndef __APPLE__
 .text
 .globl	mlkem_encapsulate_avx2
+WC_ASM_ATT_HIDDEN(mlkem_encapsulate_avx2)
 .type	mlkem_encapsulate_avx2,@function
 .align	16
 mlkem_encapsulate_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_encapsulate_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_encapsulate_avx2)
 .p2align	4
 _mlkem_encapsulate_avx2:
 #endif /* __APPLE__ */
@@ -7963,12 +7967,14 @@ L_pointwise_acc_mont_end_encap_v:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decapsulate_avx2
+WC_ASM_ATT_HIDDEN(mlkem_decapsulate_avx2)
 .type	mlkem_decapsulate_avx2,@function
 .align	16
 mlkem_decapsulate_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decapsulate_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_decapsulate_avx2)
 .p2align	4
 _mlkem_decapsulate_avx2:
 #endif /* __APPLE__ */
@@ -10712,12 +10718,14 @@ L_pointwise_acc_mont_end_decap:
 #ifndef __APPLE__
 .text
 .globl	mlkem_csubq_avx2
+WC_ASM_ATT_HIDDEN(mlkem_csubq_avx2)
 .type	mlkem_csubq_avx2,@function
 .align	16
 mlkem_csubq_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_csubq_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_csubq_avx2)
 .p2align	4
 _mlkem_csubq_avx2:
 #endif /* __APPLE__ */
@@ -11017,12 +11025,14 @@ L_mlkem_rej_shuffle:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_n_avx2
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_n_avx2)
 .type	mlkem_rej_uniform_n_avx2,@function
 .align	16
 mlkem_rej_uniform_n_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_n_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx2)
 .p2align	4
 _mlkem_rej_uniform_n_avx2:
 #endif /* __APPLE__ */
@@ -11632,12 +11642,14 @@ L_mlkem_rej_uniform_n_avx2_done_64:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_avx2
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_avx2)
 .type	mlkem_rej_uniform_avx2,@function
 .align	16
 mlkem_rej_uniform_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx2)
 .p2align	4
 _mlkem_rej_uniform_avx2:
 #endif /* __APPLE__ */
@@ -12032,12 +12044,14 @@ L_mlkem_shuff:
 #ifndef __APPLE__
 .text
 .globl	mlkem_cbd_eta3_avx2
+WC_ASM_ATT_HIDDEN(mlkem_cbd_eta3_avx2)
 .type	mlkem_cbd_eta3_avx2,@function
 .align	16
 mlkem_cbd_eta3_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_cbd_eta3_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_cbd_eta3_avx2)
 .p2align	4
 _mlkem_cbd_eta3_avx2:
 #endif /* __APPLE__ */
@@ -12347,12 +12361,14 @@ L_mlkem_mask_0f:
 #ifndef __APPLE__
 .text
 .globl	mlkem_cbd_eta2_avx2
+WC_ASM_ATT_HIDDEN(mlkem_cbd_eta2_avx2)
 .type	mlkem_cbd_eta2_avx2,@function
 .align	16
 mlkem_cbd_eta2_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_cbd_eta2_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_cbd_eta2_avx2)
 .p2align	4
 _mlkem_cbd_eta2_avx2:
 #endif /* __APPLE__ */
@@ -12569,12 +12585,14 @@ L_mlkem_compress_10_avx2_shift12:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_10_avx2
+WC_ASM_ATT_HIDDEN(mlkem_compress_10_avx2)
 .type	mlkem_compress_10_avx2,@function
 .align	16
 mlkem_compress_10_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_10_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_compress_10_avx2)
 .p2align	4
 _mlkem_compress_10_avx2:
 #endif /* __APPLE__ */
@@ -12958,12 +12976,14 @@ L_mlkem_decompress_10_avx2_shuf:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_10_avx2
+WC_ASM_ATT_HIDDEN(mlkem_decompress_10_avx2)
 .type	mlkem_decompress_10_avx2,@function
 .align	16
 mlkem_decompress_10_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_10_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_10_avx2)
 .p2align	4
 _mlkem_decompress_10_avx2:
 #endif /* __APPLE__ */
@@ -13202,12 +13222,14 @@ L_mlkem_compress_11_avx2_shuf:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_11_avx2
+WC_ASM_ATT_HIDDEN(mlkem_compress_11_avx2)
 .type	mlkem_compress_11_avx2,@function
 .align	16
 mlkem_compress_11_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_11_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_compress_11_avx2)
 .p2align	4
 _mlkem_compress_11_avx2:
 #endif /* __APPLE__ */
@@ -13666,12 +13688,14 @@ L_mlkem_decompress_11_avx2_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_11_avx2
+WC_ASM_ATT_HIDDEN(mlkem_decompress_11_avx2)
 .type	mlkem_decompress_11_avx2,@function
 .align	16
 mlkem_decompress_11_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_11_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_11_avx2)
 .p2align	4
 _mlkem_decompress_11_avx2:
 #endif /* __APPLE__ */
@@ -13903,12 +13927,14 @@ L_mlkem_compress_4_avx2_shift12:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_4_avx2
+WC_ASM_ATT_HIDDEN(mlkem_compress_4_avx2)
 .type	mlkem_compress_4_avx2,@function
 .align	16
 mlkem_compress_4_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_4_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_compress_4_avx2)
 .p2align	4
 _mlkem_compress_4_avx2:
 #endif /* __APPLE__ */
@@ -14055,12 +14081,14 @@ L_mlkem_decompress_4_avx2_shuf:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_4_avx2
+WC_ASM_ATT_HIDDEN(mlkem_decompress_4_avx2)
 .type	mlkem_decompress_4_avx2,@function
 .align	16
 mlkem_decompress_4_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_4_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_4_avx2)
 .p2align	4
 _mlkem_decompress_4_avx2:
 #endif /* __APPLE__ */
@@ -14265,12 +14293,14 @@ L_mlkem_compress_5_avx2_shuffle:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_5_avx2
+WC_ASM_ATT_HIDDEN(mlkem_compress_5_avx2)
 .type	mlkem_compress_5_avx2,@function
 .align	16
 mlkem_compress_5_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_5_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_compress_5_avx2)
 .p2align	4
 _mlkem_compress_5_avx2:
 #endif /* __APPLE__ */
@@ -14472,12 +14502,14 @@ L_mlkem_decompress_5_avx2_shift:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_5_avx2
+WC_ASM_ATT_HIDDEN(mlkem_decompress_5_avx2)
 .type	mlkem_decompress_5_avx2,@function
 .align	16
 mlkem_decompress_5_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_5_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_5_avx2)
 .p2align	4
 _mlkem_decompress_5_avx2:
 #endif /* __APPLE__ */
@@ -14633,12 +14665,14 @@ L_mlkem_from_msg_avx2_hqs:
 #ifndef __APPLE__
 .text
 .globl	mlkem_from_msg_avx2
+WC_ASM_ATT_HIDDEN(mlkem_from_msg_avx2)
 .type	mlkem_from_msg_avx2,@function
 .align	16
 mlkem_from_msg_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_from_msg_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_from_msg_avx2)
 .p2align	4
 _mlkem_from_msg_avx2:
 #endif /* __APPLE__ */
@@ -14784,12 +14818,14 @@ L_mlkem_to_msg_avx2_hhqs:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_msg_avx2
+WC_ASM_ATT_HIDDEN(mlkem_to_msg_avx2)
 .type	mlkem_to_msg_avx2,@function
 .align	16
 mlkem_to_msg_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_msg_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_to_msg_avx2)
 .p2align	4
 _mlkem_to_msg_avx2:
 #endif /* __APPLE__ */
@@ -14927,12 +14963,14 @@ L_mlkem_from_bytes_avx2_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_from_bytes_avx2
+WC_ASM_ATT_HIDDEN(mlkem_from_bytes_avx2)
 .type	mlkem_from_bytes_avx2,@function
 .align	16
 mlkem_from_bytes_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_from_bytes_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_from_bytes_avx2)
 .p2align	4
 _mlkem_from_bytes_avx2:
 #endif /* __APPLE__ */
@@ -15128,12 +15166,14 @@ L_mlkem_to_bytes_avx2_perm:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_bytes_avx2
+WC_ASM_ATT_HIDDEN(mlkem_to_bytes_avx2)
 .type	mlkem_to_bytes_avx2,@function
 .align	16
 mlkem_to_bytes_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_bytes_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_to_bytes_avx2)
 .p2align	4
 _mlkem_to_bytes_avx2:
 #endif /* __APPLE__ */
@@ -15369,12 +15409,14 @@ _mlkem_to_bytes_avx2:
 #ifndef __APPLE__
 .text
 .globl	mlkem_cmp_avx2
+WC_ASM_ATT_HIDDEN(mlkem_cmp_avx2)
 .type	mlkem_cmp_avx2,@function
 .align	16
 mlkem_cmp_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_cmp_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_cmp_avx2)
 .p2align	4
 _mlkem_cmp_avx2:
 #endif /* __APPLE__ */
@@ -15546,12 +15588,14 @@ L_mlkem_cmp_avx2_done:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_21_rand_avx2
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_21_rand_avx2)
 .type	mlkem_redistribute_21_rand_avx2,@function
 .align	16
 mlkem_redistribute_21_rand_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_21_rand_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_21_rand_avx2)
 .p2align	4
 _mlkem_redistribute_21_rand_avx2:
 #endif /* __APPLE__ */
@@ -15651,12 +15695,14 @@ _mlkem_redistribute_21_rand_avx2:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_17_rand_avx2
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_17_rand_avx2)
 .type	mlkem_redistribute_17_rand_avx2,@function
 .align	16
 mlkem_redistribute_17_rand_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_17_rand_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_17_rand_avx2)
 .p2align	4
 _mlkem_redistribute_17_rand_avx2:
 #endif /* __APPLE__ */
@@ -15740,12 +15786,14 @@ _mlkem_redistribute_17_rand_avx2:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_16_rand_avx2
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_16_rand_avx2)
 .type	mlkem_redistribute_16_rand_avx2,@function
 .align	16
 mlkem_redistribute_16_rand_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_16_rand_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_16_rand_avx2)
 .p2align	4
 _mlkem_redistribute_16_rand_avx2:
 #endif /* __APPLE__ */
@@ -15821,12 +15869,14 @@ _mlkem_redistribute_16_rand_avx2:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_8_rand_avx2
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_8_rand_avx2)
 .type	mlkem_redistribute_8_rand_avx2,@function
 .align	16
 mlkem_redistribute_8_rand_avx2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_8_rand_avx2
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_8_rand_avx2)
 .p2align	4
 _mlkem_redistribute_8_rand_avx2:
 #endif /* __APPLE__ */
@@ -16295,12 +16345,14 @@ L_mlkem_avx512_zetas_inv:
 #ifndef __APPLE__
 .text
 .globl	mlkem_keygen_avx512
+WC_ASM_ATT_HIDDEN(mlkem_keygen_avx512)
 .type	mlkem_keygen_avx512,@function
 .align	16
 mlkem_keygen_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_keygen_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_keygen_avx512)
 .p2align	4
 _mlkem_keygen_avx512:
 #endif /* __APPLE__ */
@@ -19948,12 +20000,14 @@ L_keygen_avx512_err_done:
 #ifndef __APPLE__
 .text
 .globl	mlkem_encapsulate_avx512
+WC_ASM_ATT_HIDDEN(mlkem_encapsulate_avx512)
 .type	mlkem_encapsulate_avx512,@function
 .align	16
 mlkem_encapsulate_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_encapsulate_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_encapsulate_avx512)
 .p2align	4
 _mlkem_encapsulate_avx512:
 #endif /* __APPLE__ */
@@ -26718,12 +26772,14 @@ L_encap_avx512_calc_done:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decapsulate_avx512
+WC_ASM_ATT_HIDDEN(mlkem_decapsulate_avx512)
 .type	mlkem_decapsulate_avx512,@function
 .align	16
 mlkem_decapsulate_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decapsulate_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_decapsulate_avx512)
 .p2align	4
 _mlkem_decapsulate_avx512:
 #endif /* __APPLE__ */
@@ -29665,12 +29721,14 @@ L_pointwise_acc_mont_end_decap_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_basemul_x2_avx512
+WC_ASM_ATT_HIDDEN(mlkem_basemul_x2_avx512)
 .type	mlkem_basemul_x2_avx512,@function
 .align	16
 mlkem_basemul_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_basemul_x2_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_basemul_x2_avx512)
 .p2align	4
 _mlkem_basemul_x2_avx512:
 #endif /* __APPLE__ */
@@ -29909,12 +29967,14 @@ _mlkem_basemul_x2_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_tomont_x2_avx512
+WC_ASM_ATT_HIDDEN(mlkem_tomont_x2_avx512)
 .type	mlkem_tomont_x2_avx512,@function
 .align	16
 mlkem_tomont_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_tomont_x2_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_tomont_x2_avx512)
 .p2align	4
 _mlkem_tomont_x2_avx512:
 #endif /* __APPLE__ */
@@ -29983,12 +30043,14 @@ _mlkem_tomont_x2_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_adderr_x2_avx512
+WC_ASM_ATT_HIDDEN(mlkem_adderr_x2_avx512)
 .type	mlkem_adderr_x2_avx512,@function
 .align	16
 mlkem_adderr_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_adderr_x2_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_adderr_x2_avx512)
 .p2align	4
 _mlkem_adderr_x2_avx512:
 #endif /* __APPLE__ */
@@ -30070,12 +30132,14 @@ _mlkem_adderr_x2_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_suberr_x2_avx512
+WC_ASM_ATT_HIDDEN(mlkem_suberr_x2_avx512)
 .type	mlkem_suberr_x2_avx512,@function
 .align	16
 mlkem_suberr_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_suberr_x2_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_suberr_x2_avx512)
 .p2align	4
 _mlkem_suberr_x2_avx512:
 #endif /* __APPLE__ */
@@ -30157,12 +30221,14 @@ _mlkem_suberr_x2_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_ptacc_x2_avx512
+WC_ASM_ATT_HIDDEN(mlkem_ptacc_x2_avx512)
 .type	mlkem_ptacc_x2_avx512,@function
 .align	16
 mlkem_ptacc_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_ptacc_x2_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_ptacc_x2_avx512)
 .p2align	4
 _mlkem_ptacc_x2_avx512:
 #endif /* __APPLE__ */
@@ -30924,12 +30990,14 @@ L_mlkem_cbd_eta2_avx512_m0f:
 #ifndef __APPLE__
 .text
 .globl	mlkem_cbd_eta2_avx512
+WC_ASM_ATT_HIDDEN(mlkem_cbd_eta2_avx512)
 .type	mlkem_cbd_eta2_avx512,@function
 .align	16
 mlkem_cbd_eta2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_cbd_eta2_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_cbd_eta2_avx512)
 .p2align	4
 _mlkem_cbd_eta2_avx512:
 #endif /* __APPLE__ */
@@ -31117,12 +31185,14 @@ L_mlkem_cbd_eta3_avx512_shuff:
 #ifndef __APPLE__
 .text
 .globl	mlkem_cbd_eta3_avx512
+WC_ASM_ATT_HIDDEN(mlkem_cbd_eta3_avx512)
 .type	mlkem_cbd_eta3_avx512,@function
 .align	16
 mlkem_cbd_eta3_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_cbd_eta3_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_cbd_eta3_avx512)
 .p2align	4
 _mlkem_cbd_eta3_avx512:
 #endif /* __APPLE__ */
@@ -31345,12 +31415,14 @@ L_mlkem_rej_uniform_avx512_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_avx512
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_avx512)
 .type	mlkem_rej_uniform_avx512,@function
 .align	16
 mlkem_rej_uniform_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512)
 .p2align	4
 _mlkem_rej_uniform_avx512:
 #endif /* __APPLE__ */
@@ -31480,12 +31552,14 @@ L_mlkem_rej_uniform_n_avx512_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_n_avx512
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_n_avx512)
 .type	mlkem_rej_uniform_n_avx512,@function
 .align	16
 mlkem_rej_uniform_n_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_n_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512)
 .p2align	4
 _mlkem_rej_uniform_n_avx512:
 #endif /* __APPLE__ */
@@ -31626,12 +31700,14 @@ L_mlkem_redistribute_8_rand_avx512_idx3:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_8_rand_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_8_rand_avx512)
 .type	mlkem_redistribute_8_rand_avx512,@function
 .align	16
 mlkem_redistribute_8_rand_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_8_rand_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_8_rand_avx512)
 .p2align	4
 _mlkem_redistribute_8_rand_avx512:
 #endif /* __APPLE__ */
@@ -31731,12 +31807,14 @@ L_mlkem_redistribute_16_rand_avx512_idx3:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_16_rand_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_16_rand_avx512)
 .type	mlkem_redistribute_16_rand_avx512,@function
 .align	16
 mlkem_redistribute_16_rand_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_16_rand_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_16_rand_avx512)
 .p2align	4
 _mlkem_redistribute_16_rand_avx512:
 #endif /* __APPLE__ */
@@ -31864,12 +31942,14 @@ L_mlkem_redistribute_17_rand_avx512_idx3:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_17_rand_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_17_rand_avx512)
 .type	mlkem_redistribute_17_rand_avx512,@function
 .align	16
 mlkem_redistribute_17_rand_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_17_rand_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_17_rand_avx512)
 .p2align	4
 _mlkem_redistribute_17_rand_avx512:
 #endif /* __APPLE__ */
@@ -32005,12 +32085,14 @@ L_mlkem_redistribute_21_rand_avx512_idx3:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_21_rand_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_21_rand_avx512)
 .type	mlkem_redistribute_21_rand_avx512,@function
 .align	16
 mlkem_redistribute_21_rand_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_21_rand_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_21_rand_avx512)
 .p2align	4
 _mlkem_redistribute_21_rand_avx512:
 #endif /* __APPLE__ */
@@ -32100,12 +32182,14 @@ _mlkem_redistribute_21_rand_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_8_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_8_rand_x8_avx512)
 .type	mlkem_redistribute_8_rand_x8_avx512,@function
 .align	16
 mlkem_redistribute_8_rand_x8_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_8_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_8_rand_x8_avx512)
 .p2align	4
 _mlkem_redistribute_8_rand_x8_avx512:
 #endif /* __APPLE__ */
@@ -32178,12 +32262,14 @@ _mlkem_redistribute_8_rand_x8_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_16_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_16_rand_x8_avx512)
 .type	mlkem_redistribute_16_rand_x8_avx512,@function
 .align	16
 mlkem_redistribute_16_rand_x8_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_16_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_16_rand_x8_avx512)
 .p2align	4
 _mlkem_redistribute_16_rand_x8_avx512:
 #endif /* __APPLE__ */
@@ -32296,12 +32382,14 @@ _mlkem_redistribute_16_rand_x8_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_17_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_17_rand_x8_avx512)
 .type	mlkem_redistribute_17_rand_x8_avx512,@function
 .align	16
 mlkem_redistribute_17_rand_x8_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_17_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_17_rand_x8_avx512)
 .p2align	4
 _mlkem_redistribute_17_rand_x8_avx512:
 #endif /* __APPLE__ */
@@ -32430,12 +32518,14 @@ _mlkem_redistribute_17_rand_x8_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_redistribute_21_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(mlkem_redistribute_21_rand_x8_avx512)
 .type	mlkem_redistribute_21_rand_x8_avx512,@function
 .align	16
 mlkem_redistribute_21_rand_x8_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_redistribute_21_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_redistribute_21_rand_x8_avx512)
 .p2align	4
 _mlkem_redistribute_21_rand_x8_avx512:
 #endif /* __APPLE__ */
@@ -32628,12 +32718,14 @@ _mlkem_redistribute_21_rand_x8_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_csubq_avx512
+WC_ASM_ATT_HIDDEN(mlkem_csubq_avx512)
 .type	mlkem_csubq_avx512,@function
 .align	16
 mlkem_csubq_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_csubq_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_csubq_avx512)
 .p2align	4
 _mlkem_csubq_avx512:
 #endif /* __APPLE__ */
@@ -32696,12 +32788,14 @@ _mlkem_csubq_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_cmp_avx512
+WC_ASM_ATT_HIDDEN(mlkem_cmp_avx512)
 .type	mlkem_cmp_avx512,@function
 .align	16
 mlkem_cmp_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_cmp_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_cmp_avx512)
 .p2align	4
 _mlkem_cmp_avx512:
 #endif /* __APPLE__ */
@@ -32842,12 +32936,14 @@ L_mlkem_from_bytes_avx512_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_from_bytes_avx512
+WC_ASM_ATT_HIDDEN(mlkem_from_bytes_avx512)
 .type	mlkem_from_bytes_avx512,@function
 .align	16
 mlkem_from_bytes_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_from_bytes_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_from_bytes_avx512)
 .p2align	4
 _mlkem_from_bytes_avx512:
 #endif /* __APPLE__ */
@@ -32960,12 +33056,14 @@ L_mlkem_to_bytes_avx512_perm:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_bytes_avx512
+WC_ASM_ATT_HIDDEN(mlkem_to_bytes_avx512)
 .type	mlkem_to_bytes_avx512,@function
 .align	16
 mlkem_to_bytes_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_bytes_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_to_bytes_avx512)
 .p2align	4
 _mlkem_to_bytes_avx512:
 #endif /* __APPLE__ */
@@ -33107,12 +33205,14 @@ L_mlkem_from_msg_avx512_pow:
 #ifndef __APPLE__
 .text
 .globl	mlkem_from_msg_avx512
+WC_ASM_ATT_HIDDEN(mlkem_from_msg_avx512)
 .type	mlkem_from_msg_avx512,@function
 .align	16
 mlkem_from_msg_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_from_msg_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_from_msg_avx512)
 .p2align	4
 _mlkem_from_msg_avx512:
 #endif /* __APPLE__ */
@@ -33177,12 +33277,14 @@ _mlkem_from_msg_avx512:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_msg_avx512
+WC_ASM_ATT_HIDDEN(mlkem_to_msg_avx512)
 .type	mlkem_to_msg_avx512,@function
 .align	16
 mlkem_to_msg_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_msg_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_to_msg_avx512)
 .p2align	4
 _mlkem_to_msg_avx512:
 #endif /* __APPLE__ */
@@ -33306,12 +33408,14 @@ L_mlkem_compress_4_avx512_perm:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_4_avx512
+WC_ASM_ATT_HIDDEN(mlkem_compress_4_avx512)
 .type	mlkem_compress_4_avx512,@function
 .align	16
 mlkem_compress_4_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_4_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_compress_4_avx512)
 .p2align	4
 _mlkem_compress_4_avx512:
 #endif /* __APPLE__ */
@@ -33447,12 +33551,14 @@ L_mlkem_decompress_4_avx512_shift:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_4_avx512
+WC_ASM_ATT_HIDDEN(mlkem_decompress_4_avx512)
 .type	mlkem_decompress_4_avx512,@function
 .align	16
 mlkem_decompress_4_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_4_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_4_avx512)
 .p2align	4
 _mlkem_decompress_4_avx512:
 #endif /* __APPLE__ */
@@ -33582,12 +33688,14 @@ L_mlkem_decompress_5_avx512_shift:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_5_avx512
+WC_ASM_ATT_HIDDEN(mlkem_decompress_5_avx512)
 .type	mlkem_decompress_5_avx512,@function
 .align	16
 mlkem_decompress_5_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_5_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_5_avx512)
 .p2align	4
 _mlkem_decompress_5_avx512:
 #endif /* __APPLE__ */
@@ -33734,12 +33842,14 @@ L_mlkem_decompress_10_avx512_shuf:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_10_avx512
+WC_ASM_ATT_HIDDEN(mlkem_decompress_10_avx512)
 .type	mlkem_decompress_10_avx512,@function
 .align	16
 mlkem_decompress_10_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_10_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_10_avx512)
 .p2align	4
 _mlkem_decompress_10_avx512:
 #endif /* __APPLE__ */
@@ -33926,12 +34036,14 @@ L_mlkem_decompress_11_avx512_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_11_avx512
+WC_ASM_ATT_HIDDEN(mlkem_decompress_11_avx512)
 .type	mlkem_decompress_11_avx512,@function
 .align	16
 mlkem_decompress_11_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_11_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_11_avx512)
 .p2align	4
 _mlkem_decompress_11_avx512:
 #endif /* __APPLE__ */
@@ -34096,12 +34208,14 @@ L_mlkem_compress_5_avx512_shuf:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_5_avx512
+WC_ASM_ATT_HIDDEN(mlkem_compress_5_avx512)
 .type	mlkem_compress_5_avx512,@function
 .align	16
 mlkem_compress_5_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_5_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_compress_5_avx512)
 .p2align	4
 _mlkem_compress_5_avx512:
 #endif /* __APPLE__ */
@@ -34279,12 +34393,14 @@ L_mlkem_compress_10_avx512_shuf:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_10_avx512
+WC_ASM_ATT_HIDDEN(mlkem_compress_10_avx512)
 .type	mlkem_compress_10_avx512,@function
 .align	16
 mlkem_compress_10_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_10_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_compress_10_avx512)
 .p2align	4
 _mlkem_compress_10_avx512:
 #endif /* __APPLE__ */
@@ -34595,12 +34711,14 @@ L_mlkem_compress_11_avx512_shuf:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_11_avx512
+WC_ASM_ATT_HIDDEN(mlkem_compress_11_avx512)
 .type	mlkem_compress_11_avx512,@function
 .align	16
 mlkem_compress_11_avx512:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_11_avx512
+WC_ASM_ATT_HIDDEN(_mlkem_compress_11_avx512)
 .p2align	4
 _mlkem_compress_11_avx512:
 #endif /* __APPLE__ */
@@ -34957,12 +35075,14 @@ L_mlkem_rej_uniform_avx512_vbmi2_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_avx512_vbmi2
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_avx512_vbmi2)
 .type	mlkem_rej_uniform_avx512_vbmi2,@function
 .align	16
 mlkem_rej_uniform_avx512_vbmi2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_avx512_vbmi2
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512_vbmi2)
 .p2align	4
 _mlkem_rej_uniform_avx512_vbmi2:
 #endif /* __APPLE__ */
@@ -35080,12 +35200,14 @@ L_mlkem_rej_uniform_n_avx512_vbmi2_mask:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_n_avx512_vbmi2
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_n_avx512_vbmi2)
 .type	mlkem_rej_uniform_n_avx512_vbmi2,@function
 .align	16
 mlkem_rej_uniform_n_avx512_vbmi2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_n_avx512_vbmi2
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512_vbmi2)
 .p2align	4
 _mlkem_rej_uniform_n_avx512_vbmi2:
 #endif /* __APPLE__ */
@@ -35233,12 +35355,14 @@ L_mlkem_from_bytes_avx512_vbmi_mask_hi:
 #ifndef __APPLE__
 .text
 .globl	mlkem_from_bytes_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_from_bytes_avx512_vbmi)
 .type	mlkem_from_bytes_avx512_vbmi,@function
 .align	16
 mlkem_from_bytes_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_from_bytes_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_from_bytes_avx512_vbmi)
 .p2align	4
 _mlkem_from_bytes_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -35328,12 +35452,14 @@ L_mlkem_to_bytes_avx512_vbmi_permb:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_bytes_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_to_bytes_avx512_vbmi)
 .type	mlkem_to_bytes_avx512_vbmi,@function
 .align	16
 mlkem_to_bytes_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_bytes_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_to_bytes_avx512_vbmi)
 .p2align	4
 _mlkem_to_bytes_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -35481,12 +35607,14 @@ L_mlkem_rej_uniform_avx512_vbmi_mask_hi:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_avx512_vbmi)
 .type	mlkem_rej_uniform_avx512_vbmi,@function
 .align	16
 mlkem_rej_uniform_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512_vbmi)
 .p2align	4
 _mlkem_rej_uniform_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -35615,12 +35743,14 @@ L_mlkem_rej_uniform_n_avx512_vbmi_mask_hi:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_n_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_n_avx512_vbmi)
 .type	mlkem_rej_uniform_n_avx512_vbmi,@function
 .align	16
 mlkem_rej_uniform_n_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_n_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512_vbmi)
 .p2align	4
 _mlkem_rej_uniform_n_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -35719,12 +35849,14 @@ L_mlkem_compress_4_avx512_vbmi_gather:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_4_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_compress_4_avx512_vbmi)
 .type	mlkem_compress_4_avx512_vbmi,@function
 .align	16
 mlkem_compress_4_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_4_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_compress_4_avx512_vbmi)
 .p2align	4
 _mlkem_compress_4_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -35860,12 +35992,14 @@ L_mlkem_compress_5_avx512_vbmi_gather:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_5_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_compress_5_avx512_vbmi)
 .type	mlkem_compress_5_avx512_vbmi,@function
 .align	16
 mlkem_compress_5_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_5_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_compress_5_avx512_vbmi)
 .p2align	4
 _mlkem_compress_5_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -36035,12 +36169,14 @@ L_mlkem_compress_10_avx512_vbmi_gather:
 #ifndef __APPLE__
 .text
 .globl	mlkem_compress_10_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_compress_10_avx512_vbmi)
 .type	mlkem_compress_10_avx512_vbmi,@function
 .align	16
 mlkem_compress_10_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_compress_10_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_compress_10_avx512_vbmi)
 .p2align	4
 _mlkem_compress_10_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -36300,12 +36436,14 @@ L_mlkem_decompress_10_avx512_vbmi_hi:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_10_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_decompress_10_avx512_vbmi)
 .type	mlkem_decompress_10_avx512_vbmi,@function
 .align	16
 mlkem_decompress_10_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_10_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_10_avx512_vbmi)
 .p2align	4
 _mlkem_decompress_10_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -36488,12 +36626,14 @@ L_mlkem_decompress_11_avx512_vbmi_hi:
 #ifndef __APPLE__
 .text
 .globl	mlkem_decompress_11_avx512_vbmi
+WC_ASM_ATT_HIDDEN(mlkem_decompress_11_avx512_vbmi)
 .type	mlkem_decompress_11_avx512_vbmi,@function
 .align	16
 mlkem_decompress_11_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_decompress_11_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_mlkem_decompress_11_avx512_vbmi)
 .p2align	4
 _mlkem_decompress_11_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -36631,12 +36771,14 @@ L_mlkem_rej_uniform_avx512_vbmi_vbmi2_mask_hi:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_avx512_vbmi_vbmi2
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_avx512_vbmi_vbmi2)
 .type	mlkem_rej_uniform_avx512_vbmi_vbmi2,@function
 .align	16
 mlkem_rej_uniform_avx512_vbmi_vbmi2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_avx512_vbmi_vbmi2
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_avx512_vbmi_vbmi2)
 .p2align	4
 _mlkem_rej_uniform_avx512_vbmi_vbmi2:
 #endif /* __APPLE__ */
@@ -36753,12 +36895,14 @@ L_mlkem_rej_uniform_n_avx512_vbmi_vbmi2_mask_hi:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_n_avx512_vbmi_vbmi2
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_n_avx512_vbmi_vbmi2)
 .type	mlkem_rej_uniform_n_avx512_vbmi_vbmi2,@function
 .align	16
 mlkem_rej_uniform_n_avx512_vbmi_vbmi2:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_n_avx512_vbmi_vbmi2
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_n_avx512_vbmi_vbmi2)
 .p2align	4
 _mlkem_rej_uniform_n_avx512_vbmi_vbmi2:
 #endif /* __APPLE__ */

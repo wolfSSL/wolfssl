@@ -91,6 +91,7 @@ L_SHA512_transform_len_k:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	Transform_Sha512_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len)
 .type	Transform_Sha512_Len,@function
 .align	16
 Transform_Sha512_Len:
@@ -102,6 +103,7 @@ Transform_Sha512_Len:
 	 * points at the code (.L.Transform_Sha512_Len) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	Transform_Sha512_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len)
 .type	Transform_Sha512_Len,@function
 .align	3
 Transform_Sha512_Len:
@@ -114,6 +116,7 @@ Transform_Sha512_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_Len)
 .p2align	4
 _Transform_Sha512_Len:
 #endif /* __APPLE__ */
@@ -4107,6 +4110,7 @@ L_SHA512_crypto_k:
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 .text
 .globl	Transform_Sha512_Len_crypto
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_crypto)
 .type	Transform_Sha512_Len_crypto,@function
 .align	16
 Transform_Sha512_Len_crypto:
@@ -4118,6 +4122,7 @@ Transform_Sha512_Len_crypto:
 	 * points at the code (.L.Transform_Sha512_Len_crypto) and the TOC base. */
 .section	.opd,"aw",@progbits
 .globl	Transform_Sha512_Len_crypto
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_crypto)
 .type	Transform_Sha512_Len_crypto,@function
 .align	3
 Transform_Sha512_Len_crypto:
@@ -4130,6 +4135,7 @@ Transform_Sha512_Len_crypto:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len_crypto
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_Len_crypto)
 .p2align	4
 _Transform_Sha512_Len_crypto:
 #endif /* __APPLE__ */

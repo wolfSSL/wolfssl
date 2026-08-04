@@ -68,6 +68,7 @@ L_SHA256_transform_spe_len_k:
 	.section	".text"
 	.align	4
 	.globl	Transform_Sha256_Len
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len)
 	.type	Transform_Sha256_Len, @function
 Transform_Sha256_Len:
 	stwu	1, -104(1)
@@ -1215,6 +1216,7 @@ L_SHA256_transform_len_k:
 	.section	".text"
 	.align	4
 	.globl	Transform_Sha256_Len
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len)
 	.type	Transform_Sha256_Len, @function
 Transform_Sha256_Len:
 	stwu	1, -76(1)
@@ -4403,6 +4405,7 @@ L_SHA256_transform_len_after_blk_15:
 	.section	".text"
 	.align	4
 	.globl	Transform_Sha256_Len
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len)
 	.type	Transform_Sha256_Len, @function
 Transform_Sha256_Len:
 	stwu	1, -68(1)

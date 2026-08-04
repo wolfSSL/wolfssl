@@ -165,12 +165,14 @@ L_sha3_x4_avx2_r:
 #ifndef __APPLE__
 .text
 .globl	sha3_block_bmi2
+WC_ASM_ATT_HIDDEN(sha3_block_bmi2)
 .type	sha3_block_bmi2,@function
 .align	16
 sha3_block_bmi2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_block_bmi2
+WC_ASM_ATT_HIDDEN(_sha3_block_bmi2)
 .p2align	4
 _sha3_block_bmi2:
 #endif /* __APPLE__ */
@@ -4607,12 +4609,14 @@ _sha3_block_bmi2:
 #ifndef __APPLE__
 .text
 .globl	sha3_block_n_bmi2
+WC_ASM_ATT_HIDDEN(sha3_block_n_bmi2)
 .type	sha3_block_n_bmi2,@function
 .align	16
 sha3_block_n_bmi2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_block_n_bmi2
+WC_ASM_ATT_HIDDEN(_sha3_block_n_bmi2)
 .p2align	4
 _sha3_block_n_bmi2:
 #endif /* __APPLE__ */
@@ -9353,12 +9357,14 @@ L_sha3_block_avx2_rotr:
 #ifndef __APPLE__
 .text
 .globl	sha3_block_avx2
+WC_ASM_ATT_HIDDEN(sha3_block_avx2)
 .type	sha3_block_avx2,@function
 .align	16
 sha3_block_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_block_avx2
+WC_ASM_ATT_HIDDEN(_sha3_block_avx2)
 .p2align	4
 _sha3_block_avx2:
 #endif /* __APPLE__ */
@@ -9572,12 +9578,14 @@ L_sha3_block_n_avx2_rotr:
 #ifndef __APPLE__
 .text
 .globl	sha3_block_n_avx2
+WC_ASM_ATT_HIDDEN(sha3_block_n_avx2)
 .type	sha3_block_n_avx2,@function
 .align	16
 sha3_block_n_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_block_n_avx2
+WC_ASM_ATT_HIDDEN(_sha3_block_n_avx2)
 .p2align	4
 _sha3_block_n_avx2:
 #endif /* __APPLE__ */
@@ -9928,12 +9936,14 @@ L_sha3_block_n_avx2_rounds:
 #ifndef __APPLE__
 .text
 .globl	sha3_blocksx4_avx2
+WC_ASM_ATT_HIDDEN(sha3_blocksx4_avx2)
 .type	sha3_blocksx4_avx2,@function
 .align	16
 sha3_blocksx4_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx4_avx2
+WC_ASM_ATT_HIDDEN(_sha3_blocksx4_avx2)
 .p2align	4
 _sha3_blocksx4_avx2:
 #endif /* __APPLE__ */
@@ -15301,12 +15311,14 @@ L_sha3_128_blockx4_seed_avx2_end_mark:
 #ifndef __APPLE__
 .text
 .globl	sha3_128_blocksx4_seed_avx2
+WC_ASM_ATT_HIDDEN(sha3_128_blocksx4_seed_avx2)
 .type	sha3_128_blocksx4_seed_avx2,@function
 .align	16
 sha3_128_blocksx4_seed_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_128_blocksx4_seed_avx2
+WC_ASM_ATT_HIDDEN(_sha3_128_blocksx4_seed_avx2)
 .p2align	4
 _sha3_128_blocksx4_seed_avx2:
 #endif /* __APPLE__ */
@@ -20667,12 +20679,14 @@ _sha3_128_blocksx4_seed_avx2:
 #ifndef __APPLE__
 .text
 .globl	sha3_blocksx4_out_avx2
+WC_ASM_ATT_HIDDEN(sha3_blocksx4_out_avx2)
 .type	sha3_blocksx4_out_avx2,@function
 .align	16
 sha3_blocksx4_out_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx4_out_avx2
+WC_ASM_ATT_HIDDEN(_sha3_blocksx4_out_avx2)
 .p2align	4
 _sha3_blocksx4_out_avx2:
 #endif /* __APPLE__ */
@@ -26079,12 +26093,14 @@ L_sha3_256_blockx4_seed_avx2_end_mark:
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx4_seed_avx2
+WC_ASM_ATT_HIDDEN(sha3_256_blocksx4_seed_avx2)
 .type	sha3_256_blocksx4_seed_avx2,@function
 .align	16
 sha3_256_blocksx4_seed_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_256_blocksx4_seed_avx2
+WC_ASM_ATT_HIDDEN(_sha3_256_blocksx4_seed_avx2)
 .p2align	4
 _sha3_256_blocksx4_seed_avx2:
 #endif /* __APPLE__ */
@@ -31459,12 +31475,14 @@ L_sha3_256_blockx4_seed_64_avx2_end_mark:
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx4_seed_64_avx2
+WC_ASM_ATT_HIDDEN(sha3_256_blocksx4_seed_64_avx2)
 .type	sha3_256_blocksx4_seed_64_avx2,@function
 .align	16
 sha3_256_blocksx4_seed_64_avx2:
 #else
 .section	__TEXT,__text
 .globl	_sha3_256_blocksx4_seed_64_avx2
+WC_ASM_ATT_HIDDEN(_sha3_256_blocksx4_seed_64_avx2)
 .p2align	4
 _sha3_256_blocksx4_seed_64_avx2:
 #endif /* __APPLE__ */
@@ -36965,12 +36983,14 @@ L_sha3_x8_avx512_r:
 #ifndef __APPLE__
 .text
 .globl	sha3_blocksx8_out_avx512
+WC_ASM_ATT_HIDDEN(sha3_blocksx8_out_avx512)
 .type	sha3_blocksx8_out_avx512,@function
 .align	16
 sha3_blocksx8_out_avx512:
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx8_out_avx512
+WC_ASM_ATT_HIDDEN(_sha3_blocksx8_out_avx512)
 .p2align	4
 _sha3_blocksx8_out_avx512:
 #endif /* __APPLE__ */
@@ -39906,12 +39926,14 @@ L_sha3_blocksx8_out_avx512_done:
 #ifndef __APPLE__
 .text
 .globl	sha3_blocksx8_avx512
+WC_ASM_ATT_HIDDEN(sha3_blocksx8_avx512)
 .type	sha3_blocksx8_avx512,@function
 .align	16
 sha3_blocksx8_avx512:
 #else
 .section	__TEXT,__text
 .globl	_sha3_blocksx8_avx512
+WC_ASM_ATT_HIDDEN(_sha3_blocksx8_avx512)
 .p2align	4
 _sha3_blocksx8_avx512:
 #endif /* __APPLE__ */
@@ -42797,12 +42819,14 @@ L_sha3_128_blocksx8_seed_avx512_end_mark:
 #ifndef __APPLE__
 .text
 .globl	sha3_128_blocksx8_seed_avx512
+WC_ASM_ATT_HIDDEN(sha3_128_blocksx8_seed_avx512)
 .type	sha3_128_blocksx8_seed_avx512,@function
 .align	16
 sha3_128_blocksx8_seed_avx512:
 #else
 .section	__TEXT,__text
 .globl	_sha3_128_blocksx8_seed_avx512
+WC_ASM_ATT_HIDDEN(_sha3_128_blocksx8_seed_avx512)
 .p2align	4
 _sha3_128_blocksx8_seed_avx512:
 #endif /* __APPLE__ */
@@ -45690,12 +45714,14 @@ L_sha3_256_blocksx8_seed_avx512_end_mark:
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx8_seed_avx512
+WC_ASM_ATT_HIDDEN(sha3_256_blocksx8_seed_avx512)
 .type	sha3_256_blocksx8_seed_avx512,@function
 .align	16
 sha3_256_blocksx8_seed_avx512:
 #else
 .section	__TEXT,__text
 .globl	_sha3_256_blocksx8_seed_avx512
+WC_ASM_ATT_HIDDEN(_sha3_256_blocksx8_seed_avx512)
 .p2align	4
 _sha3_256_blocksx8_seed_avx512:
 #endif /* __APPLE__ */

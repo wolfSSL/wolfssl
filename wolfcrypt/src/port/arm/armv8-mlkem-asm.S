@@ -155,12 +155,14 @@ L_mlkem_aarch64_zetas_qinv:
 #ifndef __APPLE__
 .text
 .globl	mlkem_ntt
+WC_ASM_ATT_HIDDEN(mlkem_ntt)
 .type	mlkem_ntt,@function
 .align	2
 mlkem_ntt:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_ntt
+WC_ASM_ATT_HIDDEN(_mlkem_ntt)
 .p2align	2
 _mlkem_ntt:
 #endif /* __APPLE__ */
@@ -1551,12 +1553,14 @@ L_mlkem_aarch64_zetas_inv_qinv:
 #ifndef __APPLE__
 .text
 .globl	mlkem_invntt
+WC_ASM_ATT_HIDDEN(mlkem_invntt)
 .type	mlkem_invntt,@function
 .align	2
 mlkem_invntt:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_invntt
+WC_ASM_ATT_HIDDEN(_mlkem_invntt)
 .p2align	2
 _mlkem_invntt:
 #endif /* __APPLE__ */
@@ -3002,12 +3006,14 @@ _mlkem_invntt:
 #ifndef __APPLE__
 .text
 .globl	mlkem_ntt_sqrdmlsh
+WC_ASM_ATT_HIDDEN(mlkem_ntt_sqrdmlsh)
 .type	mlkem_ntt_sqrdmlsh,@function
 .align	2
 mlkem_ntt_sqrdmlsh:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_ntt_sqrdmlsh
+WC_ASM_ATT_HIDDEN(_mlkem_ntt_sqrdmlsh)
 .p2align	2
 _mlkem_ntt_sqrdmlsh:
 #endif /* __APPLE__ */
@@ -4184,12 +4190,14 @@ _mlkem_ntt_sqrdmlsh:
 #ifndef __APPLE__
 .text
 .globl	mlkem_invntt_sqrdmlsh
+WC_ASM_ATT_HIDDEN(mlkem_invntt_sqrdmlsh)
 .type	mlkem_invntt_sqrdmlsh,@function
 .align	2
 mlkem_invntt_sqrdmlsh:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_invntt_sqrdmlsh
+WC_ASM_ATT_HIDDEN(_mlkem_invntt_sqrdmlsh)
 .p2align	2
 _mlkem_invntt_sqrdmlsh:
 #endif /* __APPLE__ */
@@ -5522,12 +5530,14 @@ L_mlkem_aarch64_zetas_mul:
 #ifndef __APPLE__
 .text
 .globl	mlkem_basemul_mont
+WC_ASM_ATT_HIDDEN(mlkem_basemul_mont)
 .type	mlkem_basemul_mont,@function
 .align	2
 mlkem_basemul_mont:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_basemul_mont
+WC_ASM_ATT_HIDDEN(_mlkem_basemul_mont)
 .p2align	2
 _mlkem_basemul_mont:
 #endif /* __APPLE__ */
@@ -6220,12 +6230,14 @@ _mlkem_basemul_mont:
 #ifndef __APPLE__
 .text
 .globl	mlkem_basemul_mont_add
+WC_ASM_ATT_HIDDEN(mlkem_basemul_mont_add)
 .type	mlkem_basemul_mont_add,@function
 .align	2
 mlkem_basemul_mont_add:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_basemul_mont_add
+WC_ASM_ATT_HIDDEN(_mlkem_basemul_mont_add)
 .p2align	2
 _mlkem_basemul_mont_add:
 #endif /* __APPLE__ */
@@ -6982,12 +6994,14 @@ L_mlkem_aarch64_q:
 #ifndef __APPLE__
 .text
 .globl	mlkem_csubq_neon
+WC_ASM_ATT_HIDDEN(mlkem_csubq_neon)
 .type	mlkem_csubq_neon,@function
 .align	2
 mlkem_csubq_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_csubq_neon
+WC_ASM_ATT_HIDDEN(_mlkem_csubq_neon)
 .p2align	2
 _mlkem_csubq_neon:
 #endif /* __APPLE__ */
@@ -7163,12 +7177,14 @@ _mlkem_csubq_neon:
 #ifndef __APPLE__
 .text
 .globl	mlkem_add_reduce
+WC_ASM_ATT_HIDDEN(mlkem_add_reduce)
 .type	mlkem_add_reduce,@function
 .align	2
 mlkem_add_reduce:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_add_reduce
+WC_ASM_ATT_HIDDEN(_mlkem_add_reduce)
 .p2align	2
 _mlkem_add_reduce:
 #endif /* __APPLE__ */
@@ -7354,12 +7370,14 @@ _mlkem_add_reduce:
 #ifndef __APPLE__
 .text
 .globl	mlkem_add3_reduce
+WC_ASM_ATT_HIDDEN(mlkem_add3_reduce)
 .type	mlkem_add3_reduce,@function
 .align	2
 mlkem_add3_reduce:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_add3_reduce
+WC_ASM_ATT_HIDDEN(_mlkem_add3_reduce)
 .p2align	2
 _mlkem_add3_reduce:
 #endif /* __APPLE__ */
@@ -7585,12 +7603,14 @@ _mlkem_add3_reduce:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rsub_reduce
+WC_ASM_ATT_HIDDEN(mlkem_rsub_reduce)
 .type	mlkem_rsub_reduce,@function
 .align	2
 mlkem_rsub_reduce:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rsub_reduce
+WC_ASM_ATT_HIDDEN(_mlkem_rsub_reduce)
 .p2align	2
 _mlkem_rsub_reduce:
 #endif /* __APPLE__ */
@@ -7776,12 +7796,14 @@ _mlkem_rsub_reduce:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_mont
+WC_ASM_ATT_HIDDEN(mlkem_to_mont)
 .type	mlkem_to_mont,@function
 .align	2
 mlkem_to_mont:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_mont
+WC_ASM_ATT_HIDDEN(_mlkem_to_mont)
 .p2align	2
 _mlkem_to_mont:
 #endif /* __APPLE__ */
@@ -7990,12 +8012,14 @@ _mlkem_to_mont:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_mont_sqrdmlsh
+WC_ASM_ATT_HIDDEN(mlkem_to_mont_sqrdmlsh)
 .type	mlkem_to_mont_sqrdmlsh,@function
 .align	2
 mlkem_to_mont_sqrdmlsh:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_mont_sqrdmlsh
+WC_ASM_ATT_HIDDEN(_mlkem_to_mont_sqrdmlsh)
 .p2align	2
 _mlkem_to_mont_sqrdmlsh:
 #endif /* __APPLE__ */
@@ -8220,12 +8244,14 @@ L_mlkem_to_msg_bits:
 #ifndef __APPLE__
 .text
 .globl	mlkem_to_msg_neon
+WC_ASM_ATT_HIDDEN(mlkem_to_msg_neon)
 .type	mlkem_to_msg_neon,@function
 .align	2
 mlkem_to_msg_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_to_msg_neon
+WC_ASM_ATT_HIDDEN(_mlkem_to_msg_neon)
 .p2align	2
 _mlkem_to_msg_neon:
 #endif /* __APPLE__ */
@@ -8504,12 +8530,14 @@ L_mlkem_from_msg_bits:
 #ifndef __APPLE__
 .text
 .globl	mlkem_from_msg_neon
+WC_ASM_ATT_HIDDEN(mlkem_from_msg_neon)
 .type	mlkem_from_msg_neon,@function
 .align	2
 mlkem_from_msg_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_from_msg_neon
+WC_ASM_ATT_HIDDEN(_mlkem_from_msg_neon)
 .p2align	2
 _mlkem_from_msg_neon:
 #endif /* __APPLE__ */
@@ -8680,12 +8708,14 @@ _mlkem_from_msg_neon:
 #ifndef __APPLE__
 .text
 .globl	mlkem_cmp_neon
+WC_ASM_ATT_HIDDEN(mlkem_cmp_neon)
 .type	mlkem_cmp_neon,@function
 .align	2
 mlkem_cmp_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_cmp_neon
+WC_ASM_ATT_HIDDEN(_mlkem_cmp_neon)
 .p2align	2
 _mlkem_cmp_neon:
 #endif /* __APPLE__ */
@@ -9517,12 +9547,14 @@ L_mlkem_rej_uniform_indices:
 #ifndef __APPLE__
 .text
 .globl	mlkem_rej_uniform_neon
+WC_ASM_ATT_HIDDEN(mlkem_rej_uniform_neon)
 .type	mlkem_rej_uniform_neon,@function
 .align	2
 mlkem_rej_uniform_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_rej_uniform_neon
+WC_ASM_ATT_HIDDEN(_mlkem_rej_uniform_neon)
 .p2align	2
 _mlkem_rej_uniform_neon:
 #endif /* __APPLE__ */
@@ -9736,12 +9768,14 @@ L_sha3_aarch64_r:
 #ifndef __APPLE__
 .text
 .globl	mlkem_sha3_blocksx3_neon
+WC_ASM_ATT_HIDDEN(mlkem_sha3_blocksx3_neon)
 .type	mlkem_sha3_blocksx3_neon,@function
 .align	2
 mlkem_sha3_blocksx3_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_sha3_blocksx3_neon
+WC_ASM_ATT_HIDDEN(_mlkem_sha3_blocksx3_neon)
 .p2align	2
 _mlkem_sha3_blocksx3_neon:
 #endif /* __APPLE__ */
@@ -10061,12 +10095,14 @@ L_SHA3_transform_blocksx3_neon_begin:
 #ifndef __APPLE__
 .text
 .globl	mlkem_shake128_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(mlkem_shake128_blocksx3_seed_neon)
 .type	mlkem_shake128_blocksx3_seed_neon,@function
 .align	2
 mlkem_shake128_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_shake128_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(_mlkem_shake128_blocksx3_seed_neon)
 .p2align	2
 _mlkem_shake128_blocksx3_seed_neon:
 #endif /* __APPLE__ */
@@ -10408,12 +10444,14 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 #ifndef __APPLE__
 .text
 .globl	mlkem_shake256_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(mlkem_shake256_blocksx3_seed_neon)
 .type	mlkem_shake256_blocksx3_seed_neon,@function
 .align	2
 mlkem_shake256_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_shake256_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(_mlkem_shake256_blocksx3_seed_neon)
 .p2align	2
 _mlkem_shake256_blocksx3_seed_neon:
 #endif /* __APPLE__ */
@@ -10756,12 +10794,14 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 #ifndef __APPLE__
 .text
 .globl	mlkem_sha3_blocksx3_neon
+WC_ASM_ATT_HIDDEN(mlkem_sha3_blocksx3_neon)
 .type	mlkem_sha3_blocksx3_neon,@function
 .align	2
 mlkem_sha3_blocksx3_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_sha3_blocksx3_neon
+WC_ASM_ATT_HIDDEN(_mlkem_sha3_blocksx3_neon)
 .p2align	2
 _mlkem_sha3_blocksx3_neon:
 #endif /* __APPLE__ */
@@ -11166,12 +11206,14 @@ L_SHA3_transform_blocksx3_neon_begin:
 #ifndef __APPLE__
 .text
 .globl	mlkem_shake128_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(mlkem_shake128_blocksx3_seed_neon)
 .type	mlkem_shake128_blocksx3_seed_neon,@function
 .align	2
 mlkem_shake128_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_shake128_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(_mlkem_shake128_blocksx3_seed_neon)
 .p2align	2
 _mlkem_shake128_blocksx3_seed_neon:
 #endif /* __APPLE__ */
@@ -11598,12 +11640,14 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 #ifndef __APPLE__
 .text
 .globl	mlkem_shake256_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(mlkem_shake256_blocksx3_seed_neon)
 .type	mlkem_shake256_blocksx3_seed_neon,@function
 .align	2
 mlkem_shake256_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
 .globl	_mlkem_shake256_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(_mlkem_shake256_blocksx3_seed_neon)
 .p2align	2
 _mlkem_shake256_blocksx3_seed_neon:
 #endif /* __APPLE__ */

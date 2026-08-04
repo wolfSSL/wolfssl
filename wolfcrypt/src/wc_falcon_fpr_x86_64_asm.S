@@ -57,12 +57,14 @@
 #ifndef __APPLE__
 .text
 .globl	fpr_add
+WC_ASM_ATT_HIDDEN(fpr_add)
 .type	fpr_add,@function
 .align	16
 fpr_add:
 #else
 .section	__TEXT,__text
 .globl	_fpr_add
+WC_ASM_ATT_HIDDEN(_fpr_add)
 .p2align	4
 _fpr_add:
 #endif /* __APPLE__ */
@@ -78,12 +80,14 @@ _fpr_add:
 #ifndef __APPLE__
 .text
 .globl	fpr_sub
+WC_ASM_ATT_HIDDEN(fpr_sub)
 .type	fpr_sub,@function
 .align	16
 fpr_sub:
 #else
 .section	__TEXT,__text
 .globl	_fpr_sub
+WC_ASM_ATT_HIDDEN(_fpr_sub)
 .p2align	4
 _fpr_sub:
 #endif /* __APPLE__ */
@@ -99,12 +103,14 @@ _fpr_sub:
 #ifndef __APPLE__
 .text
 .globl	fpr_neg
+WC_ASM_ATT_HIDDEN(fpr_neg)
 .type	fpr_neg,@function
 .align	16
 fpr_neg:
 #else
 .section	__TEXT,__text
 .globl	_fpr_neg
+WC_ASM_ATT_HIDDEN(_fpr_neg)
 .p2align	4
 _fpr_neg:
 #endif /* __APPLE__ */
@@ -121,12 +127,14 @@ _fpr_neg:
 #ifndef __APPLE__
 .text
 .globl	fpr_half
+WC_ASM_ATT_HIDDEN(fpr_half)
 .type	fpr_half,@function
 .align	16
 fpr_half:
 #else
 .section	__TEXT,__text
 .globl	_fpr_half
+WC_ASM_ATT_HIDDEN(_fpr_half)
 .p2align	4
 _fpr_half:
 #endif /* __APPLE__ */
@@ -143,12 +151,14 @@ _fpr_half:
 #ifndef __APPLE__
 .text
 .globl	fpr_double
+WC_ASM_ATT_HIDDEN(fpr_double)
 .type	fpr_double,@function
 .align	16
 fpr_double:
 #else
 .section	__TEXT,__text
 .globl	_fpr_double
+WC_ASM_ATT_HIDDEN(_fpr_double)
 .p2align	4
 _fpr_double:
 #endif /* __APPLE__ */
@@ -163,12 +173,14 @@ _fpr_double:
 #ifndef __APPLE__
 .text
 .globl	fpr_mul
+WC_ASM_ATT_HIDDEN(fpr_mul)
 .type	fpr_mul,@function
 .align	16
 fpr_mul:
 #else
 .section	__TEXT,__text
 .globl	_fpr_mul
+WC_ASM_ATT_HIDDEN(_fpr_mul)
 .p2align	4
 _fpr_mul:
 #endif /* __APPLE__ */
@@ -184,12 +196,14 @@ _fpr_mul:
 #ifndef __APPLE__
 .text
 .globl	fpr_sqr
+WC_ASM_ATT_HIDDEN(fpr_sqr)
 .type	fpr_sqr,@function
 .align	16
 fpr_sqr:
 #else
 .section	__TEXT,__text
 .globl	_fpr_sqr
+WC_ASM_ATT_HIDDEN(_fpr_sqr)
 .p2align	4
 _fpr_sqr:
 #endif /* __APPLE__ */
@@ -204,12 +218,14 @@ _fpr_sqr:
 #ifndef __APPLE__
 .text
 .globl	fpr_div
+WC_ASM_ATT_HIDDEN(fpr_div)
 .type	fpr_div,@function
 .align	16
 fpr_div:
 #else
 .section	__TEXT,__text
 .globl	_fpr_div
+WC_ASM_ATT_HIDDEN(_fpr_div)
 .p2align	4
 _fpr_div:
 #endif /* __APPLE__ */
@@ -225,12 +241,14 @@ _fpr_div:
 #ifndef __APPLE__
 .text
 .globl	fpr_inv
+WC_ASM_ATT_HIDDEN(fpr_inv)
 .type	fpr_inv,@function
 .align	16
 fpr_inv:
 #else
 .section	__TEXT,__text
 .globl	_fpr_inv
+WC_ASM_ATT_HIDDEN(_fpr_inv)
 .p2align	4
 _fpr_inv:
 #endif /* __APPLE__ */
@@ -247,12 +265,14 @@ _fpr_inv:
 #ifndef __APPLE__
 .text
 .globl	fpr_sqrt
+WC_ASM_ATT_HIDDEN(fpr_sqrt)
 .type	fpr_sqrt,@function
 .align	16
 fpr_sqrt:
 #else
 .section	__TEXT,__text
 .globl	_fpr_sqrt
+WC_ASM_ATT_HIDDEN(_fpr_sqrt)
 .p2align	4
 _fpr_sqrt:
 #endif /* __APPLE__ */
@@ -267,12 +287,14 @@ _fpr_sqrt:
 #ifndef __APPLE__
 .text
 .globl	fpr_of
+WC_ASM_ATT_HIDDEN(fpr_of)
 .type	fpr_of,@function
 .align	16
 fpr_of:
 #else
 .section	__TEXT,__text
 .globl	_fpr_of
+WC_ASM_ATT_HIDDEN(_fpr_of)
 .p2align	4
 _fpr_of:
 #endif /* __APPLE__ */
@@ -286,12 +308,14 @@ _fpr_of:
 #ifndef __APPLE__
 .text
 .globl	fpr_rint
+WC_ASM_ATT_HIDDEN(fpr_rint)
 .type	fpr_rint,@function
 .align	16
 fpr_rint:
 #else
 .section	__TEXT,__text
 .globl	_fpr_rint
+WC_ASM_ATT_HIDDEN(_fpr_rint)
 .p2align	4
 _fpr_rint:
 #endif /* __APPLE__ */
@@ -305,12 +329,14 @@ _fpr_rint:
 #ifndef __APPLE__
 .text
 .globl	fpr_floor
+WC_ASM_ATT_HIDDEN(fpr_floor)
 .type	fpr_floor,@function
 .align	16
 fpr_floor:
 #else
 .section	__TEXT,__text
 .globl	_fpr_floor
+WC_ASM_ATT_HIDDEN(_fpr_floor)
 .p2align	4
 _fpr_floor:
 #endif /* __APPLE__ */
@@ -330,12 +356,14 @@ _fpr_floor:
 #ifndef __APPLE__
 .text
 .globl	fpr_trunc
+WC_ASM_ATT_HIDDEN(fpr_trunc)
 .type	fpr_trunc,@function
 .align	16
 fpr_trunc:
 #else
 .section	__TEXT,__text
 .globl	_fpr_trunc
+WC_ASM_ATT_HIDDEN(_fpr_trunc)
 .p2align	4
 _fpr_trunc:
 #endif /* __APPLE__ */
@@ -349,12 +377,14 @@ _fpr_trunc:
 #ifndef __APPLE__
 .text
 .globl	fpr_lt
+WC_ASM_ATT_HIDDEN(fpr_lt)
 .type	fpr_lt,@function
 .align	16
 fpr_lt:
 #else
 .section	__TEXT,__text
 .globl	_fpr_lt
+WC_ASM_ATT_HIDDEN(_fpr_lt)
 .p2align	4
 _fpr_lt:
 #endif /* __APPLE__ */

@@ -34,6 +34,7 @@
 #ifdef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM
 	.text
 	.globl	AES_set_key_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_set_key_RISCV64)
 	.type	AES_set_key_RISCV64,@function
 	.align	2
 AES_set_key_RISCV64:
@@ -873,6 +874,7 @@ L_AES_set_key_RISCV64_done:
 #ifdef HAVE_AESGCM
 	.text
 	.globl	AES_GCM_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_RISCV64)
 	.type	AES_GCM_encrypt_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_RISCV64:
@@ -1485,6 +1487,7 @@ L_AES_GCM_encrypt_RISCV64_store_tag:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_GCM_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_RISCV64)
 	.type	AES_GCM_decrypt_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_RISCV64:
@@ -2105,6 +2108,7 @@ L_AES_GCM_decrypt_RISCV64_cmp_tag:
 #ifdef WOLFSSL_AESGCM_STREAM
 	.text
 	.globl	AES_GCM_init_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_init_RISCV64)
 	.type	AES_GCM_init_RISCV64,@function
 	.align	2
 AES_GCM_init_RISCV64:
@@ -2250,6 +2254,7 @@ L_AES_GCM_init_RISCV64_aes_last:
 	.size	AES_GCM_init_RISCV64,.-AES_GCM_init_RISCV64
 	.text
 	.globl	AES_GCM_ghash_block_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_RISCV64)
 	.type	AES_GCM_ghash_block_RISCV64,@function
 	.align	2
 AES_GCM_ghash_block_RISCV64:
@@ -2273,6 +2278,7 @@ AES_GCM_ghash_block_RISCV64:
 	.size	AES_GCM_ghash_block_RISCV64,.-AES_GCM_ghash_block_RISCV64
 	.text
 	.globl	AES_GCM_aad_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_RISCV64)
 	.type	AES_GCM_aad_update_RISCV64,@function
 	.align	2
 AES_GCM_aad_update_RISCV64:
@@ -2303,6 +2309,7 @@ L_AES_GCM_aad_update_RISCV64_done:
 	.size	AES_GCM_aad_update_RISCV64,.-AES_GCM_aad_update_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_block_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_RISCV64)
 	.type	AES_GCM_encrypt_block_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_block_RISCV64:
@@ -2393,6 +2400,7 @@ L_AES_GCM_encrypt_block_RISCV64_aes_last:
 	.size	AES_GCM_encrypt_block_RISCV64,.-AES_GCM_encrypt_block_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_RISCV64)
 	.type	AES_GCM_encrypt_update_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_update_RISCV64:
@@ -2508,6 +2516,7 @@ L_AES_GCM_encrypt_update_RISCV64_done:
 	.size	AES_GCM_encrypt_update_RISCV64,.-AES_GCM_encrypt_update_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_final_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_RISCV64)
 	.type	AES_GCM_encrypt_final_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_final_RISCV64:
@@ -2572,6 +2581,7 @@ L_AES_GCM_encrypt_final_RISCV64_store:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_GCM_decrypt_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_RISCV64)
 	.type	AES_GCM_decrypt_update_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_update_RISCV64:
@@ -2687,6 +2697,7 @@ L_AES_GCM_decrypt_update_RISCV64_done:
 	.size	AES_GCM_decrypt_update_RISCV64,.-AES_GCM_decrypt_update_RISCV64
 	.text
 	.globl	AES_GCM_decrypt_final_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_RISCV64)
 	.type	AES_GCM_decrypt_final_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_final_RISCV64:
@@ -2760,6 +2771,7 @@ L_AES_GCM_decrypt_final_RISCV64_cmp:
 #ifdef WOLFSSL_AES_XTS
 	.text
 	.globl	AES_XTS_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_RISCV64)
 	.type	AES_XTS_encrypt_RISCV64,@function
 	.align	2
 AES_XTS_encrypt_RISCV64:
@@ -3558,6 +3570,7 @@ L_AES_XTS_encrypt_RISCV64_done:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_XTS_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_RISCV64)
 	.type	AES_XTS_decrypt_RISCV64,@function
 	.align	2
 AES_XTS_decrypt_RISCV64:
@@ -4429,6 +4442,7 @@ L_AES_XTS_decrypt_RISCV64_done:
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
 	.text
 	.globl	AES_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_encrypt_RISCV64)
 	.type	AES_encrypt_RISCV64,@function
 	.align	2
 AES_encrypt_RISCV64:
@@ -4500,6 +4514,7 @@ L_AES_encrypt_RISCV64_last:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_decrypt_RISCV64)
 	.type	AES_decrypt_RISCV64,@function
 	.align	2
 AES_decrypt_RISCV64:
@@ -4573,6 +4588,7 @@ L_AES_decrypt_RISCV64_last:
 #ifdef HAVE_AES_ECB
 	.text
 	.globl	AES_encrypt_blocks_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_encrypt_blocks_RISCV64)
 	.type	AES_encrypt_blocks_RISCV64,@function
 	.align	2
 AES_encrypt_blocks_RISCV64:
@@ -4795,6 +4811,7 @@ L_AES_encrypt_blocks_RISCV64_done:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_decrypt_blocks_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_decrypt_blocks_RISCV64)
 	.type	AES_decrypt_blocks_RISCV64,@function
 	.align	2
 AES_decrypt_blocks_RISCV64:
@@ -5019,6 +5036,7 @@ L_AES_decrypt_blocks_RISCV64_done:
 #ifdef HAVE_AES_CBC
 	.text
 	.globl	AES_CBC_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_RISCV64)
 	.type	AES_CBC_encrypt_RISCV64,@function
 	.align	2
 AES_CBC_encrypt_RISCV64:
@@ -5111,6 +5129,7 @@ L_AES_CBC_encrypt_RISCV64_done:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_CBC_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_RISCV64)
 	.type	AES_CBC_decrypt_RISCV64,@function
 	.align	2
 AES_CBC_decrypt_RISCV64:
@@ -5398,6 +5417,7 @@ L_AES_CBC_decrypt_RISCV64_done:
 #ifdef WOLFSSL_AES_COUNTER
 	.text
 	.globl	AES_CTR_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_RISCV64)
 	.type	AES_CTR_encrypt_RISCV64,@function
 	.align	2
 AES_CTR_encrypt_RISCV64:
@@ -6098,6 +6118,7 @@ L_AES_CTR_encrypt_RISCV64_store:
 #ifdef WOLFSSL_RISCV_SCALAR_CRYPTO_ASM
 	.text
 	.globl	AES_set_key_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_set_key_RISCV64)
 	.type	AES_set_key_RISCV64,@function
 	.align	2
 AES_set_key_RISCV64:
@@ -7795,6 +7816,7 @@ L_AES_set_key_RISCV64_done:
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
 	.text
 	.globl	AES_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_encrypt_RISCV64)
 	.type	AES_encrypt_RISCV64,@function
 	.align	2
 AES_encrypt_RISCV64:
@@ -8121,6 +8143,7 @@ L_ualn_sd22_e:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_decrypt_RISCV64)
 	.type	AES_decrypt_RISCV64,@function
 	.align	2
 AES_decrypt_RISCV64:
@@ -8449,6 +8472,7 @@ L_ualn_sd26_e:
 #ifdef HAVE_AES_ECB
 	.text
 	.globl	AES_encrypt_blocks_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_encrypt_blocks_RISCV64)
 	.type	AES_encrypt_blocks_RISCV64,@function
 	.align	2
 AES_encrypt_blocks_RISCV64:
@@ -8782,6 +8806,7 @@ L_AES_encrypt_blocks_RISCV64_end:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_decrypt_blocks_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_decrypt_blocks_RISCV64)
 	.type	AES_decrypt_blocks_RISCV64,@function
 	.align	2
 AES_decrypt_blocks_RISCV64:
@@ -9117,6 +9142,7 @@ L_AES_decrypt_blocks_RISCV64_end:
 #ifdef HAVE_AES_CBC
 	.text
 	.globl	AES_CBC_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_RISCV64)
 	.type	AES_CBC_encrypt_RISCV64,@function
 	.align	2
 AES_CBC_encrypt_RISCV64:
@@ -9465,6 +9491,7 @@ L_AES_CBC_encrypt_RISCV64_end:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_CBC_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_RISCV64)
 	.type	AES_CBC_decrypt_RISCV64,@function
 	.align	2
 AES_CBC_decrypt_RISCV64:
@@ -9821,6 +9848,7 @@ L_AES_CBC_decrypt_RISCV64_end:
 #ifdef WOLFSSL_AES_COUNTER
 	.text
 	.globl	AES_CTR_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_RISCV64)
 	.type	AES_CTR_encrypt_RISCV64,@function
 	.align	2
 AES_CTR_encrypt_RISCV64:
@@ -10556,6 +10584,7 @@ L_AES_CTR_encrypt_RISCV64_done:
 #ifdef WOLFSSL_AES_XTS
 	.text
 	.globl	AES_XTS_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_RISCV64)
 	.type	AES_XTS_encrypt_RISCV64,@function
 	.align	2
 AES_XTS_encrypt_RISCV64:
@@ -11495,6 +11524,7 @@ L_AES_XTS_encrypt_RISCV64_cts_done:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_XTS_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_RISCV64)
 	.type	AES_XTS_decrypt_RISCV64,@function
 	.align	2
 AES_XTS_decrypt_RISCV64:
@@ -12576,6 +12606,7 @@ L_AES_XTS_decrypt_RISCV64_cts_done:
 #ifdef HAVE_AESGCM
 	.text
 	.globl	AES_GCM_set_key_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_set_key_RISCV64)
 	.type	AES_GCM_set_key_RISCV64,@function
 	.align	2
 AES_GCM_set_key_RISCV64:
@@ -12857,6 +12888,7 @@ L_AES_GCM_set_key_RISCV64_done:
 	.size	AES_GCM_set_key_RISCV64,.-AES_GCM_set_key_RISCV64
 	.text
 	.globl	GHASH_RISCV64
+	WC_ASM_ATT_HIDDEN(GHASH_RISCV64)
 	.type	GHASH_RISCV64,@function
 	.align	2
 GHASH_RISCV64:
@@ -13145,6 +13177,7 @@ L_GHASH_RISCV64_ret:
 	.size	GHASH_RISCV64,.-GHASH_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_RISCV64)
 	.type	AES_GCM_encrypt_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_RISCV64:
@@ -14998,6 +15031,7 @@ L_AES_GCM_encrypt_RISCV64_stag:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_GCM_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_RISCV64)
 	.type	AES_GCM_decrypt_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_RISCV64:
@@ -16856,6 +16890,7 @@ L_AES_GCM_decrypt_RISCV64_ctag:
 #ifdef WOLFSSL_AESGCM_STREAM
 	.text
 	.globl	AES_GCM_init_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_init_RISCV64)
 	.type	AES_GCM_init_RISCV64,@function
 	.align	2
 AES_GCM_init_RISCV64:
@@ -17560,6 +17595,7 @@ L_AES_GCM_init_RISCV64_ekj0_done:
 	.size	AES_GCM_init_RISCV64,.-AES_GCM_init_RISCV64
 	.text
 	.globl	AES_GCM_ghash_block_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_RISCV64)
 	.type	AES_GCM_ghash_block_RISCV64,@function
 	.align	2
 AES_GCM_ghash_block_RISCV64:
@@ -17851,6 +17887,7 @@ L_ualn_ld96_e:
 	.size	AES_GCM_ghash_block_RISCV64,.-AES_GCM_ghash_block_RISCV64
 	.text
 	.globl	AES_GCM_aad_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_RISCV64)
 	.type	AES_GCM_aad_update_RISCV64,@function
 	.align	2
 AES_GCM_aad_update_RISCV64:
@@ -18154,6 +18191,7 @@ L_AES_GCM_aad_update_RISCV64_done:
 	.size	AES_GCM_aad_update_RISCV64,.-AES_GCM_aad_update_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_block_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_RISCV64)
 	.type	AES_GCM_encrypt_block_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_block_RISCV64:
@@ -18507,6 +18545,7 @@ L_ualn_sd102_e:
 	.size	AES_GCM_encrypt_block_RISCV64,.-AES_GCM_encrypt_block_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_RISCV64)
 	.type	AES_GCM_encrypt_update_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_update_RISCV64:
@@ -19054,6 +19093,7 @@ L_AES_GCM_encrypt_update_RISCV64_done:
 	.size	AES_GCM_encrypt_update_RISCV64,.-AES_GCM_encrypt_update_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_final_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_RISCV64)
 	.type	AES_GCM_encrypt_final_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_final_RISCV64:
@@ -19292,6 +19332,7 @@ L_AES_GCM_encrypt_final_RISCV64_stag:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_GCM_decrypt_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_RISCV64)
 	.type	AES_GCM_decrypt_update_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_update_RISCV64:
@@ -19837,6 +19878,7 @@ L_AES_GCM_decrypt_update_RISCV64_done:
 	.size	AES_GCM_decrypt_update_RISCV64,.-AES_GCM_decrypt_update_RISCV64
 	.text
 	.globl	AES_GCM_decrypt_final_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_RISCV64)
 	.type	AES_GCM_decrypt_final_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_final_RISCV64:
@@ -20745,6 +20787,7 @@ L_AES_base_gcm_r:
 #endif /* HAVE_AESGCM */
 	.text
 	.globl	AES_set_key_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_set_key_RISCV64)
 	.type	AES_set_key_RISCV64,@function
 	.align	2
 AES_set_key_RISCV64:
@@ -21962,6 +22005,7 @@ L_AES_set_key_RISCV64_done:
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
 	.text
 	.globl	AES_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_encrypt_RISCV64)
 	.type	AES_encrypt_RISCV64,@function
 	.align	2
 AES_encrypt_RISCV64:
@@ -23532,6 +23576,7 @@ L_AES_encrypt_RISCV64_done:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_decrypt_RISCV64)
 	.type	AES_decrypt_RISCV64,@function
 	.align	2
 AES_decrypt_RISCV64:
@@ -25078,6 +25123,7 @@ L_AES_decrypt_RISCV64_done:
 #ifdef HAVE_AES_ECB
 	.text
 	.globl	AES_encrypt_blocks_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_encrypt_blocks_RISCV64)
 	.type	AES_encrypt_blocks_RISCV64,@function
 	.align	2
 AES_encrypt_blocks_RISCV64:
@@ -26666,6 +26712,7 @@ L_AES_encrypt_blocks_RISCV64_end:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_decrypt_blocks_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_decrypt_blocks_RISCV64)
 	.type	AES_decrypt_blocks_RISCV64,@function
 	.align	2
 AES_decrypt_blocks_RISCV64:
@@ -28230,6 +28277,7 @@ L_AES_decrypt_blocks_RISCV64_end:
 #ifdef HAVE_AES_CBC
 	.text
 	.globl	AES_CBC_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_RISCV64)
 	.type	AES_CBC_encrypt_RISCV64,@function
 	.align	2
 AES_CBC_encrypt_RISCV64:
@@ -30048,6 +30096,7 @@ L_AES_CBC_encrypt_RISCV64_end:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_CBC_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_RISCV64)
 	.type	AES_CBC_decrypt_RISCV64,@function
 	.align	2
 AES_CBC_decrypt_RISCV64:
@@ -31826,6 +31875,7 @@ L_AES_CBC_decrypt_RISCV64_end:
 #ifdef WOLFSSL_AES_COUNTER
 	.text
 	.globl	AES_CTR_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_RISCV64)
 	.type	AES_CTR_encrypt_RISCV64,@function
 	.align	2
 AES_CTR_encrypt_RISCV64:
@@ -35233,6 +35283,7 @@ L_AES_CTR_encrypt_RISCV64_done:
 #ifdef WOLFSSL_AES_XTS
 	.text
 	.globl	AES_XTS_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_RISCV64)
 	.type	AES_XTS_encrypt_RISCV64,@function
 	.align	2
 AES_XTS_encrypt_RISCV64:
@@ -40367,6 +40418,7 @@ L_AES_XTS_encrypt_RISCV64_done:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_XTS_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_RISCV64)
 	.type	AES_XTS_decrypt_RISCV64,@function
 	.align	2
 AES_XTS_decrypt_RISCV64:
@@ -46994,6 +47046,7 @@ L_AES_XTS_decrypt_RISCV64_done:
 #ifdef HAVE_AESGCM
 	.text
 	.globl	AES_GCM_encrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_RISCV64)
 	.type	AES_GCM_encrypt_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_RISCV64:
@@ -57048,6 +57101,7 @@ L_AES_GCM_encrypt_RISCV64_store_tag:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_GCM_decrypt_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_RISCV64)
 	.type	AES_GCM_decrypt_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_RISCV64:
@@ -67110,6 +67164,7 @@ L_AES_GCM_decrypt_RISCV64_check_tag:
 #ifdef WOLFSSL_AESGCM_STREAM
 	.text
 	.globl	AES_GCM_init_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_init_RISCV64)
 	.type	AES_GCM_init_RISCV64,@function
 	.align	2
 AES_GCM_init_RISCV64:
@@ -70661,6 +70716,7 @@ L_AES_enc_block_20_done:
 	.size	AES_GCM_init_RISCV64,.-AES_GCM_init_RISCV64
 	.text
 	.globl	AES_GCM_ghash_block_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_RISCV64)
 	.type	AES_GCM_ghash_block_RISCV64,@function
 	.align	2
 AES_GCM_ghash_block_RISCV64:
@@ -71283,6 +71339,7 @@ L_AES_GCM_gmult_next19:
 	.size	AES_GCM_ghash_block_RISCV64,.-AES_GCM_ghash_block_RISCV64
 	.text
 	.globl	AES_GCM_aad_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_RISCV64)
 	.type	AES_GCM_aad_update_RISCV64,@function
 	.align	2
 AES_GCM_aad_update_RISCV64:
@@ -71920,6 +71977,7 @@ L_AES_GCM_aad_update_RISCV64_done:
 	.size	AES_GCM_aad_update_RISCV64,.-AES_GCM_aad_update_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_block_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_RISCV64)
 	.type	AES_GCM_encrypt_block_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_block_RISCV64:
@@ -73735,6 +73793,7 @@ L_ualn_sd88_e:
 	.size	AES_GCM_encrypt_block_RISCV64,.-AES_GCM_encrypt_block_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_RISCV64)
 	.type	AES_GCM_encrypt_update_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_update_RISCV64:
@@ -76179,6 +76238,7 @@ L_AES_GCM_encrypt_update_RISCV64_done:
 	.size	AES_GCM_encrypt_update_RISCV64,.-AES_GCM_encrypt_update_RISCV64
 	.text
 	.globl	AES_GCM_encrypt_final_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_RISCV64)
 	.type	AES_GCM_encrypt_final_RISCV64,@function
 	.align	2
 AES_GCM_encrypt_final_RISCV64:
@@ -76858,6 +76918,7 @@ L_AES_GCM_encrypt_final_RISCV64_store_tag:
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.globl	AES_GCM_decrypt_update_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_RISCV64)
 	.type	AES_GCM_decrypt_update_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_update_RISCV64:
@@ -79302,6 +79363,7 @@ L_AES_GCM_decrypt_update_RISCV64_done:
 	.size	AES_GCM_decrypt_update_RISCV64,.-AES_GCM_decrypt_update_RISCV64
 	.text
 	.globl	AES_GCM_decrypt_final_RISCV64
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_RISCV64)
 	.type	AES_GCM_decrypt_final_RISCV64,@function
 	.align	2
 AES_GCM_decrypt_final_RISCV64:

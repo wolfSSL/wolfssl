@@ -123,6 +123,7 @@ L_aes_gcm_avx2_mod2_128:
 .long	0x00000001,0x00000000,0x00000000,0xc2000000
 .text
 .globl	AES_GCM_encrypt_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_aesni)
 .type	AES_GCM_encrypt_aesni,@function
 .align	16
 AES_GCM_encrypt_aesni:
@@ -1515,6 +1516,7 @@ L_AES_GCM_encrypt_aesni_store_tag_done:
 .size	AES_GCM_encrypt_aesni,.-AES_GCM_encrypt_aesni
 .text
 .globl	AES_GCM_decrypt_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_aesni)
 .type	AES_GCM_decrypt_aesni,@function
 .align	16
 AES_GCM_decrypt_aesni:
@@ -2824,6 +2826,7 @@ L_AES_GCM_decrypt_aesni_cmp_tag_done:
 #ifdef WOLFSSL_AESGCM_STREAM
 .text
 .globl	AES_GCM_init_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_init_aesni)
 .type	AES_GCM_init_aesni,@function
 .align	16
 AES_GCM_init_aesni:
@@ -3172,6 +3175,7 @@ L_AES_GCM_init_aesni_iv_done:
 .size	AES_GCM_init_aesni,.-AES_GCM_init_aesni
 .text
 .globl	AES_GCM_aad_update_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_aesni)
 .type	AES_GCM_aad_update_aesni,@function
 .align	16
 AES_GCM_aad_update_aesni:
@@ -3252,6 +3256,7 @@ L_AES_GCM_aad_update_aesni_16_loop:
 .size	AES_GCM_aad_update_aesni,.-AES_GCM_aad_update_aesni
 .text
 .globl	AES_GCM_encrypt_block_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_aesni)
 .type	AES_GCM_encrypt_block_aesni,@function
 .align	16
 AES_GCM_encrypt_block_aesni:
@@ -3300,6 +3305,7 @@ L_AES_GCM_encrypt_block_aesni_aesenc_block_aesenc_avx_last:
 .size	AES_GCM_encrypt_block_aesni,.-AES_GCM_encrypt_block_aesni
 .text
 .globl	AES_GCM_ghash_block_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_aesni)
 .type	AES_GCM_ghash_block_aesni,@function
 .align	16
 AES_GCM_ghash_block_aesni:
@@ -3370,6 +3376,7 @@ AES_GCM_ghash_block_aesni:
 .size	AES_GCM_ghash_block_aesni,.-AES_GCM_ghash_block_aesni
 .text
 .globl	AES_GCM_encrypt_update_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_aesni)
 .type	AES_GCM_encrypt_update_aesni,@function
 .align	16
 AES_GCM_encrypt_update_aesni:
@@ -4137,6 +4144,7 @@ L_AES_GCM_encrypt_update_aesni_done_enc:
 .size	AES_GCM_encrypt_update_aesni,.-AES_GCM_encrypt_update_aesni
 .text
 .globl	AES_GCM_encrypt_final_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_aesni)
 .type	AES_GCM_encrypt_final_aesni,@function
 .align	16
 AES_GCM_encrypt_final_aesni:
@@ -4238,6 +4246,7 @@ L_AES_GCM_encrypt_final_aesni_store_tag_done:
 .size	AES_GCM_encrypt_final_aesni,.-AES_GCM_encrypt_final_aesni
 .text
 .globl	AES_GCM_decrypt_update_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_aesni)
 .type	AES_GCM_decrypt_update_aesni,@function
 .align	16
 AES_GCM_decrypt_update_aesni:
@@ -4913,6 +4922,7 @@ L_AES_GCM_decrypt_update_aesni_done_dec:
 .size	AES_GCM_decrypt_update_aesni,.-AES_GCM_decrypt_update_aesni
 .text
 .globl	AES_GCM_decrypt_final_aesni
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_aesni)
 .type	AES_GCM_decrypt_final_aesni,@function
 .align	16
 AES_GCM_decrypt_final_aesni:
@@ -5033,6 +5043,7 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_done:
 #ifdef HAVE_INTEL_AVX1
 .text
 .globl	AES_GCM_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_avx1)
 .type	AES_GCM_encrypt_avx1,@function
 .align	16
 AES_GCM_encrypt_avx1:
@@ -6243,6 +6254,7 @@ L_AES_GCM_encrypt_avx1_store_tag_done:
 .size	AES_GCM_encrypt_avx1,.-AES_GCM_encrypt_avx1
 .text
 .globl	AES_GCM_decrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_avx1)
 .type	AES_GCM_decrypt_avx1,@function
 .align	16
 AES_GCM_decrypt_avx1:
@@ -7379,6 +7391,7 @@ L_AES_GCM_decrypt_avx1_cmp_tag_done:
 #ifdef WOLFSSL_AESGCM_STREAM
 .text
 .globl	AES_GCM_init_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_init_avx1)
 .type	AES_GCM_init_avx1,@function
 .align	16
 AES_GCM_init_avx1:
@@ -7693,6 +7706,7 @@ L_AES_GCM_init_avx1_iv_done:
 .size	AES_GCM_init_avx1,.-AES_GCM_init_avx1
 .text
 .globl	AES_GCM_aad_update_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_avx1)
 .type	AES_GCM_aad_update_avx1,@function
 .align	16
 AES_GCM_aad_update_avx1:
@@ -7762,6 +7776,7 @@ L_AES_GCM_aad_update_avx1_16_loop:
 .size	AES_GCM_aad_update_avx1,.-AES_GCM_aad_update_avx1
 .text
 .globl	AES_GCM_encrypt_block_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_avx1)
 .type	AES_GCM_encrypt_block_avx1,@function
 .align	16
 AES_GCM_encrypt_block_avx1:
@@ -7809,6 +7824,7 @@ L_AES_GCM_encrypt_block_avx1_aesenc_block_aesenc_avx_last:
 .size	AES_GCM_encrypt_block_avx1,.-AES_GCM_encrypt_block_avx1
 .text
 .globl	AES_GCM_ghash_block_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_avx1)
 .type	AES_GCM_ghash_block_avx1,@function
 .align	16
 AES_GCM_ghash_block_avx1:
@@ -7868,6 +7884,7 @@ AES_GCM_ghash_block_avx1:
 .size	AES_GCM_ghash_block_avx1,.-AES_GCM_ghash_block_avx1
 .text
 .globl	AES_GCM_encrypt_update_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_avx1)
 .type	AES_GCM_encrypt_update_avx1,@function
 .align	16
 AES_GCM_encrypt_update_avx1:
@@ -8528,6 +8545,7 @@ L_AES_GCM_encrypt_update_avx1_done_enc:
 .size	AES_GCM_encrypt_update_avx1,.-AES_GCM_encrypt_update_avx1
 .text
 .globl	AES_GCM_encrypt_final_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_avx1)
 .type	AES_GCM_encrypt_final_avx1,@function
 .align	16
 AES_GCM_encrypt_final_avx1:
@@ -8617,6 +8635,7 @@ L_AES_GCM_encrypt_final_avx1_store_tag_done:
 .size	AES_GCM_encrypt_final_avx1,.-AES_GCM_encrypt_final_avx1
 .text
 .globl	AES_GCM_decrypt_update_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_avx1)
 .type	AES_GCM_decrypt_update_avx1,@function
 .align	16
 AES_GCM_decrypt_update_avx1:
@@ -9194,6 +9213,7 @@ L_AES_GCM_decrypt_update_avx1_done_dec:
 .size	AES_GCM_decrypt_update_avx1,.-AES_GCM_decrypt_update_avx1
 .text
 .globl	AES_GCM_decrypt_final_avx1
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_avx1)
 .type	AES_GCM_decrypt_final_avx1,@function
 .align	16
 AES_GCM_decrypt_final_avx1:
@@ -9303,6 +9323,7 @@ L_AES_GCM_decrypt_final_avx1_cmp_tag_done:
 #ifdef HAVE_INTEL_AVX2
 .text
 .globl	AES_GCM_encrypt_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_avx2)
 .type	AES_GCM_encrypt_avx2,@function
 .align	16
 AES_GCM_encrypt_avx2:
@@ -10306,6 +10327,7 @@ L_AES_GCM_encrypt_avx2_store_tag_done:
 .size	AES_GCM_encrypt_avx2,.-AES_GCM_encrypt_avx2
 .text
 .globl	AES_GCM_decrypt_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_avx2)
 .type	AES_GCM_decrypt_avx2,@function
 .align	16
 AES_GCM_decrypt_avx2:
@@ -11278,6 +11300,7 @@ L_AES_GCM_decrypt_avx2_cmp_tag_done:
 #ifdef WOLFSSL_AESGCM_STREAM
 .text
 .globl	AES_GCM_init_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_init_avx2)
 .type	AES_GCM_init_avx2,@function
 .align	16
 AES_GCM_init_avx2:
@@ -11547,6 +11570,7 @@ L_AES_GCM_init_avx2_iv_done:
 .size	AES_GCM_init_avx2,.-AES_GCM_init_avx2
 .text
 .globl	AES_GCM_aad_update_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_avx2)
 .type	AES_GCM_aad_update_avx2,@function
 .align	16
 AES_GCM_aad_update_avx2:
@@ -11603,6 +11627,7 @@ L_AES_GCM_aad_update_avx2_16_loop:
 .size	AES_GCM_aad_update_avx2,.-AES_GCM_aad_update_avx2
 .text
 .globl	AES_GCM_encrypt_block_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_avx2)
 .type	AES_GCM_encrypt_block_avx2,@function
 .align	16
 AES_GCM_encrypt_block_avx2:
@@ -11652,6 +11677,7 @@ L_AES_GCM_encrypt_block_avx2_aesenc_block_aesenc_avx_last:
 .size	AES_GCM_encrypt_block_avx2,.-AES_GCM_encrypt_block_avx2
 .text
 .globl	AES_GCM_ghash_block_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_avx2)
 .type	AES_GCM_ghash_block_avx2,@function
 .align	16
 AES_GCM_ghash_block_avx2:
@@ -11698,6 +11724,7 @@ AES_GCM_ghash_block_avx2:
 .size	AES_GCM_ghash_block_avx2,.-AES_GCM_ghash_block_avx2
 .text
 .globl	AES_GCM_encrypt_update_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_avx2)
 .type	AES_GCM_encrypt_update_avx2,@function
 .align	16
 AES_GCM_encrypt_update_avx2:
@@ -12258,6 +12285,7 @@ L_AES_GCM_encrypt_update_avx2_done_enc:
 .size	AES_GCM_encrypt_update_avx2,.-AES_GCM_encrypt_update_avx2
 .text
 .globl	AES_GCM_encrypt_final_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_avx2)
 .type	AES_GCM_encrypt_final_avx2,@function
 .align	16
 AES_GCM_encrypt_final_avx2:
@@ -12336,6 +12364,7 @@ L_AES_GCM_encrypt_final_avx2_store_tag_done:
 .size	AES_GCM_encrypt_final_avx2,.-AES_GCM_encrypt_final_avx2
 .text
 .globl	AES_GCM_decrypt_update_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_avx2)
 .type	AES_GCM_decrypt_update_avx2,@function
 .align	16
 AES_GCM_decrypt_update_avx2:
@@ -12852,6 +12881,7 @@ L_AES_GCM_decrypt_update_avx2_done_dec:
 .size	AES_GCM_decrypt_update_avx2,.-AES_GCM_decrypt_update_avx2
 .text
 .globl	AES_GCM_decrypt_final_avx2
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_avx2)
 .type	AES_GCM_decrypt_final_avx2,@function
 .align	16
 AES_GCM_decrypt_final_avx2:

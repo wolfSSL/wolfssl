@@ -81,6 +81,7 @@ L_SHA512_transform_riscv_vector_len_k:
 	.quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 	.text
 	.globl	Transform_Sha512_Len_riscv_vector
+	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_riscv_vector)
 	.type	Transform_Sha512_Len_riscv_vector,@function
 	.align	2
 Transform_Sha512_Len_riscv_vector:
@@ -329,6 +330,7 @@ L_SHA512_transform_riscv_crypto_len_k:
 	.quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 	.text
 	.globl	Transform_Sha512_Len_riscv_crypto
+	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_riscv_crypto)
 	.type	Transform_Sha512_Len_riscv_crypto,@function
 	.align	2
 Transform_Sha512_Len_riscv_crypto:
@@ -1663,6 +1665,7 @@ L_SHA512_transform_riscv_len_k:
 	.quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 	.text
 	.globl	Transform_Sha512_Len_riscv
+	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_riscv)
 	.type	Transform_Sha512_Len_riscv,@function
 	.align	2
 Transform_Sha512_Len_riscv:

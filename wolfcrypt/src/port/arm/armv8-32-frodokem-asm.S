@@ -38,6 +38,7 @@
 	.align	4
 	.fpu	neon
 	.globl	frodokem_add_neon
+	WC_ASM_ATT_HIDDEN(frodokem_add_neon)
 	.type	frodokem_add_neon, %function
 frodokem_add_neon:
 	vdup.16	q2, r2
@@ -56,6 +57,7 @@ L_frodokem_add_neon_blk:
 	.align	4
 	.fpu	neon
 	.globl	frodokem_sample_neon
+	WC_ASM_ATT_HIDDEN(frodokem_sample_neon)
 	.type	frodokem_sample_neon, %function
 frodokem_sample_neon:
 	push	{r4, lr}
@@ -90,6 +92,7 @@ L_frodokem_sample_neon_cdf:
 	.align	4
 	.fpu	neon
 	.globl	frodokem_sa_accum_neon
+	WC_ASM_ATT_HIDDEN(frodokem_sa_accum_neon)
 	.type	frodokem_sa_accum_neon, %function
 frodokem_sa_accum_neon:
 	push	{r4, r5, r6, r7, r8, lr}
@@ -118,6 +121,7 @@ L_frodokem_sa_accum_neon_k:
 	.align	4
 	.fpu	neon
 	.globl	frodokem_as_accum_neon
+	WC_ASM_ATT_HIDDEN(frodokem_as_accum_neon)
 	.type	frodokem_as_accum_neon, %function
 frodokem_as_accum_neon:
 	push	{r4, r5, r6, r7, r8, r9, lr}
@@ -216,6 +220,7 @@ L_frodokem_as_accum_neon_k:
 	.align	4
 	.fpu	neon
 	.globl	frodokem_mul_bs_neon
+	WC_ASM_ATT_HIDDEN(frodokem_mul_bs_neon)
 	.type	frodokem_mul_bs_neon, %function
 frodokem_mul_bs_neon:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -318,6 +323,7 @@ L_frodokem_mul_bs_neon_k:
 	.align	4
 	.fpu	neon
 	.globl	frodokem_mul_add_sb_plus_e_neon
+	WC_ASM_ATT_HIDDEN(frodokem_mul_add_sb_plus_e_neon)
 	.type	frodokem_mul_add_sb_plus_e_neon, %function
 frodokem_mul_add_sb_plus_e_neon:
 	push	{r4, r5, r6, r7, r8, r9, lr}
@@ -403,6 +409,7 @@ L_frodokem_mul_add_sb_plus_e_neon_j:
 	.text
 	.align	4
 	.globl	frodokem_gen_a_rows_aes_arm32
+	WC_ASM_ATT_HIDDEN(frodokem_gen_a_rows_aes_arm32)
 	.type	frodokem_gen_a_rows_aes_arm32, %function
 frodokem_gen_a_rows_aes_arm32:
 	push	{r4, r5, r6, r7, r8, r9, lr}
@@ -507,6 +514,7 @@ L_frodokem_gen_a_rows_aes_arm32_aes:
 	.text
 	.align	4
 	.globl	frodokem_add_simd32
+	WC_ASM_ATT_HIDDEN(frodokem_add_simd32)
 	.type	frodokem_add_simd32, %function
 frodokem_add_simd32:
 	push	{lr}
@@ -525,6 +533,7 @@ L_frodokem_add_simd32_blk:
 	.text
 	.align	4
 	.globl	frodokem_sa_accum_simd32
+	WC_ASM_ATT_HIDDEN(frodokem_sa_accum_simd32)
 	.type	frodokem_sa_accum_simd32, %function
 frodokem_sa_accum_simd32:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -554,6 +563,7 @@ L_frodokem_sa_accum_simd32_k:
 	.text
 	.align	4
 	.globl	frodokem_as_accum_simd32
+	WC_ASM_ATT_HIDDEN(frodokem_as_accum_simd32)
 	.type	frodokem_as_accum_simd32, %function
 frodokem_as_accum_simd32:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -585,6 +595,7 @@ L_frodokem_as_accum_simd32_j:
 	.text
 	.align	4
 	.globl	frodokem_mul_bs_simd32
+	WC_ASM_ATT_HIDDEN(frodokem_mul_bs_simd32)
 	.type	frodokem_mul_bs_simd32, %function
 frodokem_mul_bs_simd32:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -620,6 +631,7 @@ L_frodokem_mul_bs_simd32_j:
 	.text
 	.align	4
 	.globl	frodokem_mul_add_sb_plus_e_simd32
+	WC_ASM_ATT_HIDDEN(frodokem_mul_add_sb_plus_e_simd32)
 	.type	frodokem_mul_add_sb_plus_e_simd32, %function
 frodokem_mul_add_sb_plus_e_simd32:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

@@ -69,6 +69,7 @@ L_mlkem_thumb2_ntt_zetas:
 	.text
 	.align	4
 	.globl	mlkem_thumb2_ntt
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_ntt)
 	.type	mlkem_thumb2_ntt, %function
 mlkem_thumb2_ntt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -1358,6 +1359,7 @@ L_mlkem_invntt_zetas_inv:
 	.text
 	.align	4
 	.globl	mlkem_thumb2_invntt
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_invntt)
 	.type	mlkem_thumb2_invntt, %function
 mlkem_thumb2_invntt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3014,6 +3016,7 @@ L_mlkem_basemul_mont_zetas:
 	.text
 	.align	4
 	.globl	mlkem_thumb2_basemul_mont
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_basemul_mont)
 	.type	mlkem_thumb2_basemul_mont, %function
 mlkem_thumb2_basemul_mont:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3137,6 +3140,7 @@ L_mlkem_basemul_mont_loop:
 	.text
 	.align	4
 	.globl	mlkem_thumb2_basemul_mont_add
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_basemul_mont_add)
 	.type	mlkem_thumb2_basemul_mont_add, %function
 mlkem_thumb2_basemul_mont_add:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3272,6 +3276,7 @@ L_mlkem_thumb2_basemul_mont_add_loop:
 	.text
 	.align	4
 	.globl	mlkem_thumb2_csubq
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_csubq)
 	.type	mlkem_thumb2_csubq, %function
 mlkem_thumb2_csubq:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3361,6 +3366,7 @@ L_mlkem_thumb2_csubq_loop:
 	.text
 	.align	4
 	.globl	mlkem_thumb2_rej_uniform
+	WC_ASM_ATT_HIDDEN(mlkem_thumb2_rej_uniform)
 	.type	mlkem_thumb2_rej_uniform, %function
 mlkem_thumb2_rej_uniform:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, lr}

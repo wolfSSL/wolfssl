@@ -47,12 +47,14 @@
 #ifndef __APPLE__
 .text
 .globl	poly1305_setkey_avx
+WC_ASM_ATT_HIDDEN(poly1305_setkey_avx)
 .type	poly1305_setkey_avx,@function
 .align	16
 poly1305_setkey_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_setkey_avx
+WC_ASM_ATT_HIDDEN(_poly1305_setkey_avx)
 .p2align	4
 _poly1305_setkey_avx:
 #endif /* __APPLE__ */
@@ -107,12 +109,14 @@ _poly1305_setkey_avx:
 #ifndef __APPLE__
 .text
 .globl	poly1305_block_avx
+WC_ASM_ATT_HIDDEN(poly1305_block_avx)
 .type	poly1305_block_avx,@function
 .align	16
 poly1305_block_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_block_avx
+WC_ASM_ATT_HIDDEN(_poly1305_block_avx)
 .p2align	4
 _poly1305_block_avx:
 #endif /* __APPLE__ */
@@ -191,12 +195,14 @@ _poly1305_block_avx:
 #ifndef __APPLE__
 .text
 .globl	poly1305_blocks_avx
+WC_ASM_ATT_HIDDEN(poly1305_blocks_avx)
 .type	poly1305_blocks_avx,@function
 .align	16
 poly1305_blocks_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_blocks_avx
+WC_ASM_ATT_HIDDEN(_poly1305_blocks_avx)
 .p2align	4
 _poly1305_blocks_avx:
 #endif /* __APPLE__ */
@@ -279,12 +285,14 @@ L_poly1305_avx_blocks_start:
 #ifndef __APPLE__
 .text
 .globl	poly1305_final_avx
+WC_ASM_ATT_HIDDEN(poly1305_final_avx)
 .type	poly1305_final_avx,@function
 .align	16
 poly1305_final_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_final_avx
+WC_ASM_ATT_HIDDEN(_poly1305_final_avx)
 .p2align	4
 _poly1305_final_avx:
 #endif /* __APPLE__ */
@@ -364,12 +372,14 @@ L_poly1305_avx_final_no_more:
 #ifndef __APPLE__
 .text
 .globl	poly1305_calc_powers_avx2
+WC_ASM_ATT_HIDDEN(poly1305_calc_powers_avx2)
 .type	poly1305_calc_powers_avx2,@function
 .align	16
 poly1305_calc_powers_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_calc_powers_avx2
+WC_ASM_ATT_HIDDEN(_poly1305_calc_powers_avx2)
 .p2align	4
 _poly1305_calc_powers_avx2:
 #endif /* __APPLE__ */
@@ -631,12 +641,14 @@ _poly1305_calc_powers_avx2:
 #ifndef __APPLE__
 .text
 .globl	poly1305_setkey_avx2
+WC_ASM_ATT_HIDDEN(poly1305_setkey_avx2)
 .type	poly1305_setkey_avx2,@function
 .align	16
 poly1305_setkey_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_setkey_avx2
+WC_ASM_ATT_HIDDEN(_poly1305_setkey_avx2)
 .p2align	4
 _poly1305_setkey_avx2:
 #endif /* __APPLE__ */
@@ -688,12 +700,14 @@ L_poly1305_avx2_blocks_hibit:
 #ifndef __APPLE__
 .text
 .globl	poly1305_blocks_avx2
+WC_ASM_ATT_HIDDEN(poly1305_blocks_avx2)
 .type	poly1305_blocks_avx2,@function
 .align	16
 poly1305_blocks_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_blocks_avx2
+WC_ASM_ATT_HIDDEN(_poly1305_blocks_avx2)
 .p2align	4
 _poly1305_blocks_avx2:
 #endif /* __APPLE__ */
@@ -1055,12 +1069,14 @@ L_poly1305_avx2_blocks_complete:
 #ifndef __APPLE__
 .text
 .globl	poly1305_final_avx2
+WC_ASM_ATT_HIDDEN(poly1305_final_avx2)
 .type	poly1305_final_avx2,@function
 .align	16
 poly1305_final_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_final_avx2
+WC_ASM_ATT_HIDDEN(_poly1305_final_avx2)
 .p2align	4
 _poly1305_final_avx2:
 #endif /* __APPLE__ */
