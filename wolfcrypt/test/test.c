@@ -81235,7 +81235,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         if (ret == 0) {
             haveSrc = 1;
             ret = wc_ecc_make_key(eccRng, 32, srcKey);
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &srcKey->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
         }

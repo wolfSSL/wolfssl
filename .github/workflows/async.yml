@@ -71,7 +71,7 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/async-configs.json" <<'EOF'
           [
-          {"comment": "The only entry that pairs the software async simulator with --enable-all. --enable-all turns on cryptocb, which stops configure.ac from auto-enabling the simulator, so the asynccrypt-all entries below define WOLFSSL_ASYNC_CRYPT but never actually return WC_PENDING_E. Without this one nothing exercises TLS 1.3 post-handshake auth or DTLS writes against a pending crypto op.",
+          {"comment": "The only entry that pairs the software async simulator with --enable-all. --enable-all turns on cryptocb, which stops configure.ac from auto-enabling the simulator, so the asynccrypt-all entries below define WOLFSSL_ASYNC_CRYPT but never actually return WC_PENDING_E. Without this one nothing exercises TLS 1.3 post-handshake auth or DTLS writes against a pending crypto op. The minutes value is a projection, not a CI measurement: this config takes 1.6 min locally where the asynccrypt-all entries below take 1.4 against their declared 3. Refresh it from the first real run.",
            "name": "asynccrypt-sw-all-dtls13", "minutes": 3,
            "configure": ["--enable-asynccrypt-sw", "--enable-all",
             "--enable-dtls13",

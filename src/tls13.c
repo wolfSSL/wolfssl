@@ -3366,6 +3366,10 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     if (ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E))
 #endif
     {
+        /* Note: these hit ssl->options even for a sizeOnly probe, where every
+         * other result goes to lcl_args, so a probe destroys the resume point
+         * of a suspended asynchronous build. wolfssl_local_GetRecordSize() is
+         * the only sizeOnly caller and restores them; a new one must too. */
         ret = 0;
         ssl->options.buildMsgState = BUILD_MSG_BEGIN;
         XMEMSET(args, 0, sizeof(BuildMsg13Args));
