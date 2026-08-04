@@ -708,6 +708,11 @@ static int linuxkm_lkcapi_register(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_DH
+    {
+    #ifdef WC_DH_HAVE_RUNTIME_ENABLEMENT
+        int need_dh_disable = (wc_dh_enable() == 0);
+    #endif
+
     #ifdef HAVE_FFDHE_2048
     REGISTER_ALG(ffdhe2048, kpp, linuxkm_test_ffdhe2048);
     #endif /* HAVE_FFDHE_2048 */
@@ -731,6 +736,12 @@ static int linuxkm_lkcapi_register(void)
     #ifdef LINUXKM_DH
     REGISTER_ALG(dh, kpp, linuxkm_test_dh);
     #endif /* LINUXKM_DH */
+
+    #ifdef WC_DH_HAVE_RUNTIME_ENABLEMENT
+    if (need_dh_disable)
+        (void)wc_dh_disable();
+    #endif
+    }
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
 #undef REGISTER_ALG

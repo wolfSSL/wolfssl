@@ -79,8 +79,13 @@ int unit_test(int argc, char** argv)
 {
     int ret = 0;
 
+    #ifdef WC_DH_HAVE_RUNTIME_ENABLEMENT
+    int need_dh_disable = (wc_dh_enable() == 0);
+    #endif
+
     (void)argc;
     (void)argv;
+
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     if (argc > 1) {
         int memFailCount = atoi(argv[1]);
@@ -407,6 +412,11 @@ exit:
         puts("\nunit_test: Success for all configured tests.");
         fflush(stdout);
     }
+
+    #ifdef WC_DH_HAVE_RUNTIME_ENABLEMENT
+    if (need_dh_disable)
+        (void)wc_dh_disable();
+    #endif
 
     return ret;
 }

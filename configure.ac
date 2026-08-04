@@ -1698,6 +1698,7 @@ then
     test "$enable_md5" = "" && enable_md5=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    test "$enable_dh" = "" && enable_dh=yes
 
     if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
@@ -1742,7 +1743,7 @@ then
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+    if test "$enable_dh" = "yes"
     then
         # Enable DH const table speedups (eliminates `-lm` math lib dependency)
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
@@ -1775,6 +1776,8 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
 
+    # Caution, asym key bits above 4096 can disrupt TLS fragment size dynamics
+    # (see tests/test-maxfrag.conf).
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable all parsing features for ASN */
@@ -1842,13 +1845,31 @@ then
         test "$enable_shake256" = "" && test "$enable_sha3" = "yes" && enable_shake256=yes
         test "$enable_compkey" = "" && enable_compkey=yes
     fi
-    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 7
+
+    # Enable DH even for FIPS v7, to allow non-FIPS pro forma DH in kernel
+    # modules (effectively disabling it kernel-wide at runtime).  The
+    # "conditional" value leaves it disabled (unusable) after registration.
+    if test "$HAVE_FIPS_VERSION" -ge 7 && test "$enable_dh" = "" && test "$enable_linuxkm_lkcapi_register" != ""
     then
-        # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+        for lkcapi_alg in $(echo "$enable_linuxkm_lkcapi_register" | tr ',' ' ')
+        do
+            case "$lkcapi_alg" in
+            all | all-kconfig | dh) enable_dh=conditional ;;
+            esac
+        done
+        for lkcapi_alg in $(echo "$enable_linuxkm_lkcapi_register" | tr ',' ' ')
+        do
+            case "$lkcapi_alg" in
+            -dh) enable_dh="" ;;
+            esac
+        done
     fi
+
+    # Enable WOLFSSL_DH_EXTRA and DH const table speedups (eliminates `-lm` math lib dependency)
+    # No effect if DH is disabled.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
 fi
 
@@ -6345,16 +6366,28 @@ then
     ENABLED_DH_DEFAULT=yes
 else
     ENABLED_DH_DEFAULT=no
+    # DH is outside the boundary in FIPS v7+, but if it's enabled directly or
+    # via --enable-all-crypto, then callers and the test suite will expect it to
+    # work.
+    if test "$enable_dh" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_DH_INITIAL_RUNTIME_ENABLEMENT=1"
+    fi
+fi
+
+if test "$enable_dh" = "conditional"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_DH_INITIAL_RUNTIME_ENABLEMENT=0"
+    enable_dh=yes
 fi
 
 # DH
 AC_ARG_ENABLE([dh],
-    [AS_HELP_STRING([--enable-dh],[Enable DH (default: enabled). Set to "nonblock" to enable non-blocking DH key agreement via SP small mod_exp_nb])],
+    [AS_HELP_STRING([--enable-dh],[Enable DH (default: ${ENABLED_DH_DEFAULT}). Set to "nonblock" to enable non-blocking DH key agreement via SP small mod_exp_nb])],
     [ ENABLED_DH=$enableval ],
     [ ENABLED_DH=$ENABLED_DH_DEFAULT ]
     )
 
-# note, this will be forced back off for FIPS v7+ below.
 if test "$ENABLED_OPENSSH" = "yes" && test "$ENABLED_DH" = "no"
 then
     ENABLED_DH="yes"
@@ -6987,9 +7020,10 @@ AS_CASE([$FIPS_VERSION],
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_rsapss" != "no")],
             [ENABLED_RSAPSS="yes"; AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
 
-        AS_IF([test "$ENABLED_DH" != "no" &&
-               (test "$FIPS_VERSION" != "dev" || test "$enable_dh" != "yes")],
-            [enable_dh="no"; ENABLED_DH="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
+# DH is outside the FIPS v7 boundary and off by default in v7, but freely
+# configurable for non-FIPS use, provided the user first calls wc_dh_enable(),
+# defines WC_DH_INITIAL_RUNTIME_ENABLEMENT to 1, or enables it explicitly with
+# --enable-dh or indirectly with --enable-all-crypto.
 
         AS_IF([test "$ENABLED_ECC" != "yes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ecc" != "no")],

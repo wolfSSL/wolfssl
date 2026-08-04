@@ -57,6 +57,29 @@
     }
 #endif
 
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+static volatile int wc_dh_enabled = WC_DH_INITIAL_RUNTIME_ENABLEMENT;
+int wc_dh_enable(void) {
+    if (wc_dh_enabled)
+        return ALREADY_E;
+    else {
+        wc_dh_enabled = 1;
+        return 0;
+    }
+}
+int wc_dh_disable(void) {
+    if (wc_dh_enabled) {
+        wc_dh_enabled = 0;
+        return 0;
+    }
+    else
+        return ALREADY_E;
+}
+int wc_dh_is_enabled(void) {
+    return wc_dh_enabled;
+}
+#endif
+
 /*
 Possible DH enable options:
  * NO_RSA:              Overall control of DH                 default: on (not defined)
@@ -942,6 +965,11 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 
     key->heap = heap; /* for XMALLOC/XFREE in future */
     key->trustedGroup = 0;
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
 #ifdef WOLFSSL_DH_EXTRA
     if (mp_init_multi(&key->p, &key->g, &key->q, &key->pub, &key->priv, NULL) != MP_OKAY)
@@ -2012,6 +2040,11 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
+
 #ifdef WOLFSSL_KCAPI_DH
     (void)priv;
     (void)privSz;
@@ -2381,6 +2414,11 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
+
 #ifdef WOLFSSL_KCAPI_DH
     (void)priv;
     (void)privSz;
@@ -2423,6 +2461,11 @@ int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
                                                             otherPub == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
     requested_agreeSz = (word32)mp_unsigned_bin_size(&key->p);
     if (requested_agreeSz > *agreeSz) {
@@ -2593,6 +2636,11 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
         ret = BAD_FUNC_ARG;
     }
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if ((ret == 0) && (! wc_dh_enabled))
+        ret = FIPS_NOT_ALLOWED_E;
+#endif
 
     if (ret == 0) {
         /* may have leading 0 */

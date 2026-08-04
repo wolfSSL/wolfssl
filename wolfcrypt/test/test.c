@@ -32315,7 +32315,9 @@ static wc_test_ret_t dh_key_import_export_test(DhKey* key, DhKey* key2,
 
         /* for HAVE_WOLF_BIGINT prevent leak */
         wc_FreeDhKey(key);
-        (void)wc_InitDhKey_ex(key, HEAP_HINT, devId);
+        ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_import_export);
 
         idx = 0;
         XMEMSET(tmp2, 0, DH_TEST_TMP_SIZE);
@@ -32381,6 +32383,9 @@ exit_dh_set_check:
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
 {
+#ifdef WC_DH_HAVE_RUNTIME_ENABLEMENT
+    int need_dh_disable = 0;
+#endif
     wc_test_ret_t ret;
     word32 bytes;
     word32 idx = 0;
@@ -32425,6 +32430,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
     byte agree2[DH_TEST_BUF_SIZE];
 #endif
 #endif /* !WC_NO_RNG */
+
+#ifdef WC_DH_HAVE_RUNTIME_ENABLEMENT
+    need_dh_disable = (wc_dh_enable() == 0);
+#endif
 
     WOLFSSL_ENTER("dh_test");
 
@@ -32663,6 +32672,11 @@ done:
     (void)pubSz;
     (void)pubSz2;
     (void)privSz2;
+
+    #ifdef WC_DH_HAVE_RUNTIME_ENABLEMENT
+    if (need_dh_disable)
+        (void)wc_dh_disable();
+    #endif
 
     return ret;
 }
