@@ -152,7 +152,7 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
     ECPoint wc_pub;
 #endif
 
-    if ( (public_size != CURVE25519_KEYSIZE) ||
+    if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE)) {
         return ECC_BAD_ARG_E;
     }

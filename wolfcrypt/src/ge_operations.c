@@ -25,6 +25,7 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 /* under WOLF_CRYPTO_CB_ONLY_ED25519 the callback device does all Ed25519
  * group math, so this file (and its large precomputed tables) compiles out
@@ -9678,48 +9679,65 @@ static const ge_precomp Bi[8] = {
 #endif
 
 
-/*
-r = a * A + b * B
-where a = a[0]+256*a[1]+...+256^31 a[31].
-and b = b[0]+256*b[1]+...+256^31 b[31].
-B is the Ed25519 base point (x,4/5) with x positive.
-*/
-int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
-                                 const ge_p3 *A, const unsigned char *b)
+/* Every temporary of ge_double_scalarmult_vartime_c in one allocation. */
+#define GE_DSM_TMP_SIZE (8 * sizeof(ge_cached) + sizeof(ge_p1p1) + \
+                         2 * sizeof(ge_p3) + 2 * SLIDE_SIZE)
+
+/* Computes r = a * A + b * B with the C field operations.
+ *
+ * B is the Ed25519 base point.  The window digits of both scalars and the
+ * table of odd multiples of A are worked out here rather than by the caller,
+ * so that an implementation with a representation of its own - see
+ * ge_double_scalarmult_vartime_avx512_ifma() - can build them in that representation
+ * instead of converting these.
+ *
+ * @param [out] r  Resulting point.
+ * @param [in]  a  Scalar to multiply A by, little endian.
+ * @param [in]  A  Point to multiply by a.
+ * @param [in]  b  Scalar to multiply the base point by, little endian.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  BAD_STATE_E when the digits were not all consumed and
+ *          WOLFSSL_CHECK_VER_FAULTS is defined.
+ */
+static int ge_double_scalarmult_vartime_c(ge_p2 *r, const unsigned char *a,
+                                          const ge_p3 *A,
+                                          const unsigned char *b)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-  signed char *aslide = NULL;
-  signed char *bslide = NULL;
-  ge_cached *Ai = NULL; /* A,3A,5A,7A,9A,11A,13A,15A */
+  byte *buf = NULL;
+  signed char *aslide;
+  signed char *bslide;
+  ge_cached *Ai; /* A,3A,5A,7A,9A,11A,13A,15A */
 
-  ge_p1p1 *t = NULL;
-  ge_p3 *u = NULL;
-  ge_p3 *A2 = NULL;
-
-  int ret;
+  ge_p1p1 *t;
+  ge_p3 *u;
+  ge_p3 *A2;
 #else
   signed char aslide[SLIDE_SIZE];
   signed char bslide[SLIDE_SIZE];
-  ge_cached Ai[16]; /* A,3A,5A,7A,9A,11A,13A,15A */
+  ge_cached Ai[8]; /* A,3A,5A,7A,9A,11A,13A,15A */
 
   ge_p1p1 t[1];
   ge_p3 u[1];
   ge_p3 A2[1];
 #endif
   int i;
+  int ret = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-  if (((aslide = (signed char *)XMALLOC(SLIDE_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
-      ((bslide = (signed char *)XMALLOC(SLIDE_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
-      ((Ai = (ge_cached *)XMALLOC(16 * sizeof(*Ai), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
-      ((t = (ge_p1p1 *)XMALLOC(sizeof(*t), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
-      ((u = (ge_p3 *)XMALLOC(sizeof(*u), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL) ||
-      ((A2 = (ge_p3 *)XMALLOC(sizeof(*A2), NULL, DYNAMIC_TYPE_TMP_BUFFER))== NULL))
-  {
-      ret = MEMORY_E;
-      goto out;
-  } else
-      ret = 0;
+  /* Carve the one allocation up.  The types that need alignment come first so
+   * that each lands on a boundary the allocation itself satisfies. */
+  buf = (byte *)XMALLOC(GE_DSM_TMP_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (buf == NULL) {
+      return MEMORY_E;
+  }
+  Ai = (ge_cached *)buf;
+  t = (ge_p1p1 *)(Ai + 8);
+  u = (ge_p3 *)(t + 1);
+  A2 = u + 1;
+  aslide = (signed char *)(A2 + 1);
+  bslide = aslide + SLIDE_SIZE;
 #endif
 
   slide(aslide,a,15);
@@ -9752,11 +9770,11 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
         fe_add(t->T,Ai[aslide[i]/2].Z, Ai[aslide[i]/2].Z);
         fe_copy(t->Z,t->T);
       } else if (aslide[i] < 0) {
-        fe_copy(t->Z, Ai[aslide[i]/2].YminusX);
-        fe_copy(t->Y, Ai[aslide[i]/2].YplusX);
+        fe_copy(t->Z, Ai[(-aslide[i])/2].YminusX);
+        fe_copy(t->Y, Ai[(-aslide[i])/2].YplusX);
         fe_sub(t->X,t->Z,t->Y);
         fe_add(t->Y,t->Z,t->Y);
-        fe_add(t->T,Ai[aslide[i]/2].Z, Ai[aslide[i]/2].Z);
+        fe_add(t->T,Ai[(-aslide[i])/2].Z, Ai[(-aslide[i])/2].Z);
         fe_copy(t->Z,t->T);
       }
 
@@ -9779,8 +9797,8 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
           ge_p1p1_to_p3(u,t);
           ge_msub(t,u,&Bi[(-bslide[i])/2]);
         } else {
-          fe_copy(t->Z,Bi[bslide[i]/2].yminusx);
-          fe_copy(t->Y,Bi[bslide[i]/2].yplusx);
+          fe_copy(t->Z,Bi[(-bslide[i])/2].yminusx);
+          fe_copy(t->Y,Bi[(-bslide[i])/2].yplusx);
           fe_sub(t->X,t->Z,t->Y);
           fe_add(t->Y,t->Z,t->Y);
           fe_0(t->T);
@@ -9822,24 +9840,75 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 #ifdef WOLFSSL_CHECK_VER_FAULTS
   if (i != -1) {
       /* did not go through whole loop */
-      return BAD_STATE_E;
+      ret = BAD_STATE_E;
   }
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-  out:
-
-  XFREE(aslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  XFREE(bslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  XFREE(A2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
   return ret;
-#else
-  return 0;
+}
+
+#ifdef WOLFSSL_GE_HAVE_INTEL_AVX512_IFMA
+/* Everything the AVX512-IFMA implementation works on, in one block: twelve
+ * points in limb form - the eight odd multiples of A, 2A, A itself, the
+ * running point and the cached point being added - and the window digits of
+ * both scalars.  A point in limb form is five limbs in each of four lanes.
+ * Matches B_SIZE in scripts/x25519/x86_64/x25519_ifma.rb. */
+#define GE_DSM_IFMA_TMP_SIZE (12 * 5 * 4 * 8 + 2 * SLIDE_SIZE)
 #endif
+
+/*
+r = a * A + b * B
+where a = a[0]+256*a[1]+...+256^31 a[31].
+and b = b[0]+256*b[1]+...+256^31 b[31].
+B is the Ed25519 base point (x,4/5) with x positive.
+*/
+int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
+                                 const ge_p3 *A, const unsigned char *b)
+{
+#ifdef WOLFSSL_GE_HAVE_INTEL_AVX512_IFMA
+  int ret;
+  cpuid_flags_t cpuid_flags;
+
+  /* The assembly works out the window digits and the multiples of A itself,
+   * so it needs none of the temporaries the C implementation uses - just the
+   * one buffer, which it works in instead of taking a stack frame.  The
+   * 256-bit EVEX VPMADD52 code needs AVX512F, IFMA and VL - see the same test
+   * in fe_init(). */
+  cpuid_flags = cpuid_get_flags();
+  if (IS_INTEL_AVX512(cpuid_flags) && IS_INTEL_AVX512_IFMA(cpuid_flags) &&
+          IS_INTEL_AVX512_VL(cpuid_flags) &&
+          (SAVE_VECTOR_REGISTERS2() == 0)) {
+  #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
+      byte buf[GE_DSM_IFMA_TMP_SIZE];
+  #else
+      byte *buf = (byte *)XMALLOC(GE_DSM_IFMA_TMP_SIZE, NULL,
+                                  DYNAMIC_TYPE_TMP_BUFFER);
+      if (buf == NULL) {
+          RESTORE_VECTOR_REGISTERS();
+          return MEMORY_E;
+      }
+  #endif
+      /* VPMULLQ is a single uop on AMD and microcoded on Intel, so the
+       * variant that reduces with it is only used on AMD. */
+      if (IS_CPU_AMD(cpuid_flags) && IS_INTEL_AVX512_DQ(cpuid_flags)) {
+          ret = ge_double_scalarmult_vartime_avx512_ifma_dq(r, a, A, b, Bi, buf);
+      }
+      else {
+          ret = ge_double_scalarmult_vartime_avx512_ifma(r, a, A, b, Bi, buf);
+      }
+  #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+      XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  #endif
+      RESTORE_VECTOR_REGISTERS();
+      return ret;
+  }
+#endif
+
+  return ge_double_scalarmult_vartime_c(r, a, A, b);
 }
 
 #ifdef CURVED25519_ASM_64BIT

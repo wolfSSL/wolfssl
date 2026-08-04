@@ -129,6 +129,35 @@ WOLFSSL_LOCAL void ge_madd(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
 WOLFSSL_LOCAL void ge_msub(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
 WOLFSSL_LOCAL void ge_add(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
 WOLFSSL_LOCAL void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
+
+/* AVX512-IFMA double scalar multiplication.  The guards mirror the ones the
+ * assembly self-enables with in fe_x25519_asm.S, so that the C dispatch and
+ * the assembly agree on whether the function exists.  Runtime CPUID decides
+ * whether it is called.
+ *
+ * HAVE_ED25519 is one of them: the assembly only emits these two inside it.
+ * A curve25519-only build still compiles ge_double_scalarmult_vartime -
+ * WOLFSSL_CURVE25519_USE_ED25519 brings the file in - but nothing calls it
+ * there, so it just uses the C implementation.
+ *
+ * NO_AVX2_SUPPORT is another: the assembly nests all of the AVX512 code
+ * inside the block it self-enables HAVE_INTEL_AVX2 with. */
+#if defined(CURVED25519_X64) && defined(HAVE_ED25519) && \
+    !defined(NO_AVX2_SUPPORT) && !defined(NO_AVX512_SUPPORT) && \
+    !defined(NO_AVX512_IFMA_SUPPORT)
+    #define WOLFSSL_GE_HAVE_INTEL_AVX512_IFMA
+/* Works out the window digits and the table of odd multiples of A itself -
+ * both are cheaper in limb form than converted from the C representation.
+ * Everything it works on lives in the caller's buffer, so that the caller
+ * decides between the stack and the heap; see GE_DSM_IFMA_TMP_SIZE. */
+WOLFSSL_LOCAL int ge_double_scalarmult_vartime_avx512_ifma(ge_p2 *r,
+    const unsigned char *a, const ge_p3 *A,
+    const unsigned char *b, const ge_precomp *Bi, byte *buf);
+/* Folds the reduction with VPMULLQ - one uop on AMD, several on Intel. */
+WOLFSSL_LOCAL int ge_double_scalarmult_vartime_avx512_ifma_dq(ge_p2 *r,
+    const unsigned char *a, const ge_p3 *A,
+    const unsigned char *b, const ge_precomp *Bi, byte *buf);
+#endif
 #endif
 #endif /* !ED25519_SMALL */
 
