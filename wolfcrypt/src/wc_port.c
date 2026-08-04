@@ -1550,34 +1550,52 @@ char* wc_strsep(char **stringp, const char *delim)
 #ifdef USE_WOLF_STRLCPY
 size_t wc_strlcpy(char *dst, const char *src, size_t dstSize)
 {
-    size_t i;
+    size_t i = 0;
 
-    if (!dstSize)
-        return 0;
-
-    /* Always have to leave a space for NULL */
-    for (i = 0; i < (dstSize - 1) && *src != '\0'; i++) {
-        *dst++ = *src++;
+    if (dstSize != 0) {
+        /* Always have to leave a space for NULL */
+        for (; i < (dstSize - 1) && *src != '\0'; i++) {
+            *dst++ = *src++;
+        }
+        *dst = '\0';
     }
-    *dst = '\0';
 
-    return i; /* return length without NULL */
+    /* strlcpy() returns the length of src, not the number of bytes copied, so
+     * that a caller can detect truncation with (ret >= dstSize). Walk whatever
+     * did not fit -- src already points at the first byte not copied, and at
+     * the whole string when dstSize was 0 (which writes nothing). */
+    while (*src != '\0') {
+        i++;
+        src++;
+    }
+
+    return i; /* length of src, excluding the NULL */
 }
 #endif /* USE_WOLF_STRLCPY */
 
 #ifdef USE_WOLF_STRLCAT
 size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
 {
-    size_t dstLen;
+    size_t dstLen = 0;
 
-    if (!dstSize)
-        return 0;
+    /* Find the end of dst without going past dstSize. XSTRLEN() would run off
+     * the end of a dst that holds no NUL within dstSize -- the very case this
+     * bound exists to contain. */
+    while (dstLen < dstSize && dst[dstLen] != '\0') {
+        dstLen++;
+    }
 
-    dstLen = XSTRLEN(dst);
+    if (dstLen == dstSize) {
+        /* No NUL within dstSize: the length of dst is taken to be dstSize,
+         * nothing is appended, and dst is left un-terminated because there is
+         * no room for the NUL. Only reachable when dstSize is wrong or dst is
+         * not a C string; returning here is what stops the append from running
+         * off the end. */
+        return dstSize + XSTRLEN(src);
+    }
 
-    if (dstSize < dstLen)
-        return dstLen + XSTRLEN(src);
-
+    /* Total length attempted: the initial length of dst plus the length of
+     * src, which is what wc_strlcpy() returns. */
     return dstLen + wc_strlcpy(dst + dstLen, src, dstSize - dstLen);
 }
 #endif /* USE_WOLF_STRLCAT */
