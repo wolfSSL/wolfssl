@@ -374,7 +374,7 @@ int test_wc_InitCmac_Id(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
-    defined(WOLF_PRIVATE_KEY_ID)
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WOLFSSL_KCAPI)
     Cmac cmac;
     byte id[16];
     byte key[] = {
@@ -421,7 +421,7 @@ int test_wc_InitCmac_Label(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
-    defined(WOLF_PRIVATE_KEY_ID)
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WOLFSSL_KCAPI)
     Cmac cmac;
     char longLabel[48];
     byte key[] = {
