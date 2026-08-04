@@ -3430,8 +3430,8 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     sss_key_store_t   host_keystore;
     sss_object_t      ref_private_key;
     sss_object_t      ref_public_key;
-    int               keySize = CURVE25519_KEYSIZE;
 #if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
+    int               keySize = CURVE25519_KEYSIZE;
     sss_object_t      deriveKey;
     sss_derive_key_t  ctx_derive_key;
     word32            keyId;
