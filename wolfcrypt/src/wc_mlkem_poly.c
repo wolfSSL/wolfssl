@@ -3671,6 +3671,28 @@ int mlkem_derive_secret(wc_Shake* prf, const byte* z, const byte* ct,
     int ret;
 
 #ifdef USE_INTEL_SPEEDUP
+    #ifdef WC_C_DYNAMIC_FALLBACK
+    /* The buffer-stuffing shortcut below assumes a freshly initialized object
+     * (zeroed sponge state).  When WC_C_DYNAMIC_FALLBACK, that doesn't
+     * generally hold: other users of the shared object - e.g. the C fallback
+     * legs of mlkem_gen_matrix()/mlkem_get_noise() reached when
+     * SAVE_VECTOR_REGISTERS2() fails (kernel context, or
+     * DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) - drive the XOF on the object via
+     * absorb/squeeze and leave it mid-squeeze.
+     *
+     * Without WC_C_DYNAMIC_FALLBACK, SAVE_VECTOR_REGISTERS2() cannot fail in
+     * supported configurations and the asm legs keep their working state in
+     * local buffers, so the object provably stays pristine and the
+     * re-initialization is safely skipped.
+     *
+     * TL;DR: when WC_C_DYNAMIC_FALLBACK, re-initialize, as the
+     * non-USE_INTEL_SPEEDUP path does.
+     */
+    ret = wc_InitShake256(prf, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+    #endif /* WC_C_DYNAMIC_FALLBACK */
+
     XMEMCPY(prf->t, z, WC_ML_KEM_SYM_SZ);
     XMEMCPY(prf->t + WC_ML_KEM_SYM_SZ, ct,
         WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);

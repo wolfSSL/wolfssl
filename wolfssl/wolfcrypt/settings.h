@@ -4651,11 +4651,12 @@
     #endif
 #endif
 
-/* SHA-3 low level state can't alternate freely between C and intelasm. */
-#if (defined(_WC_BUILDING_WC_MLKEM_POLY_C) ||            \
-     defined(_WC_BUILDING_WC_MLDSA_C) ||                 \
-     defined(_WC_BUILDING_WC_SLHDSA_C)) &&               \
-    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) &&     \
+/* Falcon uses either FP or vector registers in all asm implementations (no
+ * option yet to build the C-no-FP implementation simultaneous with other
+ * implementations(s)).
+ */
+#if defined(_WC_BUILDING_FALCON_C) && \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
     !defined(DEBUG_FORCE_VECTOR_REGISTER_ACCESS_FUZZING)
     #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
 #endif

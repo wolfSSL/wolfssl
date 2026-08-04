@@ -5949,7 +5949,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
     #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
         if (!SLHDSA_IS_SHA2(key->params->param) &&
                 IS_INTEL_AVX2(cpuid_flags) &&
-                CAN_SAVE_VECTOR_REGISTERS()) {
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
             word16 idx = indices[i];
             /* Step 5: For each bit: */
             for (j = 0; j < a; j++) {
@@ -5967,6 +5967,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
                 /* Update tree index. */
                 idx >>= 1;
             }
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
