@@ -2069,6 +2069,18 @@ static int linuxkm_affinity_lock(void *arg) {
     (void)arg;
     if (! wc_linuxkm_can_block())
         return ALREADY_E;
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+
+    /* Must use SVR to pin the core, so that we can unconditionally use RVR to
+     * unpin it in linuxkm_affinity_unlock().  This gives the default DRBG full
+     * access to vector acceleration, while keeping it fully compatible with
+     * DEBUG_VECTOR_REGISTER_ACCESS_FUZZING.
+     */
+    return SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT();
+
+#else /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+
 #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
     migrate_disable(); /* this actually makes irq_count() nonzero, so that
                         * DISABLE_VECTOR_REGISTERS() is superfluous, but
@@ -2077,6 +2089,8 @@ static int linuxkm_affinity_lock(void *arg) {
 #endif
     local_bh_disable();
     return 0;
+
+#endif /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 }
 
 static int linuxkm_affinity_get_id(void *arg, int *id) {
@@ -2087,11 +2101,21 @@ static int linuxkm_affinity_get_id(void *arg, int *id) {
 
 static int linuxkm_affinity_unlock(void *arg) {
     (void)arg;
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+
+    RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
+    return 0;
+
+#else /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+
     local_bh_enable();
 #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
     migrate_enable();
 #endif
     return 0;
+
+#endif /* !WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 }
 
 static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
@@ -2099,8 +2123,13 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
     int ret;
     word32 flags = WC_RNG_BANK_FLAG_CAN_WAIT;
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    /* before v7, the SHA-2 implementations couldn't dynamically switch between
+     * C and asm in a given wc_Sha256 instance.
+     */
     if (wc_linuxkm_rng_initing_default_bank_flag)
         flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
+#endif
 
     ret = wc_rng_bank_init(
         ctx, nr_cpu_ids + 4, flags, WC_LINUXKM_INITRNG_TIMEOUT_SEC,
