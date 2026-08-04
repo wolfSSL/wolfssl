@@ -212,9 +212,6 @@ ECC Curve Sizes:
 #endif
 
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$f")
         #pragma const_seg(".fipsB$f")
@@ -234,6 +231,10 @@ ECC Curve Sizes:
 
 #ifdef HAVE_ECC_ENCRYPT
     #include <wolfssl/wolfcrypt/kdf.h>
+
+    /* For wc_AesGcmEncrypt() wrapper, if needed. */
+    #include <wolfssl/wolfcrypt/wc_compat.h>
+
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
