@@ -147,4 +147,5 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_sp_c32_whitebox.c \
               tests/unit-mcdc/test_sp_c64_whitebox.c \
               tests/unit-mcdc/test_sp_cortexm_whitebox.c \
+              tests/unit-mcdc/test_puf_whitebox.c \
               tests/unit-mcdc/test_sp_x86_64_whitebox.c
