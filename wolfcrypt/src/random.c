@@ -813,7 +813,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
 
     #ifdef WC_VERBOSE_RNG
-    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE)) {
+    if ((ret != DRBG_SUCCESS) && (ret != WC_NO_ERR_TRACE(DRBG_FAILURE))) {
         /* Note, if we're just going to return DRBG_FAILURE to the caller, then
          * there's no point printing it out here because (1) the lower-level
          * code that was remapped to DRBG_FAILURE already got printed before the
@@ -1011,7 +1011,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
     }
 
     #ifdef WC_VERBOSE_RNG
-    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE)) {
+    if ((ret != DRBG_SUCCESS) && (ret != WC_NO_ERR_TRACE(DRBG_FAILURE))) {
         /* see note above regarding log spam reduction */
         WOLFSSL_DEBUG_PRINTF("ERROR: Hash_DRBG_Generate failed with err %d.",
                              ret);

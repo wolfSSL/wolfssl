@@ -58,6 +58,12 @@
 #endif
 
 #ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+
+/* Note that the wc_dh_enabled runtime feature-switching facility is neither
+ * thread-synchronized nor thread-local, and is only allowed during global
+ * initialization or self-test sequences before application service begins.
+ */
+
 static volatile int wc_dh_enabled = WC_DH_INITIAL_RUNTIME_ENABLEMENT;
 int wc_dh_enable(void) {
     if (wc_dh_enabled)
@@ -963,6 +969,8 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(key, 0, sizeof(*key));
+
     key->heap = heap; /* for XMALLOC/XFREE in future */
     key->trustedGroup = 0;
 
@@ -986,8 +994,6 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
     (void)devId;
 #endif
 
-    key->trustedGroup = 0;
-
 #ifdef WOLFSSL_KCAPI_DH
     key->handle = NULL;
 #endif
@@ -995,6 +1001,10 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 #ifdef WC_DH_NONBLOCK
     key->nb = NULL;
 #endif
+
+    /* On failure, release MPI allocations, if any. */
+    if (ret != 0)
+        (void)wc_FreeDhKey(key);
 
     return ret;
 }
@@ -1463,6 +1473,11 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
         pub == NULL || pubSz == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
     ret = GeneratePublicDh(key, priv, privSz, pub, pubSz);
 
@@ -3190,6 +3205,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 
     if (rng == NULL || dh == NULL)
         ret = BAD_FUNC_ARG;
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
     /* set group size in bytes from modulus size
      * FIPS 186-4 defines valid values (1024, 160) (2048, 256) (3072, 256)

@@ -56465,15 +56465,11 @@ static wc_test_ret_t mldsa_param_44_vfy_test(void)
     ret = mldsa_param_vfy_test(WC_ML_DSA_44, ml_dsa_44_pub_key,
         (word32)sizeof(ml_dsa_44_pub_key), ml_dsa_44_sig,
         (word32)sizeof(ml_dsa_44_sig));
-    if (ret != 0)
-        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
         ret = mldsa_param_vfy_test(WC_ML_DSA_44_DRAFT,
             ml_dsa_44_draft_pub_key, (word32)sizeof(ml_dsa_44_draft_pub_key),
             ml_dsa_44_draft_sig, (word32)sizeof(ml_dsa_44_draft_sig));
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
     }
 #endif
 
@@ -57467,15 +57463,11 @@ static wc_test_ret_t mldsa_param_65_vfy_test(void)
     ret = mldsa_param_vfy_test(WC_ML_DSA_65, ml_dsa_65_pub_key,
         (word32)sizeof(ml_dsa_65_pub_key), ml_dsa_65_sig,
         (word32)sizeof(ml_dsa_65_sig));
-    if (ret != 0)
-        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
         ret = mldsa_param_vfy_test(WC_ML_DSA_65_DRAFT,
             ml_dsa_65_draft_pub_key, (word32)sizeof(ml_dsa_65_draft_pub_key),
             ml_dsa_65_draft_sig, (word32)sizeof(ml_dsa_65_draft_sig));
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
     }
 #endif
 
@@ -58828,15 +58820,11 @@ static wc_test_ret_t mldsa_param_87_vfy_test(void)
     ret = mldsa_param_vfy_test(WC_ML_DSA_87, ml_dsa_87_pub_key,
         (word32)sizeof(ml_dsa_87_pub_key), ml_dsa_87_sig,
         (word32)sizeof(ml_dsa_87_sig));
-    if (ret != 0)
-        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
         ret = mldsa_param_vfy_test(WC_ML_DSA_87_DRAFT,
             ml_dsa_87_draft_pub_key, (word32)sizeof(ml_dsa_87_draft_pub_key),
             ml_dsa_87_draft_sig, (word32)sizeof(ml_dsa_87_draft_sig));
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
     }
 #endif
 

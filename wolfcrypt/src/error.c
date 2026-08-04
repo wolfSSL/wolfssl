@@ -745,7 +745,7 @@ const char* wc_GetErrorString(int error)
         return "Supplied value was rejected by FIPS policy";
 
     case FIPS_UNAPPROVED_E:
-        return "Requested operation succeeded, but supplied"
+        return "Requested operation succeeded, but supplied "
                "parameters are unapproved for FIPS";
 
     case MAX_CODE_E:

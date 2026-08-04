@@ -1149,8 +1149,7 @@ int fpr_lt(fpr x, fpr y)
  * targets it is a single multiply instruction; the portable 32x32 fallback
  * (one MUL becomes four) is kept for platforms without a 128-bit integer type
  * (e.g. Cortex-M). Both paths are constant-time and bit-identical. */
-#if defined(HAVE___UINT128_T) && !defined(NO_INT128) && \
-    defined(__SIZEOF_INT128__)
+#if defined(HAVE___UINT128_T) && !defined(NO_INT128)
 #define FALCON_MULHI(z, y) \
     ((word64)(((__uint128_t)(word64)(z) * (__uint128_t)(word64)(y)) >> 64))
 #else
@@ -8311,7 +8310,7 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
      * early-exit path is covered by the check. */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     XMEMSET(spc, 0, sizeof(*spc));
-    wc_MemZero_Add("falcon sign spc", spc, sizeof(spc));
+    wc_MemZero_Add("falcon sign spc", spc, sizeof(*spc));
 #endif
 
     /* One allocation backs every sign buffer (the working set is >100KB at

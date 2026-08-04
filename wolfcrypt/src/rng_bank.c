@@ -545,7 +545,8 @@ WOLFSSL_API int wc_rng_bank_checkout(
             ret = bank->affinity_lock_cb(bank->cb_arg);
             if (ret == 0)
                 new_lock_value |= WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
-            else if (ret == WC_NO_ERR_TRACE(ALREADY_E))
+            else if ((ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
+                     (ret == WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E)))
                 ret = 0;
             else
                 break;

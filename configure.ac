@@ -660,6 +660,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=3
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
+        ENABLED_FIPS_DEV=yes
         # for dev, DEF_SP_MATH_ALL and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [v6],[
@@ -694,7 +695,7 @@ AS_CASE([$ENABLED_FIPS],
     ],
     [ready|v7-ready],[
         FIPS_VERSION="ready"
-        HAVE_FIPS_VERSION=8
+        HAVE_FIPS_VERSION=$FIPS_DEVREADY_MAJOR
         HAVE_FIPS_VERSION_MAJOR=$FIPS_DEVREADY_MAJOR
         HAVE_FIPS_VERSION_MINOR=$FIPS_DEVREADY_MINOR
         HAVE_FIPS_VERSION_PATCH=$FIPS_DEVREADY_PATCH
@@ -1877,18 +1878,22 @@ then
     # "conditional" value leaves it disabled (unusable) after registration.
     if test "$HAVE_FIPS_VERSION" -ge 7 && test "$enable_dh" = "" && test "$enable_linuxkm_lkcapi_register" != ""
     then
+        lkcapi_dh=no
         for lkcapi_alg in $(echo "$enable_linuxkm_lkcapi_register" | tr ',' ' ')
         do
             case "$lkcapi_alg" in
-            all | all-kconfig | dh) enable_dh=conditional ;;
+            all | all-kconfig | dh) lkcapi_dh=yes ;;
             esac
         done
         for lkcapi_alg in $(echo "$enable_linuxkm_lkcapi_register" | tr ',' ' ')
         do
             case "$lkcapi_alg" in
-            -dh) enable_dh="" ;;
+            -dh) lkcapi_dh=no ;;
             esac
         done
+        if test "$lkcapi_dh" = yes; then
+            enable_dh=conditional
+        fi
     fi
 
     # Enable WOLFSSL_DH_EXTRA and DH const table speedups (eliminates `-lm` math lib dependency)
@@ -6395,7 +6400,7 @@ else
     # DH is outside the boundary in FIPS v7+, but if it's enabled directly or
     # via --enable-all-crypto, then callers and the test suite will expect it to
     # work.
-    if test "$enable_dh" = "yes"
+    if test "$enable_dh" != "no" && test "$enable_dh" != "conditional" && test "$enable_dh" != ""
     then
         AM_CFLAGS="$AM_CFLAGS -DWC_DH_INITIAL_RUNTIME_ENABLEMENT=1"
     fi
@@ -6409,7 +6414,7 @@ fi
 
 # DH
 AC_ARG_ENABLE([dh],
-    [AS_HELP_STRING([--enable-dh],[Enable DH (default: ${ENABLED_DH_DEFAULT}). Set to "nonblock" to enable non-blocking DH key agreement via SP small mod_exp_nb])],
+    [AS_HELP_STRING([--enable-dh],[Enable DH (default: on). Set to "nonblock" to enable non-blocking DH key agreement via SP small mod_exp_nb])],
     [ ENABLED_DH=$enableval ],
     [ ENABLED_DH=$ENABLED_DH_DEFAULT ]
     )

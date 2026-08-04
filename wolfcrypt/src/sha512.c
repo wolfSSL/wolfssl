@@ -65,15 +65,6 @@
            " acceleration backends"
 #endif
 
-#if defined(WC_C_DYNAMIC_FALLBACK) && \
-        defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP)
-    /* AES-NI can be enabled with WC_C_DYNAMIC_FALLBACK, but without the rest of
-     * USE_INTEL_SPEEDUP, in which case we need to disable the dynamic
-     * fallback.
-     */
-    #undef WC_C_DYNAMIC_FALLBACK
-#endif
-
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384))
 
 /* determine if we are using Espressif SHA hardware acceleration */
@@ -143,6 +134,15 @@
 
 #if defined(WOLFSSL_PSOC6_CRYPTO)
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#endif
+
+#if defined(WC_C_DYNAMIC_FALLBACK) && \
+        defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP)
+    /* AES-NI can be enabled with WC_C_DYNAMIC_FALLBACK, but without the rest of
+     * USE_INTEL_SPEEDUP, in which case we need to disable the dynamic
+     * fallback.
+     */
+    #undef WC_C_DYNAMIC_FALLBACK
 #endif
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
@@ -1285,7 +1285,7 @@ static int InitSha512_256(wc_Sha512* sha512)
         }
     #else
         if (sha_method == SHA512_C)
-            return Transform_Sha512(sha512);
+            return _Transform_Sha512(sha512);
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
     #endif
         switch (sha_method) {

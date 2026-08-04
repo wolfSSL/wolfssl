@@ -86,12 +86,16 @@ jobs:
       # the pool builds with a bare "make" (no way to add variables to that
       # command line); make picks them up from the environment, and they are
       # inert for the non-linuxkm configs.  Note the heredoc is unquoted so
-      # $(uname -r) expands -- there is no other $ or backtick in the JSON.
+      # $(uname -r) and $FUZZING_SEED expand -- there are no other $ or
+      # backticks in the JSON.
       - name: Build all configs (parallel, out-of-tree)
         env:
           KERNEL_EXTRA_CFLAGS_REMOVE: -pg
           FORCE_NO_MODULE_SIG: 1
         run: |
+          FUZZING_SEED=$(( (RANDOM << 15) ^ RANDOM ))
+          echo "FUZZING_SEED=$FUZZING_SEED"
+          if [ -n "$GITHUB_STEP_SUMMARY" ]; then echo "FUZZING_SEED=$FUZZING_SEED" >> "$GITHUB_STEP_SUMMARY"; fi
           cat > "$RUNNER_TEMP/fips-dev-no-post-configs.json" <<EOF
           {"base": {"configure": ["--enable-fips=dev-no-post",
                                   "--with-linux-source=/lib/modules/$(uname -r)/build",
@@ -113,7 +117,7 @@ jobs:
           {"name": "kernel-settings-all-asm", "minutes": 6,
            "configure": ["--enable-kernel-settings", "--enable-all",
             "--enable-all-asm", "--enable-sp",
-            "CPPFLAGS=-pedantic -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$$"]}
+            "CPPFLAGS=-pedantic -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
           ]}
           EOF
           # out-of-tree kernel module builds not working yet:

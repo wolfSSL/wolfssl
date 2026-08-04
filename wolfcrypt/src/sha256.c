@@ -43,15 +43,6 @@ on the specific device platform.
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(WC_C_DYNAMIC_FALLBACK) && \
-        defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP)
-    /* AES-NI can be enabled with WC_C_DYNAMIC_FALLBACK, but without the rest of
-     * USE_INTEL_SPEEDUP, in which case we need to disable the dynamic
-     * fallback.
-     */
-    #undef WC_C_DYNAMIC_FALLBACK
-#endif
-
 /*
  * SHA256 Build Options:
  * USE_SLOW_SHA256:            Reduces code size by not partially unrolling
@@ -187,6 +178,15 @@ on the specific device platform.
     {
         return 0;
     }
+#endif
+
+#if defined(WC_C_DYNAMIC_FALLBACK) && \
+        defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP)
+    /* AES-NI can be enabled with WC_C_DYNAMIC_FALLBACK, but without the rest of
+     * USE_INTEL_SPEEDUP, in which case we need to disable the dynamic
+     * fallback.
+     */
+    #undef WC_C_DYNAMIC_FALLBACK
 #endif
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)

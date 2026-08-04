@@ -28,6 +28,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
 
 #include <stdio.h>
 #include <wolfssl/wolfcrypt/fips_test.h>

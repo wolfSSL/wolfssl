@@ -8217,6 +8217,13 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
             /* Setup Key */
             ret = wc_InitDhKey_ex((DhKey*)kse->key, ssl->heap, ssl->devId);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+            if (ret != 0) {
+                XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_DH);
+                kse->key = NULL;
+                return ret;
+            }
+#endif
             if (ret == 0) {
                 dhKey = (DhKey*)kse->key;
             #ifdef HAVE_PUBLIC_FFDHE
@@ -9556,6 +9563,13 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 
         /* Setup Key */
         ret = wc_InitDhKey_ex((DhKey*)keyShareEntry->key, ssl->heap, ssl->devId);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        if (ret != 0) {
+            XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_DH);
+            keyShareEntry->key = NULL;
+            return ret;
+        }
+#endif
         if (ret == 0) {
             dhKey = (DhKey*)keyShareEntry->key;
         /* Set key */
