@@ -741,6 +741,13 @@ const char* wc_GetErrorString(int error)
     case KMAC_MIN_KEYLEN_E:
         return "FIPS Mode KMAC Minimum Key Length error";
 
+    case FIPS_BAD_VALUE_E:
+        return "Supplied value was rejected by FIPS policy";
+
+    case FIPS_UNAPPROVED_E:
+        return "Requested operation succeeded, but supplied"
+               "parameters are unapproved for FIPS";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

@@ -345,9 +345,12 @@ enum wolfCrypt_ErrorCodes {
     AES_KW_KAT_FIPS_E   = -1024, /* AES Key Wrap KAT failure */
     FIPS_WRONG_API_E    = -1025, /* Requested API is not allowed in FIPS mode */
     KMAC_MIN_KEYLEN_E   = -1026, /* FIPS Mode KMAC Minimum Key Length error */
+    FIPS_BAD_VALUE_E    = -1027, /* Supplied value was rejected by FIPS policy */
+    FIPS_UNAPPROVED_E   = -1028, /* Requested operation succeeded, but supplied */
+                                 /* parameters are unapproved for FIPS */
 
-    WC_SPAN2_LAST_E     = -1026, /* Update to indicate last used error code */
-    WC_LAST_E           = -1026, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1028, /* Update to indicate last used error code */
+    WC_LAST_E           = -1028, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
