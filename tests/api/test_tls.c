@@ -2927,6 +2927,49 @@ int test_record_size_matches_build_message(void)
     return EXPECT_RESULT();
 }
 
+int test_record_size_preserves_build_msg_state(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int sz;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* SendData() re-probes the record size on every retry, which happens while
+     * an asynchronous BuildMessage is suspended part way through a record. The
+     * probe shares buildMsgState and buildArgsSet with that build, so it must
+     * put both back or the resumed record is sized twice. */
+    if (ssl_c != NULL) {
+        ssl_c->options.buildMsgState = BUILD_MSG_ENCRYPT;
+        ssl_c->options.buildArgsSet = 1;
+
+        sz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+
+        ExpectIntGT(sz, 256);
+        ExpectIntEQ(ssl_c->options.buildMsgState, BUILD_MSG_ENCRYPT);
+        ExpectIntEQ(ssl_c->options.buildArgsSet, 1);
+
+        /* Nothing was really built, so do not leave the flag claiming the
+         * async arguments are live. */
+        ssl_c->options.buildMsgState = BUILD_MSG_BEGIN;
+        ssl_c->options.buildArgsSet = 0;
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_record_size_cache_invalidated_on_renegotiation(void)
 {
     EXPECT_DECLS;

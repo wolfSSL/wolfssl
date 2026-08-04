@@ -25480,7 +25480,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
                                             ssl->curStartIdx + ssl->curSize);
-    #ifdef WOLFSSL_ASYNC_CRYPT
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
                         /* Post-handshake authentication runs the connect state
                          * machine from inside this handler and resumes through
                          * wolfSSL_negotiate() rather than by reprocessing this
@@ -25489,9 +25489,16 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                          * or the trailing MAC is parsed as the next record
                          * header and the read fails with VERSION_ERROR. An
                          * ordinary pending message leaves processReply at
-                         * runProcessingOneMessage and must not be advanced. */
+                         * runProcessingOneMessage and must not be advanced.
+                         * The content check matches the end of record test
+                         * below: a fragmented certificate_request rewinds
+                         * inOutIdx to reprocess the fragment, and coalesced
+                         * handshake messages leave idx inside the record, so
+                         * in both cases the padding must not be skipped. */
                         if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
                                 ssl->options.processReply == doProcessInit &&
+                                (ssl->buffers.inputBuffer.idx -
+                                    ssl->curStartIdx) >= ssl->curSize &&
                                 IsEncryptionOn(ssl, 0)) {
                             ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
                         }
@@ -45174,14 +45181,16 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
         int isDtls13 = ssl->options.dtls && ssl->options.tls1_3;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-        /* The size probe below drives ssl->options.buildMsgState, which is
-         * also the resume point of an asynchronous BuildMessage that is still
-         * in flight. SendData() calls us again on every retry, so without
-         * saving it the probe rewinds the suspended record to
-         * BUILD_MSG_BEGIN, and the resumed call re-applies the header and
-         * cipher overhead to arguments that already carry it, overflowing the
-         * output buffer. */
+        /* The size probe below borrows two fields that also describe an
+         * asynchronous BuildMessage still in flight: buildMsgState is its
+         * resume point, and buildArgsSet says its arguments are live.
+         * SendData() calls us again on every retry, so without saving them the
+         * probe rewinds the suspended record to BUILD_MSG_BEGIN and clears the
+         * arguments flag. The resumed call then re-applies the header and
+         * cipher overhead to arguments that already carry it, and the record
+         * is rejected with BUFFER_E. */
         byte savedBuildMsgState = ssl->options.buildMsgState;
+        byte savedBuildArgsSet = ssl->options.buildArgsSet;
 #endif
 
         if (ssl->specs.cipher_type == aead && ssl->recordSzOverhead != 0
@@ -45197,6 +45206,7 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
              0, 1, 0, CUR_ORDER);
 #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->options.buildMsgState = savedBuildMsgState;
+        ssl->options.buildArgsSet = savedBuildArgsSet;
 #endif
         /* use a safe upper bound in case of error */
         if (recordSz < 0) {
