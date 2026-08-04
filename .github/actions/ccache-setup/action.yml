@@ -108,7 +108,7 @@ runs:
           CCACHE_LIBEXEC="/usr/lib/ccache"
         fi
         echo "$CCACHE_LIBEXEC" >> "$GITHUB_PATH"
-        echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+        echo "CCACHE_DIR=$CCACHE_DIR" >> "$GITHUB_ENV"
 
     # On the scheduled (cron) refresh, force every compile to miss the
     # cache and re-store a fresh result (CCACHE_RECACHE still writes, it
