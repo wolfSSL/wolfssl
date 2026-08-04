@@ -164,7 +164,12 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                                    int timeout_secs,
                                    word32 flags);
 
-#ifdef WC_DRBG_BANKREF
+#if defined(WC_DRBG_BANKREF) && !defined(WC_HAVE_RNG_BANKREF)
+    /* forward compat for FIPS v5.2.4 random.h */
+    #define WC_HAVE_RNG_BANKREF
+#endif
+
+#ifdef WC_HAVE_RNG_BANKREF
 WOLFSSL_API int wc_InitRng_BankRef(struct wc_rng_bank *bank, WC_RNG *rng);
 
 WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng);
@@ -173,7 +178,7 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng);
 WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
 /* note, free with wc_rng_free(). */
 #endif
-#endif /* WC_DRBG_BANKREF */
+#endif /* WC_HAVE_RNG_BANKREF */
 
 #define WC_RNG_BANK_INST_TO_RNG(rng_inst) (&(rng_inst)->rng)
 

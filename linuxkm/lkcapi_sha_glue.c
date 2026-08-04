@@ -2214,8 +2214,8 @@ int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng) {
     }
 }
 
-#ifndef WC_DRBG_BANKREF
-    #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT requires WC_DRBG_BANKREF support.
+#ifndef WC_HAVE_RNG_BANKREF
+    #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT requires WC_HAVE_RNG_BANKREF.
 #endif
 
 WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
