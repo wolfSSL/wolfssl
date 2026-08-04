@@ -1576,16 +1576,26 @@ size_t wc_strlcpy(char *dst, const char *src, size_t dstSize)
 #ifdef USE_WOLF_STRLCAT
 size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
 {
-    size_t dstLen;
+    size_t dstLen = 0;
 
-    if (!dstSize)
-        return 0;
+    /* Find the end of dst without going past dstSize. XSTRLEN() would run off
+     * the end of a dst that holds no NUL within dstSize -- the very case this
+     * bound exists to contain. */
+    while (dstLen < dstSize && dst[dstLen] != '\0') {
+        dstLen++;
+    }
 
-    dstLen = XSTRLEN(dst);
+    if (dstLen == dstSize) {
+        /* No NUL within dstSize: the length of dst is taken to be dstSize,
+         * nothing is appended, and dst is left un-terminated because there is
+         * no room for the NUL. Only reachable when dstSize is wrong or dst is
+         * not a C string; returning here is what stops the append from running
+         * off the end. */
+        return dstSize + XSTRLEN(src);
+    }
 
-    if (dstSize < dstLen)
-        return dstLen + XSTRLEN(src);
-
+    /* Total length attempted: the initial length of dst plus the length of
+     * src, which is what wc_strlcpy() returns. */
     return dstLen + wc_strlcpy(dst + dstLen, src, dstSize - dstLen);
 }
 #endif /* USE_WOLF_STRLCAT */
