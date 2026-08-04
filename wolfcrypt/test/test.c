@@ -59712,51 +59712,70 @@ static wc_test_ret_t falcon_verify_kat(byte level, const byte* pk, word32 pkLen,
         const byte* sig, word32 sigLen)
 {
     wc_test_ret_t ret;
-    falcon_key key;
+    WC_DECLARE_VAR(key, falcon_key, 1, HEAP_HINT);
+    int falcon_key_inited = 0;
     int res;
-    byte badSig[FALCON_MAX_SIG_SIZE];
+    WC_DECLARE_VAR(badSig, byte, FALCON_MAX_SIG_SIZE, HEAP_HINT);
     const byte* msg = (const byte*)FALCON_KAT_MSG;
     word32 msgLen = (word32)XSTRLEN(FALCON_KAT_MSG);
 
+    WC_ALLOC_VAR(key, falcon_key, 1, HEAP_HINT);
+    if (!WC_VAR_OK(key)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto out;
+    }
+
+    WC_ALLOC_VAR(badSig, byte, FALCON_MAX_SIG_SIZE, HEAP_HINT);
+    if (!WC_VAR_OK(badSig)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto out;
+    }
+
     /* Use the global test devId so that, when cryptocb_test() has registered a
      * device, verification is routed through the crypto callback. */
-    ret = wc_falcon_init_ex(&key, HEAP_HINT, devId);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_falcon_init_ex(key, HEAP_HINT, devId);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    falcon_key_inited = 1;
 
-    ret = wc_falcon_set_level(&key, level);
+    ret = wc_falcon_set_level(key, level);
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
 
-    ret = wc_falcon_import_public(pk, pkLen, &key);
+    ret = wc_falcon_import_public(pk, pkLen, key);
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
 
     /* A genuine reference-produced signature must verify (res == 1). */
     res = 0;
-    ret = wc_falcon_verify_msg(sig, sigLen, msg, msgLen, &res, &key);
+    ret = wc_falcon_verify_msg(sig, sigLen, msg, msgLen, &res, key);
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto out; }
     if (res != 1) { ret = WC_TEST_RET_ENC_NC; goto out; }
 
     /* Flip a byte in the compressed signature body; it must NOT verify. The
      * verifier may report this either as an operational parse error or as a
      * clean res == 0; in all cases it must not claim the signature is valid. */
-    if (sigLen > (word32)sizeof(badSig)) { ret = WC_TEST_RET_ENC_NC; goto out; }
+    if (sigLen > FALCON_MAX_SIG_SIZE) { ret = WC_TEST_RET_ENC_NC; goto out; }
     XMEMCPY(badSig, sig, sigLen);
     badSig[sigLen - 1] ^= 0x01;
     res = 1;
-    (void)wc_falcon_verify_msg(badSig, sigLen, msg, msgLen, &res, &key);
+    (void)wc_falcon_verify_msg(badSig, sigLen, msg, msgLen, &res, key);
     if (res == 1) { ret = WC_TEST_RET_ENC_NC; goto out; }
 
     ret = 0;
 
 out:
-    wc_falcon_free(&key);
+    if (falcon_key_inited)
+        wc_falcon_free(key);
+    WC_FREE_VAR(key, HEAP_HINT);
+    WC_FREE_VAR(badSig, HEAP_HINT);
     return ret;
 }
 #endif /* !WOLF_CRYPTO_CB_ONLY_FALCON */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
 {
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = 0;
 
 #ifndef WOLF_CRYPTO_CB_ONLY_FALCON
     ret = falcon_verify_kat(FALCON_LEVEL1, FALCON512_pk,
@@ -59777,44 +59796,78 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
         word32 falconMsgLen = (word32)XSTRLEN(falconMsg);
         WC_RNG rng;
         int li;
+        WC_DECLARE_VAR(k, falcon_key, 1, HEAP_HINT);
+        WC_DECLARE_VAR(sig, byte, FALCON_MAX_SIG_SIZE, HEAP_HINT);
 
         ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
         if (ret != 0)
-            return ret;
-        for (li = 0; li < 2; li++) {
-            falcon_key k;
-            byte sig[FALCON_MAX_SIG_SIZE];
-            word32 siglen = (word32)sizeof(sig);
-            int res = 0;
+            return WC_TEST_RET_ENC_EC(ret);
 
-            ret = wc_falcon_init_ex(&k, HEAP_HINT, devId);
-            if (ret == 0)
-                ret = wc_falcon_set_level(&k, falconLvls[li]);
-            if (ret == 0)
-                ret = wc_falcon_make_key(&k, &rng);
-            if (ret == 0)
+        WC_ALLOC_VAR(k, falcon_key, 1, HEAP_HINT);
+        if (!WC_VAR_OK(k)) {
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+            goto exit;
+        }
+
+        WC_ALLOC_VAR(sig, byte, FALCON_MAX_SIG_SIZE, HEAP_HINT);
+        if (!WC_VAR_OK(sig)) {
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+            goto exit;
+        }
+
+        for (li = 0; li < 2; li++) {
+            word32 siglen = FALCON_MAX_SIG_SIZE;
+            int res = 0;
+            int k_inited = 0;
+
+            ret = wc_falcon_init_ex(k, HEAP_HINT, devId);
+            if (ret == 0) {
+                k_inited = 1;
+                ret = wc_falcon_set_level(k, falconLvls[li]);
+            }
+            else
+                ret = WC_TEST_RET_ENC_EC(ret);
+            if (ret == 0) {
+                ret = wc_falcon_make_key(k, &rng);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            if (ret == 0) {
                 ret = wc_falcon_sign_msg((const byte*)falconMsg, falconMsgLen, sig,
-                        &siglen, &k, &rng);
-            if (ret == 0)
+                        &siglen, k, &rng);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            if (ret == 0) {
                 ret = wc_falcon_verify_msg(sig, siglen, (const byte*)falconMsg,
-                        falconMsgLen, &res, &k);
+                        falconMsgLen, &res, k);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
             if (ret == 0 && res != 1)
                 ret = WC_TEST_RET_ENC_NC;
             if (ret == 0) {
                 /* A different message must be rejected. */
                 res = 1;
                 (void)wc_falcon_verify_msg(sig, siglen, (const byte*)"x", 1, &res,
-                        &k);
+                        k);
                 if (res != 0)
                     ret = WC_TEST_RET_ENC_NC;
             }
-            wc_falcon_free(&k);
-            if (ret != 0) {
-                wc_FreeRng(&rng);
-                return ret;
-            }
+            if (k_inited)
+                wc_falcon_free(k);
+            if (ret != 0)
+                break;
         }
+
+    exit:
+
         wc_FreeRng(&rng);
+        WC_FREE_VAR(k, HEAP_HINT);
+        WC_FREE_VAR(sig, HEAP_HINT);
+
+        if (ret != 0)
+            return ret;
     }
 #endif /* WC_FALCON_HAVE_NATIVE_SIGN */
 #else /* WOLF_CRYPTO_CB_ONLY_FALCON */
@@ -59822,20 +59875,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
      * operation when no crypto-callback device is available (INVALID_DEVID),
      * rather than silently doing nothing. */
     {
-        falcon_key k;
+        WC_DECLARE_VAR(k, falcon_key, 1, HEAP_HINT);
+        int k_inited = 0;
         int res = 0;
         int r;
 
-        ret = wc_falcon_init(&k);
+        WC_ALLOC_VAR(k, falcon_key, 1, HEAP_HINT);
+        if (!WC_VAR_OK(k))
+            ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         if (ret == 0)
-            ret = wc_falcon_set_level(&k, FALCON_LEVEL1);
+            ret = wc_falcon_init(k);
+        if (ret == 0) {
+            k_inited = 1;
+            ret = wc_falcon_set_level(k, FALCON_LEVEL1);
+        }
         if (ret == 0) {
             r = wc_falcon_verify_msg((const byte*)"m", 1, (const byte*)"m", 1,
-                    &res, &k);
+                    &res, k);
             if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
                 ret = WC_TEST_RET_ENC_NC;
         }
-        wc_falcon_free(&k);
+        if (k_inited)
+            wc_falcon_free(k);
+        WC_FREE_VAR(k, HEAP_HINT);
         if (ret != 0)
             return ret;
     }

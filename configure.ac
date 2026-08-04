@@ -1809,6 +1809,32 @@ then
     test "$enable_xmss" = "" && enable_xmss=yes
     test "$enable_lms" = "" && enable_lms=yes
     test "$enable_slhdsa" = "" && enable_slhdsa='yes,sha2'
+
+    if test "$ENABLED_EXPERIMENTAL" = "yes"
+    then
+        test "$enable_extra_pqc_hybrids" = "" && enable_extra_pqc_hybrids=yes
+        test "$enable_frodokem" = "" && enable_frodokem=yes
+        test "$enable_frodokem" = yes && test "$enable_frodokem_shake" = "" && enable_frodokem_shake=yes
+        test "$enable_frodokem" = yes && test "$enable_frodokem_aes" = "" && enable_frodokem_aes=yes
+        test "$enable_frodokem" = yes && test "$enable_frodokem_ephemeral" = "" && enable_frodokem_ephemeral=yes
+        if test "$enable_falcon" = ""
+        then
+            if test "$ENABLED_ASM" = "no"
+            then
+                enable_falcon=yes
+            else
+                case $host_cpu in
+                    *x86_64* | *amd64*) if test "$ENABLED_32BIT" != "yes"; then
+                                  enable_falcon=asm
+                              else
+                                  enable_falcon=yes
+                              fi
+                              ;;
+                    *) enable_falcon=yes;;
+                esac
+            fi
+        fi
+    fi
 fi
 
 # kernel-appropriate settings, also in enable-all-crypto above:
