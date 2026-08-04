@@ -45173,6 +45173,16 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
 #ifdef WOLFSSL_DTLS13
         int isDtls13 = ssl->options.dtls && ssl->options.tls1_3;
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+        /* The size probe below drives ssl->options.buildMsgState, which is
+         * also the resume point of an asynchronous BuildMessage that is still
+         * in flight. SendData() calls us again on every retry, so without
+         * saving it the probe rewinds the suspended record to
+         * BUILD_MSG_BEGIN, and the resumed call re-applies the header and
+         * cipher overhead to arguments that already carry it, overflowing the
+         * output buffer. */
+        byte savedBuildMsgState = ssl->options.buildMsgState;
+#endif
 
         if (ssl->specs.cipher_type == aead && ssl->recordSzOverhead != 0
 #ifdef WOLFSSL_DTLS13
@@ -45185,6 +45195,9 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
 
         recordSz = BuildMessage(ssl, NULL, 0, NULL, payloadSz, application_data,
              0, 1, 0, CUR_ORDER);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        ssl->options.buildMsgState = savedBuildMsgState;
+#endif
         /* use a safe upper bound in case of error */
         if (recordSz < 0) {
             recordSz = payloadSz + RECORD_HEADER_SZ
