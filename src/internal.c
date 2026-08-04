@@ -25480,6 +25480,22 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
                                             ssl->curStartIdx + ssl->curSize);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+                        /* Post-handshake authentication runs the connect state
+                         * machine from inside this handler and resumes through
+                         * wolfSSL_negotiate() rather than by reprocessing this
+                         * record, which is why it leaves processReply at
+                         * doProcessInit. Finish the record's accounting here,
+                         * or the trailing MAC is parsed as the next record
+                         * header and the read fails with VERSION_ERROR. An
+                         * ordinary pending message leaves processReply at
+                         * runProcessingOneMessage and must not be advanced. */
+                        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                                ssl->options.processReply == doProcessInit &&
+                                IsEncryptionOn(ssl, 0)) {
+                            ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
+                        }
+    #endif
     #ifdef WOLFSSL_EARLY_DATA
                         if (ret != 0)
                             return ret;
