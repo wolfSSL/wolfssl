@@ -10995,9 +10995,9 @@ fe_cmov_table_avx2 PROC
         xor	al, dl
         sub	al, dl
         mov	bl, al
-        movd	xmm7, ebx
+        vmovd	xmm7, ebx
         mov	rbx, 1
-        movd	xmm9, rbx
+        vmovq	xmm9, rbx
         vmovdqa	ymm3, ymm9
         vmovdqa	ymm4, ymm9
         vpxor	ymm8, ymm8, ymm8

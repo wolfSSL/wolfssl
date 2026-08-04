@@ -10389,8 +10389,8 @@ WC_ASM_ATT_HIDDEN(_sp_2048_get_from_table_avx2_16)
 _sp_2048_get_from_table_avx2_16:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -12839,8 +12839,8 @@ WC_ASM_ATT_HIDDEN(_sp_2048_get_from_table_avx2_32)
 _sp_2048_get_from_table_avx2_32:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -27260,8 +27260,8 @@ WC_ASM_ATT_HIDDEN(_sp_3072_get_from_table_avx2_24)
 _sp_3072_get_from_table_avx2_24:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -30870,8 +30870,8 @@ WC_ASM_ATT_HIDDEN(_sp_3072_get_from_table_avx2_48)
 _sp_3072_get_from_table_avx2_48:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -41904,8 +41904,8 @@ WC_ASM_ATT_HIDDEN(_sp_4096_get_from_table_avx2_64)
 _sp_4096_get_from_table_avx2_64:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11

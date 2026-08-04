@@ -10060,8 +10060,8 @@ sp_2048_get_from_table_avx2_16 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -12424,8 +12424,8 @@ sp_2048_get_from_table_avx2_32 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -26390,8 +26390,8 @@ sp_3072_get_from_table_avx2_24 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -29914,8 +29914,8 @@ sp_3072_get_from_table_avx2_48 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -40655,8 +40655,8 @@ sp_4096_get_from_table_avx2_64 PROC
         vmovdqu	OWORD PTR [rsp+104], xmm12
         vmovdqu	OWORD PTR [rsp+120], xmm13
         mov	rax, 1
-        movd	xmm10, r8
-        movd	xmm11, rax
+        vmovq	xmm10, r8
+        vmovq	xmm11, rax
         vpxor	ymm13, ymm13, ymm13
         vpermd	ymm10, ymm13, ymm10
         vpermd	ymm11, ymm13, ymm11
@@ -43984,7 +43984,7 @@ sp_256_get_point_33_4 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         add	rdx, 200
         movd	xmm15, eax
         mov	rax, 32
@@ -44058,9 +44058,9 @@ sp_256_get_point_33_avx2_4 PROC
         vmovdqu	OWORD PTR [rsp+40], xmm8
         vmovdqu	OWORD PTR [rsp+56], xmm9
         mov	rax, 1
-        movd	xmm7, r8d
+        vmovd	xmm7, r8d
         add	rdx, 200
-        movd	xmm9, eax
+        vmovd	xmm9, eax
         mov	rax, 32
         vpxor	ymm8, ymm8, ymm8
         vpermd	ymm7, ymm8, ymm7
@@ -44757,9 +44757,9 @@ sp_256_get_entry_64_avx2_4 PROC
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
         mov	rax, 1
-        movd	xmm5, r8d
+        vmovd	xmm5, r8d
         add	rdx, 64
-        movd	xmm7, eax
+        vmovd	xmm7, eax
         mov	rax, 64
         vpxor	ymm6, ymm6, ymm6
         vpermd	ymm5, ymm6, ymm5
@@ -44865,9 +44865,9 @@ sp_256_get_entry_65_avx2_4 PROC
         vmovdqu	OWORD PTR [rsp+8], xmm6
         vmovdqu	OWORD PTR [rsp+24], xmm7
         mov	rax, 1
-        movd	xmm5, r8d
+        vmovd	xmm5, r8d
         add	rdx, 64
-        movd	xmm7, eax
+        vmovd	xmm7, eax
         mov	rax, 65
         vpxor	ymm6, ymm6, ymm6
         vpermd	ymm5, ymm6, ymm5
@@ -48011,7 +48011,7 @@ sp_384_get_point_33_6 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         add	rdx, 296
         movd	xmm15, eax
         mov	rax, 32
@@ -48057,7 +48057,7 @@ L_384_get_point_33_6_start_1:
         movdqu	OWORD PTR [rcx+112], xmm4
         movdqu	OWORD PTR [rcx+128], xmm5
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         sub	rdx, 9472
         movd	xmm15, eax
         mov	rax, 32
@@ -48122,9 +48122,9 @@ sp_384_get_point_33_avx2_6 PROC
         vmovdqu	OWORD PTR [rsp+136], xmm14
         vmovdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
         add	rdx, 296
-        movd	xmm15, eax
+        vmovd	xmm15, eax
         mov	rax, 32
         vpxor	ymm14, ymm14, ymm14
         vpermd	ymm13, ymm14, ymm13
@@ -48724,9 +48724,9 @@ sp_384_get_entry_64_avx2_6 PROC
         vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	OWORD PTR [rsp+88], xmm11
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 96
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 64
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
@@ -48868,9 +48868,9 @@ sp_384_get_entry_65_avx2_6 PROC
         vmovdqu	OWORD PTR [rsp+72], xmm10
         vmovdqu	OWORD PTR [rsp+88], xmm11
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 96
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 65
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
@@ -53341,7 +53341,7 @@ sp_521_get_point_33_9 PROC
         movdqu	OWORD PTR [rsp+144], xmm15
         mov	r14, 1
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         add	rdx, 440
 ELSE
@@ -53407,7 +53407,7 @@ ENDIF
         movdqu	OWORD PTR [rcx+160], xmm5
         mov	r14, 1
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         sub	rdx, 14080
 ELSE
@@ -53519,13 +53519,13 @@ sp_521_get_point_33_avx2_9 PROC
         vmovdqu	OWORD PTR [rsp+144], xmm15
         mov	rdi, 1
         mov	rax, 1
-        movd	xmm13, r8d
+        vmovd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         add	rdx, 440
 ELSE
         add	rdx, 448
 ENDIF
-        movd	xmm15, eax
+        vmovd	xmm15, eax
         mov	rax, 32
         vpxor	ymm14, ymm14, ymm14
         vpermd	ymm13, ymm14, ymm13
@@ -55255,9 +55255,9 @@ sp_521_get_entry_64_avx2_9 PROC
         vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	r14, 1
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 144
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 64
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9
@@ -55472,9 +55472,9 @@ sp_521_get_entry_65_avx2_9 PROC
         vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	r14, 1
         mov	rax, 1
-        movd	xmm9, r8d
+        vmovd	xmm9, r8d
         add	rdx, 144
-        movd	xmm11, eax
+        vmovd	xmm11, eax
         mov	rax, 65
         vpxor	ymm10, ymm10, ymm10
         vpermd	ymm9, ymm10, ymm9

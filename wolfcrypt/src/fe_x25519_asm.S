@@ -12572,9 +12572,9 @@ _fe_cmov_table_avx2:
         xorb	%dl, %al
         subb	%dl, %al
         movb	%al, %bl
-        movd	%ebx, %xmm7
+        vmovd	%ebx, %xmm7
         movq	$0x01, %rbx
-        movd	%rbx, %xmm9
+        vmovq	%rbx, %xmm9
         vmovdqa	%ymm9, %ymm3
         vmovdqa	%ymm9, %ymm4
         vpxor	%ymm8, %ymm8, %ymm8
