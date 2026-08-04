@@ -333,25 +333,25 @@ int wc_HKDF_Expand_ex(
     \brief この関数は、TLS v1.3鍵導出のためのRFC 5869 HMACベース抽出拡張鍵導出関数（HKDF）へのアクセスを提供します。
 
     \return 0 指定された入力で鍵の生成に成功した場合に返されます。
-    \return BAD_FUNC_ARG 無効なハッシュタイプが指定された場合に返されます（typeパラメータを参照）。
+    \return BAD_FUNC_ARG 無効なハッシュタイプが指定された場合（digestパラメータを参照）、prkがNULLの場合、またはikmがNULLでikmLenが0でない場合に返されます。
     \return MEMORY_E メモリ割り当てエラーがある場合に返されます。
     \return HMAC_MIN_KEYLEN_E FIPS実装を使用していて、指定された鍵の長さが最小許容FIPS標準より短い場合に返される可能性があります。
 
     \param prk 生成された疑似ランダム鍵。
-    \param salt ソルト。
+    \param salt ソルト。NULLの場合、saltLenは無視されます。
     \param saltLen ソルトの長さ。
-    \param ikm 鍵材料の出力へのポインタ。
-    \param ikmLen 入力鍵材料バッファの長さ。
-    \param digest HKDFに使用するハッシュタイプ。有効なタイプは：WC_SHA256、WC_SHA384、またはWC_SHA512。
+    \param ikm 入力鍵材料。ikmLenが0の場合はNULLにできます。
+    \param ikmLen 入力鍵材料の長さ。0の場合、RFC 8446に従い、空の入力鍵材料ではなくダイジェスト長のゼロ値が使用されます。
+    \param digest HKDFに使用するハッシュタイプ。有効なタイプは：WC_SHA256、WC_SHA384、WC_SHA512、またはWC_SM3。
 
     _Example_
     \code
-    byte secret[] = { // ランダム鍵で初期化 };
+    byte ikm[] = { // 入力鍵材料で初期化 };
     byte salt[] = { // オプションのソルトで初期化 };
-    byte masterSecret[MAX_DIGEST_SIZE];
+    byte prk[MAX_DIGEST_SIZE];
 
-    int ret = wc_Tls13_HKDF_Extract(secret, salt, sizeof(salt), 0,
-        masterSecret, sizeof(masterSecret), WC_SHA512);
+    int ret = wc_Tls13_HKDF_Extract(prk, salt, sizeof(salt), ikm, sizeof(ikm),
+        WC_SHA512);
     if ( ret != 0 ) {
 	    // 導出鍵の生成エラー
     }
@@ -374,27 +374,27 @@ int wc_Tls13_HKDF_Extract(
     \brief この関数は、TLS v1.3鍵導出のためのRFC 5869 HMACベース抽出拡張鍵導出関数（HKDF）へのアクセスを提供します。これは、ヒープヒントとデバイス識別子を追加する_exバージョンです。
 
     \return 0 指定された入力で鍵の生成に成功した場合に返されます。
-    \return BAD_FUNC_ARG 無効なハッシュタイプが指定された場合に返されます（typeパラメータを参照）。
+    \return BAD_FUNC_ARG 無効なハッシュタイプが指定された場合（digestパラメータを参照）、prkがNULLの場合、またはikmがNULLでikmLenが0でない場合に返されます。
     \return MEMORY_E メモリ割り当てエラーがある場合に返されます。
     \return HMAC_MIN_KEYLEN_E FIPS実装を使用していて、指定された鍵の長さが最小許容FIPS標準より短い場合に返される可能性があります。
 
     \param prk 生成された疑似ランダム鍵。
-    \param salt ソルト。
+    \param salt ソルト。NULLにできます。その場合、暗号コールバックが処理しない限りsaltLenは無視されます。
     \param saltLen ソルトの長さ。
-    \param ikm 鍵材料の出力へのポインタ。
-    \param ikmLen 入力鍵材料バッファの長さ。
-    \param digest HKDFに使用するハッシュタイプ。有効なタイプは：WC_SHA256、WC_SHA384、またはWC_SHA512。
+    \param ikm 入力鍵材料。ikmLenが0の場合はNULLにできます。
+    \param ikmLen 入力鍵材料の長さ。0の場合、RFC 8446に従い、空の入力鍵材料ではなくダイジェスト長のゼロ値が使用されます。
+    \param digest HKDFに使用するハッシュタイプ。有効なタイプは：WC_SHA256、WC_SHA384、WC_SHA512、またはWC_SM3。
     \param heap メモリに使用するヒープヒント。NULLにできます。
     \param devId 暗号コールバックまたは非同期ハードウェアで使用するID。使用しない場合はINVALID_DEVID（-2）に設定します。
 
     _Example_
     \code
-    byte secret[] = { // ランダム鍵で初期化 };
+    byte ikm[] = { // 入力鍵材料で初期化 };
     byte salt[] = { // オプションのソルトで初期化 };
-    byte masterSecret[MAX_DIGEST_SIZE];
+    byte prk[MAX_DIGEST_SIZE];
 
-    int ret = wc_Tls13_HKDF_Extract_ex(secret, salt, sizeof(salt), 0,
-        masterSecret, sizeof(masterSecret), WC_SHA512, NULL, INVALID_DEVID);
+    int ret = wc_Tls13_HKDF_Extract_ex(prk, salt, sizeof(salt), ikm,
+        sizeof(ikm), WC_SHA512, NULL, INVALID_DEVID);
     if ( ret != 0 ) {
 	    // 導出鍵の生成エラー
     }
