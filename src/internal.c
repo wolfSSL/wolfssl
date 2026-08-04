@@ -16564,6 +16564,32 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
     if (ret != 0) {
         goto exit_req_v2;
     }
+    /* Only a certificate that is actually usable as a CA may enter the pending
+     * signer pool. ParseCertRelative() consults that pool ahead of the
+     * certificate manager and uses the signer as a verification key without
+     * further checks, so admission has to enforce the same capabilities AddCA()
+     * requires of a chain CA.
+     *
+     * A non-CA is skipped rather than reported as an error, because
+     * ProcessPeerCerts() only offers a chain cert to AddCA() when isCA is set:
+     * such a certificate is already left out of the certificate manager without
+     * failing the handshake. */
+    if (!dCertAdd->isCA) {
+        WOLFSSL_MSG("Chain cert is not a CA, not adding as pending CA");
+        goto exit_req_v2;
+    }
+#ifndef ALLOW_INVALID_CERTSIGN
+    /* Per RFC 5280 an absent Key Usage extension implies all usages, so only
+     * enforce certificate signing when the extension is actually present.
+     * AddCA() rejects such a certificate outright, so report the same error
+     * here rather than quietly leaving it out of the pool. */
+    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
+            (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        WOLFSSL_MSG("Chain cert doesn't have key usage certificate signing");
+        ret = NOT_CA_ERROR;
+        goto exit_req_v2;
+    }
+#endif
     ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
     if (ret != 0 || derBuffer == NULL) {
         goto exit_req_v2;
@@ -16574,7 +16600,11 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
         ret = MEMORY_E;
         goto exit_req_v2;
     }
-    ret = FillSigner(s, dCertAdd, CA_TYPE, derBuffer);
+    /* WOLFSSL_CHAIN_CA, not CA_TYPE: TLSX_CSR2_MergePendingCA() promotes this
+     * signer into the certificate manager, and the unload path
+     * (wolfSSL_CertManagerUnloadIntermediateCerts()) selects entries by that
+     * type. AddCA() records chain CAs the same way. */
+    ret = FillSigner(s, dCertAdd, WOLFSSL_CHAIN_CA, derBuffer);
     if (ret != 0) {
         goto exit_req_v2;
     }
@@ -17805,14 +17835,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-                    if (ret == 0 && addToPendingCAs && !alreadySigner) {
-                        /* skipAddCA is only consulted later on the ret == 0
-                         * continuation path; on helper failure we goto
-                         * exit_ppc, so setting it up-front is safe. */
+                    if (ret == 0 && addToPendingCAs && !alreadySigner &&
+                            !ssl->options.verifyNone && !skipAddCA) {
+                        /* The verifyNone and skipAddCA conditions mirror the
+                         * guards on the AddCA() call below. A certificate the
+                         * surrounding code has already declined to admit as a
+                         * CA must not enter the pending pool either, and must
+                         * not be failed against CA rules. skipAddCA is set here
+                         * so AddCA() is not also run for a certificate that did
+                         * enter the pool; it is only consulted later on the
+                         * ret == 0 continuation path, so setting it up-front is
+                         * safe. */
                         skipAddCA = 1;
                         ret = ProcessPeerCertAddPendingCA(ssl,
                                 &args->certs[args->certIdx]);
-                        if (ret != 0)
+                        /* A certificate turned away for not being a usable CA
+                         * falls through to the shared error handling below so
+                         * that it fails the handshake the same way a rejection
+                         * from AddCA() does. */
+                        if (ret != 0 && ret != WC_NO_ERR_TRACE(NOT_CA_ERROR))
                             goto exit_ppc;
                     }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
@@ -26486,22 +26527,36 @@ int SendFinished(WOLFSSL* ssl)
         (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
          defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))) || \
     (defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST))
-/* Parses and decodes the certificate then initializes "request". In the case
- * of !ssl->buffers.weOwnCert, ssl->ctx->certOcspRequest gets set to "request".
+/* Returns the lock that guards the OCSP request cache on the WOLFSSL_CTX.
+ *
+ * The cache is a field of the CTX, so it has to be serialized with a lock whose
+ * scope is the CTX. SSL_CM(ssl) must not be used to reach that lock: with
+ * WOLFSSL_LOCAL_X509_STORE a connection can carry its own cert manager, which
+ * would leave two connections on one CTX taking different locks while doing a
+ * check-then-set on the very same field.
+ *
+ * Returns NULL when the CTX has no cert manager to take a lock from, in which
+ * case the caller skips the cache rather than running unserialized.
+ */
+static wolfSSL_Mutex* GetCtxOcspLock(WOLFSSL* ssl)
+{
+    if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocsp_stapling == NULL)
+        return NULL;
+
+    return &ssl->ctx->cm->ocsp_stapling->ocspLock;
+}
+
+/* Parses and decodes the certificate then initializes "request".
  *
  * Returns 0 on success
  */
 int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
-                             DecodedCert* cert, byte* certData, word32 length,
-                             byte *ctxOwnsRequest)
+                             DecodedCert* cert, byte* certData, word32 length)
 {
     int ret;
 
     if (request != NULL)
         XMEMSET(request, 0, sizeof(OcspRequest));
-
-    if (ctxOwnsRequest!= NULL)
-        *ctxOwnsRequest = 0;
 
     InitDecodedCert(cert, certData, length, ssl->heap);
     /* TODO: Setup async support here */
@@ -26510,20 +26565,6 @@ int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
         WOLFSSL_MSG("ParseCert failed");
     if (ret == 0)
         ret = InitOcspRequest(request, cert, 0, ssl->heap);
-    if (ret == 0) {
-        /* make sure ctx OCSP request is updated */
-        if (!ssl->buffers.weOwnCert && SSL_CM(ssl) != NULL) {
-            wolfSSL_Mutex* ocspLock = &SSL_CM(ssl)->ocsp_stapling->ocspLock;
-            if (wc_LockMutex(ocspLock) == 0) {
-                if (ssl->ctx->certOcspRequest == NULL) {
-                    ssl->ctx->certOcspRequest = request;
-                    if (ctxOwnsRequest!= NULL)
-                        *ctxOwnsRequest = 1;
-                }
-                wc_UnLockMutex(ocspLock);
-            }
-        }
-    }
 
     FreeDecodedCert(cert);
 
@@ -26535,30 +26576,48 @@ int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
  * management for "buffer* response" is up to the caller.
  *
  * Also creates an OcspRequest in the case that ocspRequest is null or that
- * ssl->buffers.weOwnCert is set. In those cases managing ocspRequest free'ing
- * is up to the caller. NOTE: in OcspCreateRequest ssl->ctx->certOcspRequest can
- * be set to point to "ocspRequest" and it then should not be free'd since
- * wolfSSL_CTX_free will take care of it.
+ * ssl->buffers.weOwnCert is set. A newly created request may be cached on the
+ * CTX, which then owns it and frees it in wolfSSL_CTX_free(). "ctxOwnsRequest"
+ * carries that ownership: it tells this function whether the CTX already owns
+ * the request handed in, and on success it reports whether the CTX owns the
+ * request handed back. The caller may only free the request when the flag is
+ * clear. "*ocspRequest" and "*ctxOwnsRequest" are written together on success
+ * and both left untouched on failure, so the flag always describes the request
+ * the caller is actually holding.
+ *
+ * A request published to the CTX becomes shared with every other connection on
+ * it and is read without a lock, so it must be treated as immutable from that
+ * point on. See GetCtxOcspRequest().
  *
  * Returns 0 on success
  */
 int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
-                       buffer* response)
+                       buffer* response, byte* ctxOwnsRequest)
 {
     int          ret = 0;
     OcspRequest* request = NULL;
     byte createdRequest  = 0;
-    byte ctxOwnsRequest = 0;
+    byte ctxOwns = 0;
 
-    if (ssl == NULL || ocspRequest == NULL || response == NULL)
+    /* Zero the output before any exit so that a caller freeing response->buffer
+     * without checking the return code never acts on an indeterminate value. */
+    if (response != NULL)
+        XMEMSET(response, 0, sizeof(*response));
+
+    if (ssl == NULL || ocspRequest == NULL || response == NULL ||
+            ctxOwnsRequest == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    XMEMSET(response, 0, sizeof(*response));
     request = *ocspRequest;
+    ctxOwns = *ctxOwnsRequest;
 
-    /* unable to fetch status. skip. */
-    if (SSL_CM(ssl) == NULL || SSL_CM(ssl)->ocspStaplingEnabled == 0)
-        return 0;
+    /* unable to fetch status. skip. The stapling object is checked here so that
+     * every use of it below needs no further guarding. */
+    if (SSL_CM(ssl) == NULL || SSL_CM(ssl)->ocspStaplingEnabled == 0 ||
+            SSL_CM(ssl)->ocsp_stapling == NULL) {
+        goto exit_cor;
+    }
 
     if (request == NULL || ssl->buffers.weOwnCert) {
         DerBuffer* der = ssl->buffers.certificate;
@@ -26566,19 +26625,50 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 
         /* unable to fetch status. skip. */
         if (der->buffer == NULL || der->length == 0)
-            return 0;
+            goto exit_cor;
 
         WC_ALLOC_VAR_EX(cert, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
-            return MEMORY_E);
+            { ret = MEMORY_E; goto exit_cor; });
         request = (OcspRequest*)XMALLOC(sizeof(OcspRequest), ssl->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
         if (request == NULL)
             ret = MEMORY_E;
 
         createdRequest = 1;
+        ctxOwns = 0;
         if (ret == 0) {
             ret = CreateOcspRequest(ssl, request, cert, der->buffer,
-                      der->length, &ctxOwnsRequest);
+                      der->length);
+        }
+
+        /* Only a request built from a CTX-held certificate may be cached, since
+         * the cache outlives this connection.
+         *
+         * Not being able to cache is not an error. ctxOwns stays 0, so this
+         * connection keeps ownership of the request and frees it as it would
+         * any other one it built; all that is lost is the reuse by later
+         * connections on this CTX. Failing the handshake over a missed
+         * optimization would be the worse outcome. */
+        if (ret == 0 && !ssl->buffers.weOwnCert) {
+            wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl);
+
+            /* SSL_CM(ssl) can resolve through ssl->x509_store_pt, so a stapling
+             * object on the CTX manager is not implied by the one checked
+             * above. */
+            if (ocspLock == NULL) {
+                WOLFSSL_MSG("No CTX OCSP lock, not caching the request");
+            }
+            else if (wc_LockMutex(ocspLock) != 0) {
+                WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, not caching the "
+                            "request");
+            }
+            else {
+                if (ssl->ctx->certOcspRequest == NULL) {
+                    ssl->ctx->certOcspRequest = request;
+                    ctxOwns = 1;
+                }
+                wc_UnLockMutex(ocspLock);
+            }
         }
 
         if (ret != 0) {
@@ -26590,9 +26680,8 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
     }
 
     if (ret == 0) {
-        request->ssl = ssl;
         ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling, request, response,
-                               ssl->heap);
+                               ssl);
 
         /* Suppressing soft-fail responder errors. OCSP_CERT_REVOKED is an
          * explicit positive assertion of revocation and must not be ignored.
@@ -26606,13 +26695,21 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
     }
 
     /* free request up if error case found otherwise return it */
-    if (ret != 0 && createdRequest && !ctxOwnsRequest) {
+    if (ret != 0 && createdRequest && !ctxOwns) {
         FreeOcspRequest(request);
         XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        request = NULL;
     }
 
-    if (ret == 0)
+exit_cor:
+
+    /* The request and the flag describing it are handed back as a pair, so the
+     * caller never decides ownership against a request it is not holding. On
+     * failure both of the caller's values are left as they were. */
+    if (ret == 0) {
         *ocspRequest = request;
+        *ctxOwnsRequest = ctxOwns;
+    }
 
     return ret;
 }
@@ -27399,6 +27496,42 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+/* Reads the OCSP request cached on the CTX. The field is shared by every
+ * connection on that CTX, so it is read once under GetCtxOcspLock() - the same
+ * lock the publishing side in CreateOcspResponse() takes - instead of being
+ * consulted again later. The CTX keeps ownership of what is returned, which
+ * "ctxOwnsRequest" reports to the caller.
+ *
+ * The request handed back is shared with every other connection on the CTX and
+ * is read by all of them without holding a lock, so it must be treated as
+ * immutable: no field of it may be written once it has been published. Adding a
+ * field that the stapling path writes would reintroduce a data race here.
+ *
+ * Returns the cached request, or NULL when there is none.
+ */
+static OcspRequest* GetCtxOcspRequest(WOLFSSL* ssl, byte* ctxOwnsRequest)
+{
+    wolfSSL_Mutex* ocspLock = GetCtxOcspLock(ssl);
+    OcspRequest*   request  = NULL;
+
+    *ctxOwnsRequest = 0;
+
+    if (ocspLock == NULL) {
+        WOLFSSL_MSG("No CTX OCSP lock, skipping the request cache");
+    }
+    else if (wc_LockMutex(ocspLock) != 0) {
+        WOLFSSL_MSG("Couldn't lock CTX OCSP mutex, skipping the request cache");
+    }
+    else {
+        request = ssl->ctx->certOcspRequest;
+        if (request != NULL)
+            *ctxOwnsRequest = 1;
+        wc_UnLockMutex(ocspLock);
+    }
+
+    return request;
+}
+
 static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl, byte status_type)
 {
     WOLFSSL_OCSP *ocsp;
@@ -27489,14 +27622,16 @@ int SendCertificateStatus(WOLFSSL* ssl)
         /* case WOLFSSL_CSR_OCSP: */
         case WOLFSSL_CSR2_OCSP:
         {
-            OcspRequest* request = ssl->ctx->certOcspRequest;
+            byte ctxOwnsRequest = 0;
+            OcspRequest* request = GetCtxOcspRequest(ssl, &ctxOwnsRequest);
             buffer response;
 
-            ret = CreateOcspResponse(ssl, &request, &response);
+            ret = CreateOcspResponse(ssl, &request, &response,
+                                     &ctxOwnsRequest);
 
             /* if a request was successfully created and not stored in
              * ssl->ctx then free it */
-            if (ret == 0 && request != ssl->ctx->certOcspRequest) {
+            if (ret == 0 && request != NULL && !ctxOwnsRequest) {
                 FreeOcspRequest(request);
                 XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                 request = NULL;
@@ -27524,22 +27659,27 @@ int SendCertificateStatus(WOLFSSL* ssl)
     #if defined HAVE_CERTIFICATE_STATUS_REQUEST_V2
         case WOLFSSL_CSR2_OCSP_MULTI:
         {
-            OcspRequest* request = ssl->ctx->certOcspRequest;
-            buffer responses[1 + MAX_CHAIN_DEPTH];
+            /* Three requests with three different owners are in play, so they
+             * are kept in separate variables. "ctxOwnsRequest" tracks the leaf
+             * one only. */
             byte ctxOwnsRequest = 0;
+            OcspRequest* leafRequest = GetCtxOcspRequest(ssl, &ctxOwnsRequest);
+            buffer responses[1 + MAX_CHAIN_DEPTH];
             word32 i = 0;
 
             XMEMSET(responses, 0, sizeof(responses));
 
-            ret = CreateOcspResponse(ssl, &request, &responses[0]);
+            ret = CreateOcspResponse(ssl, &leafRequest, &responses[0],
+                                     &ctxOwnsRequest);
 
             /* if a request was successfully created and not stored in
              * ssl->ctx then free it */
-            if (ret == 0 && request != ssl->ctx->certOcspRequest) {
-                FreeOcspRequest(request);
-                XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
-                request = NULL;
+            if (ret == 0 && leafRequest != NULL && !ctxOwnsRequest) {
+                FreeOcspRequest(leafRequest);
+                XFREE(leafRequest, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                leafRequest = NULL;
             }
+            /* leafRequest is done; the chain below has its own. */
 
             if (ret == 0 && (!ssl->ctx->chainOcspRequest[0]
                                               || ssl->buffers.weOwnCertChain)) {
@@ -27547,14 +27687,20 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 word32 idx = 0;
                 WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
                 DerBuffer* chain;
+                /* Scratch owned by this block, reused for each chain cert */
+                OcspRequest* chainRequest = NULL;
 
+                /* Allocation failures record the error and fall through to the
+                 * cleanup at the end of the case. Returning here would leak the
+                 * leaf response that CreateOcspResponse() has already built. */
                 WC_ALLOC_VAR_EX(cert, DecodedCert, 1, ssl->heap,
-                    DYNAMIC_TYPE_DCERT, return MEMORY_E);
-                request = (OcspRequest*)XMALLOC(sizeof(OcspRequest), ssl->heap,
-                                                     DYNAMIC_TYPE_OCSP_REQUEST);
-                if (request == NULL) {
-                    WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
-                    return MEMORY_E;
+                    DYNAMIC_TYPE_DCERT, ret = MEMORY_E);
+                if (ret == 0) {
+                    chainRequest = (OcspRequest*)XMALLOC(sizeof(OcspRequest),
+                                        ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                    if (chainRequest == NULL) {
+                        ret = MEMORY_E;
+                    }
                 }
 
                 /* use certChain if available, otherwise use certificate */
@@ -27563,7 +27709,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                     chain = ssl->buffers.certificate;
                 }
 
-                if (chain && chain->buffer) {
+                if (ret == 0 && chain && chain->buffer) {
                     while (ret == 0 && idx + OPAQUE24_LEN < chain->length) {
                         c24to32(chain->buffer + idx, &der.length);
                         idx += OPAQUE24_LEN;
@@ -27577,12 +27723,11 @@ int SendCertificateStatus(WOLFSSL* ssl)
                             ret = MAX_CERT_EXTENSIONS_ERR;
                             break;
                         }
-                        ret = CreateOcspRequest(ssl, request, cert, der.buffer,
-                                                der.length, &ctxOwnsRequest);
+                        ret = CreateOcspRequest(ssl, chainRequest, cert,
+                                                der.buffer, der.length);
                         if (ret == 0) {
-                            request->ssl = ssl;
                             ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
-                                        request, &responses[i + 1], ssl->heap);
+                                        chainRequest, &responses[i + 1], ssl);
 
                             /* Suppressing soft-fail responder errors.
                              * OCSP_CERT_REVOKED is an explicit positive
@@ -27598,21 +27743,21 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
 
                             i++;
-                            if (!ctxOwnsRequest)
-                                FreeOcspRequest(request);
+                            FreeOcspRequest(chainRequest);
                         }
                     }
                 }
-                if (!ctxOwnsRequest)
-                    XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                XFREE(chainRequest, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                 WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
             }
             else {
+                /* These are owned by the CTX and freed in wolfSSL_CTX_free() */
+                OcspRequest* cachedRequest;
+
                 while (ret == 0 && i < MAX_CHAIN_DEPTH &&
-                            NULL != (request = ssl->ctx->chainOcspRequest[i])) {
-                    request->ssl = ssl;
+                      NULL != (cachedRequest = ssl->ctx->chainOcspRequest[i])) {
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
-                                           request, &responses[++i], ssl->heap);
+                                           cachedRequest, &responses[++i], ssl);
 
                     /* Suppressing soft-fail responder errors.
                      * OCSP_CERT_REVOKED is an explicit positive assertion of
@@ -27627,17 +27772,18 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 }
             }
 
-            if (responses[0].buffer) {
-                if (ret == 0) {
-                    ret = BuildCertificateStatus(ssl, status_type, responses,
+            if (ret == 0 && responses[0].buffer) {
+                ret = BuildCertificateStatus(ssl, status_type, responses,
                                                                          i + 1);
-                }
+            }
 
-                for (i = 0; i < 1 + MAX_CHAIN_DEPTH; i++) {
-                    if (responses[i].buffer) {
-                        XFREE(responses[i].buffer, ssl->heap,
-                                                     DYNAMIC_TYPE_OCSP_REQUEST);
-                    }
+            /* Not gated on the leaf response: the chain loop can have stored
+             * responses of its own even when the leaf produced none. */
+            for (i = 0; i < 1 + MAX_CHAIN_DEPTH; i++) {
+                if (responses[i].buffer) {
+                    XFREE(responses[i].buffer, ssl->heap,
+                          DYNAMIC_TYPE_OCSP_REQUEST);
+                    responses[i].buffer = NULL;
                 }
             }
 

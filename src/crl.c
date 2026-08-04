@@ -86,6 +86,11 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 #endif
     if (wc_InitRwLock(&crl->crlLock) != 0) {
         WOLFSSL_MSG("Init Mutex failed");
+    #ifdef HAVE_CRL_MONITOR
+        /* Undo the condition variable created above: a failed InitCRL() must
+         * leave nothing behind, since callers only free the memory. */
+        wolfSSL_CondFree(&crl->cond);
+    #endif
         return BAD_MUTEX_E;
     }
 #ifdef OPENSSL_ALL

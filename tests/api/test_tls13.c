@@ -8708,6 +8708,7 @@ int test_tls13_KeyUpdate_sender_limit(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+    defined(KEEP_PEER_CERT) && \
     !defined(NO_CERTS) && !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 /* Mock OCSP I/O callback that yields no response. It lets stapling be enabled
@@ -8750,6 +8751,10 @@ static void test_pha_ocsp_resp_free_cb(void* ioCtx, unsigned char* resp)
  * without client authentication, followed by a server-initiated PHA
  * exchange. The server expects to receive (and verify) the client
  * certificate even though no OCSP staple is supplied.
+ *
+ * KEEP_PEER_CERT is part of the guard because the check for the received
+ * client certificate uses wolfSSL_get_peer_certificate(), which is only
+ * built when that macro is defined.
  */
 int test_tls13_pha_status_request(void)
 {
@@ -8757,6 +8762,7 @@ int test_tls13_pha_status_request(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+    defined(KEEP_PEER_CERT) && \
     !defined(NO_CERTS) && !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     struct test_memio_ctx test_ctx;

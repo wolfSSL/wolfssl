@@ -39,6 +39,7 @@ int test_certificate_authorities_client_hello(void);
 int test_TLSX_TCA_Find(void);
 int test_TLSX_SNI_GetSize_overflow(void);
 int test_TLSX_ECH_msg_type_validation(void);
+int test_TLSX_CSR2_tls13_msg_type_validation(void);
 int test_TLSX_SRTP_msg_type_validation(void);
 int test_TLSX_ALPN_server_response_count(void);
 int test_TLSX_SupportedCurve_empty_or_unsupported(void);

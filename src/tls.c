@@ -3687,7 +3687,6 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
     buffer der;
     int i = 1;
     int ret = 0;
-    byte ctxOwnsRequest = 0;
 
     /* use certChain if available, otherwise use peer certificate */
     chain = ssl->buffers.certChain;
@@ -3727,22 +3726,12 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
             request = &csr->request.ocsp[i];
             if (ret == 0) {
                 ret = CreateOcspRequest(ssl, request, cert,
-                        der.buffer, der.length, &ctxOwnsRequest);
-                if (ctxOwnsRequest) {
-                    wolfSSL_Mutex* ocspLock =
-                        &SSL_CM(ssl)->ocsp_stapling->ocspLock;
-                    if (wc_LockMutex(ocspLock) == 0) {
-                        /* the request is ours */
-                        ssl->ctx->certOcspRequest = NULL;
-                    }
-                    wc_UnLockMutex(ocspLock);
-                }
+                        der.buffer, der.length);
             }
 
             if (ret == 0) {
-                request->ssl = ssl;
                 ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
-                                 request, &csr->responses[i], ssl->heap);
+                                       request, &csr->responses[i], ssl);
                 /* Suppressing soft-fail responder errors. OCSP_CERT_REVOKED
                  * is an explicit positive assertion of revocation and must
                  * not be ignored. OCSP_NO_URL just means there is no
@@ -4025,9 +4014,8 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
             case WOLFSSL_CSR_OCSP:
                 if (SSL_CM(ssl)->ocspEnabled) {
                     int ret;
-                    csr->request.ocsp[0].ssl = ssl;
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                              &csr->request.ocsp[0], NULL, NULL);
+                                           &csr->request.ocsp[0], NULL, ssl);
                     /* This is the client's fallback leaf lookup on the
                      * verification instance, so honor the no-responder policy
                      * just like the non-stapling leaf path. Default stays
@@ -4260,8 +4248,19 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
     if (!isRequest) {
 #ifndef NO_WOLFSSL_CLIENT
-        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
-        CertificateStatusRequestItemV2* csr2 = extension ?
+        TLSX* extension;
+        CertificateStatusRequestItemV2* csr2;
+
+        /* RFC 8446 Section 4.4.2.1: a TLS 1.3 client must not act upon the
+         * presence of, or the information in, this extension. Return before any
+         * extension state is touched. TLSX_Parse() already rejects it for every
+         * TLS 1.3 message type that reaches this branch, so this is defence in
+         * depth rather than the load bearing check. */
+        if (IsAtLeastTLSv1_3(ssl->version))
+            return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
+
+        extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
+        csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
 
         if (!csr2) {
@@ -4568,9 +4567,9 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
             case WOLFSSL_CSR2_OCSP_MULTI:
                 if (SSL_CM(ssl)->ocspEnabled && csr2->requests >= 1) {
                     int ret;
-                    csr2->request.ocsp[csr2->requests-1].ssl = ssl;
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                          &csr2->request.ocsp[csr2->requests-1], NULL, NULL);
+                                          &csr2->request.ocsp[csr2->requests-1],
+                                          NULL, ssl);
                     /* This is the client's fallback leaf lookup on the
                      * verification instance, so honor the no-responder policy
                      * just like the non-stapling leaf path. Default stays
@@ -18703,9 +18702,12 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                 if (IsAtLeastTLSv1_3(ssl->version)) {
-                    if (msgType != client_hello &&
-                        msgType != certificate_request &&
-                        msgType != certificate)
+                    /* RFC 8446 Section 4.4.2.1: a TLS 1.3 server must not send
+                     * this extension in EncryptedExtensions, CertificateRequest
+                     * or Certificate. ClientHello stays allowed because the
+                     * peer may still negotiate a lower version, where the
+                     * extension does apply. */
+                    if (msgType != client_hello)
                         return EXT_NOT_ALLOWED;
                 }
                 else
