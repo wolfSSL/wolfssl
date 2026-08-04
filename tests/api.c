@@ -3729,7 +3729,9 @@ static int test_wolfSSL_CertRsaPss(void)
     RSA_MAX_SIZE >= 3072
     const char* rsaPssSha384Cert = "./certs/rsapss/ca-3072-rsapss.der";
 #endif
-#if defined(WOLFSSL_SHA384) && RSA_MAX_SIZE >= 3072
+#if defined(WOLFSSL_SHA384) && RSA_MAX_SIZE >= 3072 && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AKI) || \
+     defined(WOLFSSL_PSS_LONG_SALT))
 #ifdef WOLFSSL_PEM_TO_DER
     const char* rsaPssRootSha384Cert = "./certs/rsapss/root-3072-rsapss.pem";
 #else
@@ -3746,7 +3748,8 @@ static int test_wolfSSL_CertRsaPss(void)
     ExpectIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, rsaPssRootSha256Cert, NULL));
 #endif
-#if defined(WOLFSSL_SHA384) && RSA_MAX_SIZE >= 3072
+#if defined(WOLFSSL_SHA384) && RSA_MAX_SIZE >= 3072 && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_AKI))
     ExpectIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, rsaPssRootSha384Cert, NULL));
 #endif
@@ -3765,6 +3768,14 @@ static int test_wolfSSL_CertRsaPss(void)
 
 #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_PSS_LONG_SALT) && \
     RSA_MAX_SIZE >= 3072
+#if defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_AKI)
+    /* Without AKI, same-subject roots must be verified independently. */
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CertManagerLoadCA(cm, rsaPssRootSha384Cert, NULL));
+#endif
     ExpectTrue((f = XFOPEN(rsaPssSha384Cert, "rb")) != XBADFILE);
     ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
     if (f != XBADFILE)
