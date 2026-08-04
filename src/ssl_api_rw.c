@@ -381,6 +381,7 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
  * @param [in]      sz    Length of data in bytes.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl or data is NULL, or sz is not positive.
+ * @return  BUFFER_ERROR when the input buffer lengths are inconsistent.
  * @return  APP_DATA_READY when there is application data still to be read,
  *          as growing the buffer would invalidate it.
  * @return  Negative error code from growing the input buffer, such as
@@ -389,6 +390,8 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
 int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
 {
     int ret = WOLFSSL_SUCCESS;
+    int usedLength = 0;
+    int maxLength = 0;
 
     WOLFSSL_ENTER("wolfSSL_inject");
 
@@ -398,34 +401,41 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        int usedLength = (int)(ssl->buffers.inputBuffer.length -
-                               ssl->buffers.inputBuffer.idx);
-        int maxLength  = (int)(ssl->buffers.inputBuffer.bufferSize -
-                               (word32)usedLength);
+        usedLength = (int)(ssl->buffers.inputBuffer.length -
+                           ssl->buffers.inputBuffer.idx);
+        /* Free space past everything buffered, where new data is appended. */
+        maxLength  = (int)(ssl->buffers.inputBuffer.bufferSize -
+                           ssl->buffers.inputBuffer.length);
 
-        if (sz > maxLength) {
-            /* Need to make space */
-            if (ssl->buffers.clearOutputBuffer.length > 0) {
-                /* clearOutputBuffer points into so reallocating inputBuffer
-                 * will invalidate clearOutputBuffer and lose app data */
-                WOLFSSL_MSG(
-                    "Can't inject while there is application data to read");
-                ret = APP_DATA_READY;
-            }
-            else {
-                int growRet = GrowInputBuffer(ssl, sz, usedLength);
+        if ((usedLength < 0) || (maxLength < 0)) {
+            ret = BUFFER_ERROR;
+        }
+    }
 
-                if (growRet < 0) {
-                    ret = growRet;
-                }
+    if ((ret == WOLFSSL_SUCCESS) && (sz > maxLength)) {
+        /* Need to make space */
+        if (ssl->buffers.clearOutputBuffer.length > 0) {
+            /* clearOutputBuffer points into so reallocating inputBuffer
+             * will invalidate clearOutputBuffer and lose app data */
+            WOLFSSL_MSG(
+                "Can't inject while there is application data to read");
+            ret = APP_DATA_READY;
+        }
+        else {
+            /* Compacts the unconsumed data, leaving idx 0 and length
+             * usedLength. */
+            int growRet = GrowInputBuffer(ssl, sz, usedLength);
+
+            if (growRet < 0) {
+                ret = growRet;
             }
         }
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        XMEMCPY(ssl->buffers.inputBuffer.buffer + ssl->buffers.inputBuffer.idx,
-                data, sz);
-        ssl->buffers.inputBuffer.length += sz;
+        XMEMCPY(ssl->buffers.inputBuffer.buffer +
+                ssl->buffers.inputBuffer.length, data, (size_t)sz);
+        ssl->buffers.inputBuffer.length += (word32)sz;
     }
 
     return ret;

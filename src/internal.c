@@ -12467,19 +12467,27 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
         tmp += align - hdrSz;
 #endif
 
-#ifdef WOLFSSL_STATIC_MEMORY
-    /* can be from IO memory pool which does not need copy if same buffer */
-    if (usedLength && tmp == ssl->buffers.inputBuffer.buffer) {
-        ssl->buffers.inputBuffer.bufferSize = size + usedLength;
+    /* Move the retained data to the front of the new buffer. A pooled
+     * allocator can hand back the buffer still in use, so the two regions may
+     * overlap and this has to be a move, not a copy. */
+    if (usedLength > 0) {
+        XMEMMOVE(tmp, ssl->buffers.inputBuffer.buffer +
+                 ssl->buffers.inputBuffer.idx, (size_t)usedLength);
+    }
+
+    /* Same buffer back: the data is already in place, so it must not be freed
+     * or zeroed here, only the consumed bytes left behind it. */
+    if (tmp == ssl->buffers.inputBuffer.buffer) {
+        if (IsEncryptionOn(ssl, 1) &&
+                ssl->buffers.inputBuffer.length > (word32)usedLength) {
+            ForceZero(tmp + usedLength,
+                      ssl->buffers.inputBuffer.length - (word32)usedLength);
+        }
+        ssl->buffers.inputBuffer.bufferSize = (word32)(size + usedLength);
         ssl->buffers.inputBuffer.idx    = 0;
-        ssl->buffers.inputBuffer.length = usedLength;
+        ssl->buffers.inputBuffer.length = (word32)usedLength;
         return 0;
     }
-#endif
-
-    if (usedLength)
-        XMEMCPY(tmp, ssl->buffers.inputBuffer.buffer +
-                    ssl->buffers.inputBuffer.idx, (size_t)(usedLength));
 
     if (ssl->buffers.inputBuffer.dynamicFlag) {
         if (IsEncryptionOn(ssl, 1)) {

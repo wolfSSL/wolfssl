@@ -12950,7 +12950,8 @@ int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
     \param [in] sz 注入するデータのバイト数。
 
     \return BAD_FUNC_ARG いずれかのポインタパラメータがNULLまたはsz <= 0の場合。
-    \return APP_DATA_READY 読み取るべきアプリケーションデータが残っている場合。
+    \return BUFFER_ERROR 入力バッファの長さに矛盾がある場合。
+    \return APP_DATA_READY 読み取るべきアプリケーションデータが残っている状態で入力バッファの拡張が必要になった場合。
     \return MEMORY_E 割り当てが失敗した場合。
     \return WOLFSSL_SUCCESS 成功時。
 

@@ -37500,6 +37500,169 @@ static int test_wolfSSL_inject(void)
     return EXPECT_RESULT();
 }
 
+/* Kept under one TLS record: injecting several records at once is a separate
+ * (unrelated) code path. */
+#define TEST_INJECT_BIG_SZ 8192
+
+/* Injected bytes must land after the data buffered but not yet consumed.
+ * Writing them at inputBuffer.idx overwrote a retained partial record, so a
+ * record fed in over several calls never reassembled. */
+static int test_wolfSSL_inject_partial_record(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "wolfSSL inject partial record";
+    byte* bigData = NULL;
+    byte* record = NULL;
+    char* readBuf = NULL;
+    word32 savedIdx = 0;
+    word32 savedLength = 0;
+    int msgSz = (int)sizeof(msg) - 1;
+    int recordSz = 0;
+    int rounds = 0;
+    int injectSz = 0;
+    int off;
+    int chunk;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* sized from the transport buffer the records are copied out of */
+    record = (byte*)XMALLOC(TEST_MEMIO_BUF_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    bigData = (byte*)XMALLOC(TEST_INJECT_BIG_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    readBuf = (char*)XMALLOC(TEST_INJECT_BIG_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(record);
+    ExpectNotNull(bigData);
+    ExpectNotNull(readBuf);
+    /* non-repeating, so the readback also catches reordered chunks */
+    if (bigData != NULL) {
+        for (off = 0; off < TEST_INJECT_BIG_SZ; off++)
+            bigData[off] = (byte)(off ^ (off >> 8));
+    }
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, &rounds), 0);
+
+    /* Draining the transport leaves injected bytes as the server's only input. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgSz), msgSz);
+    ExpectIntGT(test_ctx.s_len, 0);
+    if (EXPECT_SUCCESS()) {
+        recordSz = test_ctx.s_len;
+        XMEMCPY(record, test_ctx.s_buff, (size_t)recordSz);
+        test_memio_clear_buffer(&test_ctx, 0);
+    }
+
+    /* Every chunk but the last leaves a partial record buffered. */
+    for (off = 0; off < recordSz && EXPECT_SUCCESS(); off += chunk) {
+        chunk = recordSz - off;
+        if (chunk > 7)
+            chunk = 7;
+        ExpectIntEQ(wolfSSL_inject(ssl_s, record + off, chunk),
+                WOLFSSL_SUCCESS);
+        if (off + chunk < recordSz) {
+            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, msgSz), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        }
+    }
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, msgSz), msgSz);
+    ExpectIntEQ(XMEMCMP(readBuf, msg, (size_t)msgSz), 0);
+
+    /* A first chunk shorter than a record header leaves nothing to pre-grow the
+     * buffer, so the second inject grows it with a partial record held. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, bigData, TEST_INJECT_BIG_SZ),
+            TEST_INJECT_BIG_SZ);
+    ExpectIntGT(test_ctx.s_len, TEST_INJECT_BIG_SZ);
+    if (EXPECT_SUCCESS()) {
+        recordSz = test_ctx.s_len;
+        XMEMCPY(record, test_ctx.s_buff, (size_t)recordSz);
+        test_memio_clear_buffer(&test_ctx, 0);
+    }
+
+    ExpectIntEQ(wolfSSL_inject(ssl_s, record, 3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, TEST_INJECT_BIG_SZ), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_inject(ssl_s, record + 3, recordSz - 3),
+            WOLFSSL_SUCCESS);
+    /* Configurations whose static buffer already holds a whole record cover the
+     * no-grow path here instead. */
+    if (ssl_s != NULL && STATIC_BUFFER_LEN < TEST_INJECT_BIG_SZ) {
+        ExpectIntGT(ssl_s->buffers.inputBuffer.bufferSize,
+                (word32)STATIC_BUFFER_LEN);
+    }
+
+    /* The payload may arrive as several records, so read until it is drained. */
+    for (off = 0; off < TEST_INJECT_BIG_SZ && EXPECT_SUCCESS(); off += chunk) {
+        chunk = wolfSSL_read(ssl_s, readBuf, TEST_INJECT_BIG_SZ - off);
+        ExpectIntGT(chunk, 0);
+        if (chunk <= 0)
+            break;
+        ExpectIntEQ(XMEMCMP(readBuf, bigData + off, (size_t)chunk), 0);
+    }
+    ExpectIntEQ(off, TEST_INJECT_BIG_SZ);
+
+    /* Reading a single byte leaves the rest of the plaintext pending. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgSz), msgSz);
+    ExpectIntGT(test_ctx.s_len, 0);
+    if (EXPECT_SUCCESS()) {
+        recordSz = test_ctx.s_len;
+        XMEMCPY(record, test_ctx.s_buff, (size_t)recordSz);
+        test_memio_clear_buffer(&test_ctx, 0);
+    }
+    ExpectIntEQ(wolfSSL_inject(ssl_s, record, recordSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, 1), 1);
+    ExpectIntEQ(wolfSSL_pending(ssl_s), msgSz - 1);
+
+    /* clearOutputBuffer points into the input buffer, so a grow has to be
+     * refused instead of invalidating that pending plaintext. Size the inject
+     * past the free space so it needs a grow whatever the buffer size is. */
+    if (ssl_s != NULL) {
+        injectSz = (int)(ssl_s->buffers.inputBuffer.bufferSize -
+                ssl_s->buffers.inputBuffer.length) + 1;
+    }
+    ExpectIntGT(injectSz, 0);
+    ExpectIntLE(injectSz, TEST_MEMIO_BUF_SZ);
+    ExpectIntEQ(wolfSSL_inject(ssl_s, record, injectSz),
+            WC_NO_ERR_TRACE(APP_DATA_READY));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, msgSz - 1), msgSz - 1);
+    ExpectIntEQ(XMEMCMP(readBuf, msg + 1, (size_t)(msgSz - 1)), 0);
+
+    /* A broken buffer invariant must fail closed: both lengths are unsigned
+     * differences, so idx > length or length > bufferSize goes negative. The
+     * call returns before it writes, so restoring the field is enough. */
+    if (ssl_s != NULL) {
+        savedIdx = ssl_s->buffers.inputBuffer.idx;
+        ssl_s->buffers.inputBuffer.idx = ssl_s->buffers.inputBuffer.length + 1;
+    }
+    ExpectIntEQ(wolfSSL_inject(ssl_s, record, 1),
+            WC_NO_ERR_TRACE(BUFFER_ERROR));
+    if (ssl_s != NULL) {
+        ssl_s->buffers.inputBuffer.idx = savedIdx;
+        savedLength = ssl_s->buffers.inputBuffer.length;
+        ssl_s->buffers.inputBuffer.length =
+                ssl_s->buffers.inputBuffer.bufferSize + 1;
+    }
+    ExpectIntEQ(wolfSSL_inject(ssl_s, record, 1),
+            WC_NO_ERR_TRACE(BUFFER_ERROR));
+    if (ssl_s != NULL)
+        ssl_s->buffers.inputBuffer.length = savedLength;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    XFREE(record, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bigData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -39475,6 +39638,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_read_ahead_buffer_len),
     TEST_DECL(test_wolfSSL_read_ahead_ctx_inherit),
     TEST_DECL(test_wolfSSL_inject),
+    TEST_DECL(test_wolfSSL_inject_partial_record),
     TEST_DECL(test_ocsp_status_callback),
     TEST_DECL(test_ocsp_basic_verify),
     TEST_DECL(test_ocsp_ancestor_responder_rejected),
