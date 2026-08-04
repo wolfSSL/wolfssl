@@ -41,13 +41,6 @@
 #include <tests/api/api.h>
 #include <tests/api/test_signature.h>
 
-/* Must be kept in sync with wolfcrypt/src/signature.c */
-#ifndef WC_SIG_MIN_HASH_TYPE
-    #define TEST_SIG_MIN_HASH_TYPE WC_HASH_TYPE_SHA256
-#else
-    #define TEST_SIG_MIN_HASH_TYPE WC_SIG_MIN_HASH_TYPE
-#endif
-
 /* Testing wc_SignatureGetSize() for signature type ECC */
 int test_wc_SignatureGetSize_ecc(void)
 {
