@@ -8347,8 +8347,8 @@ void wolfSSL_EVP_init(void)
                  * combines them to a new iv. EVP is given exactly *one* iv,
                  * so to pass it into chacha, we have to revert that first.
                  * The counter comes first in little-endian */
-                word32 counter = (word32)iv[0] + (word32)(iv[1] << 8) +
-                    (word32)(iv[2] << 16) + (word32)(iv[3] << 24);
+                word32 counter = (word32)iv[0] | ((word32)iv[1] << 8) |
+                    ((word32)iv[2] << 16) | ((word32)iv[3] << 24);
                 if (wc_Chacha_SetIV(&ctx->cipher.chacha,
                                     iv + sizeof(counter), counter) != 0) {
 
@@ -13058,7 +13058,10 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
     byte    buff[WOLFSSL_EVP_EXPONENT_PRINT_MAX] = { 0 };
     int     res = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-    word32  length;
+    /* int (not word32) to match the int* out-parameter of GetSequence/GetLength;
+     * casting &length aliased a word32 and corrupted it on platforms where
+     * sizeof(int) != sizeof(word32). Values are non-negative ASN.1 lengths. */
+    int     length;
     word32  inOutIdx;
     word32  oid;
     byte    tagFound;
@@ -13094,17 +13097,17 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         int idx;
         int wsz;
 
-        if (GetSequence(pkey, &inOutIdx, (int*)&length, (word32)pkeySz) < 0) {
+        if (GetSequence(pkey, &inOutIdx, &length, (word32)pkeySz) < 0) {
             break;
         }
-        if (GetSequence(pkey, &inOutIdx, (int*)&length, (word32)pkeySz) < 0) {
+        if (GetSequence(pkey, &inOutIdx, &length, (word32)pkeySz) < 0) {
             break;
         }
         if (GetObjectId(pkey, &inOutIdx, &oid, oidIgnoreType, (word32)pkeySz) <
                 0) {
             break;
         }
-        if (GetSequence(pkey, &inOutIdx, (int*)&length, (word32)pkeySz) < 0) {
+        if (GetSequence(pkey, &inOutIdx, &length, (word32)pkeySz) < 0) {
             break;
         }
         /* get prime element */
@@ -13114,7 +13117,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (tagFound != ASN_INTEGER) {
             break;
         }
-        if (GetLength(pkey, &inOutIdx, (int*)&length, (word32)pkeySz) <= 0) {
+        if (GetLength(pkey, &inOutIdx, &length, (word32)pkeySz) <= 0) {
             break;
         }
         prime     = (byte*)(pkey + inOutIdx);
@@ -13128,7 +13131,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (tagFound != ASN_INTEGER) {
             break;
         }
-        if (GetLength(pkey, &inOutIdx, (int*)&length, (word32)pkeySz) <= 0) {
+        if (GetLength(pkey, &inOutIdx, &length, (word32)pkeySz) <= 0) {
             break;
         }
         if (length != 1) {
@@ -13144,7 +13147,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (tagFound != ASN_BIT_STRING) {
             break;
         }
-        if (GetLength(pkey, &inOutIdx, (int*)&length, (word32)pkeySz) <= 0) {
+        if (GetLength(pkey, &inOutIdx, &length, (word32)pkeySz) <= 0) {
             break;
         }
         inOutIdx ++;
@@ -13154,7 +13157,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (tagFound != ASN_INTEGER) {
             break;
         }
-        if (GetLength(pkey, &inOutIdx, (int*)&length, (word32)pkeySz) <= 0) {
+        if (GetLength(pkey, &inOutIdx, &length, (word32)pkeySz) <= 0) {
             break;
         }
         publicKeySz = (int)length;

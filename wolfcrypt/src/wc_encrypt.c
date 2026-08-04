@@ -74,6 +74,10 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
     int  ret = 0;
     WC_DECLARE_VAR(aes, Aes, 1, 0);
 
+    if (out == NULL || in == NULL || key == NULL || iv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
