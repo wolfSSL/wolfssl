@@ -37,6 +37,9 @@
 #ifndef BUILDING_WOLFSSL
     #define BUILDING_WOLFSSL
 #endif
+#ifndef BUILDING_WOLFSSL_ASM
+    #define BUILDING_WOLFSSL_ASM
+#endif
 
 #if defined(HAVE_CONFIG_H) && !defined(WC_CONFIG_H_INCLUDED)
     #include <config.h>
