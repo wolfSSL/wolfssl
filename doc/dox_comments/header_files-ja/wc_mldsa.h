@@ -220,7 +220,7 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
     呼び出し時、*sigLenはsigバッファのサイズを表します。成功時には書き込まれたバイト数に更新されます。必要なバッファサイズはwc_MlDsaKey_SigSize()またはwc_MlDsaKey_GetSigLen()で取得できます。
 
     \return 0 成功した場合に返されます。
-    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、またはctxLenが無効な場合に返されます。
+    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、ctxLenが無効な場合、または鍵に秘密鍵が設定されていない場合に返されます。
     \return BUFFER_E sigバッファが小さすぎる場合に返されます。
 
     \param [in,out] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
@@ -314,6 +314,7 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     \brief 決定的なHashML-DSA署名です。wc_MlDsaKey_SignCtxHash()と同様ですが、RNGの代わりに与えられた32バイトのシードを使用します。
 
     \return wc_MlDsaKey_SignCtxHash()を参照してください。
+    \return BAD_FUNC_ARG 鍵に秘密鍵が設定されていない場合に返されます。
 
     \param [in,out] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
     \param [in] ctx コンテキスト文字列(省略可。ctxLen=0の場合はNULL)。
@@ -337,7 +338,7 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
     \brief 決定的な32バイトのシードを使用して、事前に計算されたmu値(FIPS 204に従って外部で導出された(tr || ctx || msg)のSHAKE256ハッシュ)に署名します。メッセージのハッシュ処理と署名処理を分離する必要があるプロトコルで使用されます。
 
     \return 0 成功した場合に返されます。
-    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、またはmuLenが64でない場合に返されます。
+    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、muLenが64でない場合、または鍵に秘密鍵が設定されていない場合に返されます。
     \return BUFFER_E sigバッファが小さすぎる場合に返されます。
 
     \param [in,out] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
