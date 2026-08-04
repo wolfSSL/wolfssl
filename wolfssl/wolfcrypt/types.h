@@ -2431,15 +2431,15 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_SANITIZE_ENABLE() WC_DO_NOTHING
 #endif
 
-#if FIPS_VERSION_GE(5,1)
-    #define WC_SPKRE_F(x,y) wolfCrypt_SetPrivateKeyReadEnable_fips((x),(y))
+#if FIPS_VERSION_GE(5,1) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    #define WC_SPKRE_F(x,y) wolfCrypt_SetPrivateKeyReadEnable_fips(x, y)
     #define PRIVATE_KEY_LOCK() WC_SPKRE_F(0,WC_KEYTYPE_ALL)
     #define PRIVATE_KEY_UNLOCK() WC_SPKRE_F(1,WC_KEYTYPE_ALL)
 #else
+    #define wolfCrypt_SetPrivateKeyReadEnable_fips(x, y) 0
     #define PRIVATE_KEY_LOCK() WC_DO_NOTHING
     #define PRIVATE_KEY_UNLOCK() WC_DO_NOTHING
 #endif
-
 
 #ifdef _MSC_VER
     /* disable buggy MSC warning (incompatible with clang-tidy

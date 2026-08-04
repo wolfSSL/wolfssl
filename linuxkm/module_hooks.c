@@ -40,6 +40,9 @@
         #include <wolfssl/wolfcrypt/hmac.h>
     #endif
     #include <wolfssl/wolfcrypt/fips_test.h>
+    #if defined(WOLFSSL_FIPS_DEV_NO_POST) && !defined(WC_USE_PIE_FENCEPOSTS_FOR_FIPS)
+        #define WC_USE_PIE_FENCEPOSTS_FOR_FIPS
+    #endif
 #endif
 #if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
     #include <wolfcrypt/test/test.h>
@@ -91,7 +94,7 @@ static int libwolfssl_cleanup(void) {
     return ret;
 }
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     /* failsafe definitions for FIPS <5.3 */
     #ifndef FIPS_IN_CORE_DIGEST_SIZE
         #ifndef NO_SHA256
@@ -630,7 +633,7 @@ static int wolfssl_init(void)
     }
 #endif /* WC_LINUXKM_TEST_INET_PTON */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     /* The compiled-in verifycore must be the right length, else the module
      * geometry will change when the correct value is passed in, destabilizing
      * wc_linuxkm_pie_text_reloc_tab.  It also must be the right length for the
@@ -1217,7 +1220,7 @@ static const struct wc_reloc_table_segments seg_map = {
     .fips_rodata_start = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_start,
     .fips_rodata_end = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_end,
 #endif
-    #if FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
+    #if (FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     .verifyCore_start = (uintptr_t)verifyCore,
     .verifyCore_end = (uintptr_t)verifyCore + FIPS_IN_CORE_DIGEST_SIZE*2 + 1,
     #endif
@@ -1284,7 +1287,7 @@ static const struct wc_reloc_table_segments seg_map = {
     .fips_rodata_start = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_start,
     .fips_rodata_end = (size_t)(uintptr_t)wolfCrypt_FIPS_ro_end,
 #endif
-    #if FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
+    #if (FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     .verifyCore_start = (uintptr_t)verifyCore,
     .verifyCore_end = (uintptr_t)verifyCore + FIPS_IN_CORE_DIGEST_SIZE*2 + 1
     #endif
@@ -1664,6 +1667,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_sha3_ro_sanity =
         &wolfCrypt_FIPS_sha3_ro_sanity;
 #endif
+
+#ifndef WOLFSSL_FIPS_DEV_NO_POST
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_FT_sanity =
         wolfCrypt_FIPS_FT_sanity;
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ft_ro_sanity =
@@ -1672,7 +1677,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         &wolfCrypt_FIPS_f_ro_sanity;
     wolfssl_linuxkm_pie_redirect_table.wc_RunAllCast_fips =
         wc_RunAllCast_fips;
-    #endif
+#endif /* !WOLFSSL_FIPS_DEV_NO_POST */
+
+    #endif /* FIPS_VERSION3_GE(6,0,0) */
 #endif
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)

@@ -32,7 +32,7 @@
     (defined(WOLF_CRYPT_AES_H) && !defined(NO_AES) &&                        \
      !defined(WC_AES_TYPE_DEFINED) && !defined(CTAO_CRYPT_AES_H)) ||         \
     (defined(WOLF_CRYPT_RANDOM_H) && !defined(WC_RNG_TYPE_DEFINED)) ||       \
-    (defined(WOLF_CRYPT_FIPS_H) &&                                           \
+    (defined(WOLF_CRYPT_FIPS_H) && !defined(WOLFSSL_FIPS_DEV_NO_POST) &&     \
      !defined(fipsCastStatus_get) && !defined(wc_Des3_SetKey) &&             \
      !defined(WC_DES3_TYPE_DEFINED)) ||                                      \
     (defined(WOLF_CRYPT_FIPS_TEST_H) &&                                      \
@@ -55,8 +55,7 @@
 #endif
 
 #if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && \
-    !defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED) && \
-    !defined(FIPS_NO_WRAPPERS)
+    !defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED)
 
     /* Unless WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED, wc_AesGcmEncrypt() is a
      * non-FIPS API hardwired to FIPS_WRONG_API_E in fips.c.  But we can emulate

@@ -930,10 +930,12 @@
             extern int wolfCrypt_FIPS_SHA3_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2];
 #endif
+#ifndef WOLFSSL_FIPS_DEV_NO_POST
             extern int wolfCrypt_FIPS_FT_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_ft_ro_sanity[2];
             extern const unsigned int wolfCrypt_FIPS_f_ro_sanity[2];
             extern int wc_RunAllCast_fips(void);
+#endif
         #endif
     #endif
 
@@ -1266,10 +1268,12 @@
             typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
             typeof(wolfCrypt_FIPS_sha3_ro_sanity) *wolfCrypt_FIPS_sha3_ro_sanity;
 #endif
+#ifndef WOLFSSL_FIPS_DEV_NO_POST
             typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
             typeof(wolfCrypt_FIPS_ft_ro_sanity) *wolfCrypt_FIPS_ft_ro_sanity;
             typeof(wolfCrypt_FIPS_f_ro_sanity) *wolfCrypt_FIPS_f_ro_sanity;
             typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
+#endif
         #endif /* FIPS_VERSION3_GE(6,0,0) */
         #endif /* HAVE_FIPS */
 
