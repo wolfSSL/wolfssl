@@ -2754,14 +2754,16 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sss_key_store_t     host_keystore;
     sss_object_t        ref_private_key;
     sss_object_t        ref_public_key;
-    sss_object_t        deriveKey;
-    sss_derive_key_t    ctx_derive_key;
-    word32              keyId = 0;
     int                 keySize;
     int                 keySizeBits;
     sss_cipher_type_t   curveType;
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
+    sss_object_t        deriveKey;
+    sss_derive_key_t    ctx_derive_key;
+    word32              keyId = 0;
     int                 keyCreated = 0;
     int                 deriveKeyCreated = 0;
+#endif
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_shared_secret: priv %p, pub %p, out %p (%d)\n",
@@ -2801,6 +2803,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&ref_public_key, &host_keystore);
     }
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
     if (status == kStatus_SSS_Success) {
         keyId = public_key->keyId;
         if (public_key->keyIdSet == 0) {
@@ -2845,7 +2848,6 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&deriveKey, &host_keystore);
     }
-#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
     if (status == kStatus_SSS_Success) {
         word32 keyIdAes = se050_allocate_key(SE050_AES_KEY);
         status = sss_key_object_allocate_handle(&deriveKey,
@@ -2882,7 +2884,19 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
 
         sss_derive_key_context_free(&ctx_derive_key);
     }
+    if (deriveKeyCreated) {
+        sss_key_store_erase_key(&host_keystore, &deriveKey);
+        sss_key_object_free(&deriveKey);
+    }
 #else
+    /* The direct APDU carries the peer public point in the command, so
+     * the peer key is never uploaded to the SE050 on this path; a
+     * reference object is only needed when the peer public key is
+     * already SE050-resident. */
+    if (status == kStatus_SSS_Success && public_key->keyIdSet != 0) {
+        status = sss_key_object_get_handle(&ref_public_key,
+            public_key->keyId);
+    }
     if (status == kStatus_SSS_Success) {
         /* Middleware built for applet >= 7.2 derives into an SE05x
          * resident object, but the applet refuses to export a symmetric
@@ -2924,7 +2938,9 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
             sm = Se05x_API_ECDHGenerateSharedSecret(
                 &((sss_se05x_session_t*)cfg_se050_i2c_pi)->s_ctx,
                 private_key->keyId, peerPoint, peerPointSz, out, &outSz);
-            if (sm == SM_OK) {
+            /* a NIST curve shared secret is always exactly keySize
+             * bytes; anything else indicates a malformed response */
+            if (sm == SM_OK && outSz == (size_t)keySize) {
                 *outlen = (word32)outSz;
             }
             else {
@@ -2932,15 +2948,10 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
             }
         }
     }
-    (void)ctx_derive_key;
-    (void)deriveKey;
 #endif
-    if (deriveKeyCreated) {
-        sss_key_store_erase_key(&host_keystore, &deriveKey);
-        sss_key_object_free(&deriveKey);
-    }
 
     if (status == kStatus_SSS_Success) {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
 #ifdef WOLFSSL_SE050_ONLY_KEY_ID
         if (keyCreated) {
             /* The peer's public key was uploaded for this derivation only. */
@@ -2953,13 +2964,16 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
             public_key->keyId = keyId;
             public_key->keyIdSet = 1;
         }
+#endif /* !SSS_HAVE_SE05X_VER_GTE_07_02 */
         ret = 0;
     }
     else {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
         if (keyCreated) {
             sss_key_store_erase_key(&host_keystore, &ref_public_key);
             sss_key_object_free(&ref_public_key);
         }
+#endif
         if (ret == 0) {
             ret = WC_HW_E;
         }
@@ -3416,12 +3430,14 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     sss_key_store_t   host_keystore;
     sss_object_t      ref_private_key;
     sss_object_t      ref_public_key;
+    int               keySize = CURVE25519_KEYSIZE;
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
     sss_object_t      deriveKey;
     sss_derive_key_t  ctx_derive_key;
     word32            keyId;
-    int               keySize = CURVE25519_KEYSIZE;
     int               keyCreated = 0;
     int               deriveKeyCreated = 0;
+#endif
 
 #ifdef SE050_DEBUG
     printf("se050_curve25519_shared_secret: priv %p, pub %p, out %p (%d)\n",
@@ -3456,6 +3472,7 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&ref_public_key, &host_keystore);
     }
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
     if (status == kStatus_SSS_Success) {
         keyId = public_key->keyId;
         if (public_key->keyIdSet == 0) {
@@ -3496,7 +3513,6 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&deriveKey, &host_keystore);
     }
-#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
     if (status == kStatus_SSS_Success) {
         word32 keyIdAes = se050_allocate_key(SE050_AES_KEY);
         status = sss_key_object_allocate_handle(&deriveKey,
@@ -3533,7 +3549,19 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
 
         sss_derive_key_context_free(&ctx_derive_key);
     }
+    if (deriveKeyCreated) {
+        sss_key_store_erase_key(&host_keystore, &deriveKey);
+        sss_key_object_free(&deriveKey);
+    }
 #else
+    /* The direct APDU carries the peer public point in the command, so
+     * the peer key is never uploaded to the SE050 on this path; a
+     * reference object is only needed when the peer public key is
+     * already SE050-resident. */
+    if (status == kStatus_SSS_Success && public_key->keyIdSet != 0) {
+        status = sss_key_object_get_handle(&ref_public_key,
+            public_key->keyId);
+    }
     if (status == kStatus_SSS_Success) {
         /* Middleware built for applet >= 7.2 derives into an SE05x
          * resident object, but the applet refuses to export a symmetric
@@ -3600,15 +3628,10 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
             }
         }
     }
-    (void)ctx_derive_key;
-    (void)deriveKey;
 #endif
-    if (deriveKeyCreated) {
-        sss_key_store_erase_key(&host_keystore, &deriveKey);
-        sss_key_object_free(&deriveKey);
-    }
 
     if (status == kStatus_SSS_Success) {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
 #ifdef WOLFSSL_SE050_ONLY_KEY_ID
         if (keyCreated) {
             /* The peer's public key was uploaded for this derivation only.*/
@@ -3621,13 +3644,16 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
             public_key->keyId = keyId;
             public_key->keyIdSet = 1;
         }
+#endif /* !SSS_HAVE_SE05X_VER_GTE_07_02 */
         ret = 0;
     }
     else {
+#if !(defined(SSS_HAVE_SE05X_VER_GTE_07_02) && SSS_HAVE_SE05X_VER_GTE_07_02)
         if (keyCreated) {
             sss_key_store_erase_key(&host_keystore, &ref_public_key);
             sss_key_object_free(&ref_public_key);
         }
+#endif
         if (ret == 0)
             ret = WC_HW_E;
     }
