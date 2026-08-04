@@ -11206,6 +11206,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (ret != 0)
         return ret;
 
+#if defined(HAVE_FIPS) && !defined(WC_FIPS_AESGCM_ALLOW_SHORT_NONCES)
+    if (ivSz < GCM_NONCE_MID_SZ)
+        return FIPS_BAD_VALUE_E;
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -12047,6 +12052,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ret = wc_local_AesGcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
+
+    /* No FIPS check on ivSz in decrypt mode -- SP 800-38D IV
+     * construction requirements bind encryption only; decryption must
+     * accept externally generated IVs of any supported length.
+     */
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -14246,8 +14256,8 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_RISCV64(
  *          is NULL, or the IV is NULL and no previous IV has been set.
  * @return  MEMORY_E when dynamic memory allocation fails. (WOLFSSL_SMALL_STACK)
  */
-int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
-    word32 ivSz)
+static int wc_AesGcmInit_local(Aes* aes, const byte* key, word32 len, const byte* iv,
+    word32 ivSz, int decrypt_p)
 {
     int ret = 0;
 
@@ -14257,6 +14267,20 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             ((ivSz > 0) && (iv == NULL))) {
         ret = BAD_FUNC_ARG;
     }
+
+#if defined(HAVE_FIPS) && !defined(WC_FIPS_AESGCM_ALLOW_SHORT_NONCES)
+    /* Note iv is an optional arg to wc_AesGcmInit(), so we tolerate zero ivSz
+     * here.
+     *
+     * Additionally, there is no FIPS check on ivSz in decrypt mode -- SP
+     * 800-38D IV construction requirements bind encryption only; decryption
+     * must accept externally generated IVs of any supported length.
+     */
+    if ((ret == 0) && (! decrypt_p) && (ivSz > 0) && (ivSz < GCM_NONCE_MID_SZ))
+        ret = FIPS_BAD_VALUE_E;
+#else
+    (void)decrypt_p;
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
     if ((ret == 0) && (aes->streamData == NULL)) {
@@ -14354,6 +14378,12 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     return ret;
 }
 
+int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
+    word32 ivSz)
+{
+    return wc_AesGcmInit_local(aes, key, len, iv, ivSz, 0 /* decrypt_p */);
+}
+
 /* Initialize an AES GCM cipher for encryption.
  *
  * Must call wc_AesInit() before calling this function.
@@ -14370,7 +14400,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
-    return wc_AesGcmInit(aes, key, len, iv, ivSz);
+    return wc_AesGcmInit_local(aes, key, len, iv, ivSz, 0);
 }
 
 /* Initialize an AES GCM cipher for encryption. Get IV.
@@ -14404,7 +14434,7 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len, byte* ivOut,
         /* Copy out the IV including generated part for decryption. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
         /* Initialize AES GCM cipher with key and cached Iv. */
-        ret = wc_AesGcmInit(aes, key, len, NULL, 0);
+        ret = wc_AesGcmInit_local(aes, key, len, NULL, 0, 0);
     }
 
     return ret;
@@ -14569,7 +14599,7 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
-    return wc_AesGcmInit(aes, key, len, iv, ivSz);
+    return wc_AesGcmInit_local(aes, key, len, iv, ivSz, 1);
 }
 
 /* Update the AES GCM for decryption with data and/or authentication data. */
@@ -14727,6 +14757,11 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
         ret = BAD_FUNC_ARG;
     }
 
+#if defined(HAVE_FIPS) && !defined(WC_FIPS_AESGCM_ALLOW_SHORT_NONCES)
+    if (ret == 0 && ivSz < GCM_NONCE_MID_SZ)
+        ret = FIPS_BAD_VALUE_E;
+#endif
+
     if (ret == 0) {
         XMEMCPY((byte*)aes->reg, iv, ivSz);
 
@@ -14757,6 +14792,11 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
 
         ret = BAD_FUNC_ARG;
     }
+
+#if defined(HAVE_FIPS) && !defined(WC_FIPS_AESGCM_ALLOW_SHORT_NONCES)
+    if (ret == 0 && ivSz < GCM_NONCE_MID_SZ)
+        ret = FIPS_BAD_VALUE_E;
+#endif
 
     if (ret == 0) {
         byte* iv = (byte*)aes->reg;

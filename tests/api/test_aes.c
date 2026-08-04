@@ -8365,7 +8365,9 @@ int test_wc_AesGcmDecisionCoverage(void)
         0xFE,0xFF,0xE9,0x92,0x86,0x65,0x73,0x1C,
         0x6D,0x6A,0x8F,0x94,0x67,0x30,0x83,0x08
     };
-    /* wc_AesGcmSetExtIV needs an RNG and is absent from the self-test module. */
+    /* wc_AesGcmSetExtIV is built only when !WC_NO_RNG, and is absent from the
+     * self-test module.
+     */
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
     static const byte iv[GCM_NONCE_MID_SZ] = {
         0xCA,0xFE,0xBA,0xBE,0xFA,0xCE,0xDB,0xAD,
@@ -8389,7 +8391,19 @@ int test_wc_AesGcmDecisionCoverage(void)
     /* Zero-length IV branch: should reject. */
     ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if FIPS_VERSION3_GE(7,0,0) && \
+        !defined(WC_FIPS_AESGCM_ALLOW_SHORT_NONCES)
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, GCM_NONCE_MIN_SZ),
+                WC_NO_ERR_TRACE(FIPS_BAD_VALUE_E));
+#elif (FIPS_VERSION3_EQ(5,2,4) || FIPS_VERSION3_GE(7,0,0)) && \
+        !defined(FIPS_NO_WRAPPERS)
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, GCM_NONCE_MIN_SZ),
+                WC_FIPS_NOT_APPROVED);
+#else
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, GCM_NONCE_MIN_SZ), 0);
 #endif
+
+#endif /* !WC_NO_RNG && !HAVE_SELFTEST */
 
     /* wc_AesGcmSetKey invalid key-length decision branch. */
     {
@@ -8399,7 +8413,7 @@ int test_wc_AesGcmDecisionCoverage(void)
     }
 
     if (initDone) wc_AesFree(&aes);
-#endif
+#endif /* !NO_AES && HAVE_AESGCM */
     return EXPECT_RESULT();
 }
 
@@ -9241,7 +9255,12 @@ int test_wc_AesGcmArgMcdc(void)
          * self-contained demonstration). */
         ExpectIntEQ(wc_AesGcmSetIV(&aes, 10, NULL, 0, &rng),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+#if FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WC_FIPS_AESGCM_ALLOW_SHORT_NONCES)
+        ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, NULL, 0, &rng),
+            WC_NO_ERR_TRACE(FIPS_BAD_VALUE_E));
+#elif (FIPS_VERSION3_EQ(5,2,4) || FIPS_VERSION3_GE(7,0,0)) && \
+        !defined(FIPS_NO_WRAPPERS)
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, NULL, 0, &rng),
             WC_FIPS_NOT_APPROVED);
 #else
