@@ -2146,10 +2146,19 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
             WOLFSSL_MSG("Failed to allocate buffer.");
             ret = 0;
         }
-        /* Generate bytes to cover bits. */
-        if ((ret == 1) && wc_RNG_GenerateBlock(rng, buff, len) != 0) {
-            WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+        /* Global RNG is shared, lock it while generating. */
+        if ((ret == 1) && (wc_LockMutex(&globalRNGMutex) != 0)) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
             ret = 0;
+        }
+
+        /* Generate bytes to cover bits. */
+        if (ret == 1) {
+            if (wc_RNG_GenerateBlock(rng, buff, len) != 0) {
+                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+                ret = 0;
+            }
+            wc_UnLockMutex(&globalRNGMutex);
         }
         /* Read bytes in to big number. */
         if ((ret == 1) && mp_read_unsigned_bin((mp_int*)bn->internal, buff, len)

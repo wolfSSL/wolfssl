@@ -2162,15 +2162,29 @@ void AddSession(WOLFSSL* ssl)
      * this point, it won't on resumption. */
     if (idSz == 0 && ssl->options.side == WOLFSSL_CLIENT_END) {
         WC_RNG* rng = NULL;
+        int genRet;
+#if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
+        int rngLocked = 0;
+#endif
         if (ssl->rng != NULL)
             rng = ssl->rng;
 #if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
         else if (initGlobalRNG == 1 || wolfSSL_RAND_Init() == WOLFSSL_SUCCESS) {
+            /* Global RNG is shared, lock it while generating. */
+            if (wc_LockMutex(&globalRNGMutex) != 0) {
+                WOLFSSL_MSG("Bad Lock Mutex rng");
+                return;
+            }
             rng = &globalRNG;
+            rngLocked = 1;
         }
 #endif
-        if (wc_RNG_GenerateBlock(rng, ssl->session->altSessionID,
-                ID_LEN) != 0)
+        genRet = wc_RNG_GenerateBlock(rng, ssl->session->altSessionID, ID_LEN);
+#if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
+        if (rngLocked)
+            wc_UnLockMutex(&globalRNGMutex);
+#endif
+        if (genRet != 0)
             return;
         ssl->session->haveAltSessionID = 1;
         id = ssl->session->altSessionID;

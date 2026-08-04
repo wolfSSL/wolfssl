@@ -5489,7 +5489,10 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
     ecc_key* key = NULL;
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
-    int setGlobalRNG = 0;
+    WC_RNG* rng = NULL;
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
+    int initTmpRng = 0;
+    int setKeyRng = 0;
 #endif
 
     /* TODO: support using the KDF. */
@@ -5524,30 +5527,44 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
 
     #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
-        /* An RNG is needed. */
+        /* An RNG is needed - create local or get global. */
         if (key->rng == NULL) {
-            key->rng = wolfssl_make_global_rng();
-            /* RNG set and needs to be unset. */
-            setGlobalRNG = 1;
+            rng = wolfssl_make_rng(tmpRng, &initTmpRng);
+            if (rng == NULL) {
+                WOLFSSL_MSG("wolfSSL_ECDH_compute_key failed to make RNG");
+                err = 1;
+            }
+            else {
+                key->rng = rng;
+                /* RNG set and needs to be unset. */
+                setKeyRng = 1;
+            }
         }
     #endif
 
-        PRIVATE_KEY_UNLOCK();
-        /* Create secret using wolfSSL. */
-        ret = wc_ecc_shared_secret_ex(key, (ecc_point*)pubKey->internal,
-            (byte *)out, &len);
-        PRIVATE_KEY_LOCK();
-        if (ret != MP_OKAY) {
-            WOLFSSL_MSG("wc_ecc_shared_secret failed");
-            err = 1;
+        if (!err) {
+            PRIVATE_KEY_UNLOCK();
+            /* Create secret using wolfSSL. */
+            ret = wc_ecc_shared_secret_ex(key, (ecc_point*)pubKey->internal,
+                (byte *)out, &len);
+            PRIVATE_KEY_LOCK();
+            if (ret != MP_OKAY) {
+                WOLFSSL_MSG("wc_ecc_shared_secret failed");
+                err = 1;
+            }
         }
     }
 
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
-    /* Remove global from key. */
-    if (setGlobalRNG) {
+    /* Clear before the RNG is disposed of - key must not keep a dangling
+     * reference to a local RNG. */
+    if (setKeyRng) {
         key->rng = NULL;
+    }
+    if (initTmpRng) {
+        wc_FreeRng(rng);
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 #endif
 
