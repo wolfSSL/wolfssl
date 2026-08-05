@@ -292,10 +292,12 @@ static int d2iTryEccKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @return  1 on success.
  * @return  0 when input was recognized as this key type but object
  *            creation/import failed.
+ * @param [in]      prePopulated  1 means *out already holds the input bytes
+ *                         so the d2i_make_pkey allocate/copy is skipped.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
 static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
-    long memSz, int priv)
+    long memSz, int priv, int prePopulated)
 {
     ed25519_key* edKey = NULL;
     word32 keyIdx = 0;
@@ -328,10 +330,10 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Create an EVP PKEY object holding the input DER bytes. If the caller
-     * already populated the EVP PKEY with the input bytes (pkey.ptr set),
-     * skip the allocate/copy. */
-    if (*out == NULL || (*out)->pkey.ptr == NULL) {
+    /* Copy the consumed DER into pkey->pkey.ptr, unless the caller
+     * pre-filled the EVP PKEY with the input bytes (d2i_evp_pkey()).
+     * A reused key must be re-populated here. */
+    if (!prePopulated) {
         ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_ED25519);
     }
     if (ret == 1) {
@@ -358,10 +360,12 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @return  1 on success.
  * @return  0 when input was recognized as this key type but object
  *            creation/import failed.
+ * @param [in]      prePopulated  1 means *out already holds the input bytes
+ *                         so the d2i_make_pkey allocate/copy is skipped.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
 static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
-    long memSz, int priv)
+    long memSz, int priv, int prePopulated)
 {
     ed448_key* edKey = NULL;
     word32 keyIdx = 0;
@@ -394,10 +398,10 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Create an EVP PKEY object holding the input DER bytes. If the caller
-     * already populated the EVP PKEY with the input bytes (pkey.ptr set),
-     * skip the allocate/copy. */
-    if (*out == NULL || (*out)->pkey.ptr == NULL) {
+    /* Copy the consumed DER into pkey->pkey.ptr, unless the caller
+     * pre-filled the EVP PKEY with the input bytes (d2i_evp_pkey()).
+     * A reused key must be re-populated here. */
+    if (!prePopulated) {
         ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_ED448);
     }
     if (ret == 1) {
@@ -1214,13 +1218,13 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
 #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
-    if (d2iTryEd25519Key(&pkey, *in, inSz, priv) >= 0) {
+    if (d2iTryEd25519Key(&pkey, *in, inSz, priv, 0) >= 0) {
         found = 1;
     }
     else
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
-    if (d2iTryEd448Key(&pkey, *in, inSz, priv) >= 0) {
+    if (d2iTryEd448Key(&pkey, *in, inSz, priv, 0) >= 0) {
         found = 1;
     }
     else
@@ -1588,10 +1592,8 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
 #endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_OPENSSH */
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519:
-            /* local->pkey.ptr already holds the input bytes, so
-             * d2iTryEd25519Key will skip the d2i_make_pkey allocate/copy
-             * and just decode into local->ed25519. */
-            if (d2iTryEd25519Key(&local, p, local->pkey_sz, priv) != 1) {
+            /* local already holds the input bytes: prePopulated=1. */
+            if (d2iTryEd25519Key(&local, p, local->pkey_sz, priv, 1) != 1) {
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }
@@ -1600,7 +1602,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448:
             /* See WC_EVP_PKEY_ED25519 case above. */
-            if (d2iTryEd448Key(&local, p, local->pkey_sz, priv) != 1) {
+            if (d2iTryEd448Key(&local, p, local->pkey_sz, priv, 1) != 1) {
                 wolfSSL_EVP_PKEY_free(local);
                 return NULL;
             }

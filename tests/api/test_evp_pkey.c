@@ -2962,6 +2962,28 @@ int test_wolfSSL_EVP_PKEY_ed25519(void)
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    {
+        /* Reuse: after decoding an RSA key, reusing the same EVP_PKEY for
+         * an Ed25519 PKCS#8 must re-populate type and DER and release the
+         * RSA object. */
+        unsigned char* dp = (unsigned char*)client_key_der_2048;
+        ExpectNotNull(wolfSSL_d2i_PrivateKey_EVP(&pkey, &dp,
+            (long)sizeof_client_key_der_2048));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+        dp = (unsigned char*)server_ed25519_key;
+        ExpectNotNull(wolfSSL_d2i_PrivateKey_EVP(&pkey, &dp,
+            (long)sizeof_server_ed25519_key));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+        if (pkey != NULL) {
+            ExpectIntEQ(pkey->pkey_sz, (int)sizeof_server_ed25519_key);
+            ExpectNull(wolfSSL_EVP_PKEY_get0_RSA(pkey));
+        }
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+
     {
         static const unsigned char junk[16] = { 0 };
         const unsigned char* jp = junk;
