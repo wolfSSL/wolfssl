@@ -3093,7 +3093,7 @@ AES_CTR_encrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
-        vbroadcasti128	ymm8, ptr_L_aes_ctr_bswap_vaes
+        vbroadcasti128	ymm8, OWORD PTR L_aes_ctr_bswap_vaes
         vbroadcasti128	ymm7, OWORD PTR [r10]
         vpshufb	ymm7, ymm7, ymm8
         vbroadcasti128	ymm12, OWORD PTR [ptr_L_aes_ctr_inc_vaes+32]
@@ -4623,7 +4623,7 @@ AES_CTR_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
-        vbroadcasti32x4	zmm8, ptr_L_aes_ctr_bswap_avx512
+        vbroadcasti32x4	zmm8, OWORD PTR L_aes_ctr_bswap_avx512
         vbroadcasti32x4	zmm7, OWORD PTR [r10]
         vpshufb	zmm7, zmm7, zmm8
         vbroadcasti32x4	zmm12, OWORD PTR [ptr_L_aes_ctr_inc_avx512+64]

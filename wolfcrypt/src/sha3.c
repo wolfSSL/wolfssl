@@ -136,13 +136,7 @@
      * it is not built - see scripts sha3_avx512.rb.)
      * Overrides: WOLFSSL_SHA3_AVX2 forces AVX2 on any vendor with it;
      *            WOLFSSL_SHA3_NO_AVX2 never uses AVX2. */
-#if defined(WOLFSSL_SHA3_NO_AVX2)
-    #define SHA3_USE_AVX2(f) 0
-#elif defined(WOLFSSL_SHA3_AVX2)
-    #define SHA3_USE_AVX2(f) IS_INTEL_AVX2(f)
-#else
-    #define SHA3_USE_AVX2(f) (IS_INTEL_AVX2(f) && IS_CPU_INTEL(f))
-#endif
+    /* SHA3_USE_AVX2() is defined in sha3.h - shared with ML-DSA. */
 
     /* True when the selected block function uses vector registers and so
      * needs the caller to save/restore them.  BMI2 and the C block use only

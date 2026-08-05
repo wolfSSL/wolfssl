@@ -859,9 +859,27 @@ WOLFSSL_API int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output,
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
 #ifdef USE_INTEL_SPEEDUP
+/* AVX512 assembly for ML-DSA is built (and dispatched at runtime on capable
+ * CPUs) whenever the Intel speedups are enabled and AVX512 is not opted out.
+ * Matches the HAVE_INTEL_AVX512 guard around the generated assembly. */
+#ifndef NO_AVX512_SUPPORT
+    #define WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+    /* AVX512VBMI (vpermb) functions are built (matching the auto-enabled
+     * HAVE_INTEL_AVX512_VBMI guard around the generated assembly) and
+     * dispatched at runtime when CPUID reports VBMI. Opt out with
+     * NO_AVX512_VBMI_SUPPORT if the toolchain's assembler cannot emit VBMI.
+     * Nested here because the VBMI routines are AVX512 code: opting out of
+     * AVX512 must drop them too. */
+    #ifndef NO_AVX512_VBMI_SUPPORT
+        #define WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI
+    #endif
+#endif
+
 WOLFSSL_LOCAL void wc_mldsa_poly_red_avx2(sword32* a);
 
 WOLFSSL_LOCAL void wc_mldsa_ntt_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_ntt_small_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_ntt_small_full_avx2(sword32* r);
 WOLFSSL_LOCAL void wc_mldsa_ntt_full_avx2(sword32* r);
 WOLFSSL_LOCAL void wc_mldsa_invntt_avx2(sword32* r);
 WOLFSSL_LOCAL void wc_mldsa_invntt_full_avx2(sword32* r);
@@ -874,17 +892,18 @@ WOLFSSL_LOCAL void wc_mldsa_mul_vec_5_avx2(sword32* r, const sword32* a,
     const sword32* b);
 WOLFSSL_LOCAL void wc_mldsa_mul_vec_7_avx2(sword32* r, const sword32* a,
     const sword32* b);
-WOLFSSL_LOCAL void wc_mldsa_matrix_mul_4x4_avx2(sword32* r, const sword32* m,
-    const sword32* v);
-WOLFSSL_LOCAL void wc_mldsa_matrix_mul_6x5_avx2(sword32* r, const sword32* m,
-    const sword32* v);
-WOLFSSL_LOCAL void wc_mldsa_matrix_mul_8x7_avx2(sword32* r, const sword32* m,
-    const sword32* v);
 
 WOLFSSL_LOCAL void wc_mldsa_redistribute_21_rand_avx2(word64* s, byte* r0,
     byte* r1, byte* r2, byte* r3);
+/* First pass over a freshly squeezed buffer. Requires len = MLDSA_N and
+ * rLen = GEN_MATRIX_SIZE: the AVX2 wide path assumes that much input and
+ * reads past a shorter buffer. Returns the count sampled, which may be
+ * short of len - the caller squeezes another block and calls
+ * wc_mldsa_rej_uniform_avx2() below to top up. */
 WOLFSSL_LOCAL int wc_mldsa_rej_uniform_n_avx2(sword32* a, word32 len,
     const byte* r, word32 rLen);
+/* Refill pass, called with rLen = SHA3_128_BYTES (one block) and len set
+ * to the coefficients still needed. Honours rLen exactly. */
 WOLFSSL_LOCAL int wc_mldsa_rej_uniform_avx2(sword32* a, word32 len,
     const byte* r, word32 rLen);
 
@@ -929,6 +948,104 @@ WOLFSSL_LOCAL int wc_mldsa_vec_check_low_avx2(const sword32* a, byte l,
 WOLFSSL_LOCAL void wc_mldsa_poly_add_avx2(sword32* r, const sword32* a);
 WOLFSSL_LOCAL void wc_mldsa_poly_sub_avx2(sword32* r, const sword32* a);
 WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
+
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
+/* The AVX512 transforms do two polynomials per call and order the
+ * coefficients exactly as the AVX2 transforms do, so the two are
+ * interchangeable and an odd polynomial can be left to the AVX2 code. */
+WOLFSSL_LOCAL int wc_mldsa_make_hint_88_avx512(const sword32* s,
+    const sword32* w1, unsigned int omega, byte* h, byte* idx);
+WOLFSSL_LOCAL int wc_mldsa_make_hint_32_avx512(const sword32* s,
+    const sword32* w1, unsigned int omega, byte* h, byte* idx);
+WOLFSSL_LOCAL void wc_mldsa_use_hint_88_avx512(sword32* w1, const byte* h);
+WOLFSSL_LOCAL void wc_mldsa_use_hint_32_avx512(sword32* w1, byte k,
+    const byte* h);
+
+/* As the AVX2 pair above, but one implementation serves both call
+ * shapes and honours rLen in either. */
+WOLFSSL_LOCAL int wc_mldsa_rej_uniform_n_avx512(sword32* a, word32 len,
+    const byte* r, word32 rLen);
+WOLFSSL_LOCAL int wc_mldsa_rej_uniform_avx512(sword32* a, word32 len,
+    const byte* r, word32 rLen);
+
+WOLFSSL_LOCAL void wc_mldsa_redistribute_21_rand_x8_avx512(const word64* s,
+    byte* out, word32 stride);
+WOLFSSL_LOCAL void wc_mldsa_redistribute_17_rand_x8_avx512(const word64* s,
+    byte* out, word32 stride);
+WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta2_avx512(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta4_avx512(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+
+/* x2 codecs: one call encodes/decodes two polynomials, each 256-bit half of
+ * every vector holding one of them. Output is identical to the AVX2 routines
+ * run on each polynomial, so the two forms are interchangeable. */
+WOLFSSL_LOCAL void wc_mldsa_decode_gamma1_17_x2_avx512(const byte* sA,
+    const byte* sB, sword32* zA, sword32* zB);
+WOLFSSL_LOCAL void wc_mldsa_decode_gamma1_19_x2_avx512(const byte* sA,
+    const byte* sB, sword32* zA, sword32* zB);
+WOLFSSL_LOCAL void wc_mldsa_decode_t0_x2_avx512(const byte* t0A,
+    const byte* t0B, sword32* tA, sword32* tB);
+WOLFSSL_LOCAL void wc_mldsa_decode_t1_x2_avx512(const byte* t1A,
+    const byte* t1B, sword32* tA, sword32* tB);
+WOLFSSL_LOCAL void wc_mldsa_decode_eta_2_x2_avx512(const byte* pA,
+    const byte* pB, sword32* sA, sword32* sB);
+WOLFSSL_LOCAL void wc_mldsa_decode_eta_4_x2_avx512(const byte* pA,
+    const byte* pB, sword32* sA, sword32* sB);
+WOLFSSL_LOCAL void wc_mldsa_encode_w1_88_x2_avx512(const sword32* w1A,
+    const sword32* w1B, byte* w1eA, byte* w1eB);
+WOLFSSL_LOCAL void wc_mldsa_encode_eta_2_x2_avx512(const sword32* sA,
+    const sword32* sB, byte* pA, byte* pB);
+WOLFSSL_LOCAL void wc_mldsa_encode_t0_t1_x2_avx512(const sword32* tA,
+    const sword32* tB, byte* t0A, byte* t0B, byte* t1A, byte* t1B);
+
+/* Sixteen gamma1 values are a whole number of dwords, so these encoders pack
+ * one polynomial per call rather than pairing them up. */
+WOLFSSL_LOCAL void wc_mldsa_encode_eta_4_avx512(const sword32* s, byte* p);
+WOLFSSL_LOCAL void wc_mldsa_encode_w1_32_avx512(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void wc_mldsa_encode_gamma1_17_avx512(const sword32* z, byte* s);
+WOLFSSL_LOCAL void wc_mldsa_encode_gamma1_19_avx512(const sword32* z, byte* s);
+
+WOLFSSL_LOCAL void wc_mldsa_ntt_1p_avx512(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_ntt_small_1p_avx512(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_ntt_small_full_1p_avx512(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_ntt_full_1p_avx512(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_invntt_1p_avx512(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_invntt_full_1p_avx512(sword32* r);
+
+WOLFSSL_LOCAL void wc_mldsa_poly_red_avx512(sword32* a);
+
+WOLFSSL_LOCAL void wc_mldsa_mul_avx512(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_4_avx512(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_5_avx512(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_7_avx512(sword32* r, const sword32* a,
+    const sword32* b);
+
+WOLFSSL_LOCAL void wc_mldsa_decompose_q88_avx512(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void wc_mldsa_decompose_q32_avx512(const sword32* r, byte k,
+    sword32* r0, sword32* r1);
+
+WOLFSSL_LOCAL int wc_mldsa_vec_check_low_avx512(const sword32* a, byte l,
+    sword32 hi);
+
+WOLFSSL_LOCAL void wc_mldsa_poly_add_avx512(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void wc_mldsa_poly_sub_avx512(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx512(sword32* a);
+#endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512 */
+
+#ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI
+/* vpermb gathers the encoded bytes across the whole register, so these encode
+ * one polynomial per call rather than pairing two as the AVX512 forms do.
+ * Output is identical to the AVX2 and AVX512 routines. */
+WOLFSSL_LOCAL void wc_mldsa_encode_w1_88_avx512_vbmi(const sword32* w1,
+    byte* w1e);
+WOLFSSL_LOCAL void wc_mldsa_encode_t0_t1_avx512_vbmi(const sword32* t,
+    byte* t0, byte* t1);
+#endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI */
 #endif
 
 

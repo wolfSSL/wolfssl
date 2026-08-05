@@ -2919,7 +2919,7 @@ AES_XTS_encrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
@@ -3433,7 +3433,7 @@ AES_XTS_encrypt_update_vaes PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
@@ -3914,7 +3914,7 @@ AES_XTS_decrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
@@ -4502,7 +4502,7 @@ AES_XTS_decrypt_update_vaes PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_vaes_aes_xts_gc_xts
-        vbroadcasti128	ymm13, ptr_L_vaes_aes_xts_poly
+        vbroadcasti128	ymm13, OWORD PTR L_vaes_aes_xts_poly
         vmovdqu	ymm14, YMMWORD PTR L_vaes_aes_xts_shl
         vmovdqu	ymm15, YMMWORD PTR L_vaes_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
@@ -5127,7 +5127,7 @@ AES_XTS_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
         vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
         vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
@@ -5648,7 +5648,7 @@ AES_XTS_encrypt_update_avx512 PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
         vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
         vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
@@ -6136,7 +6136,7 @@ AES_XTS_decrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+200], xmm14
         vmovdqu	OWORD PTR [rsp+216], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
         vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
         vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r12]
@@ -6741,7 +6741,7 @@ AES_XTS_decrypt_update_avx512 PROC
         vmovdqu	OWORD PTR [rsp+192], xmm14
         vmovdqu	OWORD PTR [rsp+208], xmm15
         vmovdqu	xmm12, OWORD PTR L_avx512_aes_xts_gc_xts
-        vbroadcasti32x4	zmm13, ptr_L_avx512_aes_xts_poly
+        vbroadcasti32x4	zmm13, OWORD PTR L_avx512_aes_xts_poly
         vmovdqu64	zmm14, ZMMWORD PTR L_avx512_aes_xts_shl
         vmovdqu64	zmm15, ZMMWORD PTR L_avx512_aes_xts_shr
         vmovdqu	xmm8, OWORD PTR [r8]
