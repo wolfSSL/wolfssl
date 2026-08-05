@@ -43,6 +43,25 @@
     #define HAVE_CPUID
     #define HAVE_CPUID_AARCH64
 #endif
+/* 32-bit Arm (AArch32).  __arm__ is defined for both the A32 and Thumb
+ * instruction sets but not for AArch64, so it cleanly distinguishes the 32-bit
+ * build from the AArch64 one handled above.
+ *
+ * Thumb-2 builds - WOLFSSL_ARMASM_THUMB2, which the M profile requires - use
+ * the separate thumb2-*.S assembly.  It has a single implementation of each
+ * algorithm and nothing to choose between at run time, so no CPU id is built
+ * for it.
+ *
+ * The features detected (Advanced SIMD and the Armv8 crypto extension) and the
+ * registers used to detect them (HWCAP, ID_ISAR5) are Armv7 and later, so the
+ * older architectures - Armv4 / Armv5 / Armv6 - get no CPU id either. */
+#if (defined(WOLFSSL_ARM32_BUILD) || (defined(__arm__) && \
+     defined(WOLFSSL_ARMASM))) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_NO_ASM) && \
+    (!defined(__ARM_ARCH) || (__ARM_ARCH >= 7))
+    #define HAVE_CPUID
+    #define HAVE_CPUID_ARM32
+#endif
 #if defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_NO_ASM)
     #define HAVE_CPUID
     #define HAVE_CPUID_PPC64
@@ -148,6 +167,25 @@ typedef word32 cpuid_flags_t;
     #define IS_AARCH64_ASIMD(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ASIMD)
     #define IS_AARCH64_SVE(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SVE)
     #define IS_AARCH64_SME(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SME)
+
+#elif defined(HAVE_CPUID_ARM32)
+
+    /* Only the features that select between the available wolfCrypt AArch32
+     * assembly implementations are tracked:
+     *   - AES / PMULL:  Armv8 crypto-extension AES and AES-GCM (armv8-32-aes).
+     *   - SHA256:       Armv8 crypto-extension SHA-256 (armv8-32-sha256).
+     *   - ASIMD (NEON): armv8-32 SHA-512, SHA-3, ChaCha and Poly1305 asm.
+     * AArch32 has no crypto-extension SHA-512/SHA-3 instructions, so those
+     * digests are accelerated with NEON rather than a crypto path. */
+    #define CPUID_AES         0x0001    /* AES enc/dec */
+    #define CPUID_PMULL       0x0002    /* Carryless multiply - VMULL.P64 */
+    #define CPUID_SHA256      0x0004    /* SHA-256 digest */
+    #define CPUID_ASIMD       0x0008    /* Advanced SIMD - NEON */
+
+    #define IS_ARM32_AES(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AES)
+    #define IS_ARM32_PMULL(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_PMULL)
+    #define IS_ARM32_SHA256(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA256)
+    #define IS_ARM32_ASIMD(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ASIMD)
 
 #elif defined(HAVE_CPUID_PPC64)
 

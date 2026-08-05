@@ -24,7 +24,8 @@
 #include <wolfssl/wolfcrypt/cpuid.h>
 
 #if defined(HAVE_CPUID) || defined(HAVE_CPUID_INTEL) || \
-    defined(HAVE_CPUID_AARCH64) || defined(HAVE_CPUID_PPC64)
+    defined(HAVE_CPUID_AARCH64) || defined(HAVE_CPUID_ARM32) || \
+    defined(HAVE_CPUID_PPC64)
     static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 #endif
 
@@ -573,6 +574,244 @@
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
             new_cpuid_flags |= CPUID_SM4;
+        #endif
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#endif
+#elif defined(HAVE_CPUID_ARM32)
+
+/* Run-time feature detection for 32-bit Armv8-A (AArch32).
+ *
+ * Only the extensions that gate an available wolfCrypt AArch32 assembly
+ * implementation are detected: the Armv8 crypto extension (AES, PMULL and
+ * SHA-256) and Advanced SIMD (NEON).  There is no AArch32 crypto-extension
+ * SHA-512/SHA-3, so those digests are handled by the NEON assembly. */
+
+/* Fallback flags used ONLY when no run-time detection is available (the #else
+ * branch below): assume whatever the code was compiled to target.  The real
+ * detection branches must start from zero instead - a build that can emit the
+ * crypto instructions (__ARM_FEATURE_CRYPTO) does not imply the CPU running the
+ * binary implements them, which is the whole point of detecting at run time. */
+#if defined(__ARM_FEATURE_CRYPTO) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #define CPUID_ARM32_COMPILED   (CPUID_AES | CPUID_PMULL | CPUID_SHA256)
+#else
+    #define CPUID_ARM32_COMPILED   0
+#endif
+
+#ifdef WOLFSSL_ARM32_PRIVILEGE_MODE
+    /* M-profile has no CP15 to read ID_ISAR5 from - and is built with
+     * WOLFSSL_ARMASM_THUMB2, which has no CPU id at all. */
+    #if defined(__ARM_ARCH_PROFILE) && (__ARM_ARCH_PROFILE == 'M')
+        #error "WOLFSSL_ARM32_PRIVILEGE_MODE requires an A/R-profile CPU"
+    #endif
+
+    /* Read the crypto feature fields directly from ID_ISAR5.  MRC to CP15 is a
+     * privileged operation, so this path requires the code to run at PL1/EL1.
+     * https://developer.arm.com/documentation/ddi0595/2021-12/AArch32-Registers
+     * /ID-ISAR5--Instruction-Set-Attribute-Register-5 */
+
+    /* ID_ISAR5.AES [7:4]: 1 => AESE/AESD/AESMC/AESIMC, 2 => adds VMULL.P64. */
+    #define CPUID_ARM32_ISAR5_AES(isar5)   (((isar5) >>  4) & 0xf)
+    /* ID_ISAR5.SHA2 [15:12]: 1 => SHA256H/SHA256H2/SHA256SU0/SHA256SU1. */
+    #define CPUID_ARM32_ISAR5_SHA2(isar5)  (((isar5) >> 12) & 0xf)
+
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            word32 isar5;
+            word32 aes;
+
+            __asm__ __volatile__ (
+                "mrc    p15, 0, %[reg], c0, c2, 5\n"
+                : [reg] "=r" (isar5)
+                :
+                :
+            );
+
+            aes = CPUID_ARM32_ISAR5_AES(isar5);
+            if (aes >= 1)
+                new_cpuid_flags |= CPUID_AES;
+            if (aes >= 2)
+                new_cpuid_flags |= CPUID_PMULL;
+            if (CPUID_ARM32_ISAR5_SHA2(isar5) >= 1)
+                new_cpuid_flags |= CPUID_SHA256;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            /* AArch32 has no ID_ISAR bit for Advanced SIMD; whether NEON is
+             * present is taken from the architecture the code is built for. */
+        #ifdef __ARM_NEON
+            new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+        #endif
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#elif defined(__linux__)
+    /* getauxval() reports NEON in AT_HWCAP and the crypto-extension features in
+     * AT_HWCAP2 on 32-bit Arm.  Android is covered here too: bionic defines
+     * __linux__ and has provided getauxval() since API level 18. */
+
+    #include <sys/auxv.h>
+
+    /* Auxiliary vector entry and feature bits, defined here so the kernel
+     * header <asm/hwcap.h> is not required and older C libraries that predate
+     * AT_HWCAP2 still build. */
+    #ifndef AT_HWCAP2
+        #define AT_HWCAP2       26
+    #endif
+    #ifndef HWCAP_NEON
+        #define HWCAP_NEON      (1 << 12)
+    #endif
+    #ifndef HWCAP2_AES
+        #define HWCAP2_AES      (1 << 0)
+    #endif
+    #ifndef HWCAP2_PMULL
+        #define HWCAP2_PMULL    (1 << 1)
+    #endif
+    #ifndef HWCAP2_SHA2
+        #define HWCAP2_SHA2     (1 << 3)
+    #endif
+
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            unsigned long hwcaps = getauxval(AT_HWCAP);
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            unsigned long hwcaps2 = getauxval(AT_HWCAP2);
+        #endif
+
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            if (hwcaps & HWCAP_NEON)
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            if (hwcaps2 & HWCAP2_AES)
+                new_cpuid_flags |= CPUID_AES;
+            if (hwcaps2 & HWCAP2_PMULL)
+                new_cpuid_flags |= CPUID_PMULL;
+            if (hwcaps2 & HWCAP2_SHA2)
+                new_cpuid_flags |= CPUID_SHA256;
+        #endif
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#elif defined(__FreeBSD__)
+    /* https://man.freebsd.org/cgi/man.cgi?elf_aux_info(3)
+     * OpenBSD is deliberately not handled here: it does not provide
+     * elf_aux_info() for reading HWCAP on 32-bit Arm, so it falls through to
+     * the compiled-features branch below. */
+    #include <sys/auxv.h>
+
+    /* Auxiliary vector entry and feature bits, defined here in case the system
+     * headers do not provide them for the 32-bit Arm target. */
+    #ifndef AT_HWCAP2
+        #define AT_HWCAP2       26
+    #endif
+    #ifndef HWCAP_NEON
+        #define HWCAP_NEON      (1 << 12)
+    #endif
+    #ifndef HWCAP2_AES
+        #define HWCAP2_AES      (1 << 0)
+    #endif
+    #ifndef HWCAP2_PMULL
+        #define HWCAP2_PMULL    (1 << 1)
+    #endif
+    #ifndef HWCAP2_SHA2
+        #define HWCAP2_SHA2     (1 << 3)
+    #endif
+
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            unsigned long hwcaps = 0;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            unsigned long hwcaps2 = 0;
+        #endif
+
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            elf_aux_info(AT_HWCAP, &hwcaps, sizeof(hwcaps));
+            if (hwcaps & HWCAP_NEON)
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            elf_aux_info(AT_HWCAP2, &hwcaps2, sizeof(hwcaps2));
+            if (hwcaps2 & HWCAP2_AES)
+                new_cpuid_flags |= CPUID_AES;
+            if (hwcaps2 & HWCAP2_PMULL)
+                new_cpuid_flags |= CPUID_PMULL;
+            if (hwcaps2 & HWCAP2_SHA2)
+                new_cpuid_flags |= CPUID_SHA256;
+        #endif
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#elif defined(_WIN32)
+    /* Windows on 32-bit Arm.  IsProcessorFeaturePresent() exposes NEON and the
+     * mandatory Armv8 crypto extension (AES / PMULL / SHA-1 / SHA-256, reported
+     * as a single feature). */
+    #include <windows.h>
+
+    #ifndef PF_ARM_NEON_INSTRUCTIONS_AVAILABLE
+        #define PF_ARM_NEON_INSTRUCTIONS_AVAILABLE      19
+    #endif
+    #ifndef PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+        #define PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE 30
+    #endif
+
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            if (IsProcessorFeaturePresent(PF_ARM_NEON_INSTRUCTIONS_AVAILABLE))
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            if (IsProcessorFeaturePresent(
+                    PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
+                new_cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_SHA256;
+            }
+        #endif
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#else
+    /* No run-time detection available - report only what the code was compiled
+     * to require. */
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = CPUID_ARM32_COMPILED,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+        #if !defined(WOLFSSL_ARMASM_NO_NEON) && defined(__ARM_NEON)
+            new_cpuid_flags |= CPUID_ASIMD;
         #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange

@@ -1217,6 +1217,11 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 #elif defined(WOLFSSL_ARMASM) && defined(__aarch64__) && \
       !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
+/* This arm of the chain provides Sha256_SetTransform() - marks it available to
+ * the SHA-224 initializer, which shares the SHA-256 transform.  Earlier arms
+ * (hardware hash ports) win the chain and provide no such selection. */
+#define WOLFSSL_ARMASM_SHA256_TRANSFORM
+
 static int transform_check = 0;
 static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
@@ -1342,6 +1347,81 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
 #elif defined(WOLFSSL_ARMASM) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
+/* As in the AArch64 arm above: this arm provides Sha256_SetTransform(). */
+#define WOLFSSL_ARMASM_SHA256_TRANSFORM
+
+/* On 32-bit Arm a NEON build compiles in the base and NEON and (unless
+ * disabled) the Armv8 crypto-extension block transforms, so the best supported
+ * one is chosen at run time - mirroring the AArch64 path.  Thumb-2, no-NEON,
+ * no-crypto (NO_HW_CRYPTO) and crypto-only (NO_NEON_IMPL) builds compile a
+ * single variant and call it directly, as does a build with no run-time
+ * detection to dispatch on (HAVE_CPUID_ARM32). */
+#if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    !(defined(WOLFSSL_ARMASM_NO_NEON_IMPL) && \
+      defined(WOLFSSL_ARMASM_NO_BASE_IMPL)) && defined(HAVE_CPUID_ARM32)
+    #define SHA256_ARM32_DISPATCH
+#endif
+
+#ifdef SHA256_ARM32_DISPATCH
+
+static int sha256_transform_check = 0;
+static cpuid_flags_atomic_t sha256_cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
+
+/* Initialize to the transform that needs the least of the CPU - the base one
+ * requires no extension at all - so the pointer is safe to use even if read
+ * before Sha256_SetTransform() runs. */
+#ifndef WOLFSSL_ARMASM_NO_BASE_IMPL
+    #define SHA256_ARM32_TRANSFORM_INIT     Transform_Sha256_Len_base
+#else
+    #define SHA256_ARM32_TRANSFORM_INIT     Transform_Sha256_Len_neon
+#endif
+
+static void (*Transform_Sha256_Len_p)(wc_Sha256* sha256, const byte* data,
+    word32 len) = SHA256_ARM32_TRANSFORM_INIT;
+
+/* Select the crypto-extension transform when the CPU implements FEAT_SHA256,
+ * otherwise the best fallback this build kept: NEON when the CPU implements
+ * Advanced SIMD, else the base transform.  Either fallback can be dropped
+ * (WOLFSSL_ARMASM_NO_NEON_IMPL / WOLFSSL_ARMASM_NO_BASE_IMPL) - dropping both
+ * is what turns dispatch off above. */
+static void Sha256_SetTransform(void)
+{
+    if (sha256_transform_check)
+        return;
+
+    cpuid_get_flags_atomic(&sha256_cpuid_flags);
+
+    if (IS_ARM32_SHA256(sha256_cpuid_flags)) {
+        Transform_Sha256_Len_p = Transform_Sha256_Len_crypto;
+    }
+#if !defined(WOLFSSL_ARMASM_NO_NEON_IMPL) && \
+    !defined(WOLFSSL_ARMASM_NO_BASE_IMPL)
+    else if (IS_ARM32_ASIMD(sha256_cpuid_flags)) {
+        Transform_Sha256_Len_p = Transform_Sha256_Len_neon;
+    }
+    else {
+        Transform_Sha256_Len_p = Transform_Sha256_Len_base;
+    }
+#elif !defined(WOLFSSL_ARMASM_NO_NEON_IMPL)
+    /* Base dropped - a NEON build always implements Advanced SIMD. */
+    else {
+        Transform_Sha256_Len_p = Transform_Sha256_Len_neon;
+    }
+#else
+    /* NEON implementation dropped - the base transform needs no extension. */
+    else {
+        Transform_Sha256_Len_p = Transform_Sha256_Len_base;
+    }
+#endif
+
+    sha256_transform_check = 1;
+}
+
+#else
+#define Sha256_SetTransform()   WC_DO_NOTHING
+#endif /* SHA256_ARM32_DISPATCH */
+
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
     int ret = 0;
@@ -1351,6 +1431,8 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
+
+    Sha256_SetTransform();
 
     sha256->heap = heap;
 #ifdef WOLF_CRYPTO_CB
@@ -1367,9 +1449,15 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     return ret;
 }
 
+/* Call the transform selected at run time, or - when only one variant is
+ * compiled in - the single one this build has.  The base transform is the
+ * choice for Thumb-2 and no-NEON builds, NEON when the crypto extension is off,
+ * and otherwise the crypto-extension transform the build was configured for. */
 static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 {
-#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
+#ifdef SHA256_ARM32_DISPATCH
+    (*Transform_Sha256_Len_p)(sha256, data, WC_SHA256_BLOCK_SIZE);
+#elif defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
     Transform_Sha256_Len_base(sha256, data, WC_SHA256_BLOCK_SIZE);
 #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     Transform_Sha256_Len_neon(sha256, data, WC_SHA256_BLOCK_SIZE);
@@ -1379,10 +1467,13 @@ static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
     return 0;
 }
 
+/* Multi-block form of Transform_Sha256() - see there for the selection. */
 static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     word32 len)
 {
-#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
+#ifdef SHA256_ARM32_DISPATCH
+    (*Transform_Sha256_Len_p)(sha256, data, len);
+#elif defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
     Transform_Sha256_Len_base(sha256, data, len);
 #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     Transform_Sha256_Len_neon(sha256, data, len);
@@ -2517,8 +2608,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #else
         Sha256_SetTransform();
     #endif
-    #elif defined(WOLFSSL_ARMASM) && defined(__aarch64__) && \
-          !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+    #elif defined(WOLFSSL_ARMASM_SHA256_TRANSFORM)
+        /* SHA-224 shares the SHA-256 transform, on AArch32 as well as AArch64;
+         * a no-op in builds that compile a single variant.  Keyed off the
+         * marker so the call cannot outlive its definition when a hardware
+         * hash port wins the implementation chain. */
         Sha256_SetTransform();
     #endif
     #if defined(WOLFSSL_PPC64_ASM) && defined(WOLFSSL_PPC64_ASM_CRYPTO)

@@ -4937,6 +4937,13 @@ static void print_cpu_features(void)
     if (IS_AARCH64_SM3(cpuid_flags))    printf(" sm3");
     if (IS_AARCH64_SM4(cpuid_flags))    printf(" sm4");
 #endif
+#ifdef HAVE_CPUID_ARM32
+    printf("AArch32 -");
+    if (IS_ARM32_AES(cpuid_flags))    printf(" aes");
+    if (IS_ARM32_PMULL(cpuid_flags))  printf(" pmull");
+    if (IS_ARM32_SHA256(cpuid_flags)) printf(" sha256");
+    if (IS_ARM32_ASIMD(cpuid_flags))  printf(" neon");
+#endif
 #ifdef HAVE_CPUID_PPC64
     printf("PPC64 -");
     if (IS_PPC64_ALTIVEC(cpuid_flags))    printf(" altivec");
