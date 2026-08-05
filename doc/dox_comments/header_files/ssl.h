@@ -15319,6 +15319,40 @@ int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
     int* outSz);
 
 /*!
+    \ingroup Setup
+
+    \brief This function is called on the server to disable the
+    RFC 8446 Section 8.2 fresh start protection. By default a freshly
+    created context rejects early data, but not resumption, for session
+    tickets minted before the context was created, since the anti-replay
+    state for those tickets may not have survived a server restart. Only
+    call this function when the anti-replay state (session cache or
+    external cache) reliably survives server restarts.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created
+    with wolfSSL_CTX_new().
+
+    \return BAD_FUNC_ARG if ctx is NULL or not using TLS v1.3.
+    \return SIDE_ERROR if called with a client.
+    \return 0 if successful.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL_CTX* ctx;
+    ...
+    ret = wolfSSL_CTX_no_early_data_fresh_start_check(ctx);
+    if (ret != 0) {
+        // failed to disable the fresh start check
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_max_early_data
+    \sa wolfSSL_read_early_data
+*/
+int  wolfSSL_CTX_no_early_data_fresh_start_check(WOLFSSL_CTX* ctx);
+
+/*!
     \ingroup IO
 
     \brief This function is called to inject data into the WOLFSSL object. This

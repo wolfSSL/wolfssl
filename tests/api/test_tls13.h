@@ -63,6 +63,7 @@ int test_tls13_0rtt_stateless_replay(void);
 int test_tls13_remove_session_return(void);
 int test_tls13_0rtt_ext_cache_eviction(void);
 int test_tls13_early_data_bad_record_mac(void);
+int test_tls13_0rtt_fresh_start(void);
 int test_tls13_corrupted_finished(void);
 int test_tls13_certificate_verify_bad_sigalgo(void);
 int test_tls13_peerauth_failsafe(void);
@@ -145,6 +146,7 @@ int test_tls13_pqc_hybrid_async_server(void);
     TEST_DECL_GROUP("tls13", test_tls13_remove_session_return), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_eviction), \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_bad_record_mac), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_recognized_ext_downgrade), \
     TEST_DECL_GROUP("tls13", test_tls13_corrupted_finished),     \
