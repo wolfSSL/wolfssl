@@ -31,14 +31,16 @@ permissions:
 # We patch it to COPY the PR checkout instead so CI reflects the PR's source.
 
 env:
-  SIMULATORS_REF: 745893640e21a15b7df8c70567c522953aba2f2c
+  SIMULATORS_REF: 895ff41b2447efe952e902c467c5ef479f3eda37
 
 jobs:
   se050_sim:
     name: wolfCrypt against SE050 simulator (${{ matrix.name }})
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Cold image rebuilds (registry cache miss after a SIMULATORS_REF bump,
+    # until the weekend cron refreshes the cache) need well over 30 minutes.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -100,4 +102,12 @@ jobs:
           cache-to: ${{ ((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && matrix.name == 'default') && 'type=registry,ref=ghcr.io/wolfssl/wolfssl-sim-cache:se050,mode=max' || '' }}
 
       - name: Run wolfCrypt tests against simulator
-        run: docker run --rm wolfssl-se050-sim:ci-${{ matrix.name }}
+        # SE050_SIM_STRICT_ECDH=1 enforces the applet 7.2 InObject contract
+        # (a Tag7 target must already exist as an exactly-sized HMACKey).
+        # The port now always uses the Tag7-less direct variant, so this is
+        # a regression guard: it fails the run if the InObject flow comes
+        # back. Note the SDK in the image is built for applet 07_02, so only
+        # the >= 7.2 side of the port's version split is compiled here; the
+        # pre-7.2 Binary derive flow is hardware-verified (SE050C, applet
+        # 3.1.1) until an 03_XX matrix leg is added.
+        run: docker run --rm -e SE050_SIM_STRICT_ECDH=1 wolfssl-se050-sim:ci-${{ matrix.name }}
