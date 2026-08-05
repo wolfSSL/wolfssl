@@ -470,6 +470,9 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     if (ret == 0)
         return BAD_STATE_E;
     v = (word32)ret;
+    /* the block size must not be mistaken for a result when kLen is 0 and the
+     * derivation loop below never runs */
+    ret = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
     Ai = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -499,7 +502,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         return BAD_FUNC_ARG;
     }
 
-    if (! WC_SAFE_SUM_UNSIGNED(word32, dLen, sLen, totalLen)) {
+    /* the working buffer holds D || S || P, so totalLen is dLen + iLen */
+    if (! WC_SAFE_SUM_UNSIGNED(word32, dLen, iLen, totalLen)) {
         WC_FREE_VAR_EX(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return BAD_FUNC_ARG;

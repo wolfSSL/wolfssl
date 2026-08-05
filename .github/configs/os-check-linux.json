@@ -340,5 +340,9 @@
 {"name": "cryptonly-no-asn-rsa", "minutes": 0.2, "check": false,
  "comment": "RSA with ASN.1 disabled. Build only, since wolfcrypt test and benchmark do not support this combination.",
  "configure": ["--enable-cryptonly", "--disable-asn", "--enable-lowresource",
-  "--disable-crypttests", "--disable-examples"]}
+  "--disable-crypttests", "--disable-examples"]},
+{"name": "pkcs12-pbkdf-mp-api", "minutes": 1.0,
+ "comment": "WC_PKCS12_PBKDF_USING_MP_API selects a second wc_PKCS12_PBKDF_ex implementation that no configure option reaches.",
+ "configure": ["--enable-pkcs12", "--enable-des3", "--enable-opensslextra",
+  "CPPFLAGS=-DWC_PKCS12_PBKDF_USING_MP_API"]}
 ]
