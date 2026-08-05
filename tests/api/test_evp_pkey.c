@@ -1682,6 +1682,51 @@ int test_wolfSSL_EVP_PKEY_set1_shrinking_der(void)
 }
 
 /*
+ * wolfSSL_EVP_PKEY_get1_EC_KEY() hands the caller a reference of its own, so
+ * releasing it has to leave the copy the EVP_PKEY holds intact and usable.
+ *
+ * This covers the path where the pkey already carries the EC_KEY, which is
+ * what every decode entry point produces. It passes with and without the
+ * reference fix in the branch that builds the key instead, since no decode
+ * path reaches that branch; it is here to pin the reference contract rather
+ * than as a regression test for it.
+ */
+int test_wolfSSL_EVP_PKEY_get1_EC_KEY_reuse(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EC_KEY*   ec1 = NULL;
+    WOLFSSL_EC_KEY*   ec2 = NULL;
+    const unsigned char* in;
+    byte*             buf = NULL;
+    size_t            bufSz = 0;
+
+    /* A pkey decoded from DER carries no EC_KEY yet, so the first get1 is the
+     * call that builds and caches one. */
+    ExpectIntEQ(load_file("./certs/ecc-client-key.der", &buf, &bufSz), 0);
+    in = buf;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &in,
+        (long)bufSz));
+
+    ExpectNotNull(ec1 = wolfSSL_EVP_PKEY_get1_EC_KEY(pkey));
+    wolfSSL_EC_KEY_free(ec1);
+    ec1 = NULL;
+
+    /* The pkey still holds a live key, so this neither reads freed memory nor
+     * returns NULL. */
+    ExpectNotNull(ec2 = wolfSSL_EVP_PKEY_get1_EC_KEY(pkey));
+    ExpectNotNull(wolfSSL_EC_KEY_get0_public_key(ec2));
+    wolfSSL_EC_KEY_free(ec2);
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
  * EVP_PKEY_keygen() on a pkey that already carries a DH object has to release
  * it rather than overwrite the only reference to it.
  */

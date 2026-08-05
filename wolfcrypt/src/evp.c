@@ -3874,11 +3874,15 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
              * prior call to wolfSSL_EVP_PKEY_paramgen. */
             if (pkey->ecc == NULL) {
                 pkey->ecc = wolfSSL_EC_KEY_new_by_curve_name(ctx->curveNID);
+                /* Ownership is claimed where the key is created. Claiming it
+                 * for a key that was already on the pkey would hand the free
+                 * to a second owner. */
+                if (pkey->ecc != NULL)
+                    pkey->ownEcc = 1;
             }
             if (pkey->ecc) {
                 ret = wolfSSL_EC_KEY_generate_key(pkey->ecc);
                 if (ret == WOLFSSL_SUCCESS) {
-                    pkey->ownEcc = 1;
                     if (ECC_populate_EVP_PKEY(pkey, pkey->ecc) != WOLFSSL_SUCCESS)
                         ret = WOLFSSL_FAILURE;
                 }
@@ -9628,6 +9632,17 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
                         WOLFSSL_EC_KEY_LOAD_PUBLIC) != WOLFSSL_SUCCESS) {
 
                     wolfSSL_EC_KEY_free(local);
+                    /* The pkey must not keep a pointer to the freed key. */
+                    key->ecc = NULL;
+                    local = NULL;
+                }
+            }
+            if (local != NULL) {
+                /* The key was created with a single reference. It stays on the
+                 * pkey, so that one belongs to the pkey and the caller needs
+                 * its own, which it releases as the get1 contract requires. */
+                key->ownEcc = 1;
+                if (wolfSSL_EC_KEY_up_ref(local) != WOLFSSL_SUCCESS) {
                     local = NULL;
                 }
             }
