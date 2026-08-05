@@ -725,6 +725,21 @@ if("${WOLFSSL_HRR_COOKIE}" STREQUAL "yes")
     endif()
 endif()
 
+# TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
+add_option("WOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+    "Enable TLS v1.3 middlebox compatibility mode (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+    if(NOT WOLFSSL_TLS13)
+        message(WARNING "TLS 1.3 is disabled - disabling middlebox compatibility")
+        override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "no")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
+    endif()
+endif()
+
 # DTLS v1.3
 add_option("WOLFSSL_DTLS13"
     "Enable wolfSSL DTLS v1.3 (default: disabled)"
@@ -3063,6 +3078,13 @@ if(WOLFSSL_ECH)
         message(FATAL_ERROR "ECH supported only with SNI (WOLFSSL_SNI)")
     endif()
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECH")
+    if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+        message(WARNING
+            "ECH is incompatible with middlebox compatibility - disabling middlebox compatibility")
+        override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "no")
+        list(REMOVE_ITEM WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
+    endif()
 endif()
 
 if(WOLFSSL_KEYING_MATERIAL)

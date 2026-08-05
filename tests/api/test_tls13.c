@@ -6346,6 +6346,49 @@ int test_tls13_middlebox_compat_empty_session_id(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.1.2: in middlebox compatibility mode a client not
+ * offering a pre-TLS 1.3 session must send a non-empty 32-byte
+ * legacy_session_id. */
+int test_tls13_middlebox_compat_session_id(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Client sends ClientHello. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* 5 byte record header + 4 byte handshake header + 2 byte
+     * legacy_version + 32 byte random = offset 43 holds the
+     * legacy_session_id length. */
+    ExpectIntGT(test_ctx.s_len, 43 + ID_LEN);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_ctx.s_buff[0], 0x16); /* handshake */
+        ExpectIntEQ(test_ctx.s_buff[43], ID_LEN);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_plaintext_alert(void)
 {
     EXPECT_DECLS;
