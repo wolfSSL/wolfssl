@@ -5162,11 +5162,19 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 
         XMEMSET(thread, 0, sizeof(*thread));
 
+        thread->tid = (TX_THREAD *)XMALLOC(sizeof(TX_THREAD), NULL,
+                DYNAMIC_TYPE_OS_BUF);
+        if (thread->tid == NULL)
+            return MEMORY_E;
+        XMEMSET(thread->tid, 0, sizeof(TX_THREAD));
+
         thread->threadStack = (void *)XMALLOC(WOLFSSL_NETOS_STACK_SZ, NULL,
                 DYNAMIC_TYPE_OS_BUF);
-        if (thread->threadStack == NULL)
+        if (thread->threadStack == NULL) {
+            XFREE(thread->tid, NULL, DYNAMIC_TYPE_OS_BUF);
+            thread->tid = NULL;
             return MEMORY_E;
-
+        }
 
         /* first create the idle thread:
          * ARGS:
@@ -5177,7 +5185,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
          * Param6: stack size
          * Param7 and 8: priority level and preempt threshold
          * Param9 and 10: time slice and auto-start indicator */
-        result = tx_thread_create(&thread->tid,
+        result = tx_thread_create(thread->tid,
                            "wolfSSL thread",
                            (entry_functionType)cb, (ULONG)arg,
                            thread->threadStack,
@@ -5187,6 +5195,8 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
         if (result != TX_SUCCESS) {
             XFREE(thread->threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
             thread->threadStack = NULL;
+            XFREE(thread->tid, NULL, DYNAMIC_TYPE_OS_BUF);
+            thread->tid = NULL;
             return MEMORY_E;
         }
 
@@ -5195,10 +5205,42 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {
-        /* TODO: maybe have to use tx_thread_delete? */
+        UINT state = TX_READY;
+        int ret = 0;
+
+        if (thread.tid == NULL)
+            return BAD_FUNC_ARG;
+
+        /* The thread runs on threadStack, so it has to be done with it before
+         * the stack is released. Wait for the entry function to return, or for
+         * the thread to be terminated by someone else. */
+        while (ret == 0 && state != TX_COMPLETED && state != TX_TERMINATED) {
+            if (tx_thread_info_get(thread.tid, TX_NULL, &state, TX_NULL,
+                        TX_NULL, TX_NULL, TX_NULL, TX_NULL, TX_NULL)
+                    != TX_SUCCESS) {
+                /* The control block is not a thread ThreadX knows about, so
+                 * nothing is running on the stack either. */
+                ret = BAD_STATE_E;
+            }
+            else if (state != TX_COMPLETED && state != TX_TERMINATED) {
+                tx_thread_sleep(1);
+            }
+        }
+
+        /* Unregister the thread before its control block and stack go away. */
+        if (ret == 0 && tx_thread_delete(thread.tid) != TX_SUCCESS) {
+            /* ThreadX still owns the control block and the thread may still be
+             * running on the stack, so neither can be released here. */
+            WOLFSSL_MSG("tx_thread_delete failed, leaking thread resources");
+            return BAD_STATE_E;
+        }
+
         XFREE(thread.threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
         thread.threadStack = NULL;
-        return 0;
+        XFREE(thread.tid, NULL, DYNAMIC_TYPE_OS_BUF);
+        thread.tid = NULL;
+
+        return ret;
     }
 
 #elif defined(WOLFSSL_ZEPHYR)

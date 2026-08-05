@@ -1987,7 +1987,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #elif defined(NETOS)
     typedef UINT        THREAD_RETURN;
     typedef struct {
-        TX_THREAD tid;
+        /* Control block is referenced, not embedded, so that it stays valid
+         * when THREAD_TYPE is passed by value to wolfSSL_JoinThread(). */
+        TX_THREAD* tid;
         void* threadStack;
     } THREAD_TYPE;
     #define WOLFSSL_THREAD
