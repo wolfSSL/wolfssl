@@ -56750,12 +56750,14 @@ L_GCM_gmult_len_r:
 #ifndef __APPLE__
 .text
 .globl	GCM_gmult_len
+WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 .type	GCM_gmult_len,@function
 .align	2
 GCM_gmult_len:
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
+WC_ASM_ATT_HIDDEN(_GCM_gmult_len)
 .p2align	2
 _GCM_gmult_len:
 #endif /* __APPLE__ */

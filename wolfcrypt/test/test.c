@@ -55495,6 +55495,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
     WC_RNG rng;
     int rngInit = 0;
     FrodoKemKey* key = NULL;
+    int key_inited = 0;
     byte* ct = NULL;
     byte* pk = NULL;
     byte* sk = NULL;
@@ -55506,6 +55507,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
     word32 ssLen = 0;
 #ifdef FRODOKEM_TEST_ASN1
     FrodoKemKey* key2 = NULL;
+    int key2_inited = 0;
     byte* der = NULL;
 #endif
 
@@ -55546,6 +55548,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
     for (i = 0; i < numTypes; i++) {
         ret = wc_FrodoKemKey_Init(key, types[i], HEAP_HINT, devId);
         if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+        key_inited = 1;
         ret = wc_FrodoKemKey_PublicKeySize(key, &pkLen);
         if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
         ret = wc_FrodoKemKey_PrivateKeySize(key, &skLen);
@@ -55592,6 +55595,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
             if (derLen < 0) { ret = WC_TEST_RET_ENC_EC(derLen); break; }
             ret = wc_FrodoKemKey_Init(key2, types[i], HEAP_HINT, devId);
             if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            key2_inited = 1;
             ret = wc_FrodoKemKey_PublicKeyDecode(key2, der, (word32)derLen,
                 &idx);
             if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
@@ -55603,6 +55607,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
                 ret = WC_TEST_RET_ENC_NC; break;
             }
             wc_FrodoKemKey_Free(key2);
+            key2_inited = 0;
 
             /* Private key: PKCS#8. The decoded private key must decapsulate a
              * ciphertext produced for the original public key. */
@@ -55612,6 +55617,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
             if (derLen < 0) { ret = WC_TEST_RET_ENC_EC(derLen); break; }
             ret = wc_FrodoKemKey_Init(key2, types[i], HEAP_HINT, devId);
             if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
+            key2_inited = 1;
             ret = wc_FrodoKemKey_PrivateKeyDecode(key2, der, (word32)derLen,
                 &idx);
             if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
@@ -55623,6 +55629,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
                 ret = WC_TEST_RET_ENC_NC; break;
             }
             wc_FrodoKemKey_Free(key2);
+            key2_inited = 0;
         }
         else {
             /* 640 has no standardised OID: encoding must be rejected. */
@@ -55644,7 +55651,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
      * the error-break paths. wc_FrodoKemKey_Init zeroizes the object on
      * re-entry, so no per-iteration free is needed. */
 out:
-    if (key != NULL)
+    if (key_inited)
         wc_FrodoKemKey_Free(key);
     if (rngInit)
         wc_FreeRng(&rng);
@@ -55653,7 +55660,7 @@ out:
     XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef FRODOKEM_TEST_ASN1
-    if (key2 != NULL)
+    if (key2_inited)
         wc_FrodoKemKey_Free(key2);
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -58894,7 +58901,7 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(res), out);
+        ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
 #endif
 #endif
 

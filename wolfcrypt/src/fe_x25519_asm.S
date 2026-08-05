@@ -22093,12 +22093,14 @@ L_x25519_ifma_consts:
 #ifndef __APPLE__
 .text
 .globl	curve25519_base_avx512_ifma
+WC_ASM_ATT_HIDDEN(curve25519_base_avx512_ifma)
 .type	curve25519_base_avx512_ifma,@function
 .align	16
 curve25519_base_avx512_ifma:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_base_avx512_ifma
+WC_ASM_ATT_HIDDEN(_curve25519_base_avx512_ifma)
 .p2align	4
 _curve25519_base_avx512_ifma:
 #endif /* __APPLE__ */
@@ -22886,12 +22888,14 @@ L_curve25519_base_avx512_ifma_bits:
 #ifndef __APPLE__
 .text
 .globl	curve25519_avx512_ifma
+WC_ASM_ATT_HIDDEN(curve25519_avx512_ifma)
 .type	curve25519_avx512_ifma,@function
 .align	16
 curve25519_avx512_ifma:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_avx512_ifma
+WC_ASM_ATT_HIDDEN(_curve25519_avx512_ifma)
 .p2align	4
 _curve25519_avx512_ifma:
 #endif /* __APPLE__ */
@@ -23702,12 +23706,14 @@ L_curve25519_avx512_ifma_bits:
 #ifndef __APPLE__
 .text
 .globl	curve25519_base_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(curve25519_base_avx512_ifma_dq)
 .type	curve25519_base_avx512_ifma_dq,@function
 .align	16
 curve25519_base_avx512_ifma_dq:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_base_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(_curve25519_base_avx512_ifma_dq)
 .p2align	4
 _curve25519_base_avx512_ifma_dq:
 #endif /* __APPLE__ */
@@ -24450,12 +24456,14 @@ L_curve25519_base_avx512_ifma_dq_bits:
 #ifndef __APPLE__
 .text
 .globl	curve25519_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(curve25519_avx512_ifma_dq)
 .type	curve25519_avx512_ifma_dq,@function
 .align	16
 curve25519_avx512_ifma_dq:
 #else
 .section	__TEXT,__text
 .globl	_curve25519_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(_curve25519_avx512_ifma_dq)
 .p2align	4
 _curve25519_avx512_ifma_dq:
 #endif /* __APPLE__ */
@@ -25244,12 +25252,14 @@ L_ge_ifma_consts:
 #ifndef __APPLE__
 .text
 .globl	ge_double_scalarmult_vartime_avx512_ifma
+WC_ASM_ATT_HIDDEN(ge_double_scalarmult_vartime_avx512_ifma)
 .type	ge_double_scalarmult_vartime_avx512_ifma,@function
 .align	16
 ge_double_scalarmult_vartime_avx512_ifma:
 #else
 .section	__TEXT,__text
 .globl	_ge_double_scalarmult_vartime_avx512_ifma
+WC_ASM_ATT_HIDDEN(_ge_double_scalarmult_vartime_avx512_ifma)
 .p2align	4
 _ge_double_scalarmult_vartime_avx512_ifma:
 #endif /* __APPLE__ */
@@ -28235,12 +28245,14 @@ L_ge_dsm_avx512_ifma_skip_b:
 #ifndef __APPLE__
 .text
 .globl	ge_double_scalarmult_vartime_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(ge_double_scalarmult_vartime_avx512_ifma_dq)
 .type	ge_double_scalarmult_vartime_avx512_ifma_dq,@function
 .align	16
 ge_double_scalarmult_vartime_avx512_ifma_dq:
 #else
 .section	__TEXT,__text
 .globl	_ge_double_scalarmult_vartime_avx512_ifma_dq
+WC_ASM_ATT_HIDDEN(_ge_double_scalarmult_vartime_avx512_ifma_dq)
 .p2align	4
 _ge_double_scalarmult_vartime_avx512_ifma_dq:
 #endif /* __APPLE__ */

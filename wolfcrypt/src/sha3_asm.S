@@ -48609,12 +48609,14 @@ L_sha3_256_blocksx8_seed_64_avx512_end_mark:
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx8_seed_64_avx512
+WC_ASM_ATT_HIDDEN(sha3_256_blocksx8_seed_64_avx512)
 .type	sha3_256_blocksx8_seed_64_avx512,@function
 .align	16
 sha3_256_blocksx8_seed_64_avx512:
 #else
 .section	__TEXT,__text
 .globl	_sha3_256_blocksx8_seed_64_avx512
+WC_ASM_ATT_HIDDEN(_sha3_256_blocksx8_seed_64_avx512)
 .p2align	4
 _sha3_256_blocksx8_seed_64_avx512:
 #endif /* __APPLE__ */

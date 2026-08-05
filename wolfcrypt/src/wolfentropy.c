@@ -30,7 +30,6 @@ data, use this implementation to seed and re-seed the DRBG.
 
 */
 
-#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WOLFENTROPY_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

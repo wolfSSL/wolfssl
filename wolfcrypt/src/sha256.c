@@ -2660,7 +2660,6 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         /* choose best Transform function under this runtime environment */
         Sha256_SetTransform();
-    #endif
     #elif defined(WOLFSSL_ARMASM_SHA256_TRANSFORM)
         /* SHA-224 shares the SHA-256 transform, on AArch32 as well as AArch64;
          * a no-op in builds that compile a single variant.  Keyed off the

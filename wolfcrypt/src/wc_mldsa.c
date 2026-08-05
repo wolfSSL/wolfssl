@@ -204,11 +204,19 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
  * slightly faster (~2%/~4% on NTT/invNTT) permuted-order variants are safe.
  * Both pipelines yield bit-identical end results. */
 #ifdef WC_C_DYNAMIC_FALLBACK
-    #define MLDSA_NTT_AVX2(r)    wc_mldsa_ntt_full_avx2(r)
-    #define MLDSA_INVNTT_AVX2(r) wc_mldsa_invntt_full_avx2(r)
+    #define MLDSA_NTT_AVX512(r)        wc_mldsa_ntt_full_1p_avx512(r)
+    #define MLDSA_NTT_SMALL_AVX512(r)  wc_mldsa_ntt_small_full_1p_avx512(r)
+    #define MLDSA_INVNTT_AVX512(r)     wc_mldsa_invntt_full_1p_avx512(r)
+    #define MLDSA_NTT_AVX2(r)          wc_mldsa_ntt_full_avx2(r)
+    #define MLDSA_NTT_SMALL_AVX2(r)    wc_mldsa_ntt_small_full_avx2(r)
+    #define MLDSA_INVNTT_AVX2(r)       wc_mldsa_invntt_full_avx2(r)
 #else
-    #define MLDSA_NTT_AVX2(r)    wc_mldsa_ntt_avx2(r)
-    #define MLDSA_INVNTT_AVX2(r) wc_mldsa_invntt_avx2(r)
+    #define MLDSA_NTT_AVX512(r)        wc_mldsa_ntt_1p_avx512(r)
+    #define MLDSA_NTT_SMALL_AVX512(r)  wc_mldsa_ntt_small_1p_avx512(r)
+    #define MLDSA_INVNTT_AVX512(r)     wc_mldsa_invntt_1p_avx512(r)
+    #define MLDSA_NTT_AVX2(r)          wc_mldsa_ntt_avx2(r)
+    #define MLDSA_NTT_SMALL_AVX2(r)    wc_mldsa_ntt_small_avx2(r)
+    #define MLDSA_INVNTT_AVX2(r)       wc_mldsa_invntt_avx2(r)
 #endif
 #endif
 
@@ -1151,8 +1159,12 @@ static void mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
         }
         RESTORE_VECTOR_REGISTERS();
     }
-    else if (USE_INTEL_AVX512(cpuid_flags) && ((d & 1) == 0) &&
-            (SAVE_VECTOR_REGISTERS2() == 0)) {
+    /* Note the eta check: this arm is also reachable for eta == 4, when the
+     * first arm's SAVE_VECTOR_REGISTERS2() fails (e.g. under
+     * DEBUG_VECTOR_REGISTER_ACCESS_FUZZING), and must not consume that flow.
+     */
+    else if (USE_INTEL_AVX512(cpuid_flags) && (eta == MLDSA_ETA_2) &&
+            ((d & 1) == 0) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         unsigned int i;
         unsigned int e = MLDSA_ETA_2_BITS * MLDSA_N / 8;
         for (i = 0; i < d; i += 2) {
@@ -6790,7 +6802,7 @@ static void mldsa_ntt(sword32* r)
 {
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_ntt_1p_avx512(r);
+        MLDSA_NTT_AVX512(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -6860,7 +6872,9 @@ static void mldsa_vec_ntt(sword32* r, byte l)
      * hand back to mldsa_ntt() below. */
     if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         for (; i < l; i++) {
-            wc_mldsa_ntt_1p_avx512(r);
+            /* MLDSA_NTT_AVX512: see the flavor-selection note by its
+             * definition. */
+            MLDSA_NTT_AVX512(r);
             r += MLDSA_N;
         }
         RESTORE_VECTOR_REGISTERS();
@@ -7268,15 +7282,16 @@ static void mldsa_ntt_small(sword32* r)
 {
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_ntt_small_1p_avx512(r);
+        MLDSA_NTT_SMALL_AVX512(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
 #ifdef USE_INTEL_SPEEDUP
-    /* MLDSA_NTT_AVX2: see the flavor-selection note by its definition. */
+    /* MLDSA_NTT_SMALL_AVX2: see the flavor-selection note by its
+     * definition. */
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_ntt_small_avx2(r);
+        MLDSA_NTT_SMALL_AVX2(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -7816,7 +7831,9 @@ static void mldsa_invntt(sword32* r)
 {
 #if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
     if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        wc_mldsa_invntt_1p_avx512(r);
+        /* MLDSA_INVNTT_AVX512: see the flavor-selection note by its
+         * definition. */
+        MLDSA_INVNTT_AVX512(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -8225,7 +8242,10 @@ static void mldsa_mul_invntt(sword32* r, sword32* c, sword32* v)
     /* Both steps under one save/restore of the vector registers. */
     if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         wc_mldsa_mul_avx512(r, c, v);
-        wc_mldsa_invntt_1p_avx512(r);
+        /* MLDSA_INVNTT_AVX512: see the flavor-selection note by its
+         * definition.  wc_mldsa_mul_avx512() is positionwise, so its output
+         * order matches its operands' order in both configurations. */
+        MLDSA_INVNTT_AVX512(r);
         RESTORE_VECTOR_REGISTERS();
     }
     else

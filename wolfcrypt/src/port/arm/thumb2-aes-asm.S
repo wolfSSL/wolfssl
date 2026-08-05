@@ -6514,6 +6514,7 @@ L_GCM_gmult_len_r:
 	.text
 	.align	4
 	.globl	GCM_gmult_len
+	WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 	.type	GCM_gmult_len, %function
 GCM_gmult_len:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
