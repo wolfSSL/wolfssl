@@ -1891,14 +1891,17 @@ then
             -dh) lkcapi_dh=no ;;
             esac
         done
-        if test "$lkcapi_dh" = yes; then
+        if test "$lkcapi_dh" = yes
+        then
             enable_dh=conditional
         fi
     fi
 
     # Enable WOLFSSL_DH_EXTRA and DH const table speedups (eliminates `-lm` math lib dependency)
-    # No effect if DH is disabled.
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    if test "$enable_dh" != no
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    fi
 
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
@@ -12893,6 +12896,15 @@ then
         fi
     fi
 fi
+
+
+# Provisions for opt-in DH (FIPS v7+):
+if test "$ENABLED_DH" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+fi
+
+
 ################################################################################
 
 # USER SETTINGS

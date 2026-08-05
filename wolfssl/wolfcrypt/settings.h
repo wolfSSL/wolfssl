@@ -5950,6 +5950,15 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error WC_C_DYNAMIC_FALLBACK requires WC_HAVE_VECTOR_SPEEDUPS
 #endif
 
+/* setup for opt-in DH in FIPS v7+ */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(HAVE_DH) && !defined(NO_DH)
+    #define NO_DH
+#elif defined(NO_DH)
+    #undef HAVE_DH
+#elif !defined(HAVE_DH)
+    #define HAVE_DH
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
