@@ -429,12 +429,12 @@ static void wb_sign_with_pkcs7_certsz(void) { WB_NOTE("WOLFSSL_TSP_RESPONDER/HAV
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_TSP_RESPONDER) && defined(HAVE_PKCS7) && !defined(NO_RSA) && \
     !defined(NO_SHA256)
-/* A wc_PKCS7 object that has completed one wc_PKCS7_EncodeSignedData is not
- * safe to sign with a second time (confirmed by two successive unarmed
- * calls on the same object crashing identically to the fault-swept case
- * below, unrelated to any injected allocation failure) - a fresh object is
- * built for every sweep iteration instead, same as tests/api/test_pkcs7.c's
- * own idiom of wc_PKCS7_New()/wc_PKCS7_Free() around each encode call. */
+/* A wc_PKCS7 object that has completed one wc_PKCS7_EncodeSignedData cannot
+ * be signed with again: PKCS7_EncodeSigned() calls wc_PKCS7_FreeCertSet() on
+ * the object once it has written the certificates (pkcs7.c:4128), so a second
+ * encode succeeds but emits a SignedData with an empty certificate set. A
+ * fresh object is built for every sweep iteration instead, same as
+ * tests/api/test_pkcs7.c's own wc_PKCS7_New()/wc_PKCS7_Free() idiom. */
 static int wb_setup_signer(wc_PKCS7** pkcs7, WC_RNG* rng)
 {
     int ret;
