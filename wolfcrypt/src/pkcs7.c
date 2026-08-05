@@ -8129,6 +8129,18 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
             else  {
                 pkcs7->stream->expected = (word32)length;
+                if (pkcs7->stream->totalRd >= pkcs7->stream->maxLen) {
+                    /* definite-length bundle with no bytes left per the
+                     * outer length: force stage 7's bounds check to fail
+                     * now instead of requesting bytes that will never
+                     * arrive. Do NOT cap expected down further than that
+                     * when bytes may still remain -- expected here is the
+                     * full signerInfo content size that stage 7 needs
+                     * buffered at once, not just header lookahead, so
+                     * shrinking it while genuinely more data is still due
+                     * from a future call would corrupt the parse window. */
+                    pkcs7->stream->expected = 0;
+                }
             }
 
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE7);

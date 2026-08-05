@@ -6466,6 +6466,8 @@ int test_wc_PKCS7_VerifySignedData_TruncSignerInfosTag(void)
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
+            WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
     wc_PKCS7_Free(pkcs7);
 
 #endif /* HAVE_PKCS7 */
