@@ -316,12 +316,6 @@ struct Aes {
 #endif
     int     keylen;
 
-    /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
-     * GcmSetKey). Checked by the mode APIs so they fail instead of running
-     * with the all-zero key schedule left by wc_AesInit. Distinct from the
-     * Cavium-only keySet field below. */
-    WC_BITFIELD keyInstalled:1;
-
     ALIGN16 word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     ALIGN16 word32 tmp[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
 
@@ -488,6 +482,13 @@ struct Aes {
     cy_stc_crypto_aes_gcm_state_t aes_gcm_state;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
+
+    /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
+     * GcmSetKey). Checked by the mode APIs so they fail instead of running
+     * with the all-zero key schedule left by wc_AesInit. Distinct from the
+     * Cavium-only keySet field. Appended at the end of the struct so existing
+     * member offsets are unchanged. */
+    WC_BITFIELD keyInstalled:1;
 };
 
 #ifndef WC_AES_TYPE_DEFINED

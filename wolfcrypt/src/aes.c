@@ -7058,13 +7058,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
 
-        if (aes == NULL || aes->keyInstalled == 0) {
-            WOLFSSL_MSG("AES key not set");
+        if (aes == NULL)
             return BAD_FUNC_ARG;
-        }
 
         if (sz == 0)
             return 0;
+
+        if (aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
 
         /* hardware fails on input that is not a multiple of AES block size */
         if (sz % WC_AES_BLOCK_SIZE != 0) {
@@ -7093,13 +7096,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         int ret;
         byte scratch[WC_AES_BLOCK_SIZE];
 
-        if (aes == NULL || aes->keyInstalled == 0) {
-            WOLFSSL_MSG("AES key not set");
+        if (aes == NULL)
             return BAD_FUNC_ARG;
-        }
 
         if (sz == 0)
             return 0;
+
+        if (aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
+        }
 
         /* hardware fails on input that is not a multiple of AES block size */
         if (sz % WC_AES_BLOCK_SIZE != 0) {
@@ -7168,9 +7174,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        if (aes == NULL || aes->keyInstalled == 0) {
-            WOLFSSL_MSG("AES key not set");
+        if (aes == NULL)
             return BAD_FUNC_ARG;
+        if (aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
         }
         return wc_Psoc6_Aes_CbcEncrypt(aes, out, in, sz);
     }
@@ -7178,9 +7186,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #if defined(HAVE_AES_DECRYPT)
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        if (aes == NULL || aes->keyInstalled == 0) {
-            WOLFSSL_MSG("AES key not set");
+        if (aes == NULL)
             return BAD_FUNC_ARG;
+        if (aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return MISSING_KEY;
         }
         return wc_Psoc6_Aes_CbcDecrypt(aes, out, in, sz);
     }
@@ -7222,18 +7232,6 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
 #endif
 
-#if defined(WOLFSSL_RISCV_ASM)
-        if (aes->keyInstalled == 0) {
-            WOLFSSL_MSG("AES key not set");
-            return BAD_FUNC_ARG;
-        }
-        AES_CBC_encrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
-            (int)aes->rounds);
-        (void)blocks;
-        (void)ret;
-        return 0;
-#endif
-
     #ifdef WOLFSSL_IMXRT_DCP
         /* Implemented in wolfcrypt/src/port/nxp/dcp_port.c */
         if (aes->keylen == 16)
@@ -7252,11 +7250,19 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     #endif
 
-        /* Software/HW key schedule required from here on. */
+        /* Single key guard after all offload dispatches. */
         if (aes->keyInstalled == 0) {
             WOLFSSL_MSG("AES key not set");
-            return BAD_FUNC_ARG;
+            return MISSING_KEY;
         }
+
+#if defined(WOLFSSL_RISCV_ASM)
+        AES_CBC_encrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
+            (int)aes->rounds);
+        (void)blocks;
+        (void)ret;
+        return 0;
+#endif
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
@@ -7472,18 +7478,6 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
         }
 
-#if defined(WOLFSSL_RISCV_ASM)
-        if (aes->keyInstalled == 0) {
-            WOLFSSL_MSG("AES key not set");
-            return BAD_FUNC_ARG;
-        }
-        AES_CBC_decrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
-            (int)aes->rounds);
-        (void)blocks;
-        (void)ret;
-        return 0;
-#endif
-
     #ifdef WOLFSSL_IMXRT_DCP
         /* Implemented in wolfcrypt/src/port/nxp/dcp_port.c */
         if (aes->keylen == 16)
@@ -7502,11 +7496,19 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     #endif
 
-        /* Software/HW key schedule required from here on. */
+        /* Single key guard after all offload dispatches. */
         if (aes->keyInstalled == 0) {
             WOLFSSL_MSG("AES key not set");
-            return BAD_FUNC_ARG;
+            return MISSING_KEY;
         }
+
+#if defined(WOLFSSL_RISCV_ASM)
+        AES_CBC_decrypt_RISCV64(in, out, sz, (byte*)aes->reg, (byte*)aes->key,
+            (int)aes->rounds);
+        (void)blocks;
+        (void)ret;
+        return 0;
+#endif
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
@@ -7995,6 +7997,12 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 return BAD_FUNC_ARG;
             }
 
+            if (sz == 0) {
+                /* Keep above the crypto-cb dispatch: it must not see sz == 0.
+                 * A missing key is only reported when there is work. */
+                return 0;
+            }
+
         #ifdef WOLF_CRYPTO_CB
             #ifndef WOLF_CRYPTO_CB_FIND
             if (aes->devId != INVALID_DEVID)
@@ -8010,7 +8018,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* Software/HW key schedule required from here on. */
             if (aes->keyInstalled == 0) {
                 WOLFSSL_MSG("AES key not set");
-                return BAD_FUNC_ARG;
+                return MISSING_KEY;
             }
 
             /* consume any unused bytes left in aes->tmp */
@@ -11446,7 +11454,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* Software/HW key schedule (and hash subkey H) required from here on. */
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -12307,7 +12315,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* Software/HW key schedule (and hash subkey H) required from here on. */
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -15611,7 +15619,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* Software/HW key schedule required from here on. */
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
     XMEMSET(A, 0, sizeof(A));
@@ -15781,7 +15789,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* Software/HW key schedule required from here on. */
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
     o = out;
@@ -16413,7 +16421,7 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return BAD_FUNC_ARG;
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
     return wc_Psoc6_Aes_EcbEncrypt(aes, out, in, sz);
@@ -16428,7 +16436,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return BAD_FUNC_ARG;
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
     return wc_Psoc6_Aes_EcbDecrypt(aes, out, in, sz);
@@ -16470,7 +16478,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     /* Software key schedule required from here on. */
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
     VECTOR_REGISTERS_PUSH;
@@ -16586,7 +16594,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     /* Software key schedule required from here on. */
     if (aes->keyInstalled == 0) {
         WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
     VECTOR_REGISTERS_PUSH;
@@ -16706,9 +16714,11 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    if (aes == NULL || aes->keyInstalled == 0) {
-        WOLFSSL_MSG("AES key not set");
+    if (aes == NULL)
         return BAD_FUNC_ARG;
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
     return wc_Psoc6_Aes_CfbEncrypt(aes, out, in, sz);
 }
@@ -16716,9 +16726,11 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #ifdef HAVE_AES_DECRYPT
 int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    if (aes == NULL || aes->keyInstalled == 0) {
-        WOLFSSL_MSG("AES key not set");
+    if (aes == NULL)
         return BAD_FUNC_ARG;
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
     return wc_Psoc6_Aes_CfbDecrypt(aes, out, in, sz);
 }
@@ -16749,12 +16761,12 @@ static WARN_UNUSED_RESULT int AesCfbEncrypt_C(Aes* aes, byte* out,
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-    if (aes->keyInstalled == 0) {
-        WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
-    }
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
 
     if (aes->left > 0) {
@@ -16836,12 +16848,12 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-    if (aes->keyInstalled == 0) {
-        WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
-    }
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
 
     if (aes->left > 0) {
@@ -17068,12 +17080,12 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(
         return BAD_FUNC_ARG;
     }
 
-    if (aes->keyInstalled == 0) {
-        WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
-    }
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
 
     VECTOR_REGISTERS_PUSH;
@@ -17132,12 +17144,12 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
         return BAD_FUNC_ARG;
     }
 
-    if (aes->keyInstalled == 0) {
-        WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
-    }
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
 
     VECTOR_REGISTERS_PUSH;
@@ -17294,12 +17306,12 @@ static WARN_UNUSED_RESULT int AesOfbCrypt_C(Aes* aes, byte* out, const byte* in,
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-    if (aes->keyInstalled == 0) {
-        WOLFSSL_MSG("AES key not set");
-        return BAD_FUNC_ARG;
-    }
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keyInstalled == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
 
     if (aes->left > 0) {

@@ -16807,74 +16807,74 @@ static wc_test_ret_t aes_no_key_set_test(void)
     /* No wc_AesSetKey: aes->keylen is 0, so every mode must reject the call. */
 #ifdef HAVE_AES_CBC
     if (wc_AesCbcEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #ifdef HAVE_AES_DECRYPT
     if (wc_AesCbcDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #endif /* HAVE_AES_CBC */
 
 #ifdef WOLFSSL_AES_COUNTER
     if (wc_AesCtrEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
 #ifdef HAVE_AESGCM
     if (wc_AesGcmEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, sizeof(iv),
-            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (wc_AesGcmDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, sizeof(iv),
-            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
 #ifdef HAVE_AESCCM
     if (wc_AesCcmEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, 13,
-            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #ifdef HAVE_AES_DECRYPT
     if (wc_AesCcmDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, 13,
-            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #endif /* HAVE_AESCCM */
 
 #ifdef HAVE_AES_ECB
     if (wc_AesEcbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #ifdef HAVE_AES_DECRYPT
     if (wc_AesEcbDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #endif /* HAVE_AES_ECB */
 
 #ifdef WOLFSSL_AES_CFB
     if (wc_AesCfbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #ifdef HAVE_AES_DECRYPT
     if (wc_AesCfbDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #if !defined(WOLFSSL_NO_AES_CFB_1_8)
     if (wc_AesCfb1Encrypt(aes, cipher, plain, 8) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (wc_AesCfb8Encrypt(aes, cipher, plain, 1) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #ifdef HAVE_AES_DECRYPT
     if (wc_AesCfb1Decrypt(aes, cipher, plain, 8) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     if (wc_AesCfb8Decrypt(aes, cipher, plain, 1) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #endif /* !WOLFSSL_NO_AES_CFB_1_8 */
@@ -16882,11 +16882,11 @@ static wc_test_ret_t aes_no_key_set_test(void)
 
 #ifdef WOLFSSL_AES_OFB
     if (wc_AesOfbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #ifdef HAVE_AES_DECRYPT
     if (wc_AesOfbDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            WC_NO_ERR_TRACE(MISSING_KEY))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #endif /* WOLFSSL_AES_OFB */
