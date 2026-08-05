@@ -269,8 +269,8 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
     or wc_MlDsaKey_GetSigLen() to determine the required buffer size.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if any required pointer is NULL or ctxLen is
-    invalid.
+    \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
+    invalid or the key has no private key set.
     \return BUFFER_E if the sig buffer is too small.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the private key.
@@ -300,7 +300,8 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
-    invalid, or hashAlg is not supported.
+    invalid, hashAlg is not supported or the key has no private key
+    set.
     \return BUFFER_E if the sig buffer is too small.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the private key.
@@ -402,8 +403,8 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
     the message-hashing step from the signing step.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if any required pointer is NULL or muLen is
-    not 64.
+    \return BAD_FUNC_ARG if any required pointer is NULL, muLen is not
+    64 or the key has no private key set.
     \return BUFFER_E if the sig buffer is too small.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the private key.

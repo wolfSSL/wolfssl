@@ -11266,7 +11266,7 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or private key not set,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
@@ -11298,6 +11298,10 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     }
 #endif
 
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_msg(key, rng, msg, msgLen, sig, sigLen);
@@ -11318,7 +11322,7 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *  returns BAD_FUNC_ARG when a parameter is NULL, private key not set
  *          or ctx is NULL and ctxLen is not 0,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
@@ -11353,6 +11357,10 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     }
 #endif
 
+    if ((ret == 0) && (!key->prvKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+
     if (ret == 0) {
         /* Sign message. */
         ret = mldsa_sign_ctx_hash(key, rng, ctx, ctxLen, hashAlg, hash,
@@ -11372,7 +11380,7 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *  returns BAD_FUNC_ARG when a parameter is NULL, private key not set
  *          or ctx is NULL and ctxLen is not 0,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
@@ -11384,10 +11392,14 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -11409,7 +11421,7 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
+ *  returns BAD_FUNC_ARG when a parameter is NULL or private key not set,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
@@ -11421,7 +11433,11 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -11445,7 +11461,7 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
- *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *  returns BAD_FUNC_ARG when a parameter is NULL, private key not set
  *          or ctx is NULL and ctxLen is not 0,
  *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
@@ -11462,6 +11478,9 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -11487,7 +11506,8 @@ int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing.
  *  seed        [in]      32-byte random seed (rnd).
- *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
+ *  returns BAD_FUNC_ARG when a parameter is NULL, muLen is not 64 or
+ *          private key not set,
  *          BUFFER_E when sigLen is too small,
  *          0 otherwise.
  */
@@ -11502,6 +11522,9 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 

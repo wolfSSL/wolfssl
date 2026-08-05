@@ -723,6 +723,9 @@ int test_mldsa_sign_pubonly_fails(void)
     byte msg[] = "test message for pubonly check";
     byte* sig = NULL;
     word32 sigLen = MLDSA_MAX_SIG_SIZE;
+    byte seed[MLDSA_RND_SZ];
+    byte hash[64]; /* WC_SHA3_512_DIGEST_SIZE */
+    byte mu[MLDSA_MU_SZ];
 
     key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
@@ -742,6 +745,9 @@ int test_mldsa_sign_pubonly_fails(void)
     if (pubOnlyKey != NULL)
         XMEMSET(pubOnlyKey, 0, sizeof(*pubOnlyKey));
     XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(seed, 0, sizeof(seed));
+    XMEMSET(hash, 'H', sizeof(hash));
+    XMEMSET(mu, 0, sizeof(mu));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
@@ -767,6 +773,19 @@ int test_mldsa_sign_pubonly_fails(void)
 
     /* Signing with a public-key-only object must fail. */
     ExpectIntEQ(wc_MlDsaKey_SignCtx(pubOnlyKey, NULL, 0, sig, &sigLen, msg, sizeof(msg), &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* The pre-hash and caller-seeded variants must fail the same way. */
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHash(pubOnlyKey, NULL, 0, sig, &sigLen,
+        hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(pubOnlyKey, NULL, 0, sig,
+        &sigLen, msg, sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(pubOnlyKey, NULL, 0, sig,
+        &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(pubOnlyKey, sig, &sigLen, mu,
+        sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_MlDsaKey_Free(pubOnlyKey);
@@ -30935,7 +30954,8 @@ int test_wc_MldsaDecisionCoverage2(void)
             hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-        /* wc_MlDsaKey_SignCtxWithSeed: four-way NULL OR + ctx/ctxLen. */
+        /* wc_MlDsaKey_SignCtxWithSeed: five-way NULL OR (incl. seed)
+         * + ctx/ctxLen. */
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(NULL, NULL, 0, sig, &sigLen,
             msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -30945,8 +30965,25 @@ int test_wc_MldsaDecisionCoverage2(void)
             msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
             NULL, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 1, sig, &sigLen,
             msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef WOLFSSL_MLDSA_NO_CTX
+        /* wc_MlDsaKey_SignWithSeed: five-way NULL OR (incl. seed). */
+        sigLen = (word32)sizeof(sig);
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(NULL, sig, &sigLen, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, NULL, &sigLen, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, NULL, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, NULL,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
         /* wc_MlDsaKey_SignCtxHashWithSeed: five-way NULL OR (incl. seed)
          * + ctx/ctxLen. */
@@ -30985,6 +31022,62 @@ int test_wc_MldsaDecisionCoverage2(void)
         /* All five non-NULL, muLen != MLDSA_MU_SZ -> BAD_FUNC_ARG. */
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
             sizeof(mu) - 1, seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Sign entry points on a key with the level set but no private
+         * key generated or imported -> BAD_FUNC_ARG. All other operands
+         * valid, so only the !prvKeySet guard can fail. */
+        sigLen = (word32)sizeof(sig);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+        ExpectIntEQ(wc_MlDsaKey_Sign(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHash(&key, ctx, (byte)sizeof(ctx),
+            sig, &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, ctx, (byte)sizeof(ctx),
+            sig, &sigLen, msg, (word32)sizeof(msg), seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, ctx,
+            (byte)sizeof(ctx), sig, &sigLen, hash, sizeof(hash),
+            WC_HASH_TYPE_SHA3_512, seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
+            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Set a private key so the guards past !prvKeySet are reachable
+         * (zero-filled s1/s2 are within the eta range check). */
+        {
+            byte* priv = (byte*)XMALLOC(MLDSA_MAX_KEY_SIZE, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            int privLen = 0;
+
+            ExpectNotNull(priv);
+            privLen = wc_MlDsaKey_Size(&key);
+            ExpectIntGT(privLen, 0);
+            if (priv != NULL) {
+                XMEMSET(priv, 0, MLDSA_MAX_KEY_SIZE);
+                ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(&key, priv,
+                    (word32)privLen), 0);
+            }
+            XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+        /* Seed NULL guard, now that !prvKeySet no longer masks it: the
+         * seed is copied before any length check, so only this guard
+         * stands between a NULL seed and the copy. */
+        sigLen = (word32)sizeof(sig);
+#ifdef WOLFSSL_MLDSA_NO_CTX
+        ExpectIntEQ(wc_MlDsaKey_SignWithSeed(&key, sig, &sigLen, msg,
+            (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
+            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
+            &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
+            sizeof(mu), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Sign path's too-small sigLen buffer guard (*sigLen <
          * params->sigSz -> BUFFER_E), independent of the muLen guard
