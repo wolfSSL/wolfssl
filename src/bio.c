@@ -2121,6 +2121,24 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 
 int wolfSSL_BIO_get_new_index(void)
 {
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+    /* Zero-initialized count (no initializer needed); atomically claim the next
+     * offset so concurrent callers get distinct indices without a lock. The
+     * first index returned is WOLFSSL_BIO_TYPE_START. */
+    static wolfSSL_Atomic_Int bio_type_count;
+    int idx;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_get_new_index");
+
+    idx = WOLFSSL_BIO_TYPE_START +
+          (int)wolfSSL_Atomic_Int_FetchAdd(&bio_type_count, 1);
+    if (idx > WOLFSSL_BIO_TYPE_MAX) {
+        WOLFSSL_MSG("BIO type index space exhausted");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return idx;
+#else
     static int bio_type_idx = WOLFSSL_BIO_TYPE_START;
     int idx;
 
@@ -2129,11 +2147,12 @@ int wolfSSL_BIO_get_new_index(void)
     idx = bio_type_idx;
     if (idx > WOLFSSL_BIO_TYPE_MAX) {
         WOLFSSL_MSG("BIO type index space exhausted");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
     bio_type_idx++;
 
     return idx;
+#endif
 }
 
 /* creates a new custom WOLFSSL_BIO_METHOD */

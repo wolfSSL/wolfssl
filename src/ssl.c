@@ -5907,8 +5907,11 @@ const char* wolfSSL_OpenSSL_version(int type)
         case OPENSSL_CFLAGS:
             return "compiler: information not available";
         case OPENSSL_BUILT_ON:
-        /* Kernel module builds compile with -Werror=date-time. */
-#if defined(HAVE_REPRODUCIBLE_BUILD) || defined(WOLFSSL_LINUXKM)
+        /* Kernel module builds compile with -Werror=date-time.  Define
+         * WOLFSSL_OPENSSL_NO_BUILD_DATE to drop the date without needing the
+         * full reproducible-build option. */
+#if defined(HAVE_REPRODUCIBLE_BUILD) || defined(WOLFSSL_LINUXKM) || \
+    defined(WOLFSSL_OPENSSL_NO_BUILD_DATE)
             return "built on: date not available";
 #else
             return "built on: " __DATE__ " " __TIME__;

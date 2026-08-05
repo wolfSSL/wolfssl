@@ -1913,11 +1913,11 @@ int test_wolfSSL_BIO_get_new_index(void)
     idx3 = BIO_get_new_index();
 
     ExpectIntGE(idx1, BIO_TYPE_START);
-    ExpectIntLE(idx1, WOLFSSL_BIO_TYPE_MAX);
+    ExpectIntLE(idx1, BIO_TYPE_MASK);
     ExpectIntGE(idx2, BIO_TYPE_START);
-    ExpectIntLE(idx2, WOLFSSL_BIO_TYPE_MAX);
+    ExpectIntLE(idx2, BIO_TYPE_MASK);
     ExpectIntGE(idx3, BIO_TYPE_START);
-    ExpectIntLE(idx3, WOLFSSL_BIO_TYPE_MAX);
+    ExpectIntLE(idx3, BIO_TYPE_MASK);
 
     /* Each index must be unique */
     ExpectIntNE(idx1, idx2);

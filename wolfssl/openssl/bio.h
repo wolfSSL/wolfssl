@@ -139,6 +139,7 @@
 #define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY
 #define BIO_TYPE_BASE64 WOLFSSL_BIO_BASE64
 #define BIO_TYPE_START  WOLFSSL_BIO_TYPE_START
+#define BIO_TYPE_MASK   WOLFSSL_BIO_TYPE_MASK
 #define BIO_get_new_index          wolfSSL_BIO_get_new_index
 
 #define BIO_vprintf wolfSSL_BIO_vprintf

@@ -786,6 +786,8 @@ enum BIO_TYPE {
  * Matches OpenSSL BIO_TYPE_START (128). */
 #define WOLFSSL_BIO_TYPE_START  128
 #define WOLFSSL_BIO_TYPE_MAX    255
+/* Mask for the BIO type bits. Matches OpenSSL BIO_TYPE_MASK (0xFF). */
+#define WOLFSSL_BIO_TYPE_MASK   0xFF
 
 enum BIO_FLAGS {
     WOLFSSL_BIO_FLAG_BASE64_NO_NL = 0x01,
@@ -2495,7 +2497,8 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,
         const unsigned char** in, long inSz);
 WOLFSSL_API int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der);
-WOLFSSL_API int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key);
+WOLFSSL_API int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio,
+    const WOLFSSL_EVP_PKEY* key);
 WOLFSSL_API int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
                                         unsigned char** der);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** pkey,
