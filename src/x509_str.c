@@ -218,6 +218,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         XMEMSET(&ctx->ex_data, 0, sizeof(ctx->ex_data));
 #endif
         ctx->userCtx = NULL;
+        ctx->verify_cb = NULL;
         ctx->error = 0;
         ctx->error_depth = 0;
         ctx->discardSessionCerts = 0;
@@ -323,6 +324,10 @@ int GetX509Error(int e)
             return WOLFSSL_X509_V_ERR_CERT_REVOKED;
         case WC_NO_ERR_TRACE(CRL_MISSING):
             return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL;
+        /* <e> is an internal wolfSSL return code, not an X509_V_* code, so 1
+         * here is WOLFSSL_SUCCESS - it does not collide with
+         * WOLFSSL_X509_V_ERR_UNSPECIFIED, which shares the value but never
+         * reaches this function. */
         case 0:
         case 1:
             return 0;
@@ -508,10 +513,50 @@ static int X509StoreCheckCtxCrls(WOLFSSL_X509_STORE_CTX* ctx)
 }
 #endif /* HAVE_CRL */
 
-static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
+/* Get the verification callback that applies to this context, or NULL when
+ * none is installed. A callback set with wolfSSL_X509_STORE_CTX_set_verify_cb
+ * takes precedence over one set on the store, matching OpenSSL.
+ *
+ * The context callback is settable in every OPENSSL_EXTRA build, so the
+ * pathLen and INVALID_CA overrides driven from here are now reachable there
+ * too, not just under OPENSSL_ALL or WOLFSSL_QT. */
+static WOLFSSL_X509_STORE_CTX_verify_cb X509StoreGetVerifyCb(
+        WOLFSSL_X509_STORE_CTX* ctx)
+{
+    if (ctx == NULL)
+        return NULL;
+
+    if (ctx->verify_cb != NULL)
+        return ctx->verify_cb;
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    if (ctx->store != NULL)
+        return ctx->store->verify_cb;
+#endif
+
+    return NULL;
+}
+
+/* Verify ctx->current_cert against the store.
+ *
+ * <cbRejected> is an out-parameter, never NULL. It is set to 1 when the
+ * application's per-context verify callback explicitly rejected a certificate
+ * the verification itself accepted, and to 0 otherwise. The rejection is
+ * reported out of band rather than as a return value so that it cannot be
+ * confused with any of the internal error codes this function passes through.
+ *
+ * A caller must stop chain building when it is set: a veto must not be turned
+ * into a retry with another issuer, and must not be cleared by the
+ * partial-chain fallback in wolfSSL_X509_verify_cert(). */
+static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    WOLFSSL_X509_STORE_CTX_verify_cb verifyCb;
     WOLFSSL_ENTER("X509StoreVerifyCert");
+
+    *cbRejected = 0;
+
+    verifyCb = X509StoreGetVerifyCb(ctx);
 
     if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
         ret = wolfSSL_CertManagerVerifyBuffer(ctx->store->cm,
@@ -540,14 +585,40 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
         }
 #endif
         SetupStoreCtxError(ctx, ret);
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        if (ctx->store->verify_cb)
-            ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0, ctx) == 1 ?
-                                                        WOLFSSL_SUCCESS : ret;
-    #endif
+        if (verifyCb != NULL) {
+            /* Snapshot the error so the rejection below can tell one the
+             * callback recorded itself from one left over from an earlier
+             * certificate in the chain - SetupStoreCtxError() preserves the
+             * worst error seen so far, so ctx->error is not necessarily
+             * WOLFSSL_X509_V_OK on entry even when this certificate
+             * verified. */
+            int preCbError = ctx->error;
+
+            if (verifyCb(ret >= 0 ? 1 : 0, ctx) == 1) {
+                ret = WOLFSSL_SUCCESS;
+            }
+            else if (ret >= 0 && ctx->verify_cb != NULL) {
+                /* Returning 0 must reject a chain the cert manager accepted.
+                 * Only for the per-context callback - a store callback has
+                 * never been able to reject here, and widening it is a
+                 * separate behavior change. */
+                if (ctx->error == preCbError) {
+                    /* Keep an error the callback recorded itself; otherwise
+                     * the rejection has no error to report. */
+                    wolfSSL_X509_STORE_CTX_set_error(ctx,
+                        WOLFSSL_X509_V_ERR_UNSPECIFIED);
+                }
+                *cbRejected = 1;
+                ret = WOLFSSL_FAILURE;
+            }
+        }
     }
 #if !defined(NO_ASN_TIME) && defined(OPENSSL_ALL)
-    if (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
+    /* Skipped once the callback has rejected: the decision is already made,
+     * and re-running the date check would consult the callback a second time,
+     * which could overturn the rejection. */
+    if (*cbRejected == 0 &&
+        ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
         ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
         /* With OpenSSL, we need to check the certificate's date
         * after certificate manager verification,
@@ -556,8 +627,8 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
         ret = X509StoreVerifyCertDate(ctx, ret);
         SetupStoreCtxError(ctx, ret);
         ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
-        if (ctx->store->verify_cb) {
-            if (ctx->store->verify_cb(ret, ctx) == 1) {
+        if (verifyCb != NULL) {
+            if (verifyCb(ret, ctx) == 1) {
                 ret = WOLFSSL_SUCCESS;
             }
             else {
@@ -780,9 +851,12 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
     word32 maxPathLen = 0;
     byte haveConstraint = 0;
     WOLFSSL_X509* anchor;
+    WOLFSSL_X509_STORE_CTX_verify_cb verifyCb;
 
     if (ctx == NULL || ctx->chain == NULL)
         return WOLFSSL_SUCCESS;
+
+    verifyCb = X509StoreGetVerifyCb(ctx);
 
     num = wolfSSL_sk_X509_num(ctx->chain);
     /* A pathLen violation requires at least one intermediate between the leaf
@@ -823,16 +897,13 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
             if (maxPathLen == 0) {
                 SetupStoreCtxError_ex(ctx,
                     WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED, i);
-            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
                 /* Allow an application verify callback to override, matching
                  * the INVALID_CA handling in wolfSSL_X509_verify_cert(). */
-                if (ctx->store != NULL && ctx->store->verify_cb != NULL &&
-                        ctx->store->verify_cb(0, ctx) == 1) {
+                if (verifyCb != NULL && verifyCb(0, ctx) == 1) {
                     /* Overridden: keep walking without decrementing (budget is
                      * already exhausted). */
                     continue;
                 }
-            #endif
                 return WOLFSSL_FAILURE;
             }
             maxPathLen--;
@@ -863,18 +934,26 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int numFailedCerts = 0;
     int depth = 0;
     int origDepth = 0;
+    int cbRejected = 0;
     WOLFSSL_X509 *issuer = NULL;
     WOLFSSL_X509 *orig = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certsToUse = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* failedCerts = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* origTrustedSk = NULL;
+#ifndef WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE
+    WOLFSSL_X509_STORE_CTX_verify_cb verifyCb;
+#endif
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx == NULL || ctx->store == NULL || ctx->store->cm == NULL
          || ctx->current_cert == NULL || ctx->current_cert->derCert == NULL) {
         return WOLFSSL_FATAL_ERROR;
     }
+
+#ifndef WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE
+    verifyCb = X509StoreGetVerifyCb(ctx);
+#endif
 
     certs = ctx->store->certs;
 
@@ -975,17 +1054,14 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 /* error depth is current depth + 1 */
                 SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_INVALID_CA,
                                 (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
-            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-                if (ctx->store->verify_cb) {
-                    ret = ctx->store->verify_cb(0, ctx);
+                if (verifyCb != NULL) {
+                    ret = verifyCb(0, ctx);
                     if (ret != WOLFSSL_SUCCESS) {
                         ret = WOLFSSL_FAILURE;
                         goto exit;
                     }
                 }
-                else
-            #endif
-                {
+                else {
                     ret = WOLFSSL_FAILURE;
                     goto exit;
                 }
@@ -998,7 +1074,14 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 continue;
             }
             added = 1;
-            ret = X509StoreVerifyCert(ctx);
+            ret = X509StoreVerifyCert(ctx, &cbRejected);
+            if (cbRejected) {
+                /* The application vetoed this certificate.  Stop instead of
+                 * looking for another issuer: the decision is the
+                 * application's and retrying would only ask it again. */
+                ret = WOLFSSL_FAILURE;
+                goto exit;
+            }
             if (ret != WOLFSSL_SUCCESS) {
                 if ((origDepth - depth) <= 1)
                     added = 0;
@@ -1030,7 +1113,14 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 goto exit;
             }
             added = 0;
-            ret = X509StoreVerifyCert(ctx);
+            ret = X509StoreVerifyCert(ctx, &cbRejected);
+            if (cbRejected) {
+                /* An application veto is final.  The partial-chain fallback
+                 * below must not accept the chain here and clear ctx->error:
+                 * the certificate verified, the application rejected it. */
+                ret = WOLFSSL_FAILURE;
+                goto exit;
+            }
             if (ret != WOLFSSL_SUCCESS) {
                 /* WOLFSSL_PARTIAL_CHAIN may only terminate the chain at a
                  * certificate the caller actually trusts.  The previous
@@ -1193,6 +1283,19 @@ exit:
                 ret = WOLFSSL_FAILURE;
             }
         }
+    }
+
+    /* Fail closed on the way out: every failure has to be reportable through
+     * X509_STORE_CTX_get_error(), or the application is told the chain was
+     * fine while this function reports failure. Not all of them record one -
+     * a verify callback that rejects a chain the verification accepted, an
+     * allocation failure, or a chain-building error that never reached
+     * SetupStoreCtxError() all leave ctx->error at X509_V_OK. This is a
+     * deliberate blanket fallback for that whole class; it is applied only
+     * when nothing more specific was recorded, so an error the callback or
+     * the verification did set survives untouched. */
+    if (ret != WOLFSSL_SUCCESS && ctx->error == WOLFSSL_X509_V_OK) {
+        ctx->error = WOLFSSL_X509_V_ERR_UNSPECIFIED;
     }
 
     return ret == WOLFSSL_SUCCESS ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;

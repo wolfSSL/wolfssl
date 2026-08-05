@@ -29386,6 +29386,9 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
     /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
      *       -WOLFSSL_ERROR_WANT_CONNECT.
      */
+    case WOLFSSL_X509_V_ERR_UNSPECIFIED:
+        return "unspecified certificate verification error";
+
     case WOLFSSL_X509_V_ERR_CRL_HAS_EXPIRED:
         return "CRL has expired";
 
