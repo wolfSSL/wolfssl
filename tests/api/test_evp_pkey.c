@@ -33,6 +33,9 @@
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_evp_pkey.h>
 
@@ -3088,11 +3091,30 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
         f = XBADFILE;
     }
 
+#ifdef HAVE_CURVE25519
+    {
+        /* Start from a raw X25519 key: the RSA decode below repurposes the
+         * EVP_PKEY and must release the curve25519 object too. */
+        static const unsigned char x25519Base[CURVE25519_PUB_KEY_SIZE] =
+            { 9 };
+        ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+            WC_EVP_PKEY_X25519, NULL, x25519Base, sizeof(x25519Base)));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_X25519);
+    }
+#endif
+
     /* Decode an RSA SPKI first so pkey holds a non-ML-DSA key. */
     p = client_keypub_der_2048;
     ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p,
         (long)sizeof_client_keypub_der_2048));
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+#ifdef HAVE_CURVE25519
+    if (pkey != NULL) {
+        /* The X25519 object must have been released and detached when the
+         * key was repurposed to RSA. */
+        ExpectNull(pkey->curve25519);
+    }
+#endif
 
     /* Reuse the same EVP_PKEY for an ML-DSA SPKI and check the object was
      * re-populated with the new key. */
