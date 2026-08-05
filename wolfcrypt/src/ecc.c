@@ -14085,18 +14085,23 @@ static int accel_fp_mul2add(int idx1, int idx2,
    int first;
 
 #ifdef WOLFSSL_SMALL_STACK
+   /* each is zeroed on acquisition so the cleanup below no-ops if a later
+    * allocation fails and the init is skipped */
    tka = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
    if (tka == NULL) {
       err = MEMORY_E; goto done;
    }
+   XMEMSET(tka, 0, sizeof(mp_int));
    tkb = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
    if (tkb == NULL) {
       err = MEMORY_E; goto done;
    }
+   XMEMSET(tkb, 0, sizeof(mp_int));
    order = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
    if (order == NULL) {
       err = MEMORY_E; goto done;
    }
+   XMEMSET(order, 0, sizeof(mp_int));
 #endif
 
    if (mp_init_multi(tka, tkb, order, NULL, NULL, NULL) != MP_OKAY) {
