@@ -203,7 +203,7 @@ int wc_SignatureVerifyHash(
         return ret;
     }
 
-#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(NO_RSA) && !defined(NO_ASN)
     /* For WC_SIGNATURE_TYPE_RSA_W_ENC, we need to extract the actual size of
      * the ASN.1-encoded hash.
      */

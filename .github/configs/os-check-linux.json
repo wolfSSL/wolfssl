@@ -336,5 +336,9 @@
 {"name": "opensslextra-no-filesystem-no-bio", "minutes": 0.9,
  "configure": ["--enable-opensslextra", "--disable-filesystem", "CPPFLAGS=-DNO_BIO"]},
 {"name": "no-examples-no-malloc", "minutes": 0.8,
- "configure": ["--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_MALLOC"]}
+ "configure": ["--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_MALLOC"]},
+{"name": "cryptonly-no-asn-rsa", "minutes": 0.2, "check": false,
+ "comment": "RSA with ASN.1 disabled. Build only, since wolfcrypt test and benchmark do not support this combination.",
+ "configure": ["--enable-cryptonly", "--disable-asn", "--enable-lowresource",
+  "--disable-crypttests", "--disable-examples"]}
 ]
