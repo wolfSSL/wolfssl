@@ -846,7 +846,7 @@ then
 
     # opportunistically use -ffile-prefix-map (added in GCC8 and LLVM10)
 
-    if "$CC" -ffile-prefix-map=/tmp=. -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+    if $CC -ffile-prefix-map=/tmp=. -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
         #include <stdlib.h>
         int main(int argc, char **argv) {
             (void)argc; (void)argv; return 0;
@@ -857,7 +857,7 @@ then
     fi
 
     # opportunistically force linker option --build-id=sha1 (usually the default)
-    if "$CC" -Wl,--build-id=sha1 -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+    if $CC -Wl,--build-id=sha1 -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
         #include <stdlib.h>
         int main(int argc, char **argv) {
             (void)argc; (void)argv; return 0;
@@ -1514,7 +1514,7 @@ fi
 # Auto-selected activation of all applicable asm accelerations
 
 # Enable asm automatically only if the compiler advertises itself as full Gnu C.
-if "$CC" $AM_CFLAGS $CPPFLAGS $CFLAGS -x c - -o /dev/null >/dev/null 2>&1 <<'    EOF'
+if $CC $AM_CFLAGS $CPPFLAGS $CFLAGS -x c - -o /dev/null >/dev/null 2>&1 <<'    EOF'
     #include <stdlib.h>
     int main(int argc, char **argv) {
         (void)argc; (void)argv;
