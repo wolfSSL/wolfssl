@@ -6177,9 +6177,11 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */
-    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    if (ret != 0)
-        return ret;
+    if (key) {
+        ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret != 0)
+            return ret;
+    }
 #endif
 
 #ifdef HAVE_PK_CALLBACKS
@@ -6203,7 +6205,11 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
+        /* with a PK callback the private key can live only in the callback,
+         * leaving no async device to push */
+        if (key != NULL) {
+            ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
+        }
     }
     else
 #endif /* WOLFSSL_ASYNC_CRYPT */
