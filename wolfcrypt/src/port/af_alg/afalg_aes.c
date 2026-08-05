@@ -61,7 +61,7 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
 #endif
 
     if (aes->keyInstalled == 0) {
-        return BAD_FUNC_ARG;
+        return MISSING_KEY;
     }
 
     if (aes->alFd == WC_SOCK_NOTSET) {
