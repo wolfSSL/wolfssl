@@ -156,18 +156,22 @@ void AES_GCM_ghash_block_AARCH64(const byte* data, byte* tag, byte* gcm_h)
     uint8x16_t v3 = vextq_u8(v8, v8, 8);
     poly64x2_t p3 = vreinterpretq_p64_u8(v3);
     uint8x16_t v2 = gf_pmull_low(p3, p5);
+    /* Reduction constant for the GCM polynomial. */
+    poly64x2_t p7 = vreinterpretq_p64_u64(vdupq_n_u64(0x87));
+    uint8x16_t r2;
+    uint64x2_t v0u, v3u;
+
     v2 = veorq_u8(v2, gf_pmull_high(p3, p5));
 
     /* Reduce modulo the GCM polynomial via the 0x87 constant. */
-    poly64x2_t p7 = vreinterpretq_p64_u64(vdupq_n_u64(0x87));
     v3 = vextq_u8(v0, v1, 8);
     v3 = veorq_u8(v3, gf_pmull_high(vreinterpretq_p64_u8(v1), p7));
     v3 = veorq_u8(v3, v2);
-    uint8x16_t r2 = gf_pmull_high(vreinterpretq_p64_u8(v3), p7);
+    r2 = gf_pmull_high(vreinterpretq_p64_u8(v3), p7);
 
     /* mov v0.d[1], v3.d[0] */
-    uint64x2_t v0u = vreinterpretq_u64_u8(v0);
-    uint64x2_t v3u = vreinterpretq_u64_u8(v3);
+    v0u = vreinterpretq_u64_u8(v0);
+    v3u = vreinterpretq_u64_u8(v3);
     v0u = vsetq_lane_u64(vgetq_lane_u64(v3u, 0), v0u, 1);
 
     v6 = veorq_u8(vreinterpretq_u8_u64(v0u), r2);
@@ -193,42 +197,11 @@ void AES_GCM_set_key_AARCH64(const byte* nonce, const byte* key, byte* gcm_h,
     vst1q_u8(gcm_h, s);
 }
 
-/* intrinsics for armv8-aes-asm_c.c: lines 585-634 (AES_encrypt_AARCH64)
- *
- * AES single-block encrypt via ARMv8 AES instructions. `key` points to (nr+1)
- * contiguous 16-byte expanded round keys (the asm's post-incremented loads).
- * nr-1 rounds of aese+aesmc, a final aese (no mix column), then XOR round key nr.
- * nr = 10/12/14 for AES-128/192/256. aese/aesmc take/return uint8x16_t on both
- * MSVC and clang, so no vmull_p64-style compiler split is needed. */
-void AES_encrypt_AARCH64(const byte* inBlock, byte* outBlock, byte* key, int nr)
-{
-    uint8x16_t s = vld1q_u8(inBlock);
-    int i;
-    for (i = 0; i < nr - 1; i++) {
-        s = vaeseq_u8(s, vld1q_u8(key + i * 16));
-        s = vaesmcq_u8(s);
-    }
-    s = vaeseq_u8(s, vld1q_u8(key + (nr - 1) * 16));
-    s = veorq_u8(s, vld1q_u8(key + nr * 16));
-    vst1q_u8(outBlock, s);
-}
-
-/* intrinsics for armv8-aes-asm_c.c: lines 639-688 (AES_decrypt_AARCH64)
- *
- * AES single-block decrypt (aesd/aesimc), mirroring the encrypt kernel with the
- * inverse key schedule. Same round structure and key layout as encrypt. */
-void AES_decrypt_AARCH64(const byte* inBlock, byte* outBlock, byte* key, int nr)
-{
-    uint8x16_t s = vld1q_u8(inBlock);
-    int i;
-    for (i = 0; i < nr - 1; i++) {
-        s = vaesdq_u8(s, vld1q_u8(key + i * 16));
-        s = vaesimcq_u8(s);
-    }
-    s = vaesdq_u8(s, vld1q_u8(key + (nr - 1) * 16));
-    s = veorq_u8(s, vld1q_u8(key + nr * 16));
-    vst1q_u8(outBlock, s);
-}
+/* AES_encrypt_AARCH64 and AES_decrypt_AARCH64 are defined further down, after
+ * the unrolled round bodies they delegate to (AES_enc_block_vec /
+ * AES_dec_block_vec). Keeping one definition of the round structure matters:
+ * an nr-driven loop costs 3 scalar bookkeeping ops per 2 AES instructions and
+ * measured about 2x slower than the unrolled form on an Oryon core. */
 
 /* intrinsics for armv8-aes-asm_c.c: lines 3137-3272 (AES_CBC_encrypt_AARCH64)
  *
@@ -291,17 +264,150 @@ void AES_CBC_decrypt_AARCH64(const byte* in, byte* out, word32 sz, byte* reg,
 
 /* ---- AES-GCM helper kernels (armv8-aes-asm_c.c) ---- */
 
-/* AES-encrypt one 16-byte state with (nr+1) round keys (shared by GCM helpers). */
-static WC_INLINE uint8x16_t AES_enc_block_vec(uint8x16_t s, const byte* key, int nr)
+/* AES round structure, written once and instantiated per key size.
+ *
+ * The round count MUST be a compile-time constant here. With a runtime nr, MSVC
+ * emits the rounds as a real loop - measured on an Oryon core, that loop costs
+ * 3 scalar bookkeeping ops (sub/add/cbnz) per 2 AES instructions and runs at
+ * 2732 MB/s, versus 5913 MB/s (2.16x) for the same instruction mix with the
+ * rounds unrolled. Hence the dispatch on nr below rather than one nr-driven
+ * loop: AES has only three key sizes, so three instantiations cover every case.
+ *
+ * AES_ROUNDS_N applies the (n-1) full rounds; the caller adds the final
+ * aese + eor. WIDE variants interleave W independent blocks so the AES pipeline
+ * stays fed - a single chain is latency-bound (aese->aesmc->aese is serial),
+ * which is what upstream's assembly avoids with its _start_2/4/8 tiers. */
+/* Real MSVC only (this whole file is gated on _MSC_VER && !__clang__). */
+#define AES_FORCE_INLINE  static __forceinline
+
+#define AES_RK(r)   vld1q_u8(key + (r) * 16)
+
+#define AES_ENC_R1(s, r) do {                                                 \
+        (s) = vaeseq_u8((s), AES_RK(r));                                      \
+        (s) = vaesmcq_u8((s));                                                \
+    } while (0)
+
+/* Final round: aese with rk[nr-1], then eor with rk[nr] (no MixColumns). */
+#define AES_ENC_FINAL(s, nrc) do {                                            \
+        (s) = vaeseq_u8((s), AES_RK((nrc) - 1));                              \
+        (s) = veorq_u8((s), AES_RK(nrc));                                     \
+    } while (0)
+
+#define AES_ENC_BODY_10(s) do {                                               \
+        AES_ENC_R1(s, 0); AES_ENC_R1(s, 1); AES_ENC_R1(s, 2);                 \
+        AES_ENC_R1(s, 3); AES_ENC_R1(s, 4); AES_ENC_R1(s, 5);                 \
+        AES_ENC_R1(s, 6); AES_ENC_R1(s, 7); AES_ENC_R1(s, 8);                 \
+        AES_ENC_FINAL(s, 10);                                                 \
+    } while (0)
+#define AES_ENC_BODY_12(s) do {                                               \
+        AES_ENC_R1(s, 0); AES_ENC_R1(s, 1); AES_ENC_R1(s, 2);                 \
+        AES_ENC_R1(s, 3); AES_ENC_R1(s, 4); AES_ENC_R1(s, 5);                 \
+        AES_ENC_R1(s, 6); AES_ENC_R1(s, 7); AES_ENC_R1(s, 8);                 \
+        AES_ENC_R1(s, 9); AES_ENC_R1(s, 10);                                  \
+        AES_ENC_FINAL(s, 12);                                                 \
+    } while (0)
+#define AES_ENC_BODY_14(s) do {                                               \
+        AES_ENC_R1(s, 0); AES_ENC_R1(s, 1); AES_ENC_R1(s, 2);                 \
+        AES_ENC_R1(s, 3); AES_ENC_R1(s, 4); AES_ENC_R1(s, 5);                 \
+        AES_ENC_R1(s, 6); AES_ENC_R1(s, 7); AES_ENC_R1(s, 8);                 \
+        AES_ENC_R1(s, 9); AES_ENC_R1(s, 10); AES_ENC_R1(s, 11);               \
+        AES_ENC_R1(s, 12);                                                    \
+        AES_ENC_FINAL(s, 14);                                                 \
+    } while (0)
+
+/* AES-encrypt one 16-byte state with (nr+1) round keys (shared by GCM helpers).
+ *
+ * AES_FORCE_INLINE, not plain WC_INLINE: the three unrolled bodies make this
+ * function large enough that MSVC's inline heuristic declines it and emits a
+ * `bl` instead - measured, a call/return per block on the hot path. */
+AES_FORCE_INLINE uint8x16_t AES_enc_block_vec(uint8x16_t s, const byte* key, int nr)
 {
-    int i;
-    for (i = 0; i < nr - 1; i++) {
-        s = vaeseq_u8(s, vld1q_u8(key + i * 16));
-        s = vaesmcq_u8(s);
+    switch (nr) {
+    case 10: AES_ENC_BODY_10(s); return s;
+    case 12: AES_ENC_BODY_12(s); return s;
+    case 14: AES_ENC_BODY_14(s); return s;
+    default:
+        /* Not reachable for AES-128/192/256; kept so an unexpected round count
+         * still produces the correct result rather than silently wrong data. */
+        {
+            int i;
+            for (i = 0; i < nr - 1; i++) {
+                s = vaeseq_u8(s, vld1q_u8(key + i * 16));
+                s = vaesmcq_u8(s);
+            }
+            s = vaeseq_u8(s, vld1q_u8(key + (nr - 1) * 16));
+            return veorq_u8(s, vld1q_u8(key + nr * 16));
+        }
     }
-    s = vaeseq_u8(s, vld1q_u8(key + (nr - 1) * 16));
-    return veorq_u8(s, vld1q_u8(key + nr * 16));
 }
+
+/* AES over EIGHT independent blocks, rounds unrolled and the eight chains
+ * interleaved so the pipeline stays fed.
+ *
+ * These are macros over EIGHT NAMED LOCALS rather than a function taking
+ * uint8x16_t s[8]. That is deliberate and was measured: with an array parameter
+ * (a pointer) MSVC keeps the lanes in MEMORY and emits a single-block chain plus
+ * spill traffic - the disassembly showed 42 load/stores for 63 AES ops and the
+ * 8-wide path ran no faster than 1-wide. With named locals the eight states stay
+ * in v-registers, which is the entire point of going wide. */
+#define AES_X8_DECL(s)  uint8x16_t s##0, s##1, s##2, s##3, s##4, s##5, s##6,   \
+                                   s##7
+#define AES_X8_LOAD(s, p) do {                                                \
+        s##0 = vld1q_u8((p) + 0 * 16);  s##1 = vld1q_u8((p) + 1 * 16);         \
+        s##2 = vld1q_u8((p) + 2 * 16);  s##3 = vld1q_u8((p) + 3 * 16);         \
+        s##4 = vld1q_u8((p) + 4 * 16);  s##5 = vld1q_u8((p) + 5 * 16);         \
+        s##6 = vld1q_u8((p) + 6 * 16);  s##7 = vld1q_u8((p) + 7 * 16);         \
+    } while (0)
+#define AES_X8_STORE(s, p) do {                                               \
+        vst1q_u8((p) + 0 * 16, s##0);   vst1q_u8((p) + 1 * 16, s##1);          \
+        vst1q_u8((p) + 2 * 16, s##2);   vst1q_u8((p) + 3 * 16, s##3);          \
+        vst1q_u8((p) + 4 * 16, s##4);   vst1q_u8((p) + 5 * 16, s##5);          \
+        vst1q_u8((p) + 6 * 16, s##6);   vst1q_u8((p) + 7 * 16, s##7);          \
+    } while (0)
+/* XOR the 8 keystream blocks with plaintext at p, storing to q (CTR). */
+#define AES_X8_XOR_STORE(s, p, q) do {                                        \
+        vst1q_u8((q) + 0 * 16, veorq_u8(vld1q_u8((p) + 0 * 16), s##0));        \
+        vst1q_u8((q) + 1 * 16, veorq_u8(vld1q_u8((p) + 1 * 16), s##1));        \
+        vst1q_u8((q) + 2 * 16, veorq_u8(vld1q_u8((p) + 2 * 16), s##2));        \
+        vst1q_u8((q) + 3 * 16, veorq_u8(vld1q_u8((p) + 3 * 16), s##3));        \
+        vst1q_u8((q) + 4 * 16, veorq_u8(vld1q_u8((p) + 4 * 16), s##4));        \
+        vst1q_u8((q) + 5 * 16, veorq_u8(vld1q_u8((p) + 5 * 16), s##5));        \
+        vst1q_u8((q) + 6 * 16, veorq_u8(vld1q_u8((p) + 6 * 16), s##6));        \
+        vst1q_u8((q) + 7 * 16, veorq_u8(vld1q_u8((p) + 7 * 16), s##7));        \
+    } while (0)
+
+#define AES_ENC_R8(s, r) do {                                                 \
+        uint8x16_t rk_ = AES_RK(r);                                           \
+        s##0 = vaesmcq_u8(vaeseq_u8(s##0, rk_));                              \
+        s##1 = vaesmcq_u8(vaeseq_u8(s##1, rk_));                              \
+        s##2 = vaesmcq_u8(vaeseq_u8(s##2, rk_));                              \
+        s##3 = vaesmcq_u8(vaeseq_u8(s##3, rk_));                              \
+        s##4 = vaesmcq_u8(vaeseq_u8(s##4, rk_));                              \
+        s##5 = vaesmcq_u8(vaeseq_u8(s##5, rk_));                              \
+        s##6 = vaesmcq_u8(vaeseq_u8(s##6, rk_));                              \
+        s##7 = vaesmcq_u8(vaeseq_u8(s##7, rk_));                              \
+    } while (0)
+
+#define AES_ENC_FINAL8(s, nrc) do {                                           \
+        uint8x16_t rl_ = AES_RK((nrc) - 1), rf_ = AES_RK(nrc);                \
+        s##0 = veorq_u8(vaeseq_u8(s##0, rl_), rf_);                           \
+        s##1 = veorq_u8(vaeseq_u8(s##1, rl_), rf_);                           \
+        s##2 = veorq_u8(vaeseq_u8(s##2, rl_), rf_);                           \
+        s##3 = veorq_u8(vaeseq_u8(s##3, rl_), rf_);                           \
+        s##4 = veorq_u8(vaeseq_u8(s##4, rl_), rf_);                           \
+        s##5 = veorq_u8(vaeseq_u8(s##5, rl_), rf_);                           \
+        s##6 = veorq_u8(vaeseq_u8(s##6, rl_), rf_);                           \
+        s##7 = veorq_u8(vaeseq_u8(s##7, rl_), rf_);                           \
+    } while (0)
+
+#define AES_ENC_BODY8(s, nrc) do {                                            \
+        AES_ENC_R8(s, 0); AES_ENC_R8(s, 1); AES_ENC_R8(s, 2);                 \
+        AES_ENC_R8(s, 3); AES_ENC_R8(s, 4); AES_ENC_R8(s, 5);                 \
+        AES_ENC_R8(s, 6); AES_ENC_R8(s, 7); AES_ENC_R8(s, 8);                 \
+        if ((nrc) > 10) { AES_ENC_R8(s, 9); AES_ENC_R8(s, 10); }              \
+        if ((nrc) > 12) { AES_ENC_R8(s, 11); AES_ENC_R8(s, 12); }             \
+        AES_ENC_FINAL8(s, nrc);                                               \
+    } while (0)
 
 /* One GHASH GF(2^128) multiply-reduce: returns (tagv * H) reduced. tagv must
  * already include the folded-in data (caller does tagv ^= rbit(block)). */
@@ -487,18 +593,101 @@ static WC_INLINE uint8x16_t AES_gcm_ghash_fold_partial(uint8x16_t tagv,
     return AES_gcm_ghash_fold(tagv, b, H);
 }
 
+/* Decrypt counterparts of the encrypt round macros above (aesd/aesimc). */
+#define AES_DEC_R1(s, r) do {                                                 \
+        (s) = vaesdq_u8((s), AES_RK(r));                                      \
+        (s) = vaesimcq_u8((s));                                               \
+    } while (0)
+
+#define AES_DEC_FINAL(s, nrc) do {                                            \
+        (s) = vaesdq_u8((s), AES_RK((nrc) - 1));                              \
+        (s) = veorq_u8((s), AES_RK(nrc));                                     \
+    } while (0)
+
+#define AES_DEC_BODY_N(s, nrc) do {                                           \
+        AES_DEC_R1(s, 0); AES_DEC_R1(s, 1); AES_DEC_R1(s, 2);                 \
+        AES_DEC_R1(s, 3); AES_DEC_R1(s, 4); AES_DEC_R1(s, 5);                 \
+        AES_DEC_R1(s, 6); AES_DEC_R1(s, 7); AES_DEC_R1(s, 8);                 \
+        if ((nrc) > 10) { AES_DEC_R1(s, 9); AES_DEC_R1(s, 10); }              \
+        if ((nrc) > 12) { AES_DEC_R1(s, 11); AES_DEC_R1(s, 12); }             \
+        AES_DEC_FINAL(s, nrc);                                                \
+    } while (0)
+
 /* AES single-block decrypt with (nr+1) contiguous round keys. */
-static WC_INLINE uint8x16_t AES_dec_block_vec(uint8x16_t s, const byte* key,
+AES_FORCE_INLINE uint8x16_t AES_dec_block_vec(uint8x16_t s, const byte* key,
     int nr)
 {
-    int i;
-    for (i = 0; i < nr - 1; i++) {
-        s = vaesdq_u8(s, vld1q_u8(key + i * 16));
-        s = vaesimcq_u8(s);
+    switch (nr) {
+    case 10: AES_DEC_BODY_N(s, 10); return s;
+    case 12: AES_DEC_BODY_N(s, 12); return s;
+    case 14: AES_DEC_BODY_N(s, 14); return s;
+    default: {
+            int i;
+            for (i = 0; i < nr - 1; i++) {
+                s = vaesdq_u8(s, vld1q_u8(key + i * 16));
+                s = vaesimcq_u8(s);
+            }
+            s = vaesdq_u8(s, vld1q_u8(key + (nr - 1) * 16));
+            return veorq_u8(s, vld1q_u8(key + nr * 16));
+        }
     }
-    s = vaesdq_u8(s, vld1q_u8(key + (nr - 1) * 16));
-    return veorq_u8(s, vld1q_u8(key + nr * 16));
 }
+
+/* intrinsics for armv8-aes-asm_c.c: lines 585-634 (AES_encrypt_AARCH64)
+ *
+ * AES single-block encrypt via ARMv8 AES instructions. `key` points to (nr+1)
+ * contiguous 16-byte expanded round keys (the asm's post-incremented loads).
+ * nr-1 rounds of aese+aesmc, a final aese (no mix column), then XOR round key nr.
+ * nr = 10/12/14 for AES-128/192/256. aese/aesmc take/return uint8x16_t on both
+ * MSVC and clang, so no vmull_p64-style compiler split is needed. */
+void AES_encrypt_AARCH64(const byte* inBlock, byte* outBlock, byte* key, int nr)
+{
+    vst1q_u8(outBlock, AES_enc_block_vec(vld1q_u8(inBlock), key, nr));
+}
+
+/* intrinsics for armv8-aes-asm_c.c: lines 639-688 (AES_decrypt_AARCH64)
+ *
+ * AES single-block decrypt (aesd/aesimc), mirroring the encrypt kernel with the
+ * inverse key schedule. Same round structure and key layout as encrypt. */
+void AES_decrypt_AARCH64(const byte* inBlock, byte* outBlock, byte* key, int nr)
+{
+    vst1q_u8(outBlock, AES_dec_block_vec(vld1q_u8(inBlock), key, nr));
+}
+
+/* AES-decrypt EIGHT independent blocks with the chains interleaved (ECB).
+ * Named locals for the same register-residency reason as the encrypt side. */
+#define AES_DEC_R8(s, r) do {                                                 \
+        uint8x16_t rk_ = AES_RK(r);                                           \
+        s##0 = vaesimcq_u8(vaesdq_u8(s##0, rk_));                             \
+        s##1 = vaesimcq_u8(vaesdq_u8(s##1, rk_));                             \
+        s##2 = vaesimcq_u8(vaesdq_u8(s##2, rk_));                             \
+        s##3 = vaesimcq_u8(vaesdq_u8(s##3, rk_));                             \
+        s##4 = vaesimcq_u8(vaesdq_u8(s##4, rk_));                             \
+        s##5 = vaesimcq_u8(vaesdq_u8(s##5, rk_));                             \
+        s##6 = vaesimcq_u8(vaesdq_u8(s##6, rk_));                             \
+        s##7 = vaesimcq_u8(vaesdq_u8(s##7, rk_));                             \
+    } while (0)
+
+#define AES_DEC_FINAL8(s, nrc) do {                                           \
+        uint8x16_t rl_ = AES_RK((nrc) - 1), rf_ = AES_RK(nrc);                \
+        s##0 = veorq_u8(vaesdq_u8(s##0, rl_), rf_);                           \
+        s##1 = veorq_u8(vaesdq_u8(s##1, rl_), rf_);                           \
+        s##2 = veorq_u8(vaesdq_u8(s##2, rl_), rf_);                           \
+        s##3 = veorq_u8(vaesdq_u8(s##3, rl_), rf_);                           \
+        s##4 = veorq_u8(vaesdq_u8(s##4, rl_), rf_);                           \
+        s##5 = veorq_u8(vaesdq_u8(s##5, rl_), rf_);                           \
+        s##6 = veorq_u8(vaesdq_u8(s##6, rl_), rf_);                           \
+        s##7 = veorq_u8(vaesdq_u8(s##7, rl_), rf_);                           \
+    } while (0)
+
+#define AES_DEC_BODY8(s, nrc) do {                                            \
+        AES_DEC_R8(s, 0); AES_DEC_R8(s, 1); AES_DEC_R8(s, 2);                 \
+        AES_DEC_R8(s, 3); AES_DEC_R8(s, 4); AES_DEC_R8(s, 5);                 \
+        AES_DEC_R8(s, 6); AES_DEC_R8(s, 7); AES_DEC_R8(s, 8);                 \
+        if ((nrc) > 10) { AES_DEC_R8(s, 9); AES_DEC_R8(s, 10); }              \
+        if ((nrc) > 12) { AES_DEC_R8(s, 11); AES_DEC_R8(s, 12); }             \
+        AES_DEC_FINAL8(s, nrc);                                               \
+    } while (0)
 
 /* GCM CTR step: increment the counter's LOW 32 BITS (word[3], big-endian). */
 static WC_INLINE uint8x16_t AES_gcm_ctr_next(uint8x16_t* ctr)
@@ -515,8 +704,22 @@ void AES_encrypt_blocks_AARCH64(const byte* in, byte* out, word32 sz, byte* key,
     int nr)
 {
     word32 blocks = sz >> 4;
-    word32 b;
-    for (b = 0; b < blocks; b++)
+    word32 b = 0;
+    /* Eight blocks in flight: ECB blocks are independent, so this is purely a
+     * pipelining win. */
+    if (nr == 10 || nr == 12 || nr == 14) {
+        AES_X8_DECL(s);
+        for (; b + 8 <= blocks; b += 8) {
+            AES_X8_LOAD(s, in + b * 16);
+            switch (nr) {
+            case 10: AES_ENC_BODY8(s, 10); break;
+            case 12: AES_ENC_BODY8(s, 12); break;
+            default: AES_ENC_BODY8(s, 14); break;
+            }
+            AES_X8_STORE(s, out + b * 16);
+        }
+    }
+    for (; b < blocks; b++)
         vst1q_u8(out + b * 16, AES_enc_block_vec(vld1q_u8(in + b * 16), key, nr));
 }
 
@@ -526,8 +729,20 @@ void AES_decrypt_blocks_AARCH64(const byte* in, byte* out, word32 sz, byte* key,
     int nr)
 {
     word32 blocks = sz >> 4;
-    word32 b;
-    for (b = 0; b < blocks; b++)
+    word32 b = 0;
+    if (nr == 10 || nr == 12 || nr == 14) {
+        AES_X8_DECL(s);
+        for (; b + 8 <= blocks; b += 8) {
+            AES_X8_LOAD(s, in + b * 16);
+            switch (nr) {
+            case 10: AES_DEC_BODY8(s, 10); break;
+            case 12: AES_DEC_BODY8(s, 12); break;
+            default: AES_DEC_BODY8(s, 14); break;
+            }
+            AES_X8_STORE(s, out + b * 16);
+        }
+    }
+    for (; b < blocks; b++)
         vst1q_u8(out + b * 16, AES_dec_block_vec(vld1q_u8(in + b * 16), key, nr));
 }
 
@@ -556,7 +771,32 @@ void AES_CTR_encrypt_AARCH64(const byte* in, byte* out, word32 sz, byte* reg,
     hi = _byteswap_uint64(hi);
     lo = _byteswap_uint64(lo);
 
-    for (b = 0; b < blocks; b++) {
+    /* Eight counter blocks per iteration. The counters are generated first
+     * (they form a serial adds/adc chain on the scalar side, which overlaps with
+     * the vector work), then the eight AES chains run interleaved so the
+     * pipeline stays fed - the single-block form is latency-bound. */
+    b = 0;
+    if (nr == 10 || nr == 12 || nr == 14) {
+        AES_X8_DECL(s);
+        byte ctrs[8 * 16];
+        for (; b + 8 <= blocks; b += 8) {
+            int k;
+            for (k = 0; k < 8; k++) {
+                bhi = _byteswap_uint64(hi); blo = _byteswap_uint64(lo);
+                memcpy(ctrs + k * 16, &bhi, 8);
+                memcpy(ctrs + k * 16 + 8, &blo, 8);
+                if (++lo == 0) ++hi;    /* adds/adc: 128-bit increment */
+            }
+            AES_X8_LOAD(s, ctrs);
+            switch (nr) {
+            case 10: AES_ENC_BODY8(s, 10); break;
+            case 12: AES_ENC_BODY8(s, 12); break;
+            default: AES_ENC_BODY8(s, 14); break;
+            }
+            AES_X8_XOR_STORE(s, in + b * 16, out + b * 16);
+        }
+    }
+    for (; b < blocks; b++) {
         bhi = _byteswap_uint64(hi); blo = _byteswap_uint64(lo);
         memcpy(cb, &bhi, 8); memcpy(cb + 8, &blo, 8);
         vst1q_u8(out + b * 16, veorq_u8(vld1q_u8(in + b * 16),
