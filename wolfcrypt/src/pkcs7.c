@@ -4124,8 +4124,6 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
         }
     }
 
-    wc_PKCS7_FreeCertSet(pkcs7);
-
     wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
                 esd->signerInfoSet, esd->signerInfoSetSz);
     idx += (int)esd->signerInfoSetSz;
