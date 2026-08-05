@@ -663,18 +663,6 @@
     #define AES_GCM_AESNI_NO_UNROLL
 #endif
 
-/* Leverage compiler built-ins to assure that __int128_t and __uint128_t are
- * gated in regardless of autotools-dependent feature sensing.
- */
-#if defined(__SIZEOF_INT128__) && !defined(NO_INT128)
-    #ifndef HAVE___INT128_T
-        #define HAVE___INT128_T 1
-    #endif
-    #ifndef HAVE___UINT128_T
-        #define HAVE___UINT128_T 1
-    #endif
-#endif
-
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
 #endif

@@ -395,6 +395,9 @@ typedef struct sp_ecc_ctx {
     XALIGNED(4) byte data[66*80]; /* stack data */
     #elif defined(WOLFSSL_SP_384)
     XALIGNED(4) byte data[48*80]; /* stack data */
+    #elif SP_WORD_SIZE == 64
+    /* C64 P-256 sp_ecc_verify_256_ctx is 2640 bytes */
+    XALIGNED(4) byte data[32*84]; /* stack data */
     #else
     XALIGNED(4) byte data[32*80]; /* stack data */
     #endif
