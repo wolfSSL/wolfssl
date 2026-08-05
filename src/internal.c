@@ -24592,8 +24592,12 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 #endif /* WOLFSSL_DTLS */
                 #ifdef WOLFSSL_EARLY_DATA
                     if (ssl->options.tls1_3) {
+                        /* RFC 8446 Section 4.2.10: only skip records when
+                         * early data was rejected. After accepting early data
+                         * a decrypt failure is a fatal bad_record_mac. */
                          if (ssl->options.side == WOLFSSL_SERVER_END &&
-                                 ssl->earlyData != no_early_data &&
+                                 (ssl->earlyData == early_data_ext ||
+                                  ssl->earlyData == expecting_early_data) &&
                                  ssl->options.clientState <
                                                      CLIENT_FINISHED_COMPLETE) {
                             ssl->earlyDataSz += ssl->curSize;

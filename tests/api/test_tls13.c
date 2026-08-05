@@ -5079,6 +5079,90 @@ int test_tls13_0rtt_ext_cache_eviction(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.2.10: after the server accepts early data, a 0-RTT
+ * record that fails to decrypt must result in a fatal bad_record_mac
+ * alert. Fails without the fix because the corrupted record was skipped
+ * as ignored early data. */
+int test_tls13_early_data_bad_record_mac(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    WOLFSSL_ALERT_HISTORY h;
+    const char earlyMsg[] = "early-data-bad-mac";
+    char earlyBuf[sizeof(earlyMsg)];
+    char buf[64];
+    int written = 0;
+    int earlyRead = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(earlyBuf, 0, sizeof(earlyBuf));
+
+    /* Mint a ticket that permits 0-RTT. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Resume with early data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c, earlyMsg,
+                    (int)sizeof(earlyMsg), &written), (int)sizeof(earlyMsg));
+    ExpectIntEQ(written, (int)sizeof(earlyMsg));
+
+    /* Corrupt the first encrypted application_data record from the client
+     * before the server decrypts it. */
+    if (EXPECT_SUCCESS()) {
+        int off = 0;
+        int corrupted = 0;
+        while (off + 5 <= test_ctx.s_len) {
+            int recLen = ((int)test_ctx.s_buff[off + 3] << 8) |
+                          (int)test_ctx.s_buff[off + 4];
+            if (test_ctx.s_buff[off] == 0x17) {
+                test_ctx.s_buff[off + 5] ^= 0x01;
+                corrupted = 1;
+                break;
+            }
+            off += 5 + recLen;
+        }
+        ExpectIntEQ(corrupted, 1);
+    }
+
+    /* Server must send a fatal bad_record_mac alert. */
+    ExpectIntEQ(test_tls13_early_data_read_until_write_ok(ssl_s, earlyBuf,
+                    (int)sizeof(earlyBuf), &earlyRead), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, bad_record_mac);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 /* Check that the client won't send the same CH after a HRR. An HRR without
  * a KeyShare or a Cookie extension will trigger the error. */
