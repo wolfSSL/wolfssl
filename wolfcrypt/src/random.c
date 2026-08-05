@@ -400,9 +400,9 @@ enum {
  * wc_DrbgState_MutexInit and wc_DrbgState_MutexFree are called only from
  * wolfCrypt_Init() and wolfCrypt_Cleanup(), inside the span serialized by the
  * init-state machine, so this flag is not otherwise synchronized. */
-static volatile int drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
-#endif
-#endif
+static int drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
+#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
+#endif /* !defined(SINGLE_THREADED) */
 
 
 int wc_DrbgState_MutexInit(void)
@@ -418,8 +418,8 @@ int wc_DrbgState_MutexInit(void)
         drbgStateMutex_inited = WC_DRBG_MUTEX_INITED;
     }
 
-#endif
-#endif
+#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
+#endif /* !defined(SINGLE_THREADED) */
     return 0;
 }
 
@@ -436,8 +436,8 @@ int wc_DrbgState_MutexFree(void)
         drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
     }
 
-#endif
-#endif
+#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
+#endif /* !defined(SINGLE_THREADED) */
     return 0;
 }
 

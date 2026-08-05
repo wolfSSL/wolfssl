@@ -44,7 +44,8 @@
 #define NoActivityReady -1
 #define MemoryOperationNotPerformed -1
 
-#include <wolfssl/wolfcrypt/port/caam/caam_type.h>
+#include <stdint.h>
+#define CAAM_ADDRESS intptr_t
 #ifndef WOLFSSL_CAAM_BUFFER
 #define WOLFSSL_CAAM_BUFFER
     typedef struct CAAM_BUFFER {

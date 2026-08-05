@@ -15793,6 +15793,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #if defined(WOLFSSL_DEVCRYPTO) && \
    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     aes->ctx.cfd    = -1;
+    aes->ctx.inited = 0;
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
     DCPAesInit(aes);

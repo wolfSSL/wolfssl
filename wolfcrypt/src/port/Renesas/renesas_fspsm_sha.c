@@ -228,7 +228,7 @@ static int FSPSM_HashCopy(wolfssl_FSPSM_Hash* src, wolfssl_FSPSM_Hash* dst)
  * hash    The FSPSM Hash object.
  * heap    Buffer to hold heap if available
  * devId   device Id
- * return  0 on success, BAD_FUNC_ARG when has is NULL
+ * return  0 on success, BAD_FUNC_ARG when has is NULL or WC_HW_E on hw failure
  */
 static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
     word32 sha_type)
@@ -298,7 +298,7 @@ static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
  * hash    The FSPSM Hash object.
  * data    Buffer to hold plain text for hash
  * sz      Length of data
- * return  0 on success, otherwise MEMORY_E or BAD_FUNC_ARG on failure
+ * return  0 on success, otherwise MEMORY_E, BAD_FUNC_ARG or WC_HW_E on failure
  */
 static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
                                                 const byte* data, word32 sz)
@@ -392,7 +392,7 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
  * out     Buffer to hold hashed text
  * outSz   Length of out
  * return  FSP_SUCCESS(0) on success,
- *         otherwise BAD_FUNC_ARG or FSP Error code on failure
+ *         otherwise BAD_FUNC_ARG or WC_HW_E on failure
  */
 static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
 {
@@ -494,11 +494,12 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     heap = hash->heap;
 
     FSPSM_HashFree(hash);
-    FSPSM_HashInit(hash, heap, 0, hash->sha_type);
+    ret = FSPSM_HashInit(hash, heap, 0, hash->sha_type);
 
     return ret;
 }
-/* Hash operation to message and return a result */
+/* Hash operation to message and return a result or BAD_FUNC_ARG/WC_HW_E
+ * on error */
 static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
 {
     int ret = FSP_SUCCESS;

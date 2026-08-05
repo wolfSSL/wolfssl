@@ -24,7 +24,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/port/caam/caam_type.h>
 
 /* include for porting layer */
 #ifdef WOLFSSL_QNX_CAAM

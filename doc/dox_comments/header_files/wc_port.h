@@ -3,16 +3,6 @@
 
     \brief Used to initialize resources used by wolfCrypt.
 
-    \note Concurrent calls are serialized by an internal atomic init-state
-    machine, so only the first caller runs the initialization body. That
-    protection depends on working atomics: in builds with WOLFSSL_NO_ATOMICS
-    (or any non-SINGLE_THREADED build where WOLFSSL_ATOMIC_OPS ends up
-    undefined), the atomic primitives fall back to thread-unsafe non-atomic
-    operations and two threads racing the first wolfCrypt_Init() can both run
-    the init body, double-creating internal resources. The recommended calling
-    convention in every build is to call wolfCrypt_Init() once during startup,
-    before starting any thread that uses wolfSSL or wolfCrypt.
-
     \return 0 upon success.
     \return <0 upon failure of init resources.
 
@@ -34,11 +24,6 @@ int wolfCrypt_Init(void);
     \ingroup wolfCrypt
 
     \brief Used to clean up resources used by wolfCrypt.
-
-    \note Concurrent calls are serialized by the same atomic init-state machine
-    used by wolfCrypt_Init(), with the same dependence on working atomics. Call
-    wolfCrypt_Cleanup() once during shutdown, after every thread that uses
-    wolfSSL or wolfCrypt has been joined. See the note on wolfCrypt_Init().
 
     \return 0 upon success.
     \return <0 upon failure of cleaning up resources.

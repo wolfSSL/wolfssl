@@ -93,6 +93,8 @@ static int test_wc_AesSetKey_BadArgs(Aes* aes, byte* key, word32 keyLen,
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesSetKey(aes , key , 48    , iv, AES_ENCRYPTION),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesSetKey(aes , NULL , 48    , iv, AES_ENCRYPTION),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     return EXPECT_RESULT();
 }

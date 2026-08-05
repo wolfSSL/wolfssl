@@ -64,7 +64,7 @@ static int wc_CAAM_DevEccSign(const byte* in, int inlen, byte* out,
     word32* outlen, WC_RNG *rng, ecc_key *key)
 {
     const ecc_set_type* dp;
-    int ret, keySz, isBlack;
+    int ret, keySz;
     byte r[MAX_ECC_BYTES] = {0};
     byte s[MAX_ECC_BYTES] = {0};
 
@@ -91,13 +91,8 @@ static int wc_CAAM_DevEccSign(const byte* in, int inlen, byte* out,
         return MP_TO_E;
     }
 
-    /* blackKey holds a sentinel describing the black key encoding, anything
-     * outside of that range is an address or not a black key */
-    isBlack = (key->blackKey >= CAAM_BLACK_KEY_SM &&
-               key->blackKey <= CAAM_BLACK_KEY_ECB);
-
-    ret = wc_DevCryptoEccSign(dp->id, isBlack, pk, keySz, in,
-            inlen, r, keySz, s, keySz);
+    ret = wc_DevCryptoEccSign(dp->id, key->blackKey, pk, keySz, in, inlen,
+            r, keySz, s, keySz);
 
     /* convert signature from raw bytes to signature format */
     if (ret == 0) {
@@ -178,7 +173,7 @@ static int wc_CAAM_DevEcdh(ecc_key* private_key, ecc_key* public_key, byte* out,
         word32* outlen)
 {
     const ecc_set_type* dp;
-    int ret, keySz, isBlack;
+    int ret, keySz;
 
     byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte qx[MAX_ECC_BYTES] = {0};
@@ -213,13 +208,8 @@ static int wc_CAAM_DevEcdh(ecc_key* private_key, ecc_key* public_key, byte* out,
         return MP_TO_E;
     }
 
-    /* blackKey holds a sentinel describing the black key encoding, anything
-     * outside of that range is an address or not a black key */
-    isBlack = (private_key->blackKey >= CAAM_BLACK_KEY_SM &&
-               private_key->blackKey <= CAAM_BLACK_KEY_ECB);
-
-    ret = wc_DevCryptoEccEcdh(dp->id, isBlack, pk, keySz, qxy, qxSz + qySz,
-            out, *outlen);
+    ret = wc_DevCryptoEccEcdh(dp->id, private_key->blackKey, pk, keySz,
+        qxy, qxSz + qySz, out, *outlen);
     if (ret == 0) {
         *outlen = keySz;
     }
@@ -349,7 +339,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
 
     /* private key */
     if (key->blackKey == CAAM_BLACK_KEY_SM) {
-        buf[idx].TheAddress = key->blackKey;
+        buf[idx].TheAddress = (CAAM_ADDRESS)key->blackKey;
         args[0] = CAAM_BLACK_KEY_SM; /* is a black key in sm */
         buf[idx].Length = keySz;
     }
@@ -371,8 +361,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
             buf[idx].Length = keySz;
         }
         buf[idx].TheAddress = (CAAM_ADDRESS)pk;
-        /* this value will always be word32 or less no risk in cast */
-        args[0] = (word32)key->blackKey; /* potential black key, not in sm */
+        args[0] = key->blackKey; /* potential black key, not in sm */
     }
     idx++;
 
@@ -649,8 +638,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
         }
 
         buf[idx].TheAddress = (CAAM_ADDRESS)pk;
-        args[0] = (word32)private_key->blackKey; /* potential black key,
-                                                    but not sm */
+        args[0] = private_key->blackKey; /* potential black key, but not sm */
     }
 
 #if 0
@@ -737,7 +725,7 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
     }
     else {
         /* type of black key was already set in the ecc key struct */
-        args[0] = (word32)key->blackKey;
+        args[0] = key->blackKey;
     }
 
     args[1] = ecdsel;
