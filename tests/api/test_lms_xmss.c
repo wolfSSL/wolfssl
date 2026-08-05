@@ -71,10 +71,19 @@ static const char* lms_test_priv_key_file(void)
 }
 #define LMS_TEST_PRIV_KEY_FILE lms_test_priv_key_file()
 
+/* Set to 1 to make test_lms_write_key() simulate a non-volatile storage write
+ * that never completes. */
+static int lms_write_key_fail = 0;
+
 static int test_lms_write_key(const byte* priv, word32 privSz, void* context)
 {
-    FILE* f = fopen((const char*)context, "wb");
+    FILE* f;
     int ret = WC_LMS_RC_SAVED_TO_NV_MEMORY;
+
+    if (lms_write_key_fail)
+        return -1;
+
+    f = fopen((const char*)context, "wb");
     if (f == NULL)
         return -1;
     if (fwrite(priv, 1, privSz, f) != privSz)
@@ -169,6 +178,80 @@ int test_wc_LmsKey_sign_verify(void)
         ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
         ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
     }
+
+    wc_LmsKey_Free(&key);
+    wc_FreeRng(&rng);
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test that a failed private key write permanently invalidates the key.
+ *
+ * RFC 8554 section 5.4.1 requires the advanced leaf index to be stored before
+ * the signature is released. The signature is computed with the one-time key
+ * at the current leaf and only then is the index advanced and written out, so
+ * a failed write leaves storage pointing at a leaf that has already been used.
+ * The key must refuse to sign again rather than hand out a second signature
+ * from the same one-time key.
+ */
+int test_wc_LmsKey_write_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    LmsKey  key;
+    WC_RNG  rng;
+    byte    msg[] = "test message for LMS signing";
+    byte    sig[2048];
+    word32  sigSz;
+    word32  goodSigSz = 0;
+    word32  i;
+    int     nonZero;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    (void)remove(LMS_TEST_PRIV_KEY_FILE);
+    ExpectIntEQ(test_lms_init_key(&key, &rng), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+    goodSigSz = sigSz;
+
+    /* A signature was really produced, so the check below is not vacuous. */
+    nonZero = 0;
+    for (i = 0; i < goodSigSz; i++) {
+        if (sig[i] != 0)
+            nonZero++;
+    }
+    ExpectIntGT(nonZero, 0);
+
+    /* Fail the write of the advanced private key. */
+    lms_write_key_fail = 1;
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(IO_FAILED_E));
+    lms_write_key_fail = 0;
+
+    /* The signature has to be erased as well, not just reported as failed.
+     * The leaf index was never stored, so releasing it would allow the same
+     * one-time key to sign twice. */
+    nonZero = 0;
+    for (i = 0; i < goodSigSz; i++) {
+        if (sig[i] != 0)
+            nonZero++;
+    }
+    ExpectIntEQ(nonZero, 0);
+
+    /* Storage works again but the key must stay unusable. */
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
 
     wc_LmsKey_Free(&key);
     wc_FreeRng(&rng);
