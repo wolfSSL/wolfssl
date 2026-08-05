@@ -6472,7 +6472,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     alt_fp_init(key->k);
 #ifdef WOLFSSL_ECC_BLIND_K
     key->kb = (mp_int*)key->kba;
-    key->ku = (mp_int*)key->kia;
+    key->ku = (mp_int*)key->kua;
     alt_fp_init(key->kb);
     alt_fp_init(key->ku);
 #endif
