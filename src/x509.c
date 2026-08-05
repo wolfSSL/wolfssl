@@ -3776,16 +3776,14 @@ WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(
 int wolfSSL_X509_EXTENSION_set_data(WOLFSSL_X509_EXTENSION* ext,
         WOLFSSL_ASN1_STRING* data)
 {
-    WOLFSSL_ASN1_STRING* current;
-
     if (ext == NULL || data == NULL)
         return WOLFSSL_FAILURE;
 
-    current = wolfSSL_X509_EXTENSION_get_data_internal(ext);
-    if (current->length > 0 && current->data != NULL && current->isDynamic) {
-        XFREE(current->data, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-
+    /* wolfSSL_ASN1_STRING_copy() defers to wolfSSL_ASN1_STRING_set(), which
+     * owns the free of any existing dynamic buffer and only releases it once
+     * the new contents have been copied.  Freeing it here as well would leave
+     * ext->value.data dangling for that copy, so leave the buffer alone; the
+     * self-aliased case (data == &ext->value) keeps working too. */
     return wolfSSL_ASN1_STRING_copy(&ext->value, data);
 }
 
