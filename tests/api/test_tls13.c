@@ -2465,9 +2465,8 @@ int test_tls13_cipher_suites(void)
 
 #if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(BUILD_TLS_AES_128_GCM_SHA256) && !defined(NO_RSA) && \
-    defined(HAVE_ECC) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
-    !defined(NO_SHA256) && defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    defined(BUILD_TLS_AES_128_GCM_SHA256) && defined(HAVE_ECC) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
 /* Suites has a bitfield member (setSuites:1) trailed by compiler padding
  * whose value is indeterminate, so a whole-struct XMEMCMP is unreliable.
  * Compare the meaningful members individually instead. */
@@ -2487,9 +2486,8 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(BUILD_TLS_AES_128_GCM_SHA256) && !defined(NO_RSA) && \
-    defined(HAVE_ECC) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
-    !defined(NO_SHA256) && defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    defined(BUILD_TLS_AES_128_GCM_SHA256) && defined(HAVE_ECC) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
     const char* tls12Suite = "ECDHE-RSA-AES128-GCM-SHA256";
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -2510,7 +2508,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
         XMEMCPY(&suitesBefore, ctx->suites, sizeof(Suites));
     }
 
-#ifdef WOLFSSL_STRICT_CIPHER_LIST
+#ifdef WOLFSSL_CIPHER_LIST_NO_SILENT_IGNORE
     ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_FAILURE);
     /* Rejected call must not mutate the previously configured suites. */
@@ -2544,7 +2542,7 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
         XMEMCPY(&suitesBefore, ssl->suites, sizeof(Suites));
     }
 
-#ifdef WOLFSSL_STRICT_CIPHER_LIST
+#ifdef WOLFSSL_CIPHER_LIST_NO_SILENT_IGNORE
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_FAILURE);
     if (ssl != NULL && ssl->suites != NULL) {
