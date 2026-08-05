@@ -1695,7 +1695,10 @@ static int test_dual_alg_ecdsa_mldsa(void)
                                             alt_pub_sz, 1);
     ExpectIntGT(alt_pub_sz, 0);
 
-    alt_sig_alg_sz = SetAlgoID(CTC_SHA256wECDSA, alt_sig_alg, oidSigType, 0);
+    /* The alternative signature below is made with the ML-DSA key, so the
+     * altSignatureAlgorithm extension has to name ML-DSA too; otherwise the
+     * certificate declares one algorithm and carries another. */
+    alt_sig_alg_sz = SetAlgoID(CTC_ML_DSA_44, alt_sig_alg, oidSigType, 0);
     ExpectIntGT(alt_sig_alg_sz, 0);
 
     /**
@@ -1740,6 +1743,12 @@ static int test_dual_alg_ecdsa_mldsa(void)
     ret = wc_ParseCert(&d_cert, CERT_TYPE, NO_VERIFY, NULL);
     ExpectIntEQ(ret, 0);
 
+    /* An undersized output buffer must never look like success. The encoder
+     * surfaces this as WOLFSSL_FAILURE, which is 0, so callers have to treat
+     * every non-positive return as failure; ParseCertRelative depends on that
+     * to avoid skipping the alternative-signature check entirely. */
+    ExpectIntLE(wc_GeneratePreTBS(&d_cert, tbs_der, 1), 0);
+
     tbs_der_sz = wc_GeneratePreTBS(&d_cert, tbs_der, tbs_der_sz);
     ExpectIntGT(tbs_der_sz, 0);
 
@@ -1766,6 +1775,15 @@ static int test_dual_alg_ecdsa_mldsa(void)
     /* Load the certificate into CertManager. */
     if (cm != NULL && final_der_sz > 0) {
         ret = wolfSSL_CertManagerLoadCABuffer(cm, final_der, final_der_sz,
+                                              WOLFSSL_FILETYPE_ASN1);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+
+    /* Verify the certificate so ParseCertRelative runs its alternative
+     * signature check, which builds the PreTBS and confirms the alt signature
+     * against the SAPKI. Without this the alt-verify path is never executed. */
+    if (cm != NULL && final_der_sz > 0) {
+        ret = wolfSSL_CertManagerVerifyBuffer(cm, final_der, final_der_sz,
                                               WOLFSSL_FILETYPE_ASN1);
         ExpectIntEQ(ret, WOLFSSL_SUCCESS);
     }
@@ -19710,7 +19728,8 @@ static int test_wolfSSL_sigalg_info(void)
     byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
     word16 len = 0;
     word16 idx = 0;
-    int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_MLDSA;
+    int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_MLDSA |
+                     SIG_SLHDSA;
 #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1))
     int sawSha1 = 0;
 #endif

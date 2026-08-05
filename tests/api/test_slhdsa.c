@@ -34,8 +34,12 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #include <tests/api/api.h>
 #include <tests/api/test_slhdsa.h>
+#include <tests/utils.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 
 
 #ifdef WOLFSSL_HAVE_SLHDSA
@@ -3290,3 +3294,580 @@ int test_wc_SlhdsaFeatureCoverage(void)
     #undef TEST_SLHDSA_DEFAULT_PUB_LEN
     #undef TEST_SLHDSA_DEFAULT_SEED_LEN
 #endif
+
+/* Gate the streamed-CertificateVerify WANT_WRITE resume test: needs an SLH-DSA
+ * 128f leaf (the ~17KB signature spans multiple records, taking the streaming
+ * send path) chained to the shared 128s root, TLS 1.3 with the streaming path
+ * compiled in, a signing (not verify-only) build, and the memio test harness.
+ * Works with whichever 128f/128s hash family is compiled in (SHAKE preferred,
+ * else SHA2) so a SHAKE-disabled (--enable-slhdsa=sha2) build still runs it. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_STREAM_CERT_VERIFY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    ((defined(WOLFSSL_SLHDSA_PARAM_128F) &&                                    \
+      defined(WOLFSSL_SLHDSA_PARAM_128S)) ||                                   \
+     (defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F) &&                              \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)))
+    #define TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    #if defined(WOLFSSL_SLHDSA_PARAM_128F) && defined(WOLFSSL_SLHDSA_PARAM_128S)
+        #define SLHDSA_CV_FAM "shake"
+    #else
+        #define SLHDSA_CV_FAM "sha2"
+    #endif
+#endif
+
+#ifdef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+/* The server's SLH-DSA-128f flight puts two oversized handshake messages on the
+ * wire, the certificate and the CertificateVerify. The callback counts
+ * oversized records and returns WANT_WRITE on a chosen one, interrupting a
+ * streamed CertificateVerify mid-flight, which the blocking .conf handshakes
+ * never do. Note the scope: where the flight is flushed as a single write the
+ * retry happens below SendTls13CertificateVerify, so this does not by itself
+ * reach the fragOffset != 0 resume branch. */
+struct slhdsa_wwrite_ctx {
+    int bigWritesUntilWantWrite;  /* 1-based index of the record to interrupt */
+    int repeatStalls;    /* WANT_WRITEs to fire on that record before it goes */
+    int bigSeen;         /* oversized records written so far */
+    struct test_memio_ctx* memio;
+};
+
+static int slhdsa_want_write_send_cb(WOLFSSL* ssl, char* data, int sz,
+    void* ctx)
+{
+    struct slhdsa_wwrite_ctx* ww = (struct slhdsa_wwrite_ctx*)ctx;
+
+    if (sz > 8000) {
+        ww->bigSeen++;
+        /* Only the record named by bigWritesUntilWantWrite is interrupted, and
+         * it is stalled repeatStalls times so the same record has to be
+         * re-sent more than once. */
+        if (ww->bigWritesUntilWantWrite == ww->bigSeen &&
+                ww->repeatStalls > 0) {
+            ww->repeatStalls--;
+            ww->bigSeen--;   /* the record has not been written yet */
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        }
+    }
+    return test_memio_write_cb(ssl, data, sz, ww->memio);
+}
+
+/* Run one SLH-DSA-128f TLS 1.3 handshake over memio. targetBig names the
+ * oversized record to interrupt (1-based, 0 to interrupt none) and stalls is
+ * how many WANT_WRITEs to fire on it. Returns 0 when the handshake completed.
+ * *bigSeen receives the number of oversized records the server wrote and
+ * *stallsLeft the stalls that were never consumed.
+ *
+ * Two passes are needed because the server's record batching is build
+ * dependent: some configurations flush the whole flight as one oversized
+ * write, others emit the Certificate and the CertificateVerify separately. The
+ * CertificateVerify is always the LAST oversized record, so callers count them
+ * with targetBig 0 first and then interrupt that index. Interrupting the
+ * Certificate instead trips a known memio harness limitation. */
+static int slhdsa_cv_stall_handshake(int targetBig, int stalls, int* bigSeen,
+    int* stallsLeft)
+{
+    int ret = -1;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    struct slhdsa_wwrite_ctx ww_s;
+    const char* svrCert =
+        "./certs/slhdsa/server-slhdsa-" SLHDSA_CV_FAM "-128f.pem";
+    const char* svrKey  =
+        "./certs/slhdsa/server-slhdsa-" SLHDSA_CV_FAM "-128f-priv.pem";
+    const char* caCert  =
+        "./certs/slhdsa/root-slhdsa-" SLHDSA_CV_FAM "-128s.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&ww_s, 0, sizeof(ww_s));
+
+    ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    if (ctx_s == NULL || ctx_c == NULL) {
+        goto cleanup;
+    }
+    if (wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrCert)
+            != WOLFSSL_SUCCESS) {
+        goto cleanup;
+    }
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKey, WOLFSSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS) {
+        goto cleanup;
+    }
+    if (wolfSSL_CTX_load_verify_locations(ctx_c, caCert, NULL)
+            != WOLFSSL_SUCCESS) {
+        goto cleanup;
+    }
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ssl_s = wolfSSL_new(ctx_s);
+    ssl_c = wolfSSL_new(ctx_c);
+    if (ssl_s == NULL || ssl_c == NULL) {
+        goto cleanup;
+    }
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+
+    ww_s.bigWritesUntilWantWrite = targetBig;
+    ww_s.repeatStalls = stalls;
+    ww_s.memio = &test_ctx;
+    wolfSSL_SetIOWriteCtx(ssl_s, &ww_s);
+    wolfSSL_SSLSetIOSend(ssl_s, slhdsa_want_write_send_cb);
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 100, NULL);
+    if (ret == 0 && (!wolfSSL_is_init_finished(ssl_c) ||
+                     !wolfSSL_is_init_finished(ssl_s))) {
+        ret = -1;
+    }
+
+cleanup:
+    if (bigSeen != NULL)
+        *bigSeen = ww_s.bigSeen;
+    if (stallsLeft != NULL)
+        *stallsLeft = ww_s.repeatStalls;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return ret;
+}
+#endif /* TEST_SLHDSA_STREAM_CV_WANT_WRITE */
+
+int test_slhdsa_tls13_certverify_want_write(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    int bigSeen = 0;
+    int stallsLeft = 0;
+
+    /* Count the server's oversized records without interrupting anything. */
+    ExpectIntEQ(slhdsa_cv_stall_handshake(0, 0, &bigSeen, NULL), 0);
+    ExpectIntGT(bigSeen, 0);
+
+    /* Interrupt the CertificateVerify, which is the last oversized record,
+     * once. Completing anyway means the retried send re-emitted identical
+     * bytes and the transcript stayed consistent. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(slhdsa_cv_stall_handshake(bigSeen, 1, NULL, &stallsLeft),
+            0);
+        /* The stall has to have been consumed, otherwise the callback never
+         * interrupted anything and the test proved nothing. */
+        ExpectIntEQ(stallsLeft, 0);
+    }
+#endif /* TEST_SLHDSA_STREAM_CV_WANT_WRITE */
+    return EXPECT_RESULT();
+}
+
+/* The single-stall test above leaves the repeated case open: a non-blocking
+ * peer can return WANT_WRITE many times for the same record. Stall one
+ * CertificateVerify record several times, which must keep emitting identical
+ * bytes. */
+int test_slhdsa_tls13_certverify_multi_stall(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    int bigSeen = 0;
+    int stallsLeft = 0;
+
+    ExpectIntEQ(slhdsa_cv_stall_handshake(0, 0, &bigSeen, NULL), 0);
+    ExpectIntGT(bigSeen, 0);
+
+    /* Fire five WANT_WRITEs on the same CertificateVerify fragment. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(slhdsa_cv_stall_handshake(bigSeen, 5, NULL, &stallsLeft),
+            0);
+        ExpectIntEQ(stallsLeft, 0);
+    }
+#endif /* TEST_SLHDSA_STREAM_CV_WANT_WRITE */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    #undef TEST_SLHDSA_STREAM_CV_WANT_WRITE
+    #undef SLHDSA_CV_FAM
+#endif
+
+/* The streamed CertificateVerify path is enabled for ML-DSA and Falcon too,
+ * not just SLH-DSA: it triggers whenever the body exceeds one record, which a
+ * negotiated max_fragment_length makes reachable with a much smaller
+ * signature. Drive it with an ML-DSA leaf under a 512 byte fragment limit so
+ * the streaming send is covered for a non-SLH-DSA algorithm. */
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_TLS13_STREAM_CERT_VERIFY) && \
+    defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_NO_ML_DSA_65) && \
+    !defined(WOLFSSL_NO_ML_DSA_87) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    #define TEST_MLDSA_STREAM_CV_MAXFRAG
+#endif
+
+int test_mldsa_tls13_certverify_maxfrag_stream(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_MLDSA_STREAM_CV_MAXFRAG
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "maxfrag mldsa stream";
+    char readBuf[sizeof(msg)];
+    const char* svrCert = "./certs/mldsa/mldsa65-leaf87ca-cert.pem";
+    const char* svrKey  = "./certs/mldsa/mldsa65-leaf87ca-key.pem";
+    const char* caCert  = "./certs/mldsa/mldsa87-ca-cert.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrCert),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCert, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+
+    /* 512 byte plaintext limit, well under the ML-DSA-65 signature, so the
+     * server's CertificateVerify must be streamed across records. */
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 100, NULL), 0);
+    ExpectTrue(wolfSSL_is_init_finished(ssl_c));
+    ExpectTrue(wolfSSL_is_init_finished(ssl_s));
+
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        (int)sizeof(msg));
+    ExpectStrEQ(readBuf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* TEST_MLDSA_STREAM_CV_MAXFRAG */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_MLDSA_STREAM_CV_MAXFRAG
+    #undef TEST_MLDSA_STREAM_CV_MAXFRAG
+#endif
+
+/* Not built with WOLFSSL_BLIND_PRIVATE_KEY: wolfSSL_CTX_check_private_key
+ * unblinds ctx->privateKey with ctx->privateKeyMask, and a key referenced by
+ * id or label never gets a mask because blinding only happens when real key
+ * material is loaded. The unblind then returns NULL and the check fails before
+ * check_cert_key runs. That is independent of the key algorithm, an RSA device
+ * key behaves the same way, so it is not something to work around here. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLF_PRIVATE_KEY_ID) && \
+    !defined(NO_CHECK_PRIVATE_KEY) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_BLIND_PRIVATE_KEY) && \
+    defined(WOLFSSL_SLHDSA_PARAM_128S) && !defined(NO_TLS)
+    #define TEST_SLHDSA_DEV_KEY
+    #define TEST_SLHDSA_DEV_DEVID 0x51484453
+#endif
+
+#ifdef TEST_SLHDSA_DEV_KEY
+/* Stands in for a device holding the SLH-DSA private key. Only the
+ * private-against-public check is served; counting it proves the SLH-DSA arm
+ * of that check was taken rather than silently skipped. */
+static int slhdsa_dev_key_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* checks = (int*)ctx;
+
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY) &&
+            (info->pk.pqc_sig_check.type == WC_PQC_SIG_TYPE_SLHDSA)) {
+        if (checks != NULL) {
+            (*checks)++;
+        }
+        return 0;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_SLHDSA_DEV_KEY */
+
+/* An SLH-DSA private key held in a device and referenced by id or label must
+ * be accepted against an SLH-DSA certificate. The parameter set cannot be
+ * recovered from an identifier, so it is carried from the certificate's key
+ * OID down to wc_SlhDsaKey_Init_id / wc_SlhDsaKey_Init_label. */
+int test_slhdsa_dev_private_key(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_DEV_KEY
+    static const unsigned char keyId[] = { 0x01, 0x02, 0x03, 0x04 };
+    static const char keyLabel[] = "slhdsa-device-key";
+    WOLFSSL_CTX* ctx = NULL;
+    const char* svrCert = "./certs/slhdsa/server-slhdsa-shake-128s.pem";
+    int checks = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_SLHDSA_DEV_DEVID,
+        slhdsa_dev_key_cb, &checks), 0);
+
+    /* The certificate supplies the SLH-DSA key OID the device key is matched
+     * against, so it has to be loaded first. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx, svrCert),
+        WOLFSSL_SUCCESS);
+
+    /* Checking the pair is what builds the device key for the certificate's
+     * algorithm. Before the device-key path knew about SLH-DSA no key could be
+     * constructed and the check failed. */
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Id(ctx, keyId, (long)sizeof(keyId),
+        TEST_SLHDSA_DEV_DEVID), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(checks, 1);
+
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Label(ctx, keyLabel,
+        TEST_SLHDSA_DEV_DEVID), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
+    /* One private-against-public check per call, each dispatched as SLH-DSA. */
+    ExpectIntEQ(checks, 2);
+
+    wolfSSL_CTX_free(ctx);
+    wc_CryptoCb_UnRegisterDevice(TEST_SLHDSA_DEV_DEVID);
+#endif /* TEST_SLHDSA_DEV_KEY */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SLHDSA_DEV_KEY
+    #undef TEST_SLHDSA_DEV_KEY
+    #undef TEST_SLHDSA_DEV_DEVID
+#endif
+
+/* A post-quantum client certificate must not be usable for TLS 1.2 client
+ * authentication. No signature scheme below TLS 1.3 covers a PQC key, and the
+ * TLS 1.2 CertificateVerify record is sized for a classic signature, so the
+ * handshake has to fail rather than emit a message sized from the PQC
+ * signature length. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(WOLFSSL_SLHDSA_PARAM_128S) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    #define TEST_SLHDSA_TLS12_CLIENT_AUTH
+#endif
+
+int test_slhdsa_tls12_client_cert_rejected(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_TLS12_CLIENT_AUTH
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* cliCert = "./certs/slhdsa/client-slhdsa-shake-128s.pem";
+    const char* cliKey  = "./certs/slhdsa/client-slhdsa-shake-128s-priv.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Server keeps a classic certificate and asks for client authentication. */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "./certs/server-cert.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, "./certs/server-key.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    /* Client holds an SLH-DSA certificate and key, which it cannot sign a
+     * TLS 1.2 CertificateVerify with. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_c, cliCert),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+
+    /* Must fail, and must fail while choosing a signature scheme rather than
+     * by building a CertificateVerify from an SLH-DSA key. PickHashSigAlgo
+     * finds no scheme the certificate can use below TLS 1.3, so
+     * DoCertificateRequest returns INVALID_PARAMETER. Pinning the code keeps
+     * the test honest: without the version gate the client would instead reach
+     * SendCertificateVerify and over-read its record buffer. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), INVALID_PARAMETER);
+    ExpectFalse(wolfSSL_is_init_finished(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* TEST_SLHDSA_TLS12_CLIENT_AUTH */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SLHDSA_TLS12_CLIENT_AUTH
+    #undef TEST_SLHDSA_TLS12_CLIENT_AUTH
+#endif
+
+/* A CertificateVerify that does not verify against the peer certificate's key
+ * must abort the handshake. The server presents its own certificate but signs
+ * with the client key: same parameter set, different key, so the signature is
+ * well formed and the failure is decided by wc_SlhDsaKey_Verify rather than by
+ * chain building or scheme matching. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    defined(WOLFSSL_SLHDSA_PARAM_128S) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    #define TEST_SLHDSA_BAD_CV
+#endif
+
+int test_slhdsa_tls13_certverify_bad_signature(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_BAD_CV
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* svrCert = "./certs/slhdsa/server-slhdsa-shake-128s.pem";
+    const char* wrongKey =
+        "./certs/slhdsa/client-slhdsa-shake-128s-priv.pem";
+    const char* caCert = "./certs/slhdsa/root-slhdsa-shake-128s.pem";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, svrCert),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, wrongKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCert, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SIG_VERIFY_E);
+    ExpectFalse(wolfSSL_is_init_finished(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* TEST_SLHDSA_BAD_CV */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SLHDSA_BAD_CV
+    #undef TEST_SLHDSA_BAD_CV
+#endif
+
+/* Map every compiled-in SLH-DSA signature scheme from its wire code point to
+ * the public key OID sum, covering both DecodeSigAlg's SLH-DSA arm and the
+ * wolfSSL_get_sigalg_info cases. */
+int test_slhdsa_get_sigalg_info(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(OPENSSL_EXTRA)
+    static const struct {
+        byte minor;
+        int  keyOidSum;
+    } schemes[] = {
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        { SLHDSA_SHA2_128S_SA_MINOR,  SLH_DSA_SHA2_128Sk  },
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F)
+        { SLHDSA_SHA2_128F_SA_MINOR,  SLH_DSA_SHA2_128Fk  },
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+        { SLHDSA_SHA2_192S_SA_MINOR,  SLH_DSA_SHA2_192Sk  },
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F)
+        { SLHDSA_SHA2_192F_SA_MINOR,  SLH_DSA_SHA2_192Fk  },
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+        { SLHDSA_SHA2_256S_SA_MINOR,  SLH_DSA_SHA2_256Sk  },
+    #endif
+    #if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
+        { SLHDSA_SHA2_256F_SA_MINOR,  SLH_DSA_SHA2_256Fk  },
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128S
+        { SLHDSA_SHAKE_128S_SA_MINOR, SLH_DSA_SHAKE_128Sk },
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_128F
+        { SLHDSA_SHAKE_128F_SA_MINOR, SLH_DSA_SHAKE_128Fk },
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192S
+        { SLHDSA_SHAKE_192S_SA_MINOR, SLH_DSA_SHAKE_192Sk },
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_192F
+        { SLHDSA_SHAKE_192F_SA_MINOR, SLH_DSA_SHAKE_192Fk },
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256S
+        { SLHDSA_SHAKE_256S_SA_MINOR, SLH_DSA_SHAKE_256Sk },
+    #endif
+    #ifdef WOLFSSL_SLHDSA_PARAM_256F
+        { SLHDSA_SHAKE_256F_SA_MINOR, SLH_DSA_SHAKE_256Fk },
+    #endif
+        { 0, 0 } /* terminator, keeps the array non-empty */
+    };
+    size_t i;
+    int hashOid = 0;
+    int keyOid = 0;
+
+    for (i = 0; i < (sizeof(schemes) / sizeof(schemes[0])) - 1; i++) {
+        hashOid = 0;
+        keyOid = 0;
+        ExpectIntEQ(wolfSSL_get_sigalg_info(SLHDSA_SA_MAJOR,
+            schemes[i].minor, &hashOid, &keyOid), 0);
+        ExpectIntEQ(keyOid, schemes[i].keyOidSum);
+    }
+
+    /* An SLH-DSA major with a minor that is not a scheme stays unmapped. */
+    ExpectIntEQ(wolfSSL_get_sigalg_info(SLHDSA_SA_MAJOR, 0x7F, &hashOid,
+        &keyOid), BAD_FUNC_ARG);
+
+    /* NULL outputs are rejected. */
+    ExpectIntEQ(wolfSSL_get_sigalg_info(SLHDSA_SA_MAJOR,
+        SLHDSA_SHAKE_128S_SA_MINOR, NULL, &keyOid), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_get_sigalg_info(SLHDSA_SA_MAJOR,
+        SLHDSA_SHAKE_128S_SA_MINOR, &hashOid, NULL), BAD_FUNC_ARG);
+#endif /* WOLFSSL_HAVE_SLHDSA && OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
