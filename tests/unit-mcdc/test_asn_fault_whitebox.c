@@ -408,7 +408,7 @@ static void wb_confirm_signature_null_args(void)
 
 /* ------------------------------------------------------------------------- *
  * Section 9: URI host name-constraint helpers (IGNORE_NAME_CONSTRAINTS
- * gated, matching asn.c's own guard on these statics).
+ * gated, matching asn.c's own guard on these static helpers).
  *   UriHostIsDecOctet()          :18664  s==NULL||sSz<=0||sSz>3
  *   UriHostIsIpv4Address()       :18687  host==NULL||hostSz<=0
  *   UriRegNameHasNonEmptyLabels() :18711 host==NULL||hostSz<=0||
