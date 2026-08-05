@@ -2452,7 +2452,10 @@ int wc_OcspResponder_AddSigner(OcspResponder* responder,
         if (ret == 0) {
             word32 idx = 0;
             ca->keyType = ECDSAk;
-            ret = wc_EccPrivateKeyDecode(keyDer, &idx, &ca->key.ecc, keyDerSz);
+            /* This key only ever signs OCSP responses (OcspResponseEncode);
+             * skip the best-effort public point derivation done on decode. */
+            ret = EccPrivateKeyDecodeEx(keyDer, &idx, &ca->key.ecc, keyDerSz,
+                                         0);
         }
         if (ret != 0)
             goto out;

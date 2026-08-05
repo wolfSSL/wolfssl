@@ -9614,8 +9614,11 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             return ret;
         }
 
-        if ((ret = wc_EccPrivateKeyDecode(privKey, &keyIdx, key_pair,
-                privKeySz)) == 0) {
+        /* Skip public point derivation: the decoded key_pair is freed and
+         * reimported from privDer with the caller's own pubKey below, so
+         * any derived public point would be discarded unused. */
+        if ((ret = EccPrivateKeyDecodeEx(privKey, &keyIdx, key_pair,
+                privKeySz, 0)) == 0) {
             WOLFSSL_MSG("Checking ECC key pair");
 
             if ((ret = wc_ecc_export_private_only(key_pair, privDer, &privSz))
@@ -10262,7 +10265,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 
         tmpIdx = 0;
         if (wc_ecc_init_ex(ecc, heap, INVALID_DEVID) == 0) {
-            if (wc_EccPrivateKeyDecode(key, &tmpIdx, ecc, keySz) == 0) {
+            /* Only probing the key type/curve OID here; skip public point
+             * derivation since ecc is freed right after. */
+            if (EccPrivateKeyDecodeEx(key, &tmpIdx, ecc, keySz, 0) == 0) {
                 *algoID = ECDSAk;
 
                 /* now find oid */
@@ -13371,6 +13376,8 @@ enum {
  * Pass NULL for output to get the size of the encoding.
  *
  * @param [in]  pubKey       public key buffer
+ * @note pubKey must be non-NULL but is only dereferenced when output is
+ *       non-NULL; callers performing a size query may pass a placeholder.
  * @param [in]  pubKeyLen    public key buffer length
  * @param [out] output       Buffer to put encoded data in (optional)
  * @param [in]  outLen       Size of buffer in bytes
@@ -33265,6 +33272,89 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 #ifdef HAVE_ECC
 
+/* Like HAVE_ECC_MAKE_PUB, but also excludes the hardware-only ECC ports and
+ * the FIPS/selftest boundaries, where a host-side derivation cannot succeed,
+ * plus the WOLFSSL_NO_ECC_DERIVE_PUB_ON_DECODE opt-out. */
+#if !defined(NO_ECC_MAKE_PUB) && \
+    !defined(WOLFSSL_NO_ECC_DERIVE_PUB_ON_DECODE) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_IMXRT1170_CAAM) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+#define WOLFSSL_ECC_DERIVE_PUB_BEST_EFFORT
+/* Best-effort derivation of the public point for a SEC1 key that carried only
+ * the private scalar. Failures are logged and swallowed, leaving the key
+ * ECC_PRIVATEKEY_ONLY exactly as it was before.
+ *
+ * Defined once for both ASN backends: this sits ahead of the point where
+ * asn_orig.c is #included into this file, so the non-template
+ * wc_EccPrivateKeyDecode() sees it too. Same pattern as SetCurve()/
+ * CheckCurve(). */
+static void EccDerivePubBestEffort(ecc_key* key)
+{
+    int pubRet;
+
+    if (key->type != ECC_PRIVATEKEY_ONLY) {
+        return;
+    }
+
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    /* Don't derive host-side public points for devId-tagged keys. Under
+     * WOLF_CRYPTO_CB_FIND, ecc_make_pub_ex() routes even INVALID_DEVID keys
+     * to a find callback, so skip the derivation entirely. */
+    #ifdef WOLF_CRYPTO_CB_FIND
+    return;
+    #else
+    if (key->devId != INVALID_DEVID) {
+        return;
+    }
+    #endif
+#endif
+
+    /* key->rng is normally NULL here - callers rarely set an RNG before
+     * decoding a key. Pass it through as-is rather than standing up a
+     * temporary DRBG: decode sits on the per-handshake signing path, and the
+     * RNG only feeds the optional projective-coordinate randomization in
+     * ecc_mulmod(), which already tests it for NULL. The SP base-point
+     * routines ignore it outright. This matches what wc_ecc_check_pub_priv()
+     * and wc_ecc_shared_secret_gen() already do with a possibly-NULL
+     * key->rng. */
+    pubRet = wc_ecc_make_pub_ex(key, NULL,
+#ifdef ECC_TIMING_RESISTANT
+        key->rng
+#else
+        NULL
+#endif
+        );
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* wc_ecc_make_pub_ex() places async results directly into the key and is
+     * documented as not needing to be called again, so block for completion
+     * rather than re-issuing on WC_PENDING_E. Matches ecc_sign_hash_sw(). */
+    pubRet = wc_AsyncWait(pubRet, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+
+    if (pubRet != 0) {
+        WOLFSSL_MSG_EX("Best-effort ECC public key derivation failed: %d",
+            pubRet);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        /* wc_ecc_make_pub_ex() already advanced key->type to ECC_PRIVATEKEY
+         * on WC_PENDING_E, ahead of the async result actually landing. Undo
+         * that here: pubRet != 0 means the point in key->pubkey never
+         * finished computing, so the key must go back to claiming no public
+         * part rather than exporting a garbage/partial point. */
+        key->type = ECC_PRIVATEKEY_ONLY;
+    #ifndef ALT_ECC_SIZE
+        mp_clear(key->pubkey.x);
+        mp_clear(key->pubkey.y);
+        mp_clear(key->pubkey.z);
+    #endif
+#endif
+    }
+}
+#endif /* !NO_ECC_MAKE_PUB && ... */
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for ECC private key.
  * SEC.1 Ver 2.0, C.4 - Syntax for Elliptic Curve Private Keys
@@ -33302,9 +33392,9 @@ enum {
 #endif
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-WOLFSSL_ABI
-int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
-                        word32 inSz)
+/* Implements the WOLFSSL_LOCAL declaration in asn.h. */
+int EccPrivateKeyDecodeEx(const byte* input, word32* inOutIdx,
+    ecc_key* key, word32 inSz, int derivePub)
 {
     DECL_ASNGETDATA(dataASN, eccKeyASN_Length);
     byte version = 0;
@@ -33380,8 +33470,23 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 key, curve_id);
     }
 
+#ifdef WOLFSSL_ECC_DERIVE_PUB_BEST_EFFORT
+    if ((ret == 0) && derivePub) {
+        EccDerivePubBestEffort(key);
+    }
+#else
+    (void)derivePub;
+#endif
+
     FREE_ASNGETDATA(dataASN, key != NULL ? key->heap : NULL);
     return ret;
+}
+
+WOLFSSL_ABI
+int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
+                        word32 inSz)
+{
+    return EccPrivateKeyDecodeEx(input, inOutIdx, key, inSz, 1);
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
@@ -34336,6 +34441,8 @@ int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
  * @param [in]  privKey      private key buffer
  * @param [in]  privKeyLen   private key buffer length
  * @param [in]  pubKey       public key buffer (optional)
+ * @note pubKey must be non-NULL but is only dereferenced when output is
+ *       non-NULL; callers performing a size query may pass a placeholder.
  * @param [in]  pubKeyLen    public key buffer length
  * @param [out] output       Buffer to put encoded data in (optional)
  * @param [in]  outLen       Size of buffer in bytes

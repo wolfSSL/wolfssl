@@ -23,6 +23,7 @@
 
 #include <tests/api/api.h>
 #include <tests/api/test_asn.h>
+#include <tests/api/test_oom.h>
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
@@ -3049,5 +3050,209 @@ int test_wc_AsnFeatureCoverage(void)
         wc_ecc_free(&ecKey);
     }
 #endif /* !NO_ASN && HAVE_ECC && USE_CERT_BUFFERS_256 && !HAVE_FIPS */
+    return EXPECT_RESULT();
+}
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT) && \
+    !defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) && !defined(NO_ASN) && \
+    defined(HAVE_ECC) && !defined(NO_ECC_MAKE_PUB) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_NO_ECC_DERIVE_PUB_ON_DECODE) && \
+    defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_IMXRT1170_CAAM)
+/* Fail Nth alloc to target public key derive. */
+WOLFSSL_TEST_OOM_CALLBACKS(ecc_oom)
+#endif /* USE_WOLFSSL_MEMORY && ... */
+
+/* Decode should best-effort derive omitted SEC1 public point. */
+int test_wc_EccPrivateKeyDecode_derive_pub(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_ECC) && !defined(NO_ECC_MAKE_PUB) && \
+    !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_NO_ECC_DERIVE_PUB_ON_DECODE) && \
+    defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_IMXRT1170_CAAM)
+    ecc_key fullKey;
+    ecc_key privOnlyKey;
+    WC_RNG  rng;
+    word32  idx;
+    byte    privOnlyDer[256];
+    int     privOnlyDerSz = 0;
+    byte    fullPub[256];
+    word32  fullPubSz = sizeof(fullPub);
+    byte    derivedPub[256];
+    word32  derivedPubSz = sizeof(derivedPub);
+
+    XMEMSET(&fullKey, 0, sizeof(fullKey));
+    XMEMSET(&privOnlyKey, 0, sizeof(privOnlyKey));
+    /* wc_FreeRng() below runs unconditionally, so rng must be safe to free
+     * even if wc_InitRng() fails. */
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ecc_init(&fullKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &fullKey,
+        sizeof_ecc_clikey_der_256), 0);
+    ExpectIntEQ(fullKey.type, ECC_PRIVATEKEY);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&fullKey, fullPub, &fullPubSz), 0);
+    PRIVATE_KEY_LOCK();
+
+    /* Re-encode as private-key-only SEC1 DER. */
+    ExpectIntGT(privOnlyDerSz = wc_EccPrivateKeyToDer(&fullKey, privOnlyDer,
+        sizeof(privOnlyDer)), 0);
+
+    /* No RNG set: derivation still runs, but with key->rng NULL the
+     * projective-coordinate randomization is skipped even when
+     * ECC_TIMING_RESISTANT is on - EccDerivePubBestEffort() does not stand
+     * up a temporary RNG. */
+    ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+        (word32)privOnlyDerSz), 0);
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(derivedPubSz, fullPubSz);
+    ExpectBufEQ(derivedPub, fullPub, fullPubSz);
+    wc_ecc_free(&privOnlyKey);
+
+    /* Setting an RNG blinds the scalar mult; same derived point. */
+    derivedPubSz = sizeof(derivedPub);
+    ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&privOnlyKey, &rng), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+        (word32)privOnlyDerSz), 0);
+
+    /* Public point derived, key fully usable. */
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub, &derivedPubSz),
+        0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(derivedPubSz, fullPubSz);
+    ExpectBufEQ(derivedPub, fullPub, fullPubSz);
+
+    wc_ecc_free(&privOnlyKey);
+    wc_ecc_free(&fullKey);
+
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    /* devId key left ECC_PRIVATEKEY_ONLY: device derives it. */
+    ExpectIntEQ(wc_ecc_init_ex(&privOnlyKey, NULL, 1), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&privOnlyKey, &rng), 0);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+        (word32)privOnlyDerSz), 0);
+    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY_ONLY);
+    wc_ecc_free(&privOnlyKey);
+#endif
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT) && \
+    !defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST)
+    {
+        wolfSSL_Malloc_cb prevMalloc = NULL;
+        wolfSSL_Free_cb prevFree = NULL;
+        wolfSSL_Realloc_cb prevRealloc = NULL;
+        int allocatorsSet = 0;
+        int totalAllocCount = 0;
+        int i;
+
+        ExpectIntEQ(wolfSSL_GetAllocators(&prevMalloc, &prevFree, &prevRealloc),
+            0);
+        ExpectIntEQ(wolfSSL_SetAllocators(ecc_oom_malloc_cb, ecc_oom_free_cb,
+            ecc_oom_realloc_cb), 0);
+        if (EXPECT_SUCCESS()) {
+            allocatorsSet = 1;
+        }
+
+        /* Count the allocations one decode-with-derive makes. Injection is
+         * armed only around the decode so wc_ecc_init() is never starved. */
+        ecc_oom_count = 0;
+        ecc_oom_fail_at = 0;
+        ecc_oom_failed = 0;
+        ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+        idx = 0;
+        ecc_oom_active = 1;
+        ExpectIntEQ(wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+            (word32)privOnlyDerSz), 0);
+        ecc_oom_active = 0;
+        totalAllocCount = ecc_oom_count;
+        wc_ecc_free(&privOnlyKey);
+        /* The armed window must actually have allocated something, or the
+         * loop below passes vacuously without exercising any OOM path. */
+        ExpectIntGE(totalAllocCount, 1);
+
+        /* Fail each allocation in turn. Whatever fails, decode must never
+         * report a derived public key it does not have: the key comes back
+         * either fully derived and correct, or still ECC_PRIVATEKEY_ONLY. */
+        for (i = 1; EXPECT_SUCCESS() && (i <= totalAllocCount); i++) {
+            int decodeRet;
+
+            ecc_oom_count = 0;
+            ecc_oom_fail_at = i;
+            ecc_oom_failed = 0;
+            derivedPubSz = sizeof(derivedPub);
+
+            ExpectIntEQ(wc_ecc_init(&privOnlyKey), 0);
+            idx = 0;
+            ecc_oom_active = 1;
+            decodeRet = wc_EccPrivateKeyDecode(privOnlyDer, &idx, &privOnlyKey,
+                (word32)privOnlyDerSz);
+            ecc_oom_active = 0;
+            /* The injection must actually have fired, otherwise this
+             * iteration passes vacuously without exercising any OOM path. */
+            ExpectIntEQ(ecc_oom_failed, 1);
+
+            /* A failure inside the decode itself is fine; only the
+             * best-effort derivation is required to be non-fatal. */
+            if (decodeRet == 0) {
+                ExpectIntNE(privOnlyKey.type, ECC_PUBLICKEY);
+                if (privOnlyKey.type == ECC_PRIVATEKEY) {
+                    PRIVATE_KEY_UNLOCK();
+                    ExpectIntEQ(wc_ecc_export_x963(&privOnlyKey, derivedPub,
+                        &derivedPubSz), 0);
+                    PRIVATE_KEY_LOCK();
+                    ExpectIntEQ(derivedPubSz, fullPubSz);
+                    ExpectBufEQ(derivedPub, fullPub, fullPubSz);
+                }
+                else {
+                    ExpectIntEQ(privOnlyKey.type, ECC_PRIVATEKEY_ONLY);
+                }
+            }
+
+            wc_ecc_free(&privOnlyKey);
+        }
+
+        ecc_oom_active = 0;
+        ecc_oom_fail_at = 0;
+
+        if (allocatorsSet) {
+            (void)wolfSSL_SetAllocators(prevMalloc, prevFree, prevRealloc);
+        }
+    }
+#endif /* USE_WOLFSSL_MEMORY */
+
+    wc_FreeRng(&rng);
+#endif /* !NO_ASN && HAVE_ECC && !NO_ECC_MAKE_PUB &&
+        * !WOLFSSL_NO_ECC_DERIVE_PUB_ON_DECODE && HAVE_ECC_KEY_EXPORT &&
+        * USE_CERT_BUFFERS_256 && !HAVE_FIPS && !HAVE_SELFTEST &&
+        * !WOLF_CRYPTO_CB_ONLY_ECC */
     return EXPECT_RESULT();
 }

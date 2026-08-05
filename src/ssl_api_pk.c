@@ -2291,8 +2291,19 @@ int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
             if (der != NULL) {
                 ecc_key* key = (ecc_key*)keyPtr;
                 WOLFSSL_MSG("Using static ECDH key");
-                ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key,
-                    der->length);
+                /* Keep the best-effort public point derivation: the caller
+                 * (TLSX_KeyShare_GenEccKey) exports this key's public point
+                 * with wc_ecc_export_x963(), which fails ECC_PRIVATEONLY_E on
+                 * an ECC_PRIVATEKEY_ONLY key. Attach the RNG first so that
+                 * derivation's base-point multiply gets projective-coordinate
+                 * blinding on this long-lived static scalar, mirroring the
+                 * X25519 branch below and SetupKeys() in sniffer.c. */
+            #ifdef ECC_TIMING_RESISTANT
+                ret = wc_ecc_set_rng(key, ssl->rng);
+                if (ret == 0)
+            #endif
+                    ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key,
+                        der->length);
             }
             break;
     #endif
@@ -2371,7 +2382,9 @@ static int DetectStaticEphemeralKeyType(const byte* keyBuf, unsigned int keySz,
             ret = wc_ecc_init_ex(eccKey, heap, INVALID_DEVID);
         }
         if (ret == 0) {
-            ret = wc_EccPrivateKeyDecode(keyBuf, &idx, eccKey, keySz);
+            /* Pure type probe - key is freed right below, so skip the
+             * best-effort public point derivation done on decode. */
+            ret = EccPrivateKeyDecodeEx(keyBuf, &idx, eccKey, keySz, 0);
             if (ret == 0) {
                 *keyAlgo = WC_PK_TYPE_ECDH;
             }
