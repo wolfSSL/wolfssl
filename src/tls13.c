@@ -9664,33 +9664,46 @@ static int WriteCSRToBuffer(WOLFSSL* ssl, DerBuffer** certExts,
         for (extIdx = 0; extIdx < (word16)(extSz_num); extIdx++) {
             tmpSz = TLSX_CSR_GetSize_ex(csr, 0, (int)extIdx);
 
-            if (tmpSz > (OPAQUE8_LEN + OPAQUE24_LEN) &&
-                certExts[extIdx] == NULL) {
-                /* csr extension is not zero */
-                if (tmpSz > WOLFSSL_MAX_16BIT)
-                    return BUFFER_E;
-                extSz[extIdx] = (word16)tmpSz;
+            if (ssl->fragOffset != 0 && certExts[extIdx] != NULL) {
+                /* A fragmented send is being resumed and this buffer was
+                 * written by the earlier call. extSz starts over on every
+                 * call, so recover this entry's size from the length written
+                 * into the buffer. */
+                ato16(certExts[extIdx]->buffer, &extSz[extIdx]);
+                extSz[extIdx] += OPAQUE16_LEN;
+            }
+            else {
+                /* Not a resume, so anything still allocated here is left over
+                 * from a completed message and must not be reused. */
+                FreeDer(&certExts[extIdx]);
 
-                ret = AllocDer(&certExts[extIdx], extSz[extIdx] + ex_offset,
-                                                    CERT_TYPE, ssl->heap);
-                if (ret < 0)
-                    return ret;
-                der = certExts[extIdx];
+                if (tmpSz > (OPAQUE8_LEN + OPAQUE24_LEN)) {
+                    /* csr extension is not zero */
+                    if (tmpSz > WOLFSSL_MAX_16BIT)
+                        return BUFFER_E;
+                    extSz[extIdx] = (word16)tmpSz;
 
-                /* write extension type */
-                c16toa(ext->type, der->buffer
-                                + OPAQUE16_LEN);
-                /* writes extension data length. */
-                c16toa(extSz[extIdx], der->buffer
-                            + HELLO_EXT_TYPE_SZ + OPAQUE16_LEN);
-                /* write extension data */
-                extSz[extIdx] = (word16)TLSX_CSR_Write_ex(csr,
-                        der->buffer + ex_offset, 0, extIdx);
-                /* add extension offset */
-                extSz[extIdx] += (word16)ex_offset;
-                /* extension length */
-                c16toa(extSz[extIdx] - OPAQUE16_LEN,
-                            der->buffer);
+                    ret = AllocDer(&certExts[extIdx], extSz[extIdx] + ex_offset,
+                                                        CERT_TYPE, ssl->heap);
+                    if (ret < 0)
+                        return ret;
+                    der = certExts[extIdx];
+
+                    /* write extension type */
+                    c16toa(ext->type, der->buffer
+                                    + OPAQUE16_LEN);
+                    /* writes extension data length. */
+                    c16toa(extSz[extIdx], der->buffer
+                                + HELLO_EXT_TYPE_SZ + OPAQUE16_LEN);
+                    /* write extension data */
+                    extSz[extIdx] = (word16)TLSX_CSR_Write_ex(csr,
+                            der->buffer + ex_offset, 0, extIdx);
+                    /* add extension offset */
+                    extSz[extIdx] += (word16)ex_offset;
+                    /* extension length */
+                    c16toa(extSz[extIdx] - OPAQUE16_LEN,
+                                der->buffer);
+                }
             }
             totalSz += extSz[extIdx];
         }
@@ -9877,7 +9890,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     word32 totalextSz = 0;
     word32 len = 0;
     word32 idx = 0;
-    word32 offset = OPAQUE16_LEN;
+    word32 offset = 0;
+    word32 entrySz = 0;
     byte*  p = NULL;
     byte   certReqCtxLen = 0;
     sword32 length;
@@ -9957,9 +9971,14 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                 && ssl->options.handShakeDone)
         #endif
         ) {
-            ret = SetupOcspResp(ssl);
-            if (ret != 0)
-                return ret;
+            /* Build the responses once. A resumed send reuses them: looking
+             * them up again appends another set of requests to the extension
+             * until it overflows with MAX_CERT_EXTENSIONS_ERR. */
+            if (ssl->fragOffset == 0) {
+                ret = SetupOcspResp(ssl);
+                if (ret != 0)
+                    return ret;
+            }
 
             if ((1 + ssl->buffers.certChainCnt) > MAX_CERT_EXTENSIONS)
                 ret = MAX_CERT_EXTENSIONS_ERR;
@@ -10006,6 +10025,50 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     maxFragment = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
 
     extIdx = 0;
+
+    /* Only ssl->fragOffset survives a WANT_WRITE, so a resume inside the chain
+     * has to rebuild the walk cursor from it. */
+    if (certChainSz > 0 && ssl->fragOffset >= certSz + extSz[0]) {
+        word32 chainPos = ssl->fragOffset - (certSz + extSz[0]);
+
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
+        /* The leaf is behind us and its buffer was rebuilt above. */
+        FreeDer(&ssl->buffers.certExts[0]);
+    #endif
+
+        while (chainPos > 0) {
+            word32 prevIdx = idx;
+
+            len = NextCert(ssl->buffers.certChain->buffer,
+                           ssl->buffers.certChain->length, &idx);
+            if (len == 0)
+                break;
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+                !defined(NO_WOLFSSL_SERVER)
+            if (extIdx + 1 < MAX_CERT_EXTENSIONS)
+                extIdx++;
+        #endif
+            entrySz = len + extSz[extIdx];
+
+            if (chainPos < entrySz) {
+                /* Resume part way through this entry. */
+                p = ssl->buffers.certChain->buffer + prevIdx;
+                offset = chainPos;
+                chainPos = 0;
+            }
+            else {
+                /* Entry already sent in full; stay primed for the next one. */
+            #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+                    !defined(NO_WOLFSSL_SERVER)
+                /* Its buffer was rebuilt above and nothing writes it again. */
+                FreeDer(&ssl->buffers.certExts[extIdx]);
+            #endif
+                chainPos -= entrySz;
+                offset = 0;
+                entrySz = 0;
+            }
+        }
+    }
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;
@@ -10107,7 +10170,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
              while (fragSz > 0) {
                 word32 l;
 
-                if (offset == len + OPAQUE16_LEN) {
+                if (offset == entrySz) {
                     /* Find next CA certificate to write out. */
                     offset = 0;
                     /* Point to the start of current cert in chain buffer. */
@@ -10121,6 +10184,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                     if (extIdx + 1 < MAX_CERT_EXTENSIONS)
                         extIdx++;
                 #endif
+                    /* Certificate and its extensions make up the entry. */
+                    entrySz = len + extSz[extIdx];
                 }
                 /* Write out certificate and extension. */
                 l = AddCertExt(ssl, p, len, extSz[extIdx], offset, fragSz,
@@ -10133,10 +10198,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 
                 if (extIdx != 0 && extIdx < MAX_CERT_EXTENSIONS &&
                     ssl->buffers.certExts[extIdx] != NULL &&
-                                offset == len + extSz[extIdx]) {
+                                offset == entrySz) {
                     FreeDer(&ssl->buffers.certExts[extIdx]);
-                    /* for next chain cert */
-                    len += extSz[extIdx] - OPAQUE16_LEN;
                 }
             }
         }

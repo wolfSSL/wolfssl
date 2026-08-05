@@ -9738,6 +9738,17 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
+#if !defined(NO_CERTS) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
+    {
+        /* Release the certificate status extensions of a Certificate message
+         * that was never sent in full. */
+        int extIdx;
+
+        for (extIdx = 0; extIdx < MAX_CERT_EXTENSIONS; extIdx++)
+            FreeDer(&ssl->buffers.certExts[extIdx]);
+    }
+#endif
 #ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
     /* Release any in-progress streamed CertificateVerify body (e.g. a
      * connection torn down mid-send). */
