@@ -9440,12 +9440,16 @@ static void FreeSSL_DtlsResources(WOLFSSL* ssl)
     }
     XFREE(ssl->buffers.dtlsCookieSecret.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
+    ssl->buffers.dtlsCookieSecret.buffer = NULL;
+    ssl->buffers.dtlsCookieSecret.length = 0;
     if (ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL) {
         ForceZero(ssl->buffers.dtlsCookieSecretSecondary.buffer,
             ssl->buffers.dtlsCookieSecretSecondary.length);
     }
     XFREE(ssl->buffers.dtlsCookieSecretSecondary.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
+    ssl->buffers.dtlsCookieSecretSecondary.buffer = NULL;
+    ssl->buffers.dtlsCookieSecretSecondary.length = 0;
 #endif
 
 #ifdef WOLFSSL_DTLS13

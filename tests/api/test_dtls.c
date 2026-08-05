@@ -6586,6 +6586,55 @@ int test_dtls13_hrr_cookie_secret_secondary_args(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_disable_hrr_cookie() frees the secondary secret and clears its
+ * pointer.  Arming and disabling twice exercises that free/zeroize path more
+ * than once, so a free-without-clear is caught under ASAN /
+ * WOLFSSL_CHECK_MEM_ZERO instead of going unnoticed. */
+int test_dtls13_hrr_cookie_secret_secondary_disabled(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte sP[32];
+    byte sS[32];
+
+    XMEMSET(sP, 0x11, sizeof(sP));
+    XMEMSET(sS, 0x5A, sizeof(sS));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* Round 1: arm primary + secondary, then disable frees both. */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, sP, sizeof(sP)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, sS, sizeof(sS)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Round 2: re-arm and disable again.  The first disable must have cleared
+     * the secondary pointer, so this neither double-frees nor leaks. */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, sP, sizeof(sP)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, sS, sizeof(sS)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Disabling again with nothing armed is a no-op success. */
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
     !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
