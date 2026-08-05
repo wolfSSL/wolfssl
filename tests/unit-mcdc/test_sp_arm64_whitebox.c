@@ -131,6 +131,40 @@ static const byte wb_digest[32] = {
     0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
 };
 
+/* Build an mp_int from nbytes of 0xFF -- an odd, deliberately oversized (or
+ * boundary-length) value used only to reach an argument-bounds guard; its
+ * numeric value carries no cryptographic meaning. */
+static int wb_mp_set_ones(mp_int* m, int nbytes)
+{
+    byte buf[512];
+    if (nbytes > (int)sizeof(buf)) {
+        nbytes = (int)sizeof(buf);
+    }
+    XMEMSET(buf, 0xFF, (size_t)nbytes);
+    return mp_read_unsigned_bin(m, buf, (word32)nbytes);
+}
+
+/* Build an mp_int exactly fieldBits long (the unused top bits of the
+ * leading byte are masked off so mp_count_bits() == fieldBits, not more).
+ * Its value is the maximum representable in that bit width, so it is both
+ * a "bits == fieldBits" length guard pass AND is numerically at-or-above
+ * any field prime/modulus of that width -- useful for a ">= modulus"
+ * range guard too. */
+static int wb_mp_set_at_bit_boundary(mp_int* m, int fieldBits)
+{
+    byte buf[96];
+    int  fieldBytes = (fieldBits + 7) / 8;
+    int  topBits = fieldBits - (fieldBytes - 1) * 8;
+    byte topMask = (byte)((topBits >= 8) ? 0xFFu :
+        (byte)((1u << topBits) - 1u));
+    if (fieldBytes > (int)sizeof(buf)) {
+        fieldBytes = (int)sizeof(buf);
+    }
+    XMEMSET(buf, 0xFF, (size_t)fieldBytes);
+    buf[0] = topMask;
+    return mp_read_unsigned_bin(m, buf, (word32)fieldBytes);
+}
+
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 /* -------------------------------------------------------------------- *
  * ECC: make_key_ex + sign_hash + verify_hash + shared_secret (ECDH), for
@@ -494,6 +528,227 @@ static void wb_run_point_specials_all(void)
 #endif
 }
 
+/* ----------------------------------------------------------------------- *
+ * Residual-closing extras for sp_ecc_sign_<n>() / sp_ecc_verify_<n>() /
+ * sp_ecc_check_key_<n>():
+ *
+ * - sp_ecc_sign_<n>(): the public path (wc_ecc_sign_hash) always passes
+ *   km == NULL, so `mp_iszero(km)` in `(km == NULL || mp_iszero(km))` is
+ *   never evaluated. Passing a non-NULL km directly (zero, then non-zero)
+ *   reaches both its values while km == NULL stays false throughout.
+ *
+ * - sp_ecc_verify_<n>(): a normal, valid signature always verifies on the
+ *   first comparison, so the `(*res == 0) && (c < 0)` fallback path (and
+ *   the p1/p2-at-infinity checks feeding into it) are never reached. A
+ *   zero hash forces u1 == 0 -> [u1]G == infinity; rm == 0 forces u2 == 0
+ *   -> [u2]Q == infinity; rm at (prime - order + 5) forces the r+order
+ *   re-check to land >= prime (c >= 0) instead of the otherwise-universal
+ *   c < 0. None of these are valid signatures -- res is expected to stay
+ *   0 -- the goal is only to reach each guard without crashing.
+ *
+ * - sp_ecc_check_key_<n>(): one extra (x == 0, y != 0) vector closes the
+ *   point-at-infinity AND's second operand independently of the existing
+ *   (0, 0) vector; one ordinate pinned to the field's bit-boundary value
+ *   (>= the curve prime, still within the bit-length guard) closes each
+ *   operand of the X/Y range check independently.
+ * ----------------------------------------------------------------------- */
+static void wb_run_ecc_extra(int curve_id, int fieldSz, int fieldBits,
+    const char* label,
+    int (*sign)(const byte*, word32, WC_RNG*, const mp_int*, mp_int*,
+        mp_int*, mp_int*, void*),
+    int (*verify)(const byte*, word32, const mp_int*, const mp_int*,
+        const mp_int*, const mp_int*, const mp_int*, int*, void*),
+    int (*check_key)(const mp_int*, const mp_int*, const mp_int*, void*),
+    const byte* rHi, int rHiLen)
+{
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+    ecc_key keyA;
+    WC_RNG  rng;
+    mp_int  priv, kmZero, kmSet, rm, sm, one, zero, small, atX, atY, rHiM;
+    byte    zerohash[32];
+    int     res;
+
+    XMEMSET(&keyA, 0, sizeof(keyA));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(zerohash, 0, sizeof(zerohash));
+
+    if (wc_ecc_init(&keyA) != 0) {
+        WB_NOTE("wc_ecc_init failed (ecc extra)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed (ecc extra)");
+        wb_fail = 1;
+        wc_ecc_free(&keyA);
+        return;
+    }
+    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0) {
+        WB_NOTE("wc_ecc_make_key_ex failed (ecc extra)");
+        wb_fail = 1;
+        wc_FreeRng(&rng);
+        wc_ecc_free(&keyA);
+        return;
+    }
+
+    if (mp_init(&priv) != MP_OKAY || mp_init(&kmZero) != MP_OKAY ||
+            mp_init(&kmSet) != MP_OKAY || mp_init(&rm) != MP_OKAY ||
+            mp_init(&sm) != MP_OKAY || mp_init(&one) != MP_OKAY ||
+            mp_init(&zero) != MP_OKAY || mp_init(&small) != MP_OKAY ||
+            mp_init(&atX) != MP_OKAY || mp_init(&atY) != MP_OKAY ||
+            mp_init(&rHiM) != MP_OKAY) {
+        WB_NOTE("mp_init failed (ecc extra)");
+        wb_fail = 1;
+        wc_FreeRng(&rng);
+        wc_ecc_free(&keyA);
+        return;
+    }
+
+    /* sign(): explicit km, both (km != NULL, iszero(km)) values. */
+    mp_set(&priv, 3);
+    mp_zero(&kmZero);
+    (void)sign(wb_digest, (word32)sizeof(wb_digest), &rng, &priv, &rm, &sm,
+        &kmZero, keyA.heap);
+    mp_set(&kmSet, 12345);
+    (void)sign(wb_digest, (word32)sizeof(wb_digest), &rng, &priv, &rm, &sm,
+        &kmSet, keyA.heap);
+
+    /* verify(): u1 == 0 (hash == 0) -> p1 at infinity; c < 0 side of the
+     * res/c guard (order comfortably under the prime for any small r). */
+    mp_set(&one, 1);
+    mp_set(&rm, 7);
+    mp_set(&sm, 11);
+    res = -1;
+    (void)verify(zerohash, (word32)sizeof(zerohash), keyA.pubkey.x,
+        keyA.pubkey.y, &one, &rm, &sm, &res, keyA.heap);
+
+    /* verify(): u2 == 0 (rm == 0) -> p2 at infinity; same c < 0 side. */
+    mp_zero(&rm);
+    mp_set(&sm, 13);
+    res = -1;
+    (void)verify(wb_digest, (word32)sizeof(wb_digest), keyA.pubkey.x,
+        keyA.pubkey.y, &one, &rm, &sm, &res, keyA.heap);
+
+    /* verify(): rm == (prime - order + 5) -> r + order >= prime, closing
+     * the c >= 0 side of the same guard. */
+    if (mp_read_unsigned_bin(&rHiM, rHi, (word32)rHiLen) == MP_OKAY) {
+        mp_set(&sm, 17);
+        res = -1;
+        (void)verify(wb_digest, (word32)sizeof(wb_digest), keyA.pubkey.x,
+            keyA.pubkey.y, &one, &rHiM, &sm, &res, keyA.heap);
+    }
+
+    if (check_key != NULL) {
+        /* (x == 0) && (y != 0): closes the point-at-infinity AND's second
+         * operand (the (0, 0) case is already driven elsewhere). */
+        mp_zero(&zero);
+        mp_set(&small, 3);
+        (void)check_key(&zero, &small, NULL, NULL);
+
+        /* Ordinate at the field's bit-boundary (>= curve prime, still
+         * within the bit-length guard): each of X, Y independently. */
+        if (wb_mp_set_at_bit_boundary(&atX, fieldBits) == MP_OKAY) {
+            (void)check_key(&atX, &small, NULL, NULL);
+        }
+        if (wb_mp_set_at_bit_boundary(&atY, fieldBits) == MP_OKAY) {
+            (void)check_key(&small, &atY, NULL, NULL);
+        }
+    }
+
+    mp_clear(&rHiM);
+    mp_clear(&atY);
+    mp_clear(&atX);
+    mp_clear(&small);
+    mp_clear(&zero);
+    mp_clear(&one);
+    mp_clear(&sm);
+    mp_clear(&rm);
+    mp_clear(&kmSet);
+    mp_clear(&kmZero);
+    mp_clear(&priv);
+
+    wc_FreeRng(&rng);
+    wc_ecc_free(&keyA);
+    WB_NOTE(label);
+#else
+    (void)curve_id;
+    (void)fieldSz;
+    (void)fieldBits;
+    (void)sign;
+    (void)verify;
+    (void)check_key;
+    (void)rHi;
+    (void)rHiLen;
+    WB_NOTE("HAVE_ECC_SIGN/HAVE_ECC_VERIFY not both defined; ecc extra "
+             "skipped");
+    (void)label;
+#endif
+}
+
+/* prime - order + 5 for each curve: comfortably inside the field, but
+ * with r + order >= prime (see wb_run_ecc_extra() above). */
+static const byte wb_rHi_256[16] = {
+    0x43, 0x19, 0x05, 0x53, 0x58, 0xE8, 0x61, 0x7B,
+    0x0C, 0x46, 0x35, 0x3D, 0x03, 0x9C, 0xDA, 0xB3
+};
+static const byte wb_rHi_384[24] = {
+    0x38, 0x9C, 0xB2, 0x7E, 0x0B, 0xC8, 0xD2, 0x1F,
+    0xA7, 0xE5, 0xF2, 0x4C, 0xB7, 0x4F, 0x58, 0x85,
+    0x13, 0x13, 0xE6, 0x96, 0x33, 0x3A, 0xD6, 0x91
+};
+static const byte wb_rHi_521[33] = {
+    0x05, 0xAE, 0x79, 0x78, 0x7C, 0x40, 0xD0, 0x69,
+    0x94, 0x80, 0x33, 0xFE, 0xB7, 0x08, 0xF6, 0x5A,
+    0x2F, 0xC4, 0x4A, 0x36, 0x47, 0x76, 0x63, 0xB8,
+    0x51, 0x44, 0x90, 0x48, 0xE1, 0x6E, 0xC7, 0x9B,
+    0xFB
+};
+
+static void wb_run_ecc_extra_all(void)
+{
+#ifndef WOLFSSL_SP_NO_256
+    wb_run_ecc_extra(ECC_SECP256R1, 32, 256,
+        "P-256 sign/verify/check_key residual extras exercised",
+        sp_ecc_sign_256, sp_ecc_verify_256,
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+        sp_ecc_check_key_256,
+#else
+        NULL,
+#endif
+        wb_rHi_256, (int)sizeof(wb_rHi_256));
+#else
+    WB_NOTE("WOLFSSL_SP_NO_256 defined; P-256 ecc extra skipped");
+#endif
+
+#ifdef WOLFSSL_SP_384
+    wb_run_ecc_extra(ECC_SECP384R1, 48, 384,
+        "P-384 sign/verify/check_key residual extras exercised",
+        sp_ecc_sign_384, sp_ecc_verify_384,
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+        sp_ecc_check_key_384,
+#else
+        NULL,
+#endif
+        wb_rHi_384, (int)sizeof(wb_rHi_384));
+#else
+    WB_NOTE("WOLFSSL_SP_384 not defined; P-384 ecc extra skipped");
+#endif
+
+#ifdef WOLFSSL_SP_521
+    wb_run_ecc_extra(ECC_SECP521R1, 66, 521,
+        "P-521 sign/verify/check_key residual extras exercised",
+        sp_ecc_sign_521, sp_ecc_verify_521,
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+        sp_ecc_check_key_521,
+#else
+        NULL,
+#endif
+        wb_rHi_521, (int)sizeof(wb_rHi_521));
+#else
+    WB_NOTE("WOLFSSL_SP_521 not defined; P-521 ecc extra skipped");
+#endif
+}
+
 #else /* !(WOLFSSL_HAVE_SP_ECC && HAVE_ECC) */
 static void wb_run_ecc(void)
 {
@@ -508,6 +763,11 @@ static void wb_run_point_specials_all(void)
 {
     WB_NOTE("WOLFSSL_HAVE_SP_ECC/HAVE_ECC not both defined; point "
              "specials skipped");
+}
+static void wb_run_ecc_extra_all(void)
+{
+    WB_NOTE("WOLFSSL_HAVE_SP_ECC/HAVE_ECC not both defined; ecc extra "
+             "skipped");
 }
 #endif /* WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
@@ -764,10 +1024,229 @@ static void wb_run_dh(void)
 }
 #endif /* WOLFSSL_HAVE_SP_DH && !NO_DH */
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(NO_RSA)) || \
+    (defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH))
+/* ----------------------------------------------------------------------- *
+ * sp_RsaPublic_<n>() / sp_RsaPrivate_<n>() (CRT path) / sp_DhExp_<n>():
+ * every one guards its inputs with an
+ *   mp_count_bits(exponent) > N || inLen > bytes || mp_count_bits(mod) != N
+ * style check (RsaPrivate's CRT path only has the last two operands). The
+ * normal sign/verify/DH-agree paths above only ever call these with
+ * in-range, exact-size operands -- the "all false" row -- so every
+ * operand's "true" row is still missing. These call the sp_* entry points
+ * directly with out-of-range/boundary operands; none of it needs to be a
+ * valid key, only reach the guard without crashing (err short-circuits
+ * before the operand is ever read for its bit pattern, so oversized
+ * lengths paired with an undersized buffer are safe).
+ *
+ * sp_DhExp_2048/_3072() additionally special-case base == 2 with an
+ * all-ones top digit (FFDHE fast squaring, only compiled when
+ * HAVE_FFDHE_2048/_3072 is defined -- no HAVE_FFDHE_4096 in this lane, so
+ * sp_DhExp_4096() has no such branch) and trim leading zero bytes off the
+ * result. A small odd base with a 1-byte exponent yields a result that is
+ * zero in every byte but the last -- driving the trim loop through nearly
+ * every index before finding the non-zero one -- while base == 0 drives it
+ * through every index (result == 0). The same base == 3 call, given a
+ * wider (32-byte) exponent instead, drives the generic windowed modexp's
+ * `for (; i>=0 || c>=4; )` digit/nibble scan (sp_4096_mod_exp_64()) through
+ * its full natural termination -- a moderate exponent width keeps this
+ * cheap relative to the full RSA-4096 keygen already exercised above.
+ * ----------------------------------------------------------------------- */
+static void wb_run_rsa_dh_bounds(void)
+{
+    mp_int em;
+    mp_int mm;
+    mp_int dummy;
+    mp_int base;
+    byte   in[512];
+    byte   out[512];
+    byte   exp32[32];
+    byte   one = 0x01;
+    word32 outLen;
+
+    XMEMSET(in, 0, sizeof(in));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(exp32, 0xA5, sizeof(exp32));
+
+    if (mp_init(&em) != MP_OKAY) {
+        WB_NOTE("mp_init(em) failed (rsa/dh bounds)");
+        wb_fail = 1;
+        return;
+    }
+    if (mp_init(&mm) != MP_OKAY) {
+        WB_NOTE("mp_init(mm) failed (rsa/dh bounds)");
+        wb_fail = 1;
+        mp_clear(&em);
+        return;
+    }
+    if (mp_init(&dummy) != MP_OKAY) {
+        WB_NOTE("mp_init(dummy) failed (rsa/dh bounds)");
+        wb_fail = 1;
+        mp_clear(&em);
+        mp_clear(&mm);
+        return;
+    }
+    if (mp_init(&base) != MP_OKAY) {
+        WB_NOTE("mp_init(base) failed (rsa/dh bounds)");
+        wb_fail = 1;
+        mp_clear(&em);
+        mp_clear(&mm);
+        mp_clear(&dummy);
+        return;
+    }
+    mp_set(&dummy, 3);
+
+#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(NO_RSA)
+#ifndef WOLFSSL_SP_NO_2048
+    if (wb_mp_set_at_bit_boundary(&mm, 2048) == MP_OKAY) {
+        (void)wb_mp_set_ones(&em, 9); /* 72 bits: em > 64 alone */
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_2048(in, 32, &em, &mm, out, &outLen);
+        mp_set(&em, 0x10001);
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_2048(in, 257, &em, &mm, out, &outLen); /* inLen */
+    }
+    if (wb_mp_set_ones(&mm, 128) == MP_OKAY) { /* 1024 bits, != 2048 */
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_2048(in, 32, &em, &mm, out, &outLen);
+    }
+    if (wb_mp_set_at_bit_boundary(&mm, 2048) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPrivate_2048(in, 257, &dummy, &dummy, &dummy, &dummy,
+            &dummy, &dummy, &mm, out, &outLen); /* inLen */
+    }
+    if (wb_mp_set_ones(&mm, 128) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPrivate_2048(in, 32, &dummy, &dummy, &dummy, &dummy,
+            &dummy, &dummy, &mm, out, &outLen); /* mm != 2048 */
+    }
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+    if (wb_mp_set_at_bit_boundary(&mm, 3072) == MP_OKAY) {
+        (void)wb_mp_set_ones(&em, 9);
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_3072(in, 48, &em, &mm, out, &outLen);
+        mp_set(&em, 0x10001);
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_3072(in, 385, &em, &mm, out, &outLen);
+    }
+    if (wb_mp_set_ones(&mm, 128) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_3072(in, 48, &em, &mm, out, &outLen);
+    }
+    if (wb_mp_set_at_bit_boundary(&mm, 3072) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPrivate_3072(in, 385, &dummy, &dummy, &dummy, &dummy,
+            &dummy, &dummy, &mm, out, &outLen);
+    }
+    if (wb_mp_set_ones(&mm, 128) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPrivate_3072(in, 48, &dummy, &dummy, &dummy, &dummy,
+            &dummy, &dummy, &mm, out, &outLen);
+    }
+#endif
+#ifdef WOLFSSL_SP_4096
+    if (wb_mp_set_at_bit_boundary(&mm, 4096) == MP_OKAY) {
+        (void)wb_mp_set_ones(&em, 9);
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_4096(in, 64, &em, &mm, out, &outLen);
+        mp_set(&em, 0x10001);
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_4096(in, 513, &em, &mm, out, &outLen);
+    }
+    if (wb_mp_set_ones(&mm, 128) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPublic_4096(in, 64, &em, &mm, out, &outLen);
+    }
+    if (wb_mp_set_at_bit_boundary(&mm, 4096) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPrivate_4096(in, 513, &dummy, &dummy, &dummy, &dummy,
+            &dummy, &dummy, &mm, out, &outLen);
+    }
+    if (wb_mp_set_ones(&mm, 128) == MP_OKAY) {
+        outLen = (word32)sizeof(out);
+        (void)sp_RsaPrivate_4096(in, 64, &dummy, &dummy, &dummy, &dummy,
+            &dummy, &dummy, &mm, out, &outLen);
+    }
+#endif
+#endif /* WOLFSSL_HAVE_SP_RSA && !NO_RSA */
+
+#if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH)
+#ifndef WOLFSSL_SP_NO_2048
+    if (wb_mp_set_at_bit_boundary(&mm, 2048) == MP_OKAY) {
+        mp_set(&base, 3); /* FFDHE fast-path dp[0]==2 operand: false */
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_2048(&base, &one, 1, &mm, out, &outLen);
+        mp_set(&base, 0); /* result == 0: trim loop runs to the boundary */
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_2048(&base, &one, 1, &mm, out, &outLen);
+    }
+#endif
+#if !defined(WOLFSSL_SP_NO_3072) && defined(HAVE_FFDHE_3072)
+    if (wb_mp_set_at_bit_boundary(&mm, 3072) == MP_OKAY) {
+        mp_set(&base, 2); /* dp[0]==2 true, top digit all-ones: true */
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_3072(&base, &one, 1, &mm, out, &outLen);
+        mp_set(&base, 3); /* dp[0]==2 false */
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_3072(&base, &one, 1, &mm, out, &outLen);
+        mp_set(&base, 0);
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_3072(&base, &one, 1, &mm, out, &outLen);
+    }
+    {
+        /* dp[0]==2 true, top digit NOT all-ones: closes that operand's
+         * independence pair without disturbing the other two. */
+        byte buf3072[384];
+        XMEMSET(buf3072, 0xFF, sizeof(buf3072));
+        buf3072[0] = 0xFE;
+        if (mp_read_unsigned_bin(&mm, buf3072, (word32)sizeof(buf3072))
+                == MP_OKAY) {
+            mp_set(&base, 2);
+            outLen = (word32)sizeof(out);
+            (void)sp_DhExp_3072(&base, &one, 1, &mm, out, &outLen);
+        }
+    }
+#endif
+#ifdef WOLFSSL_SP_4096
+    if (wb_mp_set_at_bit_boundary(&mm, 4096) == MP_OKAY) {
+        mp_set(&base, 3);
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_4096(&base, &one, 1, &mm, out, &outLen);
+        mp_set(&base, 0);
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_4096(&base, &one, 1, &mm, out, &outLen);
+
+        /* Wider exponent: drives the windowed modexp digit-scan loop
+         * through its full natural termination (see file header). */
+        mp_set(&base, 3);
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_4096(&base, exp32, (word32)sizeof(exp32), &mm, out,
+            &outLen);
+    }
+#endif
+#endif /* WOLFSSL_HAVE_SP_DH && !NO_DH */
+
+    mp_clear(&em);
+    mp_clear(&mm);
+    mp_clear(&dummy);
+    mp_clear(&base);
+    WB_NOTE("RSA/DH argument-bounds, FFDHE fast-path, and trim-loop guards "
+             "exercised");
+}
+#else
+static void wb_run_rsa_dh_bounds(void)
+{
+    WB_NOTE("neither WOLFSSL_HAVE_SP_RSA nor WOLFSSL_HAVE_SP_DH enabled; "
+             "rsa/dh bounds skipped");
+}
+#endif /* (WOLFSSL_HAVE_SP_RSA && !NO_RSA) || (WOLFSSL_HAVE_SP_DH && !NO_DH) */
+
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("sp_arm64.c white-box supplement\n");
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
     defined(WOLFSSL_HAVE_SP_DH)
@@ -776,6 +1255,8 @@ int main(void)
     wb_run_dh();
     wb_run_mulmod_add_all();
     wb_run_point_specials_all();
+    wb_run_ecc_extra_all();
+    wb_run_rsa_dh_bounds();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else
