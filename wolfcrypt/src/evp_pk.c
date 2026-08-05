@@ -2538,7 +2538,7 @@ int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FAILURE on failure.
  */
-int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
+int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, const WOLFSSL_EVP_PKEY* key)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int derSz = 0;
@@ -2557,7 +2557,7 @@ int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
         return WOLFSSL_FAILURE;
     }
 
-    der = (byte*)XMALLOC((size_t)derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC((size_t)derSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         WOLFSSL_MSG("XMALLOC failed");
         return WOLFSSL_FAILURE;
@@ -2577,7 +2577,7 @@ int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
     ret = WOLFSSL_SUCCESS;
 
 cleanup:
-    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* !NO_BIO */
