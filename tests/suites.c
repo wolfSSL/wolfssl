@@ -1327,10 +1327,13 @@ int SuiteTest(int argc, char** argv)
     }
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA) && \
-    !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_HAVE_MLDSA) && \
     defined(WOLFSSL_SLHDSA_PARAM_128S) && \
-    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
-    /* SLH-DSA-SHAKE-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    /* SLH-DSA-SHAKE-128s root + ML-DSA-44 entity cert tests (TLS 1.3).
+     * Both sides use ML-DSA-44 entity certs, so this needs ML-DSA sign and
+     * verify; SLH-DSA sign is not needed as the certs are pre-generated. */
     XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-shake.conf",
              sizeof(argv0[1]));
     printf("starting TLSv13 SLH-DSA-SHAKE-128s root + ML-DSA-44 entity tests\n");
@@ -1358,10 +1361,13 @@ int SuiteTest(int argc, char** argv)
     args.argc = 2;
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA) && \
-    !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_SHA2) && \
     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) && defined(WOLFSSL_HAVE_MLDSA) && \
-    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
-    /* SLH-DSA-SHA2-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    /* SLH-DSA-SHA2-128s root + ML-DSA-44 entity cert tests (TLS 1.3).
+     * Both sides use ML-DSA-44 entity certs, so this needs ML-DSA sign and
+     * verify; SLH-DSA sign is not needed as the certs are pre-generated. */
     XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-sha2.conf",
              sizeof(argv0[1]));
     printf("starting TLSv13 SLH-DSA-SHA2-128s root + ML-DSA-44 entity tests\n");
