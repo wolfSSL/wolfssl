@@ -5798,10 +5798,26 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
     err = NOT_COMPILED_IN;
 #endif /* HAVE_ECC_MAKE_PUB */
 
-    /* change key state if public part is cached */
-    if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {
+    /* Change key state to ECC_PRIVATEKEY if public part is cached
+     * or pending async to prevent infinite make-pub loops. */
+    if (((err == MP_OKAY)
+    #ifdef WOLFSSL_ASYNC_CRYPT
+         || (err == WC_NO_ERR_TRACE(WC_PENDING_E))
+    #endif
+        ) && (key->type == ECC_PRIVATEKEY_ONLY) && (pubOut == NULL)) {
         key->type = ECC_PRIVATEKEY;
     }
+
+#ifdef WOLFSSL_ECC_BLIND_K
+    /* Scrub the unblinded scalar (key->ku) immediately after use.
+     * Async completions defer this scrub to wc_ecc_free(). */
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    if (err != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #endif
+    {
+        mp_forcezero(key->ku);
+    }
+#endif
 
     return err;
 }

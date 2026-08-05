@@ -2505,6 +2505,15 @@ WOLFSSL_LOCAL int GetHashId(const byte* id, int length, byte* hash,
     int hashAlg);
 WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
 
+/* Guard must match the definitions in asn.c / asn_orig.c, which are under
+ * HAVE_ECC alone - callers of this are not NO_ASN_CRYPT-gated. */
+#if defined(HAVE_ECC)
+/* Variant of wc_EccPrivateKeyDecode() with a derivePub flag.
+ * Passing 0 skips public point derivation, saving a scalar multiply. */
+WOLFSSL_LOCAL int EccPrivateKeyDecodeEx(const byte* input, word32* inOutIdx,
+    ecc_key* key, word32 inSz, int derivePub);
+#endif
+
 #ifdef ASN_BER_TO_DER
 WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
