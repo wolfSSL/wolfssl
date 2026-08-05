@@ -3092,22 +3092,26 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
     !defined(NO_FILESYSTEM)
     WOLFSSL_EVP_PKEY* pkey = NULL;
     const unsigned char* p;
-    unsigned char der44[2048];
-    unsigned char der65[2600];
+    unsigned char* der44 = NULL;
+    unsigned char* der65 = NULL;
     int der44Sz = 0;
     int der65Sz = 0;
     XFILE f = XBADFILE;
 
+    ExpectNotNull(der44 = (unsigned char*)XMALLOC(2048, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(der65 = (unsigned char*)XMALLOC(2600, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
     ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
         != XBADFILE);
-    ExpectIntGT(der44Sz = (int)XFREAD(der44, 1, sizeof(der44), f), 0);
+    ExpectIntGT(der44Sz = (int)XFREAD(der44, 1, 2048, f), 0);
     if (f != XBADFILE) {
         XFCLOSE(f);
         f = XBADFILE;
     }
     ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa65_pub-spki.der", "rb"))
         != XBADFILE);
-    ExpectIntGT(der65Sz = (int)XFREAD(der65, 1, sizeof(der65), f), 0);
+    ExpectIntGT(der65Sz = (int)XFREAD(der65, 1, 2600, f), 0);
     if (f != XBADFILE) {
         XFCLOSE(f);
         f = XBADFILE;
@@ -3167,6 +3171,8 @@ int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
     }
 
     wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(der65, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der44, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
@@ -3184,22 +3190,29 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
     !defined(NO_FILESYSTEM)
     WOLFSSL_EVP_PKEY* pkey = NULL;
     const unsigned char* p;
-    unsigned char mldsaDer[4096];
-    unsigned char rsaDer[2048];
-    unsigned char rawBlob[2560]; /* ML-DSA-44 raw private key size */
+    unsigned char* mldsaDer = NULL;
+    unsigned char* rsaDer = NULL;
+    unsigned char* rawBlob = NULL;
     int mldsaSz = 0;
     int rsaSz = 0;
     XFILE f = XBADFILE;
 
+    ExpectNotNull(mldsaDer = (unsigned char*)XMALLOC(4096, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(rsaDer = (unsigned char*)XMALLOC(2048, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    /* 2560 = ML-DSA-44 raw private key size */
+    ExpectNotNull(rawBlob = (unsigned char*)XMALLOC(2560, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
     ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44-key.der", "rb"))
         != XBADFILE);
-    ExpectIntGT(mldsaSz = (int)XFREAD(mldsaDer, 1, sizeof(mldsaDer), f), 0);
+    ExpectIntGT(mldsaSz = (int)XFREAD(mldsaDer, 1, 4096, f), 0);
     if (f != XBADFILE) {
         XFCLOSE(f);
         f = XBADFILE;
     }
     ExpectTrue((f = XFOPEN("./certs/server-keyPkcs8.der", "rb")) != XBADFILE);
-    ExpectIntGT(rsaSz = (int)XFREAD(rsaDer, 1, sizeof(rsaDer), f), 0);
+    ExpectIntGT(rsaSz = (int)XFREAD(rsaDer, 1, 2048, f), 0);
     if (f != XBADFILE) {
         XFCLOSE(f);
         f = XBADFILE;
@@ -3224,7 +3237,7 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
     {
         wc_MlDsaKey* mldsa = NULL;
         word32 idx = 0;
-        word32 rawSz = (word32)sizeof(rawBlob);
+        word32 rawSz = 2560;
         int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
         ExpectNotNull(mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(*mldsa), NULL,
@@ -3245,25 +3258,29 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
             (long)rawSz));
     }
 
-    /* Typed public-key entry point decodes an ML-DSA SPKI. */
+    /* Typed public-key entry point decodes an ML-DSA SPKI. Reuse the
+     * mldsaDer buffer for the SPKI bytes. */
     {
-        unsigned char spki[2048];
         int spkiSz = 0;
 
         ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
             != XBADFILE);
-        ExpectIntGT(spkiSz = (int)XFREAD(spki, 1, sizeof(spki), f), 0);
+        ExpectIntGT(spkiSz = (int)XFREAD(mldsaDer, 1, 4096, f), 0);
         if (f != XBADFILE) {
             XFCLOSE(f);
             f = XBADFILE;
         }
-        p = spki;
+        p = mldsaDer;
         ExpectNotNull(pkey = wolfSSL_d2i_PublicKey(WC_EVP_PKEY_DILITHIUM,
             NULL, &p, (long)spkiSz));
         ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
         wolfSSL_EVP_PKEY_free(pkey);
         pkey = NULL;
     }
+
+    XFREE(rawBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(mldsaDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }

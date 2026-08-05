@@ -438,18 +438,21 @@ int test_wolfSSL_X509_set_pubkey(void)
          * fails and the fallback public decode must work on a reset key. */
         {
             WOLFSSL_EVP_PKEY* spki = NULL;
-            unsigned char der[2048];
+            unsigned char* der = NULL;
             int derSz = 0;
-            const unsigned char* pp = der;
+            const unsigned char* pp;
             XFILE f = XBADFILE;
 
+            ExpectNotNull(der = (unsigned char*)XMALLOC(2048, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
             ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der",
                 "rb")) != XBADFILE);
-            ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, 2048, f), 0);
             if (f != XBADFILE) {
                 XFCLOSE(f);
                 f = XBADFILE;
             }
+            pp = der;
             ExpectNotNull(spki = wolfSSL_d2i_PUBKEY(NULL, &pp, (long)derSz));
             ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, spki), WOLFSSL_SUCCESS);
             ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(x509));
@@ -457,6 +460,7 @@ int test_wolfSSL_X509_set_pubkey(void)
             wolfSSL_EVP_PKEY_free(pubkey);
             pubkey = NULL;
             wolfSSL_EVP_PKEY_free(spki);
+            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
         wolfSSL_EVP_PKEY_free(pkey);
@@ -467,15 +471,17 @@ int test_wolfSSL_X509_set_pubkey(void)
          * whether wolfCrypt can derive the public half on demand in
          * wc_MlDsaKey_PublicKeyToDer() (added by PR #10985). */
         {
-            unsigned char der[4096];
+            unsigned char* der = NULL;
             int derSz = 0;
             const unsigned char* pp;
             XFILE f = XBADFILE;
 
+            ExpectNotNull(der = (unsigned char*)XMALLOC(4096, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
         #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
             ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_seed-priv.der",
                 "rb")) != XBADFILE);
-            ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, 4096, f), 0);
             if (f != XBADFILE) {
                 XFCLOSE(f);
                 f = XBADFILE;
@@ -491,18 +497,21 @@ int test_wolfSSL_X509_set_pubkey(void)
 
             ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_priv-only.der",
                 "rb")) != XBADFILE);
-            ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), f), 0);
+            ExpectIntGT(derSz = (int)XFREAD(der, 1, 4096, f), 0);
             if (f != XBADFILE) {
                 XFCLOSE(f);
                 f = XBADFILE;
             }
             {
                 wc_MlDsaKey* rawKey = NULL;
-                byte pubDer[MLDSA_MAX_PUB_KEY_SIZE + 64];
+                byte* pubDer = NULL;
                 word32 kidx = 0;
                 int expected = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
                 int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
+                ExpectNotNull(pubDer = (byte*)XMALLOC(
+                    MLDSA_MAX_PUB_KEY_SIZE + 64, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
                 ExpectNotNull(rawKey = (wc_MlDsaKey*)XMALLOC(sizeof(*rawKey),
                     NULL, DYNAMIC_TYPE_TMP_BUFFER));
                 ExpectIntEQ(keyRet = wc_MlDsaKey_Init(rawKey, NULL,
@@ -512,7 +521,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                     (word32)derSz, &kidx), 0);
                 if (EXPECT_SUCCESS() &&
                         wc_MlDsaKey_PublicKeyToDer(rawKey, pubDer,
-                            (word32)sizeof(pubDer), 1) > 0) {
+                            MLDSA_MAX_PUB_KEY_SIZE + 64, 1) > 0) {
                     expected = WOLFSSL_SUCCESS;
                 }
                 PRIVATE_KEY_LOCK();
@@ -520,6 +529,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                     wc_MlDsaKey_Free(rawKey);
                 }
                 XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(pubDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
                 pp = der;
                 ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
@@ -528,6 +538,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                 wolfSSL_EVP_PKEY_free(pkey);
                 pkey = NULL;
             }
+            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
@@ -540,12 +551,14 @@ int test_wolfSSL_X509_set_pubkey(void)
         {
             wc_MlDsaKey* draftKey = NULL;
             WC_RNG rng;
-            byte draftDer[4096];
+            byte* draftDer = NULL;
             int draftDerSz = 0;
-            const unsigned char* dp = draftDer;
+            const unsigned char* dp;
             int rngRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
             int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
+            ExpectNotNull(draftDer = (byte*)XMALLOC(4096, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
             ExpectNotNull(draftKey = (wc_MlDsaKey*)XMALLOC(sizeof(*draftKey),
                 NULL, DYNAMIC_TYPE_TMP_BUFFER));
             ExpectIntEQ(rngRet = wc_InitRng(&rng), 0);
@@ -558,7 +571,7 @@ int test_wolfSSL_X509_set_pubkey(void)
              * not derive the public part needed by PublicKeyToDer. */
             PRIVATE_KEY_UNLOCK();
             ExpectIntGT(draftDerSz = wc_MlDsaKey_KeyToDer(draftKey,
-                draftDer, (word32)sizeof(draftDer)), 0);
+                draftDer, 4096), 0);
             PRIVATE_KEY_LOCK();
             if (keyRet == 0) {
                 wc_MlDsaKey_Free(draftKey);
@@ -568,6 +581,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                 wc_FreeRng(&rng);
             }
 
+            dp = draftDer;
             ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(
                 WC_EVP_PKEY_DILITHIUM, NULL, &dp, (long)draftDerSz));
             ExpectIntEQ(wolfSSL_X509_set_pubkey(x509, pkey),
@@ -579,6 +593,7 @@ int test_wolfSSL_X509_set_pubkey(void)
             pubkey = NULL;
             wolfSSL_EVP_PKEY_free(pkey);
             pkey = NULL;
+            XFREE(draftDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
     }
