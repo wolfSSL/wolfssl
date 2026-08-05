@@ -9499,6 +9499,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         /* Step 25: ct0 = NTT-1(c o t0) */
                         mldsa_mul_invntt(ct0 + i * MLDSA_N, c,
                             t0 + i * MLDSA_N);
+                        mldsa_poly_red(ct0 + i * MLDSA_N);
                         /* Step 27: Check ct0 has low enough values. */
                         valid = mldsa_vec_check_low(ct0 + i * MLDSA_N, 1, hi);
                     }
