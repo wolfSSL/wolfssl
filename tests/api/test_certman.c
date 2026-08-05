@@ -3171,7 +3171,7 @@ typedef struct CRLUnkExtCtx {
 
 /* CRL Reason OID 2.5.29.21 (last component for the entry-ext test) and
  * obsolete X.509v2 AKI 2.5.29.1 (last component for the CRL-level test). */
-static int crl_unk_ext_cb_accept(const word16* oid, word32 oidSz,
+static int crl_unk_ext_cb_accept(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
     CRLUnkExtCtx* ctx = (CRLUnkExtCtx*)ctxIn;
@@ -3188,7 +3188,7 @@ static int crl_unk_ext_cb_accept(const word16* oid, word32 oidSz,
     return 0; /* accept */
 }
 
-static int crl_unk_ext_cb_reject(const word16* oid, word32 oidSz,
+static int crl_unk_ext_cb_reject(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
@@ -3197,7 +3197,7 @@ static int crl_unk_ext_cb_reject(const word16* oid, word32 oidSz,
     return ASN_PARSE_E;
 }
 
-static int crl_unk_ext_cb_reject_positive(const word16* oid, word32 oidSz,
+static int crl_unk_ext_cb_reject_positive(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
@@ -3214,7 +3214,7 @@ static int crl_unk_ext_noctx_calls;
 static int crl_unk_ext_noctx_sawCritical;
 static int crl_unk_ext_noctx_oidMatched;
 
-static int crl_unk_ext_cb_noctx_accept(const word16* oid, word32 oidSz,
+static int crl_unk_ext_cb_noctx_accept(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz)
 {
     (void)der;
@@ -3228,7 +3228,7 @@ static int crl_unk_ext_cb_noctx_accept(const word16* oid, word32 oidSz,
     return 0; /* accept */
 }
 
-static int crl_unk_ext_cb_noctx_reject(const word16* oid, word32 oidSz,
+static int crl_unk_ext_cb_noctx_reject(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;

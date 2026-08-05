@@ -38013,7 +38013,7 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
 #ifdef WC_ASN_UNKNOWN_EXT_CB
             if (dcrl != NULL && (dcrl->unknownExtCallback != NULL ||
                                  dcrl->unknownExtCallbackEx != NULL)) {
-                word16 decOid[MAX_OID_SZ];
+                word32 decOid[MAX_OID_SZ];
                 word32 decOidSz = MAX_OID_SZ;
                 word32 valIdx = idx;
                 int    valLen = 0;
@@ -38035,7 +38035,7 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                  * never sees uninitialized stack" true by construction rather
                  * than by reasoning about DecodeObjectId's internals. */
                 XMEMSET(decOid, 0, sizeof(decOid));
-                cbRet = DecodeObjectId(buff + oidContent, (word32)oidLen,
+                cbRet = DecodeObjectId_ex(buff + oidContent, (word32)oidLen,
                     decOid, &decOidSz);
                 if (cbRet == 0 && dcrl->unknownExtCallback != NULL) {
                     cbRet = dcrl->unknownExtCallback(decOid, decOidSz,
@@ -38498,9 +38498,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
 #ifdef WC_ASN_UNKNOWN_EXT_CB
                     if (dcrl->unknownExtCallback != NULL ||
                         dcrl->unknownExtCallbackEx != NULL) {
-                        word16 decOid[MAX_OID_SZ];
+                        word32 decOid[MAX_OID_SZ];
                         word32 decOidSz = MAX_OID_SZ;
-                        ret = DecodeObjectId(
+                        ret = DecodeObjectId_ex(
                             dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                             dataASN[CERTEXTASN_IDX_OID].data.oid.length,
                             decOid, &decOidSz);
