@@ -1568,6 +1568,8 @@ int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
 int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
                                           const byte* secret, word32 secretSz)
 {
+    byte* newSecret;
+
     WOLFSSL_ENTER("wolfSSL_DTLS_SetCookieSecretSecondary");
 
     if (ssl == NULL) {
@@ -1591,22 +1593,19 @@ int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
         return 0;
     }
 
-    {
-        byte* newSecret = (byte*)XMALLOC(secretSz, ssl->heap,
-                                         DYNAMIC_TYPE_COOKIE_PWD);
-        if (newSecret == NULL) {
-            WOLFSSL_MSG("couldn't allocate secondary cookie secret");
-            return MEMORY_ERROR;
-        }
-        XMEMCPY(newSecret, secret, secretSz);
-        ssl->buffers.dtlsCookieSecretSecondary.buffer = newSecret;
-        ssl->buffers.dtlsCookieSecretSecondary.length = secretSz;
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("wolfSSL_DTLS_SetCookieSecretSecondary secret",
-            ssl->buffers.dtlsCookieSecretSecondary.buffer,
-            ssl->buffers.dtlsCookieSecretSecondary.length);
-    #endif
+    newSecret = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+    if (newSecret == NULL) {
+        WOLFSSL_MSG("couldn't allocate secondary cookie secret");
+        return MEMORY_ERROR;
     }
+    XMEMCPY(newSecret, secret, secretSz);
+    ssl->buffers.dtlsCookieSecretSecondary.buffer = newSecret;
+    ssl->buffers.dtlsCookieSecretSecondary.length = secretSz;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wolfSSL_DTLS_SetCookieSecretSecondary secret",
+        ssl->buffers.dtlsCookieSecretSecondary.buffer,
+        ssl->buffers.dtlsCookieSecretSecondary.length);
+#endif
 
     WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", 0);
     return 0;

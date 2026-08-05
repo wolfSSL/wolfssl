@@ -7150,9 +7150,12 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
 #endif /* NO_SHA */
 
     if ((ssl->buffers.tls13CookieSecret.buffer == NULL ||
-            ssl->buffers.tls13CookieSecret.length == 0) &&
-        (ssl->buffers.tls13CookieSecretSecondary.buffer == NULL ||
-            ssl->buffers.tls13CookieSecretSecondary.length == 0)) {
+            ssl->buffers.tls13CookieSecret.length == 0)
+#ifdef WOLFSSL_DTLS13
+        && (ssl->buffers.tls13CookieSecretSecondary.buffer == NULL ||
+            ssl->buffers.tls13CookieSecretSecondary.length == 0)
+#endif
+        ) {
         WOLFSSL_MSG("Missing DTLS 1.3 cookie secret");
         return COOKIE_ERROR;
     }
@@ -7164,7 +7167,8 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
     /* Verify against the primary secret first.  If that fails and a secondary
      * (verify-only) secret is configured, try that too.  This lets a stateless
      * DTLS 1.3 server keep accepting cookies issued under the secret it held
-     * before an application-driven secret rotation. */
+     * before an application-driven secret rotation.  The secondary secret is
+     * DTLS 1.3 only, so its verify path is compiled in only for WOLFSSL_DTLS13. */
     ret = WC_NO_ERR_TRACE(HRR_COOKIE_ERROR);
     if (ssl->buffers.tls13CookieSecret.buffer != NULL &&
             ssl->buffers.tls13CookieSecret.length > 0) {
@@ -7174,6 +7178,7 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
         if (ret != 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
             return ret;
     }
+#ifdef WOLFSSL_DTLS13
     if (ret == WC_NO_ERR_TRACE(HRR_COOKIE_ERROR) &&
             ssl->buffers.tls13CookieSecretSecondary.buffer != NULL &&
             ssl->buffers.tls13CookieSecretSecondary.length > 0) {
@@ -7183,6 +7188,7 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
         if (ret != 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
             return ret;
     }
+#endif
 
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
