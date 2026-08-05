@@ -44,6 +44,7 @@ int test_tls13_duplicate_extension(void);
 int test_tls13_duplicate_ech_extension(void);
 int test_key_share_mismatch(void);
 int test_tls13_middlebox_compat_empty_session_id(void);
+int test_tls13_middlebox_compat_session_id(void);
 int test_tls13_plaintext_alert(void);
 int test_tls13_warning_alert_is_fatal(void);
 int test_tls13_unknown_ext_rejected(void);
@@ -127,6 +128,7 @@ int test_tls13_pqc_hybrid_async_server(void);
     TEST_DECL_GROUP("tls13", test_tls13_duplicate_ech_extension), \
     TEST_DECL_GROUP("tls13", test_key_share_mismatch),          \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_empty_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
     TEST_DECL_GROUP("tls13", test_tls13_warning_alert_is_fatal), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
