@@ -654,13 +654,17 @@ static int X509StoreChainPush(WOLF_STACK_OF(WOLFSSL_X509)* chain,
 static int X509StoreCertInStack(WOLF_STACK_OF(WOLFSSL_X509)* stack,
         WOLFSSL_X509* cert)
 {
-    WOLFSSL_STACK* node;
+    int i;
+    int num;
 
     if (stack == NULL || cert == NULL)
         return 0;
 
-    for (node = stack; node != NULL; node = node->next) {
-        if (node->data.x509 == cert)
+    /* Index by logical position like the other helpers in this file rather
+     * than walking raw nodes. */
+    num = wolfSSL_sk_X509_num(stack);
+    for (i = 0; i < num; i++) {
+        if (wolfSSL_sk_X509_value(stack, i) == cert)
             return 1;
     }
 
@@ -708,7 +712,11 @@ static int X509DerEquals(WOLFSSL_X509* cur, WOLFSSL_X509* x509)
  * set0_trusted_stack override - captured before any intermediates were
  * injected for this verification call) or in store->trusted.  Returns 0
  * otherwise.  Used by the X509_V_FLAG_PARTIAL_CHAIN fallback to confirm that
- * a chain actually terminates at a caller-trusted certificate. */
+ * a chain actually terminates at a caller-trusted certificate.
+ * NOTE: origTrustedSk is a private snapshot, but store->trusted is read live
+ * and unlocked here (as it is at the terminal issuer lookup); this mitigation
+ * is deliberately asymmetric, so a single X509_STORE must not be shared across
+ * threads verifying concurrently. */
 static int X509StoreCertIsTrusted(WOLFSSL_X509_STORE* store,
         WOLFSSL_X509* x509, WOLF_STACK_OF(WOLFSSL_X509)* origTrustedSk)
 {
@@ -866,16 +874,19 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
      * are appended and X509VerifyCertSetupRetry moves failed certs out of it.
      * store->certs is shared by every connection using this store and
      * setTrustedSk is owned by the caller, so build a per-verification shallow
-     * copy (certsToUse) and leave both untouched.
+     * copy (certsToUse) and leave both untouched. This removes the write-side
+     * corruption a concurrent verification used to inflict on those stacks, but
+     * it does NOT make concurrent use of one X509_STORE safe: the dup is itself
+     * an unlocked read, and store->trusted is still walked live (see the NOTE
+     * below). A single store must not be shared across threads that verify
+     * concurrently.
      *
      * The X509_V_FLAG_PARTIAL_CHAIN fallback needs the set of certs that were
-     * caller-trusted before any intermediates were injected. Take a second,
-     * independent snapshot (origTrustedSk) for that check rather than borrowing
-     * a pointer into store->certs/setTrustedSk: chain building reorders
-     * certsToUse, and another thread may add to or detach store->certs while
-     * this verification is in flight, so a borrowed pointer could be reordered
-     * or freed underneath us. Both dups hold borrowed references and are
-     * shallow-freed at exit. */
+     * caller-trusted before any intermediates were injected. Snapshot it from
+     * certsToUse - the private copy, taken before addAllButSelfSigned() injects
+     * intermediates - rather than walking the shared stack a second time, so
+     * the two snapshots are provably identical. Both dups hold borrowed
+     * references and are shallow-freed at exit. */
     callerTrusted = ctx->store->certs;
     if (ctx->setTrustedSk != NULL) {
         callerTrusted = ctx->setTrustedSk;
@@ -883,7 +894,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
     if (callerTrusted != NULL) {
         certsToUse = wolfSSL_shallow_sk_dup(callerTrusted);
-        origTrustedSk = wolfSSL_shallow_sk_dup(callerTrusted);
+        if (certsToUse != NULL)
+            origTrustedSk = wolfSSL_shallow_sk_dup(certsToUse);
         if (origTrustedSk == NULL) {
             ret = WOLFSSL_FAILURE;
             goto exit;
@@ -1073,7 +1085,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * chain.  setTrustedSk / store->trusted are searched by name+AKID,
              * not by signature, and setTrustedSk is no longer pruned during
              * chain building, so X509StoreGetIssuerEx can return a same-subject
-             * cert that was tried and rejected. */
+             * cert that was tried and rejected.
+             * Under WOLFSSL_SIGNER_DER_CERT the issuer above is a freshly
+             * allocated CM copy, never pointer-equal to a failedCerts entry, so
+             * this guard is a no-op on that path. */
             if (issuer != NULL && !X509StoreCertInStack(failedCerts, issuer)) {
                 X509StoreChainPush(ctx->chain, issuer);
             }
