@@ -160,6 +160,8 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_EC_CHECK_PUB_KEY: return "ECC CheckPubKey";
         case WC_PK_TYPE_ED25519_MAKE_PUB: return "ED25519 MakePub";
         case WC_PK_TYPE_ED25519_CHECK_KEY: return "ED25519 CheckKey";
+        case WC_PK_TYPE_CURVE25519_MAKE_PUB: return "CURVE25519 MakePub";
+        case WC_PK_TYPE_CURVE25519_GENERIC: return "CURVE25519 Generic";
     }
     return NULL;
 }
@@ -1136,6 +1138,67 @@ int wc_CryptoCb_Curve25519(curve25519_key* private_key,
         cryptoInfo.pk.curve25519.out = out;
         cryptoInfo.pk.curve25519.outlen = outlen;
         cryptoInfo.pk.curve25519.endian = endian;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Curve25519MakePub(int public_size, byte* pub,
+    int private_size, const byte* priv)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (pub == NULL || priv == NULL)
+        return ret;
+
+    /* try the find callback first, else grab the first registered device */
+    dev = wc_CryptoCb_FindDevice(INVALID_DEVID, WC_ALGO_TYPE_PK);
+    if (dev == NULL || dev->cb == NULL)
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE25519_MAKE_PUB;
+        cryptoInfo.pk.curve25519makepub.pub = pub;
+        cryptoInfo.pk.curve25519makepub.pubSz = (word32)public_size;
+        cryptoInfo.pk.curve25519makepub.priv = priv;
+        cryptoInfo.pk.curve25519makepub.privSz = (word32)private_size;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Curve25519Generic(int public_size, byte* pub,
+    int private_size, const byte* priv, int basepoint_size,
+    const byte* basepoint)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (pub == NULL || priv == NULL || basepoint == NULL)
+        return ret;
+
+    /* try the find callback first, else grab the first registered device */
+    dev = wc_CryptoCb_FindDevice(INVALID_DEVID, WC_ALGO_TYPE_PK);
+    if (dev == NULL || dev->cb == NULL)
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE25519_GENERIC;
+        cryptoInfo.pk.curve25519generic.pub = pub;
+        cryptoInfo.pk.curve25519generic.pubSz = (word32)public_size;
+        cryptoInfo.pk.curve25519generic.priv = priv;
+        cryptoInfo.pk.curve25519generic.privSz = (word32)private_size;
+        cryptoInfo.pk.curve25519generic.basepoint = basepoint;
+        cryptoInfo.pk.curve25519generic.basepointSz = (word32)basepoint_size;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

@@ -23,9 +23,10 @@
 
 /* Based from Daniel Beer's public domain work. */
 
-/* under WOLF_CRYPTO_CB_ONLY_ED25519 the callback device does all Ed25519
- * field math, so Ed25519 alone no longer pulls this file in */
-#if defined(HAVE_CURVE25519) || \
+/* under WOLF_CRYPTO_CB_ONLY_ED25519 / WOLF_CRYPTO_CB_ONLY_CURVE25519 the
+ * callback device does all the field math, so neither algorithm pulls this
+ * file in on its own */
+#if (defined(HAVE_CURVE25519) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)) || \
     (defined(HAVE_ED25519) && !defined(WOLF_CRYPTO_CB_ONLY_ED25519))
 #if defined(CURVE25519_SMALL) || defined(ED25519_SMALL) /* use slower code that takes less memory */
 
