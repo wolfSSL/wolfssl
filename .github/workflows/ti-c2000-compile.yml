@@ -127,3 +127,32 @@ jobs:
               --enable-shake128 --enable-shake256 CPPFLAGS="-DWC_SHA3_SPLIT64"
           make
           ./wolfcrypt/test/testwolfcrypt
+
+  # Compile guard for WOLFSSL_WIDE_BYTE combined with BIG_ENDIAN_ORDER.
+  # WOLFSSL_WIDE_BYTE is derived from CHAR_BIT != 8 alone (types.h), with no
+  # endianness condition, so the big-endian wide-byte combination is a valid
+  # config even though the C28x itself is little-endian.  Its arms are
+  # otherwise only reachable on hardware nobody builds in CI, which is how a
+  # WIDE_BYTE arm referencing a LITTLE_ENDIAN_ORDER-only local went unnoticed.
+  # CHAR_BIT stays 8 on an x86-64 runner, so this is a compile guard, not a
+  # correctness test - the octet helpers degenerate to the 8-bit identity.
+  # No hardware or TI CGT needed, so like the job above this always runs.
+  wide_byte_be_compile:
+    name: WIDE_BYTE + big-endian compile guard
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Syntax-check the octet paths with WIDE_BYTE + BIG_ENDIAN_ORDER
+        run: |
+          set -e
+          for f in sha sha256 sha512 sha3 misc aes chacha random; do
+            echo "== wolfcrypt/src/$f.c =="
+            gcc -fsyntax-only -Werror -I. \
+                -DWOLFSSL_WIDE_BYTE -DBIG_ENDIAN_ORDER \
+                -Wno-error=cpp \
+                "wolfcrypt/src/$f.c"
+          done

@@ -822,7 +822,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
 
 int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
 {
-#ifdef LITTLE_ENDIAN_ORDER
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_WIDE_BYTE)
     word32 digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
     XMEMSET(digest, 0, sizeof(digest));
 #endif
@@ -834,7 +834,6 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
 #if defined(WOLFSSL_WIDE_BYTE)
     /* CHAR_BIT != 8: write the digest words as big-endian octets. */
     BytesFromWordsBE32(hash, sha->digest, WC_SHA_DIGEST_SIZE);
-    (void)digest;
 #elif defined(LITTLE_ENDIAN_ORDER)
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \

@@ -2273,7 +2273,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #ifndef WOLF_CRYPTO_CB_ONLY_SHA256
     int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
     {
-    #ifdef LITTLE_ENDIAN_ORDER
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_WIDE_BYTE)
         word32 digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
         XMEMSET(digest, 0, sizeof(digest));
     #endif
@@ -2285,7 +2285,6 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #if defined(WOLFSSL_WIDE_BYTE)
         /* CHAR_BIT != 8: store digest words as big-endian octets. */
         BytesFromWordsBE32(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
-        (void)digest;
     #elif defined(LITTLE_ENDIAN_ORDER)
         if (SHA256_REV_BYTES(&sha256->ctx)) {
             ByteReverseWords((word32*)digest, (word32*)sha256->digest,
