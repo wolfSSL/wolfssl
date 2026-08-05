@@ -2655,6 +2655,16 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
     ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_TLS)
+    /* RFC 8446 Section 8.2: a freshly started server should reject 0-RTT.
+     * Tickets minted before this time cannot carry early data. Rounded
+     * down to a whole second because stateful tickets only store second
+     * resolution. */
+    ctx->ticketStartTime = TimeNowInMilliseconds();
+    ctx->ticketStartTime -= ctx->ticketStartTime % 1000;
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_TLS_READ_AHEAD)
     /* Default the read-ahead window to one full record. Contexts (and the
      * WOLFSSL objects that inherit it) then always carry a concrete window, so

@@ -6505,6 +6505,10 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     wc_MemZero_Add("DoPreSharedKeys binderKey", binderKey, sizeof(binderKey));
 #endif
 
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_EARLY_DATA)
+    ssl->options.ticketPredatesCtx = 0;
+#endif
+
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
     if (ext == NULL) {
         WOLFSSL_MSG("No pre shared extension keys found");
@@ -6633,6 +6637,21 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
         #ifdef WOLFSSL_EARLY_DATA
             ssl->options.maxEarlyDataSz = ssl->session->maxEarlyDataSz;
+            /* RFC 8446 Section 8.2: fresh servers should reject 0-RTT.
+             * Flag tickets minted before this ctx was created. */
+            if (!ssl->ctx->noFreshStartCheck) {
+        #ifdef WOLFSSL_32BIT_MILLI_TIME
+                /* Wrap-safe: the max ticket age is far below half of the
+                 * 2^32 ms range. */
+                word32 delta = ssl->ctx->ticketStartTime -
+                               ssl->session->ticketSeen;
+                ssl->options.ticketPredatesCtx =
+                    (delta != 0 && delta < 0x80000000U);
+        #else
+                ssl->options.ticketPredatesCtx =
+                    (ssl->session->ticketSeen < ssl->ctx->ticketStartTime);
+        #endif
+            }
         #endif
             /* Use the same cipher suite as before and set up for use. */
             ssl->options.cipherSuite0   = ssl->session->cipherSuite0;
@@ -6898,6 +6917,12 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
              * cert_with_extern_psk, so skip key derivation in that case. */
             if (ssl->earlyData != no_early_data && first
                 && ssl->options.maxEarlyDataSz > 0
+    #ifdef HAVE_SESSION_TICKET
+                /* RFC 8446 section 8.2: freshly started servers should
+                 * reject 0-RTT. Tickets minted before this ctx was created
+                 * belong to a previous instance. */
+                && !ssl->options.ticketPredatesCtx
+    #endif
     #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
                 && !hasCertWithExternPsk
     #endif
@@ -17116,6 +17141,28 @@ int wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx, unsigned int sz)
 #else
     return 0;
 #endif
+}
+
+/* Disable the RFC 8446 Section 8.2 fresh start protection. Early data is
+ * then accepted for tickets minted before this ctx was created. Only use
+ * this when the anti-replay state reliably survives server restarts.
+ *
+ * ctx  The SSL/TLS CTX object.
+ * returns BAD_FUNC_ARG when ctx is NULL or not TLS v1.3, SIDE_ERROR when
+ * called with a client and 0 on success.
+ */
+int wolfSSL_CTX_no_early_data_fresh_start_check(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version))
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+
+#ifdef HAVE_SESSION_TICKET
+    ctx->noFreshStartCheck = 1;
+#endif
+
+    return 0;
 }
 
 /* Sets the maximum amount of early data that a client or server would like
