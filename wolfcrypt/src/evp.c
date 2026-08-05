@@ -3816,6 +3816,9 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     WOLFSSL_RSA* rsaTmp;
 #endif
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+    WOLFSSL_DH* dhTmp;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_keygen");
 
@@ -3884,8 +3887,13 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
 #endif
 #if !defined(NO_DH) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
         case WC_EVP_PKEY_DH:
-            pkey->dh = wolfSSL_DH_new();
-            if (pkey->dh) {
+            dhTmp = wolfSSL_DH_new();
+            if (dhTmp != NULL) {
+                /* A caller supplied pkey may already carry a DH object, so
+                 * release it rather than overwrite the only reference to it. */
+                if (pkey->dh != NULL && pkey->ownDh == 1)
+                    wolfSSL_DH_free(pkey->dh);
+                pkey->dh = dhTmp;
                 pkey->ownDh = 1;
                 /* load DH params from CTX */
                 ret = wolfSSL_DH_LoadDer(pkey->dh,

@@ -1681,6 +1681,44 @@ int test_wolfSSL_EVP_PKEY_set1_shrinking_der(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * EVP_PKEY_keygen() on a pkey that already carries a DH object has to release
+ * it rather than overwrite the only reference to it.
+ */
+int test_wolfSSL_EVP_PKEY_keygen_dh_reuse(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+     defined(WOLFSSL_OPENSSH)) && !defined(NO_DH) && \
+    defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_DH*       dh = NULL;
+    EVP_PKEY_CTX*     ctx = NULL;
+    byte*             buf = NULL;
+    size_t            bufSz = 0;
+
+    ExpectIntEQ(load_file("./certs/dh2048.der", &buf, &bufSz), 0);
+    ExpectNotNull(dh = wolfSSL_DH_new());
+    ExpectIntEQ(wolfSSL_DH_LoadDer(dh, buf, (int)bufSz), WOLFSSL_SUCCESS);
+
+    /* set1 leaves the pkey holding a reference of its own, which keygen has to
+     * release when it installs the generated key. */
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
+    ExpectIntEQ(wolfSSL_EVP_PKEY_set1_DH(pkey, dh), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(ctx, &pkey), WOLFSSL_SUCCESS);
+
+    EVP_PKEY_CTX_free(ctx);
+    wolfSSL_DH_free(dh);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_SignInit_ex(void)
 {
     EXPECT_DECLS;
