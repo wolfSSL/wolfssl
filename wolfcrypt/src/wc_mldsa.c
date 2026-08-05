@@ -10219,6 +10219,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                             ret = mldsa_sub(w0 + i * MLDSA_N,
                                 cs2 + i * MLDSA_N);
                         }
+                        if (ret == 0) {
+                            ret = mldsa_poly_red(w0 + i * MLDSA_N);
+                        }
                         /* Step 23: Check w0 - cs2 has low enough values. */
                         if (ret == 0) {
                             ret = mldsa_vec_check_low(w0 + i * MLDSA_N, 1, hi,
