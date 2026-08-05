@@ -2965,18 +2965,22 @@ int test_wolfSSL_EVP_PKEY_ed25519(void)
 #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
     {
         /* Reuse: after decoding an RSA key, reusing the same EVP_PKEY for
-         * an Ed25519 PKCS#8 must re-populate type and DER and release the
+         * an Ed25519 SPKI must re-populate type and DER and release the
          * RSA object. */
-        unsigned char* dp = (unsigned char*)client_key_der_2048;
-        ExpectNotNull(wolfSSL_d2i_PrivateKey_EVP(&pkey, &dp,
-            (long)sizeof_client_key_der_2048));
+        p = client_keypub_der_2048;
+        ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p,
+            (long)sizeof_client_keypub_der_2048));
         ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
-        dp = (unsigned char*)server_ed25519_key;
-        ExpectNotNull(wolfSSL_d2i_PrivateKey_EVP(&pkey, &dp,
-            (long)sizeof_server_ed25519_key));
+        p = spkiPub;
+        ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, (long)sizeof(spkiPub)));
         ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
         if (pkey != NULL) {
-            ExpectIntEQ(pkey->pkey_sz, (int)sizeof_server_ed25519_key);
+            /* The stored DER length is how far the Ed25519 decoder advanced
+             * its index, which differs between the ASN template and
+             * original implementations - only require that the previous RSA
+             * DER (larger than the whole SPKI) was replaced. */
+            ExpectIntGT(pkey->pkey_sz, 0);
+            ExpectIntLE(pkey->pkey_sz, (int)sizeof(spkiPub));
             ExpectNull(wolfSSL_EVP_PKEY_get0_RSA(pkey));
         }
         wolfSSL_EVP_PKEY_free(pkey);
