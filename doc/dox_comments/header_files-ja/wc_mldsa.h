@@ -245,7 +245,7 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     \brief HashML-DSAの署名バリアントです。事前にハッシュされたメッセージに署名します。呼び出し側がハッシュ値のバイト列を渡し、ハッシュアルゴリズムを指定します。これはFIPS 204の「事前ハッシュ」モードです。
 
     \return 0 成功した場合に返されます。
-    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、ctxLenが無効な場合、またはhashAlgがサポートされていない場合に返されます。
+    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、ctxLenが無効な場合、hashAlgがサポートされていない場合、または鍵に秘密鍵が設定されていない場合に返されます。
     \return BUFFER_E sigバッファが小さすぎる場合に返されます。
 
     \param [in,out] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
@@ -314,7 +314,6 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     \brief 決定的なHashML-DSA署名です。wc_MlDsaKey_SignCtxHash()と同様ですが、RNGの代わりに与えられた32バイトのシードを使用します。
 
     \return wc_MlDsaKey_SignCtxHash()を参照してください。
-    \return BAD_FUNC_ARG 鍵に秘密鍵が設定されていない場合に返されます。
 
     \param [in,out] key 秘密鍵を保持するwc_MlDsaKeyへのポインタ。
     \param [in] ctx コンテキスト文字列(省略可。ctxLen=0の場合はNULL)。

@@ -300,7 +300,8 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL, ctxLen is
-    invalid, or hashAlg is not supported.
+    invalid, hashAlg is not supported or the key has no private key
+    set.
     \return BUFFER_E if the sig buffer is too small.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the private key.
@@ -376,7 +377,6 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     place of an RNG.
 
     \return See wc_MlDsaKey_SignCtxHash().
-    \return BAD_FUNC_ARG if the key has no private key set.
 
     \param [in,out] key Pointer to a wc_MlDsaKey with the private key.
     \param [in] ctx Optional context string (NULL when ctxLen=0).
