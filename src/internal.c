@@ -12104,11 +12104,17 @@ retry:
 }
 
 
-/* Switch dynamic output buffer back to static, discarding any pending output */
+/* Switch dynamic output buffer back to static, discarding any pending output.
+ * Safe to call whether or not the buffer is dynamic; callers need not check
+ * dynamicFlag first. */
 void ShrinkOutputBuffer(WOLFSSL* ssl)
 {
     WOLFSSL_MSG("Shrinking output buffer");
     if (ssl->buffers.outputBuffer.dynamicFlag) {
+        /* Discarded records may hold plaintext, so wipe before releasing,
+         * as ShrinkInputBuffer does. */
+        ForceZero(ssl->buffers.outputBuffer.buffer,
+                  ssl->buffers.outputBuffer.bufferSize);
         XFREE(ssl->buffers.outputBuffer.buffer -
                   ssl->buffers.outputBuffer.offset,
               ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);

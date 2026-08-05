@@ -5721,15 +5721,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->earlyDataSz = 0;
     #endif
     #ifdef HAVE_RPK
-        {
-            /* Drop the negotiated cert types so one peer's choice cannot carry
-             * into the next handshake. isRPKLoaded describes the local
-             * certificate, not the negotiation, so it survives. */
-            int rpkLoaded = ssl->options.rpkState.isRPKLoaded;
-            XMEMSET(&ssl->options.rpkState, 0,
-                    sizeof(ssl->options.rpkState));
-            ssl->options.rpkState.isRPKLoaded = rpkLoaded;
-        }
+        /* Drop the negotiated cert types so one peer's choice cannot carry into
+         * the next handshake. Clearing the counts is enough: every read of the
+         * type arrays is gated on its count. */
+        ssl->options.rpkState.sending_ClientCertTypeCnt = 0;
+        ssl->options.rpkState.sending_ServerCertTypeCnt = 0;
+        ssl->options.rpkState.received_ClientCertTypeCnt = 0;
+        ssl->options.rpkState.received_ServerCertTypeCnt = 0;
     #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)

@@ -1116,11 +1116,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             }
             if (ret != WOLFSSL_SUCCESS) {
                 /* WOLFSSL_PARTIAL_CHAIN may only terminate the chain at a
-                 * certificate the caller actually trusts.  The previous
-                 * "added == 1" guard merely confirmed that some untrusted
-                 * intermediate had been temporarily loaded into the
-                 * CertManager during chain building, which would accept
-                 * chains that never reach a trust anchor.  Verify that
+                 * certificate the caller actually trusts, so verify that
                  * ctx->current_cert is itself in the original trust set. */
                 if (((ctx->flags & WOLFSSL_PARTIAL_CHAIN) ||
                      (ctx->store->param != NULL &&
@@ -1236,7 +1232,14 @@ exit:
      * resident anchors verification for every other user of this CM. */
     if (ctx != NULL) {
         if (ctx->store != NULL) {
-            wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm);
+            if (wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm)
+                    != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Failed to unload temporary intermediates");
+                /* Any left resident would anchor later verifications, so do
+                 * not report success. */
+                if (ret == WOLFSSL_SUCCESS)
+                    ret = WOLFSSL_FAILURE;
+            }
         }
         if (orig != NULL) {
             ctx->current_cert = orig;
