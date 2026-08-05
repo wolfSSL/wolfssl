@@ -477,14 +477,18 @@ static WC_INLINE int CleanupMemoryTracker(void)
 
 #include <stdio.h>
 
-#ifdef HAVE_PTHREAD
+/* Zephyr supplies its own POSIX types, and wc_port.h only leaves HAVE_PTHREAD
+ * set when !SINGLE_THREADED, where StackSizeCheck uses the k_thread path. The
+ * host <pthread.h> is therefore unused here and clashes with Zephyr's
+ * pthread_t when building against an external libc. */
+#if defined(HAVE_PTHREAD) && !defined(WOLFSSL_ZEPHYR)
     #include <pthread.h>
     #include <errno.h>
     #include <sched.h>
     #include <unistd.h>
 #endif
 
-typedef void* (*thread_func)(void* args);
+typedef THREAD_RETURN (*thread_func)(void* args);
 #define STACK_CHECK_VAL 0x01
 
 struct stack_size_debug_context {
@@ -620,7 +624,7 @@ static WC_INLINE int StackSizeCheck_Rebaseline(void)
  * ./configure --enable-stacksize=verbose [...]
  */
 
-static void* debug_stack_size_verbose_shim(
+static THREAD_RETURN debug_stack_size_verbose_shim(
     struct stack_size_debug_context *shim_args)
 {
     StackSizeCheck_myStack = shim_args->myStack;
@@ -733,7 +737,109 @@ int StackSizeHWMReset(void)
 
 #endif /* HAVE_STACK_SIZE_VERBOSE */
 
-#ifdef HAVE_PTHREAD
+#if defined(WOLFSSL_ZEPHYR) && !defined(SINGLE_THREADED)
+
+static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
+{
+    size_t            i;
+    int               ret = 0;
+    int               err;
+    struct k_thread*  tid = NULL;
+    k_thread_stack_t* threadStack = NULL;
+    unsigned char*    myStack = NULL;
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    struct stack_size_debug_context shim_args;
+#endif
+
+    tid = (struct k_thread*)XMALLOC(
+            Z_KERNEL_STACK_SIZE_ADJUST(sizeof(struct k_thread)),
+            wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tid == NULL) {
+        printf("error: XMALLOC tid failed\n");
+        ret = MEMORY_E;
+        goto out;
+    }
+
+#ifndef WOLFSSL_ZEPHYR_STACK_SZ
+    #define WOLFSSL_ZEPHYR_STACK_SZ (48*1024)
+#endif
+
+    threadStack = (void*)XMALLOC(
+                Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ),
+                wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+    if (threadStack == NULL) {
+        printf("error: XMALLOC threadStack failed\n");
+        ret = MEMORY_E;
+        goto out;
+    }
+
+    myStack = K_THREAD_STACK_BUFFER(threadStack);
+    XMEMSET(myStack, STACK_CHECK_VAL, WOLFSSL_ZEPHYR_STACK_SZ);
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    StackSizeCheck_stackSizeHWM = 0;
+    shim_args.myStack = myStack;
+    shim_args.stackSize = WOLFSSL_ZEPHYR_STACK_SZ;
+    shim_args.stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
+    shim_args.fn = tf;
+    shim_args.args = args;
+
+    /* k_thread_create does not return any error codes */
+    /* Casting to k_thread_entry_t should be fine since we just ignore the
+     * extra arguments being passed in */
+    k_thread_create(tid, threadStack, WOLFSSL_ZEPHYR_STACK_SZ,
+        (k_thread_entry_t)debug_stack_size_verbose_shim, (void *)&shim_args,
+        NULL, NULL, 5, 0, K_NO_WAIT);
+#else
+    /* k_thread_create does not return any error codes */
+    /* Casting to k_thread_entry_t should be fine since we just ignore the
+     * extra arguments being passed in */
+    k_thread_create(tid, threadStack, WOLFSSL_ZEPHYR_STACK_SZ,
+        (k_thread_entry_t)tf, args, NULL, NULL, 5, 0, K_NO_WAIT);
+
+#endif
+
+    err = k_thread_join(tid, K_FOREVER);
+    if (err != 0) {
+        printf("k_thread_join failed\n");
+        ret = MEMORY_E;
+        goto out;
+    }
+
+
+    for (i = 0; i < WOLFSSL_ZEPHYR_STACK_SZ; i++) {
+        if (myStack[i] != STACK_CHECK_VAL) {
+            break;
+        }
+    }
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM > (WOLFSSL_ZEPHYR_STACK_SZ - i)
+        ? (unsigned long)StackSizeCheck_stackSizeHWM
+        : (unsigned long)(WOLFSSL_ZEPHYR_STACK_SZ - i));
+    StackSizeCheck_myStack = NULL;
+    StackSizeCheck_stackOffsetPointer = NULL;
+#else
+    printf("stack used = %lu\n", (unsigned long)(WOLFSSL_ZEPHYR_STACK_SZ - i));
+#endif
+
+out:
+    XFREE(tid, wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(threadStack, wolfsslThreadHeapHint,
+          DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+#define StackSizeCheck_launch(args, tf, threadId, stack_context)            \
+    ((void)(args), (void)(tf), (void)(threadId), (void)(stack_context),     \
+        (NOT_COMPILED_IN))
+
+#define StackSizeCheck_reap(threadId, stack_context)                        \
+    ((void)(threadId), (void)(stack_context), (NOT_COMPILED_IN))
+
+#elif defined(HAVE_PTHREAD)
 
 static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
 {
