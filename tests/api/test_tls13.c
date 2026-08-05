@@ -4304,7 +4304,8 @@ int test_tls13_rpk_unoffered_cert_type(void)
     int isServerType;
 
     /* round 0: server_cert_type. round 1: the client_cert_type twin. */
-    for (isServerType = 1; isServerType >= 0; isServerType--) {
+    for (isServerType = 1; isServerType >= 0 && EXPECT_SUCCESS();
+            isServerType--) {
         WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
         WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
         struct test_memio_ctx test_ctx;
