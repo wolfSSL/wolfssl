@@ -310,17 +310,17 @@ static void sp_cortexm_whitebox_drive(void)
         word32 outLen = sizeof(wb2_out);
         ret = sp_RsaPublic_2048(wb2_in, 4, &wb2_mm2048 /* em: >32 bits */,
             &wb2_mm2048, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
 
         outLen = sizeof(wb2_out);
         ret = sp_RsaPublic_2048(wb2_in, 257 /* inLen > 256 */, &wb2_e65537,
             &wb2_mm2048, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
 
         outLen = sizeof(wb2_out);
         ret = sp_RsaPublic_2048(wb2_in, 4, &wb2_e65537,
             &wb_n /* mm: 256 bits, not 2048 */, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
     }
 
     /* --- sp_RsaPrivate_2048 (CRT branch) guard: inLen>256 ||
@@ -330,12 +330,12 @@ static void sp_cortexm_whitebox_drive(void)
         word32 outLen = sizeof(wb2_out);
         ret = sp_RsaPrivate_2048(wb2_in, 257, &wb_k, &wb_k, &wb_k, &wb_k,
             &wb_k, &wb_k, &wb2_mm2048, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
 
         outLen = sizeof(wb2_out);
         ret = sp_RsaPrivate_2048(wb2_in, 4, &wb_k, &wb_k, &wb_k, &wb_k,
             &wb_k, &wb_k, &wb_n, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
     }
 
     /* --- sp_DhExp_2048: FFDHE-2 fast path `base->used==1 && base->dp[0]==2
@@ -370,17 +370,17 @@ static void sp_cortexm_whitebox_drive(void)
         outLen = sizeof(wb2_out);
         ret = sp_RsaPublic_3072(wb2_in, 4, &wb2_mm3072 /* em: >32 bits */,
             &wb2_mm3072, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
 
         outLen = sizeof(wb2_out);
         ret = sp_RsaPublic_3072(wb2_in, 385 /* inLen > 384 */, &wb2_e65537,
             &wb2_mm3072, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
 
         outLen = sizeof(wb2_out);
         ret = sp_RsaPublic_3072(wb2_in, 4, &wb2_e65537,
             &wb_n /* mm: 256 bits, not 3072 */, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
     }
 
     /* --- sp_RsaPrivate_3072 (CRT branch) guard: inLen>384 ||
@@ -399,12 +399,12 @@ static void sp_cortexm_whitebox_drive(void)
         outLen = sizeof(wb2_out);
         ret = sp_RsaPrivate_3072(wb2_in, 385, &wb_k, &wb_k, &wb_k, &wb_k,
             &wb_k, &wb_k, &wb2_mm3072, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
 
         outLen = sizeof(wb2_out);
         ret = sp_RsaPrivate_3072(wb2_in, 4, &wb_k, &wb_k, &wb_k, &wb_k,
             &wb_k, &wb_k, &wb_n, wb2_out, &outLen);
-        wb_note((ret == MP_READ_E) ? 0 : -1, 0);
+        wb_note((ret == WC_NO_ERR_TRACE(MP_READ_E)) ? 0 : -1, 0);
     }
 
     /* --- sp_DhExp_3072: no FFDHE_3072 fast path compiled into this build,
@@ -517,18 +517,18 @@ static void sp_cortexm_whitebox_drive(void)
      * D=privm>256 bits. K3 (all-false) is the baseline; K1/K2/K4 flip one
      * leaf each. */
     ret = sp_ecc_check_key_256(&wb2_mm2048, &wb_gy, NULL, NULL); /* K1: A */
-    wb_note((ret == ECC_OUT_OF_RANGE_E) ? 0 : -1, 0);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
     ret = sp_ecc_check_key_256(&wb_gx, &wb2_mm2048, NULL, NULL); /* K2: B */
-    wb_note((ret == ECC_OUT_OF_RANGE_E) ? 0 : -1, 0);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
     ret = sp_ecc_check_key_256(&wb_gx, &wb_gy, NULL, NULL);      /* K3 */
     wb_note(ret, MP_OKAY);
     ret = sp_ecc_check_key_256(&wb_gx, &wb_gy, &wb2_mm2048, NULL); /* K4 */
-    wb_note((ret == ECC_OUT_OF_RANGE_E) ? 0 : -1, 0);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
 
     /* Point-at-infinity check `iszero(x) && iszero(y)`: K5 both zero (T,T),
      * K6/K7 flip one ordinate each. */
     ret = sp_ecc_check_key_256(&wb2_zero, &wb2_zero, NULL, NULL); /* K5 */
-    wb_note((ret == ECC_INF_E) ? 0 : -1, 0);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_INF_E)) ? 0 : -1, 0);
     ret = sp_ecc_check_key_256(&wb2_five, &wb2_zero, NULL, NULL); /* K6 */
     wb_note((ret != MP_OKAY) ? 0 : -1, 0);
     ret = sp_ecc_check_key_256(&wb2_zero, &wb2_five, NULL, NULL); /* K7 */
@@ -537,9 +537,9 @@ static void sp_cortexm_whitebox_drive(void)
     /* Ordinate-range check `cmp(x,mod)>=0 || cmp(y,mod)>=0`: K8/K9 set one
      * ordinate to the field prime itself (equal, so cmp>=0). */
     ret = sp_ecc_check_key_256(&wb2_p256_prime, &wb_gy, NULL, NULL); /* K8 */
-    wb_note((ret == ECC_OUT_OF_RANGE_E) ? 0 : -1, 0);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
     ret = sp_ecc_check_key_256(&wb_gx, &wb2_p256_prime, NULL, NULL); /* K9 */
-    wb_note((ret == ECC_OUT_OF_RANGE_E) ? 0 : -1, 0);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
 
     /* Private-key-matches-public-key check
      * `cmp(p->x,pub->x)!=0 || cmp(p->y,pub->y)!=0`: K10 uses pub = -G with
@@ -548,7 +548,7 @@ static void sp_cortexm_whitebox_drive(void)
      * on-curve check with privm supplied, closing the `err == MP_OKAY`
      * leaf (the only reachable way: see report). */
     ret = sp_ecc_check_key_256(&wb_gx, &wb2_gy_neg, &wb2_one, NULL); /* K10 */
-    wb_note((ret == ECC_PRIV_KEY_E) ? 0 : -1, 0);
+    wb_note((ret == WC_NO_ERR_TRACE(ECC_PRIV_KEY_E)) ? 0 : -1, 0);
     ret = sp_ecc_check_key_256(&wb_gx, &wb_gx, &wb_k, NULL);         /* K11 */
     wb_note((ret != MP_OKAY) ? 0 : -1, 0);
 
