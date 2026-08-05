@@ -155,6 +155,15 @@
             if (cpuid_flag(7, 0, ECX,  6)) {
                 new_cpuid_flags |= CPUID_AVX512_VBMI2;
             }
+            if (cpuid_flag(7, 0, EBX, 21)) {
+                new_cpuid_flags |= CPUID_AVX512_IFMA;
+            }
+            if (cpuid_flag(7, 0, EBX, 31)) {
+                new_cpuid_flags |= CPUID_AVX512_VL;
+            }
+            if (cpuid_flag(7, 0, EBX, 17)) {
+                new_cpuid_flags |= CPUID_AVX512_DQ;
+            }
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
             (void)wolfSSL_Atomic_Uint_CompareExchange

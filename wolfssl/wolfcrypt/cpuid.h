@@ -74,11 +74,15 @@ typedef word32 cpuid_flags_t;
     #define CPUID_VAES   0x0400
     #define CPUID_AVX512 0x0800
     #define CPUID_INTEL  0x1000   /* CPU vendor is GenuineIntel */
-    /* CPU vendor is AuthenticAMD.  Detected and exposed via IS_CPU_AMD() for
-     * future vendor-specific dispatch; no current caller relies on it. */
+    /* CPU vendor is AuthenticAMD.  Used to pick between implementations that
+     * differ only in which instructions are fast on a vendor - see the
+     * VPMULLQ variant of the Curve25519 IFMA code in fe_x25519_asm.S. */
     #define CPUID_AMD    0x2000
     #define CPUID_AVX512_VBMI 0x4000  /* AVX-512 Vector Byte Manipulation */
     #define CPUID_AVX512_VBMI2 0x8000 /* AVX-512 VBMI2 (vpcompressw etc.) */
+    #define CPUID_AVX512_IFMA 0x10000 /* AVX-512 IFMA (vpmadd52luq/huq) */
+    #define CPUID_AVX512_VL 0x20000   /* AVX-512 at 128 and 256 bits */
+    #define CPUID_AVX512_DQ 0x40000   /* AVX-512 DQ (vpmullq etc.) */
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -96,6 +100,12 @@ typedef word32 cpuid_flags_t;
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_VBMI)
     #define IS_INTEL_AVX512_VBMI2(f) \
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_VBMI2)
+    #define IS_INTEL_AVX512_IFMA(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_IFMA)
+    #define IS_INTEL_AVX512_VL(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_VL)
+    #define IS_INTEL_AVX512_DQ(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_DQ)
     #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
     #define IS_CPU_AMD(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AMD)
 
