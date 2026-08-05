@@ -242,16 +242,25 @@ on the specific device platform.
 #if defined(LITTLE_ENDIAN_ORDER) && \
         defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
-    #if defined(WC_NO_INTERNAL_FUNCTION_POINTERS) || \
-        defined(WC_C_DYNAMIC_FALLBACK)
-        /* raw-buffer convention -- sha256->buffer always holds the raw
-         * big-endian byte stream, and inline_XTRANSFORM{,_LEN}() byte-reverse
-         * just in time when the C transform runs, so that with
-         * WC_C_DYNAMIC_FALLBACK the asm-vs-C decision can be made
-         * independently at each transform.  note WC_C_DYNAMIC_FALLBACK
-         * implies WC_NO_INTERNAL_FUNCTION_POINTERS, but the latter is defined
-         * below, after this macro.
+
+    #if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
+        /* With the AVX backend, wc_Sha256.buffer is in big endian even though
+         * the host is little endian.  For WC_C_DYNAMIC_FALLBACK, which requires
+         * alternating between AVX and C, we activate
+         * WC_NO_INTERNAL_FUNCTION_POINTERS, which arranges for just-in-time
+         * byte swapping on each call to the C back end.  This keeps the buffers
+         * big endian at all times.
          */
+        #define WC_NO_INTERNAL_FUNCTION_POINTERS
+    #endif
+
+    #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
+        /* With WC_NO_INTERNAL_FUNCTION_POINTERS every transform is dispatched
+         * through inline_XTRANSFORM{,_LEN}(), whose C arm is
+         * Transform_Sha256{,_Len}_C_from_raw() -- those byte-reverse the block
+         * themselves, just in time.
+         */
+        #define WC_SHA256_RAW_BE_BUFFER
         #define SHA256_UPDATE_REV_BYTES(ctx) 0
     #else
         #define SHA256_UPDATE_REV_BYTES(ctx) \
@@ -447,10 +456,6 @@ static int InitSha256(wc_Sha256* sha256)
 
     static cpuid_flags_atomic_t intel_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
-#if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
-    #define WC_NO_INTERNAL_FUNCTION_POINTERS
-#endif
-
 #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
 
     enum sha_methods { SHA256_UNSET = 0, SHA256_AVX1_SHA, SHA256_AVX2,
@@ -522,16 +527,8 @@ static int InitSha256(wc_Sha256* sha256)
         }
     }
 
-    /* With WC_NO_INTERNAL_FUNCTION_POINTERS, sha256->buffer always holds the
-     * raw big-endian byte stream, matching what the asm transforms consume
-     * (they byte-reverse internally).  Transform_Sha256() reads host-endian
-     * words, so the C path byte-reverses just in time, here.  This keeps the
-     * data layout independent of which transform ultimately runs, so with
-     * WC_C_DYNAMIC_FALLBACK the asm-vs-C decision can be made independently
-     * at each transform, using SAVE_VECTOR_REGISTERS2() success/failure at
-     * the moment of use.  Mirrors Transform_Sha512_C_from_raw() in sha512.c
-     * and Transform_Sha256_C() in the aarch64 section below.
-     */
+    #ifdef WC_SHA256_RAW_BE_BUFFER
+
     static WC_INLINE int Transform_Sha256_C_from_raw(wc_Sha256* S,
                                                      const byte* D)
     {
@@ -560,6 +557,8 @@ static int InitSha256(wc_Sha256* sha256)
         return ret;
     }
 
+    #endif /* WC_SHA256_RAW_BE_BUFFER */
+
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
         int ret;
 
@@ -570,8 +569,14 @@ static int InitSha256(wc_Sha256* sha256)
             return Transform_Sha256_C_from_raw(S, D);
         }
     #else
-        if (sha_method == SHA256_C)
+        if (sha_method == SHA256_C) {
+            #ifdef WC_SHA256_RAW_BE_BUFFER
+            /* not currently reachable */
             return Transform_Sha256_C_from_raw(S, D);
+            #else
+            return Transform_Sha256(S, D);
+            #endif
+        }
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
     #endif
         switch (sha_method) {
@@ -598,7 +603,11 @@ static int InitSha256(wc_Sha256* sha256)
         default:
             /* not reachable -- the C path exits above, before vector register
              * save -- but must stay layout-correct. */
+            #ifdef WC_SHA256_RAW_BE_BUFFER
             ret = Transform_Sha256_C_from_raw(S, D);
+            #else
+            ret = Transform_Sha256(S, D);
+            #endif
             break;
         }
         RESTORE_VECTOR_REGISTERS();
@@ -639,7 +648,11 @@ static int InitSha256(wc_Sha256* sha256)
         case SHA256_C:
         case SHA256_UNSET:
         default:
+            #ifdef WC_SHA256_RAW_BE_BUFFER
             ret = Transform_Sha256_Len_C_from_raw(S, D, L);
+            #else
+            ret = 0;
+            #endif
             break;
         }
         RESTORE_VECTOR_REGISTERS();
@@ -2167,7 +2180,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         /* Kinetis requires only these bytes reversed */
         #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
-        #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
+        #ifdef WC_SHA256_RAW_BE_BUFFER
         /* raw-buffer convention -- the length words must be big-endian in the
          * stream regardless of which transform consumes the final block. */
         #else

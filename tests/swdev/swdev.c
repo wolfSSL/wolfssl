@@ -366,7 +366,7 @@ static void swdev_sha256_copy_state(wc_Sha256* dst, const wc_Sha256* src)
     dst->buffLen = src->buffLen;
     dst->loLen   = src->loLen;
     dst->hiLen   = src->hiLen;
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && FIPS_VERSION_LT(7,0,0)
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     dst->sha_method = src->sha_method;
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
@@ -462,7 +462,7 @@ static void swdev_sha512_copy_state(wc_Sha512* dst, const wc_Sha512* src)
     dst->buffLen = src->buffLen;
     dst->loLen   = src->loLen;
     dst->hiLen   = src->hiLen;
-#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && FIPS_VERSION_LT(7,0,0)
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     dst->sha_method = src->sha_method;
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
