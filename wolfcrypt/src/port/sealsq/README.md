@@ -76,8 +76,11 @@ WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLS_client_method());
 /* register the VaultIC ECC PK callbacks */
 WOLFSSL_VAULTIC_SetupPkCallbacks(ctx);
 
-/* load the device + CA certificates stored on the chip */
-WOLFSSL_VAULTIC_LoadCertificates(ctx);
+/* load the device + CA certificates stored on the chip. Check the return
+ * value: on failure the CTX may be left partially configured. */
+if (WOLFSSL_VAULTIC_LoadCertificates(ctx) != 0) {
+    /* handle error */
+}
 
 WOLFSSL* ssl = wolfSSL_new(ctx);
 WOLFSSL_VAULTIC_SetupPkCallbackCtx(ssl, NULL);
@@ -105,6 +108,17 @@ The VaultIC-TLS SDK must be initialized (`vlt_tls_init()`) before use and
 closed (`vlt_tls_close()`) afterwards; see the SealSQ devkit sample
 applications.
 
+**Warning - single device key:** the crypto callback always operates on the
+single provisioned on-chip key; it does not consult the private scalar of the
+key passed by the caller. `wolfSSL_CTX_SetDevId(ctx, WOLF_VAULTIC_DEVID)` sets
+that devId on *every* P-256 key created from the CTX, so all P-256 private-key
+operations (sign and ECDH) are routed to the on-chip key regardless of any
+software private key the application also loads (for example via
+`wolfSSL_CTX_use_PrivateKey_file()`). Do not mix a software private key with the
+device devId on the same CTX: the handshake would be signed with the device key
+while presenting the software certificate. Use the devId path only when the
+device key is the intended identity.
+
 ### Curve support
 
 The port offloads P-256 (SECP256R1) only. The VaultIC 408 silicon supports
@@ -112,6 +126,28 @@ P-384, but the vendor `vlt_tls` API exposes P-256 entry points only, so
 P-384 would require vendor `vlt_tls_*_P384` functions. For any other curve
 the crypto callback returns `CRYPTOCB_UNAVAILABLE` and the PK callbacks
 return `NOT_COMPILED_IN`, so wolfSSL falls back to software.
+
+## Concurrency
+
+The port is otherwise stateless, but the VaultIC has a single on-chip ephemeral
+key slot. `vlt_tls_keygen_P256()` generates into that one slot and
+`vlt_tls_compute_shared_secret_P256()` derives from whatever is currently in it,
+and the port keeps no per-session handle and takes no lock. Only one handshake
+that uses the ECDH/keygen path may be in flight at a time. Two `WOLFSSL` objects
+handshaking concurrently on the same `WOLFSSL_CTX` (for example a threaded
+server, or a client opening several connections from multiple threads) can
+interleave keygen and shared-secret calls, so one session may derive its
+premaster secret from another session's ephemeral key. A TLS 1.3
+HelloRetryRequest also forces a second keygen mid-handshake. Serialize
+handshakes that touch the device (one at a time) if the application is
+multi-threaded.
+
+## Debugging
+
+Define `WOLFSSL_VAULTIC_DEBUG` to dump the device and CA certificates read off
+the chip in `WOLFSSL_VAULTIC_LoadCertificates`. This depends on wolfSSL's debug
+logging: the dump uses `WOLFSSL_BUFFER()`, which expands to nothing unless
+`DEBUG_WOLFSSL` is also defined (autotools `--enable-debug`). Define both.
 
 ## Building and provisioning with the SealSQ devkit
 

@@ -179,7 +179,7 @@ int WOLFSSL_VAULTIC_EccVerifyCb(WOLFSSL* ssl,
     }
 
     /* Check requested curve */
-    if (key.dp->id != ECC_SECP256R1) {
+    if (key.dp == NULL || key.dp->id != ECC_SECP256R1) {
         WOLFSSL_MSG("id != ECC_SECP256R1");
         wc_ecc_free(&key);
         return NOT_COMPILED_IN;
@@ -236,6 +236,7 @@ int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherPubKey,
                               int side, void* ctx)
 {
     int err;
+    int ver;
     byte otherPubKeyX[P256_BYTE_SZ] = {0};
     byte otherPubKeyY[P256_BYTE_SZ] = {0};
     word32 otherPubKeyX_len = sizeof(otherPubKeyX);
@@ -250,9 +251,16 @@ int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherPubKey,
     WOLFSSL_MSG("WOLFSSL_VAULTIC_EccSharedSecretCb");
 
     /* check requested curve */
-    if (otherPubKey->dp->id != ECC_SECP256R1) {
+    if (otherPubKey == NULL || otherPubKey->dp == NULL ||
+            otherPubKey->dp->id != ECC_SECP256R1) {
         WOLFSSL_MSG("id != ECC_SECP256R1");
         return NOT_COMPILED_IN;
+    }
+
+    /* the device writes P256_BYTE_SZ bytes of shared secret */
+    if (out == NULL || outlen == NULL || *outlen < P256_BYTE_SZ) {
+        WOLFSSL_MSG("shared secret output buffer too small");
+        return BUFFER_E;
     }
 
     /* for client: create and export public key */
@@ -270,9 +278,12 @@ int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherPubKey,
         vlt_tls_left_pad_P256(otherPubKeyY, otherPubKeyY_len);
 
 
-        /* TLS v1.2 and older we must generate a key here for the client only.
-         * TLS v1.3 calls key gen early with key share */
-        if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+        /* TLS v1.2 and older (and their DTLS equivalents) must generate a key
+         * here for the client only. TLS/DTLS v1.3 call key gen early with the
+         * key share. The version enum is not ordered (DTLS values sort after
+         * WOLFSSL_TLSV1_3), so test the 1.3 versions explicitly. */
+        ver = wolfSSL_GetVersion(ssl);
+        if (ver != WOLFSSL_TLSV1_3 && ver != WOLFSSL_DTLSV1_3) {
 
             if (vlt_tls_keygen_P256(pubKeyX, pubKeyY) != 0) {
                 WOLFSSL_MSG("vlt_tls_keygen_P256");
@@ -352,7 +363,7 @@ int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherPubKey,
  */
 int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx)
 {
-    int ret = -1;
+    int ret = WC_HW_E;
 
     /* CA certificate */
     unsigned char *ca_cert = NULL;
@@ -365,10 +376,10 @@ int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx)
     /* Read Device certificate in VaultIC */
     WOLFSSL_MSG("Read Device Certificate in VaultIC");
 
-    if ((sizeof_device_cert = vlt_tls_get_cert_size(SSL_VIC_DEVICE_CERT))
-            == -1) {
-        WOLFSSL_MSG("No Device Certificate found in VaultIC");
-        return -1;
+    sizeof_device_cert = vlt_tls_get_cert_size(SSL_VIC_DEVICE_CERT);
+    if (sizeof_device_cert <= 0 || sizeof_device_cert > VAULTIC_MAX_CERT_SZ) {
+        WOLFSSL_MSG("No valid Device Certificate found in VaultIC");
+        return WC_HW_E;
     }
 
     device_cert = (unsigned char*)XMALLOC(sizeof_device_cert, NULL,
@@ -390,8 +401,9 @@ int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx)
 
     /* Read CA certificate in VaultIC */
     WOLFSSL_MSG("Read CA Certificate in VaultIC");
-    if ((sizeof_ca_cert = vlt_tls_get_cert_size(SSL_VIC_CA_CERT)) == -1) {
-        WOLFSSL_MSG("No CA Certificate found in VaultIC");
+    sizeof_ca_cert = vlt_tls_get_cert_size(SSL_VIC_CA_CERT);
+    if (sizeof_ca_cert <= 0 || sizeof_ca_cert > VAULTIC_MAX_CERT_SZ) {
+        WOLFSSL_MSG("No valid CA Certificate found in VaultIC");
         goto free_cert_buffers;
     }
 
@@ -412,19 +424,23 @@ int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx)
     WOLFSSL_BUFFER(ca_cert, sizeof_ca_cert);
 #endif
 
-    /* Load CA certificate into WOLFSSL_CTX */
-    if (wolfSSL_CTX_load_verify_buffer(ctx, ca_cert,
-            sizeof_ca_cert, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("failed to load CA certificate");
-        ret = WC_HW_E;
-        goto free_cert_buffers;
-    }
-
-    /* Load Device certificate into WOLFSSL_CTX */
+    /* Load the Device certificate into the WOLFSSL_CTX first, then the CA into
+     * the trust store, so the trust anchor is only added once the device
+     * certificate has parsed successfully. A parse/load failure here is not a
+     * hardware error (the bytes were read off the chip), so report it that
+     * way. */
     if (wolfSSL_CTX_use_certificate_buffer(ctx, device_cert,
             sizeof_device_cert, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("failed to load Device certificate");
-        ret = WC_HW_E;
+        ret = WOLFSSL_FATAL_ERROR;
+        goto free_cert_buffers;
+    }
+
+    /* Load CA certificate into WOLFSSL_CTX trust store */
+    if (wolfSSL_CTX_load_verify_buffer(ctx, ca_cert,
+            sizeof_ca_cert, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("failed to load CA certificate");
+        ret = WOLFSSL_FATAL_ERROR;
         goto free_cert_buffers;
     }
 
@@ -537,7 +553,16 @@ int WOLFSSL_VAULTIC_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             WOLFSSL_MSG("WOLFSSL_VAULTIC_CryptoCb: ECDH");
             if (info->pk.ecdh.private_key == NULL ||
                     info->pk.ecdh.private_key->dp == NULL ||
-                    info->pk.ecdh.private_key->dp->id != ECC_SECP256R1) {
+                    info->pk.ecdh.private_key->dp->id != ECC_SECP256R1 ||
+                    info->pk.ecdh.public_key == NULL ||
+                    info->pk.ecdh.public_key->dp == NULL ||
+                    info->pk.ecdh.public_key->dp->id != ECC_SECP256R1) {
+                break;
+            }
+            if (info->pk.ecdh.out == NULL || info->pk.ecdh.outlen == NULL ||
+                    *info->pk.ecdh.outlen < P256_BYTE_SZ) {
+                WOLFSSL_MSG("shared secret output buffer too small");
+                rc = BUFFER_E;
                 break;
             }
             if ((rc = wc_ecc_export_public_raw(info->pk.ecdh.public_key,
@@ -564,7 +589,13 @@ int WOLFSSL_VAULTIC_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             byte pubKeyY[P256_BYTE_SZ] = {0};
 
             WOLFSSL_MSG("WOLFSSL_VAULTIC_CryptoCb: EC keygen");
-            if (info->pk.eckg.curveId != ECC_SECP256R1) {
+            /* wc_ecc_make_key() forwards ECC_CURVE_DEF (0), not the concrete
+             * curve id, so resolve via key->dp (wc_ecc_set_curve() ran before
+             * the callback). Otherwise P-256 keygen would silently fall back
+             * to software. */
+            if (info->pk.eckg.key == NULL ||
+                    info->pk.eckg.key->dp == NULL ||
+                    info->pk.eckg.key->dp->id != ECC_SECP256R1) {
                 break;
             }
             if (vlt_tls_keygen_P256(pubKeyX, pubKeyY) != 0) {

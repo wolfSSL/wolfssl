@@ -4574,7 +4574,6 @@ set(HEADER_EXCLUDE
   "wolfssl/wolfcrypt/port/cypress"
   "wolfssl/wolfcrypt/port/Espressif"
   "wolfssl/wolfcrypt/port/iotsafe"
-  "wolfssl/wolfcrypt/port/sealsq"
   "wolfssl/wolfcrypt/port/nxp"
   "wolfssl/wolfcrypt/port/pic"
   "wolfssl/wolfcrypt/port/Renesas"
@@ -4596,6 +4595,11 @@ endif()
 if(NOT BUILD_CRYPTOAUTHLIB)
   list(APPEND HEADER_EXCLUDE
     "wolfssl/wolfcrypt/port/atmel")
+endif()
+
+if(NOT BUILD_VAULTIC)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/sealsq")
 endif()
 
 if(NOT BUILD_AFALG)

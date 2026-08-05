@@ -11321,7 +11321,29 @@ AC_ARG_ENABLE([cryptocb-sw-test],
     [ ENABLED_CRYPTOCB_SW_TEST=yes ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno"
+# WISeKey/SealSQ VaultIC secure element. Parsed here, ahead of the crypto
+# callback aggregation below, so it can promote PK callbacks and crypto
+# callbacks before the checks that depend on them.
+AC_ARG_ENABLE([vaultic],
+    [AS_HELP_STRING([--enable-vaultic],[Enable WISeKey/SealSQ VaultIC secure element support (default: disabled)])],
+    [ ENABLED_VAULTIC=$enableval ],
+    [ ENABLED_VAULTIC=no ]
+    )
+
+if test "$ENABLED_VAULTIC" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VAULTIC"
+    ENABLED_VAULTIC=yes
+    # VaultIC port supports TLS PK callbacks and wolfCrypt crypto callbacks.
+    # CRYPTOCB is promoted through the aggregation below; promote PK callbacks
+    # here.
+    if test "$ENABLED_PKCALLBACKS" = "no"; then
+        ENABLED_PKCALLBACKS=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
+    fi
+fi
+
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -11799,13 +11821,6 @@ AC_ARG_ENABLE([iotsafe-hwrng],
     [AS_HELP_STRING([--enable-iotsafe-hwrng],[Enables support for IoT-Safe RNG (default: disabled)])],
     [ ENABLED_IOTSAFE_HWRNG=$enableval ],
     [ ENABLED_IOTSAFE_HWRNG=no ]
-    )
-
-# WISeKey/SealSQ VaultIC secure element
-AC_ARG_ENABLE([vaultic],
-    [AS_HELP_STRING([--enable-vaultic],[Enable WISeKey/SealSQ VaultIC secure element support (default: disabled)])],
-    [ ENABLED_VAULTIC=$enableval ],
-    [ ENABLED_VAULTIC=no ]
     )
 
 # Make clean
@@ -12609,21 +12624,6 @@ if test "$ENABLED_IOTSAFE_HWRNG" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_IOTSAFE_HWRNG"
     ENABLED_IOTSAFE_HWRNG=yes
-fi
-
-if test "$ENABLED_VAULTIC" != "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VAULTIC"
-    ENABLED_VAULTIC=yes
-    # VaultIC port supports TLS PK callbacks and wolfCrypt crypto callbacks
-    if test "$ENABLED_PKCALLBACKS" = "no"; then
-        ENABLED_PKCALLBACKS=yes
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
-    fi
-    if test "$ENABLED_CRYPTOCB" = "no"; then
-        ENABLED_CRYPTOCB=yes
-        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
-    fi
 fi
 
 if test "x$ENABLED_WOLFENGINE" = "xyes"

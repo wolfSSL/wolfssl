@@ -38,9 +38,19 @@
     extern "C" {
 #endif
 
+/* Upper bound on a certificate read off the VaultIC. Guards the XMALLOC in
+ * WOLFSSL_VAULTIC_LoadCertificates against a bogus/hostile size returned by the
+ * device or transport. Override at build time if the provisioned certificates
+ * are larger. */
+#ifndef VAULTIC_MAX_CERT_SZ
+#define VAULTIC_MAX_CERT_SZ 4096
+#endif
+
 #ifdef HAVE_PK_CALLBACKS
+#ifndef VLT_TLS_NO_ECDH
 WOLFSSL_API int WOLFSSL_VAULTIC_EccKeyGenCb(WOLFSSL* ssl, ecc_key* key,
     word32 keySz, int ecc_curve, void* ctx);
+#endif /* VLT_TLS_NO_ECDH */
 
 WOLFSSL_API int WOLFSSL_VAULTIC_EccVerifyCb(WOLFSSL* ssl,
    const unsigned char* sig, unsigned int sigSz,
@@ -53,11 +63,13 @@ WOLFSSL_API int WOLFSSL_VAULTIC_EccSignCb(WOLFSSL* ssl,
     byte* out, word32* outSz,
     const byte* key, word32 keySz, void* ctx);
 
+#ifndef VLT_TLS_NO_ECDH
 WOLFSSL_API int WOLFSSL_VAULTIC_EccSharedSecretCb(WOLFSSL* ssl,
-    ecc_key* otherKey,
+    ecc_key* otherPubKey,
     unsigned char* pubKeyDer, unsigned int* pubKeySz,
     unsigned char* out, unsigned int* outlen,
     int side, void* ctx);
+#endif /* VLT_TLS_NO_ECDH */
 #endif /* HAVE_PK_CALLBACKS */
 
 WOLFSSL_API int WOLFSSL_VAULTIC_LoadCertificates(WOLFSSL_CTX* ctx);
