@@ -1280,6 +1280,9 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
  * Write/read callbacks, and context data, must be set prior.
  * Key must have parameters set.
  *
+ * With a crypto callback device, the read callback and not the devId decides
+ * whether the software reload runs. See wc_LmsKey_Reload below.
+ *
  * @param [in, out] key  LMS key.
  *
  * Returns 0 on success. */
@@ -1299,8 +1302,12 @@ int wc_LmsKey_Reload(LmsKey* key)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    /* State for HSM-backed keys lives in the device; no software reload. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    /* State for HSM-backed keys lives in the device; no software reload.
+     * A devId alone does not mean the device owns the key, as it may be set
+     * only to route other algorithms to an accelerator. A read callback says
+     * the caller holds the state, so only skip the reload without one. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID) &&
+            (key->read_private_key == NULL)) {
         WOLFSSL_MSG("wc_LmsKey_Reload is a no-op for HSM-backed keys");
         key->state = WC_LMS_STATE_OK;
         return 0;

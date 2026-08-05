@@ -359,9 +359,14 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
     the private key bytes; the parameter set is metadata the
     application owns).
 
-    \return 0 on success.
+    With WOLF_CRYPTO_CB, a key on a devId with no read callback is
+    taken to be device-backed and Reload is a no-op. With a read
+    callback the software reload runs as usual.
+
+    \return 0 on success, including the device-backed no-op.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return WC_LMS_RC_* mapped error if the read callback fails.
+    \return IO_FAILED_E if the private key could not be read.
 
     \param [in,out] key Pointer to an LmsKey with parameters and read
     callback set.
