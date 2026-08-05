@@ -110,7 +110,7 @@ jobs:
           {"name": "all-nodh-extiv", "minutes": 5,
            "comment": "DH out of the boundary in v7; one-shot AES-GCM ext IV allowed",
            "configure": ["--enable-all", "--disable-dh",
-            "CPPFLAGS=-pedantic -DWC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED"]},
+            "CPPFLAGS=-pedantic -DWC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED -DWC_FIPS_AESGCM_NO_SHORT_NONCES"]},
           {"name": "kernel-settings", "minutes": 2,
            "configure": ["--enable-kernel-settings", "--enable-dh",
             "CPPFLAGS=-pedantic"]},

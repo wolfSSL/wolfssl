@@ -9166,6 +9166,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             XMEMSET(*pKey, 0, sizeof(SlhDsaKey));
             ret = wc_SlhDsaKey_Init((SlhDsaKey*)*pKey, WC_SLHDSA_DEFAULT_PARAM,
                                     ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
             break;
     #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifdef HAVE_CURVE448
