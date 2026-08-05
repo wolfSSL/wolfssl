@@ -20523,8 +20523,11 @@ int SendFatalAlertOnly(WOLFSSL *ssl, int error)
     case WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E):
         why = bad_record_mac;
         break;
-    case WC_NO_ERR_TRACE(MATCH_SUITE_ERROR):
     case WC_NO_ERR_TRACE(VERSION_ERROR):
+        why = wolfssl_alert_protocol_version;
+        break;
+    /* listed for symmetry with TranslateErrorToAlert(); default covers it */
+    case WC_NO_ERR_TRACE(MATCH_SUITE_ERROR):
     default:
         why = handshake_failure;
         break;
@@ -40681,6 +40684,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         int             ret = 0;
         byte            lesserVersion;
         byte            maxMinor;
+        byte            preMaskMinor;
 
         WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
         WOLFSSL_ENTER("DoClientHello");
@@ -40762,9 +40766,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             word16 havePSK = 0;
             int    keySz   = 0;
 
+            /* RFC 5246 7.2.2 and RFC 8446 6.2: a version that cannot be
+             * negotiated must be refused with a fatal protocol_version alert.
+             * SendFatalAlertOnly() in ProcessReply is compiled out unless
+             * WOLFSSL_EXTRA_ALERTS is defined, so alert here. */
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
                 ret = VERSION_ERROR;
+                /* propagate socket errors to avoid re-calling send alert */
+                if (SendAlert(ssl, alert_fatal,
+                        wolfssl_alert_protocol_version)
+                        == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                    ret = SOCKET_ERROR_E;
+                }
                 goto out;
             }
 
@@ -40778,6 +40792,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             if (belowMinDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 ret = VERSION_ERROR;
+                /* propagate socket errors to avoid re-calling send alert */
+                if (SendAlert(ssl, alert_fatal,
+                        wolfssl_alert_protocol_version)
+                        == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                    ret = SOCKET_ERROR_E;
+                }
                 goto out;
             }
 
@@ -40835,6 +40855,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                        TRUE, TRUE, TRUE, TRUE, ssl->options.side);
         }
 
+        /* Version the record layer is on before the mask walk below steps it
+         * down. It is one the client offered (or the server's own maximum
+         * when the client offered more), so the two alert exits inside that
+         * block restore it rather than alerting with the masked-off version
+         * the walk stopped at, which the peer may reject outright. */
+        preMaskMinor = ssl->version.minor;
+
         /* check if option is set to not allow the current version
          * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
         if (!ssl->options.dtls && ssl->options.downgrade &&
@@ -40874,15 +40901,28 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 WOLFSSL_OP_NO_SSLv3) {
                 WOLFSSL_MSG("\tError, option set to not allow SSLv3");
                 ret = VERSION_ERROR;
-#ifdef WOLFSSL_EXTRA_ALERTS
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
-#endif
+                /* alert with a version the client will accept */
+                ssl->version.minor = preMaskMinor;
+                /* propagate socket errors to avoid re-calling send alert */
+                if (SendAlert(ssl, alert_fatal,
+                        wolfssl_alert_protocol_version)
+                        == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                    ret = SOCKET_ERROR_E;
+                }
                 goto out;
             }
 
             if (ssl->version.minor < ssl->options.minDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 ret = VERSION_ERROR;
+                /* alert with a version the client will accept */
+                ssl->version.minor = preMaskMinor;
+                /* propagate socket errors to avoid re-calling send alert */
+                if (SendAlert(ssl, alert_fatal,
+                        wolfssl_alert_protocol_version)
+                        == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                    ret = SOCKET_ERROR_E;
+                }
                 goto out;
             }
 
