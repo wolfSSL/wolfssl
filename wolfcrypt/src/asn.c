@@ -7457,14 +7457,12 @@ static int CheckCurve(word32 oid)
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when buffer too small.
  */
-int wc_EncodeObjectId(const word32* in, word32 inSz,
-        byte* out, word32* outSz)
+int wc_EncodeObjectId(const word32* in, word32 inSz, byte* out, word32* outSz)
 {
     return EncodeObjectId_ex(in, inSz, out, outSz);
 }
 
-int EncodeObjectId_ex(const word32* in, word32 inSz,
-        byte* out, word32* outSz)
+int EncodeObjectId_ex(const word32* in, word32 inSz, byte* out, word32* outSz)
 {
     int i, x, len;
     word32 d, t;
@@ -7482,7 +7480,7 @@ int EncodeObjectId_ex(const word32* in, word32 inSz,
     }
 
     /* compute length of encoded OID */
-    d = ((word32)in[0] * 40) + in[1];
+    d = (in[0] * 40) + in[1];
     len = 0;
     for (i = 1; i < (int)inSz; i++) {
         x = 0;
@@ -7505,7 +7503,7 @@ int EncodeObjectId_ex(const word32* in, word32 inSz,
         }
 
         /* calc first byte */
-        d = ((word32)in[0] * 40) + in[1];
+        d = (in[0] * 40) + in[1];
 
         /* encode bytes */
         x = 0;
@@ -7562,8 +7560,7 @@ int EncodeObjectId_ex(const word32* in, word32 inSz,
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when buffer too small.
  */
-int EncodeObjectId(const word16* in, word32 inSz,
-        byte* out, word32* outSz)
+int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 {
     int i, x, len;
     word32 d, t;
@@ -7650,8 +7647,7 @@ int EncodeObjectId(const word16* in, word32 inSz,
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when dotted form buffer too small.
  */
-int DecodeObjectId(const byte* in, word32 inSz,
-        word16* out, word32* outSz)
+int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 {
     int x = 0, y = 0;
     word32 t = 0;
@@ -7718,8 +7714,7 @@ int DecodeObjectId(const byte* in, word32 inSz,
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when dotted form buffer too small.
  */
-int DecodeObjectId_ex(const byte* in, word32 inSz,
-        word32* out, word32* outSz)
+int DecodeObjectId_ex(const byte* in, word32 inSz, word32* out, word32* outSz)
 {
     int x = 0, y = 0;
     word32 t = 0;

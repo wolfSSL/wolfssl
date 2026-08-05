@@ -2690,21 +2690,25 @@ int test_wc_DecodeObjectId_ex(void)
     (defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT))
     {
         word32 i;
+
+        /* Tests multi byte encoding for arc 1 and 2
+         * (only possible when arc 1 is 2 and arc 2 is greater than 48) */
         static const word32 oid_dot_2[] = {
             2, 100, 4, 6
         };
 
+        /* Tests multi byte encoding for arc 1 and 2
+         * (only possible when arc 1 is 2 and arc 2 is greater than 48) */
         static const byte oid_start_with_2[] = {
             0x81, 0x34, 0x04, 0x06
         };
-
 
         /* OID 1.3.132.0.6 (secp112r1)
          * DER encoding: 2b 81 04 00 06
          * First byte 0x2b = 43 => arc0 = 43/40 = 1, arc1 = 43%40 = 3
          * Remaining arcs: 132 0 6
          */
-        static const byte oid_sha256rsa[] = {
+        static const byte oid_secp112r1[] = {
             0x2B, 0x81, 0x04, 0x00, 0x06
         };
 
@@ -2718,7 +2722,7 @@ int test_wc_DecodeObjectId_ex(void)
         word32 trueOutSz = sizeof(oid_dot_form) / sizeof(word32);
         /* Test 1: Normal decode */
         outSz = MAX_OID_SZ;
-        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz), 0);
         ExpectIntEQ((int)outSz, trueOutSz);
         for (i = 0; i < ((outSz <= trueOutSz) ? outSz : trueOutSz); i++) {
@@ -2727,22 +2731,22 @@ int test_wc_DecodeObjectId_ex(void)
 
         /* Test 2: NULL args */
         outSz = MAX_OID_SZ;
-        ExpectIntEQ(DecodeObjectId_ex(NULL, sizeof(oid_sha256rsa), out, &outSz),
+        ExpectIntEQ(DecodeObjectId_ex(NULL, sizeof(oid_secp112r1), out, &outSz),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, NULL),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Test 3 (Bug 1): outSz=1 must return BUFFER_E, not OOB write.
          * The first OID byte decodes into two arcs, so outSz must be >= 2. */
         outSz = 1;
-        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
         /* Test 4: outSz=0 must also return BUFFER_E */
         outSz = 0;
-        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
@@ -2759,11 +2763,11 @@ int test_wc_DecodeObjectId_ex(void)
 
         /* Test 6: Buffer too small for later arcs */
         outSz = 3; /* only room for 3 arcs, but OID has 7 */
-        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
-    /* Test 7: first Arc is 2 */
+        /* Test 7: first Arc is 2 */
         {
             word32 trueOutSz2 = sizeof(oid_dot_2) / sizeof(word32);
             outSz = MAX_OID_SZ;
@@ -2777,8 +2781,7 @@ int test_wc_DecodeObjectId_ex(void)
             }
         }
 
-        /* Test 8: an OID with an arc that exceeds word16.
-         */
+        /* Test 8: an OID with an arc that exceeds word16. */
         {
             static const byte oid_large_arc[] = {
                 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b
@@ -2858,8 +2861,7 @@ int test_wc_EncodeObjectId(void)
         ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
-        /* Test 5 : arc greater that SHRT_MAX
-         */
+        /* Test 5 : arc greater that SHRT_MAX */
         {
             static const word32 oid_large[] = {
                 1U, 2U, 840U, 113549U, 1U, 1U, 11U
