@@ -201,15 +201,15 @@ static sword32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
     }
     len = qr->end - qr->start;
 
-    /* We check if the buf is at least RECORD_HEADER_SZ */
-    if (sz < RECORD_HEADER_SZ) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
     if (qr->rec_hdr_remain == 0) {
-        /* start a new TLS record */
-        rlen = (qr->len <= (word32)MAX_RECORD_SIZE) ?
-                qr->len : (word32)MAX_RECORD_SIZE;
+        /* a new TLS record needs room for its header, the body of a record
+         * already started can be handed out in smaller pieces */
+        if (sz < RECORD_HEADER_SZ) {
+            return WOLFSSL_FATAL_ERROR;
+        }
+        /* start a new TLS record over the bytes left to transfer */
+        rlen = (len <= (word32)MAX_RECORD_SIZE) ?
+                len : (word32)MAX_RECORD_SIZE;
         offset += add_rec_header(buf, rlen,
                                  (qr->level == wolfssl_encryption_early_data) ?
                                   application_data : handshake);
