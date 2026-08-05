@@ -1138,7 +1138,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
      * WOLFSSL_SMALL_STACK path to avoid unbounded heap allocation. */
     if (*privSz > DH_MAX_SIZE) {
         WOLFSSL_MSG("DH private key size exceeds DH_MAX_SIZE");
-        return BAD_FUNC_ARG;
+        return WC_KEY_SIZE_E;
     }
 
     qSz = (word32)mp_unsigned_bin_size(&key->q);
@@ -1731,6 +1731,9 @@ int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
 {
     int ret = 0;
     word32 i;
+
+    if (prime == NULL || pub == NULL)
+        return BAD_FUNC_ARG;
 
     for (i = 0; i < pubSz && pub[i] == 0; i++) {
     }
