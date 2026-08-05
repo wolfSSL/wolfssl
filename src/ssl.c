@@ -3134,14 +3134,19 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         tls13Only = 1;
         if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version)) ||
                 (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version))) {
-#ifdef WOLFSSL_STRICT_CIPHER_LIST
+#ifdef WOLFSSL_CIPHER_LIST_NO_SILENT_IGNORE
             /* ctx->method->version/ssl->version caps below TLS 1.3: fail
              * instead of leaving the previously configured <= TLS 1.2
              * suites untouched while reporting success. This only checks
-             * the method/ssl version, not WOLFSSL_OP_NO_TLSv1_3 set via
-             * wolfSSL_CTX_set_options()/wolfSSL_set_max_proto_version(),
-             * so a TLS 1.3-only list can still pass here and later be
-             * unusable if TLS 1.3 is disabled by option mask alone. */
+             * the method/ssl version, so it depends on whether the TLS 1.3
+             * disabling call actually lowers that version:
+             * wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_3) lowers
+             * ssl->version and so is caught here, but
+             * wolfSSL_CTX_set_options()/wolfSSL_set_max_proto_version()
+             * (either CTX or SSL variant) only set the option mask without
+             * touching ctx->method->version/ssl->version, so a TLS 1.3-only
+             * list can still pass here and later be unusable when TLS 1.3
+             * is disabled that way. */
             WOLFSSL_MSG("Cipher list has only TLS 1.3 suites but TLS 1.3 "
                         "is not negotiable");
             return WOLFSSL_FAILURE;

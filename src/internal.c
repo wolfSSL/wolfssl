@@ -41,27 +41,12 @@
  *                  Enable SHA-2 cipher suites for pre-TLS 1.2         default: off
  * WOLFSSL_NO_STRICT_CIPHER_SUITE:
  *                  Relax strict cipher suite validation               default: off
- * WOLFSSL_STRICT_CIPHER_LIST: Fail wolfSSL_CTX/SSL_set_cipher_list()
- *                  when given a TLS 1.3-only suite list but TLS 1.3
- *                  is not negotiable on ctx->method->version /
- *                  ssl->version, instead of leaving the prior suites
- *                  untouched and returning success. Also applies to
- *                  wolfSSL_CTX_new()/_ex() when WOLFSSL_SYS_CRYPTO_POLICY
- *                  is enabled and the system policy is TLS 1.3-only: ctx
- *                  creation fails instead of succeeding with the policy
- *                  silently unapplied. Since SSL_CTX/SSL_set_ciphersuites()
- *                  are aliased to the same underlying set_cipher_list()
- *                  implementation, this also makes them fail when the
- *                  ctx/ssl's method version excludes TLS 1.3 (e.g. after
- *                  SSL_CTX_set_max_proto_version() lowers it to TLS 1.2),
- *                  unlike upstream OpenSSL where set_ciphersuites() is
- *                  version-independent. The check only looks at the
- *                  method/ssl version: TLS 1.3 disabled solely via the
- *                  WOLFSSL_OP_NO_TLSv1_3 option mask (e.g.
- *                  SSL_CTX_set_options() or wolfSSL_set_max_proto_version())
- *                  is not detected, so a TLS 1.3-only list can still be
- *                  accepted in that case even though it will not be
- *                  negotiable                                          default: off
+ * WOLFSSL_CIPHER_LIST_NO_SILENT_IGNORE: Fail wolfSSL_CTX/SSL_set_cipher_list()
+ *                  when a TLS 1.3-only suite list is not negotiable on
+ *                  the ctx/ssl version, instead of silently ignoring
+ *                  it; see wolfSSL_parse_cipher_list() for caveats
+ *                  (crypto-policy interaction, set_ciphersuites alias,
+ *                  option-mask detection limits)                      default: off
  * NO_RESUME_SUITE_CHECK:      Skip cipher suite check on resume       default: off
  * NO_FORCE_SCR_SAME_SUITE:    Allow different suite in renegotiation  default: off
  * CIPHER_NONCE:               Per-record cipher nonce for AEAD        default: off
