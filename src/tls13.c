@@ -4056,6 +4056,48 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
 }
 #endif
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+/* Record whether the peer's advertised algorithms permit SHA-1 signed
+ * certificates.
+ *
+ * RFC 8446 Section 4.2.3 has signature_algorithms cover certificate signatures
+ * when signature_algorithms_cert is absent.
+ *
+ * ssl         The SSL/TLS object.
+ * peerSuites  The peer's signature_algorithms list.
+ */
+static void SetPeerSha1CertOk(WOLFSSL* ssl, const Suites* peerSuites)
+{
+    const byte* list = NULL;
+    word16      listSz = 0;
+    word16      i;
+
+    ssl->options.peerSha1CertOk = 0;
+
+    if (ssl->certHashSigAlgoSz > 0) {
+        list = ssl->certHashSigAlgo;
+        listSz = ssl->certHashSigAlgoSz;
+    }
+    else if (peerSuites != NULL) {
+        list = peerSuites->hashSigAlgo;
+        listSz = peerSuites->hashSigAlgoSz;
+    }
+    else {
+        return;
+    }
+
+    for (i = 0; (word16)(i + 1) < listSz; i += 2) {
+        /* Only rsa_pkcs1_sha1, dsa_sha1 and ecdsa_sha1 carry sha_mac as the
+         * first byte of the signature scheme. */
+        if (list[i] == sha_mac) {
+            ssl->options.peerSha1CertOk = 1;
+            break;
+        }
+    }
+}
+#endif /* !NO_CERTS && !WOLFSSL_NO_SIGALG && (client || server) */
+
 #ifndef NO_WOLFSSL_CLIENT
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_PSK_ONE_ID) && \
@@ -6164,6 +6206,11 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     WOLFSSL_ENTER("DoTls13CertificateRequest");
 
     XMEMSET(&peerSuites, 0, sizeof(Suites));
+#if !defined(WOLFSSL_NO_SIGALG)
+    /* Post-handshake auth can deliver several requests; each one's cert
+     * signature algorithms replace the last rather than adding to them. */
+    ssl->certHashSigAlgoSz = 0;
+#endif
 
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName(ssl, "CertificateRequest");
@@ -6251,6 +6298,11 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
         return INVALID_PARAMETER;
     }
+
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+    SetPeerSha1CertOk(ssl, &peerSuites);
+#endif
+
 #ifdef WOLFSSL_CERT_SETUP_CB
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         return ret;
@@ -7778,6 +7830,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     XMEMCPY(ssl->clSuites->suites, input + args->idx, ssl->clSuites->suiteSz);
     args->idx += ssl->clSuites->suiteSz;
     ssl->clSuites->hashSigAlgoSz = 0;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+    /* Discard any list kept from a previous ClientHello on this object; a
+     * second hello that drops signature_algorithms_cert must not inherit it. */
+    ssl->certHashSigAlgoSz = 0;
+#endif
 
     /* Compression */
     b = input[args->idx++];
@@ -7826,6 +7883,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                             ssl->clSuites))) {
         goto exit_dch;
     }
+
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+    SetPeerSha1CertOk(ssl, ssl->clSuites);
+#endif
 
 #if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
     defined(HAVE_TLS_EXTENSIONS)
@@ -9843,6 +9904,150 @@ static int SetupOcspResp(WOLFSSL* ssl)
 }
 #endif
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+/* Get the signature algorithm OID sum of a DER encoded certificate.
+ *
+ * der    Buffer holding the DER encoded certificate.
+ * derSz  Length of the DER encoded certificate.
+ * oid    On success, the OID sum of the signature algorithm.
+ * returns 0 on success, otherwise a negative ASN error.
+ */
+static int GetCertSigAlgoOid(const byte* der, word32 derSz, word32* oid)
+{
+    word32 idx = 0;
+    int    len = 0;
+    int    ret;
+
+    ret = GetSequence(der, &idx, &len, derSz);
+    if (ret >= 0)
+        ret = GetSequence(der, &idx, &len, derSz);
+    if (ret >= 0) {
+        /* signatureAlgorithm immediately follows the tbsCertificate. */
+        if ((word32)len > derSz - idx) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            idx += (word32)len;
+            ret = GetAlgoId(der, &idx, oid, oidSigType, derSz);
+        }
+    }
+
+    return ret;
+}
+
+/* Certificate is signed with the deprecated SHA-1 hash. An unrecognized or
+ * unparsable algorithm is not SHA-1; the peer still verifies the chain.
+ *
+ * der    Buffer holding the DER encoded certificate.
+ * derSz  Length of the DER encoded certificate.
+ * returns 1 when SHA-1 signed, 0 otherwise.
+ */
+static int IsSha1SignedCert(const byte* der, word32 derSz)
+{
+    word32 oid = 0;
+
+    if (GetCertSigAlgoOid(der, derSz, &oid) != 0)
+        return 0;
+
+    return (oid == CTC_SHAwRSA) || (oid == CTC_SHAwECDSA) ||
+           (oid == CTC_SHAwDSA);
+}
+
+/* Certificate is self signed and therefore a trust anchor. RFC 8446
+ * Section 4.4.2.2 allows it to be left out of the chain entirely, so its
+ * signature does not constrain what may be sent.
+ *
+ * ssl    The SSL/TLS object.
+ * der    Buffer holding the DER encoded certificate.
+ * derSz  Length of the DER encoded certificate.
+ * returns 1 when self signed, 0 otherwise.
+ */
+static int IsSelfSignedCert(WOLFSSL* ssl, const byte* der, word32 derSz)
+{
+    DecodedCert* cert;
+    int          selfSigned = 0;
+
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                 DYNAMIC_TYPE_DCERT);
+    if (cert == NULL)
+        return 0;
+
+    InitDecodedCert(cert, der, derSz, ssl->heap);
+    if (ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, NULL, NULL) == 0)
+        selfSigned = (cert->selfSigned != 0);
+    FreeDecodedCert(cert);
+    XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+
+    return selfSigned;
+}
+
+/* Check the chain about to be sent against what the peer advertised.
+ *
+ * RFC 8446 Section 4.4.2.2 permits a fallback chain the peer did not advertise
+ * support for, but the chain "MUST NOT" use SHA-1 unless the peer's
+ * advertisement permits it. Section 4.4.2.3 requires client certificates to be
+ * signed with an acceptable algorithm "as described in Section 4.4.2.2", so the
+ * same rule covers both sides. How a failure is resolved differs by side and is
+ * left to the caller.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 0 when the chain may be sent, MATCH_SUITE_ERROR otherwise.
+ */
+static int CheckCertChainSigAlgo(WOLFSSL* ssl)
+{
+    byte*  chain;
+    byte*  cur;
+    word32 chainSz;
+    word32 len;
+    word32 idx = 0;
+    int    ret = 0;
+
+    if (ssl->options.peerSha1CertOk)
+        return 0;
+
+    if (ssl->buffers.certificate == NULL ||
+            ssl->buffers.certificate->buffer == NULL) {
+        return 0;
+    }
+
+    if (IsSha1SignedCert(ssl->buffers.certificate->buffer,
+                         ssl->buffers.certificate->length) &&
+            !IsSelfSignedCert(ssl, ssl->buffers.certificate->buffer,
+                              ssl->buffers.certificate->length)) {
+        ret = MATCH_SUITE_ERROR;
+    }
+
+    if (ret == 0 && ssl->buffers.certChain != NULL &&
+            ssl->buffers.certChain->buffer != NULL &&
+            ssl->buffers.certChainCnt > 0) {
+        chain = ssl->buffers.certChain->buffer;
+        chainSz = ssl->buffers.certChain->length;
+
+        while (ret == 0) {
+            cur = chain + idx;
+            /* NextCert() length includes the CERT_HEADER_SZ byte prefix and
+             * is 0 at the end of the list. Keep this terminator matching the
+             * send loop so both walk the same certificates. */
+            len = NextCert(chain, chainSz, &idx);
+            if (len == 0)
+                break;
+            if (len <= CERT_HEADER_SZ)
+                continue;
+            cur += CERT_HEADER_SZ;
+            len -= CERT_HEADER_SZ;
+
+            if (IsSha1SignedCert(cur, len) && !IsSelfSignedCert(ssl, cur, len))
+                ret = MATCH_SUITE_ERROR;
+        }
+    }
+
+    if (ret != 0)
+        WOLFSSL_MSG("Chain is SHA-1 signed but peer did not advertise SHA-1");
+
+    return ret;
+}
+#endif /* !NO_CERTS && !WOLFSSL_NO_SIGALG */
+
 /* handle generation TLS v1.3 certificate (11) */
 /* Send the certificate for this end and any CAs that help with validation.
  * This message is always encrypted in TLS v1.3.
@@ -9902,6 +10107,30 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             x509 = NULL;
             wolfSSL_EVP_PKEY_free(pkey);
         }
+    }
+#endif
+
+#ifndef WOLFSSL_NO_SIGALG
+    /* Run before the blank certificate branch below so a client with nothing
+     * acceptable can fall into it. */
+    if (ssl->options.sendVerify != SEND_BLANK_CERT && ssl->fragOffset == 0 &&
+            CheckCertChainSigAlgo(ssl) != 0) {
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
+            SendAlert(ssl, alert_fatal, handshake_failure);
+            WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
+            return MATCH_SUITE_ERROR;
+        }
+    #ifndef WOLFSSL_NO_CLIENT_CERT_ERROR
+        /* RFC 8446 Section 4.4.2: a client with no acceptable certificate
+         * sends an empty certificate_list rather than failing. */
+        WOLFSSL_MSG("Client chain not acceptable, sending blank certificate");
+        ssl->options.sendVerify = SEND_BLANK_CERT;
+    #else
+        WOLFSSL_MSG("Client chain not acceptable and blank cert not allowed");
+        SendAlert(ssl, alert_fatal, certificate_required);
+        WOLFSSL_ERROR_VERBOSE(NO_CERT_ERROR);
+        return NO_CERT_ERROR;
+    #endif
     }
 #endif
 

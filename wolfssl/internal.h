@@ -5576,6 +5576,10 @@ struct Options {
 #ifdef WOLFSSL_EARLY_DATA
     word16            clientInEarlyData:1; /* Client is in wolfSSL_read_early_data */
 #endif
+#if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+    word16            peerSha1CertOk:1;   /* Peer advertised a SHA-1 signature
+                                           * scheme for certificates */
+#endif
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
 #endif
