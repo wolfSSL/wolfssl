@@ -8079,7 +8079,6 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
             idx = ssl_session_idx++;
             break;
         /* following class indexes are not supoprted */
-        case WOLF_CRYPTO_EX_INDEX_BIO:
         case WOLF_CRYPTO_EX_INDEX_X509_STORE:
         case WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX:
         case WOLF_CRYPTO_EX_INDEX_DH:
@@ -8088,6 +8087,7 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
         case WOLF_CRYPTO_EX_INDEX_RSA:
         case WOLF_CRYPTO_EX_INDEX_ENGINE:
         case WOLF_CRYPTO_EX_INDEX_UI:
+        case WOLF_CRYPTO_EX_INDEX_BIO:
         case WOLF_CRYPTO_EX_INDEX_APP:
         case WOLF_CRYPTO_EX_INDEX_UI_METHOD:
         case WOLF_CRYPTO_EX_INDEX_DRBG:
