@@ -3448,3 +3448,91 @@ int test_wolfSSL_EVP_PKEY_encoded_public_key(void)
     return EXPECT_RESULT();
 }
 
+
+int test_wolfSSL_d2i_PrivateKey_reuse_resets_state(void)
+{
+    EXPECT_DECLS;
+/* wolfSSL_d2i_PrivateKey_EVP() and wolfSSL_PEM_write_bio_PKCS8PrivateKey() are
+ * both OPENSSL_ALL, and the latter also needs PKCS#8 and a password based key
+ * derivation. */
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && \
+    defined(HAVE_ECC) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && defined(WOLFSSL_DER_TO_PEM)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    unsigned char* rsaDer = NULL;
+    unsigned char* eccDer = NULL;
+    unsigned char* freshPem = NULL;
+    const unsigned char* p = NULL;
+    unsigned char* q = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    char* pem = NULL;
+    int rsaSz = 0;
+    int eccSz = 0;
+    int freshSz = 0;
+    XFILE f = XBADFILE;
+
+    ExpectNotNull(rsaDer = (unsigned char*)XMALLOC(4096, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(eccDer = (unsigned char*)XMALLOC(4096, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectTrue((f = XFOPEN("./certs/server-keyPkcs8.der", "rb")) != XBADFILE);
+    ExpectIntGT(rsaSz = (int)XFREAD(rsaDer, 1, 4096, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/ecc-key.der", "rb")) != XBADFILE);
+    ExpectIntGT(eccSz = (int)XFREAD(eccDer, 1, 4096, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Baseline: decode the traditional ECC key into a new object and record
+     * its PKCS#8 PEM. */
+    q = eccDer;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey_EVP(NULL, &q, (long)eccSz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_EC);
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntGT(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0,
+        NULL, NULL), 0);
+    ExpectIntGT(freshSz = (int)wolfSSL_BIO_get_mem_data(bio, &pem), 0);
+    ExpectNotNull(freshPem = (unsigned char*)XMALLOC((size_t)freshSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (freshPem != NULL && pem != NULL) {
+        XMEMCPY(freshPem, pem, (size_t)freshSz);
+    }
+    wolfSSL_BIO_free(bio);
+    bio = NULL;
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* A PKCS#8 RSA key records a non-zero pkcs8HeaderSz. */
+    p = rsaDer;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_RSA, NULL, &p,
+        (long)rsaSz));
+    ExpectIntGT((int)pkey->pkcs8HeaderSz, 0);
+
+    /* Reusing that object for the traditional ECC key must clear it, so the
+     * re-encoded key is not sliced at the previous key's header offset. */
+    q = eccDer;
+    ExpectNotNull(wolfSSL_d2i_PrivateKey_EVP(&pkey, &q, (long)eccSz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_EC);
+    ExpectIntEQ((int)pkey->pkcs8HeaderSz, 0);
+
+    /* The reused object must encode exactly like the fresh one. */
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntGT(wolfSSL_PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0,
+        NULL, NULL), 0);
+    ExpectIntEQ((int)wolfSSL_BIO_get_mem_data(bio, &pem), freshSz);
+    ExpectBufEQ(pem, freshPem, freshSz);
+
+    wolfSSL_BIO_free(bio);
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(freshPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(eccDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
