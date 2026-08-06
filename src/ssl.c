@@ -8053,7 +8053,6 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
     static int ssl_idx = 0;
     static int ssl_session_idx = 0;
     static int x509_idx = 0;
-    static int bio_idx = 0;
 
     int idx = -1;
 
@@ -8079,14 +8078,8 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
                 return WOLFSSL_FATAL_ERROR;
             idx = ssl_session_idx++;
             break;
-        case WOLF_CRYPTO_EX_INDEX_BIO:
-            WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
-                    dup_func, free_func);
-            /* BIO type indexes are not ex_data slots, so the MAX_EX_DATA
-             * bound below does not apply. */
-            return bio_idx++;
-
         /* following class indexes are not supoprted */
+        case WOLF_CRYPTO_EX_INDEX_BIO:
         case WOLF_CRYPTO_EX_INDEX_X509_STORE:
         case WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX:
         case WOLF_CRYPTO_EX_INDEX_DH:

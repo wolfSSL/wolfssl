@@ -209,9 +209,7 @@
 #define BIO_set_app_data(bio, data) wolfSSL_BIO_set_data((bio), (data))
 #endif
 
-#ifdef HAVE_EX_DATA_CRYPTO
 #define BIO_get_new_index          wolfSSL_BIO_get_new_index
-#endif
 #define BIO_meth_get_gets          wolfSSL_BIO_meth_get_gets
 #define BIO_meth_get_puts          wolfSSL_BIO_meth_get_puts
 #define BIO_meth_get_ctrl          wolfSSL_BIO_meth_get_ctrl
