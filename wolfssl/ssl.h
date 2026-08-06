@@ -4734,6 +4734,45 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
 #endif /* HAVE_SNI */
 
+/* Certificate Authorities - RFC 8446 (TLS 1.3 extension type 47).
+ *
+ * Native API, independent of the OpenSSL compatibility layer. CA DNs passed
+ * to the Use functions are the inner content of a DER-encoded Name, i.e. the
+ * bytes after the SEQUENCE tag and length; the library prepends the SEQUENCE
+ * header on the wire and strips it on parse. The bytes are copied; the caller
+ * retains ownership of the input buffer. When both the native API and the
+ * compat layer (set0_CA_list et al.) provide CAs, the two lists are
+ * concatenated on the wire. */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+
+WOLFSSL_API int  wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
+        const unsigned char* dn, unsigned int dnSz);
+WOLFSSL_API int  wolfSSL_CTX_UseCertificateAuthority(WOLFSSL_CTX* ctx,
+        const unsigned char* dn, unsigned int dnSz);
+
+WOLFSSL_API void wolfSSL_ClearCertificateAuthorities(WOLFSSL* ssl);
+WOLFSSL_API void wolfSSL_CTX_ClearCertificateAuthorities(WOLFSSL_CTX* ctx);
+
+/* Number of CA DNs received from the peer. */
+WOLFSSL_API int wolfSSL_GetPeerCertificateAuthorityCount(const WOLFSSL* ssl);
+
+/* Copy out the idx-th CA DN received from the peer (0-based). Iteration
+ * order is unspecified; visit every entry by pairing this with
+ * wolfSSL_GetPeerCertificateAuthorityCount.
+ *
+ * If outDn is NULL, returns the size in bytes of the DN (allowing the caller
+ * to size an allocation) or a negative error code.
+ *
+ * If outDn is non-NULL, copies up to outDnSz bytes into outDn. On success
+ * returns the number of bytes written. If outDnSz is smaller than the DN,
+ * returns BUFFER_E and does not modify outDn. Returns BAD_FUNC_ARG for
+ * invalid inputs or when idx is out of range. */
+WOLFSSL_API int wolfSSL_GetPeerCertificateAuthority(const WOLFSSL* ssl, int idx,
+        unsigned char* outDn, unsigned int outDnSz);
+
+#endif /* !NO_CERTS && !WOLFSSL_NO_CA_NAMES && WOLFSSL_TLS13 */
+
 /* Trusted CA Key Indication - RFC 6066 (Section 6) */
 #ifdef HAVE_TRUSTED_CA
 
