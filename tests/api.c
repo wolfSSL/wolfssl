@@ -16325,7 +16325,7 @@ static int test_wolfSSL_Tls13_ECH_wire_sni_ex(int accept, int useCtx)
     wolfSSL_SNI_GetRequest(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME, &sniName);
     ExpectStrEQ((const char*)sniName, expectedSni);
     /* verify the ctx always has the private SNI */
-    if (useCtx) {
+    if (useCtx && EXPECT_SUCCESS() && (test_ctx.c_ctx != NULL)) {
         sniName = NULL;
         TLSX_SNI_GetRequest(test_ctx.c_ctx->extensions, WOLFSSL_SNI_HOST_NAME,
             &sniName, 1);

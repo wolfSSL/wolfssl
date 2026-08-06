@@ -202,26 +202,33 @@ void wc_FreeSakkeKey(SakkeKey* key)
 #ifdef WOLFCRYPT_SAKKE_CLIENT
             mp_free(&key->tmp.m2);
 #endif
+            key->mpInit = 0;
         }
 #ifdef WOLFCRYPT_SAKKE_CLIENT
         if (key->i.i != NULL) {
             wc_ecc_del_point_h(key->i.i, key->ecc.heap);
+            key->i.i = NULL;
         }
         if (key->rsk.rsk != NULL) {
             wc_ecc_del_point_h(key->rsk.rsk, key->ecc.heap);
+            key->rsk.rsk = NULL;
         }
         if (key->tmp.p3 != NULL) {
             wc_ecc_del_point_h(key->tmp.p3, key->ecc.heap);
+            key->tmp.p3 = NULL;
         }
         if (key->tmp.p2 != NULL) {
             wc_ecc_del_point_h(key->tmp.p2, key->ecc.heap);
+            key->tmp.p2 = NULL;
         }
         if (key->tmp.p1 != NULL) {
             wc_ecc_del_point_h(key->tmp.p1, key->ecc.heap);
+            key->tmp.p1 = NULL;
         }
 #endif
         if (params->base != NULL) {
             wc_ecc_del_point_h(params->base, key->ecc.heap);
+            params->base = NULL;
         }
         wc_ecc_free(&key->ecc);
     }

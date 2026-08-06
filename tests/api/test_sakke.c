@@ -158,6 +158,9 @@ int test_wc_Sakke_DecisionCoverage(void)
     byte encSsv[16];
     int valid = 0;
 
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
     /* idMax is used only to exercise the idSz == SAKKE_ID_MAX_SIZE boundary
      * (byte *length*, not magnitude) -- keep it numerically small so the
      * real EC scalar multiply it drives (in wc_MakeSakkePointI()/
@@ -676,6 +679,7 @@ int test_wc_Sakke_FeatureCoverage(void)
     word32 pubKeySz2 = sizeof(pubKeyData2);
     int i;
 
+    XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&key2, 0, sizeof(key2));
     XMEMSET(ssvOrig, 0, sizeof(ssvOrig));
