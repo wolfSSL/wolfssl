@@ -289,11 +289,11 @@ static int d2iTryEccKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in]      mem    Memory containing key data.
  * @param [in]      memSz  Size of key data in bytes.
  * @param [in]      priv   1 means private key, 0 means public key.
+ * @param [in]      prePopulated  1 means *out already holds the input bytes
+ *                         so the d2i_make_pkey allocate/copy is skipped.
  * @return  1 on success.
  * @return  0 when input was recognized as this key type but object
  *            creation/import failed.
- * @param [in]      prePopulated  1 means *out already holds the input bytes
- *                         so the d2i_make_pkey allocate/copy is skipped.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
 static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
@@ -357,11 +357,11 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in]      mem    Memory containing key data.
  * @param [in]      memSz  Size of key data in bytes.
  * @param [in]      priv   1 means private key, 0 means public key.
+ * @param [in]      prePopulated  1 means *out already holds the input bytes
+ *                         so the d2i_make_pkey allocate/copy is skipped.
  * @return  1 on success.
  * @return  0 when input was recognized as this key type but object
  *            creation/import failed.
- * @param [in]      prePopulated  1 means *out already holds the input bytes
- *                         so the d2i_make_pkey allocate/copy is skipped.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
 static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
