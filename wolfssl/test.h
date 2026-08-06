@@ -3534,6 +3534,7 @@ static WC_INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     int       ret;
     word32    idx = 0;
     ecc_key   myKey;
+    byte*     keyBuf = (byte*)key;
     PkCbInfo* cbInfo = (PkCbInfo*)ctx;
 
     (void)ssl;
@@ -3541,13 +3542,39 @@ static WC_INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
 
     WOLFSSL_PKMSG("PK ECC Verify: sigSz %u, hashSz %u, keySz %u\n", sigSz, hashSz, keySz);
 
+    /* No key is handed over when checking a signature this side just made
+     * (WOLFSSL_CHECK_SIG_FAULTS) and the private key is held here rather than
+     * by wolfSSL - load it the same way the signing callback does. */
+    if (key == NULL) {
+    #ifdef TEST_PK_PRIVKEY
+        ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
+        if (ret != 0)
+            return ret;
+    #else
+        WOLFSSL_PKMSG("PK ECC Verify: no key available\n");
+        return BAD_FUNC_ARG;
+    #endif
+    }
+
     ret = wc_ecc_init(&myKey);
     if (ret == 0) {
-        ret = wc_EccPublicKeyDecode(key, &idx, &myKey, keySz);
+        if (key == NULL) {
+            /* Our own key, so DER of the private key, which carries the
+             * public point needed to verify. */
+            ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
+        }
+        else {
+            ret = wc_EccPublicKeyDecode(keyBuf, &idx, &myKey, keySz);
+        }
         if (ret == 0)
             ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
         wc_ecc_free(&myKey);
     }
+
+#ifdef TEST_PK_PRIVKEY
+    if (key == NULL)
+        free(keyBuf);
+#endif
 
     WOLFSSL_PKMSG("PK ECC Verify: ret %d, result %d\n", ret, *result);
 
@@ -3560,6 +3587,7 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         int side, void* ctx)
 {
     int       ret;
+    int       version;
     ecc_key*  privKey = NULL;
     ecc_key*  pubKey = NULL;
     ecc_key   tmpKey;
@@ -3570,6 +3598,8 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
     WOLFSSL_PKMSG("PK ECC PMS: Side %s, Peer Curve %d\n",
         side == WOLFSSL_CLIENT_END ? "client" : "server", otherKey->dp->id);
+
+    version = wolfSSL_GetVersion(ssl);
 
     ret = wc_ecc_init(&tmpKey);
     if (ret != 0) {
@@ -3586,8 +3616,10 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         pubKey = otherKey;
 
         /* TLS v1.2 and older we must generate a key here for the client only.
-         * TLS v1.3 calls key gen early with key share */
-        if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+         * TLS v1.3 calls key gen early with key share. Test the 1.3 versions
+         * rather than ordering the enum: the DTLS values sort above the TLS
+         * ones, so DTLS v1.2 would otherwise be taken for a 1.3 and skipped. */
+        if (version != WOLFSSL_TLSV1_3 && version != WOLFSSL_DTLSV1_3) {
             ret = myEccKeyGen(ssl, privKey, 0, otherKey->dp->id, ctx);
             if (ret == 0) {
                 ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);

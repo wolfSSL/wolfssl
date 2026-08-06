@@ -96,9 +96,11 @@ jobs:
             "--enable-sm4-cbc", "--enable-sm4-ctr", "--enable-sm4-gcm",
             "--enable-sm4-ccm", "--enable-sha3"]},
           {"name": "sm-faultharden", "minutes": 1.5,
+           "comment": "The only config that compiles the SM2 signature-fault check with HAVE_PK_CALLBACKS. sm4-cbc is required: the sole TLS 1.2 SM2 client-auth case in tests/test-sm2.conf is ECDHE-ECDSA-SM4-CBC-SM3.",
            "configure": ["--enable-sm2", "--enable-sm3", "--enable-sm4-ecb",
             "--enable-sm4-cbc", "--enable-sm4-ctr", "--enable-sm4-gcm",
-            "--enable-sm4-ccm", "--enable-sha3", "--enable-faultharden"]}
+            "--enable-sm4-ccm", "--enable-sha3", "--enable-faultharden",
+            "--enable-pkcallbacks"]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
