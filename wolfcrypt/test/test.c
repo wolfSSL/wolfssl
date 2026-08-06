@@ -16505,11 +16505,14 @@ static wc_test_ret_t aes_ecb_direct_test(void)
 
 /* The keyInstalled guard is a non-FIPS hardening; under FIPS/selftest the AES
  * functions come from the validated module and don't reject a missing key, so
- * this test does not apply there. */
+ * this test does not apply there. WOLF_CRYPTO_CB_FIND routes every call to the
+ * callback regardless of devId, so the software guard is unreachable and the
+ * callback rejects with its own error rather than MISSING_KEY. */
 #if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_AES_ECB) || \
     defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB)) && \
-    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_FIND)
 #define WC_TEST_HAVE_AES_NO_KEY_SET
 /* Ensure AES mode APIs fail when used before wc_AesSetKey installs a key,
  * instead of running with the all-zero key schedule left by wc_AesInit. */
