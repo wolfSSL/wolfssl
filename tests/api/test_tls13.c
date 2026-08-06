@@ -8865,3 +8865,195 @@ int test_tls13_pha_status_request(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SESSION_EXPORT)
+/* Stream TLS 1.3 session serialized with export version 6, captured before
+ * the (D)TLS 1.3 state chunks were added to the format. Generated with a
+ * memio TLS 1.3 handshake followed by wolfSSL_tls_export() of the server end
+ * (dummy peer callbacks: ip[0]=-1, ipSz=1, port=1, fam=2). */
+static byte canned_server_tls13_session_v6[] = {
+    0xA7, 0xA6, 0x01, 0x5A, 0x00, 0x42, 0x01, 0x00, 0x00, 0x00,
+    0x00, 0x80, 0x02, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x1C,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x02, 0x0A, 0x0F, 0x10,
+    0x01, 0x03, 0x00, 0x0F, 0x05, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x03, 0x04, 0x00, 0xF7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x45, 0x00, 0x00, 0x00, 0x11, 0x01, 0x01,
+    0x00, 0x30, 0x70, 0x35, 0x1E, 0xCD, 0x42, 0x72, 0xD5, 0xBC,
+    0x76, 0x96, 0xF0, 0xCF, 0x9F, 0xD4, 0x75, 0x16, 0x59, 0xFB,
+    0xDF, 0xD5, 0xC1, 0xFE, 0x8A, 0xA5, 0x3D, 0x0F, 0x61, 0x24,
+    0x7C, 0x3C, 0xC7, 0xCF, 0xA8, 0x46, 0xFC, 0x70, 0xF2, 0x6C,
+    0x41, 0xDC, 0x2D, 0x0B, 0xAD, 0x2C, 0xBC, 0x23, 0xC3, 0x92,
+    0x32, 0x9D, 0x87, 0x1D, 0x96, 0x4E, 0x49, 0x63, 0x33, 0x14,
+    0xC8, 0xB8, 0x70, 0x43, 0xEC, 0xAE, 0x74, 0x17, 0x86, 0xBB,
+    0xC9, 0xC6, 0x7E, 0x99, 0x4A, 0x54, 0xF5, 0xF2, 0xCB, 0xF0,
+    0xBF, 0x9B, 0xE2, 0x0B, 0x59, 0xAE, 0xB8, 0x87, 0xFD, 0xE8,
+    0x85, 0xF2, 0x7D, 0xBA, 0xE1, 0x2F, 0xEC, 0x8A, 0x20, 0xA4,
+    0x6C, 0x8E, 0x6F, 0x97, 0x55, 0xB5, 0x46, 0x6C, 0x79, 0x56,
+    0x04, 0x39, 0x8E, 0x2C, 0xD3, 0x01, 0x2B, 0x08, 0x06, 0xE0,
+    0xC5, 0x7B, 0x7F, 0x93, 0xDC, 0x7F, 0x70, 0x2A, 0x4C, 0x12,
+    0xF4, 0x39, 0x43, 0x8C, 0x24, 0x11, 0x4E, 0x6B, 0xDB, 0xD4,
+    0xB6, 0xFD, 0x6C, 0x69, 0x62, 0x40, 0xE2, 0x16, 0x45, 0x27,
+    0x9B, 0xCA, 0xC2, 0xA0, 0xA3, 0xE1, 0xFB, 0x0A, 0x14, 0xB0,
+    0xCC, 0xD7, 0xFF, 0x0C, 0x4C, 0x37, 0x2A, 0x1D, 0x86, 0xDA,
+    0x32, 0xF1, 0x24, 0x2D, 0x82, 0xEC, 0x6D, 0x70, 0x39, 0x36,
+    0xDE, 0x41, 0x18, 0x47, 0x7D, 0xEF, 0x0B, 0x32, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x6D, 0x70, 0x39,
+    0x36, 0xDE, 0x41, 0x18, 0x47, 0x7D, 0xEF, 0x0B, 0x32, 0x4C,
+    0x37, 0x2A, 0x1D, 0x86, 0xDA, 0x32, 0xF1, 0x24, 0x2D, 0x82,
+    0xEC, 0x00, 0x10, 0x00, 0x20, 0x00, 0x0C, 0x00, 0x10, 0x00,
+    0x10, 0x07, 0x02, 0x05, 0x09, 0x12, 0x30, 0x28, 0x00, 0x00,
+    0x07, 0x00, 0x02, 0x00, 0x01, 0xFF, 0x00, 0x01,
+};
+
+static int test_tls13_export_get_peer(WOLFSSL* ssl, char* ip, int* ipSz,
+        unsigned short* port, int* fam)
+{
+    (void)ssl;
+    ip[0] = -1;
+    *ipSz = 1;
+    *port = 1;
+    *fam = 2;
+    return 1;
+}
+
+static int test_tls13_import_set_peer(WOLFSSL* ssl, char* ip, int ipSz,
+        unsigned short port, int fam)
+{
+    (void)ssl;
+    (void)ip;
+    (void)ipSz;
+    (void)port;
+    (void)fam;
+    return 1;
+}
+#endif
+
+/* Stream TLS 1.3 blobs serialized with export version 6 must still import:
+ * unlike DTLS 1.3, the stream TLS 1.3 record state fits in the pre-v7
+ * format (KeyUpdate after import is only guaranteed for v7+ blobs). */
+int test_tls13_import_v6_canned(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SESSION_EXPORT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    wolfSSL_CTX_SetIOSetPeer(ctx, test_tls13_import_set_peer);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_tls_import(ssl, canned_server_tls13_session_v6,
+        sizeof(canned_server_tls13_session_v6)),
+        (int)sizeof(canned_server_tls13_session_v6));
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A stream TLS 1.3 connection restored from an exported session must still be
+ * able to run KeyUpdates. That needs the application traffic secrets, which
+ * only travel in export version 7 and later. */
+int test_tls13_export_import_keyupdate(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_SESSION_EXPORT)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char blob[MAX_EXPORT_BUFFER];
+    unsigned char readBuf[64];
+    unsigned int sz;
+    const char msgC[] = "client to server";
+    const char msgS[] = "server to client";
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_CTX_SetIOGetPeer(ctx_s, test_tls13_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_s, test_tls13_import_set_peer);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* let the client consume the post-handshake session tickets */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    sz = sizeof(blob);
+    ExpectIntGT(wolfSSL_tls_export(ssl_s, blob, &sz), 0);
+    /* the blob carries the current export version */
+    ExpectIntEQ(blob[1] & 0x0F, WOLFSSL_EXPORT_VERSION);
+
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+    ExpectIntEQ(wolfSSL_tls_import(ssl_imp, blob, sz), (int)sz);
+    /* the imported secrets must match the exported connection */
+    if (ssl_s != NULL && ssl_imp != NULL) {
+        ExpectBufEQ(ssl_imp->clientSecret, ssl_s->clientSecret,
+            ssl_s->specs.hash_size);
+        ExpectBufEQ(ssl_imp->serverSecret, ssl_s->serverSecret,
+            ssl_s->specs.hash_size);
+    }
+
+    /* the imported object takes over the transport */
+    wolfSSL_SetIOReadCtx(ssl_imp, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_imp, &test_ctx);
+    wolfSSL_free(ssl_s);
+    ssl_s = ssl_imp;
+    ssl_imp = NULL;
+
+    /* traffic works before any key update */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msgC, (int)sizeof(msgC)),
+        (int)sizeof(msgC));
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
+        (int)sizeof(msgC));
+    ExpectStrEQ(readBuf, msgC);
+
+    /* KeyUpdates initiated by the imported server */
+    for (i = 0; i < 3 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_write(ssl_s, msgS, (int)sizeof(msgS)),
+            (int)sizeof(msgS));
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
+            (int)sizeof(msgS));
+        ExpectStrEQ(readBuf, msgS);
+        /* the client sends its responding KeyUpdate with its next write */
+        ExpectIntEQ(wolfSSL_write(ssl_c, msgC, (int)sizeof(msgC)),
+            (int)sizeof(msgC));
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
+            (int)sizeof(msgC));
+        ExpectStrEQ(readBuf, msgC);
+    }
+
+    /* KeyUpdates initiated by the live peer toward the imported object */
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_write(ssl_c, msgC, (int)sizeof(msgC)),
+            (int)sizeof(msgC));
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
+            (int)sizeof(msgC));
+        ExpectStrEQ(readBuf, msgC);
+        ExpectIntEQ(wolfSSL_write(ssl_s, msgS, (int)sizeof(msgS)),
+            (int)sizeof(msgS));
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
+            (int)sizeof(msgS));
+        ExpectStrEQ(readBuf, msgS);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

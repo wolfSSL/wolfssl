@@ -692,7 +692,9 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value);
     returned.
     \return Failure All unsuccessful return values will be less than 0.
     \return VERSION_ERROR If a version mismatch is found ie DTLS v1 and ctx
-    was set up for DTLS v1.2 then VERSION_ERROR is returned.
+    was set up for DTLS v1.2 then VERSION_ERROR is returned. Also returned
+    when importing a DTLS v1.3 session from a buffer serialized before export
+    version 7, which lacks the DTLS v1.3 record layer state.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param buf serialized session to import.
@@ -830,10 +832,25 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
     \return Success If successful, the amount of the buffer used will
     be returned.
     \return Failure All unsuccessful return values will be less than 0.
+    \return NOT_READY_ERROR For a DTLS v1.3 session whose handshake has not
+    completed, or which has a KeyUpdate in flight. Both are transient: retry
+    the export after the handshake or KeyUpdate exchange completes.
+    \return DTLS_CID_ERROR For a session that negotiated a Connection ID,
+    which can not be serialized.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param buf buffer to hold serialized session.
     \param sz size of buffer.
+
+    \note The exported session and the connection it came from share the same
+    record protection keys and sequence numbers. Once the session has been
+    imported elsewhere, the original WOLFSSL must no longer be used to send
+    or receive, otherwise the two ends reuse AEAD nonces.
+
+    \note Records the peer has not yet acknowledged (for example a
+    NewSessionTicket) and acknowledgments not yet sent are not carried in the
+    serialized session; the peer retransmits anything it does not see
+    acknowledged.
 
     _Example_
     \code
@@ -868,10 +885,19 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
              be encrypted before storing if stored.
 
     \return the number of bytes written into buffer 'buf'
+    \return NOT_READY_ERROR For a TLS v1.3 session whose handshake has not
+    completed.
 
     \param ssl WOLFSSL structure to export the session from
     \param buf output of serialized session
     \param sz  size in bytes set in 'buf'
+
+    \note For TLS v1.3 the application traffic secrets are only carried from
+    export version 7 onward. A session imported from an older serialization
+    can carry traffic but can not perform a KeyUpdate.
+
+    \note As with wolfSSL_dtls_export, the original WOLFSSL must no longer be
+    used once the exported session has been imported elsewhere.
 
     \sa wolfSSL_dtls_import
     \sa wolfSSL_tls_import

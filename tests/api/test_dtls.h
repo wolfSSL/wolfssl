@@ -91,6 +91,8 @@ int test_dtls12_missing_finished(void);
 int test_wolfSSL_dtls_export(void);
 int test_wolfSSL_dtls_export_peers(void);
 int test_wolfSSL_dtls_import_state_extra_window_words(void);
+int test_wolfSSL_dtls_import_v6_canned(void);
+int test_wolfSSL_dtls13_import_reject_v6(void);
 int test_wolfSSL_DTLS_either_side(void);
 int test_generate_cookie(void);
 int test_wolfSSL_dtls_set_mtu(void);
@@ -144,6 +146,8 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export_peers),               \
         TEST_DECL_GROUP("dtls",                                                \
                            test_wolfSSL_dtls_import_state_extra_window_words), \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_import_v6_canned),           \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls13_import_reject_v6),         \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_either_side),                \
         TEST_DECL_GROUP("dtls", test_generate_cookie),                         \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_mtu),                    \
