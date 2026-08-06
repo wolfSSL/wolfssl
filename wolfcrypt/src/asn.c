@@ -7448,6 +7448,11 @@ static int CheckCurve(word32 oid)
 #ifdef HAVE_OID_ENCODING
 /* Encode dotted form of OID into byte array version.
  *
+ * Uses word16 for OIDs and can cause OIDs to be truncated.
+ * Do not use this for new code unless necessary. (use wc_EncodeObjectId32)
+ * We cannot change this function because FIPS code expects
+ * this signature.
+ *
  * @param [in]      in     Dotted form of OID.
  * @param [in]      inSz   Count of numbers in dotted form.
  * @param [in]      out    Buffer to hold OID.
@@ -7457,12 +7462,23 @@ static int CheckCurve(word32 oid)
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when buffer too small.
  */
-int wc_EncodeObjectId(const word32* in, word32 inSz, byte* out, word32* outSz)
+int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 {
-    return EncodeObjectId_ex(in, inSz, out, outSz);
+    return EncodeObjectId(in, inSz, out, outSz);
 }
 
-int EncodeObjectId_ex(const word32* in, word32 inSz, byte* out, word32* outSz)
+/* Encode dotted form of OID into byte array version.
+ *
+ * @param [in]      in     Dotted form of OID.
+ * @param [in]      inSz   Count of numbers in dotted form.
+ * @param [in]      out    Buffer to hold OID.
+ * @param [in, out] outSz  On in, size of buffer.
+ *                         On out, number of bytes in buffer.
+ * @return  0 on success
+ * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BUFFER_E when buffer too small.
+ */
+int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
 {
     int i, x, len;
     word32 d, t;
@@ -7546,8 +7562,7 @@ int EncodeObjectId_ex(const word32* in, word32 inSz, byte* out, word32* outSz)
 /* Encode dotted form of OID into byte array version.
  *
  * Uses word16 for OIDs and can cause OIDs to be truncated.
- * Do not use this for new code unless necessary. (use wc_EncodeObjectId
- * or EncodeObjectId_ex)
+ * Do not use this for new code unless necessary. (use wc_EncodeObjectId32)
  * We cannot change this function because FIPS code expects
  * this signature.
  *
@@ -7714,7 +7729,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when dotted form buffer too small.
  */
-int DecodeObjectId_ex(const byte* in, word32 inSz, word32* out, word32* outSz)
+int DecodeObjectId32(const byte* in, word32 inSz, word32* out, word32* outSz)
 {
     int x = 0, y = 0;
     word32 t = 0;
@@ -7849,7 +7864,7 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
         word32 decOid[MAX_OID_SZ];
         word32 decOidSz = MAX_OID_SZ;
         /* Decode the OID into dotted form. */
-        ret = DecodeObjectId_ex(oidData, oidSz, decOid, &decOidSz);
+        ret = DecodeObjectId32(oidData, oidSz, decOid, &decOidSz);
         if (ret == 0) {
             printf("  Decoded (Sz %u): ", decOidSz);
             for (i=0; i<decOidSz; i++) {
@@ -7858,7 +7873,7 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
             printf("\n");
         }
         else {
-            printf("DecodeObjectId failed: %d\n", ret);
+            printf("DecodeObjectId32 failed: %d\n", ret);
         }
     }
     #endif /* HAVE_OID_DECODING */
@@ -23126,14 +23141,14 @@ static int DecodeCertExtensions(DecodedCert* cert)
                                  cert->unknownExtCallbackEx != NULL)) {
                 word32 decOid[MAX_OID_SZ];
                 word32 decOidSz = MAX_OID_SZ;
-                ret = DecodeObjectId_ex(
+                ret = DecodeObjectId32(
                           dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                           dataASN[CERTEXTASN_IDX_OID].data.oid.length,
                           decOid, &decOidSz);
                 if (ret != 0) {
                     /* Should never get here as the extension was successfully
                      * decoded earlier. Something might be corrupted. */
-                    WOLFSSL_MSG("DecodeObjectId() failed. Corruption?");
+                    WOLFSSL_MSG("DecodeObjectId32() failed. Corruption?");
                     WOLFSSL_ERROR(ret);
                 }
 
@@ -38025,7 +38040,7 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                 /* Validate the OID encoding before decoding it. GetLength()
                  * returns 0 (not an error) for a zero-length item, and an OID
                  * whose last content octet has bit 8 set encodes no complete
-                 * sub-identifier. In either case DecodeObjectId() returns 0
+                 * sub-identifier. In either case DecodeObjectId32() returns 0
                  * with *outSz == 0, having written nothing to decOid, which
                  * would hand the callback an uninitialized OID buffer. */
                 if (GetASN_ObjectId(buff, oidContent, oidLen) != 0) {
@@ -38033,9 +38048,9 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                 }
                 /* Redundant given the check above, but it makes "the callback
                  * never sees uninitialized stack" true by construction rather
-                 * than by reasoning about DecodeObjectId's internals. */
+                 * than by reasoning about DecodeObjectId32's internals. */
                 XMEMSET(decOid, 0, sizeof(decOid));
-                cbRet = DecodeObjectId_ex(buff + oidContent, (word32)oidLen,
+                cbRet = DecodeObjectId32(buff + oidContent, (word32)oidLen,
                     decOid, &decOidSz);
                 if (cbRet == 0 && dcrl->unknownExtCallback != NULL) {
                     cbRet = dcrl->unknownExtCallback(decOid, decOidSz,
@@ -38500,7 +38515,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                         dcrl->unknownExtCallbackEx != NULL) {
                         word32 decOid[MAX_OID_SZ];
                         word32 decOidSz = MAX_OID_SZ;
-                        ret = DecodeObjectId_ex(
+                        ret = DecodeObjectId32(
                             dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                             dataASN[CERTEXTASN_IDX_OID].data.oid.length,
                             decOid, &decOidSz);
@@ -39977,7 +39992,7 @@ static void PrintObjectIdNum(XFILE file, unsigned char* oid, word32 len)
     word32 i;
 
     /* Decode OBJECT_ID into dotted form array. */
-    if (DecodeObjectId_ex(oid, len, dotted_nums, &num) == 0) {
+    if (DecodeObjectId32(oid, len, dotted_nums, &num) == 0) {
         /* Print out each number of dotted form. */
         for (i = 0; i < num; i++) {
             XFPRINTF(file, "%d", dotted_nums[i]);

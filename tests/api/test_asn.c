@@ -2682,7 +2682,7 @@ int test_wc_DecodeObjectId_FIPS16(void)
     return EXPECT_RESULT();
 }
 
-int test_wc_DecodeObjectId_ex(void)
+int test_wc_DecodeObjectId32(void)
 {
     EXPECT_DECLS;
 
@@ -2722,7 +2722,7 @@ int test_wc_DecodeObjectId_ex(void)
         word32 trueOutSz = sizeof(oid_dot_form) / sizeof(word32);
         /* Test 1: Normal decode */
         outSz = MAX_OID_SZ;
-        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
+        ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz), 0);
         ExpectIntEQ((int)outSz, trueOutSz);
         for (i = 0; i < ((outSz <= trueOutSz) ? outSz : trueOutSz); i++) {
@@ -2731,22 +2731,22 @@ int test_wc_DecodeObjectId_ex(void)
 
         /* Test 2: NULL args */
         outSz = MAX_OID_SZ;
-        ExpectIntEQ(DecodeObjectId_ex(NULL, sizeof(oid_secp112r1), out, &outSz),
+        ExpectIntEQ(DecodeObjectId32(NULL, sizeof(oid_secp112r1), out, &outSz),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
+        ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, NULL),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Test 3 (Bug 1): outSz=1 must return BUFFER_E, not OOB write.
          * The first OID byte decodes into two arcs, so outSz must be >= 2. */
         outSz = 1;
-        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
+        ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
         /* Test 4: outSz=0 must also return BUFFER_E */
         outSz = 0;
-        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
+        ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
@@ -2754,7 +2754,7 @@ int test_wc_DecodeObjectId_ex(void)
         {
             static const byte oid_one_byte[] = { 0x2a }; /* 1.2 */
             outSz = 2;
-            ExpectIntEQ(DecodeObjectId_ex(oid_one_byte, sizeof(oid_one_byte),
+            ExpectIntEQ(DecodeObjectId32(oid_one_byte, sizeof(oid_one_byte),
                                        out, &outSz), 0);
             ExpectIntEQ((int)outSz, 2);
             ExpectIntEQ(out[0], 1);
@@ -2763,7 +2763,7 @@ int test_wc_DecodeObjectId_ex(void)
 
         /* Test 6: Buffer too small for later arcs */
         outSz = 3; /* only room for 3 arcs, but OID has 7 */
-        ExpectIntEQ(DecodeObjectId_ex(oid_secp112r1, sizeof(oid_secp112r1),
+        ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
@@ -2771,7 +2771,7 @@ int test_wc_DecodeObjectId_ex(void)
         {
             word32 trueOutSz2 = sizeof(oid_dot_2) / sizeof(word32);
             outSz = MAX_OID_SZ;
-            ExpectIntEQ(DecodeObjectId_ex(oid_start_with_2,
+            ExpectIntEQ(DecodeObjectId32(oid_start_with_2,
                         sizeof(oid_start_with_2),
                         out, &outSz), 0);
             ExpectIntEQ((int)outSz, trueOutSz2);
@@ -2792,7 +2792,7 @@ int test_wc_DecodeObjectId_ex(void)
             word32 trueOutSz3 = sizeof(oid_dot_large_arc) / sizeof(word32);
 
             outSz = MAX_OID_SZ;
-            ExpectIntEQ(DecodeObjectId_ex(oid_large_arc, sizeof(oid_large_arc),
+            ExpectIntEQ(DecodeObjectId32(oid_large_arc, sizeof(oid_large_arc),
                                        out, &outSz), 0);
             ExpectIntEQ((int)outSz, (int)trueOutSz3);
             for (i = 0; i < ((outSz <= trueOutSz3) ? outSz : trueOutSz3); i++) {
@@ -2809,7 +2809,7 @@ int test_wc_DecodeObjectId_ex(void)
                 0x2a, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F
             };
             outSz = MAX_OID_SZ;
-            ExpectIntEQ(DecodeObjectId_ex(oid_overflow_arc,
+            ExpectIntEQ(DecodeObjectId32(oid_overflow_arc,
                         sizeof(oid_overflow_arc), out, &outSz),
                         WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
         }
@@ -2824,13 +2824,13 @@ int test_wc_EncodeObjectId(void)
     EXPECT_DECLS;
 #if defined(HAVE_OID_ENCODING) && !defined(NO_ASN)
     {
-        /* 1.3.132.0.6 (secp112r1) -- every arc fits in word16, so this
-         * encodes identically in both build configs. */
-        static const word32 oid_small[] = { 1U, 3U, 132U, 0U, 6U };
+        /* wc_EncodeObjectId() takes word16 arcs, so only OIDs whose arcs all
+         * fit in a word16 can be encoded with it. 1.3.132.0.6 (secp112r1). */
+        static const word16 oid_small[] = { 1U, 3U, 132U, 0U, 6U };
         static const byte oid_small_der[] = {
             0x2b, 0x81, 0x04, 0x00, 0x06
         };
-        const word32 oid_small_cnt = sizeof(oid_small) / sizeof(word32);
+        const word32 oid_small_cnt = sizeof(oid_small) / sizeof(word16);
         byte   out[MAX_OID_SZ];
         word32 outSz;
         word32 i;
@@ -2861,6 +2861,68 @@ int test_wc_EncodeObjectId(void)
         ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
+        /* Test 5: first arc greater than 2 is invalid (in[0] > 2) */
+        {
+            static const word16 oid_bad_first[] = { 3U, 1U };
+            outSz = sizeof(out);
+            ExpectIntEQ(wc_EncodeObjectId(oid_bad_first,
+                        sizeof(oid_bad_first) / sizeof(word16), out, &outSz),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
+
+        /* Test 6: fewer than two arcs is invalid (inSz < 2) */
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_EncodeObjectId(oid_small, 1, out, &outSz),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif /* HAVE_OID_ENCODING && !NO_ASN */
+
+    return EXPECT_RESULT();
+}
+
+int test_wc_EncodeObjectId32(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OID_ENCODING) && !defined(NO_ASN)
+    {
+        /* 1.3.132.0.6 (secp112r1) -- every arc fits in word16, so this
+         * encodes identically in both build configs. */
+        static const word32 oid_small[] = { 1U, 3U, 132U, 0U, 6U };
+        static const byte oid_small_der[] = {
+            0x2b, 0x81, 0x04, 0x00, 0x06
+        };
+        const word32 oid_small_cnt = sizeof(oid_small) / sizeof(word32);
+        byte   out[MAX_OID_SZ];
+        word32 outSz;
+        word32 i;
+
+        /* Test 1: length-only query (out == NULL) */
+        outSz = 0;
+        ExpectIntEQ(wc_EncodeObjectId32(oid_small, oid_small_cnt, NULL, &outSz),
+                    0);
+        ExpectIntEQ((int)outSz, (int)sizeof(oid_small_der));
+
+        /* Test 2: normal encode matches expected DER */
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_EncodeObjectId32(oid_small, oid_small_cnt, out, &outSz),
+                    0);
+        ExpectIntEQ((int)outSz, (int)sizeof(oid_small_der));
+        for (i = 0; i < outSz && i < sizeof(oid_small_der); i++) {
+            ExpectIntEQ(out[i], oid_small_der[i]);
+        }
+
+        /* Test 3: NULL args */
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_EncodeObjectId32(NULL, oid_small_cnt, out, &outSz),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_EncodeObjectId32(oid_small, oid_small_cnt, out, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Test 4: output buffer too small */
+        outSz = 1;
+        ExpectIntEQ(wc_EncodeObjectId32(oid_small, oid_small_cnt, out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
         /* Test 5 : arc greater that SHRT_MAX */
         {
             static const word32 oid_large[] = {
@@ -2872,8 +2934,8 @@ int test_wc_EncodeObjectId(void)
             const word32 oid_large_cnt = sizeof(oid_large) / sizeof(word32);
 
             outSz = sizeof(out);
-            ExpectIntEQ(wc_EncodeObjectId(oid_large, oid_large_cnt, out, &outSz),
-                        0);
+            ExpectIntEQ(wc_EncodeObjectId32(oid_large, oid_large_cnt, out,
+                        &outSz), 0);
             ExpectIntEQ((int)outSz, (int)sizeof(oid_large_der));
             for (i = 0; i < outSz && i < sizeof(oid_large_der); i++) {
                 ExpectIntEQ(out[i], oid_large_der[i]);
@@ -2883,7 +2945,7 @@ int test_wc_EncodeObjectId(void)
             {
                 word32 dec[MAX_OID_SZ];
                 word32 decSz = MAX_OID_SZ;
-                ExpectIntEQ(DecodeObjectId_ex(out, outSz, dec, &decSz), 0);
+                ExpectIntEQ(DecodeObjectId32(out, outSz, dec, &decSz), 0);
                 ExpectIntEQ((int)decSz, (int)oid_large_cnt);
                 for (i = 0; i < decSz && i < oid_large_cnt; i++) {
                     ExpectIntEQ(dec[i], oid_large[i]);
@@ -2896,15 +2958,24 @@ int test_wc_EncodeObjectId(void)
         {
             static const word32 oid_bad_first[] = { 3U, 1U };
             outSz = sizeof(out);
-            ExpectIntEQ(wc_EncodeObjectId(oid_bad_first,
+            ExpectIntEQ(wc_EncodeObjectId32(oid_bad_first,
                         sizeof(oid_bad_first) / sizeof(word32), out, &outSz),
                         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         }
 
         /* Test 7: fewer than two arcs is invalid (inSz < 2) */
         outSz = sizeof(out);
-        ExpectIntEQ(wc_EncodeObjectId(oid_small, 1, out, &outSz),
+        ExpectIntEQ(wc_EncodeObjectId32(oid_small, 1, out, &outSz),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Test 8: (in[0] * 40) + in[1] must not overflow a word32 */
+        {
+            static const word32 oid_overflow[] = { 2U, 0xFFFFFFFFU, 1U };
+            outSz = sizeof(out);
+            ExpectIntEQ(wc_EncodeObjectId32(oid_overflow,
+                        sizeof(oid_overflow) / sizeof(word32), out, &outSz),
+                        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        }
     }
 #endif /* HAVE_OID_ENCODING && !NO_ASN */
 
