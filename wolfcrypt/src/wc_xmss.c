@@ -1319,6 +1319,9 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
  * key->sk array. wc_XmssKey_FreeKey is the only function that
  * deallocates key->sk.
  *
+ * With a crypto callback device, the read callback and not the devId decides
+ * whether the software reload runs. See wc_XmssKey_Reload below.
+ *
  * @params [in] key  XMSS key to load.
  *
  * @return  0 on success.
@@ -1346,8 +1349,12 @@ int wc_XmssKey_Reload(XmssKey* key)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    /* State for HSM-backed keys lives in the device; no software reload. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    /* State for HSM-backed keys lives in the device; no software reload.
+     * A devId alone does not mean the device owns the key, as it may be set
+     * only to route other algorithms to an accelerator. A read callback says
+     * the caller holds the state, so only skip the reload without one. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID) &&
+            (key->read_private_key == NULL)) {
         WOLFSSL_MSG("wc_XmssKey_Reload is a no-op for HSM-backed keys");
         key->state = WC_XMSS_STATE_OK;
         return 0;

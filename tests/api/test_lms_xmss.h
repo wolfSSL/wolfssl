@@ -26,6 +26,8 @@
 
 int test_wc_LmsKey_sign_verify(void);
 int test_wc_LmsKey_reload_cache(void);
+int test_wc_LmsKey_reload_devid(void);
+int test_wc_XmssKey_reload_devid(void);
 int test_rfc9802_lms_x509_verify(void);
 int test_rfc9802_xmss_x509_verify(void);
 int test_rfc9802_lms_x509_gen(void);
@@ -39,6 +41,8 @@ int test_wc_XmssFeatureCoverage(void);
 #define TEST_LMS_XMSS_DECLS                                                  \
     TEST_DECL_GROUP("lms", test_wc_LmsKey_sign_verify),                 \
     TEST_DECL_GROUP("lms", test_wc_LmsKey_reload_cache),                \
+    TEST_DECL_GROUP("lms", test_wc_LmsKey_reload_devid),                \
+    TEST_DECL_GROUP("xmss", test_wc_XmssKey_reload_devid),              \
     TEST_DECL_GROUP("lms", test_rfc9802_lms_x509_verify),               \
     TEST_DECL_GROUP("xmss", test_rfc9802_xmss_x509_verify),             \
     TEST_DECL_GROUP("lms", test_rfc9802_lms_x509_gen),                  \
