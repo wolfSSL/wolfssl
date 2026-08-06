@@ -15,6 +15,9 @@
 #                       server-cert.pem
 #                       server-cert.der
 #                       server-cert-chain.der
+#                       server-cert-sha1.pem
+#                       server-cert-sha1-root.pem
+#                       client-cert-sha1.pem
 #                       server-ecc-rsa.pem
 #                       server-ecc.pem
 #                       1024/client-cert.der
@@ -633,6 +636,70 @@ run_renewcerts(){
     mv srv_tmp.pem server-cert.pem
     cat ca_tmp.pem >> server-cert.pem
     rm ca_tmp.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign server-cert-sha1.pem ###########
+    ###########################################################
+    # SHA-1 signed leaf. Used by the TLS 1.3 tests that check a server does
+    # not send a SHA-1 signed chain to a peer that did not advertise SHA-1.
+    echo "Updating server-cert-sha1.pem"
+    echo ""
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nSupport\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > server-sha1-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in server-sha1-req.pem -sha1 -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 51 > server-sha1-tmp.pem
+    check_result $? "Step 2"
+
+    rm server-sha1-req.pem
+
+    openssl x509 -in server-sha1-tmp.pem -text > server-cert-sha1.pem
+    check_result $? "Step 3"
+    rm server-sha1-tmp.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ####### update and sign server-cert-sha1-root.pem #########
+    ###########################################################
+    # SHA-256 leaf with a self signed SHA-1 root appended. RFC 8446 4.4.2.2
+    # lets the trust anchor be omitted, so its SHA-1 signature must not stop
+    # the chain from being sent.
+    echo "Updating server-cert-sha1-root.pem"
+    echo ""
+    echo -e "US\\nMontana\\nBozeman\\nSawtooth\\nConsulting\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ca-key.pem -config ./wolfssl.cnf -nodes -out ca-sha1-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in ca-sha1-req.pem -sha1 -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ca-key.pem -set_serial 52 -out ca-sha1-tmp.pem
+    check_result $? "Step 2"
+
+    rm ca-sha1-req.pem
+
+    openssl x509 -in server-cert.pem -text > server-cert-sha1-root.pem
+    check_result $? "Step 3"
+    openssl x509 -in ca-sha1-tmp.pem -text >> server-cert-sha1-root.pem
+    check_result $? "Step 4"
+    rm ca-sha1-tmp.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign client-cert-sha1.pem ###########
+    ###########################################################
+    # SHA-1 signed client leaf, issued by ca-cert.pem rather than self signed
+    # so it is not exempt from the RFC 8446 4.4.2.2 trust anchor rule. Used to
+    # check the client falls back to an empty certificate_list.
+    echo "Updating client-cert-sha1.pem"
+    echo ""
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nProgramming-2048\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes > client-sha1-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in client-sha1-req.pem -sha1 -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 53 > client-sha1-tmp.pem
+    check_result $? "Step 2"
+
+    rm client-sha1-req.pem
+
+    openssl x509 -in client-sha1-tmp.pem -text > client-cert-sha1.pem
+    check_result $? "Step 3"
+    rm client-sha1-tmp.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ###########################################################

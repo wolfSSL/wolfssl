@@ -49,6 +49,7 @@ int test_tls13_warning_alert_is_fatal(void);
 int test_tls13_unknown_ext_rejected(void);
 int test_tls13_hrr_recognized_ext_downgrade(void);
 int test_tls13_cert_req_sigalgs(void);
+int test_tls13_sha1_cert_chain(void);
 int test_tls13_derive_keys_no_key(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_pqc_hybrid_malformed_ecdh(void);
@@ -130,6 +131,7 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
     TEST_DECL_GROUP("tls13", test_tls13_warning_alert_is_fatal), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
+    TEST_DECL_GROUP("tls13", test_tls13_sha1_cert_chain),        \
     TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key),    \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_malformed_ecdh), \
