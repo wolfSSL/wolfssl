@@ -17389,7 +17389,7 @@ int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
     \return 0 on success.
     \return BAD_FUNC_ARG if ssl or dn is NULL, dnSz is 0, or dnSz exceeds
     the maximum content size.
-    \return MEMORY_E if memory allocation fails.
+    \return MEMORY_ERROR if memory allocation fails.
 
     \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
     \param dn pointer to the DER-encoded subject Name content.
@@ -17438,7 +17438,7 @@ int wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
     \return 0 on success.
     \return BAD_FUNC_ARG if ctx or dn is NULL, dnSz is 0, or dnSz exceeds
     the maximum content size.
-    \return MEMORY_E if memory allocation fails.
+    \return MEMORY_ERROR if memory allocation fails.
 
     \param ctx pointer to a WOLFSSL_CTX object, created with
     wolfSSL_CTX_new().
