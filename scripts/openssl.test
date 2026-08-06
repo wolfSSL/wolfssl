@@ -303,6 +303,7 @@ start_wolfssl_server() {
 check_server_ready() {
     # server should be ready, let's make sure
     server_ready=0
+    counter=0
     while [ "$counter" -lt 20 ]; do
         echo -e "waiting for $server_name ready..."
         echo -e Checking | nc -4 -w 1 -z localhost "$server_port"

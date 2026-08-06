@@ -48,6 +48,7 @@ client_out_file="$(pwd)/wolfssl_tls13_client_out$$"
 echo "ready file \"$ready_file\""
 
 create_port() {
+    counter=0
     while [ ! -s "$ready_file" ]; do
         if [ "$counter" -gt 50 ]; then
             break
