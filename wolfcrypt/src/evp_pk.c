@@ -51,11 +51,36 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     word32 memSz, int priv, int type)
 {
     WOLFSSL_EVP_PKEY* pkey;
+    char* prevData = NULL;
+    int prevSz = 0;
     int ret = 1;
 
     /* Get or create the EVP PKEY object. */
     if (*out != NULL) {
         pkey = *out;
+        /* Hold on to the data of the key this object held before. It is
+         * disposed of once the new key data has been copied in, as the caller
+         * may be decoding out of it. */
+        prevData = pkey->pkey.ptr;
+        prevSz = pkey->pkey_sz;
+        pkey->pkey.ptr = NULL;
+        pkey->pkey_sz = 0;
+    #ifdef OPENSSL_EXTRA
+        /* Dispose of the key object of the key this object held before. The
+         * type is about to change and wolfSSL_EVP_PKEY_free() only disposes of
+         * the object matching the type set. */
+        clearEVPPkeyKeys(pkey);
+    #endif
+        /* Drop metadata describing the key this object held before, so a
+         * reused object decodes to the same state as a new one. */
+        pkey->pkcs8HeaderSz = 0;
+        pkey->save_type = 0;
+    #ifdef HAVE_ECC
+        pkey->pkey_curve = 0;
+    #endif
+    #ifdef WOLFSSL_HAVE_MLDSA
+        WOLFSSL_ATOMIC_STORE(pkey->mldsaOID, 0);
+    #endif
     }
     else {
         pkey = wolfSSL_EVP_PKEY_new();
@@ -68,15 +93,25 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     /* Set the size and allocate memory for key data to be copied into. */
     pkey->pkey_sz = (int)memSz;
     if (memSz > 0) {
-        pkey->pkey.ptr = (char*)XMALLOC((size_t)memSz, NULL,
+        pkey->pkey.ptr = (char*)XMALLOC((size_t)memSz, pkey->heap,
             priv ? DYNAMIC_TYPE_PRIVATE_KEY : DYNAMIC_TYPE_PUBLIC_KEY);
         if (pkey->pkey.ptr == NULL) {
+            /* No encoding held - do not describe one. */
+            pkey->pkey_sz = 0;
             ret = 0;
         }
         if (ret == 1) {
             /* Copy in key data. */
             XMEMCPY(pkey->pkey.ptr, mem, memSz);
         }
+    }
+    /* The data of the key held before is no longer referenced. */
+    if (prevData != NULL) {
+        if (prevSz > 0) {
+            ForceZero(prevData, (word32)prevSz);
+        }
+        XFREE(prevData, pkey->heap,
+            priv ? DYNAMIC_TYPE_PRIVATE_KEY : DYNAMIC_TYPE_PUBLIC_KEY);
     }
     if (ret == 1) {
         /* Set key type passed in and return object. */

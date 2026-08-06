@@ -30951,6 +30951,7 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 {
     int sigSz = 0;
     int ret;
+    int totalSz;
     void* heap = NULL;
     /* The signature buffer is sized from the key at runtime. */
     int maxSigSz;
@@ -30961,6 +30962,11 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 
     if (requestSz < 0)
         return requestSz;
+
+    /* MakeSignature() hashes requestSz bytes out of buf below, so bound the
+     * read against the buffer before signing rather than only the write. */
+    if ((word32)requestSz > buffSz)
+        return BUFFER_E;
 
     /* Async crypto reuses the signing key's embedded CertSignCtx; only RSA and
      * ECC keys carry one. */
@@ -31032,7 +31038,13 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 #endif
 
     if (sigSz >= 0) {
-        if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
+        /* AddSignature() takes no buffer size, and writes the
+         * signatureAlgorithm and signatureValue on top of the outer SEQUENCE,
+         * so ask it for the exact size rather than estimating. */
+        totalSz = AddSignature(NULL, requestSz, certSignCtx->sig, sigSz, sType);
+        if (totalSz < 0)
+            sigSz = totalSz;
+        else if ((word32)totalSz > buffSz)
             sigSz = BUFFER_E;
         else
             sigSz = AddSignature(buf, requestSz, certSignCtx->sig, sigSz,
@@ -31343,6 +31355,7 @@ int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
                    WC_RNG* rng)
 {
     int sigSz = 0;
+    int totalSz;
     word32 sigCap = MAX_ENCODED_CLASSIC_SIG_SZ;
     CertSignCtx certSignCtx_lcl;
     CertSignCtx* certSignCtx = &certSignCtx_lcl;
@@ -31388,6 +31401,12 @@ int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
         return requestSz;
     }
 
+    /* MakeSignatureCb() hashes requestSz bytes out of buf below, so bound the
+     * read against the buffer before signing rather than only the write. */
+    if ((word32)requestSz > buffSz) {
+        return BUFFER_E;
+    }
+
     /* keyType is restricted to RSA_TYPE/ECC_TYPE above, so the signature is
      * a classic (non-PQC) one and fits MAX_ENCODED_CLASSIC_SIG_SZ. */
 #ifndef WOLFSSL_NO_MALLOC
@@ -31420,12 +31439,14 @@ int wc_SignCert_cb(int requestSz, int sType, byte* buf, word32 buffSz,
 #endif
 
     if (sigSz >= 0) {
-        /* Check buffer has room for signature structure. This is an estimate
-         * using MAX_SEQ_SZ * 2 to account for sequence headers and algorithm
-         * identifier overhead. For precise sizing, call AddSignature with
-         * NULL buffer first, but this estimate matches the existing pattern
-         * used in SignCert. */
-        if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz) {
+        /* AddSignature() takes no buffer size, and writes the
+         * signatureAlgorithm and signatureValue on top of the outer SEQUENCE,
+         * so ask it for the exact size rather than estimating. */
+        totalSz = AddSignature(NULL, requestSz, certSignCtx->sig, sigSz, sType);
+        if (totalSz < 0) {
+            sigSz = totalSz;
+        }
+        else if ((word32)totalSz > buffSz) {
             sigSz = BUFFER_E;
         }
         else {
