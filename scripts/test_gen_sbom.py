@@ -844,9 +844,16 @@ class TestDepMetaShape(unittest.TestCase):
         # detect_license() infers for wolfSSL's own main-package SBOM so a
         # downstream product's wolfssl dep and wolfSSL's self-SBOM agree.
         self.assertEqual(wolfssl['license'], 'GPL-3.0-only')
+        # Canonical purl: lowercased namespace/name, and the real wolfSSL
+        # release tag (`-stable`) as the git ref the version resolves to.
         self.assertEqual(
             wolfssl['purl']('5.7.4'),
-            'pkg:github/wolfSSL/wolfssl@v5.7.4')
+            'pkg:github/wolfssl/wolfssl@v5.7.4-stable')
+        # The CPE NVD registers for wolfSSL, so a CPE-driven scan matches
+        # wolfSSL advisories against a product that embeds wolfSSL.
+        self.assertEqual(
+            wolfssl['cpe']('5.7.4'),
+            'cpe:2.3:a:wolfssl:wolfssl:5.7.4:*:*:*:*:*:*:*')
 
     def test_openssl_dep_entry_describes_the_linked_artefact(self):
         openssl = gs.DEP_META['openssl']
@@ -860,6 +867,33 @@ class TestDepMetaShape(unittest.TestCase):
         self.assertEqual(
             openssl['purl']('3.5.0'),
             'pkg:github/openssl/openssl@openssl-3.5.0')
+        self.assertEqual(
+            openssl['cpe']('3.5.0'),
+            'cpe:2.3:a:openssl:openssl:3.5.0:*:*:*:*:*:*:*')
+
+    def test_every_dep_entry_carries_both_identifiers(self):
+        # A dep with only one identifier is invisible to half the scanner
+        # population: PURL serves OSV / Trivy / Dependency-Track, CPE serves
+        # NVD, which is what a CRA vulnerability-monitoring process keys on.
+        for key, meta in gs.DEP_META.items():
+            with self.subTest(dep=key):
+                purl = meta['purl']('1.2.3')
+                cpe = meta['cpe']('1.2.3')
+                self.assertTrue(purl.startswith('pkg:'), purl)
+                self.assertIn('1.2.3', purl)
+                self.assertTrue(cpe.startswith('cpe:2.3:a:'), cpe)
+                self.assertEqual(len(cpe.split(':')), 13, cpe)
+                self.assertIn(':1.2.3:', cpe)
+
+    def test_dep_purls_use_canonical_lowercase_namespace_and_name(self):
+        # purl-spec: the namespace and the name of the `github` type are not
+        # case sensitive and must be lowercased.  A mixed-case purl is read as
+        # a different package by a consumer that compares purl strings.
+        for key, meta in gs.DEP_META.items():
+            with self.subTest(dep=key):
+                purl = meta['purl']('1.2.3')
+                identifier = purl.split('@', 1)[0]
+                self.assertEqual(identifier, identifier.lower(), purl)
 
     def test_no_stale_dep_keys(self):
         # `falcon` is an algorithm, not a linked package; it must not
@@ -870,6 +904,53 @@ class TestDepMetaShape(unittest.TestCase):
         # unresolvable identifiers in the SBOM.
         for stale in ('falcon', 'liboqs', 'libxmss', 'liblms', 'xmss', 'lms'):
             self.assertNotIn(stale, gs.DEP_META)
+
+
+class TestGithubPurl(unittest.TestCase):
+    """The pkg:github identifier a consumer has to resolve."""
+
+    def test_namespace_and_name_are_lowercased(self):
+        # purl-spec, github type: the namespace and the name are not case
+        # sensitive and must be lowercased.
+        self.assertEqual(
+            gs.github_purl('wolfSSL', 'wolfBoot', 'v2.9.0'),
+            'pkg:github/wolfssl/wolfboot@v2.9.0')
+
+    def test_version_keeps_the_case_the_project_tags_with(self):
+        # The version is a git ref, and refs are case sensitive, so it must
+        # not be normalized along with the namespace and the name.
+        self.assertEqual(
+            gs.github_purl('wolfSSL', 'wolfHSM', 'wolfHSM-v1.4.0'),
+            'pkg:github/wolfssl/wolfhsm@wolfHSM-v1.4.0')
+
+    def test_release_tag_form_per_project(self):
+        # wolfSSL and wolfSSH tag releases `-stable`; wolfBoot and wolfTPM do
+        # not.  Emitting one shape for every project leaves half the stack
+        # pointing at a tag that does not exist.
+        self.assertEqual(
+            gs.github_release_tag('wolfssl', '5.9.1'), 'v5.9.1-stable')
+        self.assertEqual(
+            gs.github_release_tag('wolfssh', '1.5.0'), 'v1.5.0-stable')
+        self.assertEqual(
+            gs.github_release_tag('wolfhsm', '1.4.0'), 'wolfHSM-v1.4.0')
+        self.assertEqual(
+            gs.github_release_tag('wolfboot', '2.9.0'), 'v2.9.0')
+        self.assertEqual(
+            gs.github_release_tag('wolftpm', '4.0.0'), 'v4.0.0')
+
+    def test_release_tag_lookup_is_case_insensitive(self):
+        # --name arrives from a Makefile variable, so its case is not ours to
+        # assume; 'wolfSSL' must resolve the same form as 'wolfssl'.
+        self.assertEqual(
+            gs.github_release_tag('wolfSSL', '5.9.1'), 'v5.9.1-stable')
+
+    def test_project_purl_combines_both_rules(self):
+        self.assertEqual(
+            gs.wolfssl_project_purl('wolfboot', '2.9.0'),
+            'pkg:github/wolfssl/wolfboot@v2.9.0')
+        self.assertEqual(
+            gs.wolfssl_project_purl('wolfssl', '5.9.1'),
+            'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
 
 
 class TestEnabledDepsCli(unittest.TestCase):
@@ -1751,13 +1832,18 @@ class TestCdxDepComponent(unittest.TestCase):
         self.assertEqual(comp['version'], '1.3.1')
         self.assertTrue(comp['purl'].startswith('pkg:'))
         self.assertIn('zlib', comp['purl'])
+        # zlib tags releases `vX.Y.Z`, so the bare pkg-config version alone
+        # would not resolve to a git ref.
+        self.assertEqual(comp['purl'], 'pkg:github/madler/zlib@v1.3.1')
+        self.assertEqual(comp['cpe'], 'cpe:2.3:a:zlib:zlib:1.3.1:*:*:*:*:*:*:*')
         self.assertEqual(comp['externalReferences'][0]['type'], 'vcs')
 
-    def test_omits_version_and_purl_when_unknown(self):
+    def test_omits_version_purl_and_cpe_when_unknown(self):
         # When pkg-config cannot resolve the dep version, gen-sbom
         # emits the component WITHOUT a version field rather than
         # advertising a wrong one.  CRA scanners distinguish absent
-        # version from wrong version.
+        # version from wrong version.  A versionless CPE is worse than
+        # absent: `cpe:2.3:a:zlib:zlib::` matches every zlib release.
         original = gs.pkgconfig_version
         try:
             gs.pkgconfig_version = lambda *_a, **_k: None
@@ -1766,8 +1852,22 @@ class TestCdxDepComponent(unittest.TestCase):
             gs.pkgconfig_version = original
         self.assertNotIn('version', comp)
         self.assertNotIn('purl', comp)
+        self.assertNotIn('cpe', comp)
         # bom-ref is still present and deterministic.
         self.assertTrue(ref)
+
+    def test_wolfssl_dep_component_carries_nvd_cpe(self):
+        # The wolfSSH / wolfBoot case an integrator's NVD-driven scanner
+        # needs: the linked wolfSSL must be identifiable by CPE, not by
+        # purl alone.
+        _, comp = gs.cdx_dep_component(
+            'wolfssh', '1.5.0', 'wolfssl', {'wolfssl': '5.9.1'})
+        self.assertEqual(comp['name'], 'wolfssl')
+        self.assertEqual(comp['version'], '5.9.1')
+        self.assertEqual(
+            comp['cpe'], 'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
+        self.assertEqual(
+            comp['purl'], 'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
 
     def test_dep_version_override_wins_over_pkgconfig(self):
         # Embedded customers without pkg-config use --dep-version to
@@ -1855,6 +1955,21 @@ class TestSpdxDepPackage(unittest.TestCase):
         self.assertIn('openssl', purl_refs[0]['referenceLocator'])
         self.assertIn('0.10.0', purl_refs[0]['referenceLocator'])
 
+    def test_cpe_externalref_present_when_version_known(self):
+        # SPDX parity with the CDX side: the dep package carries the same
+        # NVD identifier, under the SECURITY category SPDX 2.3 §11.1 defines
+        # for cpe23Type.
+        _, pkg = gs.spdx_dep_package('wolfssl', {'wolfssl': '5.9.1'})
+        cpe_refs = [
+            r for r in pkg.get('externalRefs', [])
+            if r.get('referenceType') == 'cpe23Type'
+        ]
+        self.assertEqual(len(cpe_refs), 1)
+        self.assertEqual(cpe_refs[0]['referenceCategory'], 'SECURITY')
+        self.assertEqual(
+            cpe_refs[0]['referenceLocator'],
+            'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
+
 
 class TestGenerateCdx(unittest.TestCase):
     """gen-sbom:624 generate_cdx assembles the full CycloneDX 1.6 doc."""
@@ -1897,9 +2012,10 @@ class TestGenerateCdx(unittest.TestCase):
             'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
         # pkg:github resolves to OSV / GHSA / Snyk / Trivy directly,
         # without the vendor:product mapping a pkg:generic PURL would
-        # force.  pkg:github tag refs use the upstream `vX.Y.Z` shape
-        # (rather than bare `X.Y.Z`), matching wolfSSL's release tags.
-        self.assertEqual(comp['purl'], 'pkg:github/wolfSSL/wolfssl@v5.9.1')
+        # force.  The namespace and name are lowercased (purl-spec) and the
+        # version is the real release tag, which for wolfSSL is `-stable`.
+        self.assertEqual(comp['purl'],
+                         'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
         self.assertEqual(comp['hashes'],
                          [{'alg': 'SHA-256', 'content': 'a' * 64}])
         self.assertEqual(comp['licenses'],
@@ -2343,7 +2459,7 @@ class TestGenerateSpdx(unittest.TestCase):
         self.assertEqual(len(purl_refs), 1)
         self.assertEqual(
             purl_refs[0]['referenceLocator'],
-            'pkg:github/wolfSSL/wolfssl@v5.9.1')
+            'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
 
     def test_main_package_carries_advisory_external_ref(self):
         # SPDX 2.3 SECURITY/advisory externalRef pointing at the

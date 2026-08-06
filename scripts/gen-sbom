@@ -20,8 +20,15 @@ from datetime import datetime, timezone
 # `metadata.tools.components[].version` and SPDX `creationInfo.creators`
 # fields.  Reproducibility CI keys on byte-equal SBOMs across re-runs,
 # so this constant must change in lockstep with the output it produces.
+#
+# 1.2.1  Dependency components carry a CPE 2.3 identifier, and pkg:github
+#        PURLs use the canonical lowercase namespace and name with the
+#        project's real release tag as the version.  Numbered against 1.2
+#        rather than taking the wolfGlass 1.3 / 1.4 numbers: those describe
+#        an engine with changes this copy does not have, and a version that
+#        does not identify one output shape is worse than no version at all.
 GEN_SBOM_TOOL_NAME = 'wolfssl-sbom-gen'
-GEN_SBOM_VERSION = '1.2'
+GEN_SBOM_VERSION = '1.2.1'
 
 # Placeholder recorded in the component checksum fields when the operator
 # passes --no-artifact-hash: a build (ROM image, HSM firmware, binary-only
@@ -68,6 +75,43 @@ def project_urls(name):
     }
 
 
+# Release-tag form per project, keyed by lowercased package name.  The version
+# of a pkg:github PURL is a git ref, so `@v5.9.1` does not resolve for wolfSSL,
+# whose releases are tagged `v5.9.1-stable`: an integrator's scanner cannot
+# fetch the reference the SBOM points at.  Only a project whose tag differs
+# from the plain `v<version>` form needs an entry here.
+GITHUB_TAG_FORMS = {
+    'wolfssl': 'v{version}-stable',
+    'wolfssh': 'v{version}-stable',
+    'wolfclu': 'v{version}-stable',
+    'wolfscep': 'v{version}-stable',
+    'wolfhsm': 'wolfHSM-v{version}',
+}
+DEFAULT_GITHUB_TAG_FORM = 'v{version}'
+
+
+def github_release_tag(project, version):
+    """Return the git tag a pkg:github PURL for `project` must point at."""
+    form = GITHUB_TAG_FORMS.get(project.lower(), DEFAULT_GITHUB_TAG_FORM)
+    return form.format(version=version)
+
+
+def github_purl(namespace, repo, tag):
+    """Build a canonical pkg:github PURL.
+
+    purl-spec requires the namespace and the name of the `github` type to be
+    lowercased, so `pkg:github/wolfSSL/wolfssl` is not canonical: a consumer
+    that compares PURL strings (Dependency-Track, Trivy, OSV) reads it as a
+    different package from the one every other producer emits.  The version is
+    a git ref and keeps the case the project tags with."""
+    return f'pkg:github/{namespace.lower()}/{repo.lower()}@{tag}'
+
+
+def wolfssl_project_purl(name, version):
+    """Canonical pkg:github PURL for a wolfSSL-stack project."""
+    return github_purl('wolfSSL', name, github_release_tag(name, version))
+
+
 def derived_uuid(*parts):
     """Deterministic UUID from joined parts under the wolfSSL SBOM namespace.
     Re-runs of `make sbom` against the same source produce identical UUIDs,
@@ -102,6 +146,15 @@ def build_timestamp():
 # the *linked artefact* (so vulnerability scanners like OSV / Grype / Trivy
 # / Dependency-Track resolve CVEs against the right package).  Algorithm
 # enablement is captured separately via build_props (HAVE_FALCON, ...).
+#
+# Every entry carries both machine-resolvable identifiers, because the two
+# scanner families do not agree on one.  PURL serves the ecosystem scanners
+# (OSV, GHSA, Trivy, Dependency-Track); CPE serves NVD, which is what a CRA /
+# IEC 62443 vulnerability-monitoring process keys on.  A dependency with only
+# a PURL is invisible to a CPE-driven scan, so wolfSSL advisories never reach
+# the integrator of a product that embeds wolfSSL.  Each `cpe` value must be
+# the vendor:product pair NVD actually registers for that dependency; never
+# synthesize one.
 DEP_META = {
     # wolfssl itself, declared as a dependency by downstream wolfSSL-stack
     # products (wolfSSH, wolfMQTT, wolfTPM, ...) that link libwolfssl.  Only
@@ -120,7 +173,12 @@ DEP_META = {
         'license': 'GPL-3.0-only',
         'download': 'https://github.com/wolfSSL/wolfssl',
         'pkgconfig': 'wolfssl',
-        'purl': lambda v: f'pkg:github/wolfSSL/wolfssl@v{v}',
+        'purl': lambda v: wolfssl_project_purl('wolfssl', v),
+        # The CPE NVD registers for the wolfSSL library.  wolfCrypt is not a
+        # separate NVD product: it is compiled from the same wolfssl release,
+        # and its advisories are published against wolfssl:wolfssl, so this
+        # one identifier covers the whole linked artefact.
+        'cpe': lambda v: f'cpe:2.3:a:wolfssl:wolfssl:{v}:*:*:*:*:*:*:*',
     },
     'libz': {
         'name': 'zlib',
@@ -129,8 +187,10 @@ DEP_META = {
         'download': 'https://github.com/madler/zlib',
         'pkgconfig': 'zlib',
         # pkg:github resolves in OSV / GHSA / Snyk / Trivy without the
-        # vendor:product mapping a pkg:generic PURL would force.
-        'purl': lambda v: f'pkg:github/madler/zlib@{v}',
+        # vendor:product mapping a pkg:generic PURL would force.  zlib tags
+        # its releases `vX.Y.Z`, so the bare pkg-config version needs the `v`.
+        'purl': lambda v: github_purl('madler', 'zlib', f'v{v}'),
+        'cpe': lambda v: f'cpe:2.3:a:zlib:zlib:{v}:*:*:*:*:*:*:*',
     },
     # openssl, declared as a dependency by the OpenSSL-compat products
     # (wolfProvider, wolfEngine) that link libcrypto/libssl alongside wolfSSL.
@@ -145,7 +205,8 @@ DEP_META = {
         'license': 'Apache-2.0',
         'download': 'https://github.com/openssl/openssl',
         'pkgconfig': 'openssl',
-        'purl': lambda v: f'pkg:github/openssl/openssl@openssl-{v}',
+        'purl': lambda v: github_purl('openssl', 'openssl', f'openssl-{v}'),
+        'cpe': lambda v: f'cpe:2.3:a:openssl:openssl:{v}:*:*:*:*:*:*:*',
     },
 }
 
@@ -755,9 +816,13 @@ def cdx_dep_component(name, pkg_version, key, dep_version_overrides=None):
     if version:
         comp['version'] = version
         comp['purl'] = meta['purl'](version)
+        # Both identifiers are version-bearing, so neither can be emitted
+        # without a resolved version: a CPE with an empty version field
+        # matches every release of the dependency in an NVD scan.
+        comp['cpe'] = meta['cpe'](version)
     else:
         print(f"WARNING: version unknown for {meta['name']}; "
-              "omitting version and purl", file=sys.stderr)
+              "omitting version, purl and cpe", file=sys.stderr)
     return bom_ref, comp
 
 
@@ -778,11 +843,18 @@ def spdx_dep_package(key, dep_version_overrides=None):
         'copyrightText': 'NOASSERTION',
     }
     if version:
-        pkg['externalRefs'] = [{
-            'referenceCategory': 'PACKAGE-MANAGER',
-            'referenceType': 'purl',
-            'referenceLocator': meta['purl'](version),
-        }]
+        pkg['externalRefs'] = [
+            {
+                'referenceCategory': 'SECURITY',
+                'referenceType': 'cpe23Type',
+                'referenceLocator': meta['cpe'](version),
+            },
+            {
+                'referenceCategory': 'PACKAGE-MANAGER',
+                'referenceType': 'purl',
+                'referenceLocator': meta['purl'](version),
+            },
+        ]
     return spdx_id, pkg
 
 
@@ -839,7 +911,7 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
         'licenses': cdx_license_block(license_id, license_text),
         'copyright': f'Copyright (C) 2006-{year} wolfSSL Inc.',
         'cpe': f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*',
-        'purl': f'pkg:github/wolfSSL/{name}@v{version}',
+        'purl': wolfssl_project_purl(name, version),
         'hashes': [{'alg': 'SHA-256', 'content': lib_hash}],
         'externalReferences': [
             {'type': 'vcs',
@@ -965,7 +1037,7 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
             {
                 'referenceCategory': 'PACKAGE-MANAGER',
                 'referenceType': 'purl',
-                'referenceLocator': f'pkg:github/wolfSSL/{name}@v{version}',
+                'referenceLocator': wolfssl_project_purl(name, version),
             },
             {
                 'referenceCategory': 'SECURITY',
