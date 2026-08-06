@@ -3810,6 +3810,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     int ret = 0;
     word64 rndTmp;
     static int rdseed_sanity_status = 0;
+    word64 rndTmpLocal = 0;
 
     (void)os;
 
@@ -3851,21 +3852,19 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     else if (rdseed_sanity_status < 0) {
         return -1;
     }
-    {
-        word64 rndTmpLocal = 0;
-        for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
-                                                    output += sizeof(word64)) {
-            ret = IntelRDseed64_r(&rndTmpLocal);
-            if (ret != 0) {
-                break;
-            }
-            writeUnalignedWord64(output, rndTmpLocal);
-        }
 
-        ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
+    for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
+                                                output += sizeof(word64)) {
+        ret = IntelRDseed64_r(&rndTmpLocal);
         if (ret != 0) {
-            return ret;
+            break;
         }
+        writeUnalignedWord64(output, rndTmpLocal);
+    }
+
+    ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
+    if (ret != 0) {
+        return ret;
     }
 
     if (sz == 0)
@@ -3939,27 +3938,27 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
     word64 rndTmp;
     int ret = 0;
+    word64 rndTmpLocal = 0;
 
     (void)os;
 
     if (!IS_INTEL_RDRAND(intel_flags))
         return -1;
 
-    {
-        word64 rndTmpLocal = 0;
-        for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
-                                                    output += sizeof(word64)) {
-            ret = IntelRDrand64_r(&rndTmpLocal);
-            if (ret != 0) {
-                break;
-            }
-            writeUnalignedWord64(output, rndTmpLocal);
-        }
-        ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
+    for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
+                                                output += sizeof(word64)) {
+        ret = IntelRDrand64_r(&rndTmpLocal);
         if (ret != 0) {
-            return ret;
+            break;
         }
+        writeUnalignedWord64(output, rndTmpLocal);
     }
+
+    ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
+    if (ret != 0) {
+        return ret;
+    }
+
     if (sz == 0)
         return 0;
 

@@ -38,10 +38,7 @@
 
 typedef struct WC_CRYPTODEV {
     int cfd;
-    /* Placed here rather than appended so the bit-field lands in the padding
-     * after cfd - on LP64 this keeps sizeof and the offset of sess
-     * unchanged on LP32 the size of the struct grows. */
-    unsigned int inited : 1; /* is this object initialized (1) or not (0) */
+    WC_BITFIELD inited : 1; /* is this object initialized (1) or not (0) */
     struct session_op sess;
 } WC_CRYPTODEV;
 

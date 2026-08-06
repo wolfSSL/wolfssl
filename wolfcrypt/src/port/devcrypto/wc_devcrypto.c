@@ -89,13 +89,13 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
     /* clone the master fd */
     if (ioctl(fd, CRIOGET, &ctx->cfd) != 0) {
         WOLFSSL_MSG("Error cloning fd");
+        ctx->cfd = -1;
         return WC_DEVCRYPTO_E;
     }
 
     if (fcntl(ctx->cfd, F_SETFD, 1) == -1) {
         WOLFSSL_MSG("Error setting F_SETFD with fcntl");
-        (void)close(ctx->cfd);
-        return WC_DEVCRYPTO_E;
+        goto err_close;
     }
 
     /* set up session */
@@ -156,6 +156,7 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
         default:
             WOLFSSL_MSG("Unknown / Unimplemented algorithm type");
             (void)close(ctx->cfd);
+            ctx->cfd = -1;
             return BAD_FUNC_ARG;
     }
 
@@ -164,17 +165,15 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
     #if defined(DEBUG_DEVCRYPTO)
         perror("CIOGSESSION error ");
     #endif
-        (void)close(ctx->cfd);
         WOLFSSL_MSG("Error starting cryptodev session");
-        return WC_DEVCRYPTO_E;
+        goto err_close;
     }
 
 #if defined(CIOCGSESSINFO) && defined(DEBUG_DEVCRYPTO)
     sesInfo.ses = ctx->sess.ses;
     if (ioctl(ctx->cfd, CIOCGSESSINFO, &sesInfo)) {
-        (void)close(ctx->cfd);
         WOLFSSL_MSG("Error getting session info");
-        return WC_DEVCRYPTO_E;
+        goto err_close;
     }
     if (ctx->sess.cipher == 0) {
         printf("Using %s with driver %s\n", sesInfo.hash_info.cra_name,
@@ -190,6 +189,11 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
     (void)keySz;
 
     return 0;
+
+err_close:
+    (void)close(ctx->cfd);
+    ctx->cfd = -1;
+    return WC_DEVCRYPTO_E;
 }
 
 

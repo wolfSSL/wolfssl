@@ -235,8 +235,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     if ((ret = wc_InitSha256_ex(dst, src->heap, 0)) != 0) {
         return ret;
     }
-    dst->len  = src->len;
-    dst->used = src->used;
+
     if (src->len > 0) {
         dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (dst->msg == NULL) {
@@ -245,6 +244,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         }
         XMEMCPY(dst->msg, src->msg, src->len);
     }
+
+    dst->len  = src->len;
+    dst->used = src->used;
 
     return ret;
 #else

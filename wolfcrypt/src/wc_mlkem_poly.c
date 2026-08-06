@@ -5109,8 +5109,7 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_x3_eta2_aarch64(word64 rand[3 * 25], byte* seed,
-    byte o)
+static void mlkem_get_noise_x3_eta2_aarch64(word64* rand, byte* seed, byte o)
 {
     /* Only rand[i*25 + 4] is set here - the rest of the state is zeroed in
      * registers by the assembly. */
@@ -5264,7 +5263,7 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_eta2_aarch64(word64 rand[25], byte* seed, byte o)
+static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
 {
     readUnalignedWords64(rand, seed, 4);
     /* Transposed value same as not. */
