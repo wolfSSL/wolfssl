@@ -6100,6 +6100,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                WOLFSSL_MSG("AES key not set");
+                return MISSING_KEY;
+            }
             VECTOR_REGISTERS_PUSH;
             ret = wc_AesEncrypt(aes, in, out);
             VECTOR_REGISTERS_POP;
@@ -6121,6 +6125,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL)
                 return BAD_FUNC_ARG;
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                WOLFSSL_MSG("AES key not set");
+                return MISSING_KEY;
+            }
             VECTOR_REGISTERS_PUSH;
             ret = wc_AesDecrypt(aes, in, out);
             VECTOR_REGISTERS_POP;
@@ -16901,6 +16909,13 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     if (inSz % KEYWRAP_BLOCK_SIZE != 0)
         return BAD_FUNC_ARG;
 
+    /* The block loop below uses the wc_AesEncryptDirect macro, which bypasses
+     * the public function's guard. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+
     r = out + 8;
     XMEMCPY(r, in, inSz);
     XMEMSET(t, 0, sizeof(t));
@@ -17006,6 +17021,13 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     /* input must be multiple of 64-bits */
     if (inSz % KEYWRAP_BLOCK_SIZE != 0)
         return BAD_FUNC_ARG;
+
+    /* The block loop below uses the wc_AesDecryptDirect macro, which bypasses
+     * the public function's guard. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
 
     /* user IV optional */
     if (iv != NULL)
