@@ -5187,6 +5187,11 @@ int wolfSSL_EC25519_shared_key(unsigned char *shared, unsigned int *sharedSz,
     int res = 1;
     curve25519_key privkey;
     curve25519_key pubkey;
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    WC_RNG* rng = NULL;
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
+    int initTmpRng = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_EC25519_shared_key");
 
@@ -5206,8 +5211,13 @@ int wolfSSL_EC25519_shared_key(unsigned char *shared, unsigned int *sharedSz,
     }
     if (res) {
     #ifdef WOLFSSL_CURVE25519_BLINDING
-        /* An RNG is needed. */
-        if (wc_curve25519_set_rng(&privkey, wolfssl_make_global_rng()) != 0) {
+        /* An RNG is needed for blinding - create local or get global. */
+        rng = wolfssl_make_rng(tmpRng, &initTmpRng);
+        if (rng == NULL) {
+            WOLFSSL_MSG("wolfSSL_EC25519_shared_key failed to make RNG");
+            res = 0;
+        }
+        else if (wc_curve25519_set_rng(&privkey, rng) != 0) {
             res = 0;
         }
         else
@@ -5249,6 +5259,14 @@ int wolfSSL_EC25519_shared_key(unsigned char *shared, unsigned int *sharedSz,
         }
         wc_curve25519_free(&privkey);
     }
+
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    /* Disposed of after privkey, which references it for blinding. */
+    if (initTmpRng) {
+        wc_FreeRng(rng);
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
+    }
+#endif
 
     return res;
 #else
