@@ -45991,8 +45991,14 @@ static wc_test_ret_t ecc_encrypt_cryptocb_test(WC_RNG* rng)
     userA->devId = INVALID_DEVID;
     userB->devId = INVALID_DEVID;
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, userA);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, userB);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
@@ -81229,6 +81235,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         if (ret == 0) {
             haveSrc = 1;
             ret = wc_ecc_make_key(eccRng, 32, srcKey);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &srcKey->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
         }
         if (ret == 0) {
             outPub = wc_ecc_new_point_h(HEAP_HINT);

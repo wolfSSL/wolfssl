@@ -2927,6 +2927,86 @@ int test_record_size_matches_build_message(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_ASYNC_CRYPT)
+/* SendData() sizes the output buffer on every retry, including while an
+ * asynchronous BuildMessage is suspended part way through a record. Sizing
+ * runs the same build state machine, so the probe must not re-enter it: it
+ * would rewind buildMsgState, clear buildArgsSet, and the resumed record would
+ * be sized a second time. Check that a suspended build survives a probe, and
+ * that a probe from a clean state still returns the exact record size. */
+static int record_size_state_check(method_provider client_method,
+        method_provider server_method)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int expectedSz = 0, cleanSz = 0, busySz = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            client_method, server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (ssl_c != NULL) {
+        expectedSz = BuildMessage(ssl_c, NULL, 0, NULL, 256,
+                application_data, 0, 1, 0, CUR_ORDER);
+        ssl_c->options.buildMsgState = BUILD_MSG_BEGIN;
+        ssl_c->options.buildArgsSet = 0;
+        ExpectIntGT(expectedSz, 256);
+
+        /* Clearing the cache is what forces the BuildMessage path; an AEAD
+         * suite would otherwise answer from ssl->recordSzOverhead and the
+         * assertions below would hold no matter what the probe did. */
+        ssl_c->recordSzOverhead = 0;
+        cleanSz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+        ExpectIntEQ(cleanSz, expectedSz);
+
+        /* Same probe with a build suspended mid-record. */
+        ssl_c->recordSzOverhead = 0;
+        ssl_c->options.buildMsgState = BUILD_MSG_ENCRYPT;
+        ssl_c->options.buildArgsSet = 1;
+
+        busySz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+
+        ExpectIntEQ(ssl_c->options.buildMsgState, BUILD_MSG_ENCRYPT);
+        ExpectIntEQ(ssl_c->options.buildArgsSet, 1);
+        /* Still exact: wolfssl_local_GetMaxPlaintextSize() sizes DTLS
+         * fragments from this, so it may not degrade to an upper bound. */
+        ExpectIntEQ(busySz, expectedSz);
+
+        ssl_c->options.buildMsgState = BUILD_MSG_BEGIN;
+        ssl_c->options.buildArgsSet = 0;
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_ASYNC_CRYPT */
+
+int test_record_size_preserves_build_msg_state(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(WOLFSSL_ASYNC_CRYPT)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(record_size_state_check(wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    /* BuildTls13Message() clobbers buildMsgState by a different route: its
+     * sizeOnly return bypasses exit_buildmsg entirely. */
+    ExpectIntEQ(record_size_state_check(wolfTLSv1_3_client_method,
+            wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_record_size_cache_invalidated_on_renegotiation(void)
 {
     EXPECT_DECLS;

@@ -6177,9 +6177,11 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */
-    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    if (ret != 0)
-        return ret;
+    if (key) {
+        ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret != 0)
+            return ret;
+    }
 #endif
 
 #ifdef HAVE_PK_CALLBACKS
@@ -6203,7 +6205,11 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
+        /* with a PK callback the private key can live only in the callback,
+         * leaving no async device to push */
+        if (key != NULL) {
+            ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
+        }
     }
     else
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -25480,6 +25486,29 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
                                             ssl->curStartIdx + ssl->curSize);
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+                        /* Post-handshake auth resumes through
+                         * wolfSSL_negotiate() instead of reprocessing this
+                         * record, so it leaves processReply at doProcessInit
+                         * (an ordinary pending message leaves it at
+                         * runProcessingOneMessage). Finish the record here or
+                         * the trailing MAC is read as the next record header
+                         * and fails with VERSION_ERROR. Mirrors the end of
+                         * record block below: resume inside the record when
+                         * content is left, else skip the padding. */
+                        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                                ssl->options.processReply == doProcessInit) {
+                            if ((ssl->buffers.inputBuffer.idx -
+                                    ssl->curStartIdx) < ssl->curSize) {
+                                ssl->options.processReply =
+                                    runProcessingOneMessage;
+                            }
+                            else if (IsEncryptionOn(ssl, 0)) {
+                                ssl->buffers.inputBuffer.idx +=
+                                    ssl->keys.padSz;
+                            }
+                        }
+    #endif
     #ifdef WOLFSSL_EARLY_DATA
                         if (ret != 0)
                             return ret;
@@ -26254,6 +26283,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     if (ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E))
 #endif
     {
+        /* Note: these hit ssl->options even for a sizeOnly probe, where every
+         * other result goes to lcl_args, so a probe destroys the resume point
+         * of a suspended asynchronous build. wolfssl_local_GetRecordSize() is
+         * the only sizeOnly caller and restores them; a new one must too. */
         ret = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->options.buildArgsSet = 1;
@@ -26271,7 +26304,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         case BUILD_MSG_BEGIN:
         {
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
-            if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
+            /* Skipped for a size probe: the size is the same either way, and
+             * SetKeysSide() would swap the active encryption state and clear
+             * recordSzOverhead under a suspended asynchronous build. */
+            if (!sizeOnly && ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
                 /* For epochs >1 the current cipher parameters are located in
                  * ssl->secure_renegotiation->tmp_keys. Previous cipher
                  * parameters and for epoch 1 use ssl->keys */
@@ -45157,7 +45193,10 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
 #ifdef WOLFSSL_DTLS13
         int isDtls13 = ssl->options.dtls && ssl->options.tls1_3;
 #endif
-
+#ifdef WOLFSSL_ASYNC_CRYPT
+        byte savedBuildMsgState = ssl->options.buildMsgState;
+        byte savedBuildArgsSet = ssl->options.buildArgsSet;
+#endif
         if (ssl->specs.cipher_type == aead && ssl->recordSzOverhead != 0
 #ifdef WOLFSSL_DTLS13
                 && (!isDtls13 || payloadSz + (int)ssl->recordSzOverhead
@@ -45169,6 +45208,16 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
 
         recordSz = BuildMessage(ssl, NULL, 0, NULL, payloadSz, application_data,
              0, 1, 0, CUR_ORDER);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        /* Sizing shares the build state machine with an asynchronous
+         * BuildMessage that SendData() re-sizes on every retry, so the probe
+         * runs while that record is suspended. Restore its resume point, or
+         * the record is sized twice and rejected with BUFFER_E. Skipping the
+         * probe is not an option: wolfssl_local_GetMaxPlaintextSize() derives
+         * the DTLS fragment size from this result, so it must stay exact. */
+        ssl->options.buildMsgState = savedBuildMsgState;
+        ssl->options.buildArgsSet = savedBuildArgsSet;
+#endif
         /* use a safe upper bound in case of error */
         if (recordSz < 0) {
             recordSz = payloadSz + RECORD_HEADER_SZ

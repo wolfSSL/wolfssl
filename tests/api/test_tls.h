@@ -59,6 +59,7 @@ int test_tls12_ecdhe_rsa_ecdsa_client_cert(void);
 int test_wolfSSL_alert_type_string(void);
 int test_wolfSSL_alert_desc_string(void);
 int test_record_size_matches_build_message(void);
+int test_record_size_preserves_build_msg_state(void);
 int test_record_size_cache_invalidated_on_renegotiation(void);
 int test_wolfSSL_get_shared_ciphers(void);
 
@@ -101,6 +102,8 @@ int test_wolfSSL_get_shared_ciphers(void);
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_type_string),                \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_desc_string),                \
         TEST_DECL_GROUP("tls", test_record_size_matches_build_message),        \
+        TEST_DECL_GROUP("tls",                                                 \
+            test_record_size_preserves_build_msg_state),                       \
         TEST_DECL_GROUP("tls",                                                 \
             test_record_size_cache_invalidated_on_renegotiation),              \
         TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers)
