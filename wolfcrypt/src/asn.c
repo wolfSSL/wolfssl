@@ -15281,6 +15281,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
     if ((ret == 0) && (dataASN[RDNASN_IDX_ATTR_VAL].tag == ASN_BIT_STRING) &&
             (id != ASN_X500_UNIQUE_ID)) {
         WOLFSSL_MSG("BIT STRING RDN value only valid for x500UniqueIdentifier");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         ret = ASN_PARSE_E;
     }
 
@@ -15298,8 +15299,17 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         if (tag == ASN_BIT_STRING) {
             if ((strLen == 0) || (str[0] != 0)) {
                 WOLFSSL_MSG("BIT STRING RDN value not byte-aligned");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                 ret = ASN_PARSE_E;
             }
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            /* Empty value - rejected like a zero length DirectoryString. */
+            else if (strLen == 1) {
+                WOLFSSL_MSG("Empty BIT STRING RDN value");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                ret = ASN_PARSE_E;
+            }
+        #endif
             else {
                 str++;
                 strLen--;
@@ -15448,6 +15458,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 /* Get string reference. */
                 GetASN_GetRef(&dataASN[RDNASN_IDX_ATTR_VAL], &str, &strLen);
 
+                /* Strip the BIT STRING unused-bits count octet before the
+                 * length check below. GetRDN() has already validated the tag
+                 * and that the value is byte aligned. */
+                if ((tag == ASN_BIT_STRING) && (strLen > 0)) {
+                    str++;
+                    strLen--;
+                }
+
             #ifndef WOLFSSL_NO_ASN_STRICT
                 /* RFC 5280 section 4.1.2.4 lists a DirectoryString as being
                  * 1..MAX in length */
@@ -15459,25 +15477,6 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     ret = ASN_PARSE_E;
                 }
             #endif
-
-                /* Only x500UniqueIdentifier may be a BIT STRING. Strip the
-                 * unused-bits count octet - only byte-aligned values are
-                 * supported as the count isn't stored. */
-                if (tag == ASN_BIT_STRING) {
-                    if (nid != WC_NID_x500UniqueIdentifier) {
-                        WOLFSSL_MSG("BIT STRING RDN value only valid for "
-                                    "x500UniqueIdentifier");
-                        ret = ASN_PARSE_E;
-                    }
-                    else if ((strLen == 0) || (str[0] != 0)) {
-                        WOLFSSL_MSG("BIT STRING RDN value not byte-aligned");
-                        ret = ASN_PARSE_E;
-                    }
-                    else {
-                        str++;
-                        strLen--;
-                    }
-                }
 
                 /* Convert BER tag to a OpenSSL type. */
                 switch (tag) {

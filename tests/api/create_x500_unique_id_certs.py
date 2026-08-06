@@ -40,6 +40,8 @@ COMMON_NAME = 'LEAF Test Card'
 UNIQUE_ID = bytes([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF])
 # Same, but with an embedded NUL that truncates the subject display string.
 EMBEDDED_NUL_ID = bytes([0xAB, 0x00, 0xCD, 0xEF])
+# An empty BIT STRING ('03 01 00'), which the parser must reject.
+EMPTY_ID = b''
 
 OID_COUNTRY = '2.5.4.6'
 OID_ORG = '2.5.4.10'
@@ -210,6 +212,13 @@ if __name__ == '__main__':
         f.write('#ifdef OPENSSL_EXTRA\n')
         write_buffer(f, '', 'expEmbeddedNul', EMBEDDED_NUL_ID, False)
         f.write('#endif /* OPENSSL_EXTRA */\n\n')
+
+        f.write('#ifndef WOLFSSL_NO_ASN_STRICT\n')
+        write_buffer(f,
+            '/* Same certificate but with an empty BIT STRING value, which is\n'
+            ' * rejected like a zero length DirectoryString. */\n',
+            'leafEmptyUniqueIdDer', make_cert(EMPTY_ID), False)
+        f.write('#endif /* !WOLFSSL_NO_ASN_STRICT */\n\n')
 
         f.write('#endif /* %s */\n' % HEADER_GUARD)
     print('wrote %s' % HEADER_PATH)

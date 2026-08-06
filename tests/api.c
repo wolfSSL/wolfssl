@@ -747,6 +747,11 @@ static int test_wc_ParseCert_uniqueIdentifier(void)
     WOLFSSL_X509_NAME_ENTRY* entry = NULL;
     WOLFSSL_ASN1_STRING* str = NULL;
     int idx = -1;
+#ifndef NO_BIO
+    WOLFSSL_BIO* bio = NULL;
+    char printBuf[256];
+    int printLen = 0;
+#endif
 #endif
 
     wc_InitDecodedCert(&cert, leafUniqueIdDer, (word32)sizeof(leafUniqueIdDer),
@@ -819,6 +824,15 @@ static int test_wc_ParseCert_uniqueIdentifier(void)
     ExpectIntNE(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
     wc_FreeDecodedCert(&cert);
 
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* (4) An empty BIT STRING value is rejected like a zero length
+     * DirectoryString. */
+    wc_InitDecodedCert(&cert, leafEmptyUniqueIdDer,
+                       (word32)sizeof(leafEmptyUniqueIdDer), NULL);
+    ExpectIntNE(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+    wc_FreeDecodedCert(&cert);
+#endif
+
 #ifdef OPENSSL_EXTRA
     /* Value is also reachable by NID through the X509_NAME entries. */
     ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, leafUniqueIdDer,
@@ -831,6 +845,18 @@ static int test_wc_ParseCert_uniqueIdentifier(void)
     ExpectIntEQ(wolfSSL_ASN1_STRING_length(str), (int)sizeof(expUniqueId));
     ExpectIntEQ(XMEMCMP(wolfSSL_ASN1_STRING_get0_data(str), expUniqueId,
                     sizeof(expUniqueId)), 0);
+#ifndef NO_BIO
+    /* Attribute has a DN string, so printing the name doesn't fail. */
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_NAME_print_ex(bio, name, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntGT(printLen = wolfSSL_BIO_read(bio, printBuf,
+                    (int)sizeof(printBuf) - 1), 0);
+    if (printLen > 0) {
+        printBuf[printLen] = '\0';
+        ExpectNotNull(XSTRSTR(printBuf, "x500UniqueIdentifier="));
+    }
+    wolfSSL_BIO_free(bio);
+#endif
     wolfSSL_X509_free(x509);
     x509 = NULL;
 

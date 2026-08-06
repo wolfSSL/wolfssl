@@ -5069,7 +5069,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     /* Rarely used and legacy attributes. */
     { WC_NID_userId, WC_NAME_USER_ID_OID, oidCertNameType, "UID", "userId"},
     { WC_NID_x500UniqueIdentifier, WC_NAME_X500_UNIQUE_ID_OID, oidCertNameType,
-      "x500UniqueIdentifier", "X500 unique identifier"},
+      WC_SN_x500UniqueIdentifier, WC_LN_x500UniqueIdentifier},
     { WC_NID_title, WC_NAME_TITLE_OID, oidCertNameType, "title", "title"},
     { WC_NID_description, WC_NAME_DESCRIPTION_OID, oidCertNameType,
       "description", "description"},
