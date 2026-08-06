@@ -782,7 +782,7 @@ typedef int (*CryptoDevCallbackFunc)(int devId, struct wc_CryptoInfo* info, void
 #endif
 
 WOLFSSL_LOCAL void wc_CryptoCb_Init(void);
-WOLFSSL_LOCAL void wc_CryptoCb_Cleanup(void);
+WOLFSSL_LOCAL int wc_CryptoCb_Cleanup(void);
 WOLFSSL_LOCAL int wc_CryptoCb_GetDevIdAtIndex(int startIdx);
 WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);

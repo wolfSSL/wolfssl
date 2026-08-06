@@ -5012,6 +5012,36 @@ then
 fi
 
 
+# Altera Agilex 5 SDM crypto services (via libfcs)
+AC_ARG_ENABLE([alterafcs],
+    [AS_HELP_STRING([--enable-alterafcs],[Enable Altera Agilex 5 SDM crypto offload via libfcs: all | rng (default: disabled)])],
+    [ ENABLED_ALTERA_FCS=$enableval ],
+    [ ENABLED_ALTERA_FCS=no ]
+    )
+
+# Only the selection is recorded here. The backends depend on wolfCrypt
+# algorithms whose options have not been parsed yet, so the defines are emitted
+# later once those are known.
+if test "$ENABLED_ALTERA_FCS" = "yes" || test "$ENABLED_ALTERA_FCS" = "all"
+then
+    ENABLED_ALTERA_FCS_RNG=yes
+    ENABLED_ALTERA_FCS_HASH=yes
+    ENABLED_ALTERA_FCS_AES=yes
+    ENABLED_ALTERA_FCS_ECC=yes
+    ENABLED_ALTERA_FCS_HMAC=yes
+    ENABLED_ALTERA_FCS=yes
+fi
+if test "$ENABLED_ALTERA_FCS" = "rng"
+then
+    ENABLED_ALTERA_FCS_RNG=yes
+    ENABLED_ALTERA_FCS=yes
+fi
+if test "$ENABLED_ALTERA_FCS" = "yes"
+then
+    # libfdt is a transitive dependency of libFCS
+    LIBS="$LIBS -lFCS -lfdt"
+fi
+
 # Support for Linux dev/crypto calls
 AC_ARG_ENABLE([devcrypto],
     [AS_HELP_STRING([--enable-devcrypto],[Enable Linux dev crypto calls: all | aes (all aes support) | hash (all hash algos) | cbc (aes-cbc only) (default: disabled)])],
@@ -11508,7 +11538,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes" || test "x$ENABLED_ALTERA_FCS" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -13188,6 +13218,64 @@ AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
 AM_CONDITIONAL([BUILD_X86_ASM],[test "x$ENABLED_X86_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_AFALG],[test "x$ENABLED_AFALG" = "xyes"])
 AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])
+# The FCS backends are selected before the algorithm options are parsed. With
+# build-system settings, drop disabled algorithms and emit their defines. With
+# user settings, compile the selected sources and let user_settings.h own all
+# preprocessor configuration.
+if test "x$ENABLED_ALTERA_FCS" = "xyes"
+then
+    PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE -lFCS -lfdt"
+    if test "x$ENABLED_USERSETTINGS" != "xyes"
+    then
+        if test "x$ENABLED_RNG" = "xno"; then
+            ENABLED_ALTERA_FCS_RNG=no
+        fi
+        if test "x$ENABLED_SHA256" = "xno"; then
+            ENABLED_ALTERA_FCS_HASH=no
+        fi
+        if test "x$ENABLED_AES" = "xno"; then
+            ENABLED_ALTERA_FCS_AES=no
+        fi
+        if test "x$ENABLED_ECC" = "xno" || test "x$ENABLED_ASN" = "xno"
+        then
+            ENABLED_ALTERA_FCS_ECC=no
+        fi
+        if test "x$ENABLED_HMAC" = "xno" || \
+           (test "x$ENABLED_SHA256" = "xno" && \
+            test "x$ENABLED_SHA384" = "xno" && \
+            test "x$ENABLED_SHA512" = "xno")
+        then
+            ENABLED_ALTERA_FCS_HMAC=no
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS"
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_COPY -DWOLF_CRYPTO_CB_FREE"
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_SETKEY"
+        if test "x$ENABLED_ALTERA_FCS_RNG" = "xyes"; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS_RNG"
+        fi
+        if test "x$ENABLED_ALTERA_FCS_HASH" = "xyes"; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS_HASH"
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512_HASHTYPE"
+        fi
+        if test "x$ENABLED_ALTERA_FCS_AES" = "xyes"; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS_AES"
+        fi
+        if test "x$ENABLED_ALTERA_FCS_ECC" = "xyes"; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS_ECC"
+        fi
+        if test "x$ENABLED_ALTERA_FCS_HMAC" = "xyes"; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALTERA_FCS_HMAC"
+        fi
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_ALTERA_FCS],[test "x$ENABLED_ALTERA_FCS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ALTERA_FCS_RNG],[test "x$ENABLED_ALTERA_FCS_RNG" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ALTERA_FCS_HASH],[test "x$ENABLED_ALTERA_FCS_HASH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ALTERA_FCS_AES],[test "x$ENABLED_ALTERA_FCS_AES" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ALTERA_FCS_ECC],[test "x$ENABLED_ALTERA_FCS_ECC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ALTERA_FCS_HMAC],[test "x$ENABLED_ALTERA_FCS_HMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DEVCRYPTO],[test "x$ENABLED_DEVCRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_CAMELLIA],[test "x$ENABLED_CAMELLIA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MD2],[test "x$ENABLED_MD2" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -13942,6 +14030,7 @@ echo "   * C89:                        $ENABLED_C89"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux KCAPI:                $ENABLED_KCAPI"
+echo "   * Altera Agilex5 FCS:         $ENABLED_ALTERA_FCS"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * PK callbacks:               $ENABLED_PKCALLBACKS"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
