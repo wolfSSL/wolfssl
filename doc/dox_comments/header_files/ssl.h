@@ -17370,3 +17370,223 @@ int wolfSSL_get_scr_check_enabled(const WOLFSSL* ssl);
     \sa wolfSSL_get_scr_check_enabled
 */
 int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
+
+/*!
+    \ingroup TLS
+
+    \brief Adds a CA distinguished name to the list of certificate authorities
+    announced via the TLS 1.3 certificate_authorities extension (RFC 8446
+    section 4.2.4) on the given SSL session. The DN must be the inner content
+    of a DER-encoded X.509 Name (the bytes after the SEQUENCE tag and length),
+    as returned by wc_GetDecodedCertSubjectRaw(). The library copies the
+    bytes and prepends the SEQUENCE header on the wire automatically.
+
+    Multiple DNs may be added; each call appends to the list. Use
+    wolfSSL_ClearCertificateAuthorities() to reset the list.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if ssl or dn is NULL, dnSz is 0, or dnSz exceeds
+    the maximum content size.
+    \return MEMORY_E if memory allocation fails.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+    \param dn pointer to the DER-encoded subject Name content.
+    \param dnSz size in bytes of the DN content.
+
+    _Example_
+    \code
+    DecodedCert decoded;
+    const byte* subject = NULL;
+    int subjectSz = 0;
+
+    wc_InitDecodedCert(&decoded, certDer, certDerSz, NULL);
+    wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL);
+    wc_GetDecodedCertSubjectRaw(&decoded, &subject, &subjectSz);
+
+    ret = wolfSSL_UseCertificateAuthority(ssl, subject,
+            (unsigned int)subjectSz);
+    if (ret != 0) {
+        // error adding CA DN
+    }
+    wc_FreeDecodedCert(&decoded);
+    \endcode
+
+    \sa wolfSSL_CTX_UseCertificateAuthority
+    \sa wolfSSL_ClearCertificateAuthorities
+    \sa wolfSSL_GetPeerCertificateAuthorityCount
+    \sa wolfSSL_GetPeerCertificateAuthority
+    \sa wc_GetDecodedCertSubjectRaw
+*/
+int wolfSSL_UseCertificateAuthority(WOLFSSL* ssl,
+        const unsigned char* dn, unsigned int dnSz);
+
+/*!
+    \ingroup TLS
+
+    \brief Adds a CA distinguished name to the list of certificate authorities
+    announced via the TLS 1.3 certificate_authorities extension (RFC 8446
+    section 4.2.4) on all SSL sessions created from this context. The DN
+    format and requirements are identical to wolfSSL_UseCertificateAuthority().
+
+    Per-session lists set via wolfSSL_UseCertificateAuthority() take
+    precedence; if the SSL object has its own list, the CTX list is not sent.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if ctx or dn is NULL, dnSz is 0, or dnSz exceeds
+    the maximum content size.
+    \return MEMORY_E if memory allocation fails.
+
+    \param ctx pointer to a WOLFSSL_CTX object, created with
+    wolfSSL_CTX_new().
+    \param dn pointer to the DER-encoded subject Name content.
+    \param dnSz size in bytes of the DN content.
+
+    _Example_
+    \code
+    ret = wolfSSL_CTX_UseCertificateAuthority(ctx, subject,
+            (unsigned int)subjectSz);
+    if (ret != 0) {
+        // error adding CA DN
+    }
+    \endcode
+
+    \sa wolfSSL_UseCertificateAuthority
+    \sa wolfSSL_CTX_ClearCertificateAuthorities
+    \sa wc_GetDecodedCertSubjectRaw
+*/
+int wolfSSL_CTX_UseCertificateAuthority(WOLFSSL_CTX* ctx,
+        const unsigned char* dn, unsigned int dnSz);
+
+/*!
+    \ingroup TLS
+
+    \brief Frees and removes all CA distinguished names previously added to
+    the SSL session via wolfSSL_UseCertificateAuthority(). After this call
+    the session-level native CA list is empty; the CTX-level list (if any) is
+    not affected.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return none No return value.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    wolfSSL_UseCertificateAuthority(ssl, dn1, dn1Sz);
+    wolfSSL_UseCertificateAuthority(ssl, dn2, dn2Sz);
+    // Clear all session-level CA DNs:
+    wolfSSL_ClearCertificateAuthorities(ssl);
+    \endcode
+
+    \sa wolfSSL_UseCertificateAuthority
+    \sa wolfSSL_CTX_ClearCertificateAuthorities
+*/
+void wolfSSL_ClearCertificateAuthorities(WOLFSSL* ssl);
+
+/*!
+    \ingroup TLS
+
+    \brief Frees and removes all CA distinguished names previously added to
+    the context via wolfSSL_CTX_UseCertificateAuthority(). After this call
+    the CTX-level native CA list is empty.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return none No return value.
+
+    \param ctx pointer to a WOLFSSL_CTX object, created with
+    wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    wolfSSL_CTX_UseCertificateAuthority(ctx, dn, dnSz);
+    // Clear all CTX-level CA DNs:
+    wolfSSL_CTX_ClearCertificateAuthorities(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_UseCertificateAuthority
+    \sa wolfSSL_ClearCertificateAuthorities
+*/
+void wolfSSL_CTX_ClearCertificateAuthorities(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup TLS
+
+    \brief Returns the number of CA distinguished names received from the peer
+    in the TLS 1.3 certificate_authorities extension. This is typically called
+    inside a cert_cb (WOLFSSL_CERT_SETUP_CB) on the server side to inspect
+    which CAs the client trusts.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return >= 0 The number of peer CA DNs. Returns 0 if ssl is NULL or no
+    certificate_authorities extension was received.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    int count = wolfSSL_GetPeerCertificateAuthorityCount(ssl);
+    for (int i = 0; i < count; i++) {
+        int sz = wolfSSL_GetPeerCertificateAuthority(ssl, i, NULL, 0);
+        // sz is the DN size in bytes
+    }
+    \endcode
+
+    \sa wolfSSL_GetPeerCertificateAuthority
+    \sa wolfSSL_UseCertificateAuthority
+*/
+int wolfSSL_GetPeerCertificateAuthorityCount(const WOLFSSL* ssl);
+
+/*!
+    \ingroup TLS
+
+    \brief Copies the idx-th CA distinguished name received from the peer in
+    the TLS 1.3 certificate_authorities extension into the caller's buffer.
+    The DN is the inner content of the DER-encoded Name (without the SEQUENCE
+    header), matching the format accepted by wolfSSL_UseCertificateAuthority().
+
+    If outDn is NULL, returns the size of the DN in bytes (allowing the caller
+    to allocate the right amount of memory). If outDn is non-NULL and outDnSz
+    is large enough, copies the DN bytes and returns the number of bytes
+    written. If outDnSz is too small, returns BUFFER_E.
+
+    Requires WOLFSSL_TLS13 and !NO_CERTS and !WOLFSSL_NO_CA_NAMES.
+
+    \return > 0 The number of bytes written to outDn, or the DN size if
+    outDn is NULL.
+    \return BAD_FUNC_ARG if ssl is NULL or idx is out of range.
+    \return BUFFER_E if outDnSz is smaller than the DN.
+
+    \param ssl pointer to a WOLFSSL object, created with wolfSSL_new().
+    \param idx zero-based index of the peer CA DN to retrieve. Must be less
+    than the count returned by wolfSSL_GetPeerCertificateAuthorityCount().
+    \param outDn output buffer to receive the DN bytes, or NULL to query size.
+    \param outDnSz size of the output buffer in bytes.
+
+    _Example_
+    \code
+    int count = wolfSSL_GetPeerCertificateAuthorityCount(ssl);
+    for (int i = 0; i < count; i++) {
+        int sz = wolfSSL_GetPeerCertificateAuthority(ssl, i, NULL, 0);
+        if (sz > 0) {
+            unsigned char* dn = malloc(sz);
+            wolfSSL_GetPeerCertificateAuthority(ssl, i, dn,
+                    (unsigned int)sz);
+            // use dn[0..sz-1]
+            free(dn);
+        }
+    }
+    \endcode
+
+    \sa wolfSSL_GetPeerCertificateAuthorityCount
+    \sa wolfSSL_UseCertificateAuthority
+    \sa wc_GetDecodedCertSubjectRaw
+*/
+int wolfSSL_GetPeerCertificateAuthority(const WOLFSSL* ssl, int idx,
+        unsigned char* outDn, unsigned int outDnSz);

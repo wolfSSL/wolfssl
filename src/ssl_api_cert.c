@@ -1140,7 +1140,7 @@ int wolfSSL_Unload_trust_peers(WOLFSSL* ssl)
 #endif /* WOLFSSL_LOCAL_X509_STORE */
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-#ifndef WOLFSSL_NO_CA_NAMES
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
 /* Add a CA certificate to the list of CA names.
  *
  * @param [in, out] ca_names  List of CA certificate subject names.

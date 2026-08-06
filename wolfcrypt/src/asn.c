@@ -23485,6 +23485,28 @@ int wc_GetDecodedCertSubject(const struct DecodedCert* cert, char* buf,
     return 0;
 }
 
+/* Return a pointer to the decoded certificate's subject Name contents
+ * (the inside of the SEQUENCE, not the SEQUENCE header) and its length.
+ * The pointer aliases storage owned by cert and is only valid while
+ * cert is alive. */
+int wc_GetDecodedCertSubjectRaw(const struct DecodedCert* cert,
+                                const byte** subjectRaw, int* subjectRawSz)
+{
+    if (cert == NULL || subjectRaw == NULL || subjectRawSz == NULL)
+        return BAD_FUNC_ARG;
+
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT)
+    if (cert->subjectRaw == NULL || cert->subjectRawLen <= 0)
+        return ASN_PARSE_E;
+    *subjectRaw   = cert->subjectRaw;
+    *subjectRawSz = cert->subjectRawLen;
+    return 0;
+#else
+    (void)cert; (void)subjectRaw; (void)subjectRawSz;
+    return NOT_COMPILED_IN;
+#endif
+}
+
 int wc_GetDecodedCertIssuer(const struct DecodedCert* cert, char* buf,
                             word32* bufSz)
 {
