@@ -11031,6 +11031,8 @@ static WOLFSSL_X509_REVOKED* RevokedCertToRevoked(RevokedCert* rc, int seq)
         serial->length = rc->serialSz + 2;
         serial->dataMax = (word32)rc->serialSz + 2;
         serial->isDynamic = 1;
+        /* Tell consumers that the tag and length octets are present. */
+        serial->isDer = 1;
     }
     rev->serialNumber = serial;
 

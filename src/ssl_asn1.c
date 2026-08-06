@@ -1080,6 +1080,8 @@ static void wolfssl_asn1_integer_reset_data(WOLFSSL_ASN1_INTEGER* a)
     a->length = 0;
     /* No data, not negative. */
     a->negative = 0;
+    /* No data, so nothing is DER encoded. */
+    a->isDer = 0;
     /* Set type to positive INTEGER. */
     a->type = WOLFSSL_V_ASN1_INTEGER;
 }
@@ -1157,6 +1159,8 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
         dst->length   = src->length;
         dst->negative = src->negative;
         dst->type     = src->type;
+        /* Data layout is copied verbatim below, so carry the flag with it. */
+        dst->isDer    = src->isDer;
 
         if (!src->isDynamic) {
             /* Copy over data from/to fixed buffer. */
@@ -1968,6 +1972,8 @@ int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v)
         a->data[i++] = pad + j;
         /* Set length of DER encoding. +2 for tag and length */
         a->length = 2 + pad + j;
+        /* Tag and length octets are present. */
+        a->isDer = 1;
 
         /* Add pad byte if required. */
         if (pad == 1) {

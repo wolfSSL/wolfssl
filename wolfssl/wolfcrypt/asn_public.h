@@ -345,6 +345,8 @@ typedef struct WOLFSSL_ASN1_INTEGER {
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
     WC_BITFIELD    isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
+    WC_BITFIELD    isDer:1;     /* flag for if data holds a DER encoded INTEGER,
+                                 * tag and length included (1 is yes 0 is no) */
 
     int length;   /* Length of DER encoding. */
     int type;     /* ASN.1 type. Includes negative flag. */
