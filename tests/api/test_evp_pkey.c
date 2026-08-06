@@ -3227,6 +3227,24 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void)
     ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL,
         &p, (long)mldsaSz));
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+
+    /* i2d must emit the full PKCS#8 wrapper (the parameter set only exists
+     * in the AlgorithmIdentifier) so the output round-trips through d2i. */
+    {
+        WOLFSSL_EVP_PKEY* pkey2 = NULL;
+        unsigned char* out = NULL;
+
+        ExpectIntEQ(wolfSSL_i2d_PrivateKey(pkey, &out), mldsaSz);
+        ExpectNotNull(out);
+        if (out != NULL) {
+            ExpectIntEQ(XMEMCMP(out, mldsaDer, (size_t)mldsaSz), 0);
+            p = out;
+            ExpectNotNull(pkey2 = wolfSSL_d2i_PrivateKey(
+                WC_EVP_PKEY_DILITHIUM, NULL, &p, (long)mldsaSz));
+            wolfSSL_EVP_PKEY_free(pkey2);
+        }
+        XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 

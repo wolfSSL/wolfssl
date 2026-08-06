@@ -1490,6 +1490,14 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
                 return NULL;
             }
 
+        #ifdef WOLFSSL_HAVE_MLDSA
+            /* Keep the full PKCS#8 wrapper for ML-DSA so i2d retains the
+             * parameter set held in the AlgorithmIdentifier. */
+            if (type == WC_EVP_PKEY_DILITHIUM) {
+                pkcs8HeaderSz = 0;
+            }
+        #endif
+
             (void)idx; /* not used */
         }
         /* Ensure no error occurred try to remove any PKCS#8 header. */
