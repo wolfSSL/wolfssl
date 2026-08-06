@@ -521,6 +521,16 @@ if(WOLFSSL_IOTSAFE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_IOTSAFE")
 endif()
 
+add_option("WOLFSSL_VAULTIC" "Enable WISeKey/SealSQ VaultIC support (default: disabled)" "no" "yes;no")
+if(WOLFSSL_VAULTIC)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_VAULTIC")
+    # VaultIC port supports PK callbacks and crypto callbacks (mirror autotools
+    # --enable-vaultic). These options are declared later, so force them before
+    # their add_option() calls.
+    force_option(WOLFSSL_PKCALLBACKS "yes")
+    force_option(WOLFSSL_CRYPTOCB "yes")
+endif()
+
 add_option("WOLFSSL_WOLFSENTRY" "Enable wolfSentry support (default: disabled)" "no" "yes;no")
 if(WOLFSSL_WOLFSENTRY)
     foreach(_o WOLFSSL_MD5)
@@ -4585,6 +4595,11 @@ endif()
 if(NOT BUILD_CRYPTOAUTHLIB)
   list(APPEND HEADER_EXCLUDE
     "wolfssl/wolfcrypt/port/atmel")
+endif()
+
+if(NOT BUILD_VAULTIC)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/sealsq")
 endif()
 
 if(NOT BUILD_AFALG)

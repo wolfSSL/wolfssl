@@ -11354,7 +11354,29 @@ AC_ARG_ENABLE([cryptocb-sw-test],
     [ ENABLED_CRYPTOCB_SW_TEST=yes ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno"
+# WISeKey/SealSQ VaultIC secure element. Parsed here, ahead of the crypto
+# callback aggregation below, so it can promote PK callbacks and crypto
+# callbacks before the checks that depend on them.
+AC_ARG_ENABLE([vaultic],
+    [AS_HELP_STRING([--enable-vaultic],[Enable WISeKey/SealSQ VaultIC secure element support (default: disabled)])],
+    [ ENABLED_VAULTIC=$enableval ],
+    [ ENABLED_VAULTIC=no ]
+    )
+
+if test "$ENABLED_VAULTIC" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VAULTIC"
+    ENABLED_VAULTIC=yes
+    # VaultIC port supports TLS PK callbacks and wolfCrypt crypto callbacks.
+    # CRYPTOCB is promoted through the aggregation below; promote PK callbacks
+    # here.
+    if test "$ENABLED_PKCALLBACKS" = "no"; then
+        ENABLED_PKCALLBACKS=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
+    fi
+fi
+
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -13173,6 +13195,7 @@ AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
+AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
@@ -13782,6 +13805,7 @@ echo "   * PK callbacks:               $ENABLED_PKCALLBACKS"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
+echo "   * WISeKey/SealSQ VaultIC:     $ENABLED_VAULTIC"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * STMicro STSAFE:             $ENABLED_STSAFE"
