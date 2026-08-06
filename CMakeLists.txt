@@ -4569,6 +4569,7 @@ include(GNUInstallDirs)
 
 set(HEADER_EXCLUDE
   "internal.h"
+  "ssl_sess.h"
   "wolfssl/wolfcrypt/port/nrf51.h"
   "wolfssl/wolfcrypt/port/arm"
   "wolfssl/wolfcrypt/port/cypress"
