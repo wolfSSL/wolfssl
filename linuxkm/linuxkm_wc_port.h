@@ -762,16 +762,63 @@
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
         #endif
+
+        #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) && \
+            defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
+            #error Conflicting settings for DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_foo
+        #endif
+
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
-                int _svr_ret = wc_save_vector_registers_x86(WC_SVR_FLAG_NONE); \
-                if (_svr_ret != 0) {                         \
-                    fail_clause                              \
-                }                                            \
-            }
+
+            #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+
+                #define SAVE_VECTOR_REGISTERS(fail_clause) {                                                  \
+                    int _svr_ret = wc_save_vector_registers_x86(WC_SVR_FLAG_NONE);                            \
+                    if (_svr_ret != 0) {                                                                      \
+                        pr_err("ERROR: SAVE_VECTOR_REGISTERS() with DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON "  \
+                               "failed, code %d in %s at %s L %d\n", _svr_ret, __func__, __FILE__, __LINE__); \
+                        dump_stack();                                                                         \
+                        {                                                                                     \
+                            fail_clause                                                                       \
+                        }                                                                                     \
+                    }                                                                                         \
+                }
+
+            #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
+
+                #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
+                    int _svr_ret = WC_ACCEL_INHIBIT_E;           \
+                    (void)_svr_ret;                              \
+                    fail_clause                                  \
+                }
+
+            #else
+
+                #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
+                    int _svr_ret = wc_save_vector_registers_x86(WC_SVR_FLAG_NONE); \
+                    if (_svr_ret != 0) {                         \
+                        fail_clause                              \
+                    }                                            \
+                }
+
+            #endif
+
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
-            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+            #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+                #define SAVE_VECTOR_REGISTERS2() \
+                ({                                                                                            \
+                    int _svr_ret = wc_save_vector_registers_x86(WC_SVR_FLAG_NONE);                            \
+                    if (_svr_ret != 0) {                                                                      \
+                        pr_err("ERROR: SAVE_VECTOR_REGISTERS2() with DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON " \
+                               "returned %d in %s at %s L %d\n", _svr_ret, __func__, __FILE__, __LINE__);     \
+                        dump_stack();                                                                         \
+                    }                                                                                         \
+                    _svr_ret;                                                                                 \
+                })
+            #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
+                #define SAVE_VECTOR_REGISTERS2() WC_ACCEL_INHIBIT_E
+            #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
                 #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_FUZZ)
             #else
                 #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_NONE)
@@ -782,7 +829,21 @@
         #endif
 
         #ifndef DISABLE_VECTOR_REGISTERS
-            #define DISABLE_VECTOR_REGISTERS() wc_save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
+            #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+                /* There must be no DISABLE_VECTOR_REGISTERS() calls in a
+                 * DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON build -- ERROR if any
+                 * calls occur.
+                 */
+                #define DISABLE_VECTOR_REGISTERS()                                                          \
+                ({                                                                                          \
+                    pr_err("ERROR: DISABLE_VECTOR_REGISTERS() with DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON " \
+                           "in %s at %s L %d\n", __func__, __FILE__, __LINE__);                             \
+                    dump_stack();                                                                           \
+                    wc_save_vector_registers_x86(WC_SVR_FLAG_INHIBIT);                                      \
+                })
+            #else
+                #define DISABLE_VECTOR_REGISTERS() wc_save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
+            #endif
         #endif
         #ifndef REENABLE_VECTOR_REGISTERS
             #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
