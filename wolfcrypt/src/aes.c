@@ -228,6 +228,16 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
 #endif
 
+/* Select the base or the crypto-extension AES at run time on 32-bit Arm.  Same
+ * test as WOLFSSL_ARM32_AES_HW_FLAGS in aes.h - which documents it - plus the
+ * run-time detection needed to make the choice. */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
+    !defined(WOLFSSL_ARMASM_NO_BASE_IMPL) && defined(HAVE_CPUID_ARM32)
+    #define WOLFSSL_ARM32_AES_DISPATCH
+#endif
+
 /* Define AES implementation includes and functions */
 #if defined(STM32_CRYPTO) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
      /* STM32F2/F4/F7/L4/L5/H7/WB55 hardware AES support for ECB, CBC, CTR and GCM modes */
@@ -1086,8 +1096,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #elif defined(WOLFSSL_ARMASM)
 /* WOLFSSL_ARM32_AES_DISPATCH - run-time selection between the base and the
- * crypto-extension AES on 32-bit Arm - is defined in aes.h, which needs it to
- * size the Aes object and to know whether this file owns the GMULT name. */
+ * crypto-extension AES on 32-bit Arm - is defined at the top of this file.  See
+ * WOLFSSL_ARM32_AES_HW_FLAGS in aes.h for how the two relate. */
 
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;

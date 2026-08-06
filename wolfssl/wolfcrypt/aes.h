@@ -35,40 +35,36 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #define WOLF_CRYPT_AES_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/cpuid.h>
 
 #if defined(WOLFSSL_ARMASM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
     !defined(GCM_TABLE_4BIT)
     #define GCM_TABLE_4BIT
 #endif
 
-/* On 32-bit Arm both the base (table) AES and the Armv8 crypto-extension AES
+/* WOLFSSL_ARM32_AES_HW_FLAGS - whether the Aes object carries the run-time
+ * implementation-selection flags on 32-bit Arm.
+ *
+ * On 32-bit Arm both the base (table) AES and the Armv8 crypto-extension AES
  * are compiled into one object by default, and the implementation is chosen at
  * run time through aes->use_aes_hw_crypto - mirroring the AArch64 path.  The
  * base fallback can be dropped with WOLFSSL_ARMASM_NO_BASE_IMPL (crypto always
  * present), and WOLFSSL_ARMASM_NO_HW_CRYPTO keeps only the base, both of which
  * revert to direct calls with no run-time check.  Thumb-2 has base assembly
- * only - no crypto-extension AES - so it never dispatches, and neither does a
- * build with no run-time detection to dispatch on (HAVE_CPUID_ARM32); both fall
- * back to the compile-time choice.
+ * only - no crypto-extension AES - so it never dispatches either.
  *
- * Defined here rather than in aes.c because the header needs it too: it decides
- * whether aes.c compiles the software GHASH (which owns the GMULT name).
- *
- * WOLFSSL_ARM32_AES_HW_FLAGS - whether the Aes object carries the selection
- * flags - is deliberately the same test without HAVE_CPUID_ARM32.  That depends
- * on __ARM_ARCH, which comes from -march rather than from options.h, and the
- * layout of a public structure must not vary with a compiler flag the
- * application is not obliged to match.  A build with the flags but no run-time
- * detection simply never reads them. */
+ * aes.c performs the dispatch under WOLFSSL_ARM32_AES_DISPATCH, deliberately
+ * the same test as here with HAVE_CPUID_ARM32 added: a build with no run-time
+ * detection to dispatch on falls back to the compile-time choice.  The flags
+ * are not conditional on it because HAVE_CPUID_ARM32 depends on __ARM_ARCH,
+ * which comes from -march rather than from options.h, and the layout of a
+ * public structure must not vary with a compiler flag the application is not
+ * obliged to match.  A build with the flags but no run-time detection simply
+ * never reads them. */
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
     !defined(WOLFSSL_ARMASM_THUMB2) && \
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
     !defined(WOLFSSL_ARMASM_NO_BASE_IMPL)
     #define WOLFSSL_ARM32_AES_HW_FLAGS
-    #ifdef HAVE_CPUID_ARM32
-        #define WOLFSSL_ARM32_AES_DISPATCH
-    #endif
 #endif
 
 #if !defined(NO_AES) || defined(WOLFSSL_SM4)
