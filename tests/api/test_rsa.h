@@ -47,6 +47,7 @@ int test_wc_RsaFunctionCheckIn_OversizedModulus(void);
 int test_wc_RsaKeyToDer_SizeOverflow(void);
 int test_wc_RsaDecisionCoverage(void);
 int test_wc_RsaFeatureCoverage(void);
+int test_wc_CryptoCb_RsaPssVerify(void);
 
 #define TEST_RSA_DECLS                                          \
     TEST_DECL_GROUP("rsa", test_wc_InitRsaKey),                 \
@@ -71,6 +72,7 @@ int test_wc_RsaFeatureCoverage(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaFunctionCheckIn_OversizedModulus), \
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToDer_SizeOverflow),           \
     TEST_DECL_GROUP("rsa", test_wc_RsaDecisionCoverage),        \
-    TEST_DECL_GROUP("rsa", test_wc_RsaFeatureCoverage)
+    TEST_DECL_GROUP("rsa", test_wc_RsaFeatureCoverage),        \
+    TEST_DECL_GROUP("rsa", test_wc_CryptoCb_RsaPssVerify)
 
 #endif /* WOLFCRYPT_TEST_RSA_H */

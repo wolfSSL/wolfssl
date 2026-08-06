@@ -36,6 +36,9 @@
 #ifdef WOLFSSL_SHA384
 #include <wolfssl/wolfcrypt/sha512.h>
 #endif
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_rsa.h>
 
@@ -1999,3 +2002,154 @@ int test_wc_RsaFeatureCoverage(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_RsaFeatureCoverage */
+
+/* Test that wc_RsaPSS_VerifyCheck() routes RSA-PSS verification through a
+ * registered crypto callback (CryptoCb) device. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+    defined(WC_RSA_PSS) && !defined(NO_RSA) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_SHA256)
+/* Spy device: on RSA-PSS verify counts the request, verifies in software and
+ * reports via res; declines other pk types so sign / keygen run in software. */
+static int rsa_pss_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* pssVerifySeen = (int*)ctx;
+
+    (void)devIdArg;
+
+    if (info == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_PK &&
+            info->pk.type == WC_PK_TYPE_RSA_PSS_VERIFY) {
+        RsaKey* key = info->pk.rsa_pss_verify.key;
+        int save;
+        int v;
+        byte* outbuf;
+        word32 outbufSz = 512;
+
+        outbuf = (byte*)XMALLOC(outbufSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (outbuf == NULL) {
+            return MEMORY_E;
+        }
+
+        if (pssVerifySeen != NULL) {
+            (*pssVerifySeen)++;
+        }
+
+        save = key->devId;
+        key->devId = INVALID_DEVID;
+        v = wc_RsaPSS_VerifyCheck(
+                info->pk.rsa_pss_verify.sig, info->pk.rsa_pss_verify.sigSz,
+                outbuf, outbufSz,
+                info->pk.rsa_pss_verify.digest, info->pk.rsa_pss_verify.digestSz,
+                info->pk.rsa_pss_verify.hash, info->pk.rsa_pss_verify.mgf,
+                key);
+        key->devId = save;
+
+        XFREE(outbuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+        /* Only a real verdict maps to res; a genuine internal error (e.g.
+         * MEMORY_E) is propagated so it is not masked as a bad signature. */
+        if (v > 0) {
+            if (info->pk.rsa_pss_verify.res != NULL)
+                *info->pk.rsa_pss_verify.res = 1;
+            return 0;
+        }
+        if (v == WC_NO_ERR_TRACE(BAD_PADDING_E) ||
+                v == WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+            if (info->pk.rsa_pss_verify.res != NULL)
+                *info->pk.rsa_pss_verify.res = 0;
+            return 0;
+        }
+        return v;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+int test_wc_CryptoCb_RsaPssVerify(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+    defined(WC_RSA_PSS) && !defined(NO_RSA) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_SHA256)
+    int    devId = 4470;
+    int    pssVerifySeen = 0;
+    WC_RNG rng;
+    byte   digest[WC_SHA256_DIGEST_SIZE];
+    word32 sigLen = 0;
+    int    r;
+    WC_DECLARE_VAR(key, RsaKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, 512, HEAP_HINT);
+    WC_DECLARE_VAR(rec, byte, 512, HEAP_HINT);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(digest, 0x2b, sizeof(digest));
+
+    WC_ALLOC_VAR(key, RsaKey, 1, HEAP_HINT);
+    WC_ALLOC_VAR(sig, byte, 512, HEAP_HINT);
+    WC_ALLOC_VAR(rec, byte, 512, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(key);
+    ExpectNotNull(sig);
+    ExpectNotNull(rec);
+#endif
+    if (WC_VAR_OK(sig)) {
+        XMEMSET(sig, 0, 512);
+    }
+    if (WC_VAR_OK(rec)) {
+        XMEMSET(rec, 0, 512);
+    }
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, rsa_pss_test_crypto_cb,
+                                           &pssVerifySeen), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitRsaKey_ex(key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_MakeRsaKey(key, 2048, WC_RSA_EXPONENT, &rng), 0);
+    ExpectIntEQ(wc_RsaSetRNG(key, &rng), 0);
+
+    /* PSS sign runs in software (device declines). */
+    ExpectIntGT(sigLen = (word32)wc_RsaPSS_Sign(digest,
+        (word32)sizeof(digest), sig, 512, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+        key, &rng), 0);
+
+    /* Positive: verify routes through the device and succeeds. */
+    pssVerifySeen = 0;
+    ExpectIntGT(r = wc_RsaPSS_VerifyCheck(sig, sigLen, rec, 512, digest,
+        (word32)sizeof(digest), WC_HASH_TYPE_SHA256, WC_MGF1SHA256, key), 0);
+    ExpectIntGE(pssVerifySeen, 1);
+
+    /* Positive: the inline variant also routes through the device; *out is NULL
+     * on that path.  Use a copy of the sig since inline 'in' is reused as out. */
+    if (WC_VAR_OK(sig) && WC_VAR_OK(rec)) {
+        byte* inlineOut = rec; /* non-NULL sentinel, must be cleared to NULL */
+        XMEMCPY(rec, sig, sigLen);
+        pssVerifySeen = 0;
+        ExpectIntGT(wc_RsaPSS_VerifyCheckInline(rec, sigLen, &inlineOut, digest,
+            (word32)sizeof(digest), WC_HASH_TYPE_SHA256, WC_MGF1SHA256, key), 0);
+        ExpectIntGE(pssVerifySeen, 1);
+        ExpectNull(inlineOut);
+    }
+
+    /* Negative: corrupt the signature; the device sets res=0 so VerifyCheck
+     * returns SIG_VERIFY_E (<= 0). */
+    if (WC_VAR_OK(sig)) {
+        sig[0] ^= 0xFF;
+    }
+    pssVerifySeen = 0;
+    ExpectIntLE(wc_RsaPSS_VerifyCheck(sig, sigLen, rec, 512, digest,
+        (word32)sizeof(digest), WC_HASH_TYPE_SHA256, WC_MGF1SHA256, key), 0);
+    ExpectIntGE(pssVerifySeen, 1);
+
+    DoExpectIntEQ(wc_FreeRsaKey(key), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+
+    WC_FREE_VAR(rec, HEAP_HINT);
+    WC_FREE_VAR(sig, HEAP_HINT);
+    WC_FREE_VAR(key, HEAP_HINT);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_CryptoCb_RsaPssVerify */
