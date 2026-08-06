@@ -133,6 +133,14 @@
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
+/* The DER encode/decode entry points exist only with ASN.1 support and the
+ * export/private-key options they each need (dilithium.h). Where they are not
+ * built, the sweeps below cover the raw import/export paths instead. */
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+    #define WB_MLDSA_ASN1
+#endif
+
 #if !defined(WOLFSSL_HAVE_MLDSA)
 
 int main(void)
@@ -248,6 +256,7 @@ static void sweep_export(wc_MlDsaKey* key)
         mcdc_fa_arm(n);
         (void)wc_MlDsaKey_ExportPrivRaw(key, s_privRaw, &l2);
         mcdc_fa_disarm();
+#ifdef WB_MLDSA_ASN1
         mcdc_fa_arm(n);
         (void)wc_MlDsaKey_PublicKeyToDer(key, s_pubDer, (word32)sizeof(s_pubDer),
             1);
@@ -256,6 +265,7 @@ static void sweep_export(wc_MlDsaKey* key)
         (void)wc_MlDsaKey_PrivateKeyToDer(key, s_privDer,
             (word32)sizeof(s_privDer));
         mcdc_fa_disarm();
+#endif
     }
 }
 
@@ -265,6 +275,10 @@ static void sweep_export(wc_MlDsaKey* key)
 static void sweep_decode(const byte* pubDer, word32 pubDerLen,
     const byte* privDer, word32 privDerLen)
 {
+#ifndef WB_MLDSA_ASN1
+    (void)pubDer; (void)pubDerLen; (void)privDer; (void)privDerLen;
+    WB_NOTE("ASN.1 key coding not built; decode sweep skipped");
+#else
     int n;
     for (n = 1; n <= K_DECODE; n++) {
         wc_MlDsaKey k;
@@ -285,6 +299,7 @@ static void sweep_decode(const byte* pubDer, word32 pubDerLen,
             wc_MlDsaKey_Free(&k);
         }
     }
+#endif /* WB_MLDSA_ASN1 */
 }
 #endif /* !MCDC_FA_UNAVAILABLE */
 
@@ -337,6 +352,7 @@ int main(int argc, char** argv)
         (void)wc_MlDsaKey_ExportPrivRaw(&key, s_privRaw, &l);
     }
 
+#ifdef WB_MLDSA_ASN1
     pubDerLen  = wc_MlDsaKey_PublicKeyToDer(&key, s_pubDer,
         (word32)sizeof(s_pubDer), 1);
     if (pubDerLen < 0) {
@@ -347,6 +363,8 @@ int main(int argc, char** argv)
     if (privDerLen < 0) {
         privDerLen = 0;
     }
+#endif
+#ifdef WB_MLDSA_ASN1
     /* one unarmed round trip through the decode paths for baseline coverage */
     if (pubDerLen > 0) {
         wc_MlDsaKey dk;
@@ -368,6 +386,7 @@ int main(int argc, char** argv)
             wc_MlDsaKey_Free(&dk);
         }
     }
+#endif
 
 #ifndef MCDC_FA_UNAVAILABLE
     if (do_probe) {
@@ -395,6 +414,7 @@ int main(int argc, char** argv)
         (void)wc_MlDsaKey_VerifyCtx(&key, s_sig, sigLen, NULL, 0, s_msg,
             (word32)sizeof(s_msg), &r);
         printf("  PROBE verify allocs  = %lu\n", mcdc_fa_count);
+#ifdef WB_MLDSA_ASN1
         if (pubDerLen > 0 &&
                 wc_MlDsaKey_Init(&pk, NULL, INVALID_DEVID) == 0) {
             word32 idx = 0;
@@ -417,6 +437,7 @@ int main(int argc, char** argv)
             mcdc_fa_disarm();
             wc_MlDsaKey_Free(&pk);
         }
+#endif /* WB_MLDSA_ASN1 */
         mcdc_fa_disarm();
         mcdc_fa_restore();
         wc_MlDsaKey_Free(&key);

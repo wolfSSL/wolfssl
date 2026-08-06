@@ -252,6 +252,10 @@ int main(int argc, char** argv)
     const char* only     = (do_sweep && argc > 1) ? argv[1] : NULL;
 #define WANT(s) (only == NULL || strcmp(only, (s)) == 0)
     WC_RNG   rng;
+
+    /* Unbuffered: if a fault-injected path dies, whatever ran so far must
+     * still be in the log. */
+    setvbuf(stdout, NULL, _IONBF, 0);
     RsaKey   key;
     byte     msg[32];
     byte     ct[WB_RSA_BYTES];
