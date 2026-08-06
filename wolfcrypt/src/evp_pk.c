@@ -55,6 +55,8 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     int prevSz = 0;
     int ret = 1;
 
+    (void)priv;
+
     /* Get or create the EVP PKEY object. */
     if (*out != NULL) {
         pkey = *out;
@@ -92,21 +94,12 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         }
     }
 
-    /* Release key data held from a previous decode when the caller reuses
-     * an EVP PKEY object. It may hold private key material. */
-    if (pkey->pkey.ptr != NULL) {
-        if (pkey->pkey_sz > 0) {
-            ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
-        }
-        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        pkey->pkey.ptr = NULL;
-    }
-
-    /* Set the size and allocate memory for key data to be copied into. */
+    /* Set the size and allocate memory for key data to be copied into.
+     * Heap hint and DYNAMIC_TYPE must match the frees of pkey.ptr. */
     pkey->pkey_sz = (int)memSz;
     if (memSz > 0) {
         pkey->pkey.ptr = (char*)XMALLOC((size_t)memSz, pkey->heap,
-            priv ? DYNAMIC_TYPE_PRIVATE_KEY : DYNAMIC_TYPE_PUBLIC_KEY);
+            DYNAMIC_TYPE_PUBLIC_KEY);
         if (pkey->pkey.ptr == NULL) {
             /* No encoding held - do not describe one. */
             pkey->pkey_sz = 0;
@@ -122,8 +115,7 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         if (prevSz > 0) {
             ForceZero(prevData, (word32)prevSz);
         }
-        XFREE(prevData, pkey->heap,
-            priv ? DYNAMIC_TYPE_PRIVATE_KEY : DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(prevData, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     }
     if (ret == 1) {
         /* Set key type passed in and return object. */
@@ -707,7 +699,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
         return NULL;
     }
 
-    pkey->pkey.ptr = (char*)XMALLOC(len, pkey->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    pkey->pkey.ptr = (char*)XMALLOC(len, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (pkey->pkey.ptr == NULL) {
         wolfSSL_EVP_PKEY_free(pkey);
         return NULL;

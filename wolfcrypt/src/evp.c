@@ -9425,6 +9425,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
                     ForceZero(keyBuf, (word32)keySz);
                     XFREE(keyBuf, pkey->heap, DYNAMIC_TYPE_DER);
                     pkey->pkey.ptr = (char*)derBuf;
+                    pkey->pkey_sz  = (int)pkcs8Sz;
                 }
                 else {
                     /* The encoding is abandoned but keyBuf stays on the pkey,
