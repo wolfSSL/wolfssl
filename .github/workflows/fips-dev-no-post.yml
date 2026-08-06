@@ -48,8 +48,11 @@ jobs:
     name: build library/module
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 30
+    # Generous for a cold ccache; warm reruns finish in a fraction.  The
+    # wall is set by kernel-settings-all-pqc-asm, the one config no other
+    # thread can overlap once the rest are done: it alone has been measured
+    # at 23 min on a cold cache, against a 23 min job total.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -101,23 +104,23 @@ jobs:
                                   "--with-linux-source=/lib/modules/$(uname -r)/build",
                                   "EXTRA_CPPFLAGS=-Werror"]},
            "configs": [
-          {"name": "default", "minutes": 7,
+          {"name": "default", "minutes": 6,
            "configure": ["CPPFLAGS=-pedantic"]},
-          {"name": "all-asm-sp", "minutes": 7,
+          {"name": "all-asm-sp", "minutes": 2.5,
            "configure": ["CPPFLAGS=-pedantic", "--enable-all-asm", "--enable-sp"]},
-          {"name": "all", "minutes": 16,
+          {"name": "all", "minutes": 6,
            "configure": ["CPPFLAGS=-pedantic", "--enable-all"]},
-          {"name": "all-nodh-extiv", "minutes": 16,
+          {"name": "all-nodh-extiv", "minutes": 6,
            "comment": "DH out of the boundary in v7; one-shot AES-GCM ext IV allowed",
            "configure": ["--enable-all", "--disable-dh",
             "CPPFLAGS=-pedantic -DWC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED -DWC_FIPS_AESGCM_NO_SHORT_NONCES"]},
-          {"name": "all-pqc-asm-fallback-fuzzer", "minutes": 22,
+          {"name": "all-pqc-asm-fallback-fuzzer", "minutes": 8,
            "configure": ["--enable-all", "--enable-sp", "--enable-experimental", "--enable-all-quantum-crypto",
             "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]},
-          {"name": "kernel-settings", "minutes": 8,
+          {"name": "kernel-settings", "minutes": 9.5,
            "configure": ["--enable-kernel-settings", "--enable-dh",
             "CPPFLAGS=-pedantic"]},
-          {"name": "kernel-settings-all-pqc-asm", "minutes": 22,
+          {"name": "kernel-settings-all-pqc-asm", "minutes": 17,
            "configure": ["--enable-kernel-settings", "--enable-all", "--enable-experimental", "--enable-all-quantum-crypto",
             "--enable-all-asm", "--enable-sp",
             "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
