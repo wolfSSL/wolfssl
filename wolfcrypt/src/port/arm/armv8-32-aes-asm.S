@@ -26670,6 +26670,7 @@ L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte:
 	strb	lr, [r1], #1
 	bne	L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte
 L_aes_gcm_encrypt_arm32_crypto_192_out_end_bytes:
+	sub	r9, r9, r11
 L_aes_gcm_encrypt_arm32_crypto_192_partial_done:
 	# Finish
 	add	r8, r2, #15
@@ -26922,6 +26923,7 @@ L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte:
 	strb	lr, [r1], #1
 	bne	L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte
 L_aes_gcm_encrypt_arm32_crypto_256_out_end_bytes:
+	sub	r9, r9, r11
 L_aes_gcm_encrypt_arm32_crypto_256_partial_done:
 	# Finish
 	add	r8, r2, #15
@@ -27133,6 +27135,7 @@ L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte:
 	strb	lr, [r1], #1
 	bne	L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte
 L_aes_gcm_encrypt_arm32_crypto_128_out_end_bytes:
+	sub	r9, r9, r11
 L_aes_gcm_encrypt_arm32_crypto_128_partial_done:
 	# Finish
 	add	r8, r2, #15
@@ -28624,6 +28627,7 @@ L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte:
 	strb	lr, [r1], #1
 	bne	L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte
 L_aes_gcm_decrypt_arm32_crypto_192_out_end_bytes:
+	sub	r9, r9, r11
 L_aes_gcm_decrypt_arm32_crypto_192_partial_done:
 	# Finish
 	add	r8, r2, #15
@@ -28876,6 +28880,7 @@ L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte:
 	strb	lr, [r1], #1
 	bne	L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte
 L_aes_gcm_decrypt_arm32_crypto_256_out_end_bytes:
+	sub	r9, r9, r11
 L_aes_gcm_decrypt_arm32_crypto_256_partial_done:
 	# Finish
 	add	r8, r2, #15
@@ -29087,6 +29092,7 @@ L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte:
 	strb	lr, [r1], #1
 	bne	L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte
 L_aes_gcm_decrypt_arm32_crypto_128_out_end_bytes:
+	sub	r9, r9, r11
 L_aes_gcm_decrypt_arm32_crypto_128_partial_done:
 	# Finish
 	add	r8, r2, #15
