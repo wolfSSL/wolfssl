@@ -1501,12 +1501,8 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
         }
     }
 
-    /* Dispose of any WOLFSSL_EVP_PKEY passed in. */
-    if (out != NULL && *out != NULL) {
-        wolfSSL_EVP_PKEY_free(*out);
-        *out = NULL;
-    }
-    /* Create a new WOLFSSL_EVP_PKEY and populate. */
+    /* Create a new WOLFSSL_EVP_PKEY and populate. Any WOLFSSL_EVP_PKEY
+     * passed in is replaced only on success. */
     local = wolfSSL_EVP_PKEY_new();
     if (local == NULL) {
         return NULL;
@@ -1631,6 +1627,8 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             *in += local->pkey_sz;
         }
         if (out != NULL) {
+            /* Dispose of any WOLFSSL_EVP_PKEY passed in. */
+            wolfSSL_EVP_PKEY_free(*out);
             *out = local;
         }
     }

@@ -679,6 +679,34 @@ int test_wolfSSL_PEM_PrivateKey_mldsa(void)
         }
         BIO_free(bio);
         bio = NULL;
+
+        /* A failed read into the same pointer must leave the held key
+         * untouched, not freed (the caller would otherwise be left with
+         * a dangling pointer and a later double free). */
+        {
+            static const char badPem[] =
+                "-----BEGIN PRIVATE KEY-----\n"
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n"
+                "-----END PRIVATE KEY-----\n";
+            static const unsigned char junk[8] =
+                { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
+            const unsigned char* jp = junk;
+
+            ExpectNull(wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, &pkey,
+                &jp, (long)sizeof(junk)));
+            ExpectNotNull(pkey);
+            ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+
+            ExpectNotNull(bio = BIO_new_mem_buf(badPem,
+                (int)sizeof(badPem) - 1));
+            ExpectNull(wolfSSL_PEM_read_bio_PrivateKey(bio, &pkey, NULL,
+                NULL));
+            ExpectNotNull(pkey);
+            ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+            BIO_free(bio);
+            bio = NULL;
+        }
+
         EVP_PKEY_free(pkey);
         pkey = NULL;
     }
