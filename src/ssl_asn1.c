@@ -1786,7 +1786,7 @@ int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
     }
 
     /* Get length from DER encoding. */
-    if ((!err) && (GetLength_ex(a->data, &idx, &len, a->dataMax, 0) < 0)) {
+    if ((!err) && (GetLength_ex(a->data, &idx, &len, a->dataMax, 1) < 0)) {
         err = 1;
     }
 
