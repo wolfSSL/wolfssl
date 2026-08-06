@@ -4089,6 +4089,86 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_add0_add1_chain_cert_increments_count(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    const char*  chainCerts[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        "./certs/ca-cert.pem",
+        NULL
+    };
+    const char** cert;
+    WOLFSSL_X509* x509 = NULL;
+    int expectedCnt = 0;
+    int refCnt = 0;
+    int added = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/client-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(added = SSL_add0_chain_cert(ssl, x509), 1);
+    /* add0 takes ownership only on success. */
+    if (added == 1) {
+        x509 = NULL;
+    }
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    /* Leaf -> ssl->buffers.certificate, not chain. certChainCnt unchanged. */
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->buffers.certChainCnt, 0);
+    }
+    for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
+        added = 0;
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(added = SSL_add0_chain_cert(ssl, x509), 1);
+        if (added == 1) {
+            x509 = NULL;
+            expectedCnt++;
+        }
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+        if (ssl != NULL) {
+            ExpectIntEQ(ssl->buffers.certChainCnt, expectedCnt);
+        }
+    }
+
+    /* add1 funnels through add0 but takes its own reference: the caller keeps
+     * ownership of its X509 and must free it. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/client-cert.pem", WOLFSSL_FILETYPE_PEM));
+    if (x509 != NULL) {
+        refCnt = (int)wolfSSL_RefCur(x509->ref);
+    }
+    ExpectIntEQ(added = SSL_add1_chain_cert(ssl, x509), 1);
+    if (added == 1) {
+        expectedCnt++;
+    }
+    if (x509 != NULL) {
+        ExpectIntEQ((int)wolfSSL_RefCur(x509->ref), refCnt + 1);
+    }
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->buffers.certChainCnt, expectedCnt);
+    }
+    /* Drop the caller's reference. SSL still owns one, so freeing the SSL
+     * below must not double free. */
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfssl_add_to_chain rejects sizes that would overflow word32.
  * ZD #21241 */
 static int test_wolfSSL_add_to_chain_overflow(void)
@@ -39104,6 +39184,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_pem_crl),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
+    TEST_DECL(test_wolfSSL_add0_add1_chain_cert_increments_count),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_max_depth),
