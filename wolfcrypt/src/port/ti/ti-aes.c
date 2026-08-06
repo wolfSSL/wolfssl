@@ -1057,6 +1057,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     if (aes == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(aes, 0, sizeof(Aes));
     aes->heap = heap;
     (void)devId;
 
