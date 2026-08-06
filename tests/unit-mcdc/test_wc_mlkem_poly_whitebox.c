@@ -380,10 +380,16 @@ static void wb_dispatch_rows(void)
           "all features, save refused  -> operand 1 false at every level" },
         { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2,               0,
           "no VBMI                     -> plain AVX512 arm" },
+        /* USE_INTEL_AVX512() is IS_INTEL_AVX512() && IS_INTEL_AVX512_BW()
+         * (cpuid.h), so those dispatches carry three conditions. Clearing BW
+         * alone is the only row that gives the middle operand a false side
+         * while the F bit above it is still true. */
+        { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512_BW, 0,
+          "AVX512 without BW           -> USE_INTEL_AVX512 operand 1 false" },
         { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512, 0,
           "no AVX512                   -> AVX2 arm" },
         { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512 |
-          CPUID_AVX2,                                            0,
+          CPUID_AVX512_BW | CPUID_AVX2,                          0,
           "no SIMD                     -> portable C arm" },
     };
 
