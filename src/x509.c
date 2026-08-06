@@ -13026,25 +13026,31 @@ cleanup:
     /* able to override max size until dynamic buffer created */
     #define WC_MAX_X509_GEN 4096
 #endif
-#ifdef WOLFSSL_HAVE_MLDSA
-    #ifndef WC_MAX_X509_GEN_MLDSA
-        /* Base size plus the largest compiled-in ML-DSA signature and its
-         * ASN.1 overhead; the subject key is added in X509_GEN_BUF_SZ(). */
-        #define WC_MAX_X509_GEN_MLDSA \
-            (WC_MAX_X509_GEN + MLDSA_MAX_SIG_SIZE + MAX_ALGO_SZ + \
-             MAX_SEQ_SZ * 2)
-    #endif
-    /* DER buffer size for certificate/CSR signing: chosen from the signing
-     * key type, plus the subject public key held in the x509 so that a
-     * large (e.g. ML-DSA) SPKI fits under a classic signing key too. */
-    #define X509_GEN_BUF_SZ(x509, pkey) \
-        ((((pkey) != NULL && (pkey)->type == WC_EVP_PKEY_DILITHIUM) ? \
-            WC_MAX_X509_GEN_MLDSA : WC_MAX_X509_GEN) + \
-            (int)(x509)->pubKey.length)
-#else
-    #define X509_GEN_BUF_SZ(x509, pkey) \
-        (WC_MAX_X509_GEN + (int)(x509)->pubKey.length)
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_MAX_X509_GEN_MLDSA)
+    /* Base size plus the largest compiled-in ML-DSA signature and its
+     * ASN.1 overhead; the subject key is added in x509_gen_buf_sz(). */
+    #define WC_MAX_X509_GEN_MLDSA \
+        (WC_MAX_X509_GEN + MLDSA_MAX_SIG_SIZE + MAX_ALGO_SZ + \
+         MAX_SEQ_SZ * 2)
 #endif
+
+/* DER buffer size for certificate/CSR signing: chosen from the signing
+ * key type, plus the subject public key held in the x509 so that a
+ * large (e.g. ML-DSA) SPKI fits under a classic signing key too. */
+static int x509_gen_buf_sz(const WOLFSSL_X509* x509,
+    const WOLFSSL_EVP_PKEY* pkey)
+{
+    int sz = WC_MAX_X509_GEN;
+
+#ifdef WOLFSSL_HAVE_MLDSA
+    if (pkey != NULL && pkey->type == WC_EVP_PKEY_DILITHIUM) {
+        sz = WC_MAX_X509_GEN_MLDSA;
+    }
+#else
+    (void)pkey;
+#endif
+    return sz + (int)x509->pubKey.length;
+}
 
 /* returns the size of signature on success */
 int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
@@ -13073,7 +13079,7 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         goto out;
     }
 
-    bufSz = X509_GEN_BUF_SZ(x509, pkey);
+    bufSz = x509_gen_buf_sz(x509, pkey);
     derSz = bufSz;
     der = (byte *)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -17050,7 +17056,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         return WOLFSSL_FAILURE;
     }
 
-    bufSz = X509_GEN_BUF_SZ(req, pkey);
+    bufSz = x509_gen_buf_sz(req, pkey);
     derSz = bufSz;
     der = (byte*)XMALLOC((size_t)bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
