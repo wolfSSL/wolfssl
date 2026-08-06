@@ -105,7 +105,11 @@ EXTRA_DIST += tests/unit.h \
               tests/freertos-mem-track-repro/FreeRTOS.h \
               tests/freertos-mem-track-repro/semphr.h \
               tests/freertos-mem-track-repro/task.h \
-              tests/freertos-mem-track-repro/run.sh
+              tests/freertos-mem-track-repro/run.sh \
+              tests/altera-fcs-stub/libfcs_osal_types.h \
+              tests/altera-fcs-stub/libfcs.h \
+              tests/altera-fcs-stub/libfcs_stub.c \
+              tests/altera-fcs-stub/fdt_stub.c
 DISTCLEANFILES+= tests/.libs/unit.test
 
 # MC/DC white-box coverage supplements (tests/unit-mcdc/).
