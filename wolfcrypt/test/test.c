@@ -16507,10 +16507,13 @@ static wc_test_ret_t aes_ecb_direct_test(void)
  * functions come from the validated module and don't reject a missing key, so
  * this test does not apply there. WOLF_CRYPTO_CB_FIND routes every call to the
  * callback regardless of devId, so the software guard is unreachable and the
- * callback rejects with its own error rather than MISSING_KEY. */
+ * callback rejects with its own error rather than MISSING_KEY.
+ * WOLFSSL_AES_REQUIRE_KEY_SET additionally excludes the backends that replace
+ * the mode entry points. */
 #if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_AES_ECB) || \
     defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB)) && \
+    defined(WOLFSSL_AES_REQUIRE_KEY_SET) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLF_CRYPTO_CB_FIND)
 #define WC_TEST_HAVE_AES_NO_KEY_SET

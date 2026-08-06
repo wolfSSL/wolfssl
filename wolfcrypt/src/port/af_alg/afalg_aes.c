@@ -60,7 +60,7 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
     byte* key = (byte*)aes->key;
 #endif
 
-    if (aes->keyInstalled == 0) {
+    if (!WC_AES_KEY_IS_SET(aes)) {
         return MISSING_KEY;
     }
 

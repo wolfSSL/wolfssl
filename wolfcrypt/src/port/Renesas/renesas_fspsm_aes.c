@@ -952,6 +952,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     aes->ctx.wrapped_key = (FSPSM_AES_PWKEY)userKey;
     aes->keylen = (int)keylen;
     aes->ctx.keySize = keylen;
+    aes->keyInstalled = 1;
 
     return wc_AesSetIV(aes, iv);
 }
