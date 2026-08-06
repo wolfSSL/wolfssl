@@ -20905,6 +20905,83 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
 }
 #endif /* OPENSSL_ALL || (WOLFSSL_ASIO && !NO_RSA) */
 
+/* Build gate for the hook + test so they can't drift: OPENSSL_EXTRA (compat
+ * BIO/RSA) + a d2i_RSAPrivateKey_bio profile + RSA/key-gen + swappable alloc.
+ * DEBUG_MEMORY excluded on purpose: the hook is single-arg only. */
+#if defined(OPENSSL_EXTRA) &&                                                 \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) ||                         \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)) &&                   \
+    !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) &&                           \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) &&             \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+    #define TEST_DER_CAP_MALLOC_HOOK
+#endif
+
+#ifdef TEST_DER_CAP_MALLOC_HOOK
+/* Refuses allocations >= der_cap_threshold; forwards the rest to the installed
+ * allocator (native if none) so the alloc triple stays consistent. */
+static wolfSSL_Malloc_cb der_cap_prev_malloc = NULL;
+static size_t der_cap_threshold = 0; /* 0 = disabled */
+static int    der_cap_attempts  = 0;
+
+static void* der_cap_malloc_cb(size_t size)
+{
+    if (der_cap_threshold != 0 && size >= der_cap_threshold) {
+        der_cap_attempts++;
+        return NULL; /* refuse; records the attempt */
+    }
+    if (der_cap_prev_malloc != NULL)
+        return der_cap_prev_malloc(size);
+    return malloc(size);
+}
+#endif /* TEST_DER_CAP_MALLOC_HOOK */
+
+/* Oversized-DER cap must reject before allocating. NULL alone doesn't prove it
+ * (uncapped returns NULL too), so assert no large alloc was attempted. */
+static int test_wolfSSL_d2i_RSAPrivateKey_bio_oversized(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DER_CAP_MALLOC_HOOK
+    /* SEQUENCE, canonical 4-byte length 0x01000000 (16 MB), over the cap.
+     * Must be canonical -- 0x00FFFFFF is rejected by the parser first. */
+    static const unsigned char hugeSeq[] =
+        { 0x30, 0x84, 0x01, 0x00, 0x00, 0x00 };
+    BIO* bio = NULL;
+    RSA* rsa = NULL;
+    wolfSSL_Malloc_cb  prev_mc = NULL;
+    wolfSSL_Free_cb    prev_fc = NULL;
+    wolfSSL_Realloc_cb prev_rc = NULL;
+    int allocators_set = 0;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &prev_fc, &prev_rc), 0);
+    der_cap_prev_malloc = prev_mc;
+    /* Override only malloc; keep the installed free/realloc. */
+    ExpectIntEQ(wolfSSL_SetAllocators(der_cap_malloc_cb, prev_fc, prev_rc), 0);
+    if (EXPECT_SUCCESS())
+        allocators_set = 1;
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, hugeSeq, (int)sizeof(hugeSeq)), 0);
+
+    der_cap_attempts = 0;
+    der_cap_threshold = 0x10000;
+    ExpectNull(d2i_RSAPrivateKey_bio(bio, &rsa));
+    der_cap_threshold = 0;
+
+    ExpectIntEQ(der_cap_attempts, 0);
+
+    BIO_free(bio);
+    RSA_free(rsa);
+
+    if (allocators_set)
+        (void)wolfSSL_SetAllocators(prev_mc, prev_fc, prev_rc);
+    der_cap_prev_malloc = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+#undef TEST_DER_CAP_MALLOC_HOOK
+
 #endif /* !NO_BIO */
 
 
@@ -38867,6 +38944,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_d2i_PrivateKeys_bio),
 #endif /* !NO_BIO */
 #endif
+#ifndef NO_BIO
+    TEST_DECL(test_wolfSSL_d2i_RSAPrivateKey_bio_oversized),
+#endif /* !NO_BIO */
 
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)

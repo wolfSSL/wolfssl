@@ -2165,13 +2165,37 @@ void AddSession(WOLFSSL* ssl)
         if (ssl->rng != NULL)
             rng = ssl->rng;
 #if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
-        else if (initGlobalRNG == 1 || wolfSSL_RAND_Init() == WOLFSSL_SUCCESS) {
+        else if (initGlobalRNG == 1 ||
+                 wolfSSL_RAND_Init() == WOLFSSL_SUCCESS) {
             rng = &globalRNG;
+        }
+        if (rng == &globalRNG) {
+            if (wc_LockMutex(&globalRNGMutex) != 0) {
+                WOLFSSL_MSG("Bad Lock Mutex rng");
+                return;
+            }
+            /* The above access requires initGlobalRNG recheck now
+             * that we have the lock. */
+            if (initGlobalRNG == 0) {
+                wc_UnLockMutex(&globalRNGMutex);
+                return;
+            }
         }
 #endif
         if (wc_RNG_GenerateBlock(rng, ssl->session->altSessionID,
-                ID_LEN) != 0)
+                ID_LEN) != 0) {
+#if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
+            if (rng == &globalRNG) {
+                wc_UnLockMutex(&globalRNGMutex);
+            }
+#endif
             return;
+        }
+#if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
+        if (rng == &globalRNG) {
+            wc_UnLockMutex(&globalRNGMutex);
+        }
+#endif
         ssl->session->haveAltSessionID = 1;
         id = ssl->session->altSessionID;
         idSz = ID_LEN;
